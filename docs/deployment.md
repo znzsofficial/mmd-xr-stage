@@ -20,7 +20,7 @@ wrangler 检测到命令由 AI 代理执行时，以下操作会被**委托成 W
 - `pages project create --production-branch <name>`（全新项目）
 - 对**全新项目**的 `pages deploy`（4.130 起门槛从账户级放宽为项目级）
 
-向导会改写 `package.json`（deploy 脚本换成 `wrangler deploy`）、新增 `wrangler.jsonc`、安装 wrangler devDependency。mmd-xr-stage 建站时已踩过一次并完整还原。
+向导会改写 `package.json`（deploy 脚本换成 `wrangler deploy`）、新增 `wrangler.jsonc`、安装 wrangler devDependency。mmd-xr-stage 建站时已踩过一次：本地污染已还原，但向导**同时在远端创建并部署了一个同名 Worker**（2026-09-14 的过期快照），当日已用 `wrangler delete --name mmd-xr-stage` 删除，仅保留经典 Pages 项目。
 
 **规避方式（任选）：**
 
