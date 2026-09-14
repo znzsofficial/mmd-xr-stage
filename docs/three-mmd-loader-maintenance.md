@@ -324,6 +324,14 @@ git push fork main
 - 官方包仍没有 `debugPhysicsContactsForRigidBodyRange()`（已核对 0.8.3 发布包），因此 patch 只保留这一项 JS 过滤；patch 触及的 physics 文件在 0.8.2 与 0.8.3 间上下文一致，仅重命名沿用。
 - 上游若发布带 range query 的新版本，再删除 `patchedDependencies` 条目和 `patches/@yohawing__three-mmd-loader@0.8.3.patch`。
 
+### 本地 clone 同步（2026-09-14）
+
+- clone 的 `main` 已从 v0.8.1 ff-only 同步到 upstream 0.8.3（`2963eb8`）并推送 fork；submodule 跟进 mmd-anim v0.5.1（`4f4b1f8`）。
+- `feat/bullet-contact-range-query` 已 rebase 到新 main（rebase 自动跳过上游已有的 dynamic-with-bone 提交，仅余 range query 单提交 `689d183`），经用户批准 `--force-with-lease` 强推 fork。与重构后的 main 无冲突，`npm test` 773 通过。
+- 暂不向上游发 PR（用户决定）；已合并的 #38/#40 分支按保留策略暂留。
+- 本机无 Rust/wasm-pack，`artifacts/mmd-anim/runtime/` 与 `src/parser/wasm/generated/` 的本地生成物从已安装的 0.8.3 包（同 mmd-anim v0.5.1 ABI）复制填充；切分支/rebase 后若 wasm 测试报 missing，按此重新填充即可。
+- 核对结论：上游 0.8.3 仍无 range query（patch 必要）；`self-shadow-pass.ts` 仍导入 `three/tsl` 的 `getShadowMaterial`（r186 兼容 shim 必要）。
+
 ### 新版本发布后
 
 1. 确认 release/npm 包是否包含 rigid-body range contact 查询。
