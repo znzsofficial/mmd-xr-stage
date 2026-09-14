@@ -4,6 +4,7 @@
 |------|------|
 | [mmd-vr-showcase-roadmap.md](./mmd-vr-showcase-roadmap.md) | VR 展示器路线图（优先） |
 | [three-mmd-loader-maintenance.md](./three-mmd-loader-maintenance.md) | three-mmd-loader 本地补丁、根因与升级收尾步骤 |
+| [deployment.md](./deployment.md) | Pages 部署路径与 wrangler ≥4.130 代理委托坑 |
 | [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md) | Bullet 运行时第三方声明 |
 
 ## 快速约定

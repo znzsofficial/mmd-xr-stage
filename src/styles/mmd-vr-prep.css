@@ -109,6 +109,10 @@
   box-shadow: 0 0 0 5px color-mix(in oklab, var(--os-primary) 16%, transparent);
 }
 .mmd-vr-prep-signal span.is-busy { animation: mmd-vr-prep-pulse 1.3s ease-in-out infinite; }
+.mmd-vr-prep-signal.is-error { color: #c4453f; }
+.mmd-vr-prep-signal.is-error span { background: #c4453f; box-shadow: 0 0 0 5px color-mix(in oklab, #c4453f 16%, transparent); }
+.mmd-vr-prep-signal.is-pending { color: var(--os-subtle); }
+.mmd-vr-prep-signal.is-pending span { background: var(--os-subtle); box-shadow: 0 0 0 5px color-mix(in oklab, var(--os-subtle) 16%, transparent); }
 @keyframes mmd-vr-prep-pulse { 50% { opacity: .35; transform: scale(.8); } }
 .mmd-vr-prep-brandmark {
   width: 52px;

@@ -11,6 +11,7 @@ import {
   relativePath,
 } from "../mmdImport/folderFiles";
 import { useNotificationStore } from "../notificationStore";
+import { getXrSystem } from "../xr";
 import { MmdVrOverlay } from "./MmdVrOverlay";
 import { MMD_VR_MAX_MODELS, MMD_VR_MAX_OBJECTS, type MmdVrAssetSlot } from "./mmdVrAssets";
 import { formatMmdVrProfileSummary, getMmdVrRenderProfile } from "./mmdVrQuality";
@@ -47,6 +48,8 @@ function OptionGroup<T extends string>({
 
 type QuestPreset = "safe" | "balanced" | "clarity" | "custom";
 
+type XrReadiness = "checking" | "ready" | "unverified" | "insecure" | "no-xr";
+
 function mergeImportedFiles(prev: readonly File[], next: readonly File[]): File[] {
   const byPath = new Map<string, File>();
   for (const file of prev) byPath.set(relativePath(file), file);
@@ -75,6 +78,7 @@ export function MmdVrPrepApp() {
   const folderInputRef = useRef<HTMLInputElement | null>(null);
   const importGenerationRef = useRef(0);
   const [files, setFiles] = useState<File[]>([]);
+  const [readiness, setReadiness] = useState<XrReadiness>("checking");
   const [selectedPaths, setSelectedPaths] = useState<string[]>([]);
   const [selectedObjectPaths, setSelectedObjectPaths] = useState<string[]>([]);
   const [bodyMotionPath, setBodyMotionPath] = useState("");
@@ -114,6 +118,29 @@ export function MmdVrPrepApp() {
     if (!input) return;
     input.setAttribute("webkitdirectory", "");
     input.setAttribute("directory", "");
+  }, []);
+
+  useEffect(() => {
+    if (!window.isSecureContext) {
+      setReadiness("insecure");
+      return;
+    }
+    const xr = getXrSystem();
+    if (!xr) {
+      setReadiness("no-xr");
+      return;
+    }
+    let cancelled = false;
+    xr.isSessionSupported("immersive-vr")
+      .then((supported) => {
+        if (!cancelled) setReadiness(supported ? "ready" : "unverified");
+      })
+      .catch(() => {
+        if (!cancelled) setReadiness("unverified");
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   function ingest(nextFiles: File[]) {
@@ -221,9 +248,17 @@ export function MmdVrPrepApp() {
               <span>{t("mmdVrPrepStatusLabel")}</span>
               <Icon icon="solar:shield-check-bold-duotone" width={18} height={18} />
             </div>
-            <div className="mmd-vr-prep-signal">
+            <div className={`mmd-vr-prep-signal${readiness === "insecure" || readiness === "no-xr" ? " is-error" : readiness === "unverified" || readiness === "checking" ? " is-pending" : ""}`}>
               <span className={phase === "entering" ? "is-busy" : ""} />
-              {phase === "entering" ? t("mmdVrPrepEntering") : t("mmdVrPrepReady")}
+              {phase === "entering"
+                ? t("mmdVrPrepEntering")
+                : readiness === "insecure"
+                  ? t("mmdVrPrepInsecureContext")
+                  : readiness === "no-xr"
+                    ? t("mmdVrPrepXrMissing")
+                    : readiness === "ready"
+                      ? t("mmdVrPrepReady")
+                      : t("mmdVrPrepReadyPending")}
             </div>
             <div className="mmd-vr-prep-steps">
               <span className={files.length ? "is-complete" : "is-current"}><b>1</b>{t("mmdVrPrepStepImport")}</span>
