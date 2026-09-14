@@ -13,7 +13,7 @@
 
 </div>
 
-MMD XR Stage is a single-purpose VR showcase for user-provided MMD (MikuMikuDance) content: drop in PMX/PMD models, VMD motions, and audio on the prep page, then enter immersive VR on a Quest headset. The prep page is the site root — there is no desktop shell, account system, or second product surface.
+MMD XR Stage is a single-purpose VR showcase for user-provided MMD (MikuMikuDance) content: drop in PMX/PMD models, VMD motions, and audio on the prep page, then enter immersive VR on a Quest headset.
 
 ## Features
 
@@ -73,7 +73,7 @@ Preferences and session settings are stored locally via `localStorage`. Clearing
 
 ## Deployment
 
-The production build is written to `dist` and deployed to the `mmd-xr-stage` Cloudflare Pages project (<https://mmd-xr-stage.pages.dev>) via `pnpm deploy`. Classic Pages is intentional here; see [docs/deployment.md](./docs/deployment.md) for the wrangler ≥4.130 delegation caveat before creating new Pages projects with an AI agent.
+The production build is written to `dist` and deployed to the `mmd-xr-stage` Cloudflare Pages project (<https://mmd-xr-stage.pages.dev>) via `pnpm deploy`. See [docs/deployment.md](./docs/deployment.md) for deployment notes and wrangler caveats.
 
 ## Licensing
 
