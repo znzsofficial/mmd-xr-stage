@@ -1,0 +1,128 @@
+/* Files app */
+
+.files-app.app-grid {
+  grid-template-columns: 156px minmax(0, 1fr) 6px var(--files-details-width, 250px);
+}
+.files-details-handle {
+  position: relative;
+  z-index: 2;
+  width: 6px;
+  margin: 0 -1px;
+  align-self: stretch;
+  cursor: ew-resize;
+  touch-action: none;
+  user-select: none;
+  outline: none;
+  background: transparent;
+}
+.files-details-handle::after {
+  position: absolute;
+  top: 18%;
+  bottom: 18%;
+  left: 50%;
+  width: 2px;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--os-border-strong) 78%, transparent);
+  content: "";
+  transform: translateX(-50%);
+  transition: background 120ms ease, box-shadow 120ms ease;
+}
+.files-details-handle:focus-visible::after {
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--os-primary) 35%, transparent);
+}
+
+.file-list {
+  overflow: hidden;
+  border: 1px solid var(--os-border);
+  border-radius: 12px;
+}
+.file-list.is-drag-target {
+  border-color: var(--os-primary);
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--os-primary) 52%, transparent);
+}
+.file-list.is-invalid-drag-target {
+  border-color: var(--os-coral);
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--os-coral) 52%, transparent);
+}
+.files-details-handle:hover::after,
+.files-details-handle:focus-visible::after,
+body.files-resizing-details .files-details-handle::after {
+  background: color-mix(in oklch, var(--os-primary) 72%, transparent);
+}
+body.files-resizing-details,
+body.files-resizing-details * {
+  cursor: ew-resize !important;
+  user-select: none !important;
+}
+.file-row {
+  display: grid;
+  width: 100%;
+  height: 42px;
+  align-items: center;
+  grid-template-columns: 30px minmax(120px, 1fr) 150px 72px;
+  gap: 8px;
+  border-bottom: 1px solid var(--os-border);
+  background: transparent;
+  color: var(--os-muted);
+  cursor: pointer;
+  padding: 0 12px;
+  text-align: left;
+  user-select: none;
+}
+.file-row > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.file-row-icon {
+  color: var(--os-muted);
+}
+.file-row-icon.tone-folder {
+  color: var(--os-primary);
+}
+.file-row-icon.tone-markdown {
+  color: var(--os-lilac);
+}
+.file-row-icon.tone-data {
+  color: var(--os-coral);
+}
+.file-row-icon.tone-text {
+  color: var(--os-accent);
+}
+.file-row-icon.tone-generic {
+  color: color-mix(in oklch, var(--os-accent) 62%, var(--os-muted));
+}
+.file-row:focus-visible {
+  outline: 1px solid var(--os-border-strong);
+  outline-offset: -2px;
+}
+.file-row:last-child {
+  border-bottom: 0;
+}
+.file-row:hover,
+.file-row.is-selected {
+  background: var(--os-surface);
+}
+.file-row.is-selected {
+  color: var(--os-ink);
+  background: var(--os-primary-soft);
+}
+.file-row.is-selected .file-name {
+  color: var(--os-ink);
+}
+.file-row.is-multi-selected {
+  box-shadow: inset 3px 0 0 var(--os-primary);
+}
+.file-row.is-drag-target {
+  color: var(--os-ink);
+  background: color-mix(in oklch, var(--os-primary-soft) 72%, var(--os-surface));
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--os-primary) 36%, transparent);
+}
+.file-row.is-invalid-drag-target {
+  color: var(--os-ink);
+  background: color-mix(in oklch, var(--os-coral) 14%, var(--os-surface));
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--os-coral) 46%, transparent);
+}
+.file-row-new {
+  background: var(--os-selection);
+}

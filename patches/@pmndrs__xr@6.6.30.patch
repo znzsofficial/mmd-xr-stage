@@ -1,0 +1,24 @@
+diff --git a/dist/input.js b/dist/input.js
+--- a/dist/input.js
++++ b/dist/input.js
+@@ -30,6 +30,7 @@ export function createSyncXRInputSourceStates(addController, options) {
+             for (const cleanup of cleanupMap.values()) {
+                 cleanup();
+             }
++            cleanupMap.clear();
+             return current;
+         }
+         const target = [...current];
+@@ -37,10 +38,9 @@ export function createSyncXRInputSourceStates(addController, options) {
+             if (removed != null) {
+                 for (const inputSource of removed) {
+                     const index = target.findIndex(({ inputSource: is, isPrimary: ip }) => ip === isPrimary && is === inputSource);
+-                    if (index === -1) {
+-                        continue;
++                    if (index !== -1) {
++                        target.splice(index, 1);
+                     }
+-                    target.splice(index, 1);
+                     cleanupMap.get(inputSource)?.();
+                     cleanupMap.delete(inputSource);
+                 }

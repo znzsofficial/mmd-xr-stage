@@ -1,0 +1,6 @@
+minimumReleaseAgeExclude:
+  - '@yohawing/three-mmd-loader@0.8.3'
+  - nanoid@6.0.1
+patchedDependencies:
+  '@pmndrs/xr@6.6.30': patches/@pmndrs__xr@6.6.30.patch
+  '@yohawing/three-mmd-loader@0.8.3': patches/@yohawing__three-mmd-loader@0.8.3.patch

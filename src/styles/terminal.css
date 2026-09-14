@@ -1,0 +1,98 @@
+/* Terminal app */
+
+.terminal-app {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+  flex-direction: column;
+  background: var(--os-surface);
+  color: var(--os-ink);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 14px;
+}
+.terminal-lines {
+  flex: 1;
+  overflow: auto;
+}
+.terminal-app p {
+  margin: 0 0 4px;
+  white-space: pre-wrap;
+}
+.terminal-app span {
+  color: var(--os-accent);
+}
+.terminal-prompt-line {
+  color: var(--os-ink);
+}
+.terminal-input-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.terminal-input-shell {
+  position: relative;
+  min-width: 0;
+  flex: 1;
+}
+.terminal-input-line input {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--os-ink);
+  caret-color: var(--os-accent);
+  outline: none;
+}
+.terminal-input-line input::placeholder {
+  color: var(--os-subtle);
+}
+.terminal-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--os-subtle);
+  font-size: 11px;
+  margin-top: 8px;
+}
+.terminal-suggestions {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--os-border-strong);
+  border-radius: 10px;
+  background: var(--os-panel);
+  box-shadow: 0 10px 24px oklch(0 0 0 / 0.2);
+  overflow: hidden;
+}
+.terminal-suggestions button {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--os-muted);
+  cursor: pointer;
+  font: inherit;
+  padding: 6px 10px;
+  text-align: left;
+}
+.terminal-suggestions button:hover,
+.terminal-suggestions button.is-selected {
+  background: var(--os-primary-soft);
+  color: var(--os-ink);
+}
+.terminal-cursor::after {
+  display: inline-block;
+  width: 7px;
+  height: 14px;
+  margin-left: 6px;
+  background: var(--os-accent);
+  content: "";
+  vertical-align: -2px;
+}
