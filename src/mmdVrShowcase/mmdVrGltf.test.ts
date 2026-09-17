@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createGltfResourceMapper, normalizeGltfResourcePath } from "./mmdVrGltf";
+import { createGltfResourceMapper, createMmdVrGltfLoader, normalizeGltfResourcePath } from "./mmdVrGltf";
+import { withAssetPath } from "../mmdImport/assetPaths";
 
 describe("normalizeGltfResourcePath", () => {
   it("strips leading ./", () => {
@@ -23,6 +24,20 @@ describe("normalizeGltfResourcePath", () => {
 });
 
 describe("createGltfResourceMapper", () => {
+  it("isolates loading managers for two imported packages and resolves parent paths", () => {
+    const scene = (root: string) => withAssetPath(new File(["{}"], "scene.gltf"), `${root}/models/scene.gltf`, root);
+    const texture = (root: string) => withAssetPath(new File(["png"], "顔.png"), `${root}/textures/顔.png`, root);
+    const a = scene("a.zip"), b = scene("b.zip"), ta = texture("a.zip"), tb = texture("b.zip");
+    const first = createMmdVrGltfLoader(a, [a, b, ta, tb]);
+    const second = createMmdVrGltfLoader(b, [a, b, ta, tb]);
+    try {
+      expect(first.loader.manager).not.toBe(second.loader.manager);
+      expect(first.loader.resourcePath).toBe("./");
+      const requested = "../textures/%E9%A1%94.png";
+      expect(first.loader.manager.resolveURL(requested)).toMatch(/^blob:/);
+      expect(first.loader.manager.resolveURL(requested)).not.toBe(second.loader.manager.resolveURL(requested));
+    } finally { first.revoke(); second.revoke(); }
+  });
   const files = [
     { path: "scene/model.gltf", url: "blob:primary" },
     { path: "scene/model.bin", url: "blob:bin" },

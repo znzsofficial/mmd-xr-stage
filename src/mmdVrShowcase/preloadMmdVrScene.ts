@@ -1,4 +1,9 @@
-/** Warm the scene chunk after requestSession starts (do not await before requestSession). */
+let scenePromise: Promise<typeof import("./MmdVrScene")> | null = null;
+
+/** Share preload with the overlay; failed requests must be retryable. */
 export function preloadMmdVrScene() {
-  return import("./MmdVrScene");
+  return scenePromise ??= import("./MmdVrScene").catch((error) => {
+    scenePromise = null;
+    throw error;
+  });
 }

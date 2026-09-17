@@ -1,4 +1,6 @@
 import { create } from "zustand";
+import { emptyAssetLoadProgress, type AssetLoadProgress } from "./mmdAssetLoadQueue";
+import type { StageSnapshot } from "./stageSnapshot";
 import { createLocalPrefsStorage } from "../shared/localPrefs";
 import {
   normalizeImmersiveAntialias,
@@ -111,6 +113,16 @@ export const MMD_VR_PREFS_KEY = "neko-virt-os.mmd-vr-showcase.v2";
 export const MMD_VR_PREFS_LEGACY_KEY = "neko-virt-os.mmd-vr-showcase.v1";
 
 type MmdVrStore = {
+  savedStage: StageSnapshot | null;
+  resumeStage: StageSnapshot | null;
+  captureStage: (() => StageSnapshot | null) | null;
+  setStageCapture: (capture: (() => StageSnapshot | null) | null) => void;
+  prepareStage: (resume: boolean) => void;
+  entryEpoch: number;
+  assetLoad: AssetLoadProgress;
+  setAssetLoad: (progress: AssetLoadProgress) => void;
+  assetRetryEpoch: number;
+  retryFailedAssets: () => void;
   prefs: MmdVrPrefs;
   setPrefs: (patch: Partial<MmdVrPrefs>) => void;
   setHeightOffsetTransient: (heightOffset: number) => void;
@@ -352,6 +364,8 @@ const prefsStorage = createLocalPrefsStorage<MmdVrPrefs>({
 function sessionReset() {
   resetMmdVrClock();
   return {
+    assetLoad: emptyAssetLoadProgress(),
+    assetRetryEpoch: 0,
     playing: false,
     statusLine: null as string | null,
     physicsError: null as string | null,
@@ -387,6 +401,19 @@ function sessionReset() {
 const initialPrefs = prefsStorage.read();
 
 export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
+  savedStage: null,
+  resumeStage: null,
+  captureStage: null,
+  setStageCapture: (captureStage) => set({ captureStage }),
+  prepareStage: (resume) => set({ resumeStage: resume ? get().savedStage : null }),
+  assetLoad: emptyAssetLoadProgress(),
+  setAssetLoad: (assetLoad) => set({ assetLoad }),
+  assetRetryEpoch: 0,
+  retryFailedAssets: () => {
+    const { assetLoad, physicsBusy } = get();
+    if (assetLoad.running || !assetLoad.failures.length || physicsBusy) return;
+    set((state) => ({ assetRetryEpoch: state.assetRetryEpoch + 1, assetLoad: { ...state.assetLoad, running: true } }));
+  },
   prefs: initialPrefs,
   setPrefs: (patch) => {
     const prefs = { ...get().prefs, ...patch };
@@ -448,6 +475,7 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
     set((state) => ({
       prefs: { ...state.prefs, heightOffset: normalizeMmdVrHeightOffset(heightOffset) },
     })),
+  entryEpoch: 0,
   phase: "idle",
   errorMessage: null,
   lastError: null,
@@ -455,23 +483,36 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
   setPhase: (phase, errorMessage = null) => set({ phase, errorMessage }),
   overlayOpen: false,
   openOverlay: () => set((state) => ({
+    entryEpoch: state.entryEpoch + 1,
+    assetLoad: emptyAssetLoadProgress(),
+    assetRetryEpoch: 0,
     overlayOpen: true,
     errorMessage: null,
     lastError: null,
     physicsDebugEnabled: state.prefs.detailedPhysicsDiagnostics,
   })),
   closeOverlay: () => {
+    const current = get();
+    // A partial restore must never replace the last complete stage.
+    const complete = !current.assetLoad.running && current.assetLoad.failures.length === 0 && !current.physicsBusy;
+    const savedStage = (complete ? current.captureStage?.() : null) ?? current.savedStage;
     endMmdVrAssetSession();
     set({
+      savedStage,
+      captureStage: null,
+      resumeStage: null,
+      entryEpoch: get().entryEpoch + 1,
       overlayOpen: false,
       phase: "idle",
       errorMessage: null,
       ...sessionReset(),
+      assetLoad: { ...get().assetLoad, running: false },
     });
   },
   failEnter: (errorMessage = "enter_failed") => {
     endMmdVrAssetSession();
     set({
+      entryEpoch: get().entryEpoch + 1,
       overlayOpen: false,
       phase: "error",
       errorMessage,
@@ -480,12 +521,12 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
     });
   },
   markEntered: () =>
-    set({
+    set((state) => ({
       lastError: null,
       overlayOpen: true,
       errorMessage: null,
-      phase: "entering",
-    }),
+      phase: state.phase === "active" ? "active" : "entering",
+    })),
   playing: false,
   setPlaying: (playing) => set({ playing }),
   loop: initialPrefs.loop,

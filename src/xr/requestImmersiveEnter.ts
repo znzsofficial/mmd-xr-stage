@@ -10,7 +10,7 @@ export type RequestImmersiveEnterOpts = {
   setEntering: () => void;
   setLastError: (value: string | null) => void;
   openOverlay: () => void;
-  preloadScene: () => void;
+  preloadScene: () => void | Promise<unknown>;
   beginSessionFromClick: () => Promise<XRSession>;
   markEntered: () => void;
   failEnter: (detail: string) => void;
@@ -22,6 +22,7 @@ export type RequestImmersiveEnterOpts = {
   logTag: string;
   /** Optional capability refresh after hard fails. */
   refreshCapability?: () => void;
+  isCancelled?: () => boolean;
 };
 
 /**
@@ -78,15 +79,24 @@ export function requestImmersiveEnter(opts: RequestImmersiveEnterOpts): Promise<
   setEntering();
   setLastError(null);
   openOverlay();
-  void preloadScene();
+  // Request synchronously while the click still carries user activation.
+  let session: Promise<XRSession>;
+  try {
+    session = beginSessionFromClick();
+  } catch (error) {
+    session = Promise.reject(error);
+  }
+  const scene = Promise.resolve().then(preloadScene);
 
-  return beginSessionFromClick()
+  return Promise.all([session, scene])
     .then(() => {
+      if (opts.isCancelled?.()) return "failed" as const;
       onSuccess?.();
       markEntered();
       return "entered" as const;
     })
     .catch((err: unknown) => {
+      if (opts.isCancelled?.()) return "failed" as const;
       const detail = formatXrSessionError(err);
       console.error(`[${logTag}] requestSession failed`, err);
       onFailCleanup?.();

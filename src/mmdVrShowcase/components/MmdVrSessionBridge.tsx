@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import type { WebGLRenderer } from "three";
 import { AttachPendingXrSession, HeadsetHudGate, XrSessionSync } from "../../xr";
 import {
@@ -39,10 +39,13 @@ export function AttachPendingMmdVrSession() {
 }
 
 export function MmdVrSessionSync() {
+  const entryEpoch = useRef(useMmdVrStore.getState().entryEpoch);
   const setPhase = useMmdVrStore((state) => state.setPhase);
   const closeOverlay = useMmdVrStore((state) => state.closeOverlay);
   const onActive = useCallback(() => setPhase("active"), [setPhase]);
-  const onSessionEnd = useCallback(() => closeOverlay(), [closeOverlay]);
+  const onSessionEnd = useCallback(() => {
+    if (useMmdVrStore.getState().entryEpoch === entryEpoch.current) closeOverlay();
+  }, [closeOverlay]);
   return <XrSessionSync onActive={onActive} onSessionEnd={onSessionEnd} />;
 }
 

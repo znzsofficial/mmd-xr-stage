@@ -24,6 +24,9 @@ importers:
       '@yohawing/three-mmd-loader':
         specifier: 0.8.3
         version: 0.8.3(patch_hash=a5b0eff3a72c54ca4776e77506eacd9496b41f2167766998a467465e1d6c8f95)(three@0.186.0)
+      '@zip.js/zip.js':
+        specifier: ^2.15.0
+        version: 2.15.0
       nanoid:
         specifier: ^6.0.1
         version: 6.0.1
@@ -529,6 +532,10 @@ packages:
     resolution: {integrity: sha512-j8qQMaAn8x3qJGxwYY06ADYyBgxR9qeBlkt4rwFd6Jz8UtoRNj0FNAgRjEyYQQOtrRqezQUKlTHzNGRldJ+bow==}
     peerDependencies:
       three: '>=0.176.0 <1.0.0'
+
+  '@zip.js/zip.js@2.15.0':
+    resolution: {integrity: sha512-hYAuHAaWjt0axbofaDL5XUlmrQPsBDcK3f45ApZuh6N+8UGVk26GoGdtGDvcvzahsHytTQ6DtBVXwG9IcCMjjQ==}
+    engines: {bun: '>=0.7.0', deno: '>=1.0.0', node: '>=18.0.0'}
 
   assertion-error@2.0.1:
     resolution: {integrity: sha512-Izi8RQcffqCeNVgFigKli1ssklIbpHnCYc6AknXGYoB6grJqyeby7jv12JUQgmTAnIDnbck1uxksT4dzN3PWBA==}
@@ -1438,6 +1445,8 @@ snapshots:
     dependencies:
       '@types/three': 0.186.0
       three: 0.186.0
+
+  '@zip.js/zip.js@2.15.0': {}
 
   assertion-error@2.0.1: {}
 

@@ -17,6 +17,11 @@ import {
   mmdVrViewDistanceToSlider,
 } from "../mmdVrAdjustments";
 import { hexToRgba } from "../../xr";
+import { useLanguageStore } from "../../languageStore";
+import { formatAssetProgress, paginateLoadDetails } from "../loadText";
+import { useRenderDiagnostics } from "../renderDiagnostics";
+import { diagnosticLines } from "../diagnosticText";
+import { resolveHudSurface } from "../hudMode";
 
 /** Match paintProgressBar track insets (px on 640-wide canvas). */
 const PROGRESS_PAD = 16;
@@ -136,6 +141,7 @@ function HudButton({
 
   return (
     <mesh
+      name={`hud:${label}`}
       position={position}
       renderOrder={30}
       scale={pressed ? 0.97 : hovered ? 1.025 : 1}
@@ -177,6 +183,98 @@ function HudButton({
       />
     </mesh>
   );
+}
+
+function LoadRecoveryPanel({ onExit, onContinue }: { onExit: () => void; onContinue: () => void }) {
+  const t = useLanguageStore((s) => s.t);
+  const progress = useMmdVrStore((s) => s.assetLoad);
+  const physicsBusy = useMmdVrStore((s) => s.physicsBusy);
+  const retry = useMmdVrStore((s) => s.retryFailedAssets);
+  const [page, setPage] = useState(0);
+  const details = progress.running ? progress.fileName : progress.failures.map((failure) => `${failure.fileName}\n${failure.message}`).join("\n\n");
+  const pages = useMemo(() => paginateLoadDetails(details), [details]);
+  const current = Math.min(page, pages.length - 1);
+  const title = formatAssetProgress(progress, t);
+  const { accent } = useMmdVrTheme();
+  const texture = useMemo(() => createPanelTexture(1280, 420, ({ ctx, width }) => {
+    ctx.fillStyle = accent.soft;
+    ctx.fillRect(0, 0, width, 420);
+    ctx.fillStyle = accent.ink;
+    ctx.font = "600 34px system-ui, sans-serif";
+    ctx.fillText(title, 32, 50);
+    ctx.font = "28px system-ui, sans-serif";
+    pages[current].forEach((line, index) => ctx.fillText(line, 32, 112 + index * 48));
+    ctx.fillText(`${current + 1}/${pages.length}`, width - 120, 392);
+  }, "en"), [accent.soft, accent.ink, title, pages, current]);
+  useEffect(() => () => texture.dispose(), [texture]);
+  return <group>
+    <mesh position={[0, 0.13, 0.02]} renderOrder={35}>
+      <planeGeometry args={[3.2, 1.05]} />
+      <meshBasicMaterial map={texture} transparent depthTest={false} depthWrite={false} toneMapped={false} />
+    </mesh>
+    <HudButton position={[-1.25, -0.5, 0.03]} size={[0.42, 0.13]} label={t("loadPrevious")} disabled={current === 0} onPress={() => setPage(current - 1)} />
+    <HudButton position={[-0.78, -0.5, 0.03]} size={[0.42, 0.13]} label={t("loadNext")} disabled={current === pages.length - 1} onPress={() => setPage(current + 1)} />
+    <HudButton position={[-0.08, -0.5, 0.03]} size={[0.82, 0.13]} label={t("loadRetry")} disabled={progress.running || physicsBusy} onPress={() => { setPage(0); retry(); }} />
+    <HudButton position={[0.7, -0.5, 0.03]} size={[0.66, 0.13]} label={t("loadContinue")} disabled={progress.running} onPress={onContinue} />
+    <HudButton position={[1.4, -0.5, 0.03]} size={[0.66, 0.13]} label={t("loadBack")} onPress={onExit} />
+  </group>;
+}
+
+function TextPanel({ title, text, onClose, onExit }: { title: string; text: string; onClose: () => void; onExit: () => void }) {
+  const t = useLanguageStore((s) => s.t);
+  const { accent } = useMmdVrTheme();
+  const [page, setPage] = useState(0);
+  const pages = useMemo(() => paginateLoadDetails(text), [text]);
+  const current = Math.min(page, pages.length - 1);
+  const texture = useMemo(() => createPanelTexture(1280, 420, ({ ctx }) => {
+    ctx.fillStyle = accent.soft;
+    ctx.fillRect(0, 0, 1280, 420);
+    ctx.fillStyle = accent.ink;
+    ctx.font = "600 34px system-ui, sans-serif";
+    ctx.fillText(title, 32, 50);
+    ctx.font = "28px system-ui, sans-serif";
+    pages[current].forEach((line, index) => ctx.fillText(line, 32, 112 + index * 48));
+    ctx.fillText(`${current + 1}/${pages.length}`, 1140, 392);
+  }, "en"), [accent.soft, accent.ink, title, pages, current]);
+  useEffect(() => () => texture.dispose(), [texture]);
+  return <group>
+    <mesh position={[0, 0.13, 0.02]} renderOrder={35}>
+      <planeGeometry args={[3.2, 1.05]} />
+      <meshBasicMaterial map={texture} transparent depthTest={false} depthWrite={false} toneMapped={false} fog={false} />
+    </mesh>
+    <HudButton position={[-1.1, -0.5, 0.03]} size={[0.6, 0.13]} label={t("loadPrevious")} disabled={current === 0} onPress={() => setPage(current - 1)} />
+    <HudButton position={[-0.4, -0.5, 0.03]} size={[0.6, 0.13]} label={t("loadNext")} disabled={current === pages.length - 1} onPress={() => setPage(current + 1)} />
+    <HudButton position={[0.4, -0.5, 0.03]} size={[0.75, 0.13]} label={t("hudBack")} onPress={onClose} />
+    <HudButton position={[1.25, -0.5, 0.03]} size={[0.75, 0.13]} label={t("loadBack")} onPress={onExit} />
+  </group>;
+}
+
+function DiagnosticsPanel({ onClose, onExit }: { onClose: () => void; onExit: () => void }) {
+  const data = useRenderDiagnostics((s) => s.current);
+  const t = useLanguageStore((s) => s.t);
+  const language = useLanguageStore((s) => s.language);
+  return <TextPanel title={t("hudDiagnostics")} text={`${diagnosticLines(data, t, language).join("\n")}\n\n${t("diagHint")}`} onClose={onClose} onExit={onExit} />;
+}
+
+export function CriticalNotice({ onDetails }: { onDetails: () => void }) {
+  const t = useLanguageStore((s) => s.t);
+  const error = useMmdVrStore((s) => s.physicsError);
+  const fatal = useMmdVrStore((s) => s.physicsFatal);
+  if (!error) return null;
+  return <HudButton position={[0, 0.88, 0.04]} size={[1.6, 0.16]} danger
+    label={t(fatal ? "hudPhysicsFatal" : "hudPhysicsWarning")} onPress={onDetails} />;
+}
+
+export function CompactPlaybackControls({ onExpand, onExit, busy }: { onExpand: () => void; onExit: () => void; busy: boolean }) {
+  const t = useLanguageStore((s) => s.t);
+  const playing = useMmdVrStore((s) => s.playing);
+  const modelCount = useMmdVrStore((s) => s.modelCount);
+  return <group>
+    <HudButton position={[-0.55, 0, 0]} size={[0.5, 0.14]} label={t(playing ? "settingsMmdVrPause" : "settingsMmdVrPlay")} active={playing}
+      disabled={busy || modelCount === 0} onPress={() => useMmdVrStore.getState().setPlaying(!useMmdVrStore.getState().playing)} />
+    <HudButton position={[0, 0, 0]} label={t("settingsMmdVrPanelShow")} size={[0.5, 0.14]} onPress={onExpand} />
+    <HudButton position={[0.55, 0, 0]} label={t("settingsVrDesktopExit")} size={[0.5, 0.14]} danger disabled={busy} onPress={onExit} />
+  </group>;
 }
 
 function PanelBackdrop() {
@@ -1261,9 +1359,7 @@ function FpsBadge() {
       ),
     [],
   );
-  const accRef = useRef(0);
-  const framesRef = useRef(0);
-  const lastRef = useRef(0);
+  const fps = useRenderDiagnostics((state) => state.current?.fps ?? null);
 
   useEffect(
     () => () => {
@@ -1272,16 +1368,8 @@ function FpsBadge() {
     [texture],
   );
 
-  useFrame((_, delta) => {
+  useEffect(() => {
     if (!show) return;
-    framesRef.current += 1;
-    accRef.current += delta;
-    if (accRef.current < 0.35) return;
-    const fps = Math.round(framesRef.current / accRef.current);
-    framesRef.current = 0;
-    accRef.current = 0;
-    if (fps === lastRef.current) return;
-    lastRef.current = fps;
     const canvas = texture.image as HTMLCanvasElement;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
@@ -1292,9 +1380,9 @@ function FpsBadge() {
     ctx.font = "700 28px system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(`${fps}`, 80, 32);
+    ctx.fillText(fps == null ? "—" : `${fps}`, 80, 32);
     texture.needsUpdate = true;
-  });
+  }, [fps, show, texture]);
 
   if (!show) return null;
   return (
@@ -1461,11 +1549,15 @@ export function MmdVrControlBar({
   onExit: () => void;
   busy: boolean;
 }) {
+  const t = useLanguageStore((s) => s.t);
   const playing = useMmdVrStore((s) => s.playing);
   const loop = useMmdVrStore((s) => s.loop);
   const modelCount = useMmdVrStore((s) => s.modelCount);
   const objectCount = useMmdVrStore((s) => s.objects.length);
   const statusLine = useMmdVrStore((s) => s.statusLine);
+  const assetLoad = useMmdVrStore((s) => s.assetLoad);
+  const retryEpoch = useMmdVrStore((s) => s.assetRetryEpoch);
+  const [dismissedLoadEpoch, setDismissedLoadEpoch] = useState(-1);
   const physicsError = useMmdVrStore((s) => s.physicsError);
   const placeMode = useMmdVrStore((s) => s.placeMode);
   const prefs = useMmdVrStore((s) => s.prefs);
@@ -1485,12 +1577,16 @@ export function MmdVrControlBar({
   const setPhysicsEnabled = useMmdVrStore((s) => s.setPhysicsEnabled);
   const setPhysicsDebugEnabled = useMmdVrStore((s) => s.setPhysicsDebugEnabled);
   const materialPanelOpen = useMmdVrStore((s) => s.materialPanelModelId != null);
-  const [panelVisible, setPanelVisible] = useState(true);
+  const [panelVisible, setPanelVisible] = useState(false);
+  const [physicsDetails, setPhysicsDetails] = useState(false);
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const [physicsPanelOpen, setPhysicsPanelOpen] = useState(false);
   const [visualPanelOpen, setVisualPanelOpen] = useState(false);
   const [panelPosition, setPanelPosition] = useState(PANEL_DEFAULT_POSITION);
   const panelGroupRef = useRef<THREE.Group>(null);
   const billboardTarget = useMemo(() => new THREE.Vector3(), []);
+  const viewEpoch = useMmdVrStore((s) => s.viewEpoch);
+  useEffect(() => { setPanelPosition(PANEL_DEFAULT_POSITION); }, [viewEpoch]);
   // Yaw-only billboard: keep the panel upright and always facing the user,
   // independent of where it was dragged or how the origin was turned.
   useFrame(({ camera }) => {
@@ -1512,15 +1608,33 @@ export function MmdVrControlBar({
   const status =
     physicsError ?? statusLine ??
     (modelCount === 0 && objectCount === 0 ? emptyHint : placeMode ? placeHint : null);
-  if (!panelVisible) {
+  const surface = resolveHudSurface({ watching: !panelVisible, loading: assetLoad.running,
+    pendingFailures: assetLoad.failures.length > 0 && dismissedLoadEpoch !== retryEpoch,
+    physicsDetails: physicsDetails && Boolean(physicsError), diagnostics: diagnosticsOpen });
+  const notice = <CriticalNotice onDetails={() => setPhysicsDetails(true)} />;
+  if (surface === "physics") {
+    return <group position={panelPosition} ref={panelGroupRef}>
+      <TextPanel title={t("hudPhysicsWarning")} text={physicsError ?? ""} onClose={() => setPhysicsDetails(false)} onExit={onExit} />
+    </group>;
+  }
+  if (surface === "load") {
+    return <group position={panelPosition} ref={panelGroupRef}>
+      {notice}
+      <LoadRecoveryPanel onExit={onExit} onContinue={() => setDismissedLoadEpoch(retryEpoch)} />
+    </group>;
+  }
+  if (surface === "diagnostics") {
+    return <group position={panelPosition} ref={panelGroupRef}>
+      {notice}
+      <DiagnosticsPanel onClose={() => setDiagnosticsOpen(false)} onExit={onExit} />
+    </group>;
+  }
+  if (surface === "watch") {
     return (
       <group position={panelPosition} ref={panelGroupRef}>
-        <HudButton
-          position={[0, 0, 0]}
-          label={panelShowLabel}
-          size={[0.54, 0.13]}
-          onPress={() => setPanelVisible(true)}
-        />
+        {notice}
+        <CompactPlaybackControls onExpand={() => setPanelVisible(true)} onExit={onExit} busy={busy} />
+        {assetLoad.failures.length > 0 ? <HudButton position={[0, 0.23, 0]} label={t("loadDetails")} size={[0.95, 0.13]} onPress={() => setDismissedLoadEpoch(-1)} /> : null}
         <DragHandle
           label={panelDragLabel}
           position={[0, -0.14, 0.012]}
@@ -1534,6 +1648,8 @@ export function MmdVrControlBar({
   return (
     <group position={panelPosition} ref={panelGroupRef}>
       <PanelBackdrop />
+      {notice}
+      <HudButton position={[0.98, 0.6, 0.03]} size={[0.8, 0.13]} label={t("hudDiagnostics")} onPress={() => setDiagnosticsOpen(true)} />
       <DragHandle label={panelDragLabel} onDragChange={onDragChange} onPositionChange={setPanelPosition} />
       <HudButton position={[1.43, 0.42, 0]} label={panelHideLabel} size={[0.36, 0.1]} onPress={() => setPanelVisible(false)} />
       <HudButton
@@ -1544,6 +1660,7 @@ export function MmdVrControlBar({
         onPress={() => setPrefs({ panelFollowUser: !useMmdVrStore.getState().prefs.panelFollowUser })}
       />
       {status ? <StatusPlane text={status} /> : null}
+      {assetLoad.failures.length > 0 ? <HudButton position={[0, 0.6, 0.03]} size={[0.9, 0.13]} label={useLanguageStore.getState().t("loadDetails")} onPress={() => setDismissedLoadEpoch(-1)} /> : null}
       <ProgressBar onInteractionChange={onDragChange} />
       <HudButton
         position={[-1.18, 0.05, 0]}

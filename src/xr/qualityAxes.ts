@@ -73,12 +73,12 @@ export function formatDprLabel(dpr: number | [number, number]): string {
   return typeof dpr === "number" ? String(dpr) : `${dpr[0]}–${dpr[1]}`;
 }
 
-export function formatFrameRateLabel(frameRate: ImmersiveFrameRate): string {
-  if (typeof frameRate === "function") return "custom";
+export function formatFrameRateLabel(frameRate: ImmersiveFrameRate, language: "zh" | "en" = "en"): string {
+  if (typeof frameRate === "function") return language === "zh" ? "自定义策略" : "custom policy";
   if (frameRate === false) return "—";
-  if (frameRate === "high") return "72+";
-  if (frameRate === "mid") return "~60";
-  return "~45";
+  if (frameRate === "high") return language === "zh" ? "自动高档" : "auto high";
+  if (frameRate === "mid") return language === "zh" ? "自动中档" : "auto mid";
+  return language === "zh" ? "自动低档" : "auto low";
 }
 
 export function formatOnOff(on: boolean, language: "zh" | "en"): string {

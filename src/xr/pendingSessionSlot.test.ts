@@ -68,6 +68,23 @@ describe("createPendingSessionSlot", () => {
     }
   });
 
+  it("ends a session that resolves after the user cancels entry", async () => {
+    const session = { end: vi.fn(async () => {}), addEventListener: vi.fn() } as unknown as XRSession;
+    const restore = withXr(session);
+    try {
+      let resolve!: (session: XRSession) => void;
+      vi.mocked(navigator.xr!.requestSession).mockReturnValueOnce(new Promise((done) => { resolve = done; }));
+      const slot = createPendingSessionSlot();
+      const entering = slot.beginFromClick();
+      await slot.end();
+      const rejected = expect(entering).rejects.toMatchObject({ name: "AbortError" });
+      resolve(session);
+      await rejected;
+      expect(session.end).toHaveBeenCalledOnce();
+      expect(slot.peek()).toBeNull();
+    } finally { restore(); }
+  });
+
   it("serializes concurrent attaches", async () => {
     const slot = createPendingSessionSlot();
     const session = {
@@ -101,5 +118,31 @@ describe("createPendingSessionSlot", () => {
     } finally {
       restore();
     }
+  });
+
+  it("does not end a new session while the previous session is still shutting down", async () => {
+    let release!: () => void;
+    const old = { end: vi.fn(() => new Promise<void>((resolve) => { release = resolve; })), addEventListener: vi.fn() } as unknown as XRSession;
+    const next = { end: vi.fn(async () => {}), addEventListener: vi.fn() } as unknown as XRSession;
+    const restore = withXr(old);
+    try {
+      const slot = createPendingSessionSlot();
+      await slot.beginFromClick();
+      let live = old;
+      const getLive = vi.fn(() => live);
+      const ending = slot.end(getLive);
+      await Promise.resolve();
+      vi.mocked(navigator.xr!.requestSession).mockResolvedValueOnce(next);
+      await slot.beginFromClick();
+      live = next;
+      release();
+      await ending;
+      expect(getLive).toHaveBeenCalledOnce();
+      expect(old.end).toHaveBeenCalledOnce();
+      expect(next.end).not.toHaveBeenCalled();
+      expect(slot.peek()).toBe(next);
+      await slot.end(() => next);
+      expect(next.end).toHaveBeenCalledOnce();
+    } finally { restore(); }
   });
 });

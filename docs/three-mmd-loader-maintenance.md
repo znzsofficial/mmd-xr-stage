@@ -111,7 +111,7 @@
 | 修改 | 位置 | 说明 |
 |------|------|------|
 | Controller collider wrapper | `src/mmdVrShowcase/mmdRuntime/mmdPhysics.ts` | 向物理 context 追加控制器刚体，读取 contact 并区分左右控制器 |
-| Contact / backend 回归测试 | 主仓 `E:\WebProjects\neko-virt-os`（`src/appModules/mmdStudio/mmdPhysics.test.ts`） | 覆盖 direct buffers、contact forwarding、contact 上限和 patched backend 行为；本仓未拷贝该测试 |
+| Contact / backend 回归测试 | `src/mmdVrShowcase/mmdRuntime/mmdPhysics.test.ts` | 本仓覆盖 direct buffers、控制器/手部包装顺序、contact 索引及 patched Bullet ABI |
 | VR 触觉状态 | `src/mmdVrShowcase/mmdVrHaptics.ts` | 管理左右手接触、震动强度和 gate |
 | 触觉执行 | `src/mmdVrShowcase/components/MmdVrControllerColliders.tsx` | 驱动 WebXR haptic actuator |
 | VR contact 采样 | `src/mmdVrShowcase/components/MmdVrStage.tsx` | 从物理 backend 采样 controller contact |
@@ -258,7 +258,7 @@ pnpm build
 git diff --check
 ```
 
-验证结果：完整测试共 `19` 个文件、`78` 项通过；TypeScript 和生产构建通过。物理 backend 的 direct buffers / contact forwarding 回归测试留在主仓（`src/appModules/mmdStudio/mmdPhysics.test.ts`、`mmdRuntime.test.ts`），升级 loader 时需在主仓补跑。
+独立仓库现有 `mmdPhysics.test.ts`、`mmdRuntime.test.ts` 与 `mmdRuntimeLifecycle.test.ts`（均在 `src/mmdVrShowcase/mmdRuntime/`）：覆盖 direct buffers、包装顺序、contact forwarding、矩阵/半径缩放转换、unit-scale physics、迟到加载的资源回收和 GPU 资源释放。升级 loader 时在本仓运行这些测试，再运行完整测试和构建；原生 Bullet 仿真与头显交互仍需真机验证。
 
 ### loader PR #38
 

@@ -20,7 +20,17 @@ export type PendingSessionSlot = {
 
 export function createPendingSessionSlot(): PendingSessionSlot {
   let pendingSession: XRSession | null = null;
+  let requestGeneration = 0;
   let attachChain: Promise<unknown> = Promise.resolve();
+  const endingSessions = new WeakMap<XRSession, Promise<void>>();
+
+  function endOnce(session: XRSession): Promise<void> {
+    const existing = endingSessions.get(session);
+    if (existing) return existing;
+    const ending = Promise.resolve().then(() => session.end()).catch(() => undefined);
+    endingSessions.set(session, ending);
+    return ending;
+  }
 
   function peek() {
     return pendingSession;
@@ -31,6 +41,7 @@ export function createPendingSessionSlot(): PendingSessionSlot {
   }
 
   function beginFromClick(init?: XRSessionInit): Promise<XRSession> {
+    const generation = ++requestGeneration;
     const xr = getXrSystem();
     if (!xr) {
       return Promise.reject(new Error(`WebXR missing (${getXrDiagnostics().summary})`));
@@ -48,15 +59,15 @@ export function createPendingSessionSlot(): PendingSessionSlot {
     }
 
     if (pendingSession) {
-      try {
-        void pendingSession.end();
-      } catch {
-        // ignore
-      }
+      void endOnce(pendingSession);
       pendingSession = null;
     }
 
     return xr.requestSession("immersive-vr", init ?? buildQuestVrSessionInit()).then((session) => {
+      if (generation !== requestGeneration) {
+        void endOnce(session);
+        throw new DOMException("XR entry cancelled", "AbortError");
+      }
       pendingSession = session;
       session.addEventListener(
         "end",
@@ -94,23 +105,19 @@ export function createPendingSessionSlot(): PendingSessionSlot {
   }
 
   async function end(getLiveSession?: () => XRSession | null | undefined): Promise<void> {
+    requestGeneration += 1;
     const pending = pendingSession;
     pendingSession = null;
 
-    if (pending) {
-      try {
-        await pending.end();
-      } catch {
-        // ignore
-      }
-    }
-
+    const sessions = new Set<XRSession>();
+    if (pending) sessions.add(pending);
     try {
       const live = getLiveSession?.();
-      if (live) await live.end();
+      if (live) sessions.add(live);
     } catch {
       // ignore
     }
+    await Promise.all([...sessions].map(endOnce));
   }
 
   return { peek, clear, beginFromClick, attachToRenderer, end };

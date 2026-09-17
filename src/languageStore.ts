@@ -35,10 +35,10 @@ export const useLanguageStore = create<{
   language: initialLanguage,
   setLanguage: (language) => {
     setOwnedLocalStorageItem(LANGUAGE_STORAGE_KEY, language);
-    document.documentElement.lang = language === "zh" ? "zh-CN" : "en";
+    if (typeof document !== "undefined") document.documentElement.lang = language === "zh" ? "zh-CN" : "en";
     set({ language, t: translateFor(language) });
   },
   t: translateFor(initialLanguage),
 }));
 
-document.documentElement.lang = initialLanguage === "zh" ? "zh-CN" : "en";
+if (typeof document !== "undefined") document.documentElement.lang = initialLanguage === "zh" ? "zh-CN" : "en";

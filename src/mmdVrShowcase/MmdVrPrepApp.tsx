@@ -3,8 +3,6 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent 
 import { useLanguageStore, type TranslationKey } from "../languageStore";
 import {
   collectFilesFromDataTransfer,
-  companionsForModel,
-  companionsForObject,
   listMmdModels,
   listMmdMotions,
   listMmdObjects,
@@ -19,6 +17,9 @@ import { requestMmdVrEnter } from "./requestMmdVrEnter";
 import { useMmdVrStore } from "./mmdVrStore";
 import { ACCENT_CHROMA, ACCENT_COLORS, ACCENT_HUES, updateThemeSettings } from "../system/theme";
 import { useThemeSettings } from "../system/useThemeSettings";
+import { expandAssetFiles, AssetImportError, IMPORT_LIMITS, type ArchiveEncoding, type ImportProgress } from "../mmdImport/importArchive";
+import { bindCompanion, mergeAssetFiles } from "../mmdImport/assetPaths";
+import { inspectAssets, type ImportReport } from "../mmdImport/inspectAssets";
 
 function OptionGroup<T extends string>({
   value,
@@ -50,13 +51,6 @@ type QuestPreset = "safe" | "balanced" | "clarity" | "custom";
 
 type XrReadiness = "checking" | "ready" | "unverified" | "insecure" | "no-xr";
 
-function mergeImportedFiles(prev: readonly File[], next: readonly File[]): File[] {
-  const byPath = new Map<string, File>();
-  for (const file of prev) byPath.set(relativePath(file), file);
-  for (const file of next) byPath.set(relativePath(file), file);
-  return [...byPath.values()];
-}
-
 function getQuestPreset(prefs: ReturnType<typeof useMmdVrStore.getState>["prefs"]): QuestPreset {
   if (!prefs.advancedRenderOverrides) return "custom";
   if (prefs.dprPref !== "auto" || prefs.antialiasPref !== "auto") return "custom";
@@ -72,10 +66,24 @@ export function MmdVrPrepApp() {
   const themeSettings = useThemeSettings();
   const addNotification = useNotificationStore((state) => state.addNotification);
   const phase = useMmdVrStore((state) => state.phase);
+  const assetLoad = useMmdVrStore((state) => state.assetLoad);
+  const savedStage = useMmdVrStore((state) => state.savedStage);
   const errorMessage = useMmdVrStore((state) => state.errorMessage);
   const prefs = useMmdVrStore((state) => state.prefs);
   const setPrefs = useMmdVrStore((state) => state.setPrefs);
   const folderInputRef = useRef<HTMLInputElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const repairInputRef = useRef<HTMLInputElement | null>(null);
+  const repairTargetRef = useRef<{ file: File; reference: string } | null>(null);
+  const importAbortRef = useRef<AbortController | null>(null);
+  const filesRef = useRef<File[]>([]);
+  const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState<ImportProgress | null>(null);
+  const [importError, setImportError] = useState<{ key: TranslationKey; detail: string } | null>(null);
+  const [conflicts, setConflicts] = useState<string[]>([]);
+  const [encoding, setEncoding] = useState<ArchiveEncoding>("auto");
+  const [report, setReport] = useState<ImportReport | null>(null);
+  const [checkingAssets, setCheckingAssets] = useState(false);
   const importGenerationRef = useRef(0);
   const [files, setFiles] = useState<File[]>([]);
   const [readiness, setReadiness] = useState<XrReadiness>("checking");
@@ -145,11 +153,17 @@ export function MmdVrPrepApp() {
 
   function ingest(nextFiles: File[]) {
     // Accumulate across multiple folder picks / drops instead of replacing.
-    setFiles((prev) => mergeImportedFiles(prev, nextFiles));
+    const merged = mergeAssetFiles(filesRef.current, nextFiles);
+    if (merged.files.length > IMPORT_LIMITS.entries || merged.files.reduce((sum, file) => sum + file.size, 0) > IMPORT_LIMITS.totalBytes) {
+      throw new AssetImportError("limit", nextFiles[0]?.name ?? "");
+    }
+    filesRef.current = merged.files;
+    setFiles(merged.files);
+    setConflicts(merged.conflicts);
     setSelectedPaths((prevSel) => {
       const remaining = MMD_VR_MAX_MODELS - prevSel.length;
       if (remaining <= 0) return prevSel;
-      const additions = listMmdModels(nextFiles)
+      const additions = listMmdModels(merged.accepted)
         .map(relativePath)
         .filter((path) => !prevSel.includes(path))
         .slice(0, remaining);
@@ -158,7 +172,7 @@ export function MmdVrPrepApp() {
     setSelectedObjectPaths((prevSel) => {
       const remaining = MMD_VR_MAX_OBJECTS - prevSel.length;
       if (remaining <= 0) return prevSel;
-      const additions = listMmdObjects(nextFiles)
+      const additions = listMmdObjects(merged.accepted)
         .map(relativePath)
         .filter((path) => !prevSel.includes(path))
         .slice(0, remaining);
@@ -167,7 +181,8 @@ export function MmdVrPrepApp() {
   }
 
   function removeImportedFile(path: string) {
-    setFiles((prev) => prev.filter((file) => relativePath(file) !== path));
+    filesRef.current = filesRef.current.filter((file) => relativePath(file) !== path);
+    setFiles(filesRef.current);
     setSelectedPaths((prev) => prev.filter((item) => item !== path));
     setSelectedObjectPaths((prev) => prev.filter((item) => item !== path));
     setBodyMotionPath((prev) => (prev === path ? "" : prev));
@@ -175,17 +190,86 @@ export function MmdVrPrepApp() {
   }
 
   function onFilesChange(event: ChangeEvent<HTMLInputElement>) {
-    importGenerationRef.current += 1;
-    ingest(Array.from(event.target.files ?? []));
+    void importFiles(Promise.resolve(Array.from(event.target.files ?? [])));
     event.target.value = "";
+  }
+
+  function repairResource(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    const target = repairTargetRef.current;
+    event.target.value = "";
+    repairTargetRef.current = null;
+    if (!file || !target || !filesRef.current.includes(target.file)) return;
+    if (file.size > IMPORT_LIMITS.fileBytes || filesRef.current.length >= IMPORT_LIMITS.entries || filesRef.current.reduce((n, f) => n + f.size, 0) + file.size > IMPORT_LIMITS.totalBytes) {
+      setImportError({ key: "importTooLarge", detail: file.name });
+      return;
+    }
+    // Keep an explicit binding rather than guessing which ZIP a loose file belongs to.
+    bindCompanion(target.file, target.reference, file);
+    filesRef.current = [...filesRef.current, file];
+    setFiles(filesRef.current);
   }
 
   async function onDrop(event: DragEvent<HTMLElement>) {
     event.preventDefault();
     setDragging(false);
+    await importFiles(collectFilesFromDataTransfer(event.dataTransfer));
+  }
+
+  async function importFiles(pending: Promise<File[]>) {
+    importAbortRef.current?.abort();
+    const abort = new AbortController();
+    importAbortRef.current = abort;
     const generation = ++importGenerationRef.current;
-    const nextFiles = await collectFilesFromDataTransfer(event.dataTransfer);
-    if (generation === importGenerationRef.current) ingest(nextFiles);
+    setImporting(true);
+    setImportProgress(null);
+    setImportError(null);
+    try {
+      const incoming = await pending;
+      abort.signal.throwIfAborted();
+      const expanded = await expandAssetFiles(incoming, { signal: abort.signal, encoding,
+        onProgress: (progress) => { if (generation === importGenerationRef.current) setImportProgress(progress); } });
+      abort.signal.throwIfAborted();
+      if (generation === importGenerationRef.current) ingest(expanded);
+    } catch (error) {
+      if (abort.signal.aborted || generation !== importGenerationRef.current) return;
+      const keys = { path: "importBadPath", limit: "importTooLarge", encrypted: "importEncrypted", archive: "importFailed" } as const;
+      setImportError({ key: error instanceof AssetImportError ? keys[error.code] : "importFailed",
+        detail: error instanceof AssetImportError ? `${error.file}: ${error.message}` : String(error) });
+    } finally {
+      if (generation === importGenerationRef.current) { setImporting(false); setImportProgress(null); }
+    }
+  }
+
+  useEffect(() => () => { importAbortRef.current?.abort(); importGenerationRef.current += 1; }, []);
+
+  useEffect(() => {
+    const abort = new AbortController();
+    setCheckingAssets(files.length > 0);
+    setReport(null);
+    if (files.length) void inspectAssets(files, abort.signal).then((report) => {
+      if (!abort.signal.aborted) { setReport(report); setCheckingAssets(false); }
+    }).catch((error) => {
+      if (!abort.signal.aborted) { setImportError({ key: "importFailed", detail: String(error) }); setCheckingAssets(false); }
+    });
+    return () => abort.abort();
+  }, [files]);
+
+  function clearImports() {
+    importAbortRef.current?.abort();
+    importGenerationRef.current += 1;
+    filesRef.current = [];
+    setFiles([]);
+    setSelectedPaths([]);
+    setSelectedObjectPaths([]);
+    setBodyMotionPath("");
+    setFaceMotionPath("");
+    setReport(null);
+    setConflicts([]);
+    setImportError(null);
+    setImportProgress(null);
+    setImporting(false);
+    useMmdVrStore.setState({ savedStage: null, resumeStage: null });
   }
 
   function toggleModel(path: string) {
@@ -204,24 +288,24 @@ export function MmdVrPrepApp() {
     });
   }
 
-  function enterVr() {
+  function enterVr(resume = false) {
     const bodyMotion = motions.find((file) => relativePath(file) === bodyMotionPath) ?? null;
     const faceMotion = motions.find((file) => relativePath(file) === faceMotionPath) ?? null;
     const assets: MmdVrAssetSlot[] = [
       ...selectedModels.map((modelFile) => ({
         kind: "model" as const,
         modelFile,
-        companionFiles: companionsForModel(modelFile, files),
+        companionFiles: [...files],
         bodyMotionFile: bodyMotion,
         faceMotionFile: faceMotion,
       })),
       ...selectedObjects.map((objectFile) => ({
         kind: "object" as const,
         objectFile,
-        companionFiles: companionsForObject(objectFile, files),
+        companionFiles: [...files],
       })),
     ];
-    void requestMmdVrEnter({ t, addNotification, assets });
+    void requestMmdVrEnter({ t, addNotification, assets, resume });
   }
 
   return (
@@ -292,13 +376,44 @@ export function MmdVrPrepApp() {
             <div>
               <div className="mmd-vr-prep-section-eyebrow">01 / {t("mmdVrPrepSectionAssets")}</div>
               <strong>{t("mmdVrPrepImport")}</strong>
-              <p>{t("mmdVrPrepImportHint")}</p>
+              <p>{t("importHint")}</p>
             </div>
-            <button type="button" className="button-primary" onClick={() => folderInputRef.current?.click()}>
-              {t("mmdVrPrepChooseFolder")}
-            </button>
+            <div className="mmd-import-actions">
+              <button type="button" className="button-primary" disabled={importing} onClick={() => folderInputRef.current?.click()}>
+                {t("mmdVrPrepChooseFolder")}
+              </button>
+              <button type="button" className="button-primary" disabled={importing} onClick={() => fileInputRef.current?.click()}>{t("importZip")}</button>
+            </div>
             <input ref={folderInputRef} hidden type="file" multiple onChange={onFilesChange} />
+            <input ref={fileInputRef} hidden type="file" multiple onChange={onFilesChange} />
           </section>
+
+          <label className="mmd-import-encoding">{t("importEncoding")}
+            <select value={encoding} onChange={(event) => setEncoding(event.target.value as ArchiveEncoding)} disabled={importing}>
+              <option value="auto">{t("importEncodingAuto")}</option><option value="shift-jis">Shift-JIS</option><option value="gbk">GBK</option>
+            </select>
+          </label>
+          {files.length > 0 ? <button type="button" className="button-primary" disabled={phase === "entering" || phase === "active"} onClick={clearImports}>{t("importClear")}</button> : null}
+          {importing ? <div className="mmd-import-report" role="status" aria-live="polite">
+            <p>{t("importExtracting")} {importProgress ? `${importProgress.completed + 1}/${importProgress.total} · ${importProgress.archive}/${importProgress.file}` : ""}</p>
+            <button type="button" onClick={() => importAbortRef.current?.abort()}>{t("importCancel")}</button>
+          </div> : null}
+          {importError ? <section className="mmd-import-report" role="alert"><p>{t(importError.key)}</p><details><summary>{t("loadDetails")}</summary><pre>{importError.detail}</pre></details></section> : null}
+          {conflicts.length > 0 ? <details className="mmd-import-report" open><summary>{t("importConflicts")} ({conflicts.length})</summary><p>{t("importConflictHint")}</p><ul>{conflicts.map((path, i) => <li key={`${path}:${i}`}>{path}</li>)}</ul></details> : null}
+          {checkingAssets ? <p role="status">{t("importChecking")}</p> : null}
+          {report ? <details className="mmd-import-report" open={report.issues.length > 0}>
+            <summary>{t("importReport")} · {report.models} {t("mmdVrPrepModelCount")} · {report.objects} {t("mmdVrPrepObjectCount")} · {report.motions} {t("mmdVrPrepMotionCount")} · {report.textures} {t("importTextures")}</summary>
+            <p>{report.issues.length ? t("importIssuesHint") : t("importCheckPassed")}</p>
+            <ul>{report.issues.map((issue, index) => <li key={index}><strong>{t(({ missing: "importMissing", ambiguous: "importAmbiguous", invalid: "importInvalid", fallback: "importFallback" } as const)[issue.kind])}</strong> · {issue.file}<pre>{issue.reference}</pre>
+              {issue.kind === "missing" || issue.kind === "ambiguous" ? <button type="button" disabled={importing} onClick={() => {
+                const model = files.find((file) => relativePath(file) === issue.file);
+                if (!model) return;
+                repairTargetRef.current = { file: model, reference: issue.reference };
+                repairInputRef.current?.click();
+              }}>{t("importBindResource")}</button> : null}
+            </li>)}</ul>
+          </details> : null}
+          <input ref={repairInputRef} type="file" hidden onChange={repairResource} />
 
           <section className="mmd-vr-prep-section">
             <div className="mmd-vr-prep-section-head">
@@ -398,6 +513,7 @@ export function MmdVrPrepApp() {
               <Icon icon="solar:alt-arrow-down-linear" width={18} height={18} />
             </summary>
             <div className="mmd-vr-prep-config-body">
+              <p>{t("diagPrepHint")}</p>
               <div className="mmd-vr-prep-config-row">
                 <span>{t("settingsMmdVrQuestPreset")}</span>
                 <OptionGroup
@@ -582,16 +698,29 @@ export function MmdVrPrepApp() {
             </div>
           </details>
 
-          {errorMessage ? <p className="mmd-vr-prep-error"><Icon icon="solar:danger-triangle-bold" width={17} height={17} />{errorMessage}</p> : null}
+           {errorMessage ? <section className="mmd-vr-prep-error" role="alert">
+             <p>{t("loadEnterFailed")}</p>
+             <p>{t("loadEnterRecovery")}</p>
+             <details><summary>{t("loadDetails")}</summary><pre>{errorMessage}</pre></details>
+           </section> : null}
+           {assetLoad.failures.length > 0 ? <details className="mmd-load-report">
+             <summary>{t("loadDetails")} ({assetLoad.failures.length})</summary>
+             <p>{t("loadReenterHint")}</p>
+             <ul>{assetLoad.failures.map((failure) => <li key={failure.id}><strong>{failure.fileName}</strong><pre>{failure.message}</pre></li>)}</ul>
+           </details> : null}
           <p className="mmd-vr-prep-enter-hint"><Icon icon="solar:info-circle-linear" width={16} height={16} />{t("mmdVrPrepEnterHint")}</p>
+          {savedStage && savedStage.assets.length > 0 ? <section className="mmd-import-report">
+            <p>{t("stageResumeHint")} · {Math.floor(savedStage.time / 60)}:{String(Math.floor(savedStage.time % 60)).padStart(2, "0")}</p>
+            <button type="button" className="mmd-vr-prep-enter" disabled={importing || readiness === "insecure" || readiness === "no-xr" || phase === "entering" || phase === "active"} onClick={() => enterVr(true)}>{t("stageContinue")}</button>
+          </section> : null}
           <button
             type="button"
             className="mmd-vr-prep-enter"
-            disabled={(!selectedModels.length && !selectedObjects.length) || phase === "entering" || phase === "active"}
-            onClick={enterVr}
+             disabled={importing || checkingAssets || (!selectedModels.length && !selectedObjects.length) || readiness === "insecure" || readiness === "no-xr" || phase === "entering" || phase === "active"}
+            onClick={() => enterVr(false)}
           >
             <Icon icon="boxicons:vr-headset-filled" width={22} height={22} />
-            <span>{phase === "entering" ? t("settingsMmdVrEntering") : t("settingsMmdVrEnter")}</span>
+            <span>{phase === "entering" ? t("settingsMmdVrEntering") : savedStage ? t("stageRestart") : t("settingsMmdVrEnter")}</span>
             <Icon icon="solar:arrow-right-linear" width={20} height={20} />
           </button>
         </div>

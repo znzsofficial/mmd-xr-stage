@@ -38,7 +38,9 @@ describe("format helpers", () => {
   it("formats dpr and fps", () => {
     expect(formatDprLabel(1)).toBe("1");
     expect(formatDprLabel([1, 1.25])).toBe("1–1.25");
-    expect(formatFrameRateLabel("high")).toBe("72+");
+    expect(formatFrameRateLabel("high")).toBe("auto high");
+    expect(formatFrameRateLabel("mid", "zh")).toBe("自动中档");
+    expect(formatFrameRateLabel("low")).toBe("auto low");
     expect(formatFrameRateLabel(false)).toBe("—");
   });
 

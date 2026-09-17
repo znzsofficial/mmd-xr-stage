@@ -15,6 +15,8 @@ import { MmdVrThemeProvider } from "./mmdVrTheme";
 import { endMmdVrSession, mmdVrXrStore, peekPendingMmdVrSession } from "./mmdVrSession";
 import { getMmdVrRenderProfile } from "./mmdVrQuality";
 import { useMmdVrStore } from "./mmdVrStore";
+import { describeRenderRequest } from "./renderDiagnostics";
+import { MmdVrDiagnostics } from "./components/MmdVrDiagnostics";
 
 const { useXrSceneLifecycle } = createXrSceneMountGuard();
 
@@ -23,6 +25,7 @@ export function MmdVrScene() {
   const t = useLanguageStore((state) => state.t);
   const mmdPrefs = useMmdVrStore((state) => state.prefs);
   const profile = getMmdVrRenderProfile(mmdPrefs);
+  const [requested] = useState(() => describeRenderRequest(useMmdVrStore.getState().prefs));
   const [exiting, setExiting] = useState(false);
   const [hideExitHud, setHideExitHud] = useState(false);
   const exitGenRef = useRef(0);
@@ -64,13 +67,13 @@ export function MmdVrScene() {
   return (
     <MmdVrThemeProvider>
       <div
-        className="vr-desktop-overlay mmd-vr-overlay"
+        className="xr-stage-overlay"
         role="dialog"
         aria-modal="true"
         aria-label={t("settingsMmdVrShowcase")}
       >
         <Canvas
-          className="vr-desktop-canvas"
+          className="xr-stage-canvas"
           gl={{
             antialias: profile.antialias,
             powerPreference: "high-performance",
@@ -84,6 +87,7 @@ export function MmdVrScene() {
           }}
         >
           <XR store={mmdVrXrStore}>
+            <MmdVrDiagnostics requested={requested} />
             <AttachPendingMmdVrSession />
             <MmdVrHeadsetHudGate onHideHud={setHideExitHud} />
             <MmdVrPlayerRig
@@ -192,8 +196,8 @@ export function MmdVrScene() {
           </XR>
         </Canvas>
         {!hideExitHud ? (
-          <div className="vr-desktop-hud">
-            <button type="button" className="vr-desktop-exit-btn" onClick={exitVr} disabled={exiting}>
+          <div className="xr-stage-hud">
+            <button type="button" className="xr-stage-exit" onClick={exitVr} disabled={exiting}>
               {t("settingsVrDesktopExit")}
             </button>
           </div>

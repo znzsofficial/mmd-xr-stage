@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { beginMmdVrSessionFromClick } from "./mmdVrSession";
+import { beginMmdVrSessionFromClick, endMmdVrSession } from "./mmdVrSession";
+import { preloadMmdVrScene } from "./preloadMmdVrScene";
 import { useMmdVrStore } from "./mmdVrStore";
 import { requestMmdVrEnter } from "./requestMmdVrEnter";
 import { getXrDiagnostics, getXrSystem } from "../xr/xrDetect";
 import { endMmdVrAssetSession, getMmdVrSessionAssets } from "./mmdVrAssets";
+import type { StageSnapshot } from "./stageSnapshot";
 
 vi.mock("../xr/xrDetect", async () => {
   const actual = await vi.importActual<typeof import("../xr/xrDetect")>("../xr/xrDetect");
@@ -25,6 +27,7 @@ vi.mock("./mmdVrSession", async () => {
   return {
     ...actual,
     beginMmdVrSessionFromClick: vi.fn(async () => ({ id: "mmd-s1" })),
+    endMmdVrSession: vi.fn(async () => {}),
   };
 });
 
@@ -37,6 +40,10 @@ describe("requestMmdVrEnter", () => {
   const addNotification = vi.fn();
 
   beforeEach(() => {
+    useMmdVrStore.setState({ savedStage: null, resumeStage: null, captureStage: null });
+    vi.mocked(preloadMmdVrScene).mockReset();
+    vi.mocked(preloadMmdVrScene).mockResolvedValue(undefined as never);
+    vi.mocked(endMmdVrSession).mockClear();
     endMmdVrAssetSession();
     addNotification.mockClear();
     vi.mocked(beginMmdVrSessionFromClick).mockClear();
@@ -115,6 +122,37 @@ describe("requestMmdVrEnter", () => {
     const result = await requestMmdVrEnter({ t: t as never, addNotification });
     expect(result).toBe("failed");
     expect(beginMmdVrSessionFromClick).not.toHaveBeenCalled();
+    expect(useMmdVrStore.getState().errorMessage).toBe("settingsVrDesktopNeedHttps");
+  });
+
+  it("closes the session and exposes a rejected scene chunk instead of hanging", async () => {
+    vi.mocked(preloadMmdVrScene).mockRejectedValueOnce(new Error("scene download failed"));
+    const result = await requestMmdVrEnter({ t: t as never, addNotification });
+    expect(result).toBe("failed");
+    expect(endMmdVrSession).toHaveBeenCalledOnce();
+    expect(useMmdVrStore.getState()).toMatchObject({ overlayOpen: false, phase: "error" });
+    expect(useMmdVrStore.getState().errorMessage).toContain("scene download failed");
+    await expect(requestMmdVrEnter({ t: t as never, addNotification })).resolves.toBe("entered");
+  });
+
+  it("requests XR synchronously before starting the scene download", async () => {
+    const entering = requestMmdVrEnter({ t: t as never, addNotification });
+    expect(beginMmdVrSessionFromClick).toHaveBeenCalledOnce();
+    expect(preloadMmdVrScene).not.toHaveBeenCalled();
+    await entering;
+    expect(preloadMmdVrScene).toHaveBeenCalledOnce();
+  });
+
+  it("does not reopen the overlay or overwrite a newer entry after cancellation", async () => {
+    let resolveScene!: () => void;
+    vi.mocked(preloadMmdVrScene).mockReturnValueOnce(new Promise((resolve) => { resolveScene = () => resolve(undefined as never); }));
+    const entering = requestMmdVrEnter({ t: t as never, addNotification });
+    await Promise.resolve();
+    useMmdVrStore.getState().closeOverlay();
+    resolveScene();
+    await expect(entering).resolves.toBe("failed");
+    expect(useMmdVrStore.getState().overlayOpen).toBe(false);
+    expect(addNotification).not.toHaveBeenCalled();
   });
 
   it("fails when self is already busy", async () => {
@@ -129,6 +167,23 @@ describe("requestMmdVrEnter", () => {
     expect(result).toBe("entered");
     expect(beginMmdVrSessionFromClick).toHaveBeenCalledOnce();
     expect(useMmdVrStore.getState().overlayOpen).toBe(true);
+  });
+
+  it("uses the saved asset set only for explicit continue, preserving user activation", async () => {
+    const file = new File(["saved"], "saved.pmx");
+    const saved: StageSnapshot = { assets: [{ kind: "model", modelFile: file, companionFiles: [file], bodyMotionFile: null }],
+      models: [], objects: [], time: 10, playing: false, loop: true, physicsEnabled: false, controllerCollisions: true };
+    useMmdVrStore.setState({ savedStage: saved });
+    const entering = requestMmdVrEnter({ t: t as never, addNotification, resume: true, assets: [] });
+    expect(beginMmdVrSessionFromClick).toHaveBeenCalledOnce();
+    expect(getMmdVrSessionAssets()[0]).toMatchObject({ modelFile: file });
+    expect(useMmdVrStore.getState().resumeStage).toBe(saved);
+    await entering;
+    useMmdVrStore.getState().closeOverlay();
+    const replacement = new File(["new"], "new.pmx");
+    await requestMmdVrEnter({ t: t as never, addNotification, assets: [{ kind: "model", modelFile: replacement, companionFiles: [replacement], bodyMotionFile: null }] });
+    expect(useMmdVrStore.getState().resumeStage).toBeNull();
+    expect(getMmdVrSessionAssets()[0]).toMatchObject({ modelFile: replacement });
   });
 
   it("commits every model before the XR session resolves", async () => {

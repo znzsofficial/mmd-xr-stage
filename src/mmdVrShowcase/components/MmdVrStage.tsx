@@ -28,6 +28,9 @@ import {
   setMmdVrHapticContacts,
 } from "../mmdVrHaptics";
 import { transformRequiresPhysicsReseed } from "../mmdVrPhysicsReseed";
+import { createAssetLoadQueue, type AssetLoadTask } from "../mmdAssetLoadQueue";
+import { snapshotModel, restoreStageTime, applySavedObject, type StageSnapshot } from "../stageSnapshot";
+import { createModelLoadTask } from "../modelLoadTask";
 
 const OBJECT_DEFAULT_Z = -2.2;
 
@@ -323,7 +326,11 @@ export function MmdVrStageContent() {
   const playingRef = useRef(false);
   const loopRef = useRef(false);
   const loadGenRef = useRef(0);
-  const loadedKeyRef = useRef<string | null>(null);
+  const loadQueueRef = useRef<ReturnType<typeof createAssetLoadQueue> | null>(null);
+  const assetRetryEpoch = useMmdVrStore((s) => s.assetRetryEpoch);
+  const resumeStageRef = useRef(useMmdVrStore.getState().resumeStage);
+  const readyToSaveRef = useRef(false);
+  const objectFilesRef = useRef(new Map<string, File>());
   const sunRef = useRef<THREE.DirectionalLight>(null);
   const stopPlayingQueuedRef = useRef(false);
   const lastSeekEpochRef = useRef(0);
@@ -368,6 +375,24 @@ export function MmdVrStageContent() {
 
   useEffect(() => clearMmdVrHapticContacts, []);
 
+  function captureStage(): StageSnapshot | null {
+      if (!readyToSaveRef.current || useMmdVrStore.getState().physicsBusy || useMmdVrStore.getState().assetLoad.running) return null;
+      const models = runtime.exportProjectModels();
+      const slots = getMmdVrSessionAssets();
+      const liveFiles = new Set<File>([...models.map((model) => model.modelFile), ...objectFilesRef.current.values()]);
+      const assets = slots.filter((slot) => liveFiles.has(slot.kind === "model" ? slot.modelFile : slot.objectFile));
+      return {
+        assets: [...assets],
+        models: models.map((model) => snapshotModel({ file: model.modelFile, transform: model.transform, visible: model.visible,
+          materialVisible: model.materialVisible, materialOverrides: model.materialOverrides })),
+        objects: [...objectsRef.current.entries()].map(([id, entry]) => ({ file: objectFilesRef.current.get(id)!,
+          position: entry.group.position.toArray(), quaternion: entry.group.quaternion.toArray(), scale: entry.group.scale.toArray(), visible: entry.group.visible })),
+        time: timeRef.current, playing: useMmdVrStore.getState().playing, loop: useMmdVrStore.getState().loop,
+        physicsEnabled: useMmdVrStore.getState().physicsEnabled,
+        controllerCollisions: useMmdVrStore.getState().physicsControllerCollisions,
+      };
+  }
+
   const runtime = useMemo(() => {
     const handle = createMmdRuntimeHandle(scene, {
       controllerColliders: getMmdVrControllerColliderMatrices,
@@ -395,6 +420,11 @@ export function MmdVrStageContent() {
     runtimeRef.current = handle;
     return handle;
   }, [scene]);
+
+  useEffect(() => {
+    useMmdVrStore.getState().setStageCapture(captureStage);
+    return () => { if (useMmdVrStore.getState().captureStage === captureStage) useMmdVrStore.getState().setStageCapture(null); };
+  }, [runtime]);
 
   useEffect(() => {
     const handle = runtimeRef.current;
@@ -495,7 +525,7 @@ export function MmdVrStageContent() {
         }
         disposeAllObjects();
         if (runtimeRef.current === runtime) runtimeRef.current = null;
-        loadedKeyRef.current = null;
+        loadQueueRef.current = null;
       });
     };
   }, [runtime]);
@@ -610,6 +640,7 @@ export function MmdVrStageContent() {
     disposeGroupResources(entry.group);
     entry.revoke();
     objectsRef.current.delete(id);
+    objectFilesRef.current.delete(id);
   }
 
   function disposeAllObjects() {
@@ -642,7 +673,10 @@ export function MmdVrStageContent() {
             }
           });
           group.position.set(offsetX, 0, OBJECT_DEFAULT_Z);
+          const saved = resumeStageRef.current?.objects.find((saved) => saved.file === slot.objectFile);
+          if (saved) applySavedObject(group, saved);
           scene.add(group);
+          objectFilesRef.current.set(id, slot.objectFile);
           objectsRef.current.set(id, {
             group,
             name: slot.objectFile.name.replace(/\.(gltf|glb)$/i, ""),
@@ -671,12 +705,6 @@ export function MmdVrStageContent() {
   // Load once per runtime + session asset key (not on i18n change).
   useEffect(() => {
     const slots = getMmdVrSessionAssets();
-    const loadKey = slots
-      .map((slot) => slot.kind === "model"
-        ? `m:${slot.modelFile.name}:${slot.modelFile.size}:${slot.bodyMotionFile?.name ?? ""}`
-        : `o:${slot.objectFile.name}:${slot.objectFile.size}`)
-      .join("|");
-
     if (!slots.length) {
       setStatusLine(labelsRef.current.empty);
       setModels([]);
@@ -687,82 +715,72 @@ export function MmdVrStageContent() {
       return;
     }
 
-    if (loadedKeyRef.current === loadKey && (runtime.listModels().length > 0 || objectsRef.current.size > 0)) {
-      syncModelList();
-      syncObjects();
-      return;
-    }
-
     const gen = ++loadGenRef.current;
     let cancelled = false;
+    const isStale = () => cancelled || gen !== loadGenRef.current || !useMmdVrStore.getState().overlayOpen;
+    if (!loadQueueRef.current) {
+      const tasks: AssetLoadTask[] = [];
+      const models = slots.filter((slot): slot is MmdVrModelSlot => slot.kind === "model");
+      models.forEach((slot, index) => {
+        const id = `model:${index}`;
+        const modelTask = createModelLoadTask(runtime, slot, {
+          saved: resumeStageRef.current?.models.find((saved) => saved.file === slot.modelFile),
+          transform: { positionX: (index - (models.length - 1) / 2) * 1.1 },
+          physicsEnabled: () => useMmdVrStore.getState().physicsEnabled,
+          isStale: () => !useMmdVrStore.getState().overlayOpen || runtimeRef.current !== runtime,
+        });
+        tasks.push({ id, fileName: relativePath(slot.modelFile), phase: "model", run: modelTask.load });
+        for (const [phase, file] of [["body", slot.bodyMotionFile], ["face", slot.faceMotionFile]] as const) {
+          if (!file) continue;
+          tasks.push({ id: `${id}:${phase}`, requires: id, fileName: `${relativePath(slot.modelFile)} → ${relativePath(file)}`, phase,
+            run: () => modelTask.loadMotion(file, phase) });
+        }
+      });
+      const objects = slots.filter((slot): slot is MmdVrObjectSlot => slot.kind === "object");
+      objects.forEach((slot, index) => {
+        tasks.push({ id: `object:${index}`, fileName: relativePath(slot.objectFile), phase: "object",
+          run: () => loadObjectSlot(slot, `object:${relativePath(slot.objectFile)}`, (index - (objects.length - 1) / 2) * 1.4,
+            () => !useMmdVrStore.getState().overlayOpen || runtimeRef.current !== runtime) });
+      });
+      loadQueueRef.current = createAssetLoadQueue(tasks);
+    }
     setStatusLine(labelsRef.current.loading);
     queueMicrotask(() => void (async () => {
-      if (cancelled || gen !== loadGenRef.current) return;
+      if (isStale()) return;
       try {
-        const failures: string[] = [];
-        const modelSlots = slots.filter((slot): slot is MmdVrModelSlot => slot.kind === "model");
-        let modelIndex = 0;
-        for (const slot of modelSlots) {
-          if (cancelled || gen !== loadGenRef.current) return;
-          const offsetX = (modelIndex - (modelSlots.length - 1) / 2) * 1.1;
-          try {
-            const report = await runtime.addModel(slot.modelFile, slot.companionFiles, {
-              physics: false,
-              transform: { positionX: offsetX },
-            });
-            if (slot.bodyMotionFile) {
-              try {
-                await runtime.loadMotion(slot.bodyMotionFile, "body", report.modelId);
-              } catch (error) {
-                failures.push(`${slot.modelFile.name} (${slot.bodyMotionFile.name})`);
-                console.warn(`[mmdVr] body motion failed for ${slot.modelFile.name}`, error);
-              }
-            }
-            if (slot.faceMotionFile) {
-              try {
-                await runtime.loadMotion(slot.faceMotionFile, "face", report.modelId);
-              } catch (error) {
-                failures.push(`${slot.modelFile.name} (${slot.faceMotionFile.name})`);
-                console.warn(`[mmdVr] face motion failed for ${slot.modelFile.name}`, error);
-              }
-            }
-          } catch (error) {
-            failures.push(slot.modelFile.name);
-            console.error(`[mmdVr] model load failed: ${slot.modelFile.name}`, error);
+        await loadQueueRef.current!.run((progress) => {
+          useMmdVrStore.getState().setAssetLoad(progress);
+          const prefix = progress.running ? `${labelsRef.current.loading} ${progress.completed + 1}/${progress.total}` : labelsRef.current.failed;
+          setStatusLine(progress.running ? `${prefix} · ${progress.fileName}` : progress.failures.length ? `${prefix} (${progress.failures.length})` : null);
+        }, isStale);
+        if (isStale()) return;
+        if (assetRetryEpoch === 0) {
+          const saved = resumeStageRef.current;
+          timeRef.current = restoreStageTime(saved?.time ?? 0, runtime.duration);
+          if (saved) {
+            useMmdVrStore.getState().setLoop(saved.loop);
+            useMmdVrStore.getState().setPhysicsControllerCollisions(saved.controllerCollisions);
+            useMmdVrStore.getState().setPhysicsEnabled(saved.physicsEnabled);
           }
-          modelIndex += 1;
         }
-        const objectSlots = slots.filter((slot): slot is MmdVrObjectSlot => slot.kind === "object");
-        let objectIndex = 0;
-        for (const slot of objectSlots) {
-          if (cancelled || gen !== loadGenRef.current) return;
-          const id = `object:${relativePath(slot.objectFile)}`;
-          const offsetX = (objectIndex - (objectSlots.length - 1) / 2) * 1.4;
-          try {
-            await loadObjectSlot(slot, id, offsetX, () => cancelled || gen !== loadGenRef.current);
-          } catch (error) {
-            failures.push(slot.objectFile.name);
-            console.error(`[mmdVr] object load failed: ${slot.objectFile.name}`, error);
-          }
-          objectIndex += 1;
-        }
-        if (cancelled || gen !== loadGenRef.current) return;
-        loadedKeyRef.current = loadKey;
-        timeRef.current = 0;
         // Force an evaluation on the next frame so static models (no motion,
         // no physics) are posed/bound after the async load finishes.
         lastEvaluatedTimeRef.current = -Infinity;
         syncModelList();
         syncMaterialModels();
         syncObjects();
-        setStatusLine(failures.length ? `${labelsRef.current.failed}: ${failures.join(", ").slice(0, 36)}` : null);
-        setMmdVrClockTime(0, true);
-        if (runtime.duration > 0) setPlaying(true);
+        setMmdVrClockTime(timeRef.current, true);
+        readyToSaveRef.current = true;
+        if (assetRetryEpoch === 0 && runtime.duration > 0) setPlaying(resumeStageRef.current?.playing ?? true);
       } catch (err) {
-        if (cancelled || gen !== loadGenRef.current) return;
+        if (isStale()) return;
         const msg = err instanceof Error ? err.message : String(err);
         console.error("[mmdVr] load failed", err);
-        setStatusLine(`${labelsRef.current.failed}: ${msg.slice(0, 28)}`);
+        const previous = useMmdVrStore.getState().assetLoad;
+        useMmdVrStore.getState().setAssetLoad({ ...previous, running: false, failures: [
+          ...previous.failures, { id: "stage", fileName: previous.fileName, phase: previous.phase ?? "model", message: msg },
+        ] });
+        setStatusLine(`${labelsRef.current.failed}: ${msg}`);
         // Partially loaded models still need an evaluation pass.
         lastEvaluatedTimeRef.current = -Infinity;
         syncModelList();
@@ -774,7 +792,7 @@ export function MmdVrStageContent() {
     return () => {
       cancelled = true;
     };
-  }, [runtime, setDuration, setMaterialModels, setModels, setObjects, setPlaying, setStatusLine]);
+  }, [runtime, assetRetryEpoch, setDuration, setMaterialModels, setModels, setObjects, setPlaying, setStatusLine]);
 
   useFrame((_, delta) => {
     applyLighting();

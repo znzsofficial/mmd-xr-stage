@@ -1,5 +1,7 @@
 import { GLTFLoader } from "three-stdlib";
+import { LoadingManager } from "three";
 import { relativePath } from "../mmdImport/folderFiles";
+import { resolveCompanion } from "../mmdImport/assetPaths";
 
 /**
  * Best-effort normalization of a resource URL requested by GLTFLoader.
@@ -48,29 +50,32 @@ export type MmdVrGltfLoaderHandle = {
  * Caller owns the returned object URL and must call `revoke()` on removal.
  */
 export function createMmdVrGltfLoader(file: File, companions: readonly File[]): MmdVrGltfLoaderHandle {
-  const isGlb = /\.glb$/i.test(file.name);
   const urls: string[] = [];
-  const entries: { path: string; url: string }[] = [];
+  const urlsByFile = new Map<File, string>();
   const filePath = relativePath(file);
 
   function makeUrl(source: File) {
     const url = URL.createObjectURL(source);
     urls.push(url);
-    entries.push({ path: relativePath(source), url });
+    urlsByFile.set(source, url);
   }
 
   makeUrl(file);
-  if (!isGlb) {
-    for (const companion of companions) {
-      if (relativePath(companion) === filePath) continue;
-      makeUrl(companion);
-    }
+  for (const companion of companions) {
+    if (relativePath(companion) === filePath) continue;
+    makeUrl(companion);
   }
 
-  const loader = new GLTFLoader();
-  if (!isGlb && entries.length > 1) {
-    const mapper = createGltfResourceMapper(entries);
-    loader.manager.setURLModifier((requested) => mapper(requested));
+  const loader = new GLTFLoader(new LoadingManager());
+  loader.setResourcePath("./");
+  if (urlsByFile.size > 1) {
+    loader.manager.setURLModifier((requested) => {
+      if (/^(blob:|data:|https?:)/i.test(requested)) return requested;
+      let reference = normalizeGltfResourcePath(requested);
+      try { reference = decodeURIComponent(reference); } catch { /* Retain literal malformed escapes. */ }
+      const { matches } = resolveCompanion(file, reference, [file, ...companions]);
+      return matches.length === 1 ? urlsByFile.get(matches[0]) ?? requested : requested;
+    });
   }
   return {
     loader,

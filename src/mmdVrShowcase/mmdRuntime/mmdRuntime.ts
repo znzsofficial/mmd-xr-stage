@@ -1,15 +1,15 @@
 import {
   applyMmdCameraStateToThreeCamera,
-  createMmdTextureMapFromFiles,
   syncMmdSpecularDirection,
   ThreeMmdLoader,
   type MmdAnimation,
   type ThreeMmdModel,
-  type TextureMap,
+  type TextureResolver,
 } from "@yohawing/three-mmd-loader";
 import type { MmdPhysicsBackend } from "@yohawing/three-mmd-loader/physics";
 import { DefaultMmdRuntime } from "@yohawing/three-mmd-loader/runtime";
 import * as THREE from "three";
+import { resolveCompanion } from "../../mmdImport/assetPaths";
 import { createBulletPhysicsBackend, type MmdPhysicsQuality } from "./mmdPhysics";
 import {
   applyMaterialOverride,
@@ -144,37 +144,14 @@ export function bindStaticMmdPhysicsRuntime(model: Pick<ThreeMmdModel, "setAnima
   model.setAnimation(STATIC_PHYSICS_BINDING_ANIMATION);
 }
 
-function buildTextureMap(modelFile: File, companionFiles: readonly File[] = []): TextureMap {
+export function createLocalTextureResolver(modelFile: File, companionFiles: readonly File[] = []): TextureResolver {
   const allFiles = companionFiles.length ? companionFiles : [modelFile];
-  const baseMap = createMmdTextureMapFromFiles(allFiles, modelFile) as Record<string, File | string>;
-  // Index by basename so loads without webkitRelativePath (old project DB rows)
-  // still resolve nested PMX refs like "tex/foo.png" -> "foo.png".
-  const byBaseName = new Map<string, File>();
-  for (const file of allFiles) {
-    byBaseName.set(file.name.toLowerCase(), file);
-  }
-  for (const [key, value] of Object.entries(baseMap)) {
-    if (typeof value === "string" || !value) continue;
-    const base = key.split(/[/\\]/).pop();
-    if (base) {
-      baseMap[base] = value;
-      byBaseName.set(base.toLowerCase(), value);
-    }
-  }
-
-  return new Proxy(baseMap, {
-    get(target, prop, receiver) {
-      if (typeof prop !== "string") return Reflect.get(target, prop, receiver);
-      const direct = Reflect.get(target, prop, receiver);
-      if (direct !== undefined) return direct;
-      const normalized = prop.replaceAll("\\", "/").replace(/^\.\/+/, "");
-      const nested = Reflect.get(target, normalized, receiver);
-      if (nested !== undefined) return nested;
-      const base = normalized.split("/").pop();
-      if (!base) return undefined;
-      return Reflect.get(target, base, receiver) ?? byBaseName.get(base.toLowerCase());
+  return {
+    async resolve(path) {
+      const { matches } = resolveCompanion(modelFile, path, allFiles);
+      return matches.length === 1 ? matches[0] : undefined;
     },
-  }) as TextureMap;
+  };
 }
 
 /**
@@ -323,7 +300,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
     preferredId?: string,
   ) {
     assertActive();
-    const textureMap = buildTextureMap(modelFile, companionFiles);
+    const textureResolver = createLocalTextureResolver(modelFile, companionFiles);
     let colliderRoot: THREE.Object3D | null = null;
     const unitRoot = new THREE.Matrix4();
     const inverseVisualRoot = new THREE.Matrix4();
@@ -403,7 +380,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       : { physics: "none" as const };
 
     const loader = new ThreeMmdLoader({
-      textureMap,
+      textureResolver,
       runtime: runtimeOptions,
       ...(withPhysics ? { runtimeFactory: () => new DefaultMmdRuntime(runtimeOptions) } : {}),
     });
@@ -438,9 +415,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
     const textureWarnings = model.diagnostics.textures
       .map((item) => `${item.code}: ${item.path}`)
       .filter(Boolean);
-    const uniqueTextureFiles = new Set(
-      Object.keys(textureMap).filter((key) => !key.includes("/") && !key.includes("\\")),
-    );
+    const uniqueTextureFiles = new Set(companionFiles.filter((file) => /\.(png|jpe?g|bmp|dds|gif|tga|webp|sph|spa)$/i.test(file.name)));
 
     let id = preferredId && !entries.has(preferredId) ? preferredId : `mmd-model-${nextModelSeq++}`;
     if (preferredId && entries.has(preferredId)) id = `mmd-model-${nextModelSeq++}`;
@@ -487,7 +462,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
     return {
       entry,
       report: {
-        textureCount: uniqueTextureFiles.size || Object.keys(textureMap).length,
+        textureCount: uniqueTextureFiles.size,
         missingTextures: [...new Set(missingTextures)],
         textureWarnings: [...new Set(textureWarnings)],
         modelId: id,
@@ -684,12 +659,15 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       }
     },
     async loadMotion(file, slot = "body", modelId = selectedId) {
+      assertActive();
       const id = modelId ?? selectedId;
       if (!id) throw new Error("No model selected");
       const entry = entries.get(id);
       if (!entry) throw new Error("Model not found");
       const loader = new ThreeMmdLoader();
       const animation = await loader.loadAnimation(file);
+      assertActive();
+      if (entries.get(id) !== entry) throw new DOMException("MMD model removed", "AbortError");
       if (slot === "face") {
         entry.faceAnimation = animation;
         entry.faceMotionName = file.name;

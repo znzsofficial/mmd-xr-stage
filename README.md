@@ -19,12 +19,15 @@ MMD XR Stage is a single-purpose VR showcase for user-provided MMD (MikuMikuDanc
 
 ### Prep Page
 
-- Drag in folders of models, motions, audio, and objects; slot them per asset-type limits.
+- Import folders, ZIP packages, or individual model, motion and scene files. Relative texture paths are preserved; missing resources and path conflicts appear in an import report.
+- Continue the previous stage in the same browser tab, restoring placement, materials, visibility and playback position, or start over with the current selection.
 - Quest quality presets (safe / balanced / clarity) plus per-axis overrides: frame rate, framebuffer scale, foveation, antialias, shadows, DPR.
 - Live XR readiness probe: secure context, `navigator.xr` availability, and an advisory `immersive-vr` support check, surfaced before you enter.
 
 ### In VR
 
+- Compact viewing controls keep play/pause, panel expansion and exit within reach; loading and physics errors remain accessible while the adjustment panel is closed.
+- Render diagnostics distinguish requested settings, session-reported refresh/layer properties and measured callback cadence. Unavailable values are explicitly marked rather than inferred from presets.
 - In-headset HUD with quality controls, model transform, height adjustment, snap turning, and exposure/lighting looks.
 - Meta Quest hand tracking with articulated hands, pinch-based HUD interaction, and hand-to-model physics collision.
 - Optional controller collision, contact haptics, physics quality controls, and session-safe model disposal.
@@ -69,7 +72,7 @@ pnpm dev
 
 ## Local Data
 
-Preferences and session settings are stored locally via `localStorage`. Clearing site data resets them. Imported MMD models, motions, textures, and audio remain local to the browser; this repository ships no character or motion assets. Use only assets whose creator terms permit your intended use.
+Preferences are stored locally via `localStorage`. Imported files and the previous-stage snapshot stay in page memory and are cleared on refresh. ZIP imports support UTF-8 and optional Shift-JIS/GBK filename decoding; encrypted archives are not supported. See [asset import and stage resume](./docs/asset-workflow.md) for limits and recovery behavior. This repository ships no character or motion assets. Use only assets whose creator terms permit your intended use.
 
 ## Deployment
 

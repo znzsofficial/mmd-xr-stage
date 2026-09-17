@@ -159,7 +159,7 @@ export function formatMmdVrProfileSummary(
   const aa = formatOnOff(profile.antialias, language);
   const sh = formatOnOff(profile.shadows, language);
   const gr = formatOnOff(profile.showGrid, language);
-  const fps = profile.targetFrameRateHz == null ? formatFrameRateLabel(profile.frameRate) : `${profile.targetFrameRateHz} Hz`;
+  const fps = profile.targetFrameRateHz == null ? formatFrameRateLabel(profile.frameRate, language) : `${profile.targetFrameRateHz} Hz`;
   if (language === "zh") {
     return `DPR ${dpr} · AA ${aa} · 阴影 ${sh} · 网格 ${gr} · 走速 ${profile.walkSpeed.toFixed(2)} · 目标 ${fps}`;
   }

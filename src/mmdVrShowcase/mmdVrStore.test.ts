@@ -19,6 +19,31 @@ import {
 } from "./mmdVrAdjustments";
 
 describe("MMD VR adjustments", () => {
+  it("retains a complete failure report on exit and clears it for a fresh entry", () => {
+    const store = useMmdVrStore.getState();
+    store.setAssetLoad({ running: false, completed: 1, total: 1, fileName: "", phase: null,
+      failures: [{ id: "a", fileName: "a very long model name.pmx", phase: "model", message: "full diagnostics" }] });
+    store.closeOverlay();
+    expect(useMmdVrStore.getState().assetLoad.failures[0].message).toBe("full diagnostics");
+    store.openOverlay();
+    expect(useMmdVrStore.getState().assetLoad.failures).toHaveLength(0);
+    store.closeOverlay();
+  });
+
+  it("does not queue concurrent retries or demote an already active XR session", () => {
+    const store = useMmdVrStore.getState();
+    store.openOverlay();
+    store.setAssetLoad({ running: false, completed: 1, total: 1, fileName: "", phase: null,
+      failures: [{ id: "a", fileName: "a.pmx", phase: "model", message: "failed" }] });
+    store.retryFailedAssets();
+    const epoch = useMmdVrStore.getState().assetRetryEpoch;
+    store.retryFailedAssets();
+    expect(useMmdVrStore.getState().assetRetryEpoch).toBe(epoch);
+    store.setPhase("active");
+    store.markEntered();
+    expect(useMmdVrStore.getState().phase).toBe("active");
+    store.closeOverlay();
+  });
   beforeEach(() => {
     useMmdVrStore.setState({
       models: [{ id: "model-1", name: "Miku.pmx", visible: true, scale: 1, rotationY: 0 }],

@@ -21,6 +21,7 @@
     "@react-three/fiber": "^9.7.0",
     "@react-three/xr": "^6.6.30",
     "@yohawing/three-mmd-loader": "0.8.3",
+    "@zip.js/zip.js": "^2.15.0",
     "nanoid": "^6.0.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
