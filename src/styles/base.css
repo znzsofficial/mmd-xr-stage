@@ -57,21 +57,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
   outline: 2px solid var(--os-focus); outline-offset: 3px;
 }
 input, textarea { caret-color: var(--os-primary); }
-.button-primary {
-  display: inline-flex;
-  min-height: 44px;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  border: 0;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 620;
-  padding: 10px 12px;
-  background: var(--os-primary);
-  color: var(--os-primary-contrast);
-}
-.button-primary:not(:disabled):hover { background: var(--os-primary-strong); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }

@@ -5,7 +5,7 @@
   overscroll-behavior: contain;
   color: var(--os-ink);
   background:
-    radial-gradient(circle at 72% 10%, color-mix(in oklab, var(--os-primary) 9%, transparent), transparent 32%),
+    radial-gradient(circle at 72% 10%, color-mix(in oklab, var(--os-primary) 5%, transparent), transparent 32%),
     linear-gradient(145deg, var(--os-bg), color-mix(in oklab, var(--os-surface) 42%, var(--os-bg)) 62%, var(--os-bg));
 }
 
@@ -123,10 +123,10 @@
   margin-bottom: 22px;
   display: grid;
   place-items: center;
-  border: 1px solid color-mix(in oklab, var(--os-primary) 32%, var(--os-border));
+  border: 1px solid var(--os-border-strong);
   border-radius: 14px;
-  color: var(--os-primary-contrast);
-  background: color-mix(in oklab, var(--os-primary) 16%, var(--os-surface));
+  color: var(--os-muted);
+  background: var(--os-surface);
   box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--os-ink) 6%, transparent);
 }
 .mmd-vr-prep-status-card { margin-top: 28px; padding: 14px; border: 1px solid var(--os-border); border-radius: 12px; background: color-mix(in oklab, var(--os-surface) 70%, transparent); }
@@ -142,7 +142,7 @@
 .mmd-vr-prep-asset-summary { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--os-border); color: var(--os-muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
 .mmd-vr-prep-asset-summary > div { margin-top: 13px; display: flex; gap: 22px; }
 .mmd-vr-prep-asset-summary strong { display: inline-flex; align-items: center; gap: 5px; color: var(--os-ink); font: 650 17px/1 ui-monospace, monospace; }
-.mmd-vr-prep-asset-summary strong iconify-icon { color: var(--os-primary); }
+.mmd-vr-prep-asset-summary strong iconify-icon { color: var(--os-muted); }
 .mmd-vr-prep-asset-summary small { color: var(--os-muted); font: 600 11px/1.2 Inter, system-ui, sans-serif; text-transform: none; letter-spacing: 0; }
 
 .mmd-vr-prep-workbench {
@@ -180,18 +180,18 @@
   display: grid;
   place-items: center;
   border-radius: 14px;
-  color: var(--os-primary);
-  background: color-mix(in oklab, var(--os-primary) 12%, var(--os-surface));
+  color: var(--os-muted);
+  background: var(--os-surface);
 }
 
 .mmd-vr-prep-drop strong,
 .mmd-vr-prep-section-head strong { display: block; font-size: 16px; }
-.mmd-vr-prep-section-eyebrow { margin-bottom: 7px; color: var(--os-primary); font: 700 10px/1.2 ui-monospace, "SFMono-Regular", Consolas, monospace; letter-spacing: .1em; text-transform: uppercase; }
+.mmd-vr-prep-section-eyebrow { margin-bottom: 7px; color: var(--os-muted); font: 700 10px/1.2 ui-monospace, "SFMono-Regular", Consolas, monospace; letter-spacing: .1em; text-transform: uppercase; }
 .mmd-vr-prep-drop p { margin: 6px 0 0; color: var(--os-muted); font-size: 13px; line-height: 1.5; }
 .mmd-vr-prep-section { padding: 22px; }
 .mmd-vr-prep-section-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .mmd-vr-prep-section-head span { display: block; margin-top: 5px; color: var(--os-muted); font-size: 12px; }
-.mmd-vr-prep-section-head b { font: 700 18px/1 ui-monospace, monospace; color: var(--os-primary); }
+.mmd-vr-prep-section-head b { font: 700 18px/1 ui-monospace, monospace; color: var(--os-ink); }
 .mmd-vr-prep-models { margin-top: 18px; display: grid; gap: 8px; }
 
 .mmd-vr-prep-model {
@@ -214,11 +214,29 @@
 .mmd-vr-prep-model-info { all: unset; cursor: pointer; min-width: 0; }
 .mmd-vr-prep-model-info strong, .mmd-vr-prep-model-info small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mmd-vr-prep-model-info small { margin-top: 4px; color: var(--os-muted); }
-.mmd-vr-prep-model > iconify-icon { color: var(--os-primary); }
+.mmd-vr-prep-model > iconify-icon { color: var(--os-subtle); }
 .mmd-vr-prep-icon-btn { all: unset; cursor: pointer; display: inline-grid; place-items: center; padding: 4px; border-radius: 8px; color: var(--os-muted); }
-.mmd-vr-prep-icon-btn:hover { background: color-mix(in oklab, var(--os-primary) 12%, transparent); }
+.mmd-vr-prep-icon-btn:hover { background: var(--os-elevated); }
 .mmd-vr-prep-remove:hover { color: #ef4444; }
 .mmd-vr-prep-empty { margin-top: 18px; padding: 32px; border: 1px dashed var(--os-border); border-radius: 12px; color: var(--os-muted); text-align: center; }
+
+/* Neutral import actions; the accent stays reserved for the enter CTA. */
+.button-primary {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--os-border-strong);
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 620;
+  padding: 10px 16px;
+  background: var(--os-surface);
+  color: var(--os-ink);
+}
+.button-primary:not(:disabled):hover { background: var(--os-elevated); }
+.button-primary:disabled { cursor: not-allowed; opacity: 0.45; }
 
 .mmd-vr-prep-motion-grid {
   padding: 18px;
@@ -299,8 +317,9 @@
 }
 
 .mmd-vr-prep-options button.is-active {
-  color: var(--os-primary-contrast);
-  background: var(--os-primary);
+  color: var(--os-ink);
+  background: var(--os-primary-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--os-primary) 45%, transparent);
 }
 
 .mmd-vr-theme-swatches {
@@ -320,7 +339,7 @@
 
 .mmd-vr-theme-swatches button.is-active {
   border-color: var(--os-ink);
-  box-shadow: 0 0 0 3px color-mix(in oklch, var(--os-primary) 30%, transparent), inset 0 0 0 1px rgba(255, 255, 255, .22);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--os-ink) 28%, transparent), inset 0 0 0 1px rgba(255, 255, 255, .22);
   transform: scale(1.1);
 }
 
@@ -361,12 +380,12 @@
   background: var(--os-primary);
   font-size: 16px;
   font-weight: 800;
-  box-shadow: 0 8px 20px color-mix(in oklab, var(--os-primary) 22%, transparent);
+  box-shadow: 0 8px 20px color-mix(in oklab, var(--os-primary) 16%, transparent);
   transition: filter .16s ease, transform .16s ease, box-shadow .16s ease;
 }
 
 .mmd-vr-prep-enter:disabled { opacity: .45; cursor: not-allowed; }
-.mmd-vr-prep-enter:not(:disabled):hover { filter: brightness(1.08); box-shadow: 0 10px 26px color-mix(in oklab, var(--os-primary) 32%, transparent); }
+.mmd-vr-prep-enter:not(:disabled):hover { filter: brightness(1.08); box-shadow: 0 10px 26px color-mix(in oklab, var(--os-primary) 24%, transparent); }
 .mmd-vr-prep-enter:not(:disabled):active { transform: translateY(1px); }
 
 @media (max-width: 780px) {
