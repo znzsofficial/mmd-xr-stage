@@ -388,115 +388,13 @@ export function MmdVrPrepApp() {
       </header>
 
       <main className="stage-main">
-        <aside className="stage-sidebar">
-          <div className="stage-hero">
-            <h1 className="stage-hero-title">{t("mmdVrPrepTitle")}</h1>
-            <p className="stage-hero-desc">{t("mmdVrPrepLead")}</p>
-          </div>
+        <div className="stage-intro">
+          <h1 className="stage-intro-title">{t("mmdVrPrepTitle")}</h1>
+          <p className="stage-intro-lead">{t("mmdVrPrepLead")}</p>
+        </div>
 
-          <div className="stage-card stage-summary-card">
-            <div className="stage-card-header">
-              <span className="stage-card-title">{t("mmdVrPrepAssetLabel")}</span>
-              <Icon icon="solar:chart-square-linear" width={16} height={16} className="stage-card-icon" />
-            </div>
-            <div className="stage-summary-metrics">
-              <div className="stage-metric">
-                <div className="stage-metric-val">
-                  <Icon icon="solar:user-bold-duotone" width={18} height={18} />
-                  <span>{selectedModels.length}</span>
-                  <small>/{MMD_VR_MAX_MODELS}</small>
-                </div>
-                <span className="stage-metric-name">{t("mmdVrPrepModelCount")}</span>
-              </div>
-              <div className="stage-metric">
-                <div className="stage-metric-val">
-                  <Icon icon="solar:box-bold-duotone" width={18} height={18} />
-                  <span>{selectedObjects.length}</span>
-                  <small>/{MMD_VR_MAX_OBJECTS}</small>
-                </div>
-                <span className="stage-metric-name">{t("mmdVrPrepObjectCount")}</span>
-              </div>
-              <div className="stage-metric">
-                <div className="stage-metric-val">
-                  <Icon icon="solar:playlist-2-bold-duotone" width={18} height={18} />
-                  <span>{selectedMotionCount}</span>
-                </div>
-                <span className="stage-metric-name">{t("mmdVrPrepMotionCount")}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="stage-launch-section">
-            {savedStage && savedStage.assets.length > 0 && (
-              <div className="stage-resume-box">
-                <div className="stage-resume-header">
-                  <Icon icon="solar:history-bold-duotone" width={16} height={16} />
-                  <span>{t("stageResumeHint")} ({Math.floor(savedStage.time / 60)}:{String(Math.floor(savedStage.time % 60)).padStart(2, "0")})</span>
-                </div>
-                <button
-                  type="button"
-                  className="stage-btn stage-btn-secondary stage-btn-lg stage-btn-block"
-                  disabled={importing || readiness === "insecure" || readiness === "no-xr" || phase === "entering" || phase === "active"}
-                  onClick={() => enterVr(true)}
-                >
-                  <Icon icon="solar:play-circle-bold" width={20} height={20} />
-                  <span>{t("stageContinue")}</span>
-                </button>
-              </div>
-            )}
-
-            <button
-              type="button"
-              className="stage-btn stage-btn-primary stage-btn-lg stage-btn-block"
-              disabled={importing || checkingAssets || !hasReadyContent || readiness === "insecure" || readiness === "no-xr" || phase === "entering" || phase === "active"}
-              onClick={() => enterVr(false)}
-            >
-              <Icon icon="boxicons:vr-headset-filled" width={22} height={22} />
-              <span>{phase === "entering" ? t("settingsMmdVrEntering") : savedStage ? t("stageRestart") : t("settingsMmdVrEnter")}</span>
-              <Icon icon="solar:arrow-right-linear" width={18} height={18} />
-            </button>
-            <p className="stage-launch-hint">{t("mmdVrPrepEnterHint")}</p>
-          </div>
-
-          {errorMessage && (
-            <div className="stage-alert stage-alert-danger" role="alert">
-              <div className="stage-alert-title">
-                <Icon icon="solar:danger-triangle-bold" width={18} height={18} />
-                <span>{t("loadEnterFailed")}</span>
-              </div>
-              <p className="stage-alert-sub">{t("loadEnterRecovery")}</p>
-              <details className="stage-details-inline">
-                <summary>{t("loadDetails")}</summary>
-                <pre>{errorMessage}</pre>
-              </details>
-            </div>
-          )}
-
-          {assetLoad.failures.length > 0 && (
-            <div className="stage-alert stage-alert-warning">
-              <div className="stage-alert-title">
-                <Icon icon="solar:shield-warning-bold" width={18} height={18} />
-                <span>{t("loadPartial")} ({assetLoad.failures.length})</span>
-              </div>
-              <p className="stage-alert-sub">{t("loadReenterHint")}</p>
-              <details className="stage-details-inline">
-                <summary>{t("loadDetails")}</summary>
-                <ul className="stage-log-list">
-                  {assetLoad.failures.map((failure) => (
-                    <li key={failure.id}>
-                      <strong>{failure.fileName}</strong>
-                      <pre>{failure.message}</pre>
-                    </li>
-                  ))}
-                </ul>
-              </details>
-            </div>
-          )}
-        </aside>
-
-        <div className="stage-workbench">
           <section
-            className={`stage-card stage-drop-zone ${dragging ? "is-dragging" : ""}`}
+            className={`stage-drop-zone ${dragging ? "is-dragging" : ""}`}
             onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
             onDragLeave={() => setDragging(false)}
             onDrop={(e) => void onDrop(e)}
@@ -506,7 +404,6 @@ export function MmdVrPrepApp() {
                 <Icon icon="solar:folder-with-files-bold-duotone" width={32} height={32} />
               </div>
               <div className="stage-drop-meta">
-                <span className="stage-step-tag">01 · {t("mmdVrPrepSectionAssets")}</span>
                 <h3 className="stage-drop-title">{t("mmdVrPrepImport")}</h3>
                 <p className="stage-drop-desc">{t("importHint")}</p>
               </div>
@@ -653,10 +550,9 @@ export function MmdVrPrepApp() {
           )}
           <input ref={repairInputRef} type="file" hidden onChange={repairResource} />
 
-          <section className="stage-card">
-            <div className="stage-card-header">
+          <section className="stage-section">
+            <div className="stage-section-header">
               <div>
-                <span className="stage-step-tag">02 · {t("mmdVrPrepSectionCharacters")}</span>
                 <h3 className="stage-section-title">{t("mmdVrPrepModels")}</h3>
                 <span className="stage-section-sub">{t("mmdVrPrepModelLimit").replace("{count}", String(MMD_VR_MAX_MODELS))}</span>
               </div>
@@ -697,10 +593,9 @@ export function MmdVrPrepApp() {
             )}
           </section>
 
-          <section className="stage-card">
-            <div className="stage-card-header">
+          <section className="stage-section">
+            <div className="stage-section-header">
               <div>
-                <span className="stage-step-tag">03 · {t("mmdVrPrepSectionEnvironment")}</span>
                 <h3 className="stage-section-title">{t("mmdVrPrepObjects")}</h3>
                 <span className="stage-section-sub">{t("mmdVrPrepObjectLimit").replace("{count}", String(MMD_VR_MAX_OBJECTS))}</span>
               </div>
@@ -741,10 +636,9 @@ export function MmdVrPrepApp() {
             )}
           </section>
 
-          <section className="stage-card">
-            <div className="stage-card-header">
+          <section className="stage-section">
+            <div className="stage-section-header">
               <div>
-                <span className="stage-step-tag">04 · {t("mmdVrPrepSectionPlayback")}</span>
                 <h3 className="stage-section-title">{t("mmdVrPrepMotionHint")}</h3>
               </div>
             </div>
@@ -774,7 +668,7 @@ export function MmdVrPrepApp() {
             </div>
           </section>
 
-          <details className="stage-card stage-config-card" open>
+          <details className="stage-config-card" open>
             <summary className="stage-config-summary">
               <div className="stage-config-summary-left">
                 <div className="stage-config-icon">
@@ -1016,8 +910,77 @@ export function MmdVrPrepApp() {
               </details>
             </div>
           </details>
-        </div>
       </main>
+
+      <footer className="stage-launch-bar">
+        <div className="stage-launch-inner">
+          {errorMessage && (
+            <div className="stage-alert stage-alert-danger" role="alert">
+              <div className="stage-alert-title">
+                <Icon icon="solar:danger-triangle-bold" width={18} height={18} />
+                <span>{t("loadEnterFailed")}</span>
+              </div>
+              <p className="stage-alert-sub">{t("loadEnterRecovery")}</p>
+              <details className="stage-details-inline">
+                <summary>{t("loadDetails")}</summary>
+                <pre>{errorMessage}</pre>
+              </details>
+            </div>
+          )}
+
+          {assetLoad.failures.length > 0 && (
+            <div className="stage-alert stage-alert-warning">
+              <div className="stage-alert-title">
+                <Icon icon="solar:shield-warning-bold" width={18} height={18} />
+                <span>{t("loadPartial")} ({assetLoad.failures.length})</span>
+              </div>
+              <p className="stage-alert-sub">{t("loadReenterHint")}</p>
+              <details className="stage-details-inline">
+                <summary>{t("loadDetails")}</summary>
+                <ul className="stage-log-list">
+                  {assetLoad.failures.map((failure) => (
+                    <li key={failure.id}>
+                      <strong>{failure.fileName}</strong>
+                      <pre>{failure.message}</pre>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            </div>
+          )}
+
+          {savedStage && savedStage.assets.length > 0 && (
+            <p className="stage-launch-note">
+              {t("stageResumeHint")} ({Math.floor(savedStage.time / 60)}:{String(Math.floor(savedStage.time % 60)).padStart(2, "0")})
+            </p>
+          )}
+
+          <div className="stage-launch-row">
+            {savedStage && savedStage.assets.length > 0 && (
+              <button
+                type="button"
+                className="stage-btn stage-btn-secondary stage-btn-lg"
+                disabled={importing || readiness === "insecure" || readiness === "no-xr" || phase === "entering" || phase === "active"}
+                onClick={() => enterVr(true)}
+              >
+                <Icon icon="solar:play-circle-bold" width={20} height={20} />
+                <span>{t("stageContinue")}</span>
+              </button>
+            )}
+            <button
+              type="button"
+              className="stage-btn stage-btn-primary stage-btn-lg"
+              disabled={importing || checkingAssets || !hasReadyContent || readiness === "insecure" || readiness === "no-xr" || phase === "entering" || phase === "active"}
+              onClick={() => enterVr(false)}
+            >
+              <Icon icon="boxicons:vr-headset-filled" width={22} height={22} />
+              <span>{phase === "entering" ? t("settingsMmdVrEntering") : savedStage ? t("stageRestart") : t("settingsMmdVrEnter")}</span>
+              <Icon icon="solar:arrow-right-linear" width={18} height={18} />
+            </button>
+          </div>
+          <p className="stage-launch-hint">{t("mmdVrPrepEnterHint")}</p>
+        </div>
+      </footer>
 
       <MmdVrOverlay />
     </div>
