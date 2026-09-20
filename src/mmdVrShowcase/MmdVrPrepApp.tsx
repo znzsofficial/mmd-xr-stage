@@ -31,7 +31,7 @@ function OptionGroup<T extends string>({
   onChange: (value: T) => void;
 }) {
   return (
-    <div className="mmd-vr-prep-options">
+    <div className="stage-seg-control">
       {options.map((option) => (
         <button
           key={option.id}
@@ -48,7 +48,6 @@ function OptionGroup<T extends string>({
 }
 
 type QuestPreset = "safe" | "balanced" | "clarity" | "custom";
-
 type XrReadiness = "checking" | "ready" | "unverified" | "insecure" | "no-xr";
 
 function getQuestPreset(prefs: ReturnType<typeof useMmdVrStore.getState>["prefs"]): QuestPreset {
@@ -71,12 +70,16 @@ export function MmdVrPrepApp() {
   const errorMessage = useMmdVrStore((state) => state.errorMessage);
   const prefs = useMmdVrStore((state) => state.prefs);
   const setPrefs = useMmdVrStore((state) => state.setPrefs);
+
   const folderInputRef = useRef<HTMLInputElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const repairInputRef = useRef<HTMLInputElement | null>(null);
   const repairTargetRef = useRef<{ file: File; reference: string } | null>(null);
   const importAbortRef = useRef<AbortController | null>(null);
   const filesRef = useRef<File[]>([]);
+  const importGenerationRef = useRef(0);
+
+  const [files, setFiles] = useState<File[]>([]);
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState<ImportProgress | null>(null);
   const [importError, setImportError] = useState<{ key: TranslationKey; detail: string } | null>(null);
@@ -84,14 +87,13 @@ export function MmdVrPrepApp() {
   const [encoding, setEncoding] = useState<ArchiveEncoding>("auto");
   const [report, setReport] = useState<ImportReport | null>(null);
   const [checkingAssets, setCheckingAssets] = useState(false);
-  const importGenerationRef = useRef(0);
-  const [files, setFiles] = useState<File[]>([]);
   const [readiness, setReadiness] = useState<XrReadiness>("checking");
   const [selectedPaths, setSelectedPaths] = useState<string[]>([]);
   const [selectedObjectPaths, setSelectedObjectPaths] = useState<string[]>([]);
   const [bodyMotionPath, setBodyMotionPath] = useState("");
   const [faceMotionPath, setFaceMotionPath] = useState("");
   const [dragging, setDragging] = useState(false);
+
   const questPreset = getQuestPreset(prefs);
   const highLoadConfig = prefs.frameRatePref === "120"
     || (prefs.advancedRenderOverrides && prefs.framebufferScalePref === "1" && prefs.foveationPref === "off");
@@ -152,7 +154,6 @@ export function MmdVrPrepApp() {
   }, []);
 
   function ingest(nextFiles: File[]) {
-    // Accumulate across multiple folder picks / drops instead of replacing.
     const merged = mergeAssetFiles(filesRef.current, nextFiles);
     if (merged.files.length > IMPORT_LIMITS.entries || merged.files.reduce((sum, file) => sum + file.size, 0) > IMPORT_LIMITS.totalBytes) {
       throw new AssetImportError("limit", nextFiles[0]?.name ?? "");
@@ -194,22 +195,6 @@ export function MmdVrPrepApp() {
     event.target.value = "";
   }
 
-  function repairResource(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    const target = repairTargetRef.current;
-    event.target.value = "";
-    repairTargetRef.current = null;
-    if (!file || !target || !filesRef.current.includes(target.file)) return;
-    if (file.size > IMPORT_LIMITS.fileBytes || filesRef.current.length >= IMPORT_LIMITS.entries || filesRef.current.reduce((n, f) => n + f.size, 0) + file.size > IMPORT_LIMITS.totalBytes) {
-      setImportError({ key: "importTooLarge", detail: file.name });
-      return;
-    }
-    // Keep an explicit binding rather than guessing which ZIP a loose file belongs to.
-    bindCompanion(target.file, target.reference, file);
-    filesRef.current = [...filesRef.current, file];
-    setFiles(filesRef.current);
-  }
-
   async function onDrop(event: DragEvent<HTMLElement>) {
     event.preventDefault();
     setDragging(false);
@@ -227,31 +212,54 @@ export function MmdVrPrepApp() {
     try {
       const incoming = await pending;
       abort.signal.throwIfAborted();
-      const expanded = await expandAssetFiles(incoming, { signal: abort.signal, encoding,
-        onProgress: (progress) => { if (generation === importGenerationRef.current) setImportProgress(progress); } });
+      const expanded = await expandAssetFiles(incoming, {
+        signal: abort.signal,
+        encoding,
+        onProgress: (progress) => {
+          if (generation === importGenerationRef.current) setImportProgress(progress);
+        },
+      });
       abort.signal.throwIfAborted();
       if (generation === importGenerationRef.current) ingest(expanded);
     } catch (error) {
       if (abort.signal.aborted || generation !== importGenerationRef.current) return;
       const keys = { path: "importBadPath", limit: "importTooLarge", encrypted: "importEncrypted", archive: "importFailed" } as const;
-      setImportError({ key: error instanceof AssetImportError ? keys[error.code] : "importFailed",
-        detail: error instanceof AssetImportError ? `${error.file}: ${error.message}` : String(error) });
+      setImportError({
+        key: error instanceof AssetImportError ? keys[error.code] : "importFailed",
+        detail: error instanceof AssetImportError ? `${error.file}: ${error.message}` : String(error),
+      });
     } finally {
-      if (generation === importGenerationRef.current) { setImporting(false); setImportProgress(null); }
+      if (generation === importGenerationRef.current) {
+        setImporting(false);
+        setImportProgress(null);
+      }
     }
   }
 
-  useEffect(() => () => { importAbortRef.current?.abort(); importGenerationRef.current += 1; }, []);
+  useEffect(() => () => {
+    importAbortRef.current?.abort();
+    importGenerationRef.current += 1;
+  }, []);
 
   useEffect(() => {
     const abort = new AbortController();
     setCheckingAssets(files.length > 0);
     setReport(null);
-    if (files.length) void inspectAssets(files, abort.signal).then((report) => {
-      if (!abort.signal.aborted) { setReport(report); setCheckingAssets(false); }
-    }).catch((error) => {
-      if (!abort.signal.aborted) { setImportError({ key: "importFailed", detail: String(error) }); setCheckingAssets(false); }
-    });
+    if (files.length) {
+      void inspectAssets(files, abort.signal)
+        .then((report) => {
+          if (!abort.signal.aborted) {
+            setReport(report);
+            setCheckingAssets(false);
+          }
+        })
+        .catch((error) => {
+          if (!abort.signal.aborted) {
+            setImportError({ key: "importFailed", detail: String(error) });
+            setCheckingAssets(false);
+          }
+        });
+    }
     return () => abort.abort();
   }, [files]);
 
@@ -270,6 +278,25 @@ export function MmdVrPrepApp() {
     setImportProgress(null);
     setImporting(false);
     useMmdVrStore.setState({ savedStage: null, resumeStage: null });
+  }
+
+  function repairResource(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    const target = repairTargetRef.current;
+    event.target.value = "";
+    repairTargetRef.current = null;
+    if (!file || !target || !filesRef.current.includes(target.file)) return;
+    if (
+      file.size > IMPORT_LIMITS.fileBytes ||
+      filesRef.current.length >= IMPORT_LIMITS.entries ||
+      filesRef.current.reduce((n, f) => n + f.size, 0) + file.size > IMPORT_LIMITS.totalBytes
+    ) {
+      setImportError({ key: "importTooLarge", detail: file.name });
+      return;
+    }
+    bindCompanion(target.file, target.reference, file);
+    filesRef.current = [...filesRef.current, file];
+    setFiles(filesRef.current);
   }
 
   function toggleModel(path: string) {
@@ -308,214 +335,464 @@ export function MmdVrPrepApp() {
     void requestMmdVrEnter({ t, addNotification, assets, resume });
   }
 
+  const hasReadyContent = Boolean(selectedModels.length || selectedObjects.length);
+  const readinessClass =
+    readiness === "insecure" || readiness === "no-xr"
+      ? "is-error"
+      : readiness === "unverified" || readiness === "checking"
+        ? "is-pending"
+        : "is-ready";
+
+  const readinessMessage =
+    readiness === "insecure"
+      ? t("mmdVrPrepInsecureContext")
+      : readiness === "no-xr"
+        ? t("mmdVrPrepXrMissing")
+        : readiness === "ready"
+          ? t("mmdVrPrepReady")
+          : t("mmdVrPrepReadyPending");
+
   return (
-    <main className="mmd-vr-prep-shell">
-      <header className="mmd-vr-prep-nav">
-        <div className="mmd-vr-prep-system-id">
-          <span className="mmd-vr-prep-system-dot" />
-          <span>MMD XR Stage</span>
-          <span className="mmd-vr-prep-system-divider">/</span>
-          <span>{t("mmdVrPrepSystem")}</span>
+    <div className="stage-app">
+      <header className="stage-header">
+        <div className="stage-brand">
+          <div className="stage-brand-badge" aria-hidden="true">
+            <Icon icon="solar:videocamera-record-bold-duotone" width={18} height={18} />
+          </div>
+          <div className="stage-brand-text">
+            <span className="stage-brand-title">MMD XR Stage</span>
+            <span className="stage-brand-sub">{t("mmdVrPrepSystem")}</span>
+          </div>
+        </div>
+
+        <div className="stage-header-actions">
+          <div className={`stage-env-badge ${readinessClass}`} title={readinessMessage}>
+            <span className={`stage-env-dot ${phase === "entering" ? "is-busy" : ""}`} />
+            <span className="stage-env-label">
+              {phase === "entering" ? t("mmdVrPrepEntering") : readinessMessage}
+            </span>
+          </div>
+
+          {files.length > 0 && (
+            <button
+              type="button"
+              className="stage-btn stage-btn-ghost stage-btn-sm"
+              disabled={phase === "entering" || phase === "active"}
+              onClick={clearImports}
+            >
+              <Icon icon="solar:trash-bin-trash-linear" width={15} height={15} />
+              <span>{t("importClear")}</span>
+            </button>
+          )}
         </div>
       </header>
 
-      <section className="mmd-vr-prep-layout">
-        <div className="mmd-vr-prep-intro">
-          <div className="mmd-vr-prep-brandmark" aria-hidden="true">
-            <Icon icon="boxicons:vr-headset" width={30} height={30} />
+      <main className="stage-main">
+        <aside className="stage-sidebar">
+          <div className="stage-hero">
+            <h1 className="stage-hero-title">{t("mmdVrPrepTitle")}</h1>
+            <p className="stage-hero-desc">{t("mmdVrPrepLead")}</p>
           </div>
-          <span className="mmd-vr-prep-kicker">{t("mmdVrPrepEyebrow")}</span>
-          <h1>{t("mmdVrPrepTitle")}</h1>
-          <p>{t("mmdVrPrepLead")}</p>
-          <div className="mmd-vr-prep-status-card">
-            <div className="mmd-vr-prep-status-head">
-              <span>{t("mmdVrPrepStatusLabel")}</span>
-              <Icon icon="solar:shield-check-bold-duotone" width={18} height={18} />
-            </div>
-            <div className={`mmd-vr-prep-signal${readiness === "insecure" || readiness === "no-xr" ? " is-error" : readiness === "unverified" || readiness === "checking" ? " is-pending" : ""}`}>
-              <span className={phase === "entering" ? "is-busy" : ""} />
-              {phase === "entering"
-                ? t("mmdVrPrepEntering")
-                : readiness === "insecure"
-                  ? t("mmdVrPrepInsecureContext")
-                  : readiness === "no-xr"
-                    ? t("mmdVrPrepXrMissing")
-                    : readiness === "ready"
-                      ? t("mmdVrPrepReady")
-                      : t("mmdVrPrepReadyPending")}
-            </div>
-            <div className="mmd-vr-prep-steps">
-              <span className={files.length ? "is-complete" : "is-current"}><b>1</b>{t("mmdVrPrepStepImport")}</span>
-              <span className={selectedModels.length || selectedObjects.length ? "is-current" : ""}><b>2</b>{t("mmdVrPrepStepSelect")}</span>
-              <span className="is-last"><b>3</b>{t("mmdVrPrepStepConfigure")}</span>
-            </div>
-          </div>
-          <div className="mmd-vr-prep-asset-summary">
-            <span>{t("mmdVrPrepAssetLabel")}</span>
-            <div>
-              <strong><Icon icon="solar:user-bold-duotone" width={16} height={16} />{selectedModels.length}<small>{t("mmdVrPrepModelCount")}</small></strong>
-              <strong><Icon icon="solar:box-bold-duotone" width={16} height={16} />{selectedObjects.length}<small>{t("mmdVrPrepObjectCount")}</small></strong>
-              <strong><Icon icon="solar:playlist-2-bold-duotone" width={16} height={16} />{selectedMotionCount}<small>{t("mmdVrPrepMotionCount")}</small></strong>
-            </div>
-          </div>
-        </div>
 
-        <div className="mmd-vr-prep-workbench">
+          <div className="stage-card stage-summary-card">
+            <div className="stage-card-header">
+              <span className="stage-card-title">{t("mmdVrPrepAssetLabel")}</span>
+              <Icon icon="solar:chart-square-linear" width={16} height={16} className="stage-card-icon" />
+            </div>
+            <div className="stage-summary-metrics">
+              <div className="stage-metric">
+                <div className="stage-metric-val">
+                  <Icon icon="solar:user-bold-duotone" width={18} height={18} />
+                  <span>{selectedModels.length}</span>
+                  <small>/{MMD_VR_MAX_MODELS}</small>
+                </div>
+                <span className="stage-metric-name">{t("mmdVrPrepModelCount")}</span>
+              </div>
+              <div className="stage-metric">
+                <div className="stage-metric-val">
+                  <Icon icon="solar:box-bold-duotone" width={18} height={18} />
+                  <span>{selectedObjects.length}</span>
+                  <small>/{MMD_VR_MAX_OBJECTS}</small>
+                </div>
+                <span className="stage-metric-name">{t("mmdVrPrepObjectCount")}</span>
+              </div>
+              <div className="stage-metric">
+                <div className="stage-metric-val">
+                  <Icon icon="solar:playlist-2-bold-duotone" width={18} height={18} />
+                  <span>{selectedMotionCount}</span>
+                </div>
+                <span className="stage-metric-name">{t("mmdVrPrepMotionCount")}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="stage-launch-section">
+            {savedStage && savedStage.assets.length > 0 && (
+              <div className="stage-resume-box">
+                <div className="stage-resume-header">
+                  <Icon icon="solar:history-bold-duotone" width={16} height={16} />
+                  <span>{t("stageResumeHint")} ({Math.floor(savedStage.time / 60)}:{String(Math.floor(savedStage.time % 60)).padStart(2, "0")})</span>
+                </div>
+                <button
+                  type="button"
+                  className="stage-btn stage-btn-secondary stage-btn-lg stage-btn-block"
+                  disabled={importing || readiness === "insecure" || readiness === "no-xr" || phase === "entering" || phase === "active"}
+                  onClick={() => enterVr(true)}
+                >
+                  <Icon icon="solar:play-circle-bold" width={20} height={20} />
+                  <span>{t("stageContinue")}</span>
+                </button>
+              </div>
+            )}
+
+            <button
+              type="button"
+              className="stage-btn stage-btn-primary stage-btn-lg stage-btn-block"
+              disabled={importing || checkingAssets || !hasReadyContent || readiness === "insecure" || readiness === "no-xr" || phase === "entering" || phase === "active"}
+              onClick={() => enterVr(false)}
+            >
+              <Icon icon="boxicons:vr-headset-filled" width={22} height={22} />
+              <span>{phase === "entering" ? t("settingsMmdVrEntering") : savedStage ? t("stageRestart") : t("settingsMmdVrEnter")}</span>
+              <Icon icon="solar:arrow-right-linear" width={18} height={18} />
+            </button>
+            <p className="stage-launch-hint">{t("mmdVrPrepEnterHint")}</p>
+          </div>
+
+          {errorMessage && (
+            <div className="stage-alert stage-alert-danger" role="alert">
+              <div className="stage-alert-title">
+                <Icon icon="solar:danger-triangle-bold" width={18} height={18} />
+                <span>{t("loadEnterFailed")}</span>
+              </div>
+              <p className="stage-alert-sub">{t("loadEnterRecovery")}</p>
+              <details className="stage-details-inline">
+                <summary>{t("loadDetails")}</summary>
+                <pre>{errorMessage}</pre>
+              </details>
+            </div>
+          )}
+
+          {assetLoad.failures.length > 0 && (
+            <div className="stage-alert stage-alert-warning">
+              <div className="stage-alert-title">
+                <Icon icon="solar:shield-warning-bold" width={18} height={18} />
+                <span>{t("loadPartial")} ({assetLoad.failures.length})</span>
+              </div>
+              <p className="stage-alert-sub">{t("loadReenterHint")}</p>
+              <details className="stage-details-inline">
+                <summary>{t("loadDetails")}</summary>
+                <ul className="stage-log-list">
+                  {assetLoad.failures.map((failure) => (
+                    <li key={failure.id}>
+                      <strong>{failure.fileName}</strong>
+                      <pre>{failure.message}</pre>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            </div>
+          )}
+        </aside>
+
+        <div className="stage-workbench">
           <section
-            className={`mmd-vr-prep-drop${dragging ? " is-dragging" : ""}`}
-            onDragOver={(event) => {
-              event.preventDefault();
-              setDragging(true);
-            }}
+            className={`stage-card stage-drop-zone ${dragging ? "is-dragging" : ""}`}
+            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
             onDragLeave={() => setDragging(false)}
-            onDrop={(event) => void onDrop(event)}
+            onDrop={(e) => void onDrop(e)}
           >
-            <div className="mmd-vr-prep-drop-icon">
-              <Icon icon="solar:folder-with-files-bold-duotone" width={30} height={30} />
+            <div className="stage-drop-body">
+              <div className="stage-drop-icon">
+                <Icon icon="solar:folder-with-files-bold-duotone" width={32} height={32} />
+              </div>
+              <div className="stage-drop-meta">
+                <span className="stage-step-tag">01 · {t("mmdVrPrepSectionAssets")}</span>
+                <h3 className="stage-drop-title">{t("mmdVrPrepImport")}</h3>
+                <p className="stage-drop-desc">{t("importHint")}</p>
+              </div>
             </div>
-            <div>
-              <div className="mmd-vr-prep-section-eyebrow">01 / {t("mmdVrPrepSectionAssets")}</div>
-              <strong>{t("mmdVrPrepImport")}</strong>
-              <p>{t("importHint")}</p>
-            </div>
-            <div className="mmd-import-actions">
-              <button type="button" className="button-primary" disabled={importing} onClick={() => folderInputRef.current?.click()}>
-                {t("mmdVrPrepChooseFolder")}
+            <div className="stage-drop-actions">
+              <button
+                type="button"
+                className="stage-btn stage-btn-secondary"
+                disabled={importing}
+                onClick={() => folderInputRef.current?.click()}
+              >
+                <Icon icon="solar:folder-open-linear" width={18} height={18} />
+                <span>{t("mmdVrPrepChooseFolder")}</span>
               </button>
-              <button type="button" className="button-primary" disabled={importing} onClick={() => fileInputRef.current?.click()}>{t("importZip")}</button>
+              <button
+                type="button"
+                className="stage-btn stage-btn-secondary"
+                disabled={importing}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Icon icon="solar:archive-linear" width={18} height={18} />
+                <span>{t("importZip")}</span>
+              </button>
+              <div className="stage-encoding-picker">
+                <span className="stage-picker-label">{t("importEncoding")}</span>
+                <select
+                  className="stage-select-sm"
+                  value={encoding}
+                  onChange={(e) => setEncoding(e.target.value as ArchiveEncoding)}
+                  disabled={importing}
+                >
+                  <option value="auto">{t("importEncodingAuto")}</option>
+                  <option value="shift-jis">Shift-JIS</option>
+                  <option value="gbk">GBK</option>
+                </select>
+              </div>
             </div>
             <input ref={folderInputRef} hidden type="file" multiple onChange={onFilesChange} />
             <input ref={fileInputRef} hidden type="file" multiple onChange={onFilesChange} />
           </section>
 
-          <label className="mmd-import-encoding">{t("importEncoding")}
-            <select value={encoding} onChange={(event) => setEncoding(event.target.value as ArchiveEncoding)} disabled={importing}>
-              <option value="auto">{t("importEncodingAuto")}</option><option value="shift-jis">Shift-JIS</option><option value="gbk">GBK</option>
-            </select>
-          </label>
-          {files.length > 0 ? <button type="button" className="button-primary" disabled={phase === "entering" || phase === "active"} onClick={clearImports}>{t("importClear")}</button> : null}
-          {importing ? <div className="mmd-import-report" role="status" aria-live="polite">
-            <p>{t("importExtracting")} {importProgress ? `${importProgress.completed + 1}/${importProgress.total} · ${importProgress.archive}/${importProgress.file}` : ""}</p>
-            <button type="button" onClick={() => importAbortRef.current?.abort()}>{t("importCancel")}</button>
-          </div> : null}
-          {importError ? <section className="mmd-import-report" role="alert"><p>{t(importError.key)}</p><details><summary>{t("loadDetails")}</summary><pre>{importError.detail}</pre></details></section> : null}
-          {conflicts.length > 0 ? <details className="mmd-import-report" open><summary>{t("importConflicts")} ({conflicts.length})</summary><p>{t("importConflictHint")}</p><ul>{conflicts.map((path, i) => <li key={`${path}:${i}`}>{path}</li>)}</ul></details> : null}
-          {checkingAssets ? <p role="status">{t("importChecking")}</p> : null}
-          {report ? <details className="mmd-import-report" open={report.issues.length > 0}>
-            <summary>{t("importReport")} · {report.models} {t("mmdVrPrepModelCount")} · {report.objects} {t("mmdVrPrepObjectCount")} · {report.motions} {t("mmdVrPrepMotionCount")} · {report.textures} {t("importTextures")}</summary>
-            <p>{report.issues.length ? t("importIssuesHint") : t("importCheckPassed")}</p>
-            <ul>{report.issues.map((issue, index) => <li key={index}><strong>{t(({ missing: "importMissing", ambiguous: "importAmbiguous", invalid: "importInvalid", fallback: "importFallback" } as const)[issue.kind])}</strong> · {issue.file}<pre>{issue.reference}</pre>
-              {issue.kind === "missing" || issue.kind === "ambiguous" ? <button type="button" disabled={importing} onClick={() => {
-                const model = files.find((file) => relativePath(file) === issue.file);
-                if (!model) return;
-                repairTargetRef.current = { file: model, reference: issue.reference };
-                repairInputRef.current?.click();
-              }}>{t("importBindResource")}</button> : null}
-            </li>)}</ul>
-          </details> : null}
+          {importing && (
+            <div className="stage-alert stage-alert-info" role="status" aria-live="polite">
+              <Icon icon="solar:refresh-circle-linear" width={18} height={18} className="stage-spin" />
+              <span>
+                {t("importExtracting")} {importProgress ? `(${importProgress.completed + 1}/${importProgress.total} · ${importProgress.archive}/${importProgress.file})` : "..."}
+              </span>
+              <button type="button" className="stage-btn stage-btn-ghost stage-btn-sm" onClick={() => importAbortRef.current?.abort()}>
+                {t("importCancel")}
+              </button>
+            </div>
+          )}
+
+          {importError && (
+            <div className="stage-alert stage-alert-danger" role="alert">
+              <div className="stage-alert-title">
+                <Icon icon="solar:danger-triangle-bold" width={18} height={18} />
+                <span>{t(importError.key)}</span>
+              </div>
+              <details className="stage-details-inline">
+                <summary>{t("loadDetails")}</summary>
+                <pre>{importError.detail}</pre>
+              </details>
+            </div>
+          )}
+
+          {conflicts.length > 0 && (
+            <details className="stage-alert stage-alert-warning" open>
+              <summary className="stage-alert-title">
+                <Icon icon="solar:shield-warning-bold" width={18} height={18} />
+                <span>{t("importConflicts")} ({conflicts.length})</span>
+              </summary>
+              <p className="stage-alert-sub">{t("importConflictHint")}</p>
+              <ul className="stage-log-list">
+                {conflicts.map((path, i) => (
+                  <li key={`${path}:${i}`}>{path}</li>
+                ))}
+              </ul>
+            </details>
+          )}
+
+          {checkingAssets && (
+            <div className="stage-alert stage-alert-neutral" role="status">
+              <Icon icon="solar:magnifer-linear" width={18} height={18} className="stage-spin" />
+              <span>{t("importChecking")}</span>
+            </div>
+          )}
+
+          {report && (
+            <details className="stage-report-box" open={report.issues.length > 0}>
+              <summary className="stage-report-summary">
+                <div className="stage-report-badge">
+                  <Icon icon="solar:clipboard-check-linear" width={16} height={16} />
+                  <span>{t("importReport")}</span>
+                </div>
+                <div className="stage-report-stats">
+                  <span>{report.models} {t("mmdVrPrepModelCount")}</span>
+                  <span>·</span>
+                  <span>{report.objects} {t("mmdVrPrepObjectCount")}</span>
+                  <span>·</span>
+                  <span>{report.motions} {t("mmdVrPrepMotionCount")}</span>
+                  <span>·</span>
+                  <span>{report.textures} {t("importTextures")}</span>
+                </div>
+                <Icon icon="solar:alt-arrow-down-linear" width={16} height={16} className="stage-arrow-icon" />
+              </summary>
+              <div className="stage-report-content">
+                <p className="stage-report-hint">
+                  {report.issues.length ? t("importIssuesHint") : t("importCheckPassed")}
+                </p>
+                {report.issues.length > 0 && (
+                  <ul className="stage-issues-list">
+                    {report.issues.map((issue, index) => (
+                      <li key={index} className="stage-issue-item">
+                        <div className="stage-issue-info">
+                          <span className={`stage-issue-tag tag-${issue.kind}`}>
+                            {t(({ missing: "importMissing", ambiguous: "importAmbiguous", invalid: "importInvalid", fallback: "importFallback" } as const)[issue.kind])}
+                          </span>
+                          <span className="stage-issue-path">{issue.file}</span>
+                          <code className="stage-issue-ref">{issue.reference}</code>
+                        </div>
+                        {(issue.kind === "missing" || issue.kind === "ambiguous") && (
+                          <button
+                            type="button"
+                            className="stage-btn stage-btn-sm stage-btn-secondary"
+                            disabled={importing}
+                            onClick={() => {
+                              const model = files.find((file) => relativePath(file) === issue.file);
+                              if (!model) return;
+                              repairTargetRef.current = { file: model, reference: issue.reference };
+                              repairInputRef.current?.click();
+                            }}
+                          >
+                            <Icon icon="solar:link-minimalistic-2-linear" width={14} height={14} />
+                            <span>{t("importBindResource")}</span>
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </details>
+          )}
           <input ref={repairInputRef} type="file" hidden onChange={repairResource} />
 
-          <section className="mmd-vr-prep-section">
-            <div className="mmd-vr-prep-section-head">
+          <section className="stage-card">
+            <div className="stage-card-header">
               <div>
-                <div className="mmd-vr-prep-section-eyebrow">02 / {t("mmdVrPrepSectionCharacters")}</div>
-                <strong>{t("mmdVrPrepModels")}</strong>
-                <span>{t("mmdVrPrepModelLimit").replace("{count}", String(MMD_VR_MAX_MODELS))}</span>
+                <span className="stage-step-tag">02 · {t("mmdVrPrepSectionCharacters")}</span>
+                <h3 className="stage-section-title">{t("mmdVrPrepModels")}</h3>
+                <span className="stage-section-sub">{t("mmdVrPrepModelLimit").replace("{count}", String(MMD_VR_MAX_MODELS))}</span>
               </div>
-              <b>{selectedModels.length}/{MMD_VR_MAX_MODELS}</b>
+              <span className="stage-count-badge">{selectedModels.length}/{MMD_VR_MAX_MODELS}</span>
             </div>
             {models.length ? (
-              <div className="mmd-vr-prep-models">
+              <div className="stage-asset-grid">
                 {models.map((model, index) => {
                   const path = relativePath(model);
                   const selected = selectedPaths.includes(path);
                   return (
-                    <div key={path} className={selected ? "mmd-vr-prep-model is-selected" : "mmd-vr-prep-model"}>
-                      <span>{String(index + 1).padStart(2, "0")}</span>
-                      <button type="button" className="mmd-vr-prep-model-info" onClick={() => toggleModel(path)}>
-                        <strong>{model.name}</strong>
-                        <small>{path}</small>
+                    <div key={path} className={`stage-asset-tile ${selected ? "is-selected" : ""}`}>
+                      <div className="stage-tile-index">{String(index + 1).padStart(2, "0")}</div>
+                      <button type="button" className="stage-tile-btn" onClick={() => toggleModel(path)}>
+                        <div className="stage-tile-name">{model.name}</div>
+                        <div className="stage-tile-path">{path}</div>
                       </button>
-                      <Icon icon={selected ? "solar:check-circle-bold" : "solar:add-circle-linear"} width={20} height={20} />
-                      <button type="button" className="mmd-vr-prep-icon-btn mmd-vr-prep-remove" aria-label={t("mmdVrPrepRemoveFile")} onClick={() => removeImportedFile(path)}>
-                        <Icon icon="solar:trash-bin-trash-linear" width={18} height={18} />
+                      <div className="stage-tile-check" aria-hidden="true" onClick={() => toggleModel(path)}>
+                        <Icon icon={selected ? "solar:check-circle-bold" : "solar:add-circle-linear"} width={20} height={20} />
+                      </div>
+                      <button
+                        type="button"
+                        className="stage-btn-icon stage-tile-remove"
+                        aria-label={t("mmdVrPrepRemoveFile")}
+                        onClick={() => removeImportedFile(path)}
+                      >
+                        <Icon icon="solar:trash-bin-trash-linear" width={16} height={16} />
                       </button>
                     </div>
                   );
                 })}
               </div>
             ) : (
-              <div className="mmd-vr-prep-empty">{files.length ? t("mmdVrPrepNoModels") : t("mmdVrPrepAwaiting")}</div>
+              <div className="stage-empty-placeholder">
+                <Icon icon="solar:user-broken" width={28} height={28} />
+                <span>{files.length ? t("mmdVrPrepNoModels") : t("mmdVrPrepAwaiting")}</span>
+              </div>
             )}
           </section>
 
-          <section className="mmd-vr-prep-section">
-            <div className="mmd-vr-prep-section-head">
+          <section className="stage-card">
+            <div className="stage-card-header">
               <div>
-                <div className="mmd-vr-prep-section-eyebrow">03 / {t("mmdVrPrepSectionEnvironment")}</div>
-                <strong>{t("mmdVrPrepObjects")}</strong>
-                <span>{t("mmdVrPrepObjectLimit").replace("{count}", String(MMD_VR_MAX_OBJECTS))}</span>
+                <span className="stage-step-tag">03 · {t("mmdVrPrepSectionEnvironment")}</span>
+                <h3 className="stage-section-title">{t("mmdVrPrepObjects")}</h3>
+                <span className="stage-section-sub">{t("mmdVrPrepObjectLimit").replace("{count}", String(MMD_VR_MAX_OBJECTS))}</span>
               </div>
-              <b>{selectedObjects.length}/{MMD_VR_MAX_OBJECTS}</b>
+              <span className="stage-count-badge">{selectedObjects.length}/{MMD_VR_MAX_OBJECTS}</span>
             </div>
             {objects.length ? (
-              <div className="mmd-vr-prep-models">
+              <div className="stage-asset-grid">
                 {objects.map((object, index) => {
                   const path = relativePath(object);
                   const selected = selectedObjectPaths.includes(path);
                   return (
-                    <div key={path} className={selected ? "mmd-vr-prep-model is-selected" : "mmd-vr-prep-model"}>
-                      <span>{String(index + 1).padStart(2, "0")}</span>
-                      <button type="button" className="mmd-vr-prep-model-info" onClick={() => toggleObject(path)}>
-                        <strong>{object.name}</strong>
-                        <small>{path}</small>
+                    <div key={path} className={`stage-asset-tile ${selected ? "is-selected" : ""}`}>
+                      <div className="stage-tile-index">{String(index + 1).padStart(2, "0")}</div>
+                      <button type="button" className="stage-tile-btn" onClick={() => toggleObject(path)}>
+                        <div className="stage-tile-name">{object.name}</div>
+                        <div className="stage-tile-path">{path}</div>
                       </button>
-                      <Icon icon={selected ? "solar:check-circle-bold" : "solar:add-circle-linear"} width={20} height={20} />
-                      <button type="button" className="mmd-vr-prep-icon-btn mmd-vr-prep-remove" aria-label={t("mmdVrPrepRemoveFile")} onClick={() => removeImportedFile(path)}>
-                        <Icon icon="solar:trash-bin-trash-linear" width={18} height={18} />
+                      <div className="stage-tile-check" aria-hidden="true" onClick={() => toggleObject(path)}>
+                        <Icon icon={selected ? "solar:check-circle-bold" : "solar:add-circle-linear"} width={20} height={20} />
+                      </div>
+                      <button
+                        type="button"
+                        className="stage-btn-icon stage-tile-remove"
+                        aria-label={t("mmdVrPrepRemoveFile")}
+                        onClick={() => removeImportedFile(path)}
+                      >
+                        <Icon icon="solar:trash-bin-trash-linear" width={16} height={16} />
                       </button>
                     </div>
                   );
                 })}
               </div>
             ) : (
-              <div className="mmd-vr-prep-empty">{files.length ? t("mmdVrPrepNoObjects") : t("mmdVrPrepAwaiting")}</div>
+              <div className="stage-empty-placeholder">
+                <Icon icon="solar:box-broken" width={28} height={28} />
+                <span>{files.length ? t("mmdVrPrepNoObjects") : t("mmdVrPrepAwaiting")}</span>
+              </div>
             )}
           </section>
 
-          <section className="mmd-vr-prep-motion-grid">
-            <div className="mmd-vr-prep-motion-heading">
-              <div className="mmd-vr-prep-section-eyebrow">04 / {t("mmdVrPrepSectionPlayback")}</div>
-              <strong>{t("mmdVrPrepMotionHint")}</strong>
+          <section className="stage-card">
+            <div className="stage-card-header">
+              <div>
+                <span className="stage-step-tag">04 · {t("mmdVrPrepSectionPlayback")}</span>
+                <h3 className="stage-section-title">{t("mmdVrPrepMotionHint")}</h3>
+              </div>
             </div>
-            <label>
-              <span>{t("mmdVrPrepBodyMotion")}</span>
-              <select value={bodyMotionPath} onChange={(event) => setBodyMotionPath(event.target.value)}>
-                <option value="">{t("mmdVrPrepNoMotion")}</option>
-                {motions.map((motion) => <option key={relativePath(motion)} value={relativePath(motion)}>{motion.name}</option>)}
-              </select>
-            </label>
-            <label>
-              <span>{t("mmdVrPrepFaceMotion")}</span>
-              <select value={faceMotionPath} onChange={(event) => setFaceMotionPath(event.target.value)}>
-                <option value="">{t("mmdVrPrepNoMotion")}</option>
-                {motions.map((motion) => <option key={relativePath(motion)} value={relativePath(motion)}>{motion.name}</option>)}
-              </select>
-            </label>
+            <div className="stage-motion-controls">
+              <label className="stage-field">
+                <span className="stage-field-label">{t("mmdVrPrepBodyMotion")}</span>
+                <select className="stage-select" value={bodyMotionPath} onChange={(e) => setBodyMotionPath(e.target.value)}>
+                  <option value="">{t("mmdVrPrepNoMotion")}</option>
+                  {motions.map((motion) => (
+                    <option key={relativePath(motion)} value={relativePath(motion)}>
+                      {motion.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="stage-field">
+                <span className="stage-field-label">{t("mmdVrPrepFaceMotion")}</span>
+                <select className="stage-select" value={faceMotionPath} onChange={(e) => setFaceMotionPath(e.target.value)}>
+                  <option value="">{t("mmdVrPrepNoMotion")}</option>
+                  {motions.map((motion) => (
+                    <option key={relativePath(motion)} value={relativePath(motion)}>
+                      {motion.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
           </section>
 
-          <details className="mmd-vr-prep-config" open>
-            <summary>
-              <div>
-                <strong>{t("mmdVrPrepRuntimeConfig")}</strong>
-                <span>{formatMmdVrProfileSummary(getMmdVrRenderProfile(prefs), language)}</span>
+          <details className="stage-card stage-config-card" open>
+            <summary className="stage-config-summary">
+              <div className="stage-config-summary-left">
+                <div className="stage-config-icon">
+                  <Icon icon="solar:tuning-square-2-bold-duotone" width={20} height={20} />
+                </div>
+                <div>
+                  <h3 className="stage-section-title">{t("mmdVrPrepRuntimeConfig")}</h3>
+                  <span className="stage-config-preview">{formatMmdVrProfileSummary(getMmdVrRenderProfile(prefs), language)}</span>
+                </div>
               </div>
-              <Icon icon="solar:alt-arrow-down-linear" width={18} height={18} />
+              <Icon icon="solar:alt-arrow-down-linear" width={18} height={18} className="stage-arrow-icon" />
             </summary>
-            <div className="mmd-vr-prep-config-body">
-              <p>{t("diagPrepHint")}</p>
-              <div className="mmd-vr-prep-config-row">
-                <span>{t("settingsMmdVrQuestPreset")}</span>
+
+            <div className="stage-config-body">
+              <p className="stage-config-notice">{t("diagPrepHint")}</p>
+
+              <div className="stage-form-row">
+                <span className="stage-row-label">{t("settingsMmdVrQuestPreset")}</span>
                 <OptionGroup
                   value={questPreset}
                   options={[
@@ -530,16 +807,17 @@ export function MmdVrPrepApp() {
                   }}
                 />
               </div>
-              <div className="mmd-vr-prep-config-row">
-                <span>{t("settingsAccent")}</span>
-                <div className="mmd-vr-theme-swatches" role="group" aria-label={t("settingsAccent")}>
+
+              <div className="stage-form-row">
+                <span className="stage-row-label">{t("settingsAccent")}</span>
+                <div className="stage-swatch-list" role="group" aria-label={t("settingsAccent")}>
                   {ACCENT_COLORS.map((color) => {
                     const labelKey = `accent${color[0].toUpperCase()}${color.slice(1)}` as TranslationKey;
                     return (
                       <button
                         key={color}
                         type="button"
-                        className={themeSettings.accentColor === color ? "is-active" : ""}
+                        className={`stage-swatch-btn ${themeSettings.accentColor === color ? "is-active" : ""}`}
                         style={{ background: `oklch(0.62 ${ACCENT_CHROMA[color]} ${ACCENT_HUES[color]})` }}
                         aria-label={t(labelKey)}
                         aria-pressed={themeSettings.accentColor === color}
@@ -550,182 +828,198 @@ export function MmdVrPrepApp() {
                   })}
                 </div>
               </div>
-              <details className="mmd-vr-prep-advanced">
-                <summary>{t("settingsMmdVrAdvancedConfig")}</summary>
-                <div className="mmd-vr-prep-config-row">
-                  <span>{t("settingsVrDesktopQuality")}</span>
-                  <OptionGroup
-                    value={prefs.renderQuality}
-                    options={[
-                      { id: "high", label: t("settingsVrDesktopQualityHigh") },
-                      { id: "balanced", label: t("settingsVrDesktopQualityBalanced") },
-                      { id: "low", label: t("settingsVrDesktopQualityLow") },
-                    ]}
-                    onChange={(renderQuality) => setPrefs({ renderQuality })}
-                  />
-                </div>
-                <div className="mmd-vr-prep-config-row">
-                  <span>{t("settingsVrDesktopDpr")}</span>
-                  <OptionGroup
-                    value={prefs.dprPref}
-                    options={[
-                      { id: "auto", label: t("settingsVrDesktopQualityAuto") },
-                      { id: "1", label: "1×" },
-                      { id: "1.25", label: "1.25×" },
-                      { id: "1.5", label: "1.5×" },
-                    ]}
-                    onChange={(dprPref) => setPrefs({ dprPref })}
-                  />
-                </div>
-                <div className="mmd-vr-prep-config-row">
-                  <span>{t("settingsVrDesktopFrameRate")}</span>
-                  <OptionGroup
-                    value={prefs.frameRatePref}
-                    options={[
-                      { id: "auto", label: t("settingsVrDesktopQualityAuto") },
-                      { id: "72", label: "72 Hz" },
-                      { id: "80", label: "80 Hz" },
-                      { id: "90", label: "90 Hz" },
-                      { id: "120", label: "120 Hz" },
-                    ]}
-                    onChange={(frameRatePref) => setPrefs({ frameRatePref })}
-                  />
-                </div>
-                <details className="mmd-vr-prep-advanced">
-                  <summary>{t("settingsMmdVrExperimentalRendering")}</summary>
-                  <label className="mmd-vr-prep-toggle">
-                    <span>{t("settingsMmdVrEnableRenderOverrides")}</span>
-                    <input type="checkbox" checked={prefs.advancedRenderOverrides} onChange={(event) => setPrefs({ advancedRenderOverrides: event.target.checked })} />
-                  </label>
-                  <div className="mmd-vr-prep-config-row">
-                    <span>{t("settingsVrDesktopFramebufferScale")}</span>
+
+              <details className="stage-sub-details">
+                <summary className="stage-sub-summary">
+                  <Icon icon="solar:settings-minimalistic-linear" width={16} height={16} />
+                  <span>{t("settingsMmdVrAdvancedConfig")}</span>
+                  <Icon icon="solar:alt-arrow-down-linear" width={14} height={14} className="stage-sub-arrow" />
+                </summary>
+                <div className="stage-sub-content">
+                  <div className="stage-form-row">
+                    <span className="stage-row-label">{t("settingsVrDesktopQuality")}</span>
                     <OptionGroup
-                      value={prefs.framebufferScalePref}
-                      options={[{ id: "auto", label: t("settingsVrDesktopQualityAuto") }, { id: "0.7", label: "70%" }, { id: "0.85", label: "85%" }, { id: "1", label: "100%" }]}
-                      onChange={(framebufferScalePref) => setPrefs({ framebufferScalePref, advancedRenderOverrides: true })}
-                    />
-                  </div>
-                  <div className="mmd-vr-prep-config-row">
-                    <span>{t("settingsVrDesktopFoveation")}</span>
-                    <OptionGroup
-                      value={prefs.foveationPref}
+                      value={prefs.renderQuality}
                       options={[
-                        { id: "high", label: t("settingsMmdVrFoveationPerformance") },
-                        { id: "medium", label: t("settingsMmdVrFoveationBalanced") },
-                        { id: "off", label: t("settingsMmdVrFoveationOff") },
+                        { id: "high", label: t("settingsVrDesktopQualityHigh") },
+                        { id: "balanced", label: t("settingsVrDesktopQualityBalanced") },
+                        { id: "low", label: t("settingsVrDesktopQualityLow") },
                       ]}
-                      onChange={(foveationPref) => setPrefs({ foveationPref, advancedRenderOverrides: true })}
+                      onChange={(renderQuality) => setPrefs({ renderQuality })}
                     />
                   </div>
-                </details>
-                <div className="mmd-vr-prep-config-row">
-                  <span>{t("settingsVrDesktopAntialias")}</span>
-                  <OptionGroup
-                    value={prefs.antialiasPref}
-                    options={[
-                      { id: "auto", label: t("settingsVrDesktopQualityAuto") },
-                      { id: "on", label: t("settingsVrDesktopAaOn") },
-                      { id: "off", label: t("settingsVrDesktopAaOff") },
-                    ]}
-                    onChange={(antialiasPref) => setPrefs({ antialiasPref })}
-                  />
+
+                  <div className="stage-form-row">
+                    <span className="stage-row-label">{t("settingsVrDesktopDpr")}</span>
+                    <OptionGroup
+                      value={prefs.dprPref}
+                      options={[
+                        { id: "auto", label: t("settingsVrDesktopQualityAuto") },
+                        { id: "1", label: "1×" },
+                        { id: "1.25", label: "1.25×" },
+                        { id: "1.5", label: "1.5×" },
+                      ]}
+                      onChange={(dprPref) => setPrefs({ dprPref })}
+                    />
+                  </div>
+
+                  <div className="stage-form-row">
+                    <span className="stage-row-label">{t("settingsVrDesktopFrameRate")}</span>
+                    <OptionGroup
+                      value={prefs.frameRatePref}
+                      options={[
+                        { id: "auto", label: t("settingsVrDesktopQualityAuto") },
+                        { id: "72", label: "72 Hz" },
+                        { id: "80", label: "80 Hz" },
+                        { id: "90", label: "90 Hz" },
+                        { id: "120", label: "120 Hz" },
+                      ]}
+                      onChange={(frameRatePref) => setPrefs({ frameRatePref })}
+                    />
+                  </div>
+
+                  <details className="stage-exp-box">
+                    <summary className="stage-exp-summary">
+                      <Icon icon="solar:tuning-4-linear" width={15} height={15} />
+                      <span>{t("settingsMmdVrExperimentalRendering")}</span>
+                    </summary>
+                    <div className="stage-exp-body">
+                      <label className="stage-toggle-row">
+                        <span>{t("settingsMmdVrEnableRenderOverrides")}</span>
+                        <input
+                          type="checkbox"
+                          checked={prefs.advancedRenderOverrides}
+                          onChange={(e) => setPrefs({ advancedRenderOverrides: e.target.checked })}
+                        />
+                      </label>
+                      <div className="stage-form-row">
+                        <span className="stage-row-label">{t("settingsVrDesktopFramebufferScale")}</span>
+                        <OptionGroup
+                          value={prefs.framebufferScalePref}
+                          options={[
+                            { id: "auto", label: t("settingsVrDesktopQualityAuto") },
+                            { id: "0.7", label: "70%" },
+                            { id: "0.85", label: "85%" },
+                            { id: "1", label: "100%" },
+                          ]}
+                          onChange={(framebufferScalePref) => setPrefs({ framebufferScalePref, advancedRenderOverrides: true })}
+                        />
+                      </div>
+                      <div className="stage-form-row">
+                        <span className="stage-row-label">{t("settingsVrDesktopFoveation")}</span>
+                        <OptionGroup
+                          value={prefs.foveationPref}
+                          options={[
+                            { id: "high", label: t("settingsMmdVrFoveationPerformance") },
+                            { id: "medium", label: t("settingsMmdVrFoveationBalanced") },
+                            { id: "off", label: t("settingsMmdVrFoveationOff") },
+                          ]}
+                          onChange={(foveationPref) => setPrefs({ foveationPref, advancedRenderOverrides: true })}
+                        />
+                      </div>
+                    </div>
+                  </details>
+
+                  <div className="stage-form-row">
+                    <span className="stage-row-label">{t("settingsVrDesktopAntialias")}</span>
+                    <OptionGroup
+                      value={prefs.antialiasPref}
+                      options={[
+                        { id: "auto", label: t("settingsVrDesktopQualityAuto") },
+                        { id: "on", label: t("settingsVrDesktopAaOn") },
+                        { id: "off", label: t("settingsVrDesktopAaOff") },
+                      ]}
+                      onChange={(antialiasPref) => setPrefs({ antialiasPref })}
+                    />
+                  </div>
+
+                  <div className="stage-form-row">
+                    <span className="stage-row-label">{t("settingsMmdVrShadows")}</span>
+                    <OptionGroup
+                      value={prefs.shadowsPref}
+                      options={[
+                        { id: "auto", label: t("settingsVrDesktopQualityAuto") },
+                        { id: "on", label: t("settingsVrDesktopAaOn") },
+                        { id: "off", label: t("settingsVrDesktopAaOff") },
+                      ]}
+                      onChange={(shadowsPref) => setPrefs({ shadowsPref })}
+                    />
+                  </div>
+
+                  <div className="stage-form-row">
+                    <span className="stage-row-label">{t("settingsMmdVrShadowResolution")}</span>
+                    <OptionGroup
+                      value={prefs.shadowResolutionPref}
+                      options={[
+                        { id: "auto", label: t("settingsVrDesktopQualityAuto") },
+                        { id: "low", label: "512" },
+                        { id: "medium", label: "1024" },
+                        { id: "high", label: "2048" },
+                      ]}
+                      onChange={(shadowResolutionPref) => setPrefs({ shadowResolutionPref })}
+                    />
+                  </div>
+
+                  <div className="stage-form-row">
+                    <span className="stage-row-label">{t("settingsMmdVrGrid")}</span>
+                    <OptionGroup
+                      value={prefs.gridPref}
+                      options={[
+                        { id: "auto", label: t("settingsVrDesktopQualityAuto") },
+                        { id: "on", label: t("settingsVrDesktopAaOn") },
+                        { id: "off", label: t("settingsVrDesktopAaOff") },
+                      ]}
+                      onChange={(gridPref) => setPrefs({ gridPref })}
+                    />
+                  </div>
+
+                  <div className="stage-form-row">
+                    <span className="stage-row-label">{t("settingsMmdVrWalkSpeed")}</span>
+                    <OptionGroup
+                      value={prefs.walkSpeedPref}
+                      options={[
+                        { id: "auto", label: t("settingsVrDesktopQualityAuto") },
+                        { id: "slow", label: t("settingsMmdVrWalkSlow") },
+                        { id: "normal", label: t("settingsMmdVrWalkNormal") },
+                        { id: "fast", label: t("settingsMmdVrWalkFast") },
+                      ]}
+                      onChange={(walkSpeedPref) => setPrefs({ walkSpeedPref })}
+                    />
+                  </div>
+
+                  <label className="stage-toggle-row">
+                    <span>{t("settingsVrDesktopShowFps")}</span>
+                    <input
+                      type="checkbox"
+                      checked={prefs.showFps}
+                      onChange={(e) => setPrefs({ showFps: e.target.checked })}
+                    />
+                  </label>
+
+                  <label className="stage-toggle-row">
+                    <span>{t("settingsMmdVrDetailedPhysicsDiagnostics")}</span>
+                    <input
+                      type="checkbox"
+                      checked={prefs.detailedPhysicsDiagnostics}
+                      onChange={(e) => setPrefs({ detailedPhysicsDiagnostics: e.target.checked })}
+                    />
+                  </label>
+
+                  {highLoadConfig && (
+                    <div className="stage-alert stage-alert-warning">
+                      <Icon icon="solar:shield-warning-bold" width={16} height={16} />
+                      <span>{t("settingsMmdVrHighLoadWarning")}</span>
+                    </div>
+                  )}
+                  <p className="stage-hint-text">{t("settingsVrDesktopQualityHint")}</p>
                 </div>
-                <div className="mmd-vr-prep-config-row">
-                  <span>{t("settingsMmdVrShadows")}</span>
-                  <OptionGroup
-                    value={prefs.shadowsPref}
-                    options={[
-                      { id: "auto", label: t("settingsVrDesktopQualityAuto") },
-                      { id: "on", label: t("settingsVrDesktopAaOn") },
-                      { id: "off", label: t("settingsVrDesktopAaOff") },
-                    ]}
-                    onChange={(shadowsPref) => setPrefs({ shadowsPref })}
-                  />
-                </div>
-                <div className="mmd-vr-prep-config-row">
-                  <span>{t("settingsMmdVrShadowResolution")}</span>
-                  <OptionGroup
-                    value={prefs.shadowResolutionPref}
-                    options={[
-                      { id: "auto", label: t("settingsVrDesktopQualityAuto") },
-                      { id: "low", label: "512" },
-                      { id: "medium", label: "1024" },
-                      { id: "high", label: "2048" },
-                    ]}
-                    onChange={(shadowResolutionPref) => setPrefs({ shadowResolutionPref })}
-                  />
-                </div>
-                <div className="mmd-vr-prep-config-row">
-                  <span>{t("settingsMmdVrGrid")}</span>
-                  <OptionGroup
-                    value={prefs.gridPref}
-                    options={[
-                      { id: "auto", label: t("settingsVrDesktopQualityAuto") },
-                      { id: "on", label: t("settingsVrDesktopAaOn") },
-                      { id: "off", label: t("settingsVrDesktopAaOff") },
-                    ]}
-                    onChange={(gridPref) => setPrefs({ gridPref })}
-                  />
-                </div>
-                <div className="mmd-vr-prep-config-row">
-                  <span>{t("settingsMmdVrWalkSpeed")}</span>
-                  <OptionGroup
-                    value={prefs.walkSpeedPref}
-                    options={[
-                      { id: "auto", label: t("settingsVrDesktopQualityAuto") },
-                      { id: "slow", label: t("settingsMmdVrWalkSlow") },
-                      { id: "normal", label: t("settingsMmdVrWalkNormal") },
-                      { id: "fast", label: t("settingsMmdVrWalkFast") },
-                    ]}
-                    onChange={(walkSpeedPref) => setPrefs({ walkSpeedPref })}
-                  />
-                </div>
-                <label className="mmd-vr-prep-toggle">
-                  <span>{t("settingsVrDesktopShowFps")}</span>
-                  <input
-                    type="checkbox"
-                    checked={prefs.showFps}
-                    onChange={(event) => setPrefs({ showFps: event.target.checked })}
-                  />
-                </label>
-                <label className="mmd-vr-prep-toggle">
-                  <span>{t("settingsMmdVrDetailedPhysicsDiagnostics")}</span>
-                  <input type="checkbox" checked={prefs.detailedPhysicsDiagnostics} onChange={(event) => setPrefs({ detailedPhysicsDiagnostics: event.target.checked })} />
-                </label>
-                {highLoadConfig ? <p className="mmd-vr-prep-warning">{t("settingsMmdVrHighLoadWarning")}</p> : null}
-                <p>{t("settingsVrDesktopQualityHint")}</p>
               </details>
             </div>
           </details>
-
-           {errorMessage ? <section className="mmd-vr-prep-error" role="alert">
-             <p>{t("loadEnterFailed")}</p>
-             <p>{t("loadEnterRecovery")}</p>
-             <details><summary>{t("loadDetails")}</summary><pre>{errorMessage}</pre></details>
-           </section> : null}
-           {assetLoad.failures.length > 0 ? <details className="mmd-load-report">
-             <summary>{t("loadDetails")} ({assetLoad.failures.length})</summary>
-             <p>{t("loadReenterHint")}</p>
-             <ul>{assetLoad.failures.map((failure) => <li key={failure.id}><strong>{failure.fileName}</strong><pre>{failure.message}</pre></li>)}</ul>
-           </details> : null}
-          <p className="mmd-vr-prep-enter-hint"><Icon icon="solar:info-circle-linear" width={16} height={16} />{t("mmdVrPrepEnterHint")}</p>
-          {savedStage && savedStage.assets.length > 0 ? <section className="mmd-import-report">
-            <p>{t("stageResumeHint")} · {Math.floor(savedStage.time / 60)}:{String(Math.floor(savedStage.time % 60)).padStart(2, "0")}</p>
-            <button type="button" className="mmd-vr-prep-enter" disabled={importing || readiness === "insecure" || readiness === "no-xr" || phase === "entering" || phase === "active"} onClick={() => enterVr(true)}>{t("stageContinue")}</button>
-          </section> : null}
-          <button
-            type="button"
-            className="mmd-vr-prep-enter"
-             disabled={importing || checkingAssets || (!selectedModels.length && !selectedObjects.length) || readiness === "insecure" || readiness === "no-xr" || phase === "entering" || phase === "active"}
-            onClick={() => enterVr(false)}
-          >
-            <Icon icon="boxicons:vr-headset-filled" width={22} height={22} />
-            <span>{phase === "entering" ? t("settingsMmdVrEntering") : savedStage ? t("stageRestart") : t("settingsMmdVrEnter")}</span>
-            <Icon icon="solar:arrow-right-linear" width={20} height={20} />
-          </button>
         </div>
-      </section>
+      </main>
+
       <MmdVrOverlay />
-    </main>
+    </div>
   );
 }

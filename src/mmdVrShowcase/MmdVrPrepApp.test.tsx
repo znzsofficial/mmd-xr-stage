@@ -7,6 +7,7 @@ import { expandAssetFiles, AssetImportError } from "../mmdImport/importArchive";
 import { inspectAssets } from "../mmdImport/inspectAssets";
 import { requestMmdVrEnter } from "./requestMmdVrEnter";
 import { useMmdVrStore } from "./mmdVrStore";
+import { emptyAssetLoadProgress } from "./mmdAssetLoadQueue";
 import type { StageSnapshot } from "./stageSnapshot";
 import { resolveCompanion, withAssetPath } from "../mmdImport/assetPaths";
 
@@ -49,7 +50,7 @@ describe("prep import and resume controls", () => {
     await choose(new File(["zip"], "models.zip"));
     expect(container.textContent).toContain("character.pmx");
     expect(container.textContent).toContain("导入检查");
-    const enter = container.querySelector<HTMLButtonElement>(".mmd-vr-prep-enter")!;
+    const enter = container.querySelector<HTMLButtonElement>(".stage-btn-primary")!;
     expect(enter.disabled).toBe(false);
     vi.mocked(expandAssetFiles).mockRejectedValueOnce(new AssetImportError("archive", "broken.zip"));
     await choose(new File(["broken"], "broken.zip"));
@@ -79,12 +80,12 @@ describe("prep import and resume controls", () => {
     const a = new File(["a"], "a.pmx"), b = new File(["b"], "b.pmx");
     vi.mocked(expandAssetFiles).mockResolvedValueOnce([a, b]);
     await choose(new File(["zip"], "models.zip"));
-    const modelButton = [...container.querySelectorAll<HTMLButtonElement>(".mmd-vr-prep-model-info")].find((button) => button.textContent?.includes("a.pmx"))!;
+    const modelButton = [...container.querySelectorAll<HTMLButtonElement>(".stage-tile-btn")].find((button) => button.textContent?.includes("a.pmx"))!;
     await act(async () => modelButton.click());
     vi.mocked(expandAssetFiles).mockResolvedValueOnce([new File(["png"], "face.png")]);
     await choose(new File(["png"], "face.png"));
-    expect(modelButton.closest(".mmd-vr-prep-model")?.classList.contains("is-selected")).toBe(false);
-    await act(async () => container.querySelector<HTMLButtonElement>(".mmd-vr-prep-enter")!.click());
+    expect(modelButton.closest(".stage-asset-tile")?.classList.contains("is-selected")).toBe(false);
+    await act(async () => container.querySelector<HTMLButtonElement>(".stage-btn-primary")!.click());
     expect(vi.mocked(requestMmdVrEnter).mock.lastCall?.[0].assets).toHaveLength(1);
     expect(vi.mocked(requestMmdVrEnter).mock.lastCall?.[0].assets?.[0]).toMatchObject({ modelFile: b });
   });
@@ -104,9 +105,22 @@ describe("prep import and resume controls", () => {
     const texture = new File(["png"], "chosen.png");
     Object.defineProperty(repairInput, "files", { configurable: true, value: [texture] });
     await act(async () => repairInput.dispatchEvent(new Event("change", { bubbles: true })));
-    await act(async () => container.querySelector<HTMLButtonElement>(".mmd-vr-prep-enter")!.click());
+    await act(async () => container.querySelector<HTMLButtonElement>(".stage-btn-primary")!.click());
     const assets = vi.mocked(requestMmdVrEnter).mock.lastCall?.[0].assets!;
     expect(resolveCompanion(model, "textures/face.png", assets[0].companionFiles).matches).toEqual([texture]);
     click.mockRestore();
+  });
+
+  it("shows asset load failures with per-file diagnostics on the prep page", async () => {
+    useMmdVrStore.setState({
+      assetLoad: {
+        ...emptyAssetLoadProgress(),
+        failures: [{ id: "f1", fileName: "dress.pmx", phase: "model", message: "VERTEX_COUNT_MISMATCH" }],
+      },
+    });
+    await act(async () => root.render(<MmdVrPrepApp />));
+    const warning = container.querySelector(".stage-alert-warning");
+    expect(warning?.textContent).toContain("dress.pmx");
+    expect(warning?.textContent).toContain("VERTEX_COUNT_MISMATCH");
   });
 });
