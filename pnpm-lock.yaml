@@ -6,7 +6,7 @@ settings:
 
 patchedDependencies:
   '@pmndrs/xr@6.6.30': e8f142d1fb5826a9fa446695554ff37c91416259bafab26c7502957314780dcc
-  '@yohawing/three-mmd-loader@0.8.3': a5b0eff3a72c54ca4776e77506eacd9496b41f2167766998a467465e1d6c8f95
+  '@yohawing/three-mmd-loader@0.8.4': a5b0eff3a72c54ca4776e77506eacd9496b41f2167766998a467465e1d6c8f95
 
 importers:
 
@@ -14,7 +14,7 @@ importers:
     dependencies:
       '@iconify-icon/react':
         specifier: ^3.0.3
-        version: 3.0.3(react@19.3.0)
+        version: 3.0.4(react@19.3.0)
       '@react-three/fiber':
         specifier: ^9.7.0
         version: 9.7.0(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(three@0.186.0)
@@ -22,8 +22,8 @@ importers:
         specifier: ^6.6.30
         version: 6.6.30(@react-three/fiber@9.7.0(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(three@0.186.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(three@0.186.0)
       '@yohawing/three-mmd-loader':
-        specifier: 0.8.3
-        version: 0.8.3(patch_hash=a5b0eff3a72c54ca4776e77506eacd9496b41f2167766998a467465e1d6c8f95)(three@0.186.0)
+        specifier: 0.8.4
+        version: 0.8.4(patch_hash=a5b0eff3a72c54ca4776e77506eacd9496b41f2167766998a467465e1d6c8f95)(three@0.186.0)
       '@zip.js/zip.js':
         specifier: ^2.15.0
         version: 2.15.0
@@ -164,8 +164,8 @@ packages:
       '@fortawesome/fontawesome-svg-core': ~1 || ~6
       react: '>=16.3'
 
-  '@iconify-icon/react@3.0.3':
-    resolution: {integrity: sha512-i4N/J0+UZWQu5Ty9Z+SxsNsuNdY7w2TnSuI65Qw9UrWudvnRodKfTUMvyg0hvxSZolqAE1YJVZu1HqgfpgPX9w==}
+  '@iconify-icon/react@3.0.4':
+    resolution: {integrity: sha512-0xhOSFqAOT3grFA6XpTsQcoapIEOfaFaCHjWaEsJITwLC7Hj/oL/2A118wpZNmEVKCtwwHf1hw2C+wgKujv4Dg==}
     peerDependencies:
       react: '>=18.0.0'
 
@@ -528,8 +528,8 @@ packages:
   '@vitest/spy@5.0.0':
     resolution: {integrity: sha512-uy+luWBAPw9XfthoHi5AkfHUnuPYEESjl0p/r+meoBnU8bxg5GDQ3Ey8MjcJ6sqahkL4PFyrvfMJJBw7LbU06g==}
 
-  '@yohawing/three-mmd-loader@0.8.3':
-    resolution: {integrity: sha512-j8qQMaAn8x3qJGxwYY06ADYyBgxR9qeBlkt4rwFd6Jz8UtoRNj0FNAgRjEyYQQOtrRqezQUKlTHzNGRldJ+bow==}
+  '@yohawing/three-mmd-loader@0.8.4':
+    resolution: {integrity: sha512-/CUWQy7PjLtLgAp5ZTn0OBhGbjx4ffJtT6g65xEvGoCEvzppLjQLyxqC6iXpEo3UqK6V7Wch+tHfru8L29TNww==}
     peerDependencies:
       three: '>=0.176.0 <1.0.0'
 
@@ -628,8 +628,8 @@ packages:
     resolution: {integrity: sha512-CV9TW3Y3f8/wT0BRFc1/KAVQ3TUHiXmaAb6VW9vtiMFf7SLoMd1PdAc4W3KFOFETBJUb90KatHqlsZMWV+R9Gg==}
     engines: {node: ^20.19.0 || ^22.12.0 || >=24.0.0}
 
-  iconify-icon@3.0.2:
-    resolution: {integrity: sha512-DYPAumiUeUeT/GHT8x2wrAVKn1FqZJqFH0Y5pBefapWRreV1BBvqBVMb0020YQ2njmbR59r/IathL2d2OrDrxA==}
+  iconify-icon@3.0.3:
+    resolution: {integrity: sha512-n4ZIChz3N75KqFSWLt9hHGzbrqGQeeoFxCE+nND4WFFa88x8AW8GvmnVZaVNYErhhiZkxJhBfVKMIGrF1wt3hg==}
 
   ieee754@1.2.1:
     resolution: {integrity: sha512-dcyqhDvX1C46lXZcVqCpK+FtMRQVdIMN6/Df5js2zouUsqG7I6sFxitIC+7KYK29KdXOLHdu9zL4sFnoVQnqaA==}
@@ -1172,9 +1172,9 @@ snapshots:
       prop-types: 15.8.1
       react: 19.3.0
 
-  '@iconify-icon/react@3.0.3(react@19.3.0)':
+  '@iconify-icon/react@3.0.4(react@19.3.0)':
     dependencies:
-      iconify-icon: 3.0.2
+      iconify-icon: 3.0.3
       react: 19.3.0
 
   '@iconify/types@2.0.0': {}
@@ -1441,7 +1441,7 @@ snapshots:
 
   '@vitest/spy@5.0.0': {}
 
-  '@yohawing/three-mmd-loader@0.8.3(patch_hash=a5b0eff3a72c54ca4776e77506eacd9496b41f2167766998a467465e1d6c8f95)(three@0.186.0)':
+  '@yohawing/three-mmd-loader@0.8.4(patch_hash=a5b0eff3a72c54ca4776e77506eacd9496b41f2167766998a467465e1d6c8f95)(three@0.186.0)':
     dependencies:
       '@types/three': 0.186.0
       three: 0.186.0
@@ -1520,7 +1520,7 @@ snapshots:
     transitivePeerDependencies:
       - '@noble/hashes'
 
-  iconify-icon@3.0.2:
+  iconify-icon@3.0.3:
     dependencies:
       '@iconify/types': 2.0.0
 

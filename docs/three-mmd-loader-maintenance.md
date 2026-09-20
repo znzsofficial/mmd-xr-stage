@@ -1,6 +1,6 @@
 # three-mmd-loader 近期维护记录
 
-最后更新：2026-08-18
+最后更新：2026-09-20
 
 文档索引：[docs/README.md](./README.md)
 
@@ -19,12 +19,12 @@
 
 当前 NekoVirtOS 依赖：
 
-- `@yohawing/three-mmd-loader@0.8.3`
-- `mmd-anim WASM 0.5.1`
-- Bullet 运行资产：`public/mmd/0.8.3/mmd_bullet.js`、`public/mmd/0.8.3/mmd_bullet.wasm`；版本化目录保证 ABI 配套的 JS/WASM 同步更新
-- pnpm patch：`patches/@yohawing__three-mmd-loader@0.8.3.patch`（rigid-body range contact 查询 + three r186 TSL self-shadow 兼容降级，见下文）
+- `@yohawing/three-mmd-loader@0.8.4`
+- `mmd-anim WASM 0.5.2`
+- Bullet 运行资产：`public/mmd/0.8.4/mmd_bullet.js`、`public/mmd/0.8.4/mmd_bullet.wasm`；版本化目录保证 ABI 配套的 JS/WASM 同步更新
+- pnpm patch：`patches/@yohawing__three-mmd-loader@0.8.4.patch`（rigid-body range contact 查询 + three r186 TSL self-shadow 兼容降级，见下文）
 - `pnpm-workspace.yaml` 中的 `patchedDependencies` 负责应用补丁
-- 当前 lockfile patch hash：`a5b0eff3a72c54ca4776e77506eacd9496b41f2167766998a467465e1d6c8f95`
+- 当前 lockfile patch hash：`a5b0eff3a72c54ca4776e77506eacd9496b41f2167766998a467465e1d6c8f95`（补丁内容未变，0.8.3 与 0.8.4 hash 相同）
 
 上游仓库提交了 `package-lock.json`，其开发文档和 CI 均使用 npm。不要在 `E:\WebProjects\three-mmd-loader` 中使用 pnpm 更新依赖或 lockfile。NekoVirtOS 仍使用 pnpm。
 
@@ -323,6 +323,19 @@ git push fork main
 - NekoVirtOS 已升级到 `@yohawing/three-mmd-loader@0.8.3`，并替换 `public/mmd/0.8.3/` 的配套 Bullet JS/WASM。0.8.3 的 WASM 与 0.8.2 不同（Rust 1.88.0 构建）。
 - 官方包仍没有 `debugPhysicsContactsForRigidBodyRange()`（已核对 0.8.3 发布包），因此 patch 只保留这一项 JS 过滤；patch 触及的 physics 文件在 0.8.2 与 0.8.3 间上下文一致，仅重命名沿用。
 - 上游若发布带 range query 的新版本，再删除 `patchedDependencies` 条目和 `patches/@yohawing__three-mmd-loader@0.8.3.patch`。
+
+### 0.8.4 升级结果
+
+- 2026-09-20 的 `v0.8.4`（`ca938ee`）新增逐次求值的 `morphOverrides`（模型/runtime 更新、异步 Worker 更新与 host pose 均可传入），手动权重在 VMD/rest 输入之后、组展开、骨骼 morph、Append 变换和 IK 之前生效；下一次更新省略即释放，显式 `0` 表示禁用该直接权重。mmd-anim 升至 v0.5.2。本项目暂未使用该 API。
+- 已核对 0.8.4 发布内容：仍无 `debugPhysicsContactsForRigidBodyRange()`；`src/webgpu/self-shadow-pass.ts` 仍从 `three/tsl` 导入 `getShadowMaterial`/`getShadowRenderObjectFunction`。两项 patch 语义原样保留。
+- 0.8.3 patch 对 0.8.4 暂存目录 `git apply` 上下文完全一致，经 `pnpm patch` + `patch-commit` 生成 `patches/@yohawing__three-mmd-loader@0.8.4.patch`（内容等价旧补丁，lockfile patch hash 不变）。
+- Bullet 资产与 0.8.3 字节级相同（mmd-anim 升级不触及 Bullet WASM），仍按版本化惯例复制到 `public/mmd/0.8.4/` 并更新 `mmdPhysics.ts` 脚本路径。
+- 注意：`git apply` 在仓库子目录中会按仓库根解析路径，无法直接写入 `node_modules/.pnpm_patches` 暂存目录；应使用 Git 自带 `usr/bin/patch.exe -d <staging> -p1`。
+
+### 本地 clone 同步（2026-09-20）
+
+- clone 的 `main` 已 ff-only 同步到 upstream v0.8.4（`ca938ee`）并推送 fork；submodule 跟进 mmd-anim v0.5.2（`2a53a4e`）。
+- `feat/bullet-contact-range-query` 仍基于 0.8.3 的 main，本次未 rebase（需要 force-push 批准）；项目侧由 patch 覆盖，分支待决定发 PR 时再处理。
 
 ### 本地 clone 同步（2026-09-14）
 

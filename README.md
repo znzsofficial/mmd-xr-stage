@@ -39,7 +39,7 @@ MMD XR Stage is a single-purpose VR showcase for user-provided MMD (MikuMikuDanc
 | --- | --- |
 | Application | React 19, TypeScript, Vite |
 | 3D and XR | Three.js 0.186, React Three Fiber, React Three XR |
-| MMD | `@yohawing/three-mmd-loader@0.8.3` (patched), Bullet WASM |
+| MMD | `@yohawing/three-mmd-loader@0.8.4` (patched), Bullet WASM |
 | State | Zustand |
 | Hosting | Cloudflare Pages |
 

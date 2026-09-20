@@ -45,7 +45,7 @@ async function loadBulletModule() {
       const base = import.meta.env.BASE_URL || "/";
       // Keep the ABI-coupled JS and WASM in the same versioned directory. The
       // Emscripten factory resolves mmd_bullet.wasm relative to this script URL.
-      const scriptUrl = new URL("mmd/0.8.3/mmd_bullet.js", window.location.origin + base);
+      const scriptUrl = new URL("mmd/0.8.4/mmd_bullet.js", window.location.origin + base);
       return loadCustomBulletMmdModule({ scriptUrl: scriptUrl.href, timeoutMs: 30_000 });
     })().catch((error) => {
       modulePromise = null;
