@@ -4,11 +4,13 @@
 
 ### 输入失效紧急修复
 
+**用户真机确认：修复部署后，用户再次测试并明确反馈“手柄手追正常”。输入恢复已确认；此反馈不代表其他画质、物理或长时间性能项目已验收。**
+
 浅瓷发布后，用户报告“场景正常，手柄和手都不显示”。已复现外部 CDN 不可达时的手柄失效：原生 session 有两个 controller，但 XR 库等待 profile 下载失败，应用输入状态为零。当前修复将 profiles 与 controller/hand GLB 固定为本站 `/xr-input/1.0.20/`，保留 Quest 各代 profile 与 generic 回退。不能凭模拟器推断用户设备的唯一根因，发布后需请用户重新打开页面验收。
 
 验证：173 项 / 43 文件、TypeScript、构建通过；CDN 阻断下 IWER 实际扳机释放打开菜单、手追捏合释放关闭菜单，左右模型均加载。回归页保存在忽略目录 `sample/input-smoke.html?block=5`。
 
-**已发布 `24fb854`**，部署 <https://7530d188.mmd-xr-stage.pages.dev>，生产 <https://mmd-xr-stage.pages.dev>。生产入口、JS/CSS/Bullet/动画 WASM、本地 profile 索引与左右手模型哈希已匹配；遍历全部输入资产的验证在大 generic 模型下载期间超时，不能宣称全部远端文件已逐一核验。用户今晚无时间继续，明确要求部署收尾；明天重新打开页面确认 Quest 3S 手柄/手追恢复。输入本地化规则与测试边界已写入 AGENTS.md 和 docs/vr-controls.md。
+**已发布 `24fb854`**，部署 <https://7530d188.mmd-xr-stage.pages.dev>，生产 <https://mmd-xr-stage.pages.dev>。生产入口、JS/CSS/Bullet/动画 WASM、本地 profile 索引与左右手模型哈希已匹配；遍历全部输入资产的验证在大 generic 模型下载期间超时，不能宣称全部远端文件已逐一核验。用户要求部署收尾后又进行了真机测试，已确认手柄与手追正常。输入本地化规则与测试边界已写入 AGENTS.md 和 docs/vr-controls.md。
 
 压缩会话后用户要求继续完成；**浅瓷与墨蓝 HUD 已完成验证、合并、推送和生产发布**。下一轮优先做 Quest 3S 验收，再处理下文记录的贴图竞争与物理时钟问题。
 
