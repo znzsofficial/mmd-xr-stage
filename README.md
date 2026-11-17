@@ -9,11 +9,11 @@
 [![WebXR](https://img.shields.io/badge/WebXR-Quest-5b4bdb?logo=meta&logoColor=white)](https://immersiveweb.dev/)
 [![Apache 2.0](https://img.shields.io/badge/License-Apache--2.0-d22128)](./LICENSE)
 
-[Live site](https://mmd-xr-stage.pages.dev) · [Roadmap](./docs/mmd-vr-showcase-roadmap.md) · [Loader maintenance](./docs/three-mmd-loader-maintenance.md) · [Deployment notes](./docs/deployment.md)
+[Live site](https://mmd-xr-stage.pages.dev) · [Documentation](./docs/README.md) · [Handoff](./docs/HANDOFF.md) · [Deployment notes](./docs/deployment.md)
 
 </div>
 
-MMD XR Stage is a single-purpose VR showcase for user-provided MMD (MikuMikuDance) content: drop in PMX/PMD models, VMD motions, and audio on the prep page, then enter immersive VR on a Quest headset.
+MMD XR Stage is a single-purpose VR showcase for user-provided MMD (MikuMikuDance) content: drop in PMX/PMD models, VMD motions and GLB/glTF environment assets on the prep page, then enter immersive VR on a Quest headset. BGM playback is not implemented.
 
 ## Features
 
@@ -27,11 +27,11 @@ MMD XR Stage is a single-purpose VR showcase for user-provided MMD (MikuMikuDanc
 ### In VR
 
 - Compact viewing controls keep play/pause, panel expansion and exit within reach; loading and physics errors remain accessible while the adjustment panel is closed.
-- Render diagnostics distinguish requested settings, session-reported refresh/layer properties and measured callback cadence. Unavailable values are explicitly marked rather than inferred from presets.
+- Render diagnostics distinguish requested settings, session-reported refresh/layer properties, callback cadence, model-update CPU cost and renderer resource/draw counters. No GPU time is inferred from these values.
 - In-headset HUD with quality controls, model transform, height adjustment, snap turning, and exposure/lighting looks.
 - Meta Quest hand tracking with articulated hands, pinch-based HUD interaction, and hand-to-model physics collision.
 - Optional controller collision, contact haptics, physics quality controls, and session-safe model disposal.
-- WebXR MSAA on WebGL2 projection layers (three 0.186) via the antialias quality axis.
+- WebXR MSAA on WebGL2 projection layers (Three.js r187, supported since r186) via the antialias quality axis.
 
 ## Stack
 
@@ -48,7 +48,7 @@ MMD XR Stage is a single-purpose VR showcase for user-provided MMD (MikuMikuDanc
 Requirements:
 
 - Node.js `26.12.1` (Node 26; see `.node-version`)
-- pnpm `11.17.0`
+- pnpm `11.20.0` (pinned in `packageManager`)
 
 ```sh
 pnpm install --frozen-lockfile
@@ -63,6 +63,8 @@ pnpm dev
 | `pnpm deploy` | Build and deploy `dist` to Cloudflare Pages |
 
 ## WebXR Requirements
+
+Production uses WebGL. WebGPU-in-WebXR now has browser and Three.js implementations, but this app has not migrated its session and MMD shader pipeline; see [the dated support investigation](./docs/webgpu-xr-status.md).
 
 - Immersive VR requires a browser and device supporting WebXR `immersive-vr`.
 - Production XR must run from a secure HTTPS origin; `localhost` is allowed during development. The prep page reports an insecure context or a missing WebXR runtime before you attempt to enter.

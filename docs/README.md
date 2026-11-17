@@ -1,14 +1,23 @@
 # MMD XR Stage — 文档索引
 
+## 从这里继续
+
+- [交接与待办](./HANDOFF.md)：当前分支、线上版本、验证边界、下一步。
+- [产品约束](../PRODUCT.md)：Quest 3S、观看为主、手柄为主的确认需求。
+- [VR GUI 设计系统](../DESIGN.md)：用户选定的浅瓷与墨蓝，仅适用于 VR HUD；是否已上线见交接文档。
+
+专题文档描述实现与约束；旧路线图中的拆分前背景不代表当前已实现功能。版本和未发布状态以交接文档及 Git 为准。
+
 | 文档 | 内容 |
 |------|------|
-| [mmd-vr-showcase-roadmap.md](./mmd-vr-showcase-roadmap.md) | VR 展示器路线图（优先） |
+| [mmd-vr-showcase-roadmap.md](./mmd-vr-showcase-roadmap.md) | 长期路线图与拆分前历史；近期执行顺序见 HANDOFF |
 | [asset-workflow.md](./asset-workflow.md) | ZIP/文件夹导入检查、同页继续舞台与重新开始 |
 | [viewing-and-diagnostics.md](./viewing-and-diagnostics.md) | 精简观看 HUD 与画质诊断数据的来源、限制 |
 | [three-mmd-loader-maintenance.md](./three-mmd-loader-maintenance.md) | three-mmd-loader 本地补丁、根因与升级收尾步骤 |
 | [xr-runtime-performance.md](./xr-runtime-performance.md) | 物理/材质热路径优化、微基准与原生 Bullet 回归 |
 | [xr-session-lifecycle.md](./xr-session-lifecycle.md) | XR 进入状态、取消、首帧、StrictMode 与资源所有权 |
 | [vr-controls.md](./vr-controls.md) | VR 菜单分页、召回、按钮交互与舞台裁剪诊断 |
+| [webgpu-xr-status.md](./webgpu-xr-status.md) | WebGPU XR 支持现状、来源与本项目迁移边界 |
 | [deployment.md](./deployment.md) | Pages 部署路径与 wrangler ≥4.130 代理委托坑 |
 | [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md) | Bullet 运行时第三方声明 |
 
@@ -19,4 +28,4 @@
 | 准备页 | DOM + CSS tokens（prep 页即根路径） |
 | **src/xr** | 进入 / pending attach / 探测 / quality 轴 / session 工厂（单产品面独占） |
 | MMD VR 展示器 | **WebGL + WebXR**（Quest 优先）；物理/震动实验默认关 |
-| MSAA | three 0.186 XRProjectionLayer + renderer `antialias: true`（走 `antialiasPref` 轴） |
+| MSAA | three r187 XRProjectionLayer + renderer `antialias: true`（走 `antialiasPref` 轴，r186 起支持） |

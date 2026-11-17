@@ -7,7 +7,7 @@ import { createPanelTexture, roundRectPath } from "../../shared/panelTexture";
 import { getMmdVrClock } from "../mmdVrClock";
 import { getMmdVrRenderProfile } from "../mmdVrQuality";
 import { normalizeMmdVrExposure, useMmdVrStore } from "../mmdVrStore";
-import { useMmdVrTheme } from "../mmdVrTheme";
+import { useVrHudTheme as useMmdVrTheme, HUD_COLORS, paintHudButton } from "../hudAppearance";
 import {
   formatMmdVrModelScale,
   MMD_VR_HEIGHT_OFFSET_FINE_STEP,
@@ -18,7 +18,6 @@ import {
   mmdVrSliderToViewDistance,
   mmdVrViewDistanceToSlider,
 } from "../mmdVrAdjustments";
-import { hexToRgba } from "../../xr";
 import { useLanguageStore } from "../../languageStore";
 import { formatAssetProgress, paginateLoadDetails } from "../loadText";
 import { useRenderDiagnostics } from "../renderDiagnostics";
@@ -89,6 +88,7 @@ function HudButton({
   size = [0.36, 0.11] as [number, number],
   active = false,
   danger = false,
+  variant = "button",
 }: {
   position: [number, number, number];
   label: string;
@@ -97,13 +97,13 @@ function HudButton({
   size?: [number, number];
   active?: boolean;
   danger?: boolean;
+  variant?: "button" | "tab" | "quiet";
 }) {
   const [hovered, setHovered] = useState(false);
   const [pressed, setPressed] = useState(false);
   const pressedPointer = useRef<number | null>(null);
   const suppressClick = useRef(false);
   const height = Math.max(0.13, size[1]);
-  const { accent } = useMmdVrTheme();
   const geometry = useMemo(
     () => createRoundedPlaneGeometry(size[0], height, Math.min(0.025, height * 0.22)),
     [size[0], height],
@@ -114,29 +114,10 @@ function HudButton({
       createPanelTexture(
         textureWidth,
         88,
-        ({ ctx, width, height }) => {
-          ctx.fillStyle = active
-            ? accent.border
-            : danger
-              ? "#9b5262"
-              : accent.border;
-          ctx.fillRect(0, 0, width, height);
-          roundRectPath(ctx, 3, 3, width - 6, height - 6, 15);
-          ctx.fillStyle = active
-            ? hexToRgba(accent.primary, 0.68)
-            : danger
-              ? "#532a34"
-              : accent.soft;
-          ctx.fill();
-          ctx.fillStyle = danger ? "#f8eef1" : accent.ink;
-          ctx.font = "650 31px system-ui, sans-serif";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillText(label, width / 2, height / 2 + 1, width - 24);
-        },
+        (context) => paintHudButton(context, label, { active, danger, disabled, variant }),
         "en",
       ),
-    [accent.border, accent.ink, accent.marker, accent.primary, accent.soft, active, danger, label, textureWidth],
+    [active, danger, disabled, variant, label, textureWidth],
   );
 
   useEffect(() => () => texture.dispose(), [texture]);
@@ -147,7 +128,7 @@ function HudButton({
       name={`hud:${label}`}
       position={position}
       renderOrder={30}
-      scale={pressed ? 0.97 : hovered ? 1.025 : 1}
+      scale={pressed ? 0.985 : 1}
       onPointerEnter={(e) => {
         e.stopPropagation();
         if (!disabled) setHovered(true);
@@ -193,8 +174,8 @@ function HudButton({
         toneMapped={false}
         transparent
         fog={false}
-        opacity={disabled ? 0.45 : 1}
-        color="#ffffff"
+        opacity={1}
+        color={!disabled && (hovered || pressed) ? "#dce7ff" : "#ffffff"}
         side={THREE.FrontSide}
         depthWrite={false}
         depthTest={false}
@@ -290,32 +271,37 @@ export function CompactPlaybackControls({ onExpand, onExit, busy, expanded = fal
   return <group>
     <HudButton position={[-0.55, 0, 0]} size={[0.5, 0.14]} label={t(playing ? "settingsMmdVrPause" : "settingsMmdVrPlay")} active={playing}
       disabled={busy || modelCount === 0} onPress={() => useMmdVrStore.getState().setPlaying(!useMmdVrStore.getState().playing)} />
-    <HudButton position={[0, 0, 0]} label={t(expanded ? "hudBack" : "settingsMmdVrPanelShow")} size={[0.5, 0.14]} onPress={onExpand} />
-    <HudButton position={[0.55, 0, 0]} label={t("settingsVrDesktopExit")} size={[0.5, 0.14]} danger disabled={busy} onPress={onExit} />
+    <HudButton position={[0, 0, 0]} label={t(expanded ? "hudBack" : "settingsMmdVrPanelShow")} size={[0.5, 0.14]} variant="quiet" onPress={onExpand} />
+    <HudButton position={[0.55, 0, 0]} label={t("settingsVrDesktopExit")} size={[0.5, 0.14]} variant="quiet" disabled={busy} onPress={onExit} />
   </group>;
 }
 
-function PanelBackdrop() {
+function PanelBackdrop({ compact = false }: { compact?: boolean }) {
   const { accent } = useMmdVrTheme();
   const texture = useMemo(
-    () => createPanelTexture(1400, 620, ({ ctx, width, height }) => {
-      roundRectPath(ctx, 2, 2, width - 4, height - 4, 28);
+    () => createPanelTexture(1320, 1120, ({ ctx, width, height }) => {
+      roundRectPath(ctx, 0, 0, width, height, 32);
       ctx.fillStyle = accent.soft;
       ctx.fill();
       ctx.strokeStyle = accent.border;
-      ctx.lineWidth = 5;
-      ctx.stroke();
+      ctx.lineWidth = 1;
+      if (!compact) {
+        ctx.beginPath();
+        ctx.moveTo(40, 112); ctx.lineTo(width - 40, 112);
+        ctx.moveTo(40, height - 118); ctx.lineTo(width - 40, height - 118);
+        ctx.stroke();
+      }
     }, "en"),
-    [accent.border, accent.primary, accent.soft],
+    [accent.border, accent.primary, accent.soft, compact],
   );
   useEffect(() => () => texture.dispose(), [texture]);
   return (
     <mesh
-      position={[0, -0.18, -0.018]}
+      position={[0, -0.06, -0.018]}
       renderOrder={10}
       onPointerDown={(event) => event.stopPropagation()}
     >
-      <planeGeometry args={[2.65, 1.85]} />
+      <planeGeometry args={compact ? [1.95, 0.84] : [2.76, 2.24]} />
       <meshBasicMaterial map={texture} toneMapped={false} transparent depthWrite={false} depthTest={false} alphaTest={0.02} fog={false} />
     </mesh>
   );
@@ -340,13 +326,16 @@ function DragHandle({
     () => createPanelTexture(720, 72, ({ ctx, width, height }) => {
       ctx.clearRect(0, 0, width, height);
       roundRectPath(ctx, 1, 1, width - 2, height - 2, 18);
-      ctx.fillStyle = dragging ? hexToRgba(accent.primary, 0.82) : accent.soft;
+      ctx.fillStyle = dragging ? HUD_COLORS.selected : accent.soft;
       ctx.fill();
       ctx.fillStyle = accent.ink;
-      ctx.font = "650 25px system-ui, sans-serif";
+      ctx.font = "500 26px system-ui, sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(`⋮⋮  ${label}`, width / 2, height / 2);
+      ctx.fillText(label, width / 2, height / 2);
+      ctx.fillStyle = accent.muted;
+      roundRectPath(ctx, width / 2 - 35, height - 9, 70, 3, 1.5);
+      ctx.fill();
     }, "en"),
     [accent.ink, accent.primary, accent.soft, dragging, label],
   );
@@ -411,6 +400,7 @@ function DragHandle({
   return (
     <group ref={groupRef} position={position}>
       <mesh
+        renderOrder={40}
         onPointerDown={begin}
         onPointerMove={move}
         onPointerUp={end}
@@ -442,20 +432,14 @@ function ValueLabel({
   const texture = useMemo(
     () => createPanelTexture(textureWidth, 88, ({ ctx, width, height }) => {
       ctx.clearRect(0, 0, width, height);
-      roundRectPath(ctx, 2, 2, width - 4, height - 4, 16);
-      ctx.fillStyle = accent.soft;
-      ctx.fill();
-      ctx.strokeStyle = accent.border;
-      ctx.lineWidth = 3;
-      ctx.stroke();
       ctx.fillStyle = accent.muted;
-      ctx.font = centered ? "700 30px system-ui, sans-serif" : "600 23px system-ui, sans-serif";
+      ctx.font = centered ? "600 30px system-ui, sans-serif" : "500 28px system-ui, sans-serif";
       ctx.textAlign = centered ? "center" : "left";
       ctx.textBaseline = "middle";
-      ctx.fillText(label, centered ? width / 2 : 20, height / 2);
+      ctx.fillText(label, centered ? width / 2 : 12, height / 2, centered ? width - 24 : width - 105);
       if (!centered) {
         ctx.fillStyle = accent.ink;
-        ctx.font = "700 30px system-ui, sans-serif";
+        ctx.font = "650 30px system-ui, sans-serif";
         ctx.textAlign = "right";
         ctx.fillText(value, width - 20, height / 2);
       }
@@ -545,17 +529,17 @@ function HudSlider({
   return (
     <group position={position}>
       <mesh position={[0, 0, -0.004]} renderOrder={30} raycast={() => null}>
-        <planeGeometry args={[width, 0.035]} />
+        <planeGeometry args={[width, 0.012]} />
         <meshBasicMaterial color={accent.track} transparent opacity={disabled ? 0.45 : 1} toneMapped={false} depthWrite={false} depthTest={false} />
       </mesh>
       {ratio > 0 ? (
         <mesh position={[-width / 2 + (width * ratio) / 2, 0, 0]} renderOrder={31} raycast={() => null}>
-          <planeGeometry args={[width * ratio, 0.035]} />
+          <planeGeometry args={[width * ratio, 0.012]} />
           <meshBasicMaterial color={accent.primary} transparent opacity={disabled ? 0.45 : 1} toneMapped={false} depthWrite={false} depthTest={false} />
         </mesh>
       ) : null}
       <mesh position={[-width / 2 + width * ratio, 0, 0.006]} renderOrder={32} raycast={() => null}>
-        <circleGeometry args={[0.055, 24]} />
+        <circleGeometry args={[0.036, 24]} />
         <meshBasicMaterial color={accent.marker} transparent opacity={disabled ? 0.45 : 1} toneMapped={false} depthWrite={false} depthTest={false} />
       </mesh>
       <mesh
@@ -633,12 +617,12 @@ function ProgressBar({ onInteractionChange }: { onInteractionChange: (active: bo
           ctx.fillStyle = accent.soft;
           ctx.fill();
           ctx.fillStyle = accent.track;
-          ctx.fillRect(PROGRESS_PAD, height / 2 - 6, width - PROGRESS_PAD * 2, 12);
+          ctx.fillRect(PROGRESS_PAD, height - 16, width - PROGRESS_PAD * 2, 6);
           ctx.fillStyle = accent.muted;
           ctx.font = "600 22px system-ui, sans-serif";
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
-          ctx.fillText("0:00 / 0:00", width / 2, height / 2);
+          ctx.fillText("0:00 / 0:00", width / 2, 24);
         },
         "en",
       ),
@@ -727,14 +711,14 @@ function ProgressBar({ onInteractionChange }: { onInteractionChange: (active: bo
     ctx.fillStyle = accent.soft;
     ctx.fill();
     ctx.fillStyle = accent.track;
-    ctx.fillRect(PROGRESS_PAD, h / 2 - 6, trackW, 12);
+    ctx.fillRect(PROGRESS_PAD, h - 16, trackW, 6);
     ctx.fillStyle = accent.primary;
-    ctx.fillRect(PROGRESS_PAD, h / 2 - 6, trackW * ratio, 12);
+    ctx.fillRect(PROGRESS_PAD, h - 16, trackW * ratio, 6);
     ctx.fillStyle = accent.muted;
     ctx.font = "600 22px system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(`${formatTime(clock.time)} / ${formatTime(clock.duration)}`, w / 2, h / 2);
+    ctx.fillText(`${formatTime(clock.time)} / ${formatTime(clock.duration)}`, w / 2, 24);
     texture.needsUpdate = true;
   });
 
@@ -750,7 +734,7 @@ function ProgressBar({ onInteractionChange }: { onInteractionChange: (active: bo
       onPointerCancel={endSeek}
       onLostPointerCapture={endSeek}
     >
-      <planeGeometry args={[1.05, 0.1]} />
+      <planeGeometry args={[1.05, 0.13]} />
       <meshBasicMaterial map={texture} toneMapped={false} transparent fog={false} depthWrite={false} depthTest={false} />
     </mesh>
   );
@@ -832,12 +816,12 @@ function ModelPanel({
         onChange={(value) => setScale(mmdVrSliderToModelScale(value))}
         onInteractionChange={onInteractionChange}
       />
-      <HudButton position={[-0.36, -0.31, 0]} label={rotateLeftLabel} size={[0.22, 0.1]} onPress={() => requestModelRotation(model.id, model.rotationY - 15)} />
-      <HudButton position={[-0.12, -0.31, 0]} label={resetValueLabel} size={[0.22, 0.1]} onPress={() => requestModelReset(model.id)} />
-      <HudButton position={[0.12, -0.31, 0]} label={rotateRightLabel} size={[0.22, 0.1]} onPress={() => requestModelRotation(model.id, model.rotationY + 15)} />
-      <HudButton position={[0.36, -0.31, 0]} label={removeLabel} size={[0.22, 0.1]} danger onPress={() => enqueueModelRemoval(model.id)} />
+      <HudButton position={[-0.36, -0.27, 0]} label={rotateLeftLabel} size={[0.22, 0.1]} onPress={() => requestModelRotation(model.id, model.rotationY - 15)} />
+      <HudButton position={[-0.12, -0.27, 0]} label={resetValueLabel} size={[0.22, 0.1]} onPress={() => requestModelReset(model.id)} />
+      <HudButton position={[0.12, -0.27, 0]} label={rotateRightLabel} size={[0.22, 0.1]} onPress={() => requestModelRotation(model.id, model.rotationY + 15)} />
+      <HudButton position={[0.36, -0.27, 0]} label={removeLabel} size={[0.22, 0.1]} danger onPress={() => enqueueModelRemoval(model.id)} />
       <HudButton
-        position={[0, -0.42, 0]}
+        position={[0, -0.46, 0]}
         label={materialsLabel}
         size={[0.42, 0.08]}
         disabled={!hasMaterials}
@@ -1622,10 +1606,11 @@ export function MmdVrControlBar({
   if (surface === "watch") {
     return (
       <group position={panelPosition} ref={panelGroupRef}>
+        <PanelBackdrop compact />
         {notice}
         <CompactPlaybackControls onExpand={() => { recall(); setPanelVisible(true); }} onExit={onExit} busy={busy} />
         <ProgressBar onInteractionChange={onDragChange} />
-        <ValueLabel position={[0, -0.39, 0]} label={t("hudRecallHint")} value="" size={[1.65, 0.1]} centered />
+        <ValueLabel position={[0, -0.34, 0]} label={t("hudRecallHint")} value="" size={[1.65, 0.1]} centered />
         {assetLoad.failures.length > 0 ? <HudButton position={[0, 0.43, 0]} label={t("loadDetails")} size={[0.95, 0.13]} onPress={() => setDismissedLoadEpoch(-1)} /> : null}
         <DragHandle
           label={panelDragLabel}
@@ -1642,12 +1627,12 @@ export function MmdVrControlBar({
       <PanelBackdrop />
       {notice}
       <DragHandle label={panelDragLabel} onDragChange={onDragChange} onPositionChange={setPanelPosition} />
-      <HudButton position={[-0.98, 0.83, 0.03]} label={t("hudRecall")} size={[0.55, 0.14]} onPress={recall} />
-      <HudButton position={[0.98, 0.83, 0.03]} label={t("hudBack")} size={[0.55, 0.14]} onPress={() => setPanelVisible(false)} />
+      <HudButton position={[-0.98, 0.83, 0.03]} label={t("hudRecall")} size={[0.55, 0.14]} variant="quiet" onPress={recall} />
+      <HudButton position={[0.98, 0.83, 0.03]} label={t("hudBack")} size={[0.55, 0.14]} variant="quiet" onPress={() => setPanelVisible(false)} />
       {(["models", "visual", "physics", "comfort"] as const).map((value, index) => (
         <HudButton key={value} position={[(index - 1.5) * 0.63, 0.59, 0.03]} size={[0.59, 0.16]}
           label={t(({ models: "hudModels", visual: "hudVisual", physics: "hudPhysics", comfort: "hudComfort" } as const)[value])}
-          active={tab === value} onPress={() => { setTab(value); useMmdVrStore.getState().setMaterialPanelModelId(null); }} />
+          variant="tab" active={tab === value} onPress={() => { setTab(value); useMmdVrStore.getState().setMaterialPanelModelId(null); }} />
       ))}
       {status && !physicsError ? <group position={[0, 0.6, 0]}><StatusPlane text={status} /></group> : null}
       {tab === "comfort" && <group position={[0, 0.19, 0]}>

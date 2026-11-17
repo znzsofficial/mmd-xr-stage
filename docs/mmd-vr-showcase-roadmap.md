@@ -1,10 +1,10 @@
 # MMD VR 展示器 — 路线图
 
-最后更新：2026-08-04（参数渐进披露 + 物理恢复错误分级）
+状态校正：2026-11-17；下文功能编号和多数计划保留自 2026-08-04。
 
-> **当前产品重心**（VR 桌面已基线收尾并搁置，见 [vr-desktop-roadmap.md](./vr-desktop-roadmap.md)）
+> **历史路线图**：项目已从 NekoVirtOS 拆出，当前只有准备页与 MMD VR 舞台。Studio/VR 桌面对比及其文档名称属于拆分前背景，相关文件不在本仓。近期执行状态请读 [HANDOFF](./HANDOFF.md)，不要据旧表推断功能已完成。
 
-相关：[mmd-studio.md](./mmd-studio.md) · [vr-desktop-roadmap.md](./vr-desktop-roadmap.md) · [README.md](./README.md)
+当前相关：[产品](../PRODUCT.md) · [VR 控件](./vr-controls.md) · [XR 生命周期](./xr-session-lifecycle.md) · [文档索引](./README.md)
 
 ---
 
@@ -22,7 +22,7 @@
 ### 1.1 成片原则
 
 1. **独立会话** — 与 VR 桌面、与 Studio WebGPU **不同时**共用同一 XR / 渲染后端；进展示器 = 新 `requestSession`（或明确结束当前会话后再进）。  
-2. **WebGL only** — 禁止 WebGPU TSL、禁止 Studio 全量 `postprocessing` 栈。  
+2. **生产 WebGL** — 当前不迁移 WebGPU TSL，不引入 Studio 全量 `postprocessing` 栈。WebGPU XR 已有实现，但需单独验证与授权迁移，见 [支持状态](./webgpu-xr-status.md)。
 3. **有限场景** — 模型 / 动作数量有硬上限；默认关物理。  
 4. **可走可看** — 支持在舞台空间内 **平滑移动（行走）+ 转向** 观察模型；注意晕动预算。  
 5. **复用 runtime，不复用 Studio UI** — 加载 / 动画步进走 `mmdRuntime`（或抽出的 shared 子集）；控件全部 XR 原生重做。  
@@ -33,7 +33,7 @@
 | 非目标 | 原因 |
 |--------|------|
 | 完整 Studio 迁入 VR / VR 桌面嵌 Studio | DOM UI、后处理、Gizmo、工程库与 XR 模型冲突 |
-| WebGPU / TSL 作展示后端 | 与 WebXR 成片路径冲突；文档已禁 |
+| 默认切换 WebGPU / TSL 展示后端 | 尚未适配本项目 MMD shader/session，需保留 WebGL 回退并验证 Quest，不能只替换构造函数 |
 | 全量后处理（bloom/SSR/DoF/…） | 立体 + Quest 预算；后续仅允许 **白名单轻量** 项 |
 | 项目 DB / WebCodecs 导出 / 实时录制 | 展示器范围外 |
 | 桌面 Gizmo / Orbit 直接复用 | 指针模型不同；改用行走 + 可选简单 TRS |
@@ -138,7 +138,7 @@
 
 - **不**从 VR 桌面 `openApp` 嵌展示器。  
 - 若用户已在 VR 桌面：须 **先结束 VR 桌面会话** 再进展示（或入口禁用并提示）。  
-- HTTPS / 手势规则与 [vr-desktop-roadmap.md](./vr-desktop-roadmap.md) §5 一致。
+- HTTPS / 用户激活规则见 [XR 生命周期](./xr-session-lifecycle.md)。
 
 ---
 
@@ -370,6 +370,8 @@ src/mmdVrShowcase/
 
 ## 7. 近期建议顺序（执行）
 
+> 本节为历史排序；当前 GUI 收尾、贴图异步竞争、动画/物理时钟核验及 Quest 回归的先后顺序已集中在 [HANDOFF](./HANDOFF.md)。
+
 > 全项目 VR 人力优先本文件；勿回流做 VR 桌面新 app。
 
 1. **S3 / S4 / M8**：Quest 双眼 HUD 复测与性能矩阵签字（记 §6 表），含物理中档与震动三档手感验收
@@ -408,6 +410,7 @@ src/mmdVrShowcase/
 ## 8.5 踩坑记录（供后续参考）
 
 > 2026-07-31 开发过程中遇到的非显而易见的问题与解决方案。
+> 以下为当时的排查记录，部分因果归纳没有独立最小复现。已在 2026-11-17 复现的首次进入/StrictMode 根因与新实现见 [XR 生命周期](./xr-session-lifecycle.md)；不要把 React 状态更新本身概括成必然导致 WebGL 黑屏。
 
 ### 1. `setRuntimeRef` 在 `useMemo` 中调用导致黑屏
 
@@ -469,6 +472,8 @@ src/mmdVrShowcase/
 
 ## 8.6 结构审查与拆分计划
 
+> 历史评估：下列文件规模、建议排序不再是本轮状态。已完成 session 生命周期与部分物理热路径重构，新的问题证据和优先级见 [交接](./HANDOFF.md)。
+
 当前目录按展示器、R3F 组件、MMD runtime、资产、session、时钟和 haptics 分层，整体结构足够支撑继续开发，暂不需要大规模重构。
 
 **已知维护风险**：`src/mmdVrShowcase/components/MmdVrHud.tsx` 已约 1500 行，同时包含通用 HUD 控件、主控制条、模型/物件面板、材质面板、物理设置和 FPS 显示。下一次修改 HUD 时优先拆分为通用控件、模型/物件面板、材质面板、物理设置面板和控制条组装层。
@@ -483,8 +488,8 @@ src/mmdVrShowcase/
 
 ## 9. 参考
 
-- [mmd-studio.md](./mmd-studio.md) — Studio 能力与 runtime 约定  
-- [vr-desktop-roadmap.md](./vr-desktop-roadmap.md) — WebXR 进入/性能/非目标；**D1**  
+- 原 NekoVirtOS 仓库的 `docs/mmd-studio.md` — 拆分前 Studio 能力与 runtime 约定（不在本仓）
+- 原 NekoVirtOS 仓库的 `docs/vr-desktop-roadmap.md` — 拆分前 WebXR 进入/性能记录（不在本仓）
 - [Immersive Web](https://immersiveweb.dev/)  
 - [three.js WebXR](https://threejs.org/docs/#manual/en/introduction/How-to-create-VR-content)  
 - [@react-three/xr](https://docs.pmnd.rs/xr)  

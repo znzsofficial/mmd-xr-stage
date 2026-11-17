@@ -1,17 +1,28 @@
 # 部署与 wrangler 版本注意事项
 
-最后更新：2026-09-14
+最后更新：2026-11-17
 
 ## 当前部署路径
 
 经典 Cloudflare Pages 直传：
 
 ```bash
-pnpm deploy   # build + wrangler pages deploy ./dist --project-name=<name> --branch=main
+pnpm build
+npx -y wrangler@4.128.0 pages deploy ./dist --project-name=mmd-xr-stage --branch=main
 ```
 
 - 本仓库（mmd-xr-stage）：`mmd-xr-stage.pages.dev`
 - 主仓库（neko-virt-os）：`neko-virt-os.pages.dev` / `os.nekolaska.vip`
+
+`package.json` 的 `pnpm deploy` 依赖 PATH 中的 wrangler；代理环境收尾使用上面固定版本命令。Git 默认分支是 **master**，但 Pages 生产分支配置为 **main**，因此部署参数必须保留 `--branch=main`。
+
+发布前检查构建 exit code；不要用 `| Select-Object` 等过滤管道掩盖失败。合并前完成必要验证和构建，合并后复用制品及时部署。验证生产 HTML 引用、JS/CSS/Bullet/动画 WASM 的内容哈希；HTTP 200 本身不能证明资源存在，因为 SPA 回退可能返回 HTML。验证 URL 加新的 cache-buster，勿复用旧查询参数。
+
+本机 Git 推送已验证需显式代理：
+
+```bash
+git -c http.proxy=http://127.0.0.1:7897 -c https.proxy=http://127.0.0.1:7897 push origin master
+```
 
 ## wrangler ≥4.130 的代理委托坑（PR #15004）
 

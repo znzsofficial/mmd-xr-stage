@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-17T14:12:59.917Z",
+  "title": "Design System: MMD XR Stage — VR HUD",
+  "extensions": {
+    "colorMeta": {
+      "surface": { "role": "neutral", "displayName": "Cool Porcelain", "tonalRamp": ["oklch(15% 0.005 255)", "oklch(27% 0.01 255)", "oklch(39% 0.015 255)", "oklch(51% 0.02 255)", "oklch(63% 0.02 255)", "oklch(75% 0.015 255)", "oklch(87% 0.01 255)", "oklch(95% 0.005 255)"] },
+      "control": { "role": "neutral", "displayName": "Control White", "tonalRamp": ["oklch(15% 0 0)", "oklch(27% 0 0)", "oklch(39% 0 0)", "oklch(51% 0 0)", "oklch(63% 0 0)", "oklch(75% 0 0)", "oklch(87% 0 0)", "oklch(95% 0 0)"] },
+      "border": { "role": "neutral", "displayName": "Porcelain Rule", "tonalRamp": ["oklch(15% 0.008 260)", "oklch(27% 0.018 260)", "oklch(39% 0.025 260)", "oklch(51% 0.03 260)", "oklch(63% 0.03 260)", "oklch(75% 0.025 260)", "oklch(87% 0.018 260)", "oklch(95% 0.008 260)"] },
+      "ink": { "role": "neutral", "displayName": "Blue Ink", "tonalRamp": ["oklch(15% 0.015 250)", "oklch(27% 0.03 250)", "oklch(39% 0.045 250)", "oklch(51% 0.05 250)", "oklch(63% 0.05 250)", "oklch(75% 0.04 250)", "oklch(87% 0.02 250)", "oklch(95% 0.008 250)"] },
+      "muted": { "role": "neutral", "displayName": "Blue-gray Label", "tonalRamp": ["oklch(15% 0.012 260)", "oklch(27% 0.025 260)", "oklch(39% 0.04 260)", "oklch(51% 0.045 260)", "oklch(63% 0.045 260)", "oklch(75% 0.035 260)", "oklch(87% 0.02 260)", "oklch(95% 0.008 260)"] },
+      "primary": { "role": "primary", "displayName": "Discrete Cobalt", "tonalRamp": ["oklch(15% 0.04 265)", "oklch(27% 0.1 265)", "oklch(39% 0.16 265)", "oklch(51% 0.2 265)", "oklch(63% 0.17 265)", "oklch(75% 0.12 265)", "oklch(87% 0.06 265)", "oklch(95% 0.02 265)"] },
+      "selected": { "role": "primary", "displayName": "Porcelain Blue Selection", "tonalRamp": ["oklch(15% 0.015 265)", "oklch(27% 0.03 265)", "oklch(39% 0.05 265)", "oklch(51% 0.065 265)", "oklch(63% 0.065 265)", "oklch(75% 0.06 265)", "oklch(87% 0.04 265)", "oklch(95% 0.015 265)"] },
+      "track": { "role": "neutral", "displayName": "Blue-gray Track", "tonalRamp": ["oklch(15% 0.01 255)", "oklch(27% 0.025 255)", "oklch(39% 0.035 255)", "oklch(51% 0.04 255)", "oklch(63% 0.04 255)", "oklch(75% 0.035 255)", "oklch(87% 0.02 255)", "oklch(95% 0.008 255)"] },
+      "danger": { "role": "semantic", "displayName": "Warning Carmine", "tonalRamp": ["oklch(15% 0.025 15)", "oklch(27% 0.07 15)", "oklch(39% 0.12 15)", "oklch(51% 0.16 15)", "oklch(63% 0.14 15)", "oklch(75% 0.1 15)", "oklch(87% 0.05 15)", "oklch(95% 0.015 15)"] },
+      "danger-surface": { "role": "semantic", "displayName": "Pale Carmine Surface", "tonalRamp": ["oklch(15% 0.008 5)", "oklch(27% 0.02 5)", "oklch(39% 0.03 5)", "oklch(51% 0.04 5)", "oklch(63% 0.04 5)", "oklch(75% 0.035 5)", "oklch(87% 0.025 5)", "oklch(95% 0.012 5)"] },
+      "disabled": { "role": "neutral", "displayName": "Unavailable Slate", "tonalRamp": ["oklch(15% 0.008 255)", "oklch(27% 0.02 255)", "oklch(39% 0.03 255)", "oklch(51% 0.035 255)", "oklch(63% 0.035 255)", "oklch(75% 0.03 255)", "oklch(87% 0.018 255)", "oklch(95% 0.006 255)"] }
+    },
+    "typographyMeta": {
+      "title": { "displayName": "Detail Title", "purpose": "Recovery and diagnostic titles; sizes are Canvas pixels." },
+      "body": { "displayName": "Detail Body", "purpose": "Paged detail text, with 48 texture-pixel baseline spacing." },
+      "button": { "displayName": "Action Label", "purpose": "Centered text on 88-pixel-high button textures." },
+      "button-active": { "displayName": "Selected Action", "purpose": "Weight change for active buttons and tabs." },
+      "label": { "displayName": "Parameter Label", "purpose": "Muted left-aligned label." },
+      "value": { "displayName": "Parameter Value", "purpose": "Ink right-aligned value." },
+      "centered-label": { "displayName": "Centered Label", "purpose": "Pagination and recall guidance." }
+    },
+    "shadows": [],
+    "motion": [
+      { "name": "press-scale", "value": "0.985", "purpose": "Immediate mesh scale on press; no easing duration. Hover/press also multiplies the texture by the selected tint." }
+    ],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "Ordinary Action", "kind": "button", "refersTo": "button",
+      "description": "Illustrative flat texture-scale preview. XR geometry supplies rounding; CSS hover approximates tint and focus is preview-only. All tonal ramps are synthesized preview metadata, not shipping tokens.",
+      "html": "<button class=\"ds-action\">复位</button>",
+      "css": ".ds-action{background:#ffffff;color:#172638;border:0;border-radius:17px;width:256px;height:88px;font:550 31px system-ui,sans-serif;cursor:pointer}.ds-action:hover{background:#dce7ff}.ds-action:focus-visible{outline:2px solid #244fc5;outline-offset:3px}.ds-action:active{transform:scale(.985)}"
+    },
+    {
+      "name": "Selected Action", "kind": "button", "refersTo": "button-active",
+      "description": "Pale selection with stronger cobalt text; hover overlay illustrates the material tint.",
+      "html": "<button class=\"ds-selected\" aria-pressed=\"true\">手追:开</button>",
+      "css": ".ds-selected{position:relative;isolation:isolate;overflow:hidden;background:#dce7ff;color:#244fc5;border:0;border-radius:17px;width:256px;height:88px;font:650 31px system-ui,sans-serif;cursor:pointer}.ds-selected:hover::after{content:'';position:absolute;inset:0;background:#dce7ff;mix-blend-mode:multiply;pointer-events:none}.ds-selected:focus-visible{outline:2px solid #244fc5;outline-offset:3px}.ds-selected:active{transform:scale(.985)}"
+    },
+    {
+      "name": "Quiet Action", "kind": "button", "refersTo": "button-quiet",
+      "description": "Header/back/exit action merges into the porcelain panel at rest.",
+      "html": "<button class=\"ds-quiet\">返回观看</button>",
+      "css": ".ds-quiet{background:#edf1f6;color:#172638;border:0;border-radius:17px;width:300px;height:88px;font:550 31px system-ui,sans-serif;cursor:pointer}.ds-quiet:hover{background:#dce7ff}.ds-quiet:focus-visible{outline:2px solid #244fc5;outline-offset:3px}.ds-quiet:active{transform:scale(.985)}"
+    },
+    {
+      "name": "Category Tabs", "kind": "nav", "refersTo": "button-tab-active",
+      "description": "Default and active tab states; active indicator is half the texture width, four pixels high, starting six pixels above the bottom edge.",
+      "html": "<nav class=\"ds-tabs\" aria-label=\"设置分类\"><button>模型 / 物件</button><button aria-current=\"page\">画面</button><button>物理</button><button>操作</button></nav>",
+      "css": ".ds-tabs{display:flex;flex-wrap:wrap;gap:12px;background:#edf1f6}.ds-tabs button{position:relative;background:#edf1f6;color:#172638;border:0;border-radius:14px;width:256px;height:88px;font:550 31px system-ui,sans-serif;cursor:pointer}.ds-tabs button[aria-current]{background:#dce7ff;color:#244fc5;font-weight:650}.ds-tabs button[aria-current]::after{content:'';position:absolute;left:25%;bottom:2px;width:50%;height:4px;border-radius:2px;background:#244fc5}.ds-tabs button:hover{background:#dce7ff}.ds-tabs button:focus-visible{outline:2px solid #244fc5;outline-offset:3px}.ds-tabs button:active{transform:scale(.985)}"
+    },
+    {
+      "name": "Danger Action", "kind": "button", "refersTo": "button-danger",
+      "description": "Destructive actions and critical notices use semantic carmine rather than cobalt.",
+      "html": "<button class=\"ds-danger\">移除</button>",
+      "css": ".ds-danger{position:relative;isolation:isolate;overflow:hidden;background:#fbe7eb;color:#a52b3d;border:0;border-radius:17px;width:256px;height:88px;font:550 31px system-ui,sans-serif;cursor:pointer}.ds-danger:hover::after{content:'';position:absolute;inset:0;background:#dce7ff;mix-blend-mode:multiply;pointer-events:none}.ds-danger:focus-visible{outline:2px solid #244fc5;outline-offset:3px}.ds-danger:active{transform:scale(.985)}"
+    },
+    {
+      "name": "Disabled Action", "kind": "button", "refersTo": "button-disabled",
+      "description": "Explicit unavailable text/fill; no hover tint. Active disabled actions retain active font weight.",
+      "html": "<button class=\"ds-disabled\" disabled>上一页</button>",
+      "css": ".ds-disabled{background:#edf1f6;color:#5d6b7f;border:0;border-radius:17px;width:256px;height:88px;font:550 31px system-ui,sans-serif;cursor:default}"
+    },
+    {
+      "name": "Porcelain Panel", "kind": "card", "refersTo": "panel",
+      "description": "Scaled texture swatch of the 1320 × 1120 backdrop. Actual XR geometry is 2.76 × 2.24 local units expanded or 1.95 × 0.84 compact; compact omits rules.",
+      "html": "<svg class=\"ds-panel\" viewBox=\"0 0 1320 1120\" role=\"img\" aria-label=\"Porcelain panel texture\"><rect width=\"1320\" height=\"1120\" rx=\"32\" fill=\"#edf1f6\"/><path d=\"M40 112H1280 M40 1002H1280\" fill=\"none\" stroke=\"#ccd5e2\" stroke-width=\"1\"/></svg>",
+      "css": ".ds-panel{display:block;width:330px;max-width:100%;height:auto}"
+    },
+    {
+      "name": "Parameter Value", "kind": "custom", "refersTo": "value-label",
+      "description": "Texture-scale example: muted name left, stronger value right; no input field or enclosing card.",
+      "html": "<div class=\"ds-value\"><span>曝光</span><strong>1.0</strong></div>",
+      "css": ".ds-value{display:flex;align-items:center;justify-content:space-between;width:432px;max-width:100%;height:88px;background:#edf1f6;color:#52627a;font:500 28px system-ui,sans-serif}.ds-value span{padding-left:12px}.ds-value strong{padding-right:20px;color:#172638;font:650 30px system-ui,sans-serif}"
+    },
+    {
+      "name": "Adjustment Slider", "kind": "input", "refersTo": "slider",
+      "description": "Static geometry swatch at value 0.5, not a functioning XR control. ViewBox scales local geometry by 1000; transparent target is 0.86 × 0.16 for the default 0.74-wide track. Disabled opacity is 0.45.",
+      "html": "<svg class=\"ds-slider\" viewBox=\"0 0 860 160\" role=\"img\" aria-label=\"Slider at midpoint\"><path d=\"M60 80H800\" stroke=\"#a6b5ca\" stroke-width=\"12\"/><path d=\"M60 80H430\" stroke=\"#244fc5\" stroke-width=\"12\"/><circle cx=\"430\" cy=\"80\" r=\"36\" fill=\"#244fc5\"/></svg>",
+      "css": ".ds-slider{display:block;width:430px;max-width:100%;height:auto;background:#edf1f6}"
+    }
+  ],
+  "narrative": {
+    "northStar": "浅瓷与墨蓝",
+    "overview": "The user-selected direction is cool porcelain, ink typography and restrained cobalt selection. Quiet, flat controls support a Quest 3S viewer who mainly watches and occasionally adjusts settings with controllers.\n\nThis system applies only to the VR HUD in `src/mmdVrShowcase/hudAppearance.ts` and `src/mmdVrShowcase/components/MmdVrHud.tsx`. The preparation console in `src/styles/mmd-vr-prep.css` retains its separate dark, user-accented system; stage lighting, backgrounds and model materials have independent colors. This was not a catalog-seeded world.",
+    "keyCharacteristics": ["Cool porcelain surfaces with ink labels.", "Selection through tint, weight and a small tab indicator.", "Flat, rounded controls with controller-sized targets.", "Code-painted textures; no shipped raster assets."],
+    "rules": [{ "name": "The HUD Boundary Rule", "body": "HUD tokens never become global preparation-page or stage colors.", "section": "colors" }],
+    "dos": ["Do keep HUD colors independent of preparation, stage and model colors.", "Do distinguish texture pixels from local XR geometry units.", "Do preserve readable labels, explicit selected states and controller target sizes.", "Do report emulator evidence separately from pending Quest hardware validation."],
+    "donts": ["Don't add expensive blur, bevels or real 3D shadows to the HUD.", "Don't replace restrained selection with full-panel accent fills.", "Don't ship review screenshots as product assets or claim headset success from them."]
+  }
+}
