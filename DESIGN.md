@@ -107,7 +107,7 @@ This system applies only to the VR HUD in `src/mmdVrShowcase/hudAppearance.ts` a
 
 Direction authority: the confirmed choice recorded in `.impeccable/surfaces/vr-hud.md`. Development-emulator layout review is recorded in `.openchamber/screenshots/porcelain-visual-final-2026-11-17T14-03-46-087.jpg` and `.openchamber/screenshots/porcelain-watch-final-2026-11-17T14-05-25-104.jpg`. These are review captures, not product assets or proof of interaction success. Quest 3S optical readability, comfort, controller/hand behavior and performance validation remain pending.
 
-Publication state is tracked in `docs/HANDOFF.md`. This document describes the implemented branch, not an assertion that the redesign is already deployed. The initial review found time text painted across the progress track; it is now painted at texture Y=24, above the track at Y=56–62, on a 0.13-high seek plane. The scoped follow-up review approved that fix with a synthetic-duration capture (`porcelain-progress-fixed-2026-11-17T14-14-09-711.jpg`).
+Publication state is tracked in `docs/HANDOFF.md`; this design shipped in `c5232fd`. The initial review found time text painted across the progress track; it is now painted at texture Y=24, above the track at Y=56–62, on a 0.13-high seek plane. The scoped follow-up review approved that fix with a synthetic-duration capture (`porcelain-progress-fixed-2026-11-17T14-14-09-711.jpg`).
 
 ## Colors
 

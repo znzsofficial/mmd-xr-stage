@@ -2,14 +2,14 @@
 
 ## 首先读这里
 
-用户刚要求“更新和整理文档，包括交接文档，压缩会话后继续”。当前是在**视觉更新收尾途中暂停**，不是新的 GUI 方案征询，也不是已完成发布。
+压缩会话后用户要求继续完成；**浅瓷与墨蓝 HUD 已完成验证、合并、推送和生产发布**。下一轮优先做 Quest 3S 验收，再处理下文记录的贴图竞争与物理时钟问题。
 
 - 工作目录：`E:\WebProjects\mmd-xr-stage`
-- 当前分支：`design/vr-porcelain-controls`
-- 分支 HEAD / master / origin/master：`3ba4ded`
-- 当前浅瓷 GUI、产品/设计文档和本交接均为**未提交工作区改动**，不要 reset/clean、切回 master 或覆盖。
-- 线上仍为 `3ba4ded`：<https://mmd-xr-stage.pages.dev>，上一部署 <https://c1e7dba1.mmd-xr-stage.pages.dev>。
-- **待发布浅瓷 GUI。** 恢复会话后已对最终进度条修复完成 TypeScript、171 项测试和生产构建；dist 已对应最终源码。
+- 当前分支：`master`；功能分支 `design/vr-porcelain-controls` 已 fast-forward 合并。
+- 已发布功能提交：`c5232fd`（后续交接状态更新为纯文档提交）。
+- 浅瓷 GUI、产品/设计文档均已提交并推送；未跟踪的 `.openchamber/` 截图和 `.impeccable/questions/` 本地产物保留，不应提交或清除。
+- 生产站点：<https://mmd-xr-stage.pages.dev>；本次部署：<https://274fe0c5.mmd-xr-stage.pages.dev>。
+- 已对最终进度条修复完成 TypeScript、171 项测试和生产构建；部署后核对生产入口及 JS/CSS/Bullet/动画 WASM SHA-256，全部与 dist 一致。合并后数分钟内完成上线。
 
 ## 用户已确认的方向
 
@@ -29,12 +29,13 @@
 | `3f8e02e` | 物理缓冲复用、刚体元数据缓存、辅助碰撞体/隐藏模型触觉误报修复、材质同步减分配 | 150 测试；真实 Bullet direct/copied 240 步轨迹差 0 |
 | `42a70b5` | XR generation 状态机、首 XRFrame 才 active、取消/超时、R3F renderer 所有权；StrictMode runtimeRef 修复 | 163 测试；IWER 首次模型加载和重入 |
 | `3ba4ded` | Node 26 基线、jsdom 31、GUI 四分类与召回、静态物件裁剪、CPU/renderer 诊断 | 169 测试；裁剪合成场景 draw calls 300→1 |
+| `c5232fd` | 浅瓷与墨蓝 HUD、进度条文字对比度修复、产品/设计/交接文档 | 最终源码 171 测试、tsc、build；生产制品哈希一致 |
 
 Node 当前实际版本 **26.12.1**；`.node-version` 同值，engines `>=26.12.1 <27`；pnpm **11.20.0**。`@types/node` 26.6.6、jsdom 31.0.1。不要跟 npm `node latest` 的 27 alpha。
 
 Loader clone `E:\WebProjects\three-mmd-loader` 已同步 upstream/fork main 至 `9c47b94` / v0.8.6，mmd-anim v0.5.4 子模块 `f4f68d7`。该 clone 只用 npm；贡献分支本轮未 rebase/强推。
 
-## 当前未提交实现
+## 本次发布实现
 
 ### 代码
 
@@ -62,14 +63,14 @@ Loader clone `E:\WebProjects\three-mmd-loader` 已同步 upstream/fork main 至 
 - 模拟界面验证了模型/画面/观看模式；已有自动测试覆盖分页、材质访问、慢扳机释放/取消/防重复触发等。全部功能不能只凭截图宣称真机通过。
 - 此轮未添加 UI 图片资产，所有显示图形来自 Canvas/Three 绘制。截图是开发证据，不随产品打包。
 
-## 下一步：先完成这轮收尾
+## 下一步
 
-1. 先 `git status`，确认仍在本分支且工作区完整；读本交接、PRODUCT、DESIGN。
-2. 对最终进度条修复跑 tsc、必要测试、build、diff-check；上次全量 171 项已过，不要无理由重复多轮。
-3. 如需继续看效果，复用下方本地模拟页；不要再设计一遍、不额外换主题。
+1. 先 `git status`，读本交接、PRODUCT、DESIGN；本轮验证与发布已完成，无需重复发布。
+2. 在 Quest 3S 确认菜单可读性、B 键召回、慢扳机释放、拖动和动作进度操作；模拟页保留供复现。
+3. 继续代码维护时，优先下方贴图异步竞争，再复现动画暂停与物理时钟耦合。
 4. 只暂存实际代码/文档/设计契约。**不要 `git add .`**，`.openchamber/` 截图、`.impeccable/questions/` 运行产物、`sample/` 不应提交。
-5. 整合为一个提交，fast-forward 合并到 master，代理推送，再使用固定 wrangler 部署；核对线上入口和制品内容哈希。
-6. 更新交接中的发布状态，通知用户可在 Quest 3S 查看。不要宣称 WebGPU 已启用。
+
+后续代码变更使用以下检查，本次已全部通过：
 
 ```bash
 pnpm exec tsc -b --pretty false
