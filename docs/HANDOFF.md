@@ -6,15 +6,17 @@
 
 浅瓷发布后，用户报告“场景正常，手柄和手都不显示”。已复现外部 CDN 不可达时的手柄失效：原生 session 有两个 controller，但 XR 库等待 profile 下载失败，应用输入状态为零。当前修复将 profiles 与 controller/hand GLB 固定为本站 `/xr-input/1.0.20/`，保留 Quest 各代 profile 与 generic 回退。不能凭模拟器推断用户设备的唯一根因，发布后需请用户重新打开页面验收。
 
-验证：173 项 / 43 文件、TypeScript、构建通过；CDN 阻断下 IWER 实际扳机释放打开菜单、手追捏合释放关闭菜单，左右模型均加载。回归页保存在忽略目录 `sample/input-smoke.html?block=5`。发布进度以接下来的记录为准。
+验证：173 项 / 43 文件、TypeScript、构建通过；CDN 阻断下 IWER 实际扳机释放打开菜单、手追捏合释放关闭菜单，左右模型均加载。回归页保存在忽略目录 `sample/input-smoke.html?block=5`。
+
+**已发布 `24fb854`**，部署 <https://7530d188.mmd-xr-stage.pages.dev>，生产 <https://mmd-xr-stage.pages.dev>。生产入口、JS/CSS/Bullet/动画 WASM、本地 profile 索引与左右手模型哈希已匹配；遍历全部输入资产的验证在大 generic 模型下载期间超时，不能宣称全部远端文件已逐一核验。用户今晚无时间继续，明确要求部署收尾；明天重新打开页面确认 Quest 3S 手柄/手追恢复。输入本地化规则与测试边界已写入 AGENTS.md 和 docs/vr-controls.md。
 
 压缩会话后用户要求继续完成；**浅瓷与墨蓝 HUD 已完成验证、合并、推送和生产发布**。下一轮优先做 Quest 3S 验收，再处理下文记录的贴图竞争与物理时钟问题。
 
 - 工作目录：`E:\WebProjects\mmd-xr-stage`
 - 当前分支：`master`；功能分支 `design/vr-porcelain-controls` 已 fast-forward 合并。
-- 已发布功能提交：`c5232fd`（后续交接状态更新为纯文档提交）。
+- 最新功能提交：`24fb854`（输入资源同源修复）；浅瓷 HUD 为 `c5232fd`。后续交接状态更新为纯文档提交。
 - 浅瓷 GUI、产品/设计文档均已提交并推送；未跟踪的 `.openchamber/` 截图和 `.impeccable/questions/` 本地产物保留，不应提交或清除。
-- 生产站点：<https://mmd-xr-stage.pages.dev>；本次部署：<https://274fe0c5.mmd-xr-stage.pages.dev>。
+- 生产站点：<https://mmd-xr-stage.pages.dev>；最新部署：<https://7530d188.mmd-xr-stage.pages.dev>；此前浅瓷部署：<https://274fe0c5.mmd-xr-stage.pages.dev>。
 - 已对最终进度条修复完成 TypeScript、171 项测试和生产构建；部署后核对生产入口及 JS/CSS/Bullet/动画 WASM SHA-256，全部与 dist 一致。合并后数分钟内完成上线。
 
 ## 用户已确认的方向
