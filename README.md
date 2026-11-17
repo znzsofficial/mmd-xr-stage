@@ -5,7 +5,7 @@
 **A standalone WebGL + WebXR MMD showcase built for Meta Quest.**
 
 [![React 19](https://img.shields.io/badge/React-19-087ea4?logo=react&logoColor=white)](https://react.dev/)
-[![Three.js](https://img.shields.io/badge/Three.js-0.186-111111)](https://threejs.org/)
+[![Three.js](https://img.shields.io/badge/Three.js-0.187-111111)](https://threejs.org/)
 [![WebXR](https://img.shields.io/badge/WebXR-Quest-5b4bdb?logo=meta&logoColor=white)](https://immersiveweb.dev/)
 [![Apache 2.0](https://img.shields.io/badge/License-Apache--2.0-d22128)](./LICENSE)
 
@@ -38,8 +38,8 @@ MMD XR Stage is a single-purpose VR showcase for user-provided MMD (MikuMikuDanc
 | Area | Technology |
 | --- | --- |
 | Application | React 19, TypeScript, Vite |
-| 3D and XR | Three.js 0.186, React Three Fiber, React Three XR |
-| MMD | `@yohawing/three-mmd-loader@0.8.4` (patched), Bullet WASM |
+| 3D and XR | Three.js 0.187, React Three Fiber 9.8, React Three XR 6.6.32 |
+| MMD | `@yohawing/three-mmd-loader@0.8.6` (patched), Bullet WASM |
 | State | Zustand |
 | Hosting | Cloudflare Pages |
 

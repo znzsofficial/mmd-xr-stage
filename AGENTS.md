@@ -23,10 +23,12 @@ pnpm deploy
 
 ## MMD Loader And Assets
 
-- The runtime is pinned to `@yohawing/three-mmd-loader@0.8.3`.
-- Keep the matching Bullet files in `public/mmd/0.8.3/mmd_bullet.js` and `public/mmd/0.8.3/mmd_bullet.wasm`, and keep the path in `src/mmdVrShowcase/*` synchronized when versioning.
-- Keep the loader entry in `pnpm-workspace.yaml` (`patchedDependencies`) and `patches/@yohawing__three-mmd-loader@0.8.3.patch`. The published package still lacks `debugPhysicsContactsForRigidBodyRange()`; the patch filters the native debug contact buffer by rigid-body range and is required for controller/hand contact diagnostics and haptics. The patch also carries a three r186 compat shim for the loader's experimental TSL self-shadow pass (degrades to no-op; see `docs/three-mmd-loader-maintenance.md`).
-- Keep `patches/@pmndrs__xr@6.6.30.patch` alongside it: it fixes `@pmndrs/xr` input-source state cleanup (listener/map leak when a controller input source is replaced). `src/xr/xrInputLifecycle.test.ts` fails without it.
+- The runtime is pinned to `@yohawing/three-mmd-loader@0.8.6` with Three.js r187.
+- Keep the matching Bullet files in `public/mmd/0.8.6/mmd_bullet.js` and `public/mmd/0.8.6/mmd_bullet.wasm`, and keep the path in `src/mmdVrShowcase/*` synchronized when versioning.
+- Keep the loader entry in `pnpm-workspace.yaml` (`patchedDependencies`) and `patches/@yohawing__three-mmd-loader@0.8.6.patch`. The published package still lacks `debugPhysicsContactsForRigidBodyRange()`; the patch filters the native debug contact buffer by rigid-body range and is required for controller/hand contact diagnostics and haptics. The patch also carries a three r186/r187 compat shim for the loader's experimental TSL self-shadow pass (degrades to no-op; see `docs/three-mmd-loader-maintenance.md`). In 0.8.6 it must also handle nullable material disposal and release the retained shadow projection; `mmdLoaderCompatibility.test.ts` covers this lifecycle.
+- Keep `patches/@pmndrs__xr@6.6.32.patch` alongside it: it fixes `@pmndrs/xr` input-source state cleanup (listener/map leak when a controller input source is replaced). `src/xr/xrInputLifecycle.test.ts` fails without it even on 6.6.32.
+- Keep one resolved `@types/three` version matching the renderer. Loader declares it as a broad dependency; a stale nested version causes incompatible Object3D/Material types. Update the transitive resolution rather than casting application code.
+- The scoped Zustand v4 overrides select 4.5.7 for XR's existing v4 ranges, allowing a React-19-compatible `use-sync-external-store`. Do not redirect those dependencies to Zustand v5.
 - When upgrading the loader, follow `docs/three-mmd-loader-maintenance.md`: verify upstream API coverage, update versioned assets and docs, run `pnpm install`, then rerun focused physics/haptics tests, the full suite, TypeScript, and the build. Do not remove the patch merely because the upstream version changed.
 - The loader clone at `E:\WebProjects\three-mmd-loader` uses npm and `package-lock.json`; do not use pnpm there.
 

@@ -1,4 +1,5 @@
 diff --git a/dist/input.js b/dist/input.js
+index d1390fe51b126a7357d977ad21b2522db289ccf7..46c954f32f710d2e0d41641a6d63c8664af7cb90 100644
 --- a/dist/input.js
 +++ b/dist/input.js
 @@ -30,6 +30,7 @@ export function createSyncXRInputSourceStates(addController, options) {

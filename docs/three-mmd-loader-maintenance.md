@@ -1,6 +1,6 @@
 # three-mmd-loader 近期维护记录
 
-最后更新：2026-09-20
+最后更新：2026-11-17
 
 文档索引：[docs/README.md](./README.md)
 
@@ -17,14 +17,14 @@
 | upstream | <https://github.com/yohawing/three-mmd-loader> | npm | 默认分支 `main` |
 | fork | <https://github.com/znzsofficial/three-mmd-loader> | npm | remote 名为 `fork` |
 
-当前 NekoVirtOS 依赖：
+当前 MMD XR Stage 依赖（下文 NekoVirtOS 记录为拆分前历史）：
 
-- `@yohawing/three-mmd-loader@0.8.4`
-- `mmd-anim WASM 0.5.2`
-- Bullet 运行资产：`public/mmd/0.8.4/mmd_bullet.js`、`public/mmd/0.8.4/mmd_bullet.wasm`；版本化目录保证 ABI 配套的 JS/WASM 同步更新
-- pnpm patch：`patches/@yohawing__three-mmd-loader@0.8.4.patch`（rigid-body range contact 查询 + three r186 TSL self-shadow 兼容降级，见下文）
+- `@yohawing/three-mmd-loader@0.8.6`
+- `mmd-anim WASM 0.5.4`
+- Bullet 运行资产：`public/mmd/0.8.6/mmd_bullet.js`、`public/mmd/0.8.6/mmd_bullet.wasm`；版本化目录保证 ABI 配套的 JS/WASM 同步更新
+- pnpm patch：`patches/@yohawing__three-mmd-loader@0.8.6.patch`（rigid-body range contact 查询 + three r186/r187 TSL self-shadow 兼容降级，见下文）
 - `pnpm-workspace.yaml` 中的 `patchedDependencies` 负责应用补丁
-- 当前 lockfile patch hash：`a5b0eff3a72c54ca4776e77506eacd9496b41f2167766998a467465e1d6c8f95`（补丁内容未变，0.8.3 与 0.8.4 hash 相同）
+- 当前 lockfile patch hash：`f9a41902f91b97291209c698e8f6ddddda0262d65fd088e1eed698fc7cebd7d7`
 
 上游仓库提交了 `package-lock.json`，其开发文档和 CI 均使用 npm。不要在 `E:\WebProjects\three-mmd-loader` 中使用 pnpm 更新依赖或 lockfile。NekoVirtOS 仍使用 pnpm。
 
@@ -344,6 +344,20 @@ git push fork main
 - 暂不向上游发 PR（用户决定）；已合并的 #38/#40 分支按保留策略暂留。
 - 本机无 Rust/wasm-pack，`artifacts/mmd-anim/runtime/` 与 `src/parser/wasm/generated/` 的本地生成物从已安装的 0.8.3 包（同 mmd-anim v0.5.1 ABI）复制填充；切分支/rebase 后若 wasm 测试报 missing，按此重新填充即可。
 - 核对结论：上游 0.8.3 仍无 range query（patch 必要）；`self-shadow-pass.ts` 仍导入 `three/tsl` 的 `getShadowMaterial`（r186 兼容 shim 必要）。
+
+### 0.8.6 升级与依赖维护（2026-11-17）
+
+- loader clone `main` 已 fast-forward 至 upstream `9c47b94` 并推送 fork；mmd-anim 子模块同步至 v0.5.4（`f4f68d7`）。贡献分支保持原状。
+- 0.8.5 改进 IK/Append 求值并在 seek、重置和切换动作时清理 IK 历史；0.8.6 修复球面贴图方向与叠加强度、法线插值、toon/specular 光照，以及各后端的阴影一致性。Viewer 的默认阴影投影配置不等于本项目配置自动改变。
+- 发布包 physics 文件未改动，range-query 补丁原样保留。Bullet JS/WASM 与 0.8.4 的 SHA-256 一致，已从 0.8.6 发布包同步至版本化目录。
+- Three r187 仍不导出 `getShadowMaterial` / `getShadowRenderObjectFunction`。0.8.6 self-shadow pass 新增 material clone/fragmentNode 与 projection retain/release，因此重新适配降级补丁：删除失效导入及 material 初始化，render/compile 早退，material dispose 使用空值保护，projection.release 保留。新增 `mmdLoaderCompatibility.test.ts` 实测构造、无操作 render/compile、重复 dispose 和投影恢复。
+- `@react-three/xr` / `@pmndrs/xr` 升至 6.6.32，但 pending controller cleanup 缺陷仍在；无补丁时 `xrInputLifecycle.test.ts` 失败，迁移原补丁后通过。
+- Three 与类型同步至 0.187.0，Fiber 9.8.2 与 React/React DOM 19.3.1 配套。loader 的宽范围 `@types/three` 依赖曾保留 0.186.0，已更新锁文件到单一 0.187.0，未用类型断言绕过冲突。
+- XR 的 Zustand v4 范围通过 scoped overrides 统一到 4.5.7，解除旧 4.5.2 对 `use-sync-external-store@1.2.0` 的固定依赖，消除 React 19 peer 警告；应用自身使用 Zustand 5.1.0。
+- 常规依赖更新：Iconify React 3.0.6、zip.js 2.25.0、nanoid 6.0.2、Vite 8.3.8、React plugin 6.3.0、Vitest 5.1.0。
+- jsdom 保留 30.0.1：31.0.1 的 Node 要求为 `^22.22.2 || ^24.15.0 || >=26.0.0`，不符合当前 `.node-version` / engines 的 22.13.0 基线。先升级并验证 Node 基线后再迁移，不能只在本机 Node 26 上通过就直接升级。
+- 验证：33 个测试文件 / 143 项通过，TypeScript 与生产构建通过，peer 检查无冲突，官方 npm registry 的生产依赖审计零漏洞。本机测试环境为 Node 26.12.1；新增 Node 测试显式引用 `@types/node@22`。
+- 运行验证：上游生成的最小 PMX 经新版 WASM 解析与 MmdAnimRuntime 多次跳转求值通过；本地浏览器启用本项目 Bullet wrapper 渲染 120 帧（2 draw calls，无 WebGL 错误），contact 查询可调用。生产预览完成 PMX 导入与无头显进入失败恢复检查。生成文件和 smoke 页面仅在忽略的 `sample/` / 临时目录中使用，不随部署分发。此验证不替代真实模型衣物与 Quest 手柄/手部碰撞回归。
 
 ### 新版本发布后
 

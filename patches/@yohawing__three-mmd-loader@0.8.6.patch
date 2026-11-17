@@ -85,35 +85,46 @@ index 35ad7804839e458df2f66bb413622f48815ead55..aecb4897f0fa360a682e2f33d83be0ab
          const bodies = context.rigidBodies;
          if (!bodies)
 diff --git a/dist/webgpu/self-shadow-pass.js b/dist/webgpu/self-shadow-pass.js
-index 81417e6443d0fbce5d857dd81e4f26a03997e2d5..d7dfdbe05ed655616df23f887ecb3f6803607cd1 100644
+index 06cd5adcb070478ddec40f76a55da9b64ce88abd..51c07d5426b47db762a240915dc7f187e6b78f28 100644
 --- a/dist/webgpu/self-shadow-pass.js
 +++ b/dist/webgpu/self-shadow-pass.js
 @@ -1,5 +1,5 @@
  import * as THREE from "three/webgpu";
--import { getShadowMaterial, getShadowRenderObjectFunction, vec3 } from "three/tsl";
+-import { getShadowMaterial, getShadowRenderObjectFunction, positionWorld, uniform, vec3, vec4 } from "three/tsl";
 +import { vec3 } from "three/tsl";
  import { MMD_SELF_SHADOW_LAYER } from "../three/shadow.js";
  import { createMmdTslShadowVisibilityNode } from "./shadow-visibility.js";
- /**
-@@ -27,14 +27,19 @@ export function createMmdTslSelfShadowPass(renderer, light) {
-     const reversedDepth = renderer.reversedDepthBuffer === true;
-     const visibilityNode = createMmdTslShadowVisibilityNode(light, depthTexture, { reversedDepth });
+ import { getMmdShadowProjection } from "../three/mmd-shadow-projection.js";
+@@ -30,13 +30,8 @@ export function createMmdTslSelfShadowPass(renderer, light) {
+     projection.retain();
+     const visibilityNode = createMmdTslShadowVisibilityNode(light, renderTarget.texture);
      const shadowModeUniform = visibilityNode.mmdTslShadowMode;
--    const shadowMaterial = getShadowMaterial(light);
+-    // Own the material so disposing/recreating this pass cannot poison Three's
+-    // shared shadow material for the same light.
+-    const shadowMaterial = getShadowMaterial(light).clone();
+-    shadowMaterial.isShadowPassMaterial = true;
+-    const referencePosition = uniform(projection.sampleMatrix).mul(vec4(positionWorld, 1));
+-    shadowMaterial.fragmentNode = vec4(referencePosition.z.div(referencePosition.w), 0, 0, 1);
 -    const shadowRenderObjectFunction = getShadowRenderObjectFunction(renderer, light.shadow, renderer.shadowMap.type, false);
-+    // three r186 internalized getShadowMaterial/getShadowRenderObjectFunction
-+    // (no public replacement). NekoVirtOS keeps TSL self-shadow disabled, and the
-+    // pass degrades to a no-op below when these handles are unavailable.
 +    const shadowMaterial = null;
 +    const shadowRenderObjectFunction = null;
-     const rendererState = { clearColor: new THREE.Color() };
-     const resetRendererAndSceneState = THREE.RendererUtils.resetRendererAndSceneState;
-     const restoreRendererAndSceneState = THREE.RendererUtils.restoreRendererAndSceneState;
-     let disposed = false;
+     const referenceRenderObject = (object, scene, camera, geometry, material, group, lightsNode, clippingContext, passId) => {
+         const source = material.userData.mmdReferenceShadowSource ?? material;
+         if (!castsMmdReferenceShadow(source))
+@@ -61,6 +56,7 @@ export function createMmdTslSelfShadowPass(renderer, light) {
+     }
      function prepareShadowRender(currentRenderer, scene, currentLight) {
-         if (disposed ||
-+            !shadowMaterial ||
-+            !shadowRenderObjectFunction ||
+         if (disposed || prepared ||
++            !shadowMaterial || !shadowRenderObjectFunction ||
              currentRenderer !== renderer ||
              currentLight !== light ||
              currentLight.castShadow !== true) {
+@@ -186,7 +182,7 @@ export function createMmdTslSelfShadowPass(renderer, light) {
+             }
+             disposed = true;
+             renderTarget.dispose();
+-            shadowMaterial.dispose();
++            shadowMaterial?.dispose();
+             projection.release();
+         }
+     };
