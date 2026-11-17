@@ -1,28 +1,45 @@
 import type { WebGLRenderer } from "three";
 import { buildQuestVrSessionInit, getXrDiagnostics, getXrSystem } from "./xrDetect";
+import { waitForXrOperation } from "./waitForXrOperation";
 
-/**
- * One pending XRSession slot + serialized attach queue.
- * Create one per product surface so sessions never share pending state.
- */
-export type PendingSessionSlot = {
-  peek: () => XRSession | null;
-  clear: () => void;
-  /** MUST run synchronously from a click handler (no await before this call). */
-  beginFromClick: (init?: XRSessionInit) => Promise<XRSession>;
-  /**
-   * Bind pending XRSession to this renderer's WebXRManager.
-   * Keeps pending for remount re-bind; cleared only on session end / end().
-   */
-  attachToRenderer: (gl: WebGLRenderer, onAttached?: () => void) => Promise<boolean>;
-  end: (getLiveSession?: () => XRSession | null | undefined) => Promise<void>;
+export type XrStartupPhase = "idle" | "requesting" | "created" | "bound" | "presenting";
+export type XrSessionSnapshot = Readonly<{
+  generation: number;
+  phase: XrStartupPhase;
+  session: XRSession | null;
+}>;
+export type XrAttachOptions = {
+  signal?: AbortSignal;
+  beforeAttach?: () => void;
 };
 
-export function createPendingSessionSlot(): PendingSessionSlot {
-  let pendingSession: XRSession | null = null;
-  let requestGeneration = 0;
-  let attachChain: Promise<unknown> = Promise.resolve();
+export type PendingSessionSlot = {
+  peek: () => XRSession | null;
+  getSnapshot: () => XrSessionSnapshot;
+  subscribe: (listener: () => void) => () => void;
+  beginFromClick: (init?: XRSessionInit) => Promise<XRSession>;
+  attachToRenderer: (gl: WebGLRenderer, onAttached?: () => void, options?: XrAttachOptions) => Promise<boolean>;
+  markFrame: (gl: WebGLRenderer, session: XRSession) => boolean;
+  waitForPresentation: (signal?: AbortSignal) => Promise<XRSession>;
+  end: (generation?: number) => Promise<void>;
+};
+
+export function createPendingSessionSlot(options: { onSessionEnd?: () => void } = {}): PendingSessionSlot {
+  let snapshot: XrSessionSnapshot = { generation: 0, phase: "idle", session: null };
+  let boundRenderer: WebGLRenderer | null = null;
+  const listeners = new Set<() => void>();
+  const attachChains = new WeakMap<WebGLRenderer, Promise<unknown>>();
   const endingSessions = new WeakMap<XRSession, Promise<void>>();
+
+  function publish(phase: XrStartupPhase, session = snapshot.session, generation = snapshot.generation) {
+    snapshot = { generation, phase, session };
+    for (const listener of listeners) listener();
+  }
+
+  function subscribe(listener: () => void) {
+    listeners.add(listener);
+    return () => { listeners.delete(listener); };
+  }
 
   function endOnce(session: XRSession): Promise<void> {
     const existing = endingSessions.get(session);
@@ -32,93 +49,125 @@ export function createPendingSessionSlot(): PendingSessionSlot {
     return ending;
   }
 
-  function peek() {
-    return pendingSession;
-  }
-
-  function clear() {
-    pendingSession = null;
-  }
-
-  function beginFromClick(init?: XRSessionInit): Promise<XRSession> {
-    const generation = ++requestGeneration;
-    const xr = getXrSystem();
-    if (!xr) {
-      return Promise.reject(new Error(`WebXR missing (${getXrDiagnostics().summary})`));
-    }
-    if (typeof globalThis !== "undefined") {
-      const secure =
-        typeof (globalThis as { isSecureContext?: boolean }).isSecureContext === "boolean"
-          ? Boolean((globalThis as { isSecureContext?: boolean }).isSecureContext)
-          : typeof window !== "undefined"
-            ? window.isSecureContext
-            : true;
-      if (!secure) {
-        return Promise.reject(new Error(`Insecure context (${getXrDiagnostics().summary})`));
-      }
-    }
-
-    if (pendingSession) {
-      void endOnce(pendingSession);
-      pendingSession = null;
-    }
-
-    return xr.requestSession("immersive-vr", init ?? buildQuestVrSessionInit()).then((session) => {
-      if (generation !== requestGeneration) {
-        void endOnce(session);
-        throw new DOMException("XR entry cancelled", "AbortError");
-      }
-      pendingSession = session;
-      session.addEventListener(
-        "end",
-        () => {
-          if (pendingSession === session) pendingSession = null;
-        },
-        { once: true },
-      );
-      return session;
+  function waitFor(ready: (state: XrSessionSnapshot) => boolean, signal?: AbortSignal): Promise<XRSession> {
+    const generation = snapshot.generation;
+    return new Promise((resolve, reject) => {
+      const cleanup = () => {
+        unsubscribe();
+        signal?.removeEventListener("abort", cancel);
+      };
+      const cancel = () => {
+        cleanup();
+        reject(new DOMException("XR entry cancelled", "AbortError"));
+      };
+      const check = () => {
+        if (signal?.aborted || snapshot.generation !== generation || snapshot.phase === "idle") {
+          cancel();
+        } else if (snapshot.session && ready(snapshot)) {
+          cleanup();
+          resolve(snapshot.session);
+        }
+      };
+      const unsubscribe = subscribe(check);
+      signal?.addEventListener("abort", cancel, { once: true });
+      check();
     });
   }
 
-  function attachToRenderer(gl: WebGLRenderer, onAttached?: () => void): Promise<boolean> {
-    const run = async (): Promise<boolean> => {
-      const session = pendingSession;
-      if (!session) return Boolean(gl.xr?.isPresenting);
-
-      if (gl.xr?.enabled && gl.xr.isPresenting) {
-        onAttached?.();
-        return true;
+  function beginFromClick(init?: XRSessionInit): Promise<XRSession> {
+    const previous = snapshot.session;
+    boundRenderer = null;
+    const generation = snapshot.generation + 1;
+    publish("requesting", null, generation);
+    if (previous) void endOnce(previous);
+    const xr = getXrSystem();
+    if (!xr || !getXrDiagnostics().secure) {
+      publish("idle");
+      return Promise.reject(new Error(`WebXR unavailable (${getXrDiagnostics().summary})`));
+    }
+    let request: Promise<XRSession>;
+    try {
+      request = xr.requestSession("immersive-vr", init ?? buildQuestVrSessionInit());
+    } catch (error) {
+      publish("idle");
+      return Promise.reject(error);
+    }
+    return request.then((session) => {
+      if (generation !== snapshot.generation) {
+        void endOnce(session);
+        throw new DOMException("XR entry cancelled", "AbortError");
       }
+      session.addEventListener("end", () => {
+        if (snapshot.generation !== generation || snapshot.session !== session) return;
+        endingSessions.set(session, Promise.resolve());
+        boundRenderer = null;
+        publish("idle", null, generation + 1);
+        options.onSessionEnd?.();
+      }, { once: true });
+      publish("created", session);
+      return session;
+    }, (error) => {
+      if (snapshot.generation === generation) publish("idle");
+      throw error;
+    });
+  }
 
-      gl.xr.enabled = true;
-      await gl.xr.setSession(session);
+  function attachToRenderer(gl: WebGLRenderer, onAttached?: () => void, attachOptions: XrAttachOptions = {}): Promise<boolean> {
+    const generation = snapshot.generation;
+    const sessionReady = waitFor((state) => state.session !== null, attachOptions.signal);
+    const run = async (session: XRSession): Promise<boolean> => {
+      const current = () => snapshot.generation === generation && snapshot.session === session;
+      if (!current() || attachOptions.signal?.aborted) return false;
+      if (!(gl.xr.isPresenting && gl.xr.getSession() === session)) {
+        attachOptions.beforeAttach?.();
+        gl.xr.enabled = true;
+        await gl.xr.setSession(session);
+      }
+      if (!current()) {
+        void endOnce(session);
+        return false;
+      }
+      if (attachOptions.signal?.aborted) return false;
+      if (!gl.xr.isPresenting || gl.xr.getSession() !== session) {
+        throw new Error("XR renderer did not bind the requested session");
+      }
+      const sameRenderer = boundRenderer === gl;
+      boundRenderer = gl;
+      if (!sameRenderer || snapshot.phase !== "presenting") publish("bound");
       onAttached?.();
       return true;
     };
-
-    const next = attachChain.then(run, run);
-    attachChain = next.then(
-      () => undefined,
-      () => undefined,
-    );
-    return next;
+    const next = sessionReady.then((session) => {
+      const chain = attachChains.get(gl) ?? Promise.resolve();
+      const operation = chain.then(() => run(session), () => run(session));
+      attachChains.set(gl, operation.catch(() => undefined));
+      return operation;
+    });
+    return waitForXrOperation(next, { signal: attachOptions.signal });
   }
 
-  async function end(getLiveSession?: () => XRSession | null | undefined): Promise<void> {
-    requestGeneration += 1;
-    const pending = pendingSession;
-    pendingSession = null;
-
-    const sessions = new Set<XRSession>();
-    if (pending) sessions.add(pending);
-    try {
-      const live = getLiveSession?.();
-      if (live) sessions.add(live);
-    } catch {
-      // ignore
-    }
-    await Promise.all([...sessions].map(endOnce));
+  function markFrame(gl: WebGLRenderer, session: XRSession): boolean {
+    if (snapshot.session !== session || boundRenderer !== gl || !gl.xr.isPresenting || gl.xr.getSession() !== session) return false;
+    if (snapshot.phase === "bound") publish("presenting");
+    return snapshot.phase === "presenting";
   }
 
-  return { peek, clear, beginFromClick, attachToRenderer, end };
+  function end(generation = snapshot.generation): Promise<void> {
+    if (generation !== snapshot.generation) return Promise.resolve();
+    const session = snapshot.session;
+    boundRenderer = null;
+    publish("idle", null, snapshot.generation + 1);
+    return session ? endOnce(session) : Promise.resolve();
+  }
+
+  return {
+    peek: () => snapshot.session,
+    getSnapshot: () => snapshot,
+    subscribe,
+    beginFromClick,
+    attachToRenderer,
+    markFrame,
+    waitForPresentation: (signal) => waitFor((state) => state.phase === "presenting", signal),
+    end,
+  };
 }

@@ -1,8 +1,8 @@
 import { Component, useEffect, useState, type ReactNode } from "react";
 import { useLanguageStore } from "../languageStore";
 import { useMmdVrStore } from "./mmdVrStore";
-import { endMmdVrSession } from "./mmdVrSession";
 import { preloadMmdVrScene } from "./preloadMmdVrScene";
+import { useMmdVrEntryLifetime } from "./useMmdVrEntryLifetime";
 
 function SceneLoading() {
   const t = useLanguageStore((s) => s.t);
@@ -11,7 +11,6 @@ function SceneLoading() {
       <h2>{t("loadScene")}</h2>
       <p>{t("loadSceneHint")}</p>
       <button type="button" onClick={() => {
-        void endMmdVrSession();
         useMmdVrStore.getState().closeOverlay();
       }}>{t("loadBack")}</button>
     </section>
@@ -22,13 +21,13 @@ class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
   componentDidCatch(error: Error) {
-    void endMmdVrSession();
     useMmdVrStore.getState().failEnter(error.message);
   }
   render() { return this.state.failed ? <SceneLoading /> : this.props.children; }
 }
 
 function SceneLoader() {
+  useMmdVrEntryLifetime();
   const [Scene, setScene] = useState<typeof import("./MmdVrScene").MmdVrScene | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -44,5 +43,6 @@ function SceneLoader() {
 
 export function MmdVrOverlay() {
   const overlayOpen = useMmdVrStore((state) => state.overlayOpen);
-  return overlayOpen ? <SceneLoader /> : null;
+  const entryEpoch = useMmdVrStore((state) => state.entryEpoch);
+  return overlayOpen ? <SceneLoader key={entryEpoch} /> : null;
 }

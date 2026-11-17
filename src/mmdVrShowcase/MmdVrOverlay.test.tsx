@@ -7,7 +7,7 @@ import { useMmdVrStore } from "./mmdVrStore";
 import { endMmdVrSession } from "./mmdVrSession";
 import { preloadMmdVrScene } from "./preloadMmdVrScene";
 
-vi.mock("./mmdVrSession", () => ({ endMmdVrSession: vi.fn(async () => {}) }));
+vi.mock("./mmdVrSession", () => ({ endMmdVrSession: vi.fn(async () => {}), getMmdVrSessionSnapshot: () => ({ generation: 1 }) }));
 vi.mock("./preloadMmdVrScene", () => ({ preloadMmdVrScene: vi.fn() }));
 
 let root: Root;

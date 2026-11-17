@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { beginMmdVrSessionFromClick, endMmdVrSession } from "./mmdVrSession";
+import { beginMmdVrSessionFromClick, endMmdVrSession, waitForMmdVrPresentation } from "./mmdVrSession";
 import { preloadMmdVrScene } from "./preloadMmdVrScene";
 import { useMmdVrStore } from "./mmdVrStore";
 import { requestMmdVrEnter } from "./requestMmdVrEnter";
@@ -28,6 +28,7 @@ vi.mock("./mmdVrSession", async () => {
     ...actual,
     beginMmdVrSessionFromClick: vi.fn(async () => ({ id: "mmd-s1" })),
     endMmdVrSession: vi.fn(async () => {}),
+    waitForMmdVrPresentation: vi.fn(async () => ({ id: "mmd-s1" })),
   };
 });
 
@@ -44,6 +45,8 @@ describe("requestMmdVrEnter", () => {
     vi.mocked(preloadMmdVrScene).mockReset();
     vi.mocked(preloadMmdVrScene).mockResolvedValue(undefined as never);
     vi.mocked(endMmdVrSession).mockClear();
+    vi.mocked(waitForMmdVrPresentation).mockReset();
+    vi.mocked(waitForMmdVrPresentation).mockResolvedValue({ id: "mmd-s1" } as unknown as XRSession);
     endMmdVrAssetSession();
     addNotification.mockClear();
     vi.mocked(beginMmdVrSessionFromClick).mockClear();
@@ -167,6 +170,55 @@ describe("requestMmdVrEnter", () => {
     expect(result).toBe("entered");
     expect(beginMmdVrSessionFromClick).toHaveBeenCalledOnce();
     expect(useMmdVrStore.getState().overlayOpen).toBe(true);
+    expect(useMmdVrStore.getState().phase).toBe("active");
+  });
+
+  it("stays entering until an XR frame, not just requestSession or the scene download", async () => {
+    let firstFrame!: (session: XRSession) => void;
+    vi.mocked(waitForMmdVrPresentation).mockReturnValueOnce(new Promise((resolve) => { firstFrame = resolve; }));
+    const entering = requestMmdVrEnter({ t: t as never, addNotification });
+    await vi.waitFor(() => expect(waitForMmdVrPresentation).toHaveBeenCalledOnce());
+    expect(useMmdVrStore.getState().phase).toBe("entering");
+    firstFrame({ id: "mmd-s1" } as unknown as XRSession);
+    await expect(entering).resolves.toBe("entered");
+    expect(useMmdVrStore.getState().phase).toBe("active");
+  });
+
+  it("times out a stalled first frame and closes the failed entry", async () => {
+    vi.useFakeTimers();
+    vi.mocked(waitForMmdVrPresentation).mockReturnValueOnce(new Promise(() => {}));
+    try {
+      const entering = requestMmdVrEnter({ t: t as never, addNotification });
+      await vi.advanceTimersByTimeAsync(20_001);
+      await expect(entering).resolves.toBe("failed");
+      expect(useMmdVrStore.getState()).toMatchObject({ overlayOpen: false, phase: "error" });
+      expect(useMmdVrStore.getState().errorMessage).toContain("first frame");
+      expect(endMmdVrSession).toHaveBeenCalled();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("cancels a never-resolving request without waiting for browser permission", async () => {
+    vi.mocked(beginMmdVrSessionFromClick).mockReturnValueOnce(new Promise(() => {}));
+    const entering = requestMmdVrEnter({ t: t as never, addNotification });
+    useMmdVrStore.getState().closeOverlay();
+    await expect(entering).resolves.toBe("failed");
+    expect(waitForMmdVrPresentation).not.toHaveBeenCalled();
+    expect(addNotification).not.toHaveBeenCalled();
+  });
+
+  it("times out scene download and allows a clean retry", async () => {
+    vi.useFakeTimers();
+    vi.mocked(preloadMmdVrScene).mockReturnValueOnce(new Promise(() => {}));
+    try {
+      const entering = requestMmdVrEnter({ t: t as never, addNotification });
+      await vi.advanceTimersByTimeAsync(30_001);
+      await expect(entering).resolves.toBe("failed");
+      expect(useMmdVrStore.getState().errorMessage).toContain("download timed out");
+      expect(waitForMmdVrPresentation).not.toHaveBeenCalled();
+      expect(vi.getTimerCount()).toBe(0);
+      await expect(requestMmdVrEnter({ t: t as never, addNotification })).resolves.toBe("entered");
+    } finally { vi.useRealTimers(); }
   });
 
   it("uses the saved asset set only for explicit continue, preserving user activation", async () => {

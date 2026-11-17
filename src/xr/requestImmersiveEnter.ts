@@ -1,4 +1,5 @@
 import { formatXrSessionError, getXrDiagnostics, getXrSystem } from "./xrDetect";
+import { waitForXrOperation } from "./waitForXrOperation";
 
 export type ImmersiveEnterResult = "entered" | "failed";
 
@@ -12,6 +13,9 @@ export type RequestImmersiveEnterOpts = {
   openOverlay: () => void;
   preloadScene: () => void | Promise<unknown>;
   beginSessionFromClick: () => Promise<XRSession>;
+  waitForPresentation: (signal?: AbortSignal) => Promise<XRSession>;
+  signal?: AbortSignal;
+  describeStartup?: () => string;
   markEntered: () => void;
   failEnter: (detail: string) => void;
   onSuccess?: () => void;
@@ -86,9 +90,21 @@ export function requestImmersiveEnter(opts: RequestImmersiveEnterOpts): Promise<
   } catch (error) {
     session = Promise.reject(error);
   }
-  const scene = Promise.resolve().then(preloadScene);
+  const scene = waitForXrOperation(Promise.resolve().then(preloadScene), {
+    signal: opts.signal,
+    timeoutMs: 30_000,
+    timeoutMessage: "XR scene download timed out",
+  });
 
-  return Promise.all([session, scene])
+  return waitForXrOperation(Promise.all([session, scene]), { signal: opts.signal })
+    .then(() => {
+      if (opts.isCancelled?.()) throw new DOMException("XR entry cancelled", "AbortError");
+      return waitForXrOperation(opts.waitForPresentation(opts.signal), {
+        signal: opts.signal,
+        timeoutMs: 20_000,
+        timeoutMessage: "XR renderer did not deliver its first frame",
+      });
+    })
     .then(() => {
       if (opts.isCancelled?.()) return "failed" as const;
       onSuccess?.();
@@ -97,8 +113,8 @@ export function requestImmersiveEnter(opts: RequestImmersiveEnterOpts): Promise<
     })
     .catch((err: unknown) => {
       if (opts.isCancelled?.()) return "failed" as const;
-      const detail = formatXrSessionError(err);
-      console.error(`[${logTag}] requestSession failed`, err);
+      const detail = `${formatXrSessionError(err)}${opts.describeStartup ? ` (${opts.describeStartup()})` : ""}`;
+      console.error(`[${logTag}] XR startup failed`, err);
       onFailCleanup?.();
       failEnter(detail);
       notify(detail.length > 160 ? `${detail.slice(0, 157)}…` : detail, "error");

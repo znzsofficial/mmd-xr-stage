@@ -20,6 +20,9 @@ const session = createProductXrSession<MmdVrAttachQuality>({
       cursorModel: { color: "#ffffff", opacity: 0.95, size: 0.014, renderOrder: 100 },
     },
   },
+  onSessionEnd: () => {
+    if (useMmdVrStore.getState().overlayOpen) useMmdVrStore.getState().closeOverlay();
+  },
 });
 
 export const mmdVrXrStore = session.xrStore;
@@ -53,9 +56,9 @@ export function peekPendingMmdVrSession() {
   return session.peek();
 }
 
-export function clearPendingMmdVrSession() {
-  session.clear();
-}
+export const getMmdVrSessionSnapshot = session.slot.getSnapshot;
+export const markMmdVrXrFrame = session.slot.markFrame;
+export const waitForMmdVrPresentation = session.slot.waitForPresentation;
 
 export function beginMmdVrSessionFromClick() {
   // WebXR features are fixed for a session. Always request this optional
@@ -70,10 +73,11 @@ export function applyMmdVrFrameRate(quality: MmdVrAttachQuality) {
 export function attachPendingMmdVrSessionToRenderer(
   gl: WebGLRenderer,
   quality?: MmdVrAttachQuality,
+  signal?: AbortSignal,
 ): Promise<boolean> {
-  return session.attachToRenderer(gl, quality);
+  return session.attachToRenderer(gl, quality, signal);
 }
 
-export function endMmdVrSession(): Promise<void> {
-  return session.end();
+export function endMmdVrSession(generation?: number): Promise<void> {
+  return session.end(generation);
 }

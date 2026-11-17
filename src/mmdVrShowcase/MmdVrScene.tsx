@@ -1,24 +1,19 @@
 import { Canvas } from "@react-three/fiber";
 import { XR } from "@react-three/xr";
-import { useEffect, useRef, useState } from "react";
-import * as THREE from "three";
+import { useRef, useState } from "react";
 import { useLanguageStore } from "../languageStore";
-import { createXrSceneMountGuard } from "../xr";
 import {
   AttachPendingMmdVrSession,
   MmdVrHeadsetHudGate,
-  MmdVrSessionSync,
 } from "./components/MmdVrSessionBridge";
 import { MmdVrPlayerRig } from "./components/MmdVrPlayerRig";
 import { MmdVrStageContent } from "./components/MmdVrStage";
 import { MmdVrThemeProvider } from "./mmdVrTheme";
-import { endMmdVrSession, mmdVrXrStore, peekPendingMmdVrSession } from "./mmdVrSession";
+import { endMmdVrSession, getMmdVrSessionSnapshot, mmdVrXrStore } from "./mmdVrSession";
 import { getMmdVrRenderProfile } from "./mmdVrQuality";
 import { useMmdVrStore } from "./mmdVrStore";
 import { describeRenderRequest } from "./renderDiagnostics";
 import { MmdVrDiagnostics } from "./components/MmdVrDiagnostics";
-
-const { useXrSceneLifecycle } = createXrSceneMountGuard();
 
 export function MmdVrScene() {
   const closeOverlay = useMmdVrStore((state) => state.closeOverlay);
@@ -28,41 +23,17 @@ export function MmdVrScene() {
   const [requested] = useState(() => describeRenderRequest(useMmdVrStore.getState().prefs));
   const [exiting, setExiting] = useState(false);
   const [hideExitHud, setHideExitHud] = useState(false);
-  const exitGenRef = useRef(0);
-  const glRef = useRef<THREE.WebGLRenderer | null>(null);
-
-  const { mountedRef } = useXrSceneLifecycle({
-    isOverlayOpen: () => useMmdVrStore.getState().overlayOpen,
-    shouldEndSession: () => Boolean(mmdVrXrStore.getState().session || peekPendingMmdVrSession()),
-    endSession: endMmdVrSession,
-    closeOverlay,
-    onCleanup: () => {
-      exitGenRef.current += 1;
-    },
-  });
+  const exitingRef = useRef(false);
+  const [entryEpoch] = useState(() => useMmdVrStore.getState().entryEpoch);
+  const [generation] = useState(() => getMmdVrSessionSnapshot().generation);
 
   function exitVr() {
-    if (exiting) return;
-    const gen = ++exitGenRef.current;
+    if (exitingRef.current) return;
+    exitingRef.current = true;
     setExiting(true);
-    window.setTimeout(() => {
-      if (gen !== exitGenRef.current || !mountedRef.current) return;
-      void endMmdVrSession().finally(() => {
-        if (gen === exitGenRef.current && mountedRef.current) closeOverlay();
-      });
-    }, 200);
+    if (useMmdVrStore.getState().entryEpoch === entryEpoch) closeOverlay();
+    void endMmdVrSession(generation);
   }
-
-  useEffect(() => () => {
-    const gl = glRef.current;
-    if (!gl) return;
-    glRef.current = null;
-    try {
-      gl.dispose();
-    } catch {
-      // ignore
-    }
-  }, []);
 
   return (
     <MmdVrThemeProvider>
@@ -82,9 +53,6 @@ export function MmdVrScene() {
           camera={{ position: [0, 1.5, 2.8], fov: 70, near: 0.05, far: mmdPrefs.viewDistance }}
           dpr={profile.dpr}
           frameloop="always"
-          onCreated={({ gl }) => {
-            glRef.current = gl as THREE.WebGLRenderer;
-          }}
         >
           <XR store={mmdVrXrStore}>
             <MmdVrDiagnostics requested={requested} />
@@ -192,7 +160,6 @@ export function MmdVrScene() {
               busy={exiting}
             />
             <MmdVrStageContent />
-            <MmdVrSessionSync />
           </XR>
         </Canvas>
         {!hideExitHud ? (

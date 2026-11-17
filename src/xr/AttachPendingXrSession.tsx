@@ -1,122 +1,48 @@
-import { useThree } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useXR } from "@react-three/xr";
 import { useEffect, useRef } from "react";
 import type { WebGLRenderer } from "three";
 
 export type AttachPendingXrSessionProps = {
-  /** Bind pending session to this GL (prefs read inside). */
-  attach: (gl: WebGLRenderer) => Promise<boolean>;
-  peekPending: () => XRSession | null;
-  isOverlayOpen: () => boolean;
-  onActive: () => void;
+  attach: (gl: WebGLRenderer, signal: AbortSignal) => Promise<boolean>;
+  markFrame: (gl: WebGLRenderer, session: XRSession) => boolean;
+  isCurrent: () => boolean;
   onFail: (detail: string) => void;
-  endSession: () => void | Promise<void>;
-  logTag: string;
 };
 
-/**
- * Click path already called requestSession(); bind once gl is ready.
- * Retries under Strict Mode / slow first WebGL init (Quest first-open hang).
- */
-export function AttachPendingXrSession({
-  attach,
-  peekPending,
-  isOverlayOpen,
-  onActive,
-  onFail,
-  endSession,
-  logTag,
-}: AttachPendingXrSessionProps) {
-  const gl = useThree((s) => s.gl);
-  const attemptRef = useRef(0);
+export function AttachPendingXrSession({ attach, markFrame, isCurrent, onFail }: AttachPendingXrSessionProps) {
+  const gl = useThree((s) => s.gl) as WebGLRenderer;
+  const activeRef = useRef(false);
+  const attemptRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-    let timer: number | null = null;
-    const attemptId = ++attemptRef.current;
-
-    async function tryAttach(round: number): Promise<void> {
-      if (cancelled || attemptId !== attemptRef.current) return;
-
-      try {
-        const attached = await attach(gl);
-        if (cancelled || attemptId !== attemptRef.current) return;
-
-        if (attached) {
-          onActive();
-          return;
-        }
-
-        if (round < 40 && isOverlayOpen()) {
-          timer = window.setTimeout(() => {
-            void tryAttach(round + 1);
-          }, 40 + Math.min(round * 15, 200));
-          return;
-        }
-
-        if (peekPending()) {
-          console.warn(`[${logTag}] setSession did not present after retries`);
-        }
-      } catch (err) {
-        console.error(`[${logTag}] setSession failed`, err);
-        if (cancelled || attemptId !== attemptRef.current) return;
-
-        if (round < 5 && peekPending() && isOverlayOpen()) {
-          timer = window.setTimeout(() => {
-            void tryAttach(round + 1);
-          }, 150);
-          return;
-        }
-
-        const detail = err instanceof Error ? err.message : "set_session_failed";
-        onFail(detail);
-        void endSession();
-      }
-    }
-
-    void tryAttach(0);
-
+    const abort = new AbortController();
+    attemptRef.current = abort;
+    activeRef.current = false;
+    void attach(gl, abort.signal).then((attached) => {
+      if (!attached && !abort.signal.aborted && isCurrent()) onFail("XR renderer did not attach");
+    }).catch((error) => {
+      if (!abort.signal.aborted && isCurrent()) onFail(error instanceof Error ? error.message : "XR renderer attachment failed");
+    });
     return () => {
-      cancelled = true;
-      if (timer != null) window.clearTimeout(timer);
+      abort.abort();
+      if (attemptRef.current === abort) attemptRef.current = null;
     };
-  }, [attach, endSession, gl, isOverlayOpen, logTag, onActive, onFail, peekPending]);
+  }, [attach, gl, isCurrent, onFail]);
 
+  useFrame((_, __, frame) => {
+    const attempt = attemptRef.current;
+    if (!attempt || attempt.signal.aborted || activeRef.current || !frame || !isCurrent()) return;
+    if (!markFrame(gl, frame.session)) return;
+    activeRef.current = true;
+  });
   return null;
 }
 
-export function XrSessionSync({
-  onActive,
-  onSessionEnd,
-}: {
-  onActive: () => void;
-  onSessionEnd: () => void;
-}) {
-  const session = useXR((state) => state.session);
-
-  useEffect(() => {
-    if (!session) return;
-    onActive();
-    const onEnd = () => {
-      onSessionEnd();
-    };
-    session.addEventListener("end", onEnd);
-    return () => session.removeEventListener("end", onEnd);
-  }, [onActive, onSessionEnd, session]);
-
-  return null;
-}
-
-/** Hide 2D exit HUD only when session mode is explicitly immersive. */
 export function HeadsetHudGate({ onHideHud }: { onHideHud: (hide: boolean) => void }) {
   const session = useXR((state) => state.session);
   useEffect(() => {
-    if (!session) {
-      onHideHud(false);
-      return;
-    }
-    const mode = (session as XRSession & { mode?: string }).mode;
-    onHideHud(mode === "immersive-vr" || mode === "immersive-ar");
+    onHideHud(Boolean(session));
   }, [onHideHud, session]);
   return null;
 }

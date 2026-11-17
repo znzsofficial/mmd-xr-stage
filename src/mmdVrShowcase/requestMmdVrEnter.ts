@@ -3,7 +3,7 @@ import { requestImmersiveEnter } from "../xr";
 import type { MmdVrAssetSlot } from "./mmdVrAssets";
 import { beginMmdVrAssetSession, endMmdVrAssetSession } from "./mmdVrAssets";
 import { useMmdVrStore } from "./mmdVrStore";
-import { beginMmdVrSessionFromClick, endMmdVrSession } from "./mmdVrSession";
+import { beginMmdVrSessionFromClick, endMmdVrSession, getMmdVrSessionSnapshot, waitForMmdVrPresentation } from "./mmdVrSession";
 import { preloadMmdVrScene } from "./preloadMmdVrScene";
 
 type Notify = (payload: {
@@ -27,8 +27,17 @@ export function requestMmdVrEnter(opts: {
   const { t, addNotification, assets, appId = "settings" } = opts;
   const store = useMmdVrStore.getState();
   let entryEpoch = store.entryEpoch;
+  const abort = new AbortController();
+  let generation = getMmdVrSessionSnapshot().generation;
+  let started = false;
+  let ended = false;
+  const endEntrySession = () => {
+    if (ended) return;
+    ended = true;
+    void endMmdVrSession(generation);
+  };
 
-  return requestImmersiveEnter({
+  const entering = requestImmersiveEnter({
     isSelfBusy: () => {
       const current = useMmdVrStore.getState();
       return current.overlayOpen || current.phase === "entering" || current.phase === "active";
@@ -42,17 +51,21 @@ export function requestMmdVrEnter(opts: {
     setLastError: (v) => store.setLastError(v),
     openOverlay: () => {
       store.openOverlay();
+      started = true;
       entryEpoch = useMmdVrStore.getState().entryEpoch;
     },
     isCancelled: () => useMmdVrStore.getState().entryEpoch !== entryEpoch,
     preloadScene: preloadMmdVrScene,
     beginSessionFromClick: beginMmdVrSessionFromClick,
+    waitForPresentation: waitForMmdVrPresentation,
+    signal: abort.signal,
+    describeStartup: () => `stage=${getMmdVrSessionSnapshot().phase}`,
     markEntered: () => {
       if (useMmdVrStore.getState().overlayOpen) store.markEntered();
     },
     failEnter: (detail) => store.failEnter(detail),
     onFailCleanup: () => {
-      void endMmdVrSession();
+      endEntrySession();
       endMmdVrAssetSession();
     },
     notify: (message, type = "warning") => {
@@ -70,4 +83,12 @@ export function requestMmdVrEnter(opts: {
     noXrMessage: t("settingsVrDesktopNoXr"),
     logTag: "mmdVr",
   });
+  if (!started) return entering;
+  generation = getMmdVrSessionSnapshot().generation;
+  const unsubscribe = useMmdVrStore.subscribe((state) => {
+    if (state.entryEpoch === entryEpoch) return;
+    abort.abort();
+    endEntrySession();
+  });
+  return entering.finally(() => { unsubscribe(); abort.abort(); });
 }

@@ -8,11 +8,10 @@ export type ProductXrSession<Q> = {
   xrStore: AppXrStore;
   slot: PendingSessionSlot;
   peek: () => XRSession | null;
-  clear: () => void;
   beginFromClick: (init?: XRSessionInit) => Promise<XRSession>;
   applyFrameRate: (quality: Q) => void;
-  attachToRenderer: (gl: WebGLRenderer, quality?: Q) => Promise<boolean>;
-  end: () => Promise<void>;
+  attachToRenderer: (gl: WebGLRenderer, quality?: Q, signal?: AbortSignal) => Promise<boolean>;
+  end: (generation?: number) => Promise<void>;
 };
 
 /**
@@ -23,9 +22,10 @@ export function createProductXrSession<Q>(opts: {
   resolveFrameRate: (quality: Q) => ImmersiveFrameRate;
   configureRenderer?: (gl: WebGLRenderer, quality: Q) => void;
   controller?: XRStoreOptions["controller"];
+  onSessionEnd?: () => void;
 }): ProductXrSession<Q> {
   const xrStore = createAppXrStore({ controller: opts.controller });
-  const slot = createPendingSessionSlot();
+  const slot = createPendingSessionSlot({ onSessionEnd: opts.onSessionEnd });
 
   function applyFrameRate(quality: Q) {
     try {
@@ -39,13 +39,13 @@ export function createProductXrSession<Q>(opts: {
     xrStore,
     slot,
     peek: () => slot.peek(),
-    clear: () => slot.clear(),
     beginFromClick: (init) => slot.beginFromClick(init),
     applyFrameRate,
-    attachToRenderer: (gl, quality) => {
-      if (quality !== undefined && !gl.xr.isPresenting) opts.configureRenderer?.(gl, quality);
-      return slot.attachToRenderer(gl, quality !== undefined ? () => applyFrameRate(quality) : undefined);
-    },
-    end: () => slot.end(() => xrStore.getState().session),
+    attachToRenderer: (gl, quality, signal) => slot.attachToRenderer(
+      gl,
+      quality !== undefined ? () => applyFrameRate(quality) : undefined,
+      { signal, beforeAttach: () => { if (quality !== undefined) opts.configureRenderer?.(gl, quality); } },
+    ),
+    end: (generation) => slot.end(generation),
   };
 }

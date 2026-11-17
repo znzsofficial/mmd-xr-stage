@@ -20,7 +20,7 @@ describe("MMD VR session", () => {
 
     await beginMmdVrSessionFromClick();
 
-    const setSession = vi.fn().mockResolvedValue(undefined);
+    const setSession = vi.fn(async () => { renderer.xr.isPresenting = true; });
     const setFramebufferScaleFactor = vi.fn();
     const setFoveation = vi.fn();
     const renderer = {
@@ -28,6 +28,7 @@ describe("MMD VR session", () => {
         enabled: false,
         isPresenting: false,
         setSession,
+        getSession: () => session,
         setFramebufferScaleFactor,
         setFoveation,
       },
@@ -55,7 +56,8 @@ describe("MMD VR session", () => {
       xr: {
         enabled: false,
         isPresenting: false,
-        setSession: vi.fn().mockResolvedValue(undefined),
+        setSession: vi.fn(async () => { renderer.xr.isPresenting = true; }),
+        getSession: () => xrSession,
         setFramebufferScaleFactor,
         setFoveation,
       },

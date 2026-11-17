@@ -417,9 +417,12 @@ export function MmdVrStageContent() {
       },
       prepareModel: prepareMmdVrModel,
     });
-    runtimeRef.current = handle;
     return handle;
   }, [scene]);
+
+  useLayoutEffect(() => {
+    runtimeRef.current = runtime;
+  }, [runtime]);
 
   useEffect(() => {
     useMmdVrStore.getState().setStageCapture(captureStage);

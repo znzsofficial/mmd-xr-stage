@@ -2,7 +2,6 @@ export { createAppXrStore, type AppXrStore } from "./createAppXrStore";
 export {
   AttachPendingXrSession,
   HeadsetHudGate,
-  XrSessionSync,
   type AttachPendingXrSessionProps,
 } from "./AttachPendingXrSession";
 export { createPendingSessionSlot, type PendingSessionSlot } from "./pendingSessionSlot";
@@ -40,7 +39,6 @@ export {
   type ImmersiveRenderQuality,
   type ImmersiveTogglePref,
 } from "./qualityAxes";
-export { createXrSceneMountGuard, type XrSceneLifecycleOpts } from "./useXrSceneLifecycle";
 export {
   XR_THEME_COLORS,
   getSystemXrAccentTokens,

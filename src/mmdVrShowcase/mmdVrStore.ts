@@ -521,12 +521,12 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
     });
   },
   markEntered: () =>
-    set((state) => ({
+    set((state) => state.overlayOpen ? ({
       lastError: null,
       overlayOpen: true,
       errorMessage: null,
-      phase: state.phase === "active" ? "active" : "entering",
-    })),
+      phase: "active",
+    }) : state),
   playing: false,
   setPlaying: (playing) => set({ playing }),
   loop: initialPrefs.loop,
