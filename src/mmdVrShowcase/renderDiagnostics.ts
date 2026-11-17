@@ -21,6 +21,12 @@ export type RenderDiagnostics = {
   targetSamples: number | null;
   contextAntialias: boolean | null;
   foveation: number | null;
+  drawCalls: number | null;
+  triangles: number | null;
+  textures: number | null;
+  geometries: number | null;
+  modelUpdateCpuMs: number | null;
+  modelUpdateCpuMaxMs: number | null;
 };
 
 export function describeRenderRequest(prefs: MmdVrQualityInput): RenderRequest {
@@ -46,9 +52,10 @@ const positive = (value: unknown): number | null => typeof value === "number" &&
 
 /** Layer reports and target configuration are intentionally separate from measured frame cadence. */
 export function readRenderDiagnostics(
-  renderer: Pick<WebGLRenderer, "xr" | "getRenderTarget" | "getContext">,
+  renderer: Pick<WebGLRenderer, "xr" | "getRenderTarget" | "getContext"> & Partial<Pick<WebGLRenderer, "info">>,
   requested: RenderRequest,
   cadence: { fps: number; frameIntervalMs: number } | null,
+  runtimeCost: { mean: number; max: number } | null = null,
 ): RenderDiagnostics {
   const session = renderer.xr.getSession();
   const active = Boolean(session && renderer.xr.isPresenting);
@@ -70,6 +77,12 @@ export function readRenderDiagnostics(
     targetSamples: samples,
     contextAntialias: renderer.getContext().getContextAttributes()?.antialias ?? null,
     foveation: typeof foveation === "number" && Number.isFinite(foveation) ? foveation : null,
+    drawCalls: active ? renderer.info?.render.calls ?? null : null,
+    triangles: active ? renderer.info?.render.triangles ?? null : null,
+    textures: active ? renderer.info?.memory.textures ?? null : null,
+    geometries: active ? renderer.info?.memory.geometries ?? null : null,
+    modelUpdateCpuMs: active ? runtimeCost?.mean ?? null : null,
+    modelUpdateCpuMaxMs: active ? runtimeCost?.max ?? null : null,
   };
 }
 

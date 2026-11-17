@@ -8,6 +8,7 @@
 | [three-mmd-loader-maintenance.md](./three-mmd-loader-maintenance.md) | three-mmd-loader 本地补丁、根因与升级收尾步骤 |
 | [xr-runtime-performance.md](./xr-runtime-performance.md) | 物理/材质热路径优化、微基准与原生 Bullet 回归 |
 | [xr-session-lifecycle.md](./xr-session-lifecycle.md) | XR 进入状态、取消、首帧、StrictMode 与资源所有权 |
+| [vr-controls.md](./vr-controls.md) | VR 菜单分页、召回、按钮交互与舞台裁剪诊断 |
 | [deployment.md](./deployment.md) | Pages 部署路径与 wrangler ≥4.130 代理委托坑 |
 | [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md) | Bullet 运行时第三方声明 |
 

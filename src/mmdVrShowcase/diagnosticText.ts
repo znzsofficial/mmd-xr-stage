@@ -15,5 +15,8 @@ export function diagnosticLines(data: RenderDiagnostics | null, t: (key: Transla
     `${t("diagLayer")}: ${data.layer} · ${data.width == null || data.height == null ? unknown : `${data.width} × ${data.height}`}`,
     `${t("diagLayerAA")}: ${onOff(data.layerAntialias)} · ${t("diagSamples")}: ${data.targetSamples ?? unknown}`,
     `${t("diagFoveation")}: ${data.foveation ?? unknown}`,
+    `${t("diagDrawCalls")}: ${data.drawCalls ?? unknown} / ${data.triangles ?? unknown}`,
+    `${t("diagResources")}: ${data.textures ?? unknown} / ${data.geometries ?? unknown}`,
+    `${t("diagModelCpu")}: ${data.modelUpdateCpuMs == null ? unknown : data.modelUpdateCpuMs.toFixed(2)} / ${data.modelUpdateCpuMaxMs == null ? unknown : data.modelUpdateCpuMaxMs.toFixed(2)} ms`,
   ];
 }

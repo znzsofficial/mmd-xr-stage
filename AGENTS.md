@@ -22,6 +22,7 @@ pnpm deploy
 
 - `pnpm test` runs Vitest in the Node environment; some component tests use a `// @vitest-environment jsdom` pragma. jsdom in this setup does NOT provide `localStorage` — stub it in tests.
 - There is no lint script. CI-equivalent validation is `tsc -b` + `pnpm test` + `pnpm build`.
+- Use Node 26.12.1 (`.node-version`, engines `>=26.12.1 <27`), matching jsdom 31 and Node 26 types. Do not follow npm's `node` latest tag into Node 27 alpha.
 
 ## MMD Loader And Assets
 
@@ -43,6 +44,8 @@ pnpm deploy
 - Controller and hand providers must use the shared model visual-space mapping and WebXR-to-MMD coordinate conversion.
 - Preserve the controller matrix scale normalization and the independent collider-radius/model-scale conversion. These are needed for scaled models and cloth contact.
 - Physics wrappers cache immutable body definitions by array identity, matching the loader. Replace `rigidBodies` when definitions change. Copied buffers are per-wrapper scratch: preserve prefix copying and tail clearing on every step, and never retain them as historical snapshots. Controller contact counts must exclude synthetic-to-synthetic contacts (hidden colliders overlap at Y=-1000) and hidden/disposed models. See `docs/xr-runtime-performance.md` for benchmarks and the native Bullet smoke check.
+- Ordinary GLB/glTF environment meshes use bounding-sphere frustum culling via `prepareStageObject`; skinned/morph meshes remain conservative. PMX character culling remains disabled. Do not freeze the movable object root's matrices.
+- VR HUD pages share a single panel position; never place settings/material/object panels meters below the playback strip. Right-controller B recalls the menu relative to the current head pose. Trigger release activates buttons without relying on XR's short-click threshold; suppress the following click to avoid double activation. See `docs/vr-controls.md`.
 
 ## Verification And Files
 

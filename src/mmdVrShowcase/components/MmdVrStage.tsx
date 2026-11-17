@@ -1,4 +1,6 @@
 import { useFrame, useThree } from "@react-three/fiber";
+import { prepareStageObject } from "../prepareStageObject";
+import { runtimeTiming } from "../runtimeTiming";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import {
@@ -668,13 +670,7 @@ export function MmdVrStageContent() {
             return;
           }
           const group = gltf.scene;
-          group.traverse((child) => {
-            if ((child as THREE.Mesh).isMesh) {
-              child.frustumCulled = false;
-              child.castShadow = true;
-              child.receiveShadow = true;
-            }
-          });
+          prepareStageObject(group);
           group.position.set(offsetX, 0, OBJECT_DEFAULT_Z);
           const saved = resumeStageRef.current?.objects.find((saved) => saved.file === slot.objectFile);
           if (saved) applySavedObject(group, saved);
@@ -960,7 +956,9 @@ export function MmdVrStageContent() {
     // seek while paused must still re-evaluate the target frame once.
     const timeChanged = Math.abs(evaluationTime - lastEvaluatedTimeRef.current) > 1e-5;
     if (playingRef.current || physicsOn || timeChanged) {
+      const start = performance.now();
       rt.update(evaluationTime, physicsOn, perspective, aspect, false);
+      runtimeTiming.record(performance.now() - start);
       lastEvaluatedTimeRef.current = evaluationTime;
     }
     hapticContactPollRef.current += delta;

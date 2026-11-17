@@ -47,7 +47,7 @@ MMD XR Stage is a single-purpose VR showcase for user-provided MMD (MikuMikuDanc
 
 Requirements:
 
-- Node.js `22.13.0` or newer
+- Node.js `26.12.1` (Node 26; see `.node-version`)
 - pnpm `11.17.0`
 
 ```sh

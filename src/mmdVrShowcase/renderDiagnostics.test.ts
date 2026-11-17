@@ -19,6 +19,13 @@ function renderer(layer: object | null, options: { active?: boolean; frameRate?:
 }
 
 describe("XR render diagnostics", () => {
+  it("separates model CPU cost and renderer counters from frame cadence", () => {
+    const gl = renderer({ framebufferWidth: 2000, framebufferHeight: 1000 });
+    Object.assign(gl, { info: { render: { calls: 80, triangles: 200000 }, memory: { textures: 12, geometries: 30 } } });
+    const data = readRenderDiagnostics(gl, requested, { fps: 90, frameIntervalMs: 11.1 }, { mean: 2.3, max: 4.5 });
+    expect(data).toMatchObject({ drawCalls: 80, triangles: 200000, textures: 12, geometries: 30, modelUpdateCpuMs: 2.3, modelUpdateCpuMaxMs: 4.5 });
+    expect(diagnosticLines(data, (key) => en[key], "en").join("\n")).toContain("not GPU");
+  });
   it("keeps the request distinct from the reported session rate and measured cadence", () => {
     const data = readRenderDiagnostics(renderer({ textureWidth: 3664, textureHeight: 1920, fixedFoveation: 0.25 }, { frameRate: 90, samples: 4 }), requested, { fps: 87, frameIntervalMs: 11.5 });
     expect(data).toMatchObject({ requested: { frameRate: "120 Hz", foveation: 0.5 }, refreshRate: 90, fps: 87,

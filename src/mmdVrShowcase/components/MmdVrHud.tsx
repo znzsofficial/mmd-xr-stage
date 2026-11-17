@@ -1,5 +1,7 @@
-import { useFrame, type ThreeEvent } from "@react-three/fiber";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
+import { useXRControllerButtonEvent, useXRInputSourceState } from "@react-three/xr";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { placeHudInFront } from "../hudPlacement";
 import * as THREE from "three";
 import { createPanelTexture, roundRectPath } from "../../shared/panelTexture";
 import { getMmdVrClock } from "../mmdVrClock";
@@ -25,7 +27,7 @@ import { resolveHudSurface } from "../hudMode";
 
 /** Match paintProgressBar track insets (px on 640-wide canvas). */
 const PROGRESS_PAD = 16;
-const PANEL_DEFAULT_POSITION: [number, number, number] = [0, 1.2, -1.55];
+const PANEL_DEFAULT_POSITION: [number, number, number] = [0, 1.45, -1.8];
 
 export function clampMmdVrHudPosition(position: THREE.Vector3): [number, number, number] {
   return [
@@ -98,12 +100,15 @@ function HudButton({
 }) {
   const [hovered, setHovered] = useState(false);
   const [pressed, setPressed] = useState(false);
+  const pressedPointer = useRef<number | null>(null);
+  const suppressClick = useRef(false);
+  const height = Math.max(0.13, size[1]);
   const { accent } = useMmdVrTheme();
   const geometry = useMemo(
-    () => createRoundedPlaneGeometry(size[0], size[1], Math.min(0.025, size[1] * 0.22)),
-    [size[0], size[1]],
+    () => createRoundedPlaneGeometry(size[0], height, Math.min(0.025, height * 0.22)),
+    [size[0], height],
   );
-  const textureWidth = Math.max(256, Math.round(88 * size[0] / size[1]));
+  const textureWidth = Math.max(256, Math.round(88 * size[0] / height));
   const texture = useMemo(
     () =>
       createPanelTexture(
@@ -116,24 +121,22 @@ function HudButton({
               ? "#9b5262"
               : accent.border;
           ctx.fillRect(0, 0, width, height);
-          roundRectPath(ctx, 6, 6, width - 12, height - 12, 15);
+          roundRectPath(ctx, 3, 3, width - 6, height - 6, 15);
           ctx.fillStyle = active
             ? hexToRgba(accent.primary, 0.68)
             : danger
               ? "#532a34"
               : accent.soft;
           ctx.fill();
-          ctx.fillStyle = active ? accent.marker : danger ? "#e48296" : "rgba(255, 255, 255, 0.09)";
-          ctx.fillRect(18, 6, width - 36, 4);
           ctx.fillStyle = danger ? "#f8eef1" : accent.ink;
           ctx.font = "650 31px system-ui, sans-serif";
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
-          ctx.fillText(label, width / 2, height / 2 + 1);
+          ctx.fillText(label, width / 2, height / 2 + 1, width - 24);
         },
         "en",
       ),
-    [accent.border, accent.ink, accent.marker, accent.primary, active, danger, label, textureWidth],
+    [accent.border, accent.ink, accent.marker, accent.primary, accent.soft, active, danger, label, textureWidth],
   );
 
   useEffect(() => () => texture.dispose(), [texture]);
@@ -153,18 +156,33 @@ function HudButton({
         e.stopPropagation();
         setHovered(false);
         setPressed(false);
+        pressedPointer.current = null;
       }}
       onPointerDown={(e) => {
         e.stopPropagation();
         if (disabled) return;
+        pressedPointer.current = e.pointerId;
+        suppressClick.current = false;
         setPressed(true);
       }}
       onPointerUp={(e) => {
         e.stopPropagation();
         setPressed(false);
+        if (pressedPointer.current !== e.pointerId) return;
+        pressedPointer.current = null;
+        if (!disabled) {
+          suppressClick.current = true;
+          onPress();
+        }
+      }}
+      onPointerCancel={(e) => {
+        e.stopPropagation();
+        pressedPointer.current = null;
+        setPressed(false);
       }}
       onClick={(e) => {
         e.stopPropagation();
+        if (suppressClick.current) { suppressClick.current = false; return; }
         if (disabled) return;
         onPress();
       }}
@@ -261,18 +279,18 @@ export function CriticalNotice({ onDetails }: { onDetails: () => void }) {
   const error = useMmdVrStore((s) => s.physicsError);
   const fatal = useMmdVrStore((s) => s.physicsFatal);
   if (!error) return null;
-  return <HudButton position={[0, 0.88, 0.04]} size={[1.6, 0.16]} danger
+  return <HudButton position={[0, 1.13, 0.04]} size={[1.6, 0.16]} danger
     label={t(fatal ? "hudPhysicsFatal" : "hudPhysicsWarning")} onPress={onDetails} />;
 }
 
-export function CompactPlaybackControls({ onExpand, onExit, busy }: { onExpand: () => void; onExit: () => void; busy: boolean }) {
+export function CompactPlaybackControls({ onExpand, onExit, busy, expanded = false }: { onExpand: () => void; onExit: () => void; busy: boolean; expanded?: boolean }) {
   const t = useLanguageStore((s) => s.t);
   const playing = useMmdVrStore((s) => s.playing);
   const modelCount = useMmdVrStore((s) => s.modelCount);
   return <group>
     <HudButton position={[-0.55, 0, 0]} size={[0.5, 0.14]} label={t(playing ? "settingsMmdVrPause" : "settingsMmdVrPlay")} active={playing}
       disabled={busy || modelCount === 0} onPress={() => useMmdVrStore.getState().setPlaying(!useMmdVrStore.getState().playing)} />
-    <HudButton position={[0, 0, 0]} label={t("settingsMmdVrPanelShow")} size={[0.5, 0.14]} onPress={onExpand} />
+    <HudButton position={[0, 0, 0]} label={t(expanded ? "hudBack" : "settingsMmdVrPanelShow")} size={[0.5, 0.14]} onPress={onExpand} />
     <HudButton position={[0.55, 0, 0]} label={t("settingsVrDesktopExit")} size={[0.5, 0.14]} danger disabled={busy} onPress={onExit} />
   </group>;
 }
@@ -287,31 +305,17 @@ function PanelBackdrop() {
       ctx.strokeStyle = accent.border;
       ctx.lineWidth = 5;
       ctx.stroke();
-      roundRectPath(ctx, 26, 22, width - 52, 92, 18);
-      ctx.fillStyle = hexToRgba(accent.primary, 0.16);
-      ctx.fill();
-      ctx.fillStyle = accent.primary;
-      ctx.fillRect(26, 109, width - 52, 5);
-      roundRectPath(ctx, 30, 154, width - 60, 155, 16);
-      ctx.fillStyle = hexToRgba(accent.primary, 0.08);
-      ctx.fill();
-      roundRectPath(ctx, 30, 340, width - 60, 238, 16);
-      ctx.fillStyle = hexToRgba(accent.primary, 0.1);
-      ctx.fill();
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.075)";
-      ctx.lineWidth = 2;
-      ctx.stroke();
     }, "en"),
     [accent.border, accent.primary, accent.soft],
   );
   useEffect(() => () => texture.dispose(), [texture]);
   return (
     <mesh
-      position={[0.16, -0.08, -0.018]}
+      position={[0, -0.18, -0.018]}
       renderOrder={10}
       onPointerDown={(event) => event.stopPropagation()}
     >
-      <planeGeometry args={[3.4, 1.16]} />
+      <planeGeometry args={[2.65, 1.85]} />
       <meshBasicMaterial map={texture} toneMapped={false} transparent depthWrite={false} depthTest={false} alphaTest={0.02} fog={false} />
     </mesh>
   );
@@ -321,7 +325,7 @@ function DragHandle({
   label,
   onDragChange,
   onPositionChange,
-  position = [0.16, 0.56, 0.012],
+  position = [0, 0.83, 0.012],
 }: {
   label: string;
   onDragChange: (dragging: boolean) => void;
@@ -752,38 +756,6 @@ function ProgressBar({ onInteractionChange }: { onInteractionChange: (active: bo
   );
 }
 
-function ModelPanelBackdrop() {
-  const { accent } = useMmdVrTheme();
-  const texture = useMemo(
-    () => createPanelTexture(720, 620, ({ ctx, width, height }) => {
-      roundRectPath(ctx, 2, 2, width - 4, height - 4, 24);
-      ctx.fillStyle = accent.soft;
-      ctx.fill();
-      ctx.strokeStyle = accent.border;
-      ctx.lineWidth = 5;
-      ctx.stroke();
-      ctx.fillStyle = accent.primary;
-      ctx.fillRect(24, 21, width - 48, 6);
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(28, 142);
-      ctx.lineTo(width - 28, 142);
-      ctx.moveTo(28, 326);
-      ctx.lineTo(width - 28, 326);
-      ctx.stroke();
-    }, "en"),
-    [accent.border, accent.primary, accent.soft],
-  );
-  useEffect(() => () => texture.dispose(), [texture]);
-  return (
-    <mesh position={[0, 0, -0.015]} renderOrder={10} onPointerDown={(event) => event.stopPropagation()}>
-      <planeGeometry args={[1.02, 0.88]} />
-      <meshBasicMaterial map={texture} toneMapped={false} transparent depthWrite={false} depthTest={false} fog={false} />
-    </mesh>
-  );
-}
-
 function ModelPanel({
   modelId,
   position,
@@ -832,7 +804,6 @@ function ModelPanel({
 
   return (
     <group position={position}>
-      <ModelPanelBackdrop />
       <ValueLabel position={[0, 0.34, 0]} label={shortName(model.name, 14)} value={model.visible ? "●" : "○"} />
       <HudButton
         position={[-0.25, 0.19, 0]}
@@ -876,17 +847,16 @@ function ModelPanel({
   );
 }
 
-function ModelPanels(props: Pick<Parameters<typeof ModelPanel>[0], "hideLabel" | "showLabel" | "placeOnLabel" | "placeOffLabel" | "scaleLabel" | "resetValueLabel" | "rotateLeftLabel" | "rotateRightLabel" | "removeLabel" | "materialsLabel" | "onInteractionChange">) {
+function ModelPanels({ selectedIndex, ...props }: Pick<Parameters<typeof ModelPanel>[0], "hideLabel" | "showLabel" | "placeOnLabel" | "placeOffLabel" | "scaleLabel" | "resetValueLabel" | "rotateLeftLabel" | "rotateRightLabel" | "removeLabel" | "materialsLabel" | "onInteractionChange"> & { selectedIndex: number }) {
   const models = useMmdVrStore((s) => s.models);
-  const spacing = 1.1;
   return (
-    <group position={[0.16, -1.14, 0.02]}>
-      {models.slice(0, 3).map((model, index) => (
+    <group position={[0, -0.23, 0.02]} scale={1.2}>
+      {models.slice(selectedIndex, selectedIndex + 1).map((model) => (
         <ModelPanel
           key={model.id}
           {...props}
           modelId={model.id}
-          position={[(index - (models.length - 1) / 2) * spacing, 0, 0]}
+          position={[0, 0, 0]}
         />
       ))}
     </group>
@@ -937,7 +907,6 @@ function ObjectPanel({
 
   return (
     <group position={position}>
-      <ModelPanelBackdrop />
       <ValueLabel position={[0, 0.34, 0]} label={shortName(object.name, 14)} value={object.visible ? "●" : "○"} />
       <HudButton
         position={[-0.25, 0.19, 0]}
@@ -974,17 +943,16 @@ function ObjectPanel({
   );
 }
 
-function ObjectPanels(props: Pick<Parameters<typeof ObjectPanel>[0], "hideLabel" | "showLabel" | "placeOnLabel" | "placeOffLabel" | "scaleLabel" | "resetValueLabel" | "rotateLeftLabel" | "rotateRightLabel" | "removeLabel" | "onInteractionChange">) {
+function ObjectPanels({ selectedIndex, ...props }: Pick<Parameters<typeof ObjectPanel>[0], "hideLabel" | "showLabel" | "placeOnLabel" | "placeOffLabel" | "scaleLabel" | "resetValueLabel" | "rotateLeftLabel" | "rotateRightLabel" | "removeLabel" | "onInteractionChange"> & { selectedIndex: number }) {
   const objects = useMmdVrStore((s) => s.objects);
-  const spacing = 1.1;
   return (
-    <group position={[0.16, -2.34, 0.02]}>
-      {objects.slice(0, 3).map((object, index) => (
+    <group position={[0, -0.23, 0.02]} scale={1.2}>
+      {objects.slice(selectedIndex, selectedIndex + 1).map((object) => (
         <ObjectPanel
           key={object.id}
           {...props}
           objectId={object.id}
-          position={[(index - (objects.length - 1) / 2) * spacing, 0, 0]}
+          position={[0, 0, 0]}
         />
       ))}
     </group>
@@ -1028,17 +996,14 @@ function MaterialPanel({
 
   if (!modelId || !model) return null;
   const selectedState = materials.find((m) => m.name === selectedMat) ?? null;
-  const perPage = 7;
+  const perPage = 4;
   const pageCount = Math.max(1, Math.ceil(materials.length / perPage));
   const curPage = Math.min(page, pageCount - 1);
   const slice = materials.slice(curPage * perPage, curPage * perPage + perPage);
 
   return (
-    <group position={[0, -2.0, 0.02]}>
-      <group scale={[1.6, 1.5, 1]}>
-        <ModelPanelBackdrop />
-      </group>
-      <HudButton position={[-0.6, 0.38, 0]} label={view === "detail" ? materialsLabel : closeLabel} size={[0.28, 0.09]} onPress={() => {
+    <group position={[0, -0.12, 0.02]}>
+      <HudButton position={[-0.65, 0.38, 0]} label={view === "detail" ? materialsLabel : closeLabel} size={[0.42, 0.14]} onPress={() => {
         if (view === "detail") { setView("list"); setSelectedMat(null); }
         else setModelId(null);
       }} />
@@ -1046,21 +1011,21 @@ function MaterialPanel({
       {view === "list" ? (
         <>
           {slice.map((mat, i) => {
-            const y = 0.22 - i * 0.12;
+            const y = 0.17 - i * 0.18;
             return (
               <group key={mat.name}>
                 <HudButton
                   position={[-0.56, y, 0]}
                   label={mat.visible ? hideLabel : showLabel}
-                  size={[0.14, 0.07]}
+                  size={[0.27, 0.14]}
                   active={mat.visible}
                   disabled={disabled}
                   onPress={() => setMaterialVisible(modelId, mat.name, !mat.visible)}
                 />
                 <HudButton
-                  position={[-0.18, y, 0]}
+                  position={[0.1, y, 0]}
                   label={shortName(mat.name, 14)}
-                  size={[0.62, 0.07]}
+                  size={[0.92, 0.14]}
                   onPress={() => { setSelectedMat(mat.name); setView("detail"); }}
                 />
               </group>
@@ -1068,9 +1033,9 @@ function MaterialPanel({
           })}
           {pageCount > 1 ? (
             <>
-              <HudButton position={[-0.26, -0.68, 0]} label="‹" size={[0.16, 0.07]} disabled={curPage === 0} onPress={() => setPage(Math.max(0, curPage - 1))} />
-              <ValueLabel position={[0, -0.68, 0]} label={`${curPage + 1}/${pageCount}`} value="" size={[0.22, 0.07]} centered />
-              <HudButton position={[0.26, -0.68, 0]} label="›" size={[0.16, 0.07]} disabled={curPage >= pageCount - 1} onPress={() => setPage(Math.min(pageCount - 1, curPage + 1))} />
+              <HudButton position={[-0.36, -0.6, 0]} label="‹" size={[0.3, 0.14]} disabled={curPage === 0} onPress={() => setPage(Math.max(0, curPage - 1))} />
+              <ValueLabel position={[0, -0.6, 0]} label={`${curPage + 1}/${pageCount}`} value="" size={[0.3, 0.14]} centered />
+              <HudButton position={[0.36, -0.6, 0]} label="›" size={[0.3, 0.14]} disabled={curPage >= pageCount - 1} onPress={() => setPage(Math.min(pageCount - 1, curPage + 1))} />
             </>
           ) : null}
         </>
@@ -1148,10 +1113,7 @@ function VisualSettingsPanel({
             : lightStageLabel;
 
   return (
-    <group position={[0.16, -1.08, 0.02]}>
-      <group scale={[2.35, 1.2, 1]}>
-        <ModelPanelBackdrop />
-      </group>
+    <group position={[0, -0.14, 0.02]}>
       <HudButton position={[-0.72, 0.17, 0]} label={lightLabel} size={[0.7, 0.11]} onPress={cycleLightPreset} />
       <HudButton
         position={[0.08, 0.17, 0]}
@@ -1272,10 +1234,7 @@ function PhysicsSettingsPanel({
   const physicsControlsDisabled = !physicsEnabled || physicsBusy;
 
   return (
-    <group position={[0.16, -1.05, 0.02]}>
-      <group scale={[2.35, 1.05, 1]}>
-        <ModelPanelBackdrop />
-      </group>
+    <group position={[0, -0.12, 0.02]}>
       <HudButton
         position={[-0.76, 0.14, 0]}
         label={collisions ? collisionOnLabel : collisionOffLabel}
@@ -1468,7 +1427,7 @@ export function MmdVrControlBar({
   materialEmissionLabel,
   walkLabels,
   walkSpeedLabel,
-  onDragChange,
+  onDragChange: reportInteraction,
   onExit,
   busy,
 }: {
@@ -1578,22 +1537,53 @@ export function MmdVrControlBar({
   const setPhysicsDebugEnabled = useMmdVrStore((s) => s.setPhysicsDebugEnabled);
   const materialPanelOpen = useMmdVrStore((s) => s.materialPanelModelId != null);
   const [panelVisible, setPanelVisible] = useState(false);
+  const [tab, setTab] = useState<"models" | "visual" | "physics" | "comfort">("models");
+  const [assetIndex, setAssetIndex] = useState(0);
+  const models = useMmdVrStore((s) => s.models);
+  const objects = useMmdVrStore((s) => s.objects);
+  const currentAsset = Math.min(assetIndex, Math.max(0, models.length + objects.length - 1));
+  const camera = useThree((s) => s.camera);
+  const rightController = useXRInputSourceState("controller", "right");
+  const interacting = useRef(false);
+  const onDragChange = useCallback((active: boolean) => {
+    interacting.current = active;
+    reportInteraction(active);
+  }, [reportInteraction]);
   const [physicsDetails, setPhysicsDetails] = useState(false);
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
-  const [physicsPanelOpen, setPhysicsPanelOpen] = useState(false);
-  const [visualPanelOpen, setVisualPanelOpen] = useState(false);
   const [panelPosition, setPanelPosition] = useState(PANEL_DEFAULT_POSITION);
   const panelGroupRef = useRef<THREE.Group>(null);
   const billboardTarget = useMemo(() => new THREE.Vector3(), []);
+  const firstSession = useRef<XRSession | null>(null);
   const viewEpoch = useMmdVrStore((s) => s.viewEpoch);
-  useEffect(() => { setPanelPosition(PANEL_DEFAULT_POSITION); }, [viewEpoch]);
+  const recall = useCallback(() => {
+    const group = panelGroupRef.current;
+    if (!group?.parent || interacting.current) return;
+    placeHudInFront(camera, group.parent, group);
+    setPanelPosition(group.position.toArray());
+  }, [camera]);
+  useEffect(() => { recall(); }, [viewEpoch, recall]);
+  useXRControllerButtonEvent(rightController, "b-button", (state) => {
+    if (state !== "pressed" || interacting.current) return;
+    queueMicrotask(() => {
+      if (!panelGroupRef.current) return;
+      recall();
+      setPanelVisible(true);
+    });
+  });
   // Yaw-only billboard: keep the panel upright and always facing the user,
   // independent of where it was dragged or how the origin was turned.
-  useFrame(({ camera }) => {
+  useFrame(({ camera }, _, frame) => {
     const group = panelGroupRef.current;
     const parent = group?.parent;
     if (!group || !parent) return;
-    if (!useMmdVrStore.getState().prefs.panelFollowUser) return;
+    if (frame && firstSession.current !== frame.session) {
+      firstSession.current = frame.session;
+      placeHudInFront(camera, parent, group);
+      const position = group.position.toArray();
+      queueMicrotask(() => { if (panelGroupRef.current === group) setPanelPosition(position); });
+    }
+    if (!useMmdVrStore.getState().prefs.panelFollowUser || interacting.current) return;
     camera.getWorldPosition(billboardTarget);
     parent.worldToLocal(billboardTarget);
     const dx = billboardTarget.x - group.position.x;
@@ -1633,8 +1623,10 @@ export function MmdVrControlBar({
     return (
       <group position={panelPosition} ref={panelGroupRef}>
         {notice}
-        <CompactPlaybackControls onExpand={() => setPanelVisible(true)} onExit={onExit} busy={busy} />
-        {assetLoad.failures.length > 0 ? <HudButton position={[0, 0.23, 0]} label={t("loadDetails")} size={[0.95, 0.13]} onPress={() => setDismissedLoadEpoch(-1)} /> : null}
+        <CompactPlaybackControls onExpand={() => { recall(); setPanelVisible(true); }} onExit={onExit} busy={busy} />
+        <ProgressBar onInteractionChange={onDragChange} />
+        <ValueLabel position={[0, -0.39, 0]} label={t("hudRecallHint")} value="" size={[1.65, 0.1]} centered />
+        {assetLoad.failures.length > 0 ? <HudButton position={[0, 0.43, 0]} label={t("loadDetails")} size={[0.95, 0.13]} onPress={() => setDismissedLoadEpoch(-1)} /> : null}
         <DragHandle
           label={panelDragLabel}
           position={[0, -0.14, 0.012]}
@@ -1649,69 +1641,16 @@ export function MmdVrControlBar({
     <group position={panelPosition} ref={panelGroupRef}>
       <PanelBackdrop />
       {notice}
-      <HudButton position={[0.98, 0.6, 0.03]} size={[0.8, 0.13]} label={t("hudDiagnostics")} onPress={() => setDiagnosticsOpen(true)} />
       <DragHandle label={panelDragLabel} onDragChange={onDragChange} onPositionChange={setPanelPosition} />
-      <HudButton position={[1.43, 0.42, 0]} label={panelHideLabel} size={[0.36, 0.1]} onPress={() => setPanelVisible(false)} />
-      <HudButton
-        position={[-1.3, 0.42, 0]}
-        label={prefs.panelFollowUser ? panelFollowOnLabel : panelFollowOffLabel}
-        size={[0.42, 0.1]}
-        active={prefs.panelFollowUser}
-        onPress={() => setPrefs({ panelFollowUser: !useMmdVrStore.getState().prefs.panelFollowUser })}
-      />
-      {status ? <StatusPlane text={status} /> : null}
-      {assetLoad.failures.length > 0 ? <HudButton position={[0, 0.6, 0.03]} size={[0.9, 0.13]} label={useLanguageStore.getState().t("loadDetails")} onPress={() => setDismissedLoadEpoch(-1)} /> : null}
-      <ProgressBar onInteractionChange={onDragChange} />
-      <HudButton
-        position={[-1.18, 0.05, 0]}
-        label={playing ? pauseLabel : playLabel}
-        disabled={busy || modelCount === 0}
-        active={playing}
-        onPress={() => setPlaying(!useMmdVrStore.getState().playing)}
-      />
-      <HudButton
-        position={[-0.82, 0.05, 0]}
-        label={loop ? loopOnLabel : loopOffLabel}
-        disabled={busy}
-        active={loop}
-        onPress={() => setLoop(!useMmdVrStore.getState().loop)}
-      />
-      <HudButton
-        position={[-0.45, 0.05, 0]}
-        label={placeMode ? placeOnLabel : placeOffLabel}
-        disabled={busy || (modelCount === 0 && objectCount === 0)}
-        size={[0.38, 0.11]}
-        active={placeMode}
-        onPress={() => setPlaceMode(!useMmdVrStore.getState().placeMode)}
-      />
-      <HudButton
-        position={[-0.05, 0.05, 0]}
-        label={visualSettingsLabel}
-        disabled={busy}
-        active={visualPanelOpen}
-        size={[0.4, 0.11]}
-        onPress={() => {
-          setVisualPanelOpen((open) => !open);
-          setPhysicsPanelOpen(false);
-          useMmdVrStore.getState().setMaterialPanelModelId(null);
-        }}
-      />
-      <HudButton
-        position={[0.35, 0.05, 0]}
-        label={shadowsLabel}
-        disabled={busy}
-        active={profile.shadows}
-        onPress={() => setPrefs({ shadowsPref: profile.shadows ? "off" : "on" })}
-      />
-      <HudButton
-        position={[0.71, 0.05, 0]}
-        label={gridLabel}
-        disabled={busy}
-        active={profile.showGrid}
-        onPress={() => setPrefs({ gridPref: profile.showGrid ? "off" : "on" })}
-      />
-      <HudButton position={[1.07, 0.05, 0]} label={resetLabel} disabled={busy} onPress={() => resetView()} />
-      <HudButton position={[1.43, 0.05, 0]} label={exitLabel} disabled={busy} danger onPress={onExit} />
+      <HudButton position={[-0.98, 0.83, 0.03]} label={t("hudRecall")} size={[0.55, 0.14]} onPress={recall} />
+      <HudButton position={[0.98, 0.83, 0.03]} label={t("hudBack")} size={[0.55, 0.14]} onPress={() => setPanelVisible(false)} />
+      {(["models", "visual", "physics", "comfort"] as const).map((value, index) => (
+        <HudButton key={value} position={[(index - 1.5) * 0.63, 0.59, 0.03]} size={[0.59, 0.16]}
+          label={t(({ models: "hudModels", visual: "hudVisual", physics: "hudPhysics", comfort: "hudComfort" } as const)[value])}
+          active={tab === value} onPress={() => { setTab(value); useMmdVrStore.getState().setMaterialPanelModelId(null); }} />
+      ))}
+      {status && !physicsError ? <group position={[0, 0.6, 0]}><StatusPlane text={status} /></group> : null}
+      {tab === "comfort" && <group position={[0, 0.19, 0]}>
       <ValueLabel position={[-0.83, -0.21, 0]} label={heightLabel} value={`${heightOffset >= 0 ? "+" : ""}${heightOffset.toFixed(2)} m`} />
       <HudSlider
         position={[0.28, -0.2, 0]}
@@ -1720,62 +1659,59 @@ export function MmdVrControlBar({
         onChange={(value) => setPrefs({ heightOffset: mmdVrSliderToHeightOffset(value) })}
         onInteractionChange={onDragChange}
       />
-      <HudButton position={[0.82, -0.21, 0]} label="−" size={[0.2, 0.1]} onPress={() => setPrefs({ heightOffset: heightOffset - MMD_VR_HEIGHT_OFFSET_FINE_STEP })} />
-      <HudButton position={[1.08, -0.21, 0]} label={resetValueLabel} size={[0.26, 0.1]} onPress={() => setPrefs({ heightOffset: 0 })} />
-      <HudButton position={[1.34, -0.21, 0]} label="+" size={[0.2, 0.1]} onPress={() => setPrefs({ heightOffset: heightOffset + MMD_VR_HEIGHT_OFFSET_FINE_STEP })} />
-      <ValueLabel position={[-1.05, -0.41, 0]} label={viewDistanceLabel} value={`${viewDistance} m`} />
+      <HudButton position={[0.78, -0.21, 0]} label="−" size={[0.2, 0.14]} onPress={() => setPrefs({ heightOffset: heightOffset - MMD_VR_HEIGHT_OFFSET_FINE_STEP })} />
+      <HudButton position={[1.05, -0.21, 0]} label="+" size={[0.2, 0.14]} onPress={() => setPrefs({ heightOffset: heightOffset + MMD_VR_HEIGHT_OFFSET_FINE_STEP })} />
+      <ValueLabel position={[-0.83, -0.45, 0]} label={viewDistanceLabel} value={`${viewDistance} m`} />
       <HudSlider
-        position={[-0.27, -0.41, 0]}
+        position={[0.12, -0.45, 0]}
         width={0.62}
         value={mmdVrViewDistanceToSlider(viewDistance)}
         onChange={(value) => setPrefs({ viewDistance: mmdVrSliderToViewDistance(value) })}
         onInteractionChange={onDragChange}
       />
-      <HudButton position={[0.25, -0.41, 0]} label={resetValueLabel} size={[0.26, 0.1]} onPress={() => setPrefs({ viewDistance: 40 })} />
+      <HudButton position={[0.88, -0.45, 0]} label={resetValueLabel} size={[0.55, 0.14]} onPress={() => setPrefs({ viewDistance: 40 })} />
       <HudButton
-        position={[0.66, -0.41, 0]}
+        position={[-0.65, -0.69, 0]}
         label={`${walkSpeedLabel}:${walkLabels[walkIndex]}`}
         size={[0.52, 0.1]}
         onPress={() => setPrefs({ walkSpeedPref: (["slow", "normal", "fast"] as const)[(walkIndex + 1) % 3] })}
       />
       <HudButton
-        position={[1.16, -0.41, 0]}
+        position={[0, -0.69, 0]}
         label={prefs.showFps ? fpsOnLabel : fpsOffLabel}
         size={[0.44, 0.1]}
         active={prefs.showFps}
         onPress={() => setPrefs({ showFps: !useMmdVrStore.getState().prefs.showFps })}
       />
+      <HudButton position={[-0.65, -0.93, 0]} label={resetLabel} size={[0.55, 0.14]} onPress={() => resetView()} />
+      <HudButton position={[0.35, -0.93, 0]} label={`${heightLabel}: ${resetValueLabel}`} size={[0.85, 0.14]} onPress={() => setPrefs({ heightOffset: 0 })} />
+      <HudButton position={[0.65, -0.69, 0]} label={prefs.panelFollowUser ? panelFollowOnLabel : panelFollowOffLabel} size={[0.55, 0.14]} active={prefs.panelFollowUser} onPress={() => setPrefs({ panelFollowUser: !prefs.panelFollowUser })} />
+      </group>}
+      {tab === "physics" && <group>
       <HudButton
-        position={[-0.16, -0.59, 0]}
+        position={[-0.65, 0.32, 0]}
         label={physicsEnabled ? physicsOnLabel : physicsOffLabel}
-        size={[0.58, 0.1]}
+        size={[0.8, 0.14]}
         disabled={busy || physicsBusy || modelCount === 0}
         active={physicsEnabled}
         onPress={() => setPhysicsEnabled(!useMmdVrStore.getState().physicsEnabled)}
       />
       <HudButton
-        position={[0.52, -0.59, 0]}
+        position={[0.55, 0.32, 0]}
         label={physicsDebugEnabled
           ? `${physicsDebugOnLabel} R:${physicsRigidBodyCount} D:${physicsDynamicBodyCount} C:${physicsContactCount} S:${physicsStepCount > 0 ? "+" : "0"}`
           : physicsDebugOffLabel}
-        size={[0.7, 0.1]}
+        size={[1.05, 0.14]}
         disabled={busy || !physicsEnabled || physicsBusy || modelCount === 0}
         active={physicsDebugEnabled}
         onPress={() => setPhysicsDebugEnabled(!useMmdVrStore.getState().physicsDebugEnabled)}
       />
-      <HudButton
-        position={[1.14, -0.59, 0]}
-        label={physicsSettingsLabel}
-        size={[0.46, 0.1]}
-        disabled={busy}
-        active={physicsPanelOpen}
-        onPress={() => {
-          setPhysicsPanelOpen((open) => !open);
-          setVisualPanelOpen(false);
-          useMmdVrStore.getState().setMaterialPanelModelId(null);
-        }}
-      />
-      {!materialPanelOpen && (visualPanelOpen ? (
+      </group>}
+      {tab === "visual" && <group>
+        <HudButton position={[-0.4, 0.32, 0]} label={shadowsLabel} size={[0.65, 0.14]} active={profile.shadows} onPress={() => setPrefs({ shadowsPref: profile.shadows ? "off" : "on" })} />
+        <HudButton position={[0.4, 0.32, 0]} label={gridLabel} size={[0.65, 0.14]} active={profile.showGrid} onPress={() => setPrefs({ gridPref: profile.showGrid ? "off" : "on" })} />
+      </group>}
+      {!materialPanelOpen && (tab === "visual" ? (
         <VisualSettingsPanel
           lightStageLabel={lightStageLabel}
           lightSoftLabel={lightSoftLabel}
@@ -1797,7 +1733,7 @@ export function MmdVrControlBar({
           handTrackingOffLabel={handTrackingOffLabel}
           onInteractionChange={onDragChange}
         />
-      ) : physicsPanelOpen ? (
+      ) : tab === "physics" ? (
         <PhysicsSettingsPanel
           collisionOnLabel={physicsCollisionOnLabel}
           collisionOffLabel={physicsCollisionOffLabel}
@@ -1815,9 +1751,13 @@ export function MmdVrControlBar({
           resetPhysicsLabel={resetPhysicsLabel}
           snapTurnLabel={snapTurnLabel}
         />
-      ) : (
+      ) : tab === "models" ? (
         <>
-          <ModelPanels
+          <HudButton position={[-0.85, 0.3, 0]} label={t("loadPrevious")} size={[0.55, 0.14]} disabled={currentAsset === 0} onPress={() => setAssetIndex(currentAsset - 1)} />
+          <ValueLabel position={[0, 0.3, 0]} label={models.length + objects.length ? `${currentAsset + 1} / ${models.length + objects.length}` : emptyHint} value="" size={[0.95, 0.14]} centered />
+          <HudButton position={[0.85, 0.3, 0]} label={t("loadNext")} size={[0.55, 0.14]} disabled={currentAsset >= models.length + objects.length - 1} onPress={() => setAssetIndex(currentAsset + 1)} />
+          {currentAsset < models.length ? <ModelPanels
+            selectedIndex={currentAsset}
             hideLabel={hideLabel}
             showLabel={showLabel}
             placeOnLabel={placeOnLabel}
@@ -1829,8 +1769,8 @@ export function MmdVrControlBar({
             removeLabel={removeLabel}
             materialsLabel={materialsLabel}
             onInteractionChange={onDragChange}
-          />
-          <ObjectPanels
+          /> : <ObjectPanels
+            selectedIndex={currentAsset - models.length}
             hideLabel={hideLabel}
             showLabel={showLabel}
             placeOnLabel={placeOnLabel}
@@ -1841,9 +1781,9 @@ export function MmdVrControlBar({
             resetValueLabel={resetValueLabel}
             removeLabel={removeLabel}
             onInteractionChange={onDragChange}
-          />
+          />}
         </>
-      ))}
+      ) : null)}
       {materialPanelOpen ? (
         <MaterialPanel
           hideLabel={hideLabel}
@@ -1853,12 +1793,17 @@ export function MmdVrControlBar({
           roughnessLabel={materialRoughnessLabel}
           metallicLabel={materialMetallicLabel}
           emissionLabel={materialEmissionLabel}
-          closeLabel={exitLabel}
+          closeLabel={t("hudModels")}
           disabled={busy || physicsBusy}
           onInteractionChange={onDragChange}
         />
       ) : null}
-      <FpsBadge />
+      <group position={[0, -0.95, 0]}>
+        <CompactPlaybackControls onExpand={() => setPanelVisible(false)} onExit={onExit} busy={busy} expanded />
+        <HudButton position={[-1.1, 0, 0]} label={loop ? loopOnLabel : loopOffLabel} active={loop} size={[0.46, 0.14]} onPress={() => setLoop(!loop)} />
+        <HudButton position={[1.1, 0, 0]} label={t("hudDiagnostics")} size={[0.46, 0.14]} onPress={() => setDiagnosticsOpen(true)} />
+      </group>
+      {prefs.showFps ? <group position={[0, 0.75, 0]}><FpsBadge /></group> : null}
     </group>
   );
 }

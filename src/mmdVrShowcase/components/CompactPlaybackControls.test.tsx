@@ -55,4 +55,21 @@ describe("compact playback controls", () => {
     await act(async () => useMmdVrStore.setState({ physicsError: null }));
     expect(container.querySelector("mesh")).toBeNull();
   });
+
+  it("activates on a deliberate trigger release without requiring the XR short-click timeout", async () => {
+    const onExpand = vi.fn();
+    const t = useLanguageStore.getState().t;
+    await act(async () => root.render(<CompactPlaybackControls onExpand={onExpand} onExit={() => {}} busy={false} />));
+    const target = button(t("settingsMmdVrPanelShow"));
+    const pointer = (name: string) => new PointerEvent(name, { bubbles: true, pointerId: 1 });
+    await act(async () => target.dispatchEvent(pointer("pointerdown")));
+    await act(async () => target.dispatchEvent(pointer("pointerup")));
+    expect(onExpand).toHaveBeenCalledOnce();
+    await act(async () => target.click());
+    expect(onExpand).toHaveBeenCalledOnce();
+    await act(async () => target.dispatchEvent(pointer("pointerdown")));
+    await act(async () => target.dispatchEvent(pointer("pointercancel")));
+    await act(async () => target.dispatchEvent(pointer("pointerup")));
+    expect(onExpand).toHaveBeenCalledOnce();
+  });
 });
