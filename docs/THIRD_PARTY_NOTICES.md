@@ -2,6 +2,14 @@
 
 This file records notices for third-party code copied into the repository rather than installed only through the package manager.
 
+## @webxr-input-profiles/assets 1.0.20
+
+`public/xr-input/1.0.20/` contains unmodified controller profiles/models for Meta Quest Touch Plus, Touch Plus v2, Touch Pro, Oculus Touch/v2/v3, generic trigger and trigger/squeeze/thumbstick controllers, plus the generic hand models. The local `profilesList.json` indexes only this bundled subset; other controller profiles use the library's generic-trigger fallback.
+
+Source: the npm package `@webxr-input-profiles/assets@1.0.20` from [WebXR Input Profiles](https://github.com/immersive-web/webxr-input-profiles). MIT License, Copyright (c) 2019 Amazon. The complete license is included in [`public/xr-input/1.0.20/LICENSE.md`](../public/xr-input/1.0.20/LICENSE.md).
+
+These assets are served from the application's origin because loading controller profiles is required to establish input state, not merely to display a model. Preserve profile-relative model paths when updating the bundle.
+
 ## @yohawing/three-mmd-loader
 
 The files `public/mmd/0.8.6/mmd_bullet.js` and `public/mmd/0.8.6/mmd_bullet.wasm` are distributed from `@yohawing/three-mmd-loader` version 0.8.6.

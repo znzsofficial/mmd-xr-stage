@@ -2,6 +2,12 @@
 
 ## 首先读这里
 
+### 输入失效紧急修复
+
+浅瓷发布后，用户报告“场景正常，手柄和手都不显示”。已复现外部 CDN 不可达时的手柄失效：原生 session 有两个 controller，但 XR 库等待 profile 下载失败，应用输入状态为零。当前修复将 profiles 与 controller/hand GLB 固定为本站 `/xr-input/1.0.20/`，保留 Quest 各代 profile 与 generic 回退。不能凭模拟器推断用户设备的唯一根因，发布后需请用户重新打开页面验收。
+
+验证：173 项 / 43 文件、TypeScript、构建通过；CDN 阻断下 IWER 实际扳机释放打开菜单、手追捏合释放关闭菜单，左右模型均加载。回归页保存在忽略目录 `sample/input-smoke.html?block=5`。发布进度以接下来的记录为准。
+
 压缩会话后用户要求继续完成；**浅瓷与墨蓝 HUD 已完成验证、合并、推送和生产发布**。下一轮优先做 Quest 3S 验收，再处理下文记录的贴图竞争与物理时钟问题。
 
 - 工作目录：`E:\WebProjects\mmd-xr-stage`

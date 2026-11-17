@@ -39,6 +39,8 @@ pnpm deploy
 
 ## XR And Physics Invariants
 
+- XR input profiles and controller/hand models must stay same-origin via `createAppXrStore.baseAssetPath` and `public/xr-input/1.0.20/`. The upstream default CDN is a functional dependency: a failed controller profile fetch prevents controller state and pointers from being created. Keep the local profile index limited to bundled files, preserve generic fallback and license notices, and test actual trigger/pinch events rather than only invoking HUD callbacks.
+
 - MMD XR must request the optional `hand-tracking` feature when the session is created. This allows hand tracking to be enabled after entering XR; preserve `beginFromClick(init?)` initialization passthrough.
 - `handTracking` is the persisted preference name and defaults to `true`. Do not reintroduce `handDetail`.
 - Hand colliders use 12 fixed slots: each hand has a wrist and five fingertip colliders. Keep their provider mapping in `src/mmdVrShowcase/mmdVrHandColliders.ts` and `components/MmdVrHandColliders.tsx`.
