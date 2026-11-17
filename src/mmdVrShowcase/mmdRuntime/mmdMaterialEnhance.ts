@@ -25,10 +25,7 @@ type EnhanceShader = {
   uniforms: Record<string, { value: unknown }>;
 };
 
-function hexToLinearColor(hex: string) {
-  const color = new THREE.Color(hex || "#ffffff");
-  return color.convertSRGBToLinear();
-}
+const emissionColorInputs = new WeakMap<THREE.Color, string>();
 
 function clamp01(value: number) {
   return Math.min(1, Math.max(0, value));
@@ -324,7 +321,6 @@ export function syncMmdMaterialEnhance(material: THREE.Material, state: MmdMater
   const ambient = Math.max(0, state.ambientIntensity);
   const specularMode = override.specularMode === "env" ? 2 : override.specularMode === "mmd+env" ? 1 : 0;
   const lightingModel = override.lightingModel === "pbr" ? 1 : 0;
-  const emissionColor = hexToLinearColor(override.emissionColor);
   const enhancementData = mat.userData.mmdEnhanceTextures as {
     aoMap?: THREE.Texture | null;
     emissionMap?: THREE.Texture | null;
@@ -346,7 +342,14 @@ export function syncMmdMaterialEnhance(material: THREE.Material, state: MmdMater
   setNum("mmdEnhanceLightingModel", lightingModel);
 
   const emissionColorUniform = shader.uniforms.mmdEnhanceEmissionColor;
-  if (emissionColorUniform?.value instanceof THREE.Color) emissionColorUniform.value.copy(emissionColor);
+  if (emissionColorUniform?.value instanceof THREE.Color) {
+    const color = emissionColorUniform.value;
+    const input = override.emissionColor || "#ffffff";
+    if (emissionColorInputs.get(color) !== input) {
+      color.set(input).convertSRGBToLinear();
+      emissionColorInputs.set(color, input);
+    }
+  }
 
   if (shader.uniforms.mmdEnhanceAoMap) shader.uniforms.mmdEnhanceAoMap.value = enhancementData?.aoMap ?? null;
   if (shader.uniforms.mmdEnhanceEmissionMap) {

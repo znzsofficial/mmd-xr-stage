@@ -1,6 +1,6 @@
 import type { ThreeMmdModel } from "@yohawing/three-mmd-loader";
 import * as THREE from "three";
-import { attachMmdMaterialEnhance, syncMmdMaterialEnhance } from "./mmdMaterialEnhance";
+import { attachMmdMaterialEnhance, syncMmdMaterialEnhance, type MmdMaterialEnhanceState } from "./mmdMaterialEnhance";
 
 export type MaterialOverride = {
   opacity: number;
@@ -278,23 +278,25 @@ function applyMaterialOverrideToMaterial(
       std.roughness = override.roughness;
       std.metalness = override.metallic;
       std.envMapIntensity = Math.max(0, override.envInfluence) * (ctx.envIntensity ?? 0);
-      if (std.envMap) std.envMap = null;
-      std.needsUpdate = true;
+      if (std.envMap) {
+        std.envMap = null;
+        std.needsUpdate = true;
+      }
     }
     return;
   }
   attachMmdMaterialEnhance(material);
-  syncMmdMaterialEnhance(material, {
-    modelId,
-    materialName: name,
-    override,
-    envIntensity: ctx.envIntensity ?? 0,
-    ambientIntensity: ctx.ambientIntensity ?? 0.55,
-    envMap: ctx.envMap ?? null,
-    lightDirection: ctx.lightDirection ?? null,
-    lightIntensity: ctx.lightIntensity,
-    lightColor: ctx.lightColor ?? null,
-  });
+  const state = (material.userData.mmdEnhanceState ??= {}) as MmdMaterialEnhanceState;
+  state.modelId = modelId;
+  state.materialName = name;
+  state.override = override;
+  state.envIntensity = ctx.envIntensity ?? 0;
+  state.ambientIntensity = ctx.ambientIntensity ?? 0.55;
+  state.envMap = ctx.envMap ?? null;
+  state.lightDirection = ctx.lightDirection ?? null;
+  state.lightIntensity = ctx.lightIntensity;
+  state.lightColor = ctx.lightColor ?? null;
+  syncMmdMaterialEnhance(material, state);
 }
 
 export function applyMaterialOverrides(
@@ -305,7 +307,7 @@ export function applyMaterialOverrides(
   const ctx: MaterialLightingContext =
     typeof envIntensityOrCtx === "number"
       ? { envIntensity: envIntensityOrCtx, ambientIntensity }
-      : { ambientIntensity: 0.55, ...envIntensityOrCtx };
+      : envIntensityOrCtx;
 
   const materials = getMeshMaterials(entry.model.mesh);
   materials.forEach((material, index) => {

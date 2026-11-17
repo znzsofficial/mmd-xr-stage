@@ -13,6 +13,7 @@ export type MmdControllerColliderMatrix = MmdPhysicsMatrix4ColumnMajorTuple | Fl
 export type MmdControllerColliderProvider = () => readonly MmdControllerColliderMatrix[];
 type MmdDebugContact = { rigidBodyIndexA: number; rigidBodyIndexB: number };
 const MAX_DEBUG_CONTACTS = 256;
+const syntheticColliderBody = Symbol("syntheticColliderBody");
 type MmdDebugPhysicsBackend = MmdPhysicsBackend & {
   debugContactCount?: () => number;
   debugPhysicsContacts?: () => readonly MmdDebugContact[];
@@ -125,6 +126,7 @@ export function createPhysicsDiagnosticsBackend(backend: MmdPhysicsBackend): Mmd
   let rigidBodyCount = 0;
   let dynamicRigidBodyCount = 0;
   let stepCount = 0;
+  let sourceBodies: MmdPhysicsStepContext["rigidBodies"];
   const wrapper: MmdPhysicsBackend & MmdRuntimePhysicsDiagnostics = {
     get name() {
       return `${backend.name}+diagnostics`;
@@ -137,10 +139,13 @@ export function createPhysicsDiagnosticsBackend(backend: MmdPhysicsBackend): Mmd
     },
     step(context) {
       stepCount += 1;
-      rigidBodyCount = context.rigidBodies?.length ?? 0;
-      dynamicRigidBodyCount = 0;
-      for (const body of context.rigidBodies ?? []) {
-        if (body.motionType !== "static") dynamicRigidBodyCount += 1;
+      if (sourceBodies !== context.rigidBodies) {
+        sourceBodies = context.rigidBodies;
+        rigidBodyCount = sourceBodies?.length ?? 0;
+        dynamicRigidBodyCount = 0;
+        for (const body of sourceBodies ?? []) {
+          if (body.motionType !== "static") dynamicRigidBodyCount += 1;
+        }
       }
       return backend.step(context);
     },
@@ -234,6 +239,18 @@ export function createControllerColliderPhysicsBackend(
   let stepCount = 0;
   let debugContactsStep = -1;
   let debugContacts: readonly MmdDebugContact[] = [];
+  let contactCounts = new Uint32Array(0);
+  let totalControllerContacts = 0;
+  let bodyMetadataSource: MmdPhysicsStepContext["rigidBodies"];
+  let controllerGroup = -1;
+  let copiedInputTranslations = new Float32Array(0);
+  let copiedInputRotations = new Float32Array(0);
+  let copiedInputMatrices = new Float32Array(0);
+  let copiedOutputTranslations = new Float32Array(0);
+  let copiedOutputRotations = new Float32Array(0);
+  let copiedOutputMatrices = new Float32Array(0);
+  let copiedToggles = new Uint8Array(0);
+  const copiedUpdatedIndices: number[] = [];
 
   const wrapper: MmdControllerColliderPhysicsBackend = {
     get name() {
@@ -250,19 +267,28 @@ export function createControllerColliderPhysicsBackend(
       stepCount += 1;
       debugContactsStep = -1;
       const matrices = getMatrices();
-      if (!matrices.length || !context.skeleton || !context.rigidBodies) return backend.step(context);
+      if (!matrices.length || !context.skeleton || !context.rigidBodies) {
+        controllerBodyCount = 0;
+        return backend.step(context);
+      }
       const boneCount = context.skeleton.bones.length;
       const colliderCount = matrices.length;
       sourceRigidBodyCount = context.rigidBodies.length;
       controllerBodyCount = colliderCount;
-      dynamicRigidBodyCount = context.rigidBodies.filter((body) => body.motionType !== "static").length;
+      if (bodyMetadataSource !== context.rigidBodies) {
+        bodyMetadataSource = context.rigidBodies;
+        dynamicRigidBodyCount = 0;
+        for (const body of context.rigidBodies) {
+          if (body.motionType !== "static") dynamicRigidBodyCount += 1;
+        }
+        controllerGroup = chooseControllerCollisionGroup(context.rigidBodies);
+      }
       if (directColliderCount !== undefined && colliderCount !== directColliderCount) {
         throw new Error("Controller collider count changed after direct buffers were acquired");
       }
       const colliderRadius = Math.max(0.001, typeof radius === "function" ? radius() : radius);
       const colliderFriction = Math.max(0, Math.min(1, typeof friction === "function" ? friction() : friction));
       const colliderRestitution = Math.max(0, Math.min(1, typeof restitution === "function" ? restitution() : restitution));
-      const controllerGroup = chooseControllerCollisionGroup(context.rigidBodies);
       const controllerGroupMask = controllerGroup < 0 ? 0 : 1 << controllerGroup;
       if (
         sourceSkeleton !== context.skeleton ||
@@ -298,6 +324,7 @@ export function createControllerColliderPhysicsBackend(
             collisionMask: (body.collisionMask ?? 0xffff) | controllerGroupMask,
           })),
           ...matrices.map((_, index) => ({
+            [syntheticColliderBody]: true,
             index: context.rigidBodies!.length + index,
             name: `xr-controller-${index}`,
             boneIndex: boneCount + index,
@@ -334,39 +361,60 @@ export function createControllerColliderPhysicsBackend(
         return { ...result, updatedBoneCount: originalUpdated };
       }
 
-      const outputTranslations = appendBuffer(context.output?.translations, colliderCount * 3);
-      const outputRotations = appendBuffer(context.output?.rotations, colliderCount * 4);
-      const outputMatrices = appendBuffer(context.output?.worldMatricesColumnMajor, colliderCount * 16);
-      const updatedBoneIndices: number[] = [];
+      copiedOutputTranslations = copyExtendedBuffer(copiedOutputTranslations, context.output?.translations, colliderCount * 3);
+      copiedOutputRotations = copyExtendedBuffer(copiedOutputRotations, context.output?.rotations, colliderCount * 4);
+      copiedOutputMatrices = copyExtendedBuffer(copiedOutputMatrices, context.output?.worldMatricesColumnMajor, colliderCount * 16);
+      copiedInputTranslations = copyExtendedBuffer(copiedInputTranslations, context.inputTranslations, colliderCount * 3);
+      copiedInputRotations = copyExtendedBuffer(copiedInputRotations, context.inputRotations, colliderCount * 4);
+      const rotationOffset = context.inputRotations?.length ?? 0;
+      for (let index = 0; index < colliderCount; index += 1) copiedInputRotations[rotationOffset + index * 4 + 3] = 1;
+      copiedInputMatrices = copyExtendedBuffer(copiedInputMatrices, context.inputWorldMatricesColumnMajor, colliderCount * 16);
+      const matrixOffset = context.inputWorldMatricesColumnMajor?.length ?? 0;
+      for (let index = 0; index < colliderCount; index += 1) writeRigidMatrix(copiedInputMatrices, matrixOffset + index * 16, matrices[index]);
+      const toggleOffset = context.bonePhysicsToggles?.length ?? 0;
+      if (copiedToggles.length !== toggleOffset + colliderCount) copiedToggles = new Uint8Array(toggleOffset + colliderCount);
+      for (let index = 0; index < toggleOffset; index += 1) copiedToggles[index] = Number(context.bonePhysicsToggles![index]);
+      copiedToggles.fill(1, toggleOffset);
+      copiedUpdatedIndices.length = 0;
       const augmented: MmdPhysicsStepContext = {
         ...context,
         skeleton: augmentedSkeleton,
         rigidBodies: augmentedRigidBodies,
-        inputTranslations: appendBuffer(context.inputTranslations, colliderCount * 3),
-        inputRotations: appendIdentityQuaternions(context.inputRotations, colliderCount),
-        inputWorldMatricesColumnMajor: appendMatrices(context.inputWorldMatricesColumnMajor, matrices),
+        inputTranslations: copiedInputTranslations,
+        inputRotations: copiedInputRotations,
+        inputWorldMatricesColumnMajor: copiedInputMatrices,
         output: {
-          translations: outputTranslations,
-          rotations: outputRotations,
-          worldMatricesColumnMajor: outputMatrices,
-          updatedBoneIndices,
+          translations: copiedOutputTranslations,
+          rotations: copiedOutputRotations,
+          worldMatricesColumnMajor: copiedOutputMatrices,
+          updatedBoneIndices: copiedUpdatedIndices,
         },
-        bonePhysicsToggles: appendToggles(context.bonePhysicsToggles, colliderCount),
+        bonePhysicsToggles: copiedToggles,
       };
       const result = backend.step(augmented);
-      copyPrefix(outputTranslations, context.output?.translations);
-      copyPrefix(outputRotations, context.output?.rotations);
-      copyPrefix(outputMatrices, context.output?.worldMatricesColumnMajor);
-      const originalUpdated = updatedBoneIndices.filter((index) => index < boneCount);
-      copyIndices(originalUpdated, context.output?.updatedBoneIndices);
-      return { ...result, updatedBoneCount: originalUpdated.length };
+      copyPrefix(copiedOutputTranslations, context.output?.translations);
+      copyPrefix(copiedOutputRotations, context.output?.rotations);
+      copyPrefix(copiedOutputMatrices, context.output?.worldMatricesColumnMajor);
+      const originalUpdated = compactUpdatedIndices(copiedUpdatedIndices, result.updatedBoneCount ?? copiedUpdatedIndices.length, boneCount);
+      copyIndices(copiedUpdatedIndices, context.output?.updatedBoneIndices);
+      return { ...result, updatedBoneCount: originalUpdated };
     },
-    reset: (context) => backend.reset?.(context),
-    dispose: () => backend.dispose?.(),
+    reset: (context) => {
+      controllerBodyCount = 0;
+      debugContactsStep = -1;
+      backend.reset?.(context);
+    },
+    dispose: () => {
+      controllerBodyCount = 0;
+      debugContacts = [];
+      debugContactsStep = -1;
+      backend.dispose?.();
+    },
     diagnostics: () => backend.diagnostics?.() ?? [],
     debugRigidBodyWorldTransformsColumnMajor: () => backend.debugRigidBodyWorldTransformsColumnMajor?.() ?? [],
     debugControllerContactCount: (controllerIndex) => {
-      if (controllerBodyCount === 0) return 0;
+      if (controllerBodyCount === 0 || backend.disposed) return 0;
+      if (controllerIndex != null && (!Number.isInteger(controllerIndex) || controllerIndex < 0 || controllerIndex >= controllerBodyCount)) return 0;
       const debugBackend = backend as MmdDebugPhysicsBackend;
       // This wrapper appends its bodies before delegating to inner wrappers.
       // Their colliders therefore follow this wrapper's range in Bullet's array.
@@ -381,16 +429,26 @@ export function createControllerColliderPhysicsBackend(
           const total = debugBackend.debugContactCount?.() ?? 0;
           debugContacts = total <= MAX_DEBUG_CONTACTS ? debugBackend.debugPhysicsContacts?.() ?? [] : [];
         }
+        if (contactCounts.length !== controllerBodyCount) contactCounts = new Uint32Array(controllerBodyCount);
+        else contactCounts.fill(0);
+        totalControllerContacts = 0;
+        for (const contact of debugContacts) {
+          const bodyA = sourceRigidBodies?.[contact.rigidBodyIndexA];
+          const bodyB = sourceRigidBodies?.[contact.rigidBodyIndexB];
+          const modelA = bodyA != null && !(syntheticColliderBody in bodyA);
+          const modelB = bodyB != null && !(syntheticColliderBody in bodyB);
+          if (!modelA && !modelB) continue;
+          const a = contact.rigidBodyIndexA - firstBodyIndex;
+          const b = contact.rigidBodyIndexB - firstBodyIndex;
+          const includesA = a >= 0 && a < controllerBodyCount;
+          const includesB = b >= 0 && b < controllerBodyCount;
+          if (includesA) contactCounts[a] += 1;
+          if (includesB && b !== a) contactCounts[b] += 1;
+          if (includesA || includesB) totalControllerContacts += 1;
+        }
         debugContactsStep = stepCount;
       }
-      const contacts = debugContacts;
-      if (controllerIndex != null) {
-        const controllerBodyIndex = firstBodyIndex + controllerIndex;
-        return contacts.filter((contact) =>
-          contact.rigidBodyIndexA === controllerBodyIndex || contact.rigidBodyIndexB === controllerBodyIndex).length;
-      }
-      return contacts.filter((contact) =>
-        contact.rigidBodyIndexA >= firstBodyIndex || contact.rigidBodyIndexB >= firstBodyIndex).length;
+      return controllerIndex == null ? totalControllerContacts : contactCounts[controllerIndex];
     },
     debugRigidBodyCount: () => (backend as Partial<MmdRuntimePhysicsDiagnostics>).debugRigidBodyCount?.()
       ?? sourceRigidBodyCount + controllerBodyCount,
@@ -479,29 +537,11 @@ function compactUpdatedIndices(
   return write;
 }
 
-function appendBuffer(source: readonly number[] | Float32Array | Float64Array | undefined, extra: number) {
-  const result = new Float32Array((source?.length ?? 0) + extra);
+function copyExtendedBuffer(target: Float32Array<ArrayBuffer>, source: readonly number[] | Float32Array | Float64Array | undefined, extra: number) {
+  const length = (source?.length ?? 0) + extra;
+  const result = target.length === length ? target : new Float32Array(length);
   if (source) result.set(source);
-  return result;
-}
-
-function appendIdentityQuaternions(source: readonly number[] | Float32Array | Float64Array | undefined, count: number) {
-  const result = appendBuffer(source, count * 4);
-  const start = source?.length ?? 0;
-  for (let index = 0; index < count; index += 1) result[start + index * 4 + 3] = 1;
-  return result;
-}
-
-function appendMatrices(
-  source: readonly number[] | Float32Array | Float64Array | undefined,
-  matrices: readonly MmdControllerColliderMatrix[],
-) {
-  const result = appendBuffer(source, matrices.length * 16);
-  let offset = source?.length ?? 0;
-  for (const matrix of matrices) {
-    writeRigidMatrix(result, offset, matrix);
-    offset += 16;
-  }
+  result.fill(0, source?.length ?? 0);
   return result;
 }
 
@@ -521,12 +561,6 @@ function writeRigidMatrix(
   }
 }
 
-function appendToggles(source: readonly boolean[] | Uint8Array | undefined, count: number) {
-  const result = new Uint8Array((source?.length ?? 0) + count);
-  if (source) result.set(Array.from(source, Number));
-  result.fill(1, source?.length ?? 0);
-  return result;
-}
 
 function copyPrefix(source: Float32Array, target: MmdPhysicsMutableNumericBuffer | undefined) {
   if (!target) return;
@@ -538,9 +572,9 @@ function copyIndices(source: readonly number[], target: MmdPhysicsMutableIndexBu
   if (!target) return;
   if (Array.isArray(target)) {
     target.length = 0;
-    target.push(...source);
+    for (const index of source) target.push(index);
     return;
   }
   target.fill(0);
-  target.set(source.slice(0, target.length));
+  for (let index = 0; index < Math.min(source.length, target.length); index += 1) target[index] = source[index];
 }

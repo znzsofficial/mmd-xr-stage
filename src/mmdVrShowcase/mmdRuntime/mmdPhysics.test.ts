@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { MmdPhysicsBackend, MmdPhysicsStepContext, MmdDirectBufferPhysicsBackend, MmdPhysicsStepBufferLayout } from "@yohawing/three-mmd-loader/physics";
 import { createCustomBulletMmdPhysicsBackend } from "@yohawing/three-mmd-loader/physics";
-import { createControllerColliderPhysicsBackend, createDynamicSelfCollisionPhysicsBackend } from "./mmdPhysics";
+import { createControllerColliderPhysicsBackend, createDynamicSelfCollisionPhysicsBackend, createPhysicsDiagnosticsBackend } from "./mmdPhysics";
 
 const identity = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
 const context = (): MmdPhysicsStepContext => ({
@@ -13,7 +13,10 @@ const context = (): MmdPhysicsStepContext => ({
 
 describe("XR collider physics regression", () => {
   it("keeps the controller range before all 12 hand slots and forwards contact diagnostics", () => {
-    const query = vi.fn((first: number) => [{ rigidBodyIndexA: first, rigidBodyIndexB: 0 }]);
+    const query = vi.fn((first: number) => [
+      { rigidBodyIndexA: first, rigidBodyIndexB: 0 },
+      { rigidBodyIndexA: first, rigidBodyIndexB: first === 2 ? 4 : 2 },
+    ]);
     const step = vi.fn((_context: MmdPhysicsStepContext) => ({ simulated: true }));
     const base = { name: "bullet", disabled: false, disposed: false, step, debugPhysicsContactsForRigidBodyRange: query };
     const hand = createControllerColliderPhysicsBackend(base, () => Array.from({ length: 12 }, () => identity), 0.035);
@@ -90,6 +93,121 @@ describe("XR collider physics regression", () => {
     backend.step(input);
     expect(step.mock.calls[0][0].rigidBodies?.[0].collisionMask).toBe(8);
     expect(input.rigidBodies?.[0].collisionMask).toBe(0);
+  });
+
+  it("reuses copied buffers across nested hand/controller steps without stale outputs", () => {
+    let frame = 0;
+    let first: MmdPhysicsStepContext | undefined;
+    const input = {
+      ...context(),
+      inputTranslations: new Float32Array([1, 2, 3, 4, 5, 6]),
+      inputRotations: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1]),
+      inputWorldMatricesColumnMajor: new Float32Array([...identity, ...identity]),
+      bonePhysicsToggles: [true, false],
+      output: { translations: new Float32Array(6), rotations: new Float32Array(8), worldMatricesColumnMajor: new Float32Array(32), updatedBoneIndices: [99] },
+    } satisfies MmdPhysicsStepContext;
+    const matrices = [new Float32Array(identity), new Float32Array(identity)];
+    const hands = Array.from({ length: 12 }, () => identity);
+    const base: MmdPhysicsBackend = {
+      name: "copied", disabled: false, disposed: false,
+      step(next) {
+        expect(next.skeleton?.bones).toHaveLength(16);
+        expect(next.inputTranslations).not.toBe(input.inputTranslations);
+        expect(next.inputTranslations?.[0]).toBe(frame === 0 ? 1 : 42);
+        expect(next.inputRotations?.[11]).toBe(1);
+        expect([...next.bonePhysicsToggles!].slice(0, 4)).toEqual([1, 0, 1, 1]);
+        expect(next.output?.updatedBoneIndices).toEqual([]);
+        if (first) {
+          expect(next.inputTranslations).toBe(first.inputTranslations);
+          expect(next.inputRotations).toBe(first.inputRotations);
+          expect(next.inputWorldMatricesColumnMajor).toBe(first.inputWorldMatricesColumnMajor);
+          expect(next.output?.translations).toBe(first.output?.translations);
+          expect(next.output?.translations?.[6]).toBe(0);
+          expect(next.inputWorldMatricesColumnMajor?.[44]).toBe(9);
+        }
+        first = next;
+        next.output!.translations![0] = frame === 0 ? 7 : 8;
+        next.output!.translations![6] = 999;
+        (next.output!.updatedBoneIndices as number[]).push(0, 2, 4);
+        frame += 1;
+        return { simulated: true, updatedBoneCount: 3 };
+      },
+    };
+    const hand = createControllerColliderPhysicsBackend(base, () => hands);
+    const controller = createControllerColliderPhysicsBackend(hand, () => matrices);
+    expect(controller.step(input).updatedBoneCount).toBe(1);
+    expect(input.output.updatedBoneIndices).toEqual([0]);
+    expect(input.output.translations?.[0]).toBe(7);
+    (input.inputTranslations as Float32Array)[0] = 42;
+    matrices[0][12] = 9;
+    expect(controller.step(input).updatedBoneCount).toBe(1);
+    expect(input.output.translations?.[0]).toBe(8);
+    expect(input.inputTranslations[0]).toBe(42);
+    expect(input.rigidBodies).toHaveLength(2);
+  });
+
+  it("reallocates copied buffers and metadata when the model topology changes", () => {
+    const step = vi.fn((_input: MmdPhysicsStepContext) => ({ simulated: true }));
+    const wrapper = createControllerColliderPhysicsBackend({ name: "bullet", disabled: false, disposed: false, step }, () => [identity]);
+    const input = { ...context(), inputTranslations: new Float32Array(6) };
+    wrapper.step(input);
+    const original = step.mock.lastCall![0];
+    wrapper.step(input);
+    expect(step.mock.lastCall![0].rigidBodies).toBe(original.rigidBodies);
+    expect(step.mock.lastCall![0].inputTranslations).toBe(original.inputTranslations);
+    const replacement = { ...input, skeleton: { bones: [{ index: 0 }] }, inputTranslations: new Float32Array([4, 5, 6]),
+      rigidBodies: [{ index: 0, motionType: "static" as const, collisionGroup: 15, shape: { type: "sphere" as const, size: [1, 1, 1] as const } }] };
+    wrapper.step(replacement);
+    expect(step.mock.lastCall![0].inputTranslations).toHaveLength(6);
+    expect(step.mock.lastCall![0].rigidBodies?.[1].collisionGroup).toBe(14);
+    expect(wrapper.debugDynamicRigidBodyCount()).toBe(0);
+  });
+
+  it("counts only this wrapper's range, caches once per step and invalidates on reset", () => {
+    let contacts = [
+      { rigidBodyIndexA: 2, rigidBodyIndexB: 0 },
+      { rigidBodyIndexA: 2, rigidBodyIndexB: 3 },
+      { rigidBodyIndexA: 3, rigidBodyIndexB: 1 },
+      { rigidBodyIndexA: 3, rigidBodyIndexB: 4 },
+      { rigidBodyIndexA: 4, rigidBodyIndexB: 0 },
+    ];
+    const query = vi.fn(() => contacts);
+    let matrices: readonly Float32Array[] = [identity, identity];
+    const wrapper = createControllerColliderPhysicsBackend({ name: "bullet", disabled: false, disposed: false,
+      step: () => ({ simulated: true }), debugContactCount: () => contacts.length, debugPhysicsContacts: query,
+      reset: () => { contacts = []; },
+    } as MmdPhysicsBackend, () => matrices);
+    wrapper.step(context());
+    expect(wrapper.debugControllerContactCount()).toBe(2);
+    expect(wrapper.debugControllerContactCount(0)).toBe(1);
+    expect(wrapper.debugControllerContactCount(1)).toBe(1);
+    expect(wrapper.debugControllerContactCount(2)).toBe(0);
+    expect(wrapper.debugControllerContactCount(-1)).toBe(0);
+    expect(query).toHaveBeenCalledTimes(1);
+    wrapper.reset?.();
+    expect(wrapper.debugControllerContactCount()).toBe(0);
+    expect(query).toHaveBeenCalledTimes(1);
+    wrapper.step(context());
+    expect(wrapper.debugControllerContactCount()).toBe(0);
+    expect(query).toHaveBeenCalledTimes(2);
+    matrices = [];
+    wrapper.step(context());
+    expect(wrapper.debugControllerContactCount()).toBe(0);
+    expect(query).toHaveBeenCalledTimes(2);
+  });
+
+  it("refreshes cached diagnostic counts when rigid-body definitions are replaced or removed", () => {
+    const backend = createPhysicsDiagnosticsBackend({ name: "bullet", disabled: false, disposed: false, step: () => ({ simulated: true }) });
+    const input = context();
+    backend.step(input);
+    backend.step(input);
+    expect(backend.debugDynamicRigidBodyCount()).toBe(2);
+    backend.step({ ...input, rigidBodies: input.rigidBodies!.map((body) => ({ ...body, motionType: "static" })) });
+    expect(backend.debugRigidBodyCount()).toBe(2);
+    expect(backend.debugDynamicRigidBodyCount()).toBe(0);
+    backend.step({ ...input, rigidBodies: undefined });
+    expect(backend.debugRigidBodyCount()).toBe(0);
+    expect(backend.debugStepCount()).toBe(4);
   });
 });
 

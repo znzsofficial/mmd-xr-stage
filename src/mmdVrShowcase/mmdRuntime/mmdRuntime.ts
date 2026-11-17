@@ -307,6 +307,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
     const mappedCollider = new THREE.Matrix4();
     const visualRoot = new THREE.Matrix4();
     const visualScale = new THREE.Vector3();
+    const worldToPhysics = new THREE.Matrix4();
     const createMappedColliderProvider = (
       getWorldMatrices: (() => readonly THREE.Matrix4[]) | undefined,
       getEnabled: (() => boolean) | undefined,
@@ -323,11 +324,13 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
         const scale = Math.min(10, Math.max(0.01, Number(root.userData.mmdVisualScale) || 1));
         visualRoot.copy(unitRoot).scale(visualScale.setScalar(scale));
         inverseVisualRoot.copy(visualRoot).invert();
+        worldToPhysics.multiplyMatrices(unitRoot, inverseVisualRoot);
+        const enabled = getEnabled?.() !== false;
         for (let index = 0; index < colliderMatrices.length; index += 1) {
-          if (getEnabled?.() === false) {
+          if (!enabled) {
             mappedCollider.makeTranslation(0, -1_000, 0);
           } else {
-            mappedCollider.multiplyMatrices(unitRoot, inverseVisualRoot).multiply(worldMatrices[index]);
+            mappedCollider.multiplyMatrices(worldToPhysics, worldMatrices[index]);
           }
           const source = mappedCollider.elements;
           const target = colliderMatrices[index];
@@ -771,6 +774,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
     getControllerContactCount(controllerIndex) {
       let count = 0;
       for (const entry of entries.values()) {
+        if (!entry.visible || entry.physicsBackend?.disposed) continue;
         const backend = entry.physicsBackend as (MmdPhysicsBackend & {
           debugControllerContactCount?: (controllerIndex?: number) => number;
         }) | null;

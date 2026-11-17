@@ -6,6 +6,7 @@
 | [asset-workflow.md](./asset-workflow.md) | ZIP/文件夹导入检查、同页继续舞台与重新开始 |
 | [viewing-and-diagnostics.md](./viewing-and-diagnostics.md) | 精简观看 HUD 与画质诊断数据的来源、限制 |
 | [three-mmd-loader-maintenance.md](./three-mmd-loader-maintenance.md) | three-mmd-loader 本地补丁、根因与升级收尾步骤 |
+| [xr-runtime-performance.md](./xr-runtime-performance.md) | 物理/材质热路径优化、微基准与原生 Bullet 回归 |
 | [deployment.md](./deployment.md) | Pages 部署路径与 wrangler ≥4.130 代理委托坑 |
 | [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md) | Bullet 运行时第三方声明 |
 

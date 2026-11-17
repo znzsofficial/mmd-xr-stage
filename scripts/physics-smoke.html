@@ -1,0 +1,48 @@
+<!doctype html><meta charset="utf-8"><title>Bullet wrapper parity</title><pre id="status">Loading Bullet</pre>
+<script type="module">
+import { loadCustomBulletMmdModule, createCustomBulletMmdPhysicsBackend } from '@yohawing/three-mmd-loader/physics';
+import { createControllerColliderPhysicsBackend, createPhysicsDiagnosticsBackend } from '/src/mmdVrShowcase/mmdRuntime/mmdPhysics.ts';
+const status = document.querySelector('#status');
+const matrix = (y) => new Float32Array([1,0,0,0,0,1,0,0,0,0,1,0,0,y,0,1]);
+try {
+  const module = await loadCustomBulletMmdModule({ scriptUrl: location.origin + '/mmd/0.8.6/mmd_bullet.js' });
+  const results = [];
+  for (const direct of [false, true]) {
+    const native = createCustomBulletMmdPhysicsBackend(module, { fixedTimeStep: 1/60, maxSubSteps: 5, resetCatchUpSteps: 0, solverIterations: 20, splitImpulse: true });
+    const matrices = [matrix(0.5), matrix(-1000)];
+    const hands = Array.from({length:12}, () => matrix(-1000));
+    const base = direct ? native : { name: native.name, disabled: false, get disposed() { return native.disposed; }, step: c=>native.step(c), reset:c=>native.reset(c), dispose:()=>native.dispose(), debugPhysicsContactsForRigidBodyRange:(a,b)=>native.debugPhysicsContactsForRigidBodyRange(a,b) };
+    const backend = createControllerColliderPhysicsBackend(createControllerColliderPhysicsBackend(createPhysicsDiagnosticsBackend(base), () => hands, 0.1), () => matrices, 0.25);
+    const layout = {boneCount:2,translationValueCount:6,rotationValueCount:8,worldMatrixValueCount:32};
+    const buffers = direct ? backend.acquireStepBuffers(layout) : native.acquireStepBuffers(layout);
+    buffers.inputWorldMatricesColumnMajor.set(matrix(-1),0);
+    buffers.inputWorldMatricesColumnMajor.set(matrix(3),16);
+    buffers.inputTranslations.set([0,-1,0,0,3,0]);
+    buffers.inputRotations.set([0,0,0,1,0,0,0,1]);
+    buffers.bonePhysicsToggles.fill(1);
+    const context = {seconds:0,deltaSeconds:1/60,frame:0,frameRate:30,skeleton:{bones:[{index:0,parentIndex:-1,restTranslation:[0,-1,0],restRotation:[0,0,0,1]},{index:1,parentIndex:-1,restTranslation:[0,3,0],restRotation:[0,0,0,1]}]},
+      rigidBodies:[{index:0,boneIndex:0,motionType:'static',shape:{type:'sphere',size:[1,1,1]},mass:0,collisionGroup:0,collisionMask:65535,localTranslation:[0,-1,0],localRotation:[0,0,0,1]}, {index:1,boneIndex:1,motionType:'dynamic',shape:{type:'sphere',size:[0.5,0.5,0.5]},mass:1,collisionGroup:1,collisionMask:65535,localTranslation:[0,3,0],localRotation:[0,0,0,1]}],joints:[],
+      inputTranslations:buffers.inputTranslations,inputRotations:buffers.inputRotations,inputWorldMatricesColumnMajor:buffers.inputWorldMatricesColumnMajor,bonePhysicsToggles:buffers.bonePhysicsToggles,
+      output:{translations:buffers.outputTranslations,rotations:buffers.outputRotations,worldMatricesColumnMajor:buffers.outputWorldMatricesColumnMajor,updatedBoneIndices:buffers.updatedBoneIndices}};
+    const trajectory=[];
+    for(let frame=0;frame<240;frame++) {
+      context.seconds=frame/60; context.frame=frame/2;
+      const result=backend.step(context);
+      if(result.diagnostics?.some(d=>d.level==='error')) throw Error(JSON.stringify(result));
+      trajectory.push(buffers.outputTranslations[4]);
+      if(result.updatedBoneCount !== 1 || buffers.updatedBoneIndices[0] !== 1) throw Error('Invalid output bone indices');
+    }
+    const contacts=backend.debugControllerContactCount(0);
+    if(!contacts || backend.debugControllerContactCount(1)!==0) throw Error('Controller contact missing or assigned to wrong hand '+JSON.stringify({direct,contacts,right:backend.debugControllerContactCount(1),finalY:trajectory.at(-1)}));
+    backend.reset(context);
+    if(backend.debugControllerContactCount()!==0) throw Error('Stale contacts after reset');
+    backend.step(context);
+    backend.dispose();
+    if(backend.debugControllerContactCount()!==0) throw Error('Stale contacts after dispose');
+    results.push({direct,trajectory,contacts});
+  }
+  const error=Math.max(...results[0].trajectory.map((v,i)=>Math.abs(v-results[1].trajectory[i])));
+  if(!Number.isFinite(error)||error>1e-6) throw Error('Trajectory mismatch '+error);
+  status.textContent='PASS '+JSON.stringify({frames:240,maxTrajectoryError:error,copiedContactCount:results[0].contacts,directContactCount:results[1].contacts,finalY:results[0].trajectory.at(-1)});
+} catch(error) {status.textContent='FAIL '+error.stack;console.error(error);}
+</script>

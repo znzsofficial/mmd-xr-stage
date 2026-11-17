@@ -110,21 +110,46 @@ describe("runtime asynchronous lifecycle", () => {
     const model = modelFixture();
     vi.spyOn(ThreeMmdLoader.prototype, "loadModel").mockResolvedValue(model);
     const dispose = vi.fn();
+    const enabled = vi.fn(() => true);
     vi.mocked(createBulletPhysicsBackend).mockResolvedValue({ name: "bullet", disabled: false, disposed: false, step: () => ({ simulated: true }), dispose });
     const runtime = createMmdRuntimeHandle(new THREE.Scene(), {
       controllerColliders: () => [new THREE.Matrix4().makeTranslation(1, 2, 3), new THREE.Matrix4()],
+      controllerCollidersEnabled: enabled,
       controllerColliderRadius: () => 0.08,
     });
     try {
       const { modelId } = await runtime.addModel(new File(["pmx"], "model.pmx"), [], { physics: true, transform: { scale: 0.2 } });
       const options = vi.mocked(createBulletPhysicsBackend).mock.lastCall![0]!;
       const matrix = options.controllerColliders!()[0];
+      expect(enabled).toHaveBeenCalledTimes(1);
       expect([...matrix.slice(12, 15)]).toEqual([5, 10, -15]);
       expect((options.controllerRadius as () => number)()).toBeCloseTo(0.4);
       runtime.setModelTransform(modelId, { scale: 0.4 });
       expect((options.controllerRadius as () => number)()).toBeCloseTo(0.2);
+      enabled.mockReturnValue(false);
+      const hidden = options.controllerColliders!();
+      expect(hidden.every((matrix) => matrix[13] === -1000)).toBe(true);
     } finally { runtime.dispose(); }
     expect(dispose).toHaveBeenCalledOnce();
+  });
+
+  it("does not report stale haptic contacts from hidden or disposed models", async () => {
+    vi.spyOn(ThreeMmdLoader.prototype, "loadModel").mockResolvedValue(modelFixture());
+    const query = vi.fn(() => 2);
+    const backend = { name: "bullet", disabled: false, disposed: false, step: () => ({ simulated: true }), debugControllerContactCount: query };
+    vi.mocked(createBulletPhysicsBackend).mockResolvedValue(backend);
+    const runtime = createMmdRuntimeHandle(new THREE.Scene());
+    try {
+      const { modelId } = await runtime.addModel(new File(["pmx"], "model.pmx"), [], { physics: true });
+      expect(runtime.getControllerContactCount(0)).toBe(2);
+      runtime.setModelVisible(modelId, false);
+      expect(runtime.getControllerContactCount(0)).toBe(0);
+      expect(query).toHaveBeenCalledTimes(1);
+      runtime.setModelVisible(modelId, true);
+      backend.disposed = true;
+      expect(runtime.getControllerContactCount(0)).toBe(0);
+      expect(query).toHaveBeenCalledTimes(1);
+    } finally { runtime.dispose(); }
   });
 
   it("does not apply a late motion to a disposed model", async () => {
