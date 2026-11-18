@@ -2,6 +2,8 @@
 
 ## 导出一次观看的记录
 
+报告的 `startup.firstVisibleXrFrameMs` 从打开本次 XR 覆盖层开始，到首个可见 XR 回调。`firstFrameAfterAssetsReadyMs` 是模型/物件列表已就绪且队列不再运行时的首个可见帧回调；都不是 GPU 完成提交的时间。约一秒的 `windows` 记录实际 `scenery` 选择。
+
 正常或通过系统菜单退出 VR 后，在准备页下方点「导出上次 VR 性能记录（JSON）」。报告只在页面内存中保留最近一次有有效样本的会话；刷新会清除，不上传模型或设备追踪数据。
 
 `callbackIntervalMs` 提供平均值、最慢值和 P50/P95/P99（0.25 ms 分桶上界）；会话可见期间的长卡顿也参加统计，但进场及可见性变化后的第一段间隔不计。`overBudgetFraction` 为超过当时 session 实际 Hz 对应帧周期的比例，严格超预算会受到微小时序抖动影响；`overOneAndHalfBudgetsFraction` 单独统计超过 1.5 个周期的比例。两者都不是合成器丢帧数。刷新率未报告的帧不参与分母。

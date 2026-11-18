@@ -55,6 +55,8 @@ describe("MMD VR adjustments", () => {
   });
 
   it("clamps model scale and user height", () => {
+    expect(normalizeMmdVrPrefs({liveHouseEnabled:true}).scenery).toBe("liveHouse");
+    expect(normalizeMmdVrPrefs({liveHouseEnabled:true, scenery:"pool"}).scenery).toBe("pool");
     expect(normalizeMmdVrModelScale(0.001)).toBe(0.01);
     expect(normalizeMmdVrModelScale(12)).toBe(10);
     expect(normalizeMmdVrHeightOffset(-6)).toBe(-5);

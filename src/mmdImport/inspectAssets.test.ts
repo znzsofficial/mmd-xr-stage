@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { inspectAssets, readModelTextureReferences } from "./inspectAssets";
 import { resolveCompanion, withAssetPath } from "./assetPaths";
 
@@ -19,10 +19,12 @@ function pmx(textures: string[]) {
 describe("asset preflight", () => {
   it("reads actual PMX texture references including parent-relative paths", async () => {
     const model = pmx(["../textures/顔.png"]);
+    const read = vi.spyOn(model, "arrayBuffer");
     expect(await readModelTextureReferences(model)).toEqual(["../textures/顔.png"]);
     const texture = withAssetPath(new File(["png"], "顔.png"), "package/textures/顔.png");
     expect((await inspectAssets([model, texture])).issues).toEqual([]);
     expect((await inspectAssets([model])).issues).toEqual([{ kind: "missing", file: "package/models/model.pmx", reference: "../textures/顔.png" }]);
+    expect(read).toHaveBeenCalledOnce();
   });
 
   it("reads PMD material textures without treating bundled toon textures as missing", async () => {

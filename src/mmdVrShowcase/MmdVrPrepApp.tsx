@@ -15,6 +15,8 @@ import { MMD_VR_MAX_MODELS, MMD_VR_MAX_OBJECTS, type MmdVrAssetSlot } from "./mm
 import { formatMmdVrProfileSummary, getMmdVrRenderProfile } from "./mmdVrQuality";
 import { requestMmdVrEnter } from "./requestMmdVrEnter";
 import { useMmdVrStore } from "./mmdVrStore";
+import { SCENERY, sceneryIds, resolveScenery } from "./scenery/catalog";
+import { preparedModel } from "./mmdRuntime/preparedModel";
 import { ACCENT_CHROMA, ACCENT_COLORS, ACCENT_HUES, updateThemeSettings } from "../system/theme";
 import { useThemeSettings } from "../system/useThemeSettings";
 import { expandAssetFiles, AssetImportError, IMPORT_LIMITS, type ArchiveEncoding, type ImportProgress } from "../mmdImport/importArchive";
@@ -95,6 +97,7 @@ export function MmdVrPrepApp() {
   const [bodyMotionPath, setBodyMotionPath] = useState("");
   const [faceMotionPath, setFaceMotionPath] = useState("");
   const [dragging, setDragging] = useState(false);
+  const [warmState, setWarmState] = useState<"idle" | "loading" | "ready">("idle");
 
   const questPreset = getQuestPreset(prefs);
   const highLoadConfig = prefs.frameRatePref === "120"
@@ -124,6 +127,20 @@ export function MmdVrPrepApp() {
     () => objects.filter((object) => selectedObjectPaths.includes(relativePath(object))).slice(0, MMD_VR_MAX_OBJECTS),
     [objects, selectedObjectPaths],
   );
+  const firstModel = selectedModels[0];
+  useEffect(() => {
+    let alive = true;
+    setWarmState("idle");
+    if (!firstModel || !report || importing || checkingAssets) return;
+    const timer = window.setTimeout(() => {
+      if (useMmdVrStore.getState().overlayOpen) return;
+      setWarmState("loading");
+      void preparedModel.warm(firstModel, files).then(ok => {
+        if (alive && !useMmdVrStore.getState().overlayOpen) setWarmState(ok ? "ready" : "idle");
+      });
+    }, 80);
+    return () => { alive = false; window.clearTimeout(timer); preparedModel.clear(); };
+  }, [firstModel, files, report, importing, checkingAssets]);
 
   useEffect(() => {
     const input = folderInputRef.current;
@@ -318,6 +335,8 @@ export function MmdVrPrepApp() {
   }
 
   function enterVr(resume = false) {
+    setWarmState("idle");
+    if (resume && savedStage?.physicsEnabled) preparedModel.clear();
     const bodyMotion = motions.find((file) => relativePath(file) === bodyMotionPath) ?? null;
     const faceMotion = motions.find((file) => relativePath(file) === faceMotionPath) ?? null;
     const assets: MmdVrAssetSlot[] = [
@@ -686,6 +705,12 @@ export function MmdVrPrepApp() {
 
             <div className="stage-config-body">
               <p className="stage-config-notice">{t("diagPrepHint")}</p>
+              <label className="stage-field">
+                <span className="stage-field-label">{t("sceneryPicker")}</span>
+                <select className="stage-select" value={prefs.scenery} onChange={(event) => setPrefs({ scenery: resolveScenery(event.target.value) })}>
+                  {sceneryIds.map(id => <option key={id} value={id}>{t(SCENERY[id].label)}</option>)}
+                </select>
+              </label>
 
               <div className="stage-form-row">
                 <span className="stage-row-label">{t("settingsMmdVrQuestPreset")}</span>
@@ -981,6 +1006,7 @@ export function MmdVrPrepApp() {
               <Icon icon="solar:arrow-right-linear" width={18} height={18} />
             </button>
           </div>
+          {warmState !== "idle" && <p role="status" className="stage-launch-hint">{t(warmState === "ready" ? "modelWarmReady" : "modelWarmLoading")}</p>}
           <p className="stage-launch-hint">{t("mmdVrPrepEnterHint")}</p>
         </div>
       </footer>

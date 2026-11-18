@@ -19,6 +19,7 @@ import {
   mmdVrViewDistanceToSlider,
 } from "../mmdVrAdjustments";
 import { useLanguageStore } from "../../languageStore";
+import { SCENERY, nextScenery, showSceneryGrid } from "../scenery/catalog";
 import { formatAssetProgress, paginateLoadDetails } from "../loadText";
 import { useRenderDiagnostics } from "../renderDiagnostics";
 import { diagnosticLines } from "../diagnosticText";
@@ -1155,8 +1156,8 @@ function VisualSettingsPanel({
         onPress={() => setPrefs({ handTracking: !useMmdVrStore.getState().prefs.handTracking })}
       />
       <HudButton position={[0.45, -0.54, 0]} size={[0.85, 0.14]}
-        label={t(prefs.liveHouseEnabled ? "hudLiveHouse" : "hudSimpleStage")} active={prefs.liveHouseEnabled}
-        onPress={() => setPrefs({ liveHouseEnabled: !useMmdVrStore.getState().prefs.liveHouseEnabled })} />
+        label={t(SCENERY[prefs.scenery].label)} active={prefs.scenery !== "floor"}
+        onPress={() => setPrefs({ scenery: nextScenery(useMmdVrStore.getState().prefs.scenery) })} />
     </group>
   );
 }
@@ -1509,7 +1510,7 @@ export function MmdVrControlBar({
   const placeMode = useMmdVrStore((s) => s.placeMode);
   const prefs = useMmdVrStore((s) => s.prefs);
   const profile = getMmdVrRenderProfile(prefs);
-  const gridVisible = profile.showGrid && (!prefs.liveHouseEnabled || placeMode || prefs.gridPref === "on");
+  const gridVisible = showSceneryGrid(prefs.scenery, profile.showGrid, prefs.gridPref === "on", placeMode);
   const setPlaying = useMmdVrStore((s) => s.setPlaying);
   const setLoop = useMmdVrStore((s) => s.setLoop);
   const setPlaceMode = useMmdVrStore((s) => s.setPlaceMode);

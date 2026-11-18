@@ -2,6 +2,8 @@
 
 ## Project Shape
 
+- Built-in modelling is environment content for imported characters. Use `scenery/catalog.ts` as the set identity across prep, HUD and reports. Sets do not own user file slots, collision worlds, or renderer lifetimes. Preloaded characters have a single owner: transfer once by File and companion identity, or dispose on invalidation.
+
 - When resuming this work, read `docs/HANDOFF.md` for branch/release state and outstanding checks. Read `PRODUCT.md` and `DESIGN.md` before VR UI edits; the porcelain palette is scoped to HUD, not the prep page or stage lighting.
 
 - Single-purpose WebGL + WebXR MMD showcase for Meta Quest. Prep page at `/` (`index.html` -> `src/main.tsx` -> `src/mmdVrShowcase/MmdVrPrepApp`), XR scene entered from there.

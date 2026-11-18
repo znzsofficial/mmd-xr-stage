@@ -22,6 +22,9 @@ import { getMmdVrRenderProfile } from "../mmdVrQuality";
 import { PLACE_HALF_WIDTH, useMmdVrStore, type MmdVrLightPreset, type MmdVrMaterialState } from "../mmdVrStore";
 import { objectHeadingDegrees, setObjectHeadingDegrees } from "../objectHeading";
 import { LiveHouse } from "./LiveHouse";
+import { prepareModelGpu } from "../prepareModelGpu";
+import { DaylightSet, DaySky, SUN_POSITIONS } from "../scenery/DaylightSets";
+import { showSceneryGrid } from "../scenery/catalog";
 import { useMmdVrTheme } from "../mmdVrTheme";
 import { prepareMmdVrModel } from "../prepareMmdVrModel";
 import { getMmdVrControllerColliderMatrices } from "../mmdVrControllerColliders";
@@ -302,7 +305,13 @@ export function MmdVrStageContent() {
   const mmdPrefs = useMmdVrStore((s) => s.prefs);
   const profile = getMmdVrRenderProfile(mmdPrefs);
   const lightPreset = mmdPrefs.lightPreset;
-  const lightCfg = LIGHT_PRESETS[lightPreset] ?? LIGHT_PRESETS.stage;
+  const scenery = mmdPrefs.scenery;
+  const daySet = scenery === "classroom" || scenery === "pool" || scenery === "lawn" ? scenery : null;
+  const baseLight = LIGHT_PRESETS[lightPreset] ?? LIGHT_PRESETS.stage;
+  const lightCfg = useMemo(() => !daySet ? baseLight : ({ ...baseLight,
+    sunPos: SUN_POSITIONS[daySet], hemiSky: "#d4e5ee", hemiGround: daySet === "lawn" ? "#72845a" : "#a79d8d",
+    hemi: baseLight.hemi + 0.32, fogColor: lightPreset === "warm" ? "#e7c8a7" : "#c5dfe6",
+  }), [daySet, baseLight, lightPreset]);
   const rimIntensity = lightCfg.rimIntensity > 0 ? lightCfg.rimIntensity : 0.28;
   const viewDistance = mmdPrefs.viewDistance;
   const shadowExtent = profile.quality === "high" ? 6 : profile.quality === "balanced" ? 5 : 4;
@@ -341,7 +350,7 @@ export function MmdVrStageContent() {
   const lightingKeyRef = useRef("");
   const lifecycleGenerationRef = useRef(0);
   const physicsOperationCountRef = useRef(0);
-  const appliedPhysicsEnabledRef = useRef(false);
+  const appliedPhysicsEnabledRef = useRef(useMmdVrStore.getState().physicsEnabled);
   const appliedSelfCollisionRef = useRef(useMmdVrStore.getState().prefs.physicsDynamicSelfCollision);
   const labelsRef = useRef({
     loading: "Loading…",
@@ -420,9 +429,10 @@ export function MmdVrStageContent() {
         return map[useMmdVrStore.getState().prefs.physicsColliderRestitution];
       },
       prepareModel: prepareMmdVrModel,
+      prepareGpu: (root, stale) => prepareModelGpu(gl, scene, camera, root, stale),
     });
     return handle;
-  }, [scene]);
+  }, [scene, gl]);
 
   useLayoutEffect(() => {
     runtimeRef.current = runtime;
@@ -542,10 +552,10 @@ export function MmdVrStageContent() {
   function applyLighting() {
     const sun = sunRef.current;
     if (!sun) return;
-    const key = `${lightPreset}|${profile.shadows}|${sun.uuid}`;
+    const key = `${scenery}|${lightPreset}|${profile.shadows}|${sun.uuid}`;
     if (lightingKeyRef.current === key) return;
     lightingKeyRef.current = key;
-    const cfg = LIGHT_PRESETS[useMmdVrStore.getState().prefs.lightPreset] ?? LIGHT_PRESETS.stage;
+    const cfg = lightCfg;
     sun.position.set(...cfg.sunPos);
     sun.intensity = cfg.sun;
     sun.color.set(cfg.sunColor);
@@ -561,7 +571,7 @@ export function MmdVrStageContent() {
   useLayoutEffect(() => {
     lightingKeyRef.current = "";
     applyLighting();
-  }, [runtime, lightPreset, profile.shadows]);
+  }, [runtime, lightCfg, profile.shadows]);
 
   useLayoutEffect(() => {
     if (!(camera instanceof THREE.PerspectiveCamera)) return;
@@ -763,8 +773,6 @@ export function MmdVrStageContent() {
           timeRef.current = restoreStageTime(saved?.time ?? 0, runtime.duration);
           if (saved) {
             useMmdVrStore.getState().setLoop(saved.loop);
-            useMmdVrStore.getState().setPhysicsControllerCollisions(saved.controllerCollisions);
-            useMmdVrStore.getState().setPhysicsEnabled(saved.physicsEnabled);
           }
         }
         // Force an evaluation on the next frame so static models (no motion,
@@ -988,7 +996,7 @@ export function MmdVrStageContent() {
       {mmdPrefs.stageFogEnabled ? (
         <fog attach="fog" args={[lightCfg.fogColor, Math.min(10, viewDistance * 0.45), viewDistance]} />
       ) : null}
-      {mmdPrefs.stageSkyEnabled ? (
+      {mmdPrefs.stageSkyEnabled && daySet ? <DaySky sun={lightCfg.sunPos} warm={lightPreset === "warm"} /> : mmdPrefs.stageSkyEnabled ? (
         <StageSky zenith={lightCfg.skyZenith} horizon={lightCfg.skyHorizon} bottom={lightCfg.fogColor} />
       ) : null}
       <ambientLight color={lightCfg.ambientColor} intensity={lightCfg.ambient} />
@@ -1022,13 +1030,14 @@ export function MmdVrStageContent() {
         shadows={profile.shadows}
         placeMode={placeMode}
         floorColor={lightCfg.floorColor}
-        deck={mmdPrefs.liveHouseEnabled}
+        deck={scenery !== "floor"}
       />
-      {mmdPrefs.liveHouseEnabled && <LiveHouse concert={lightPreset === "contrast"} />}
+      {scenery === "liveHouse" && <LiveHouse concert={lightPreset === "contrast"} />}
+      {daySet && <DaylightSet id={daySet} shadows={profile.shadows} />}
       {mmdPrefs.stageLightPoolEnabled ? (
         <StageLightPool color={lightCfg.poolColor} opacity={Math.min(0.14, rimIntensity * 0.08)} />
       ) : null}
-      {profile.showGrid && (!mmdPrefs.liveHouseEnabled || placeMode || mmdPrefs.gridPref === "on") ? (
+      {showSceneryGrid(scenery, profile.showGrid, mmdPrefs.gridPref === "on", placeMode) ? (
         <gridHelper
           args={[12, 12, accent.gridMajor, accent.gridMinor]}
           position={[0, 0.01, 0]}

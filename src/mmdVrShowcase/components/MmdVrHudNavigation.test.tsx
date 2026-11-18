@@ -37,11 +37,11 @@ it("keeps one asset panel mounted and switches settings without losing playback 
     await click(t("hudVisual"));
     expect(buttons("Hide asset")).toHaveLength(0);
     await click(t("hudSimpleStage"));
-    expect(useMmdVrStore.getState().prefs.liveHouseEnabled).toBe(true);
+    expect(useMmdVrStore.getState().prefs.scenery).toBe("liveHouse");
     await click(t("hudSoftHighlights"));
     expect(useMmdVrStore.getState().prefs.softHighlights).toBe(true);
     await click(t("hudLiveHouse"));
-    expect(useMmdVrStore.getState().prefs.liveHouseEnabled).toBe(false);
+    expect(useMmdVrStore.getState().prefs.scenery).toBe("classroom");
     await click(t("hudPhysics"));
     expect(buttons("Physics off")).toHaveLength(1);
     await click(t("hudComfort"));

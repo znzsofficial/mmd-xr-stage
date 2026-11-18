@@ -4,14 +4,15 @@ import {
   ThreeMmdLoader,
   type MmdAnimation,
   type ThreeMmdModel,
-  type TextureResolver,
 } from "@yohawing/three-mmd-loader";
 import type { MmdPhysicsBackend } from "@yohawing/three-mmd-loader/physics";
 import { DefaultMmdRuntime } from "@yohawing/three-mmd-loader/runtime";
 import * as THREE from "three";
 import { PhysicsPoseDisplay } from "./physicsPoseDisplay";
 import { PARK_Y } from "./colliderReentry";
-import { resolveCompanion } from "../../mmdImport/assetPaths";
+import { createLocalTextureResolver } from "./localTextureResolver";
+import { preparedModel } from "./preparedModel";
+export { createLocalTextureResolver } from "./localTextureResolver";
 import { createBulletPhysicsBackend, type ColliderShapeFactory, type MmdPhysicsQuality } from "./mmdPhysics";
 import {
   applyMaterialOverride,
@@ -147,16 +148,6 @@ export function bindStaticMmdPhysicsRuntime(model: Pick<ThreeMmdModel, "setAnima
   model.setAnimation(STATIC_PHYSICS_BINDING_ANIMATION);
 }
 
-export function createLocalTextureResolver(modelFile: File, companionFiles: readonly File[] = []): TextureResolver {
-  const allFiles = companionFiles.length ? companionFiles : [modelFile];
-  return {
-    async resolve(path) {
-      const { matches } = resolveCompanion(modelFile, path, allFiles);
-      return matches.length === 1 ? matches[0] : undefined;
-    },
-  };
-}
-
 /**
  * Root transform must be in matrixWorld before Bullet samples bone world matrices.
  * `physicsStep: true` forces root scale=1 (collider sizes are model-unit, not scaled).
@@ -214,6 +205,7 @@ export type MmdRuntimeOptions = {
   physicsBoneFeedbackScale?: () => number;
   physicsDynamicSelfCollision?: () => boolean;
   prepareModel?: (root: THREE.Object3D) => void;
+  prepareGpu?: (root: THREE.Object3D, stale: () => boolean) => Promise<void>;
 };
 
 export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOptions = {}): MmdRuntimeHandle {
@@ -400,7 +392,10 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
     });
     let model;
     try {
-      model = await loader.loadModel(modelFile);
+      const warm = !withPhysics && preparedModel.take(modelFile, companionFiles);
+      const ready = warm ? await warm : null;
+      if (!ready) assertActive();
+      model = ready ?? await loader.loadModel(modelFile);
       if (withPhysics) bindStaticMmdPhysicsRuntime(model);
       colliderRoot = model.root;
       prepareModel?.(model.root);
@@ -415,7 +410,6 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
 
     enableModelShadows(model);
     enforceModelCastOnlyShadows(model.root);
-    scene.add(model.root);
 
     const morphNames = extractMorphNames(model);
     const materialNames = extractMaterialNames(model);
@@ -468,10 +462,19 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
     model.root.traverse((object) => {
       object.userData.mmdModelId = id;
     });
-    entries.set(id, entry);
     syncEntryWorldMatrix(entry);
     applyMaterialVisibility(entry);
     applyMaterialOverrides(entry, lightingContext());
+    if (options.prepareGpu) {
+      try {
+        await options.prepareGpu(model.root, () => disposed);
+        assertActive();
+      } catch (error) {
+        disposeEntryPhysics(entry); disposeModelObject(entry); throw error;
+      }
+    }
+    scene.add(model.root);
+    entries.set(id, entry);
     refreshMaterialTextures(entry);
 
     return {

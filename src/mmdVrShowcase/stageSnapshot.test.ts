@@ -39,8 +39,10 @@ describe("same-page stage resume", () => {
     expect(useMmdVrStore.getState()).toMatchObject({ playing: false, captureStage: null, savedStage: { time: 36 } });
     store.prepareStage(true);
     expect(useMmdVrStore.getState().resumeStage?.models[0].file).toBe(file);
+    expect(useMmdVrStore.getState().physicsEnabled).toBe(true);
     store.prepareStage(false);
     expect(useMmdVrStore.getState().resumeStage).toBeNull();
+    expect(useMmdVrStore.getState().physicsEnabled).toBe(false);
   });
 
   it("preserves the previous stage if a new entry is cancelled before assets finish", () => {

@@ -18,6 +18,7 @@ import {
 } from "../xr";
 import { endMmdVrAssetSession } from "./mmdVrAssets";
 import { resetMmdVrClock } from "./mmdVrClock";
+import { resolveScenery, type SceneryId } from "./scenery/catalog";
 import type { MmdPhysicsQuality } from "./mmdPhysicsQuality";
 import type { MmdVrHapticLevel } from "./mmdVrHaptics";
 import { normalizeMmdVrHeightOffset, normalizeMmdVrModelScale, normalizeMmdVrViewDistance } from "./mmdVrAdjustments";
@@ -93,7 +94,7 @@ export type MmdVrPrefs = {
   snapTurnDegrees: MmdVrSnapTurnDegrees;
   exposure: number;
   stageSkyEnabled: boolean;
-  liveHouseEnabled: boolean;
+  scenery: SceneryId;
   softHighlights: boolean;
   stageFogEnabled: boolean;
   stageRimLightEnabled: boolean;
@@ -122,6 +123,7 @@ type MmdVrStore = {
   setStageCapture: (capture: (() => StageSnapshot | null) | null) => void;
   prepareStage: (resume: boolean) => void;
   entryEpoch: number;
+  entryStartedAt: number | null;
   assetLoad: AssetLoadProgress;
   setAssetLoad: (progress: AssetLoadProgress) => void;
   assetRetryEpoch: number;
@@ -281,7 +283,7 @@ function normalizeHapticLevel(value: unknown): MmdVrHapticLevel {
   return "low";
 }
 
-export function normalizeMmdVrPrefs(parsed: Partial<MmdVrPrefs> = {}): MmdVrPrefs {
+export function normalizeMmdVrPrefs(parsed: Partial<MmdVrPrefs> & { liveHouseEnabled?: boolean } = {}): MmdVrPrefs {
   const lightPreset = normalizeLight(parsed.lightPreset);
   const legacyPresetEffectsEnabled = lightPreset !== "stage";
   return {
@@ -303,7 +305,7 @@ export function normalizeMmdVrPrefs(parsed: Partial<MmdVrPrefs> = {}): MmdVrPref
     snapTurnDegrees: normalizeMmdVrSnapTurnDegrees(parsed.snapTurnDegrees),
     exposure: normalizeMmdVrExposure(parsed.exposure),
     stageSkyEnabled: parsed.stageSkyEnabled !== false,
-    liveHouseEnabled: parsed.liveHouseEnabled === true,
+    scenery: resolveScenery(parsed.scenery, parsed.liveHouseEnabled),
     softHighlights: parsed.softHighlights === true,
     stageFogEnabled: parsed.stageFogEnabled !== false,
     stageRimLightEnabled: typeof parsed.stageRimLightEnabled === "boolean"
@@ -348,7 +350,7 @@ const prefsStorage = createLocalPrefsStorage<MmdVrPrefs>({
     snapTurnDegrees: 30,
     exposure: 1,
     stageSkyEnabled: true,
-    liveHouseEnabled: false,
+    scenery: "floor",
     softHighlights: false,
     stageFogEnabled: true,
     stageRimLightEnabled: false,
@@ -412,7 +414,11 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
   resumeStage: null,
   captureStage: null,
   setStageCapture: (captureStage) => set({ captureStage }),
-  prepareStage: (resume) => set({ resumeStage: resume ? get().savedStage : null }),
+  prepareStage: (resume) => {
+    const saved = resume ? get().savedStage : null;
+    set({ resumeStage: saved, physicsEnabled: saved?.physicsEnabled ?? false,
+      physicsControllerCollisions: saved?.controllerCollisions ?? true });
+  },
   assetLoad: emptyAssetLoadProgress(),
   setAssetLoad: (assetLoad) => set({ assetLoad }),
   assetRetryEpoch: 0,
@@ -440,7 +446,7 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
     if (patch.snapTurnDegrees != null) prefs.snapTurnDegrees = normalizeMmdVrSnapTurnDegrees(patch.snapTurnDegrees);
     if (patch.exposure != null) prefs.exposure = normalizeMmdVrExposure(patch.exposure);
     if (patch.stageSkyEnabled != null) prefs.stageSkyEnabled = Boolean(patch.stageSkyEnabled);
-    if (patch.liveHouseEnabled != null) prefs.liveHouseEnabled = Boolean(patch.liveHouseEnabled);
+    if (patch.scenery != null) prefs.scenery = resolveScenery(patch.scenery);
     if (patch.softHighlights != null) prefs.softHighlights = Boolean(patch.softHighlights);
     if (patch.stageFogEnabled != null) prefs.stageFogEnabled = Boolean(patch.stageFogEnabled);
     if (patch.stageRimLightEnabled != null) prefs.stageRimLightEnabled = Boolean(patch.stageRimLightEnabled);
@@ -485,6 +491,7 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
       prefs: { ...state.prefs, heightOffset: normalizeMmdVrHeightOffset(heightOffset) },
     })),
   entryEpoch: 0,
+  entryStartedAt: null,
   phase: "idle",
   errorMessage: null,
   lastError: null,
@@ -493,6 +500,7 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
   overlayOpen: false,
   openOverlay: () => set((state) => ({
     entryEpoch: state.entryEpoch + 1,
+    entryStartedAt: performance.now(),
     assetLoad: emptyAssetLoadProgress(),
     assetRetryEpoch: 0,
     overlayOpen: true,

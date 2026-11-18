@@ -31,24 +31,37 @@ export function withAssetPath(file: File, path: string, root?: string) {
   return file;
 }
 
-export function resolveCompanion(model: File, reference: string, files: readonly File[]) {
-  const bound = companionBindings.get(model)?.get(referenceKey(reference));
-  if (bound && files.includes(bound)) return { matches: [bound], fallback: false };
-  const directory = relativePath(model).split("/").slice(0, -1).join("/");
-  const root = packageRoots.get(model);
-  const unique = [...new Set(files)];
-  const candidates = root ? unique.filter((file) => packageRoots.get(file) === root) : unique;
-  const target = normalizeAssetPath(`${directory ? `${directory}/` : ""}${reference}`)?.toLowerCase();
-  if (!target || (root && !target.startsWith(`${root.toLowerCase()}/`))) return { matches: [] as File[], fallback: false };
-  const exact = candidates.filter((file) => normalizeAssetPath(relativePath(file))?.toLowerCase() === target);
-  if (exact.length) return { matches: exact, fallback: false };
-  // Loose files may supplement an exact archive-relative path, never another ZIP.
-  if (root) {
-    const supplements = unique.filter((file) => !packageRoots.has(file) && normalizeAssetPath(relativePath(file))?.toLowerCase() === target);
-    if (supplements.length) return { matches: supplements, fallback: false };
+export function createCompanionIndex(files: readonly File[]) {
+  const members = new Set(files);
+  const byPath = new Map<string, File[]>(), byName = new Map<string, File[]>();
+  function add(map: Map<string, File[]>, key: string, f: File) {
+    const list = map.get(key); if (list) list.push(f); else map.set(key, [f]);
   }
-  const basename = reference.replaceAll("\\", "/").split("/").at(-1)?.toLowerCase();
-  return { matches: candidates.filter((file) => file.name.toLowerCase() === basename), fallback: true };
+  for (const f of members) {
+    const path = normalizeAssetPath(relativePath(f));
+    if (path) add(byPath, path.toLowerCase(), f);
+    add(byName, f.name.toLowerCase(), f);
+  }
+  return (model: File, reference: string) => {
+    const bound = companionBindings.get(model)?.get(referenceKey(reference));
+    if (bound && members.has(bound)) return { matches: [bound], fallback: false };
+    const directory = relativePath(model).split("/").slice(0, -1).join("/");
+    const root = packageRoots.get(model);
+    const target = normalizeAssetPath(`${directory ? `${directory}/` : ""}${reference}`)?.toLowerCase();
+    if (!target || (root && !target.startsWith(`${root.toLowerCase()}/`))) return { matches: [], fallback: false };
+    const exact = byPath.get(target) ?? [];
+    const samePackage = (f: File) => !root || packageRoots.get(f) === root;
+    const local = exact.filter(samePackage);
+    if (local.length) return { matches: local, fallback: false };
+    const loose = exact.filter(f => !packageRoots.has(f));
+    if (loose.length) return { matches: loose, fallback: false };
+    const basename = reference.replaceAll("\\", "/").split("/").at(-1)!.toLowerCase();
+    return { matches: (byName.get(basename) ?? []).filter(samePackage), fallback: true };
+  };
+}
+
+export function resolveCompanion(model: File, reference: string, files: readonly File[]) {
+  return createCompanionIndex(files)(model, reference);
 }
 
 export function mergeAssetFiles(previous: readonly File[], incoming: readonly File[]) {

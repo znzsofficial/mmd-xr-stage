@@ -1,7 +1,6 @@
-import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
-import { Color, InstancedMesh, Object3D, PlaneGeometry } from "three";
-
-type Part = { p: [number, number, number]; s: [number, number, number]; color: string; rx?: number; ry?: number; rz?: number };
+import { useEffect, useMemo } from "react";
+import { Color, PlaneGeometry } from "three";
+import { Batch, type Part } from "../scenery/SceneryBatch";
 
 function architecture(concert: boolean) {
   const blocks: Part[] = [];
@@ -60,25 +59,6 @@ function Cyclorama({ concert }: { concert: boolean }) {
   }, [concert]);
   useEffect(() => () => geometry.dispose(), [geometry]);
   return <mesh name="woven-backdrop" position={[0, 2.125, -5.32]} geometry={geometry} raycast={() => null}><meshBasicMaterial vertexColors /></mesh>;
-}
-
-function Batch({ parts, round, lit, name }: { parts: Part[]; round?: boolean; lit?: boolean; name: string }) {
-  const ref = useRef<InstancedMesh>(null);
-  useLayoutEffect(() => {
-    const mesh = ref.current!;
-    const pose = new Object3D(), color = new Color();
-    parts.forEach(({ p, s, rx = 0, ry = 0, rz = 0, color: tint }, index) => {
-      pose.position.set(...p); pose.scale.set(...s); pose.rotation.set(rx, ry, rz); pose.updateMatrix();
-      mesh.setMatrixAt(index, pose.matrix); mesh.setColorAt(index, color.set(tint));
-    });
-    mesh.instanceMatrix.needsUpdate = true;
-    mesh.instanceColor!.needsUpdate = true;
-    mesh.computeBoundingSphere();
-  }, [parts]);
-  return <instancedMesh ref={ref} args={[undefined, undefined, parts.length]} name={name} receiveShadow={!lit} raycast={() => null}>
-    {round ? <cylinderGeometry args={[0.5, 0.5, 1, 16]} /> : <boxGeometry />}
-    {lit ? <meshBasicMaterial /> : <meshStandardMaterial roughness={0.88} />}
-  </instancedMesh>;
 }
 
 export function LiveHouse({ concert }: { concert: boolean }) {

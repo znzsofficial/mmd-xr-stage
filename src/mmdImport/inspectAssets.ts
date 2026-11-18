@@ -1,10 +1,19 @@
 import { listMmdModels, listMmdMotions, listMmdObjects, relativePath } from "./folderFiles";
-import { resolveCompanion } from "./assetPaths";
+import { createCompanionIndex } from "./assetPaths";
 
 export type ImportIssue = { kind: "missing" | "ambiguous" | "fallback" | "invalid"; file: string; reference: string };
 export type ImportReport = { models: number; motions: number; objects: number; textures: number; issues: ImportIssue[] };
 
-export async function readModelTextureReferences(file: File): Promise<string[]> {
+const referenceCache = new WeakMap<File, Promise<string[]>>();
+export function readModelTextureReferences(file: File): Promise<string[]> {
+  const cached = referenceCache.get(file);
+  if (cached) return cached;
+  const pending = parseReferences(file).catch(error => { referenceCache.delete(file); throw error; });
+  referenceCache.set(file, pending);
+  return pending;
+}
+
+async function parseReferences(file: File): Promise<string[]> {
   const { parsePmxSectionInventory, parsePmdSectionInventory } = await import("@yohawing/three-mmd-loader/parser");
   const bytes = new Uint8Array(await file.arrayBuffer());
   if (/\.pmx$/i.test(file.name)) {
@@ -39,6 +48,7 @@ export async function inspectAssets(files: readonly File[], signal?: AbortSignal
   const models = listMmdModels(files);
   const objects = listMmdObjects(files);
   const issues: ImportIssue[] = [];
+  const resolve = createCompanionIndex(files);
   for (const file of [...models, ...objects.filter((file) => /\.gltf$/i.test(file.name))]) {
     signal?.throwIfAborted();
     try {
@@ -50,7 +60,7 @@ export async function inspectAssets(files: readonly File[], signal?: AbortSignal
       } else references = await readModelTextureReferences(file);
       signal?.throwIfAborted();
       for (const reference of references) {
-        const { matches, fallback } = resolveCompanion(file, reference, files);
+        const { matches, fallback } = resolve(file, reference);
         if (matches.length === 0) issues.push({ kind: "missing", file: relativePath(file), reference });
         else if (matches.length > 1) issues.push({ kind: "ambiguous", file: relativePath(file), reference });
         else if (fallback) issues.push({ kind: "fallback", file: relativePath(file), reference });

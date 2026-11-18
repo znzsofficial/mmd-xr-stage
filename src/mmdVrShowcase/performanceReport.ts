@@ -1,19 +1,25 @@
 import { create } from "zustand";
 import type { RenderDiagnostics, RenderRequest } from "./renderDiagnostics";
 
-type SceneSample = { models: number; objects: number; physics: boolean; liveHouse: boolean; shadows: boolean; playing: boolean };
+type SceneSample = { models: number; objects: number; physics: boolean; scenery?: string; liveHouse: boolean; shadows: boolean; playing: boolean };
 type Window = Omit<RenderDiagnostics, "requested" | "active"> & SceneSample & { elapsedMs: number };
 const MAX_WINDOWS = 1800;
 
 /** Aggregates in page memory; only visible XR callback intervals enter the histogram. */
-export function createPerformanceRecording(requested: RenderRequest) {
+export function createPerformanceRecording(requested: RenderRequest, entryStartedAt: number | null = null) {
   const startedAt = new Date().toISOString();
   const bins = new Uint32Array(8002); // 0.25ms upper bounds, last bin is >2000ms
   const windows: Window[] = [];
   const rates = new Map<number, number>();
   let count = 0, duration = 0, max = 0, knownBudget = 0, over = 0, late = 0, written = 0;
   let skipNext = true;
+  let firstVisibleXrFrameMs: number | null = null, firstFrameAfterAssetsReadyMs: number | null = null;
   return {
+    startupFrame(assetsReady: boolean) {
+      if (entryStartedAt == null || firstFrameAfterAssetsReadyMs !== null) return;
+      if (firstVisibleXrFrameMs === null) firstVisibleXrFrameMs = Math.round(performance.now() - entryStartedAt);
+      if (assetsReady) firstFrameAfterAssetsReadyMs = Math.round(performance.now() - entryStartedAt);
+    },
     interrupt() { skipNext = true; },
     interval(deltaSeconds: number, refreshRate?: number | null) {
       if (!(deltaSeconds > 0) || !Number.isFinite(deltaSeconds)) { skipNext = true; return; }
@@ -41,6 +47,7 @@ export function createPerformanceRecording(requested: RenderRequest) {
       };
       const start = written > MAX_WINDOWS ? written % MAX_WINDOWS : 0;
       return { schemaVersion: 1, startedAt, requested, visibleIntervalMs: Math.round(duration), intervalCount: count,
+        startup: { firstVisibleXrFrameMs, firstFrameAfterAssetsReadyMs },
         reportedRefreshRates: Object.fromEntries(rates), intervalsWithReportedRate: knownBudget,
         callbackIntervalMs: { mean: duration / count, p50Upper: quantile(.50), p95Upper: quantile(.95), p99Upper: quantile(.99), worst: max },
         overBudgetFraction: knownBudget ? over / knownBudget : null,

@@ -27,14 +27,18 @@ export function MmdVrDiagnostics({ requested }: { requested: RenderRequest }) {
       runtimeTiming.readAndReset();
       lastSession.current = session;
       if (session) {
-        recording.current = createPerformanceRecording(requested);
+        recording.current = createPerformanceRecording(requested, useMmdVrStore.getState().entryStartedAt);
         session.addEventListener("visibilitychange", recording.current.interrupt);
       }
       useRenderDiagnostics.getState().set(readRenderDiagnostics(gl, requested, null));
     }
     if (!session || !gl.xr.isPresenting) return;
     const visibleFrame = frame?.session === session && (!session.visibilityState || session.visibilityState === "visible");
-    if (visibleFrame) recording.current?.interval(delta, session.frameRate);
+    if (visibleFrame) {
+      const s = useMmdVrStore.getState();
+      recording.current?.startupFrame(!s.assetLoad.running && (s.modelCount > 0 || s.objects.length > 0));
+      recording.current?.interval(delta, session.frameRate);
+    }
     else recording.current?.interrupt();
     if (!visibleFrame || !Number.isFinite(delta) || delta <= 0 || delta > 0.5) {
       cadence.current.reset();
@@ -48,7 +52,7 @@ export function MmdVrDiagnostics({ requested }: { requested: RenderRequest }) {
       useRenderDiagnostics.getState().set(data);
       const s = useMmdVrStore.getState();
       recording.current?.sample(data, { models: s.models.length, objects: s.objects.length, playing: s.playing,
-        physics: s.physicsEnabled, liveHouse: s.prefs.liveHouseEnabled, shadows: gl.shadowMap.enabled });
+        physics: s.physicsEnabled, scenery: s.prefs.scenery, liveHouse: s.prefs.scenery === "liveHouse", shadows: gl.shadowMap.enabled });
     }
   });
   return null;

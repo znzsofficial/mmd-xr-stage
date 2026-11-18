@@ -1,7 +1,6 @@
 import { GLTFLoader } from "three-stdlib";
 import { LoadingManager } from "three";
-import { relativePath } from "../mmdImport/folderFiles";
-import { resolveCompanion } from "../mmdImport/assetPaths";
+import { createCompanionIndex } from "../mmdImport/assetPaths";
 
 /**
  * Best-effort normalization of a resource URL requested by GLTFLoader.
@@ -52,36 +51,35 @@ export type MmdVrGltfLoaderHandle = {
 export function createMmdVrGltfLoader(file: File, companions: readonly File[]): MmdVrGltfLoaderHandle {
   const urls: string[] = [];
   const urlsByFile = new Map<File, string>();
-  const filePath = relativePath(file);
-
   function makeUrl(source: File) {
+    const existing = urlsByFile.get(source);
+    if (existing) return existing;
     const url = URL.createObjectURL(source);
     urls.push(url);
     urlsByFile.set(source, url);
+    return url;
   }
 
-  makeUrl(file);
-  for (const companion of companions) {
-    if (relativePath(companion) === filePath) continue;
-    makeUrl(companion);
-  }
+  const url = makeUrl(file);
+  const resolve = createCompanionIndex([file, ...companions]);
 
   const loader = new GLTFLoader(new LoadingManager());
   loader.setResourcePath("./");
-  if (urlsByFile.size > 1) {
+  if (companions.length) {
     loader.manager.setURLModifier((requested) => {
       if (/^(blob:|data:|https?:)/i.test(requested)) return requested;
       let reference = normalizeGltfResourcePath(requested);
       try { reference = decodeURIComponent(reference); } catch { /* Retain literal malformed escapes. */ }
-      const { matches } = resolveCompanion(file, reference, [file, ...companions]);
-      return matches.length === 1 ? urlsByFile.get(matches[0]) ?? requested : requested;
+      const { matches } = resolve(file, reference);
+      return matches.length === 1 ? makeUrl(matches[0]) : requested;
     });
   }
   return {
     loader,
-    url: urls[0],
+    url,
     revoke: () => {
       for (const url of urls) URL.revokeObjectURL(url);
+      urls.length = 0; urlsByFile.clear();
     },
   };
 }
