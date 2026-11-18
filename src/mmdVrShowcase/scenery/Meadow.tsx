@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, IcosahedronGeometry, SRGBColorSpace, TextureLoader, Vector3, type Texture } from 'three';
-import { LAWN_KNOLLS, LAWN_SIZE, LAWN_TREES, MEADOW_POSTS, MEADOW_SEAT, meadowPathX as pathX } from './placementAreas';
+import { ARBOR, ARBOR_POSTS, LAWN_KNOLLS, LAWN_SIZE, LAWN_TREES, MEADOW_POSTS, MEADOW_SEAT, MEADOW_SUN, meadowPathX as pathX } from './placementAreas';
+import { span } from './detailParts';
 import groundUrl from './meadow-ground.webp';
 import { seededRandom } from './ClassroomLayout';
 import { Batch, type Part } from './SceneryBatch';
-import { noPick } from './sceneryPaint';
+import { noPick, paintedSurface } from './sceneryPaint';
 
 type V = Part['p'];
 
@@ -22,8 +23,39 @@ function flowers() {
         for(let k=0;k<5;k++){const a=k*1.256;tri([xx+ox,h,zz+oz],[xx+ox+rad*Math.cos(a-.38),h+.026,zz+oz+rad*Math.sin(a-.38)],[xx+ox+rad*Math.cos(a+.38),h+.032,zz+oz+rad*Math.sin(a+.38)],color);}}
     }
   }
+  // Compound leaves and tapering racemes of a wisteria trained along the arbor.
+  // Grow mostly over one side; gaps let sky and the far bend of the path show through.
+  for(let i=0;i<230;i++){
+    const side=i%4===0?-1:1, x=ARBOR.x+side*(.48+random()*1.22),z=ARBOR.z+(random()-.5)*3.16;
+    const y=2.77+.09*Math.sin(z*7)+random()*.13, a=random()*6.28;
+    for(let j=-2;j<=2;j++)for(const k of [-1,1]){
+      const xx=x+j*.063*Math.cos(a),zz=z+j*.063*Math.sin(a),dx=k*.107*Math.sin(a)+.064*Math.cos(a),dz=-k*.107*Math.cos(a)+.064*Math.sin(a);
+      const root:V=[xx,y,zz],tip:V=[xx+dx,y-.06,zz+dz],l:V=[xx+dx*.48-dz*.31,y+.014,zz+dz*.48+dx*.31],r:V=[xx+dx*.48+dz*.31,y,zz+dz*.48-dx*.31];
+      tri(root,l,tip,i%3?'#859953':'#a3ac63');tri(root,tip,r,'#647f48');
+    }
+    if(i%2===0){const length=.25+random()*.38;
+      for(let j=0;j<15;j++){
+        const t=j/15,theta=j*2.4+a,r=(1-t*.86)*.069,xx=x+r*Math.cos(theta),zz=z+r*Math.sin(theta),yy=y-t*length;
+        tri([xx-r*.88,yy,zz],[xx+r*.98,yy+.017,zz+.026],[xx,yy-.068,zz+.02],['#c6a4dd','#9c78b5','#e7cde8'][j%3]);
+      }
+    }
+  }
   const g=new BufferGeometry();g.setAttribute('position',new Float32BufferAttribute(pos,3));g.setAttribute('color',new Float32BufferAttribute(col,3));g.computeVertexNormals();return g;
 }
+
+// Static projection for the shadowless profile: the posts' shadows start at
+// their feet, the lattice and foliage land further along the same sun vector.
+function arborShade(){return paintedSurface(256,256,g=>{
+  const scale=256/11,rand=seededRandom(99);g.translate(128,128);g.scale(scale,scale);
+  const at=(x:number,y:number,z:number)=>[x-y*MEADOW_SUN[0]/MEADOW_SUN[1]-2,z-y*MEADOW_SUN[2]/MEADOW_SUN[1]-2] as const;
+  g.strokeStyle='#373c46';g.fillStyle='#373c46';g.lineCap='round';g.lineWidth=.14;
+  for(const {x,z} of ARBOR_POSTS){g.beginPath();g.moveTo(...at(x-ARBOR.x,0,z-ARBOR.z));g.lineTo(...at(x-ARBOR.x,2.7,z-ARBOR.z));g.stroke();}
+  for(let j=-4;j<=4;j++){g.beginPath();g.moveTo(...at(-1.86,2.8,j*.37));g.lineTo(...at(1.86,2.8,j*.37));g.stroke();}
+  for(let i=0;i<260;i++){const [x,z]=at((i%4?1:-1)*(.48+rand()*1.22),2.8,(rand()-.5)*3.16);g.beginPath();g.ellipse(x,z,.12+rand()*.15,.07+rand()*.1,rand()*3,0,Math.PI*2);g.fill();}
+});}
+
+function LatticeShade(){const map=useMemo(arborShade,[]);useEffect(()=>()=>map.dispose(),[map]);return <mesh position={[ARBOR.x+2,.008,ARBOR.z+2]} rotation-x={-Math.PI/2} raycast={noPick}>
+  <planeGeometry args={[11,11]}/><meshBasicMaterial map={map} transparent opacity={.27} depthWrite={false} polygonOffset polygonOffsetFactor={-1}/></mesh>;}
 
 // Irregular sprays of leaves instead of a smooth green sphere. A small solid
 // core shades the interior; the perimeter breaks into individual leaf tips.
@@ -64,6 +96,14 @@ function grove() {
   for(let i=0;i<4;i++)put(0,.43,-.23+i*.133,[1.82,.052,.113],'#bb966a');
   for(const dx of [-.67,.67])put(dx,.65,.23,[.065,.53,.055],'#586557');
   for(const y of [.66,.82])put(0,y,.25,[1.85,.135,.048],'#c5a277');
+  for(const post of ARBOR_POSTS){const {x,z}=post,side=Math.sign(x-ARBOR.x);
+    box([x,.14,z],[.37,.28,.37],'#b2ac90');box([x,1.45,z],[.17,2.46,.17],'#967c54');
+    wood.push(span([x,2.05,z],[x-side*.54,2.66,z],.092,'#ae9369'));
+    for(let j=0;j<6;j++){const a=j*1.37;branches.push(span([x+.104*Math.cos(a),.27+j*.38,z+.104*Math.sin(a)],
+      [x+.104*Math.cos(a+1.37),.65+j*.38,z+.104*Math.sin(a+1.37)],.052,'#807353'));}
+  }
+  for(const side of [-1,1])box([ARBOR.x+side*1.53,2.65,ARBOR.z],[.16,.23,3.22],'#b3926a');
+  for(let j=0;j<9;j++)box([ARBOR.x,2.81,ARBOR.z+(j-4)*.37],[3.74,.16,.09],'#ba9e71');
   return {wood,branches,leaves,hills};
 }
 
@@ -73,6 +113,7 @@ export function Meadow({shadows}:{shadows:boolean}) {
   useEffect(()=>{let active=true;const texture=new TextureLoader().load(groundUrl,ready=>{if(active){ready.colorSpace=SRGBColorSpace;ready.anisotropy=4;setMap(ready);}});return ()=>{active=false;texture.dispose();};},[]);
   useEffect(()=>()=>{grass.dispose();foliage.dispose();},[grass,foliage]);
   return <group name="scenery:lawn"><mesh rotation-x={-Math.PI/2} receiveShadow={shadows} raycast={noPick}><planeGeometry args={[LAWN_SIZE,LAWN_SIZE]} /><meshStandardMaterial key={map?'painted':'loading'} map={map} color={map?'white':'#98ae6c'} roughness={1} /></mesh>
+    {!shadows&&<LatticeShade/>}
     <Batch name="meadow-seat-and-split-rail" parts={p.wood} casts={shadows} /><Batch name="oak-and-birch-branches" parts={p.branches} round casts={shadows} />
     <Batch name="grove-canopies" parts={p.leaves} geometry={foliage} /><Batch name="distant-ridges" parts={p.hills} foliage />
     <mesh geometry={grass} raycast={noPick}><meshStandardMaterial vertexColors roughness={1} side={DoubleSide} /></mesh></group>;

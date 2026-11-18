@@ -1,7 +1,9 @@
 import { useMemo, useRef, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Vector3, type ShaderMaterial } from 'three';
+import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, TorusGeometry, Vector3, type ShaderMaterial } from 'three';
 import { POOL } from './placementAreas';
+import { span } from './detailParts';
+import { seededRandom } from './ClassroomLayout';
 import { Batch, type Part } from './SceneryBatch';
 import { noPick, paintedSurface } from './sceneryPaint';
 
@@ -32,8 +34,6 @@ function furnishings() {
   for(const side of [-1,1])box([side*22,-.315,-7],[29.8,.25,65],'#98b283');
   box([0,-.315,18],[14.3,.25,30],'#98b283');box([0,-.315,-30],[14.3,.25,21.0],'#98b283');
   for(const r of [POOL.deck,...POOL.walks,POOL.farWalk]) box([r.x,-.125,r.z],[r.w,.25,r.d],'#e7dbc4');
-  for(let x=-10;x<=10;x++) box([x,.001,1],[.012,.004,13.45],'#ada999');
-  for(let z=-5;z<=7;z++) box([0,.001,z],[22.97,.004,.014],'#b6ad9b');
   for(const x of [-5.13,5.13]) {
     box([x,-.11,-12.4],[.28,.23,13.6],'#fcf5dd'); box([x+Math.sign(x)*.22,-.003,-12.4],[.15,.01,13.42],'#8b9c95');
     for(let j=0;j<86;j++) box([x+Math.sign(x)*.22,.005,-5.83-j*.154],[.15,.01,.092],'#dfdfce');
@@ -64,8 +64,49 @@ function furnishings() {
     const z=-7-j*3.1;box([x,.88,z],[.09,1.76,.09],steel);if(j<5){box([x,1.7,z-1.55],[.06,.06,3.1],steel);box([x,.5,z-1.55],[.035,.035,3.1],steel);}
   }
   for(const r of POOL.benches){box([r.x,.39,r.z],[r.w,.09,r.d],'#ae8c69');for(const dx of [-.65,.65])box([r.x+dx,.075,r.z],[.09,.54,.43],steel);}
+  // Backstroke flags sag between capped uprights. The sockets are outside the water.
+  for(const f of POOL.flagPosts){tube([f.x,1.54,f.z],[.056,3.08,.056],steel);tube([f.x,.038,f.z],[.14,.074,.14],'#839e99');}
+  for(const z of [-9.5,-16.8])for(let i=0;i<16;i++){
+    const x=-5.45+i*10.9/16;drums.push(span([x,lineY(x),z],[x+10.9/16,lineY(x+10.9/16),z],.017,'#767c70'));
+  }
+  const rescue=POOL.rescue;
+  for(const dx of [-.32,.32]){box([rescue.x+dx,.76,rescue.z],[.065,1.52,.07],'#547d78');box([rescue.x+dx,.035,rescue.z],[.17,.07,.40],steel);}
+  box([rescue.x,1.34,rescue.z],[.89,.50,.07],'#dae5d4');box([rescue.x,1.59,rescue.z],[.91,.05,.10],'#4f807a');
+  // Ceramic depth bands set flush into the coping, outside the character's feet.
+  for(let i=0;i<41;i++)box([(i-20)*.244,.007,-5.58],[.226,.009,.105],i%4===0?'#3d8588':'#8eb7ad');
   for(let j=0;j<24;j++) {const a=j*.73,x=(j%2?-1:1)*(14+3*Math.sin(a)),z=-29+(j>>1)*3.7,h=3.2+1.1*Math.cos(a);tube([x,(h-.2)/2,z],[.27,h+.2,.27],'#847663');for(let k=0;k<4;k++)crowns.push({p:[x+.82*Math.sin(k*2),h+.4*Math.cos(k*2),z+.8*Math.cos(k*2)],s:[2.7,2.2,2.3],color:['#769568','#8aab72','#668662','#94ad73'][k]});}
   return {blocks,drums,crowns};
+}
+
+const lineY=(x:number)=>2.64+.37*(x/5.45)**2;
+function deckStone(){return paintedSurface(1024,600,g=>{
+  const rand=seededRandom(4270),slabs=['#e4d6bd','#e9dcc4','#e5d9c3','#e2d6be','#e7d9c0'];
+  g.fillStyle='#b7ad99';g.fillRect(0,0,1024,600);
+  for(let j=0;j<19;j++)for(let i=-1;i<19;i++){
+    const x=i*64+(j%2)*32,y=j*34;g.fillStyle=slabs[Math.floor(rand()*slabs.length)];g.fillRect(x+.5,y+.4,63.2,33.1);
+  }
+  for(const tint of ['rgba(115,104,87,.17)','rgba(255,250,229,.32)']){g.fillStyle=tint;for(let i=0;i<3400;i++)g.fillRect(rand()*1024,rand()*600,rand()*2.2+.6,rand()*1.5+.5);}
+  for(const x of [376,648]){
+    g.fillStyle='#f5ead3';g.fillRect(x-25,10,50,18);g.strokeStyle='#648784';g.lineWidth=1;g.strokeRect(x-25,10,50,18);
+    g.textAlign='center';g.fillStyle='#295b64';g.font='bold 12px system-ui';g.fillText('1.12 m',x,23);
+  }
+});}
+function flagCloth(){
+  const p:number[]=[],c:number[]=[],color=new Color();
+  for(const z of [-9.5,-16.8])for(let i=-10;i<=10;i++){
+    const x=i*.49,y=lineY(x),w=.211;
+    // Two slightly folded faces catch different light in stereo, with a piped top edge.
+    const a=[x-w,lineY(x-w),z],b=[x+w,lineY(x+w),z],m=[x,y-.055,z+.035],tip=[x+.09,y-.37,z+.10];
+    function tri(v:number[][],t:string){color.set(t);for(const pt of v){p.push(...pt);c.push(color.r,color.g,color.b);}}
+    const red=(i+10)%4<2;tri([a,tip,m],red?'#dd7353':'#3b8795');tri([m,tip,b],red?'#f79162':'#65a9b0');tri([a,m,b],'#f1e3bd');
+  }
+  const g=new BufferGeometry();g.setAttribute('position',new Float32BufferAttribute(p,3));g.setAttribute('color',new Float32BufferAttribute(c,3));g.computeVertexNormals();return g;
+}
+function lifeRing(){
+  const g=new TorusGeometry(.275,.076,8,48).toNonIndexed(),t=new Color(),c:number[]=[];
+  const uv=g.getAttribute('uv');for(let i=0;i<uv.count;i+=3){const u=(uv.getX(i)+uv.getX(i+1)+uv.getX(i+2))/3;
+    t.set((u*4+.15)%1<.3?'#fff0ca':'#e76838');for(let j=0;j<3;j++)c.push(t.r,t.g,t.b);}
+  g.setAttribute('color',new Float32BufferAttribute(c,3));return g;
 }
 
 // Trace the refracted view vector from the surface to the floor/side tiles.
@@ -96,11 +137,14 @@ function Water() {
 }
 
 export function PoolTerrace({shadows}:{shadows:boolean}) {
-  const p=useMemo(furnishings,[]), top=useMemo(canopy,[]);
+  const p=useMemo(furnishings,[]), top=useMemo(canopy,[]),flags=useMemo(flagCloth,[]),ring=useMemo(lifeRing,[]),stone=useMemo(deckStone,[]);
   const sign=useMemo(()=>paintedSurface(512,96,g=>{g.fillStyle='#216b74';g.fillRect(0,0,512,96);g.fillStyle='#faf2d7';g.textAlign='center';g.font='600 44px system-ui';g.fillText('AQUATICS CLUB',256,63);}),[]);
-  useEffect(()=>()=>{top.dispose();sign.dispose();},[top,sign]);
+  useEffect(()=>()=>{top.dispose();sign.dispose();flags.dispose();ring.dispose();stone.dispose();},[top,sign,flags,ring,stone]);
   return <group name="scenery:pool"><Batch name="lido-terrace-and-pavilion" parts={p.blocks} casts={shadows} /><Batch name="pool-metalwork" parts={p.drums} round /><Batch name="pool-gardens" parts={p.crowns} foliage />
     {POOL.parasols.map(r=><mesh key={r.x} position={[r.x,2.51,r.z]} geometry={top} castShadow={shadows} raycast={noPick}><meshStandardMaterial side={DoubleSide} vertexColors roughness={1}/></mesh>)}
     <mesh position={[0,2.93,-20.69]} raycast={noPick}><planeGeometry args={[3.35,.62]} /><meshStandardMaterial map={sign} /></mesh>
+    <mesh geometry={flags} raycast={noPick}><meshStandardMaterial vertexColors roughness={1} side={DoubleSide}/></mesh>
+    <mesh geometry={ring} position={[POOL.rescue.x,1.18,POOL.rescue.z+.11]} raycast={noPick}><meshStandardMaterial vertexColors roughness={.76}/></mesh>
+    <mesh rotation-x={-Math.PI/2} position={[POOL.deck.x,.002,POOL.deck.z]} receiveShadow={shadows} raycast={noPick}><planeGeometry args={[POOL.deck.w,POOL.deck.d]}/><meshStandardMaterial map={stone} roughness={.94} polygonOffset polygonOffsetFactor={-1}/></mesh>
     <Water /></group>;
 }

@@ -1,8 +1,10 @@
 import { useEffect, useMemo } from "react";
 import { Color, PlaneGeometry } from "three";
 import { Batch, type Part } from "../scenery/SceneryBatch";
-import { WEDGES, LIVE_DECK_SIZE } from '../scenery/placementAreas';
+import { WEDGES, LIVE_DECK_SIZE, BACKLINE } from '../scenery/placementAreas';
+import { span } from '../scenery/detailParts';
 import { noPick, paintedSurface } from '../scenery/sceneryPaint';
+import { seededRandom } from '../scenery/ClassroomLayout';
 
 function architecture(concert: boolean) {
   const blocks: Part[] = [];
@@ -13,8 +15,6 @@ function architecture(concert: boolean) {
   // An open proscenium: the deck surface stays at character foot height.
   box([0, -0.134, 0], [LIVE_DECK_SIZE, 0.26, LIVE_DECK_SIZE], "#574e49");
   box([0, 2.3, -5.64], [11.6, 4.6, 0.25], "#27262e");
-  const boards = ["#574b43", "#51473f", "#584d46", "#534a43", "#554941"];
-  for (let i = 0; i < 34; i++) box([0, -0.003, (i - 16.5) * 0.34], [11.6, 0.006, 0.337], boards[i % boards.length]);
   for (const side of [-1, 1]) {
     const color = concert ? (side < 0 ? "#e49a64" : "#72a4c2") : "#cac1b1";
     for (let i = 0; i < 7; i++) {
@@ -69,9 +69,51 @@ function architecture(concert: boolean) {
   for(const x of [-6.8,6.8]) {box([x,.64,10.76],[1.35,2.55,.09],'#74665b');box([x+.45,.81,10.69],[.09,.06,.07],'#c0ac85');lamps.push({p:[x,2.11,10.70],s:[.62,.19,.045],color:'#a6ceb3'});}
   for(const w of WEDGES){box([w.x,.16,w.z],[w.w,.32,w.d],'#36393d',w.yaw);
     blocks.push({p:[w.x,.338,w.z],s:[w.w*.94,.08,w.d*.9],ry:w.yaw,rx:-.19,color:'#4f5357'});
-    for(let i=0;i<6;i++)box([w.x+(i-2.5)*.1*Math.cos(w.yaw),.39,w.z-(i-2.5)*.1*Math.sin(w.yaw)],[.023,.008,.38],'#33363b',w.yaw);}
+     for(let i=0;i<6;i++)box([w.x+(i-2.5)*.1*Math.cos(w.yaw),.39,w.z-(i-2.5)*.1*Math.sin(w.yaw)],[.023,.008,.38],'#33363b',w.yaw);}
+  // A compact house kit on a low carpeted riser. Shells, hoops, cymbals and
+  // stand hardware share the existing speaker-driver batch.
+  const d=BACKLINE.drums,metal='#9ca5a4',shell='#ac6342';
+  box([d.x,.085,d.z],[d.w,.17,d.d],'#5c4b48');
+  const round=(x:number,y:number,z:number,w:number,h:number,color:string,rx=0)=>cones.push({p:[d.x+x,y,d.z+z],s:[w,h,w],rx,color});
+  round(0,.54,.08,.70,.39,shell,Math.PI/2);
+  for(const z of [-.13,.29])round(0,.54,z,.72,.038,metal,Math.PI/2);
+  round(0,.54,.315,.66,.013,'#dfd6c0',Math.PI/2);round(.14,.43,.328,.12,.015,'#322f30',Math.PI/2);
+  for(const [x,z,w,y] of [[-.52,.01,.38,.76],[.54,-.04,.44,.66],[-.17,-.04,.31,.95],[.20,-.04,.34,.9]]){
+    round(x,y,z,w,.24,shell);round(x,y+.12,z,w+.025,.021,metal);round(x,y+.135,z,w-.025,.009,'#dbd0bf');round(x,y-.115,z,w+.02,.025,metal);
+    for(const sign of [-1,1])round(x+sign*w*.39,y,z+w*.31,.026,.20,metal);
+  }
+  for(const [x,z,y,w] of [[-.77,-.12,1.37,.44],[.72,-.24,1.52,.57],[-.64,.34,1.03,.33]]){
+    round(x,y-.014,z,w,.024,'#d9ad65');round(x,y+.013,z,w*.22,.041,'#bb955a');round(x,(y+.17)/2,z,.029,y-.17,metal);
+    for(let i=0;i<3;i++){const a=i*2.094;cones.push(span([d.x+x,.38,d.z+z],[d.x+x+.16*Math.sin(a),.18,d.z+z+.16*Math.cos(a)],.021,metal));}
+  }
+  // Side-stage electric piano: crossed stand, individual ebony and ivory keys.
+  const k=BACKLINE.keys;
+  for(const dz of [-.22,.18]) for(const sign of [-1,1])blocks.push(span([k.x-sign*.58,.035,k.z+dz],[k.x+sign*.54,.98,k.z+dz],.055,'#78777c'));
+  box([k.x,.985,k.z],[1.62,.14,.58],'#3c3b40');
+  for(let i=0;i<35;i++){
+    const x=k.x+(i-17)*.042;box([x,1.071,k.z+.12],[.041,.035,.28],'#ebdec6');
+    if(i<34&&![2,6].includes(i%7))box([x+.021,1.102,k.z+.065],[.026,.046,.177],'#363237');
+  }
+  strips.push({p:[k.x-.46,1.06,k.z-.146],s:[.13,.008,.071],color:'#94b8b1'});
   return { blocks, lamps, strips, cones };
 }
+
+function stageBoards(){return paintedSurface(1024,1024,g=>{
+  const rng=seededRandom(60118),wood=['#917461','#826957','#8b705e','#967965','#886c59'];
+  g.fillStyle='#514740';g.fillRect(0,0,1024,1024);
+  for(let row=0;row<32;row++)for(let x=-200*rng();x<1024;){const w=166+rng()*173,y=row*32;
+    g.fillStyle=wood[Math.floor(rng()*wood.length)];g.fillRect(x+1,y+.8,w-1,30.5);
+    g.save();g.beginPath();g.rect(x+1,y+1,w-2,30);g.clip();
+    for(let j=0;j<17;j++){const yy=y+2+rng()*28;g.strokeStyle=j%3?'rgba(52,32,22,.13)':'rgba(235,205,165,.19)';g.lineWidth=.6+rng()*.9;
+      g.beginPath();g.moveTo(x,yy);g.bezierCurveTo(x+w*.28,yy-3*rng(),x+w*.72,yy+3*rng(),x+w,yy+2*rng()-1);g.stroke();}
+    g.restore();x+=w;
+  }
+  // Small strips of spike tape mark the two sidestage instrument positions.
+  for(const p of [BACKLINE.drums,BACKLINE.keys])for(const s of [-1,1]){
+    const px=512+(p.x+s*(p.w/2+.09))*1024/LIVE_DECK_SIZE,py=512+(p.z+p.d/2+.09)*1024/LIVE_DECK_SIZE;
+    g.fillStyle='#c8b586';g.fillRect(px-8,py,16,2.6);g.fillRect(px-s*8,py-10,2.7,12);
+  }
+});}
 
 // Bake the light wash into the drape vertices, not a transparent screen quad.
 function Cyclorama({ concert }: { concert: boolean }) {
@@ -100,9 +142,11 @@ function Cyclorama({ concert }: { concert: boolean }) {
 
 export function LiveHouse({ concert }: { concert: boolean }) {
   const parts = useMemo(() => architecture(concert), [concert]);
+  const boards=useMemo(stageBoards,[]);
   const print=useMemo(()=>paintedSurface(768,128,g=>{g.fillStyle='#302b31';g.fillRect(0,0,768,128);g.strokeStyle='#b69a78';g.strokeRect(8,8,752,112);g.fillStyle='#f1d8a4';g.font='600 54px system-ui';g.textAlign='center';g.fillText('THE LISTENING ROOM',384,82);}),[]);
-  useEffect(()=>()=>print.dispose(),[print]);
+  useEffect(()=>()=>{print.dispose();boards.dispose();},[print,boards]);
   return <group name="live-house">
+    <mesh rotation-x={-Math.PI/2} receiveShadow raycast={noPick}><planeGeometry args={[LIVE_DECK_SIZE,LIVE_DECK_SIZE]}/><meshStandardMaterial map={boards} roughness={.68}/></mesh>
     <Cyclorama concert={concert} />
     <Batch parts={parts.blocks} name="deck-curtains-truss" />
     <Batch parts={parts.cones} name="speaker-drivers" round />

@@ -15,13 +15,14 @@ function hits(r: Footprint, x: number, z: number, clearance = CLEAR) {
 export const SIMPLE_FLOOR_RADIUS = 8;
 export const LIVE_DECK_SIZE = 11.6;
 export const WEDGES = [-1,1].map(side => ({ x: side*2.85, z: 2.4, w: .78, d: .56, yaw: -side*.28 }));
+export const BACKLINE = { drums:{x:-2.72,z:-4.52,w:2.05,d:1.32}, keys:{x:3.18,z:-4.34,w:1.63,d:.76} };
 // From the proscenium towards the audience: cyc, folded side drapes, truss
 // uprights, then the speaker stacks. The overhead truss is not an obstacle.
 const wings = [-1, 1].flatMap(side => [
   ...Array.from({ length: 7 }, (_, i) => ({ x: side * (3.4 + i * .30), z: -5.2 + i * .07, w: .37, d: .21, yaw: side * .36 })),
   { x: side * 4.55, z: -3.88, w: .84, d: .72 }, { x: side * 5.1, z: -4.55, w: .13, d: .13 },
   { x: side * 3.19, z: -5.22, w: .035, d: .04 },
-]).concat(WEDGES);
+]).concat(WEDGES, Object.values(BACKLINE));
 
 export const POOL = {
   deck: { x: 0, z: 1, w: 23, d: 13.5 }, water: { x: 0, z: -12.4, w: 10.1, d: 13.35 },
@@ -32,14 +33,18 @@ export const POOL = {
   benches: [-8, 8].map(x => ({x,z:-12.6,w:1.8,d:.51})),
   loungers: [-1,1].flatMap(side => [0,1].map(i=>({x:side*(7.4+i*1.35),z:-2.95,w:.75,d:1.98,yaw:side*.16}))),
   parasols: [-1,1].map(side=>({x:side*8.35,z:-1.35,w:.60,d:.60})),
+  rescue: {x:-5.68,z:-8.95,w:.91,d:.41},
+  flagPosts: [-9.5,-16.8].flatMap(z=>[-5.45,5.45].map(x=>({x,z,w:.14,d:.14}))),
 };
 const poolDeck = [POOL.deck, ...POOL.walks, POOL.farWalk];
-const poolObstacles = [POOL.water, POOL.ladder, ...POOL.blocks, ...POOL.benches, ...POOL.loungers, ...POOL.parasols];
+const poolObstacles = [POOL.water, POOL.ladder, ...POOL.blocks, ...POOL.benches, ...POOL.loungers, ...POOL.parasols,POOL.rescue,...POOL.flagPosts];
 const shoeOffsets = [[0, 0], [CLEAR, 0], [-CLEAR, 0], [0, CLEAR], [0, -CLEAR]];
 const cyc = { x: 0, z: -5.32, w: 6.5, d: .088 };
 export const LAWN_SIZE = 58;
 export const MEADOW_SUN:[number,number,number]=[-4.8,3.6,-5.5];
 export const meadowPathX=(z:number)=>-3.1+1.7*Math.sin(z*.22+.9)+.038*z;
+export const ARBOR = {x:meadowPathX(-6.4),z:-6.4};
+export const ARBOR_POSTS = [-1,1].flatMap(side=>[-1,1].map(end=>({x:ARBOR.x+side*1.53,z:ARBOR.z+end*1.16,w:.37,d:.37})));
 export const MEADOW_SEAT = {x:4.1,z:-4.4,w:1.85,d:.68,yaw:-.55};
 export const MEADOW_POSTS = Array.from({length:13},(_,i)=>({x:-8.4-i*.47,z:5-i*1.85,w:.14,d:.14}));
 const firstPost=MEADOW_POSTS[0], lastPost=MEADOW_POSTS[MEADOW_POSTS.length-1];
@@ -70,7 +75,7 @@ export function canPlaceInScenery(id: SceneryId, x: number, z: number): boolean 
       shoeOffsets.every(([dx, dz]) =>
         poolDeck.some(r => hits(r, x + dx, z + dz, 0)));
     case 'lawn': return Math.max(Math.abs(x), Math.abs(z)) <= LAWN_SIZE / 2 - CLEAR &&
-      !hits(MEADOW_SEAT,x,z) && !hits(meadowRail,x,z) &&
+      !hits(MEADOW_SEAT,x,z) && !hits(meadowRail,x,z) && !ARBOR_POSTS.some(p=>hits(p,x,z)) &&
       !LAWN_TREES.some(t => Math.hypot(x - t.x, z - t.z) < CLEAR + t.h * .07) &&
       !LAWN_KNOLLS.some(k => {
         const c = Math.cos(k.yaw), s = Math.sin(k.yaw), dx = x - k.x, dz = z - k.z;
