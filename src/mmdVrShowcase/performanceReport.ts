@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { RenderDiagnostics, RenderRequest } from "./renderDiagnostics";
 import type { BackpackPlacementTiming } from "./backpack";
 
-type SceneSample = { models: number; objects: number; physics: boolean; scenery?: string; liveHouse: boolean; shadows: boolean; playing: boolean };
+type SceneSample = { models: number; objects: number; physics: boolean; scenery?: string; liveHouse: boolean; shadows: boolean; playing: boolean; heldToy?: 'bubbles' | 'post' | null };
 type Window = Omit<RenderDiagnostics, "requested" | "active"> & SceneSample & { elapsedMs: number };
 const MAX_WINDOWS = 1800;
 
@@ -12,7 +12,7 @@ export function createPerformanceRecording(requested: RenderRequest, entryStarte
   const bins = new Uint32Array(8002); // 0.25ms upper bounds, last bin is >2000ms
   const windows: Window[] = [];
   const rates = new Map<number, number>();
-  const placements: { kind: "model" | "object"; moved: boolean; selectToPointMs: number | null; confirmToReadyFrameMs: number }[] = [];
+  const placements: { kind: "model" | "object"; moved: boolean; selectToPointMs: number | null; confirmToReadyFrameMs: number; modelWork?: BackpackPlacementTiming['work'] }[] = [];
   let lastPlacementToken = -1;
   let count = 0, duration = 0, max = 0, knownBudget = 0, over = 0, late = 0, written = 0;
   let skipNext = true;
@@ -22,7 +22,7 @@ export function createPerformanceRecording(requested: RenderRequest, entryStarte
       if (!event || event.token === lastPlacementToken) return;
       lastPlacementToken = event.token;
       if (placements.length === 120) placements.shift();
-      placements.push({ kind: event.kind, moved: event.wasMove, selectToPointMs: event.previewDelayMs,
+      placements.push({ kind: event.kind, moved: event.wasMove, selectToPointMs: event.previewDelayMs, modelWork: event.work,
         confirmToReadyFrameMs: Math.max(0, Math.round(performance.now() - event.confirmedAt)) });
     },
     startupFrame(assetsReady: boolean) {

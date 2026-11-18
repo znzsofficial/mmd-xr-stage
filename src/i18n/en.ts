@@ -6,6 +6,8 @@ export const en: Record<keyof ZhMessages, string> = {
   hudBack: "Back to viewing",
   hudScenery: "Scenery",
   hudBackpack: "Backpack",
+  hudToys: "Toys", toyControls: "Grip to play. Trigger for menus.", toyNeedController: "Pick up a controller to play",
+  toyBubbles: "Bubble blower", toyBubblesHint: "Hold grip for bubbles", toyPost: "Lunar stamp", toyPostHint: "Light three seals", toyGoFloor: "Go to studio floor", toyLeft: "Left hand", toyRight: "Right hand", toyStow: "Stow toy", toyNewCard: "Clear postcard",
   hudMore: "More",
   hudRecallShort: "Right B: recall controls",
   hudCharacters: "Characters",

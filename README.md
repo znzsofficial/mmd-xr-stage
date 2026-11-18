@@ -26,6 +26,8 @@ MMD XR Stage is a single-purpose VR showcase for user-provided MMD (MikuMikuDanc
 
 ### In VR
 
+- Open Backpack → Toys to equip a bubble blower or a Lunar Post stamp in either controller hand. The side grip plays; the trigger still operates menus. On the studio floor, stamp the three seals to frame a character against a lunar postcard.
+
 - Choose the simple floor, live venue, classroom, pool or meadow from the viewing strip. Only the current room's instances are loaded. Built-in scenery does not consume the three character or three object slots.
 - Pick a character or prop from the backpack, aim at free ground, and release the trigger to place it. Select a placed character to move, turn, scale, change its motion, or put it away. Hidden items remain reachable from the backpack.
 - Render diagnostics distinguish requested settings, session-reported refresh/layer properties, callback cadence, model-update CPU cost and renderer resource/draw counters. No GPU time is inferred from these values.

@@ -4,6 +4,8 @@ export const zh = {
   hudBack: "返回观看",
   hudScenery: "场景",
   hudBackpack: "背包",
+  hudToys: "玩具", toyControls: "侧握键玩道具，食指扳机点菜单", toyNeedController: "拿起左手或右手手柄来玩",
+  toyBubbles: "泡泡枪", toyBubblesHint: "按住侧握键吹泡泡", toyPost: "星孔盖印器", toyPostHint: "点亮三枚星印", toyGoFloor: "前往简易地台", toyLeft: "左手拿", toyRight: "右手拿", toyStow: "收回道具", toyNewCard: "清空邮票",
   hudMore: "更多",
   hudRecallShort: "右手 B 键召回观看条",
   hudCharacters: "角色",

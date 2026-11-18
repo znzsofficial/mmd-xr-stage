@@ -6,11 +6,15 @@
 
 从空场进入时，第二个启动字段会包含人在场内挑选位置的时间；不放任何模型／物件时保持 `null`。单独看 `placements[].confirmToReadyFrameMs`：从确认落点到命令完成后观察到的首个可见 XR 回调。`selectToPointMs` 还包括瞄准地面所花的时间；`moved` 区分移动已有实例和首次／再次取出。保留最近 120 条已观察到的成功记录，不含模型名、坐标或文件路径。
 
+背包取出新建的角色实例还会记录 `modelWork`：`loaderWallMs` 是整个 loader Promise（读文件、解析、组网格和贴图）的耗时；`textureCount` 是预上传的唯一贴图数，`initTextureCpuMs` / `maxInitTextureCpuMs` 是同步 `initTexture` 调用的总耗时／单次最大值；`yieldWallMs` 是每张贴图后让出主线程直到恢复的实测总时间，含浏览器调度与同期渲染；`compileAsyncWallMs` 是预编译调用到返回的耗时，不支持时为 `null`。它们不代表纯 GPU 时间，也不覆盖整个确认流程。移动、GLB 和旧版本报告不含 `modelWork`。
+
 正常或通过系统菜单退出 VR 后，在准备页下方点「导出上次 VR 性能记录（JSON）」。报告只在页面内存中保留最近一次有有效样本的会话；刷新会清除，不上传模型或设备追踪数据。
 
 `callbackIntervalMs` 提供平均值、最慢值和 P50/P95/P99（0.25 ms 分桶上界）；会话可见期间的长卡顿也参加统计，但进场及可见性变化后的第一段间隔不计。`overBudgetFraction` 为超过当时 session 实际 Hz 对应帧周期的比例，严格超预算会受到微小时序抖动影响；`overOneAndHalfBudgetsFraction` 单独统计超过 1.5 个周期的比例。两者都不是合成器丢帧数。刷新率未报告的帧不参与分母。
 
 `windows` 按约一秒记录模型更新 CPU、舞台/物理开关、实际刷新率、图层大小与绘制计数，最多保留最近 1800 个样本；分布及最慢帧覆盖整场。模型 CPU 不代表 GPU 耗时。
+
+`windows[].heldToy` 表示采样瞬间手里的是泡泡枪（`bubbles`）、盖印器（`post`）或空手（`null`）。用同一角色、动作与机位观察收回和吹泡泡两段；该字段不记录扣键次数或追踪姿态。
 
 ## 观看与调整
 

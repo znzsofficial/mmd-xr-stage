@@ -2,6 +2,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import { runtimeTiming } from "../runtimeTiming";
 import { useBackpack } from "../backpack";
+import { useStagePlay } from '../play/stagePlay';
 import { createPerformanceRecording, useLastPerformanceReport } from "../performanceReport";
 import { useMmdVrStore } from "../mmdVrStore";
 import { createFrameCadence, readRenderDiagnostics, useRenderDiagnostics, type RenderRequest } from "../renderDiagnostics";
@@ -54,7 +55,8 @@ export function MmdVrDiagnostics({ requested }: { requested: RenderRequest }) {
       useRenderDiagnostics.getState().set(data);
       const s = useMmdVrStore.getState();
       recording.current?.sample(data, { models: s.models.length, objects: s.objects.length, playing: s.playing,
-        physics: s.physicsEnabled, scenery: s.prefs.scenery, liveHouse: s.prefs.scenery === "liveHouse", shadows: gl.shadowMap.enabled });
+        physics: s.physicsEnabled, scenery: s.prefs.scenery, liveHouse: s.prefs.scenery === "liveHouse", shadows: gl.shadowMap.enabled,
+        heldToy: useStagePlay.getState().held?.toy ?? null });
     }
   });
   return null;

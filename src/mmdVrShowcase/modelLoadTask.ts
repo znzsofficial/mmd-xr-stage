@@ -9,6 +9,7 @@ export function createModelLoadTask(runtime: MmdRuntimeHandle, slot: MmdVrModelS
   companions?: () => readonly File[];
   physicsEnabled: () => boolean;
   isStale: () => boolean;
+  work?: import('./placementWork').PlacementWork;
 }) {
   let modelId: string | null = null;
   let restore = options.saved;
@@ -22,7 +23,7 @@ export function createModelLoadTask(runtime: MmdRuntimeHandle, slot: MmdVrModelS
           materialVisible: old.materialVisible, materialOverrides: old.materialOverrides };
       }
       const report = await runtime.addModel(slot.modelFile, options.companions?.() ?? slot.companionFiles, {
-        physics: options.physicsEnabled(), transform: restore?.transform ?? options.transform, isStale: options.isStale,
+        physics: options.physicsEnabled(), transform: restore?.transform ?? options.transform, isStale: options.isStale, work: options.work,
       });
       try {
         if (options.isStale()) throw new DOMException("Stage changed", "AbortError");

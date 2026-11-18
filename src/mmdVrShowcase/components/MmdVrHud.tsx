@@ -12,6 +12,7 @@ import { HudButton, HudLine, HudSheet } from "./PorcelainControls";
 import { BackpackPanel, SceneryPanel } from "./BackpackPanels";
 import { useBackpack } from "../backpack";
 import { useHudWorldInput } from "./hudWorldInput";
+import { useStagePlay } from '../play/stagePlay';
 import {
   formatMmdVrModelScale,
   MMD_VR_HEIGHT_OFFSET_FINE_STEP,
@@ -1390,6 +1391,7 @@ export function MmdVrControlBar({
   const [page, setPage] = useState<"watch" | "bag" | "scenery" | "advanced" | "advancedScenery">("watch");
   const physicsFatal = useMmdVrStore(s => s.physicsFatal);
   const bagBusy = useBackpack(s => s.busy), bagError = useBackpack(s => s.error);
+  const toy = useStagePlay(s => s.held?.toy);
   const selected = useBackpack(s => s.selected), draft = useBackpack(s => s.draft);
   const selectedLive = useBackpack(s => s.selected ? s.live[s.selected] : null);
   const draftName = useBackpack(s => s.entries.find(e => e.id === s.draft)?.file.name);
@@ -1523,7 +1525,8 @@ export function MmdVrControlBar({
         {notice}
         <CompactPlaybackControls onScenery={() => open("scenery")} onBackpack={() => open("bag")} onExpand={() => open("advanced")} onExit={onExit} busy={busy || inputHeld} playbackLocked={bagBusy || physicsBusy} />
         <group position={[0.53, -0.39, 0]}>{!locked || inputHeld ? <ProgressBar onInteractionChange={onDragChange} /> : null}</group>
-        <HudLine position={[-0.54, -0.17, 0]} text={bagBusy ? t("hudWorking") : t("hudRecallShort")} width={1.09} role="muted" />
+        <HudLine position={[-0.54, -0.17, 0]} text={bagBusy ? t("hudWorking") : toy ? t('toyControls') : t("hudRecallShort")} width={1.09} role="muted" />
+        {toy && !assetLoad.failures.length && <HudButton position={[0,.43,0]} label={t('toyStow')} size={[.86,.14]} onPress={()=>useStagePlay.getState().stow()}/>}
         {assetLoad.failures.length > 0 ? <HudButton position={[0, 0.43, 0]} label={t("loadDetails")} size={[0.95, 0.13]} onPress={() => setDismissedLoadEpoch(-1)} /> : null}
         <DragHandle
           label={panelDragLabel}

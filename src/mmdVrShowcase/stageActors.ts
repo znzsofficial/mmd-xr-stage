@@ -217,7 +217,7 @@ export function createStageActors(scene: THREE.Scene, runtime: MmdRuntimeHandle,
     return tasks;
   }
 
-  async function execute(command: BackpackCommand, stale: () => boolean) {
+  async function execute(command: BackpackCommand, stale: () => boolean, work?: import('./placementWork').PlacementWork) {
     const s = useBackpack.getState(), entry = s.entries.find(e => e.id === command.id);
     if (!entry || entry.kind === "motion" || stale()) throw abort();
     const active = models(), model = active.find(m => m.modelFile === entry.file);
@@ -255,7 +255,7 @@ export function createStageActors(scene: THREE.Scene, runtime: MmdRuntimeHandle,
     if (active.length >= MMD_VR_MAX_MODELS) throw new Error("Stage is full");
     const binding = s.bindings[entry.id];
     const task = createModelLoadTask(runtime, { kind:"model", modelFile:entry.file, companionFiles, bodyMotionFile: binding?.body ?? null }, {
-      transform, physicsEnabled, isStale: stale, saved: saved && "transform" in saved ? { ...saved, transform:{...saved.transform, ...transform}, visible:true } : undefined,
+      work, transform, physicsEnabled, isStale: stale, saved: saved && "transform" in saved ? { ...saved, transform:{...saved.transform, ...transform}, visible:true } : undefined,
     });
     try {
       const warnings = await task.load();

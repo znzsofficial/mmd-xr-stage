@@ -22,6 +22,7 @@ import { objectHeadingDegrees, setObjectHeadingDegrees } from "../objectHeading"
 import { LiveHouse } from "./LiveHouse";
 import { StudioPlinth } from '../scenery/StudioPlinth';
 import { prepareModelGpu } from "../prepareModelGpu";
+import { createPlacementWork } from '../placementWork';
 import { DaylightSet, DaySky, SUN_POSITIONS } from "../scenery/DaylightSets";
 import { showSceneryGrid, type SceneryId } from "../scenery/catalog";
 import { canPlaceInScenery } from "../scenery/placementAreas";
@@ -424,7 +425,7 @@ export function MmdVrStageRoom({ scenery, saved, slots }: { scenery: SceneryId; 
         return map[useMmdVrStore.getState().prefs.physicsColliderRestitution];
       },
       prepareModel: prepareMmdVrModel,
-      prepareGpu: (root, stale) => prepareModelGpu(gl, scene, camera, root, stale),
+      prepareGpu: (root, stale, work) => prepareModelGpu(gl, scene, camera, root, stale, work),
     });
     return handle;
   }, [scene, gl]);
@@ -777,7 +778,8 @@ export function MmdVrStageRoom({ scenery, saved, slots }: { scenery: SceneryId; 
           useLanguageStore.getState().language === "zh" ? "请指向可摆放的地面。" : "Choose an open spot on the ground.");
         // Includes recent material edits / scrubs. Closing during this command uses the last healthy room.
         saveRoom();
-        const warning = await actors.execute(command, stale);
+        const work = command.type === 'place' && !priorId && useBackpack.getState().placement?.kind === 'model' ? createPlacementWork() : undefined;
+        const warning = await actors.execute(command, stale, work);
         if (stale()) return;
         if (command.type === "place" && priorId && !actors.objects.has(priorId) && physicsEnabled) runtime.resetPhysics(timeRef.current, priorId);
         staticSettleElapsed.current = 0;
@@ -789,7 +791,7 @@ export function MmdVrStageRoom({ scenery, saved, slots }: { scenery: SceneryId; 
         if (!runtime.duration) setPlaying(false);
         updateProgress(useMmdVrStore.getState().assetLoad);
         saveRoom();
-        useBackpack.getState().finishCommand(command);
+        useBackpack.getState().finishCommand(command, undefined, work);
         if (warning) useBackpack.setState({ error: warning });
       } catch (error) {
         if (!stale()) useBackpack.getState().finishCommand(command, error instanceof Error ? error.message : String(error));

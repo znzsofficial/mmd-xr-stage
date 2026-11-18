@@ -73,6 +73,7 @@ export type MmdProjectModelAssets = {
 };
 
 export type MmdAddModelOptions = {
+  work?: import('../placementWork').PlacementWork;
   isStale?: () => boolean;
   physics?: boolean;
   preferredId?: string;
@@ -205,7 +206,7 @@ export type MmdRuntimeOptions = {
   physicsBoneFeedbackScale?: () => number;
   physicsDynamicSelfCollision?: () => boolean;
   prepareModel?: (root: THREE.Object3D) => void;
-  prepareGpu?: (root: THREE.Object3D, stale: () => boolean) => Promise<void>;
+  prepareGpu?: (root: THREE.Object3D, stale: () => boolean, work?: MmdAddModelOptions['work']) => Promise<void>;
 };
 
 export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOptions = {}): MmdRuntimeHandle {
@@ -296,6 +297,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
     transform: MmdModelTransform,
     preferredId?: string,
     isStale: () => boolean = () => false,
+    work?: MmdAddModelOptions['work'],
   ) {
     const stale = () => disposed || isStale();
     const assertCurrent = () => { if (stale()) throw new DOMException("Stage changed", "AbortError"); };
@@ -396,7 +398,9 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
     let model;
     try {
       assertCurrent();
+      const started = work ? performance.now() : 0;
       model = await loader.loadModel(modelFile);
+      if (work) work.loaderWallMs = performance.now()-started;
       assertCurrent();
       if (withPhysics) bindStaticMmdPhysicsRuntime(model);
       colliderRoot = model.root;
@@ -466,7 +470,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
     applyMaterialOverrides(entry, lightingContext());
     if (options.prepareGpu) {
       try {
-        await options.prepareGpu(model.root, stale);
+        await options.prepareGpu(model.root, stale, work);
         assertCurrent();
       } catch (error) {
         disposeEntryPhysics(entry); disposeModelObject(entry); throw error;
@@ -611,6 +615,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
         transform,
         options.preferredId,
         options.isStale,
+        options.work,
       );
       selectedId = entry.id;
       recomputeGlobal();

@@ -13,7 +13,7 @@ export type BackpackCommand =
   | { token: number; type: "place"; id: string; x: number; z: number; yaw: number }
   | { token: number; type: "remove"; id: string }
   | { token: number; type: "motion"; id: string; file: File; kind: "body" | "face" };
-export type BackpackPlacementTiming = { token: number; kind: "model" | "object"; confirmedAt: number; wasMove: boolean; previewDelayMs: number | null };
+export type BackpackPlacementTiming = { token: number; kind: "model" | "object"; confirmedAt: number; wasMove: boolean; previewDelayMs: number | null; work?: import('./placementWork').PlacementWork };
 
 type State = {
   entries: BackpackEntry[]; files: readonly File[];
@@ -25,7 +25,7 @@ type State = {
   select(id: string | null): void; beginPlace(id: string): void; cancelPlace(): void;
   confirmPlace(id: string, x: number, z: number, yaw: number): void;
   putAway(id: string): void; applyMotion(id: string, file: File, kind: "body" | "face"): void;
-  finishCommand(command: BackpackCommand, error?: string): void; publishLive(map: State["live"]): void; dismissError(): void;
+  finishCommand(command: BackpackCommand, error?: string, work?: BackpackPlacementTiming['work']): void; publishLive(map: State["live"]): void; dismissError(): void;
 };
 
 const identities = new WeakMap<File, string>();
@@ -71,11 +71,11 @@ export const useBackpack = create<State>((set, get) => ({
     if (s.busy || !s.live[id] || !s.entries.some(e => e.id === id && e.kind === "model") || !s.entries.some(e => e.kind === "motion" && e.file === file)) return;
     set({ busy: true, draft: null, error: null, command: { token: ++token, type: "motion", id, file, kind } });
   },
-  finishCommand: (command, error) => {
+  finishCommand: (command, error, work) => {
     const s = get();
     if (s.command?.token !== command.token) return; // an obsolete room / session cannot complete a new request
     set({ busy: false, command: null, placement: null, error: error ?? null,
-      lastCompletedPlacement: !error && command.type === "place" ? s.placement : s.lastCompletedPlacement,
+      lastCompletedPlacement: !error && command.type === "place" && s.placement ? {...s.placement,work} : s.lastCompletedPlacement,
       selected: error ? s.selected : command.type === "remove" ? null : command.id });
   },
   publishLive: live => set({ live }), dismissError: () => set({ error: null }),
