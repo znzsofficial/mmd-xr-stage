@@ -11,7 +11,6 @@ export type RequestImmersiveEnterOpts = {
   setEntering: () => void;
   setLastError: (value: string | null) => void;
   openOverlay: () => void;
-  preloadScene: () => void | Promise<unknown>;
   beginSessionFromClick: () => Promise<XRSession>;
   waitForPresentation: (signal?: AbortSignal) => Promise<XRSession>;
   signal?: AbortSignal;
@@ -41,7 +40,6 @@ export function requestImmersiveEnter(opts: RequestImmersiveEnterOpts): Promise<
     setEntering,
     setLastError,
     openOverlay,
-    preloadScene,
     beginSessionFromClick,
     markEntered,
     failEnter,
@@ -90,13 +88,7 @@ export function requestImmersiveEnter(opts: RequestImmersiveEnterOpts): Promise<
   } catch (error) {
     session = Promise.reject(error);
   }
-  const scene = waitForXrOperation(Promise.resolve().then(preloadScene), {
-    signal: opts.signal,
-    timeoutMs: 30_000,
-    timeoutMessage: "XR scene download timed out",
-  });
-
-  return waitForXrOperation(Promise.all([session, scene]), { signal: opts.signal })
+  return waitForXrOperation(session, { signal: opts.signal })
     .then(() => {
       if (opts.isCancelled?.()) throw new DOMException("XR entry cancelled", "AbortError");
       return waitForXrOperation(opts.waitForPresentation(opts.signal), {

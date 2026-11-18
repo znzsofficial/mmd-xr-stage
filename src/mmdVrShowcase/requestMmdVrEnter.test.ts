@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { beginMmdVrSessionFromClick, endMmdVrSession, waitForMmdVrPresentation } from "./mmdVrSession";
-import { preloadMmdVrScene } from "./preloadMmdVrScene";
 import { useMmdVrStore } from "./mmdVrStore";
 import { requestMmdVrEnter } from "./requestMmdVrEnter";
 import { getXrDiagnostics, getXrSystem } from "../xr/xrDetect";
@@ -32,18 +31,12 @@ vi.mock("./mmdVrSession", async () => {
   };
 });
 
-vi.mock("./preloadMmdVrScene", () => ({
-  preloadMmdVrScene: vi.fn(() => Promise.resolve()),
-}));
-
 describe("requestMmdVrEnter", () => {
   const t = (k: string) => k;
   const addNotification = vi.fn();
 
   beforeEach(() => {
     useMmdVrStore.setState({ savedStage: null, resumeStage: null, captureStage: null });
-    vi.mocked(preloadMmdVrScene).mockReset();
-    vi.mocked(preloadMmdVrScene).mockResolvedValue(undefined as never);
     vi.mocked(endMmdVrSession).mockClear();
     vi.mocked(waitForMmdVrPresentation).mockReset();
     vi.mocked(waitForMmdVrPresentation).mockResolvedValue({ id: "mmd-s1" } as unknown as XRSession);
@@ -130,31 +123,29 @@ describe("requestMmdVrEnter", () => {
     expect(useMmdVrStore.getState().errorMessage).toBe("settingsVrDesktopNeedHttps");
   });
 
-  it("closes the session and exposes a rejected scene chunk instead of hanging", async () => {
-    vi.mocked(preloadMmdVrScene).mockRejectedValueOnce(new Error("scene download failed"));
+  it("exposes a rejected XR session and allows a clean retry", async () => {
+    vi.mocked(beginMmdVrSessionFromClick).mockRejectedValueOnce(new Error("permission denied"));
     const result = await requestMmdVrEnter({ t: t as never, addNotification });
     expect(result).toBe("failed");
     expect(endMmdVrSession).toHaveBeenCalledOnce();
     expect(useMmdVrStore.getState()).toMatchObject({ overlayOpen: false, phase: "error" });
-    expect(useMmdVrStore.getState().errorMessage).toContain("scene download failed");
+    expect(useMmdVrStore.getState().errorMessage).toContain("permission denied");
     await expect(requestMmdVrEnter({ t: t as never, addNotification })).resolves.toBe("entered");
   });
 
-  it("requests XR synchronously before starting the scene download", async () => {
+  it("requests XR in the original click stack", async () => {
     const entering = requestMmdVrEnter({ t: t as never, addNotification });
     expect(beginMmdVrSessionFromClick).toHaveBeenCalledOnce();
-    expect(preloadMmdVrScene).not.toHaveBeenCalled();
     await entering;
-    expect(preloadMmdVrScene).toHaveBeenCalledOnce();
   });
 
   it("does not reopen the overlay or overwrite a newer entry after cancellation", async () => {
-    let resolveScene!: () => void;
-    vi.mocked(preloadMmdVrScene).mockReturnValueOnce(new Promise((resolve) => { resolveScene = () => resolve(undefined as never); }));
+    let resolveFrame!: (value: XRSession) => void;
+    vi.mocked(waitForMmdVrPresentation).mockReturnValueOnce(new Promise((resolve) => { resolveFrame = resolve; }));
     const entering = requestMmdVrEnter({ t: t as never, addNotification });
     await Promise.resolve();
     useMmdVrStore.getState().closeOverlay();
-    resolveScene();
+    resolveFrame({} as XRSession);
     await expect(entering).resolves.toBe("failed");
     expect(useMmdVrStore.getState().overlayOpen).toBe(false);
     expect(addNotification).not.toHaveBeenCalled();
@@ -175,7 +166,7 @@ describe("requestMmdVrEnter", () => {
     expect(useMmdVrStore.getState().phase).toBe("active");
   });
 
-  it("stays entering until an XR frame, not just requestSession or the scene download", async () => {
+  it("stays entering until an XR frame, not just requestSession", async () => {
     let firstFrame!: (session: XRSession) => void;
     vi.mocked(waitForMmdVrPresentation).mockReturnValueOnce(new Promise((resolve) => { firstFrame = resolve; }));
     const entering = requestMmdVrEnter({ t: t as never, addNotification });
@@ -207,20 +198,6 @@ describe("requestMmdVrEnter", () => {
     await expect(entering).resolves.toBe("failed");
     expect(waitForMmdVrPresentation).not.toHaveBeenCalled();
     expect(addNotification).not.toHaveBeenCalled();
-  });
-
-  it("times out scene download and allows a clean retry", async () => {
-    vi.useFakeTimers();
-    vi.mocked(preloadMmdVrScene).mockReturnValueOnce(new Promise(() => {}));
-    try {
-      const entering = requestMmdVrEnter({ t: t as never, addNotification });
-      await vi.advanceTimersByTimeAsync(30_001);
-      await expect(entering).resolves.toBe("failed");
-      expect(useMmdVrStore.getState().errorMessage).toContain("download timed out");
-      expect(waitForMmdVrPresentation).not.toHaveBeenCalled();
-      expect(vi.getTimerCount()).toBe(0);
-      await expect(requestMmdVrEnter({ t: t as never, addNotification })).resolves.toBe("entered");
-    } finally { vi.useRealTimers(); }
   });
 
   it("uses the saved asset set only for explicit continue, preserving user activation", async () => {

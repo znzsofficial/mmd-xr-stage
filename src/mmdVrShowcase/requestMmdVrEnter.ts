@@ -4,7 +4,6 @@ import type { MmdVrAssetSlot } from "./mmdVrAssets";
 import { beginMmdVrAssetSession, endMmdVrAssetSession } from "./mmdVrAssets";
 import { useMmdVrStore } from "./mmdVrStore";
 import { beginMmdVrSessionFromClick, endMmdVrSession, getMmdVrSessionSnapshot, waitForMmdVrPresentation } from "./mmdVrSession";
-import { preloadMmdVrScene } from "./preloadMmdVrScene";
 
 type Notify = (payload: {
   title: string;
@@ -55,7 +54,6 @@ export function requestMmdVrEnter(opts: {
       entryEpoch = useMmdVrStore.getState().entryEpoch;
     },
     isCancelled: () => useMmdVrStore.getState().entryEpoch !== entryEpoch,
-    preloadScene: preloadMmdVrScene,
     beginSessionFromClick: beginMmdVrSessionFromClick,
     waitForPresentation: waitForMmdVrPresentation,
     signal: abort.signal,

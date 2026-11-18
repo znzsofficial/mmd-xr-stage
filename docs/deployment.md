@@ -8,6 +8,8 @@
 
 ```bash
 pnpm build
+# 本次入口迁移的兼容步骤：给已打开的旧准备页保留两个版本的成对 JS
+node scripts/retain-legacy-scene.mjs
 npx -y wrangler@4.128.0 pages deploy ./dist --project-name=mmd-xr-stage --branch=main
 ```
 

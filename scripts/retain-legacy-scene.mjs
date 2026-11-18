@@ -1,0 +1,27 @@
+// Optional migration step AFTER build for tabs running the last two lazy-scene releases.
+// Only verified immutable Pages assets; never replace new code or index.html.
+import { createHash } from "node:crypto";
+import { readFile, writeFile } from "node:fs/promises";
+
+const files = [
+  ["7530d188", "index-YFpsiatv.js", "d8b245ef63c935bbc79421927b3222f8df55fbc86295c7a752827e4973bd04a0"],
+  ["7530d188", "MmdVrScene-BYabBXrY.js", "e1b4a34b880cecf4bef1d7b533f82b92bb4db268c644127af9735ebb9c8d99e2"],
+  ["d55e5a7f", "index-slHQRHJX.js", "c00e0a4886f6c175a85d08c6160494a1c9850f7d6a78eb0e9ed24c598a6828ee"],
+  ["d55e5a7f", "MmdVrScene-D2YD5kMF.js", "531201673d14507cc1bb2acf135aea785844cebf6a0e5569e98003a5d74610d7"],
+  ["d55e5a7f", "vendor-three-Dy_r-u28.js", "342cef6dbbd69b6734112f219931cf62641132a7e7e6009d07a203e216b9c143"],
+  ["d55e5a7f", "vendor-mmd-B024cD5e.js", "e765b2d02f0db182191aab998b459520d2a70ff46d7c85159d2098f74c43f75c"],
+  ["d55e5a7f", "emulate-M6ay1N5Q.js", "fc6816057946f69b0e74edf88c1cdf25176f5c8aa67a7394971c87364594fe41"],
+];
+await Promise.all(files.map(async ([id, file, expected]) => {
+  const path = new URL(`../dist/assets/${file}`, import.meta.url);
+  const verify = bytes => {
+    if (createHash("sha256").update(bytes).digest("hex") !== expected) throw new Error(`Unexpected content: ${file}`);
+  };
+  try { verify(await readFile(path)); return; } catch (error) { if (error.code !== "ENOENT") throw error; }
+  const res = await fetch(`https://${id}.mmd-xr-stage.pages.dev/assets/${file}`, { signal: AbortSignal.timeout(45000) });
+  if (!res.ok) throw new Error(`${file}: HTTP ${res.status}`);
+  const bytes = Buffer.from(await res.arrayBuffer());
+  verify(bytes);
+  await writeFile(path, bytes, { flag: "wx" });
+}));
+console.log("Verified legacy XR entry files:", files.length);

@@ -5,10 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MmdVrOverlay } from "./MmdVrOverlay";
 import { useMmdVrStore } from "./mmdVrStore";
 import { endMmdVrSession } from "./mmdVrSession";
-import { preloadMmdVrScene } from "./preloadMmdVrScene";
+import { MmdVrScene } from "./MmdVrScene";
 
 vi.mock("./mmdVrSession", () => ({ endMmdVrSession: vi.fn(async () => {}), getMmdVrSessionSnapshot: () => ({ generation: 1 }) }));
-vi.mock("./preloadMmdVrScene", () => ({ preloadMmdVrScene: vi.fn() }));
+vi.mock("./MmdVrScene", () => ({ MmdVrScene: vi.fn(() => null) }));
 
 let root: Root;
 let container: HTMLDivElement;
@@ -29,22 +29,21 @@ afterEach(async () => {
 });
 
 describe("scene loading UI", () => {
-  it("offers a visible cancel action while the scene chunk is pending", async () => {
-    let resolve!: (module: Awaited<ReturnType<typeof preloadMmdVrScene>>) => void;
-    vi.mocked(preloadMmdVrScene).mockReturnValueOnce(new Promise((done) => { resolve = done; }));
+  it("only mounts the prepared scene for an open entry, and releases it on cancel", async () => {
+    useMmdVrStore.getState().closeOverlay();
+    vi.mocked(MmdVrScene).mockClear();
     await act(async () => root.render(<MmdVrOverlay />));
-    expect(container.querySelector('[role="status"]')).not.toBeNull();
-    expect(container.textContent).toContain("正在准备 VR 场景");
-    await act(async () => container.querySelector("button")!.click());
+    expect(MmdVrScene).not.toHaveBeenCalled();
+    await act(async () => useMmdVrStore.getState().openOverlay());
+    expect(MmdVrScene).toHaveBeenCalledOnce();
+    await act(async () => useMmdVrStore.getState().closeOverlay());
     expect(endMmdVrSession).toHaveBeenCalledOnce();
     expect(useMmdVrStore.getState().overlayOpen).toBe(false);
-    await act(async () => resolve({ MmdVrScene: () => <div>late scene</div> }));
-    expect(container.textContent).not.toContain("late scene");
   });
 
   it("closes a crashed scene and exposes the error back on setup", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
-    vi.mocked(preloadMmdVrScene).mockResolvedValueOnce({ MmdVrScene: () => { throw new Error("renderer failed"); } });
+    vi.mocked(MmdVrScene).mockImplementation(() => { throw new Error("renderer failed"); });
     await act(async () => root.render(<MmdVrOverlay />));
     expect(useMmdVrStore.getState()).toMatchObject({ overlayOpen: false, errorMessage: "renderer failed" });
     expect(endMmdVrSession).toHaveBeenCalledOnce();

@@ -18,13 +18,13 @@
 - `AbortController` 负责取消当前 UI 等待；session generation 负责拒绝旧异步结果。
 - Canvas 比会话先准备好时，attach 通过状态订阅等待，不轮询。每个 renderer 的绑定队列串行执行；同一会话重复绑定已 presenting 的 renderer 不再次调用 `setSession()`。
 - `setSession()` 前后都验证 generation、session 身份及取消状态。旧 renderer 卡住不会堵住新 renderer 的队列；旧任务不能绑定新会话或结束新进入。
-- 场景模块下载最多等待 30 秒；会话和模块均就绪后，再给绑定/首 XR 帧 20 秒。失败回到准备页，保留错误阶段。权限确认本身不设强制倒计时，用户可取消。
+- 场景代码随准备页静态导入，Canvas 仍只在进入后挂载。会话成功后绑定/首 XR 帧限时 20 秒。失败回到准备页；权限确认本身不设强制倒计时，用户可取消。
 - watchdog 用于失败收尾，不作为正常加载进度的调度工具；后台或头显系统可能延后定时器回调，不能把它当实时期限。
 - `end(generation)` 只处理对应代次，先撤销所有权再结束浏览器会话。`endOnce()` 防止多个退出来源重复调用同一个 session.end()。
 
 ## 资源所有权
 
-- `useMmdVrEntryLifetime` 挂在 SceneLoader 上，覆盖场景懒加载阶段；真正卸载时结束它持有的 generation。微任务检查 effect replay，兼容 StrictMode，不使用旧的全局 mountCount / 200ms 延迟结束策略。
+- `useMmdVrEntryLifetime` 挂在 SceneEntry 上；真正卸载时结束它持有的 generation。微任务检查 effect replay，兼容 StrictMode。
 - overlay 由 entryEpoch 设置 React key，旧组件清理不触及新进入。
 - `<Canvas gl={{ ... }}>` 创建的 renderer 归 R3F 9.8.2 所有。Scene 不再手动 `gl.dispose()`，也不额外管理 GL ref。
 - 应用模型/物理资源仍由 runtime 与 Stage 自身释放。不要把浏览器 session、renderer 和模型 runtime 的释放职责混在一起。

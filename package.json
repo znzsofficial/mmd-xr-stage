@@ -14,7 +14,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "deploy": "pnpm build && wrangler pages deploy ./dist --project-name=mmd-xr-stage --branch=main"
+    "deploy": "pnpm build && node scripts/retain-legacy-scene.mjs && wrangler pages deploy ./dist --project-name=mmd-xr-stage --branch=main"
   },
   "dependencies": {
     "@iconify-icon/react": "^3.0.6",
