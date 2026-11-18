@@ -40,6 +40,9 @@ import { transformRequiresPhysicsReseed } from "../mmdVrPhysicsReseed";
 import { createAssetLoadQueue, emptyAssetLoadProgress, type AssetLoadProgress } from "../mmdAssetLoadQueue";
 import { restoreStageTime, type StageSnapshot } from "../stageSnapshot";
 import { createStageActors } from "../stageActors";
+import { poseWristToy } from '../play/wristSocket';
+import { useStagePlay } from '../play/stagePlay';
+import { PlayPiece } from '../play/HeldPlay';
 
 const LIGHT_PRESETS: Record<
   MmdVrLightPreset,
@@ -430,6 +433,8 @@ export function MmdVrStageRoom({ scenery, saved, slots }: { scenery: SceneryId; 
     return handle;
   }, [scene, gl]);
   const actors = useMemo(() => createStageActors(scene, runtime, () => useMmdVrStore.getState().physicsEnabled, () => timeRef.current), [scene, runtime]);
+  const wristGroup = useRef<THREE.Group>(null);
+  const characterToy = useStagePlay(s => s.character?.toy);
   const isRoomStale = () => retired.current || !useMmdVrStore.getState().overlayOpen || useMmdVrStore.getState().prefs.scenery !== scenery || runtimeRef.current !== runtime;
 
   useLayoutEffect(() => {
@@ -942,6 +947,12 @@ export function MmdVrStageRoom({ scenery, saved, slots }: { scenery: SceneryId; 
       runtimeTiming.record(performance.now() - start);
       lastEvaluatedTimeRef.current = evaluationTime;
     }
+    if (wristGroup.current) {
+      const prop = useStagePlay.getState().character;
+      const live = prop && useBackpack.getState().live[prop.assetId];
+      if (live && prop && !store.physicsBusy) poseWristToy(wristGroup.current, rt.getModelRoot(live.runtimeId), prop);
+      else wristGroup.current.visible = false;
+    }
     hapticContactPollRef.current += delta;
     if (hapticContactPollRef.current >= MMD_VR_HAPTIC_POLL_INTERVAL) {
       hapticContactPollRef.current %= MMD_VR_HAPTIC_POLL_INTERVAL;
@@ -986,6 +997,7 @@ export function MmdVrStageRoom({ scenery, saved, slots }: { scenery: SceneryId; 
   return (
     <>
       <color attach="background" args={[accent.stageBg]} />
+      {characterToy && <group ref={wristGroup} name="play:character" pointerEvents="none" visible={false}><PlayPiece toy={characterToy}/></group>}
       {mmdPrefs.stageFogEnabled ? (
         <fog attach="fog" args={[lightCfg.fogColor, Math.min(10, viewDistance * 0.45), viewDistance]} />
       ) : null}

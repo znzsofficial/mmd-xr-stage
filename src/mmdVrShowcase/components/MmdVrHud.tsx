@@ -1525,7 +1525,7 @@ export function MmdVrControlBar({
         {notice}
         <CompactPlaybackControls onScenery={() => open("scenery")} onBackpack={() => open("bag")} onExpand={() => open("advanced")} onExit={onExit} busy={busy || inputHeld} playbackLocked={bagBusy || physicsBusy} />
         <group position={[0.53, -0.39, 0]}>{!locked || inputHeld ? <ProgressBar onInteractionChange={onDragChange} /> : null}</group>
-        <HudLine position={[-0.54, -0.17, 0]} text={bagBusy ? t("hudWorking") : toy ? t('toyControls') : t("hudRecallShort")} width={1.09} role="muted" />
+        <HudLine position={[-0.54, -0.17, 0]} text={bagBusy ? t("hudWorking") : toy ? t('propHint') : t("hudRecallShort")} width={1.09} role="muted" />
         {toy && !assetLoad.failures.length && <HudButton position={[0,.43,0]} label={t('toyStow')} size={[.86,.14]} onPress={()=>useStagePlay.getState().stow()}/>}
         {assetLoad.failures.length > 0 ? <HudButton position={[0, 0.43, 0]} label={t("loadDetails")} size={[0.95, 0.13]} onPress={() => setDismissedLoadEpoch(-1)} /> : null}
         <DragHandle

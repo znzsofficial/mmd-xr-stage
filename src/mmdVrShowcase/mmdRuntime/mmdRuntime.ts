@@ -8,6 +8,7 @@ import {
 import type { MmdPhysicsBackend } from "@yohawing/three-mmd-loader/physics";
 import { DefaultMmdRuntime } from "@yohawing/three-mmd-loader/runtime";
 import * as THREE from "three";
+import { placementLoaderProfile } from '../placementWork';
 import { PhysicsPoseDisplay } from "./physicsPoseDisplay";
 import { PARK_Y } from "./colliderReentry";
 import { createLocalTextureResolver } from "./localTextureResolver";
@@ -392,6 +393,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
 
     const loader = new ThreeMmdLoader({
       textureResolver,
+      performance: work ? placementLoaderProfile(work) : undefined,
       runtime: runtimeOptions,
       ...(withPhysics ? { runtimeFactory: () => new DefaultMmdRuntime(runtimeOptions) } : {}),
     });

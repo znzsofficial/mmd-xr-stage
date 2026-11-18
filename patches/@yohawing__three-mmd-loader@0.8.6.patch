@@ -1,3 +1,31 @@
+diff --git a/dist/three/performance.js b/dist/three/performance.js
+--- a/dist/three/performance.js
++++ b/dist/three/performance.js
+@@ -1,6 +1,24 @@
+ const loaderPerformanceFlag = "__THREE_MMD_LOADER_PERF__";
+ let loaderProfileId = 0;
+ export function createLoaderPerformanceProfile(label, options = {}) {
++    // Callback-only diagnostics for private local files: no filename-bearing
++    // User Timing entries or global cleanup, even for concurrent loads.
++    if (options.enabled === false && options.onMeasure) {
++        const times = new Map();
++        return {
++            measures: [],
++            mark(name) { times.set(name, performance.now()); },
++            measure(name, start, end) {
++                if (times.has(start) && times.has(end)) {
++                    options.onMeasure({ label: "model", name,
++                        durationMs: times.get(end) - times.get(start) });
++                }
++            },
++            clear() {
++                times.clear();
++            }
++        };
++    }
+     if (!isLoaderPerformanceEnabled(options)) {
+         return undefined;
+     }
 diff --git a/dist/physics/customBulletMmd.d.ts b/dist/physics/customBulletMmd.d.ts
 index 3a8cd5fe856fa4c5c3074e500eeeea0d1434a9ee..bd1f383e055e4e528f22fdcc5c1fe0d4266ecc0f 100644
 --- a/dist/physics/customBulletMmd.d.ts

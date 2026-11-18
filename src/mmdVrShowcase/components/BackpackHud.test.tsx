@@ -10,6 +10,7 @@ import { SCENERY, sceneryIds } from "../scenery/catalog";
 import { BackpackWorldTools, positionWorldTools } from "./BackpackWorldTools";
 import { MmdVrControlBar } from "./MmdVrHud";
 import { useHudWorldInput } from "./hudWorldInput";
+import { useStagePlay } from '../play/stagePlay';
 
 const harness = vi.hoisted(() => ({ camera: {} as unknown, b: (_: string) => {} }));
 vi.mock("@react-three/fiber", () => ({ useThree: (selector: (s: typeof harness) => unknown) => selector(harness), useFrame: vi.fn() }));
@@ -59,6 +60,16 @@ it("can choose each of the five sets directly from viewing, with no scenery cycl
     expect(button(t("hudBackpack"))).toBeDefined();
     expect(button(t("hudModels"))).toBeUndefined();
   }
+});
+
+it('shows where to take a toy, keeps it on the player for unsupported wrists and transfers only to the selected character',async()=>{
+  useStagePlay.getState().reset();useBackpack.setState({selected:'a0',live:{a0:{...instance('m42'),wrists:{left:false,right:true}}}});
+  await render();await click(t('propGive'));expect(labels()).toContain(t('propEquipFirst'));
+  await act(async()=>useStagePlay.getState().equip('bubbles','left'));
+  await click(t('propLeft'));expect(useStagePlay.getState().held).toBeTruthy();
+  await click(t('propRight'));expect(useStagePlay.getState().character).toMatchObject({assetId:'a0',hand:'right',toy:'bubbles'});expect(useStagePlay.getState().held).toBeNull();
+  await click(t('propRaise'));await click(t('propCloser'));expect(useStagePlay.getState().character).toMatchObject({tilt:15,inset:-1});
+  await click(t('toyStow'));expect(useStagePlay.getState().character).toBeNull();
 });
 
 it("browses a larger backpack without consuming stage slots, labels duplicate filenames by source, and can select hidden items at capacity", async () => {

@@ -8,7 +8,7 @@ import { gripLatch, markAt, POST_Z, useStagePlay, type Toy, type Hand } from './
 import { MoonPost } from './MoonPost';
 
 const CAP=24;
-function PlayPiece({toy}:{toy:Toy}) {
+export function PlayPiece({toy}:{toy:Toy}) {
   const post=toy==='post', main=post?'#47668a':'#62bcaf', trim=post?'#ffce76':'#f39f83';
   return <group name={`play:piece:${toy}`}>
     <mesh position={[0,.015,-.064]} scale={[.059,.062,.092]}><sphereGeometry args={[1,16,12]}/><meshStandardMaterial color={main} roughness={.38}/></mesh>
@@ -28,7 +28,7 @@ function InHand({toy,hand}:{toy:Toy;hand:Hand}) {
     const session=frame?.session,ref=gl.xr.getReferenceSpace(),s=scratch;
     let source:XRInputSource|undefined;
     if(session)for(const input of session.inputSources)if(input.handedness===hand&&!input.hand&&input.gripSpace&&input.targetRayMode==='tracked-pointer'){source=input;break;}
-    if(!source&&session?.visibilityState==='visible') { useStagePlay.getState().stow();return; }
+    if(!source&&session?.visibilityState==='visible') { if(useStagePlay.getState().held?.hand===hand)useStagePlay.getState().stow();return; }
     const visible=!!frame&&!!ref&&!!source&&session?.visibilityState==='visible';
     const grip=visible?frame.getPose(source!.gripSpace!,ref):null, ray=visible?frame.getPose(source!.targetRaySpace,ref):null;
     const tracked=!!grip&&!!ray;

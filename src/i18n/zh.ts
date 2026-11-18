@@ -4,6 +4,7 @@ export const zh = {
   hudBack: "返回观看",
   hudScenery: "场景",
   hudBackpack: "背包",
+  propGive:'递道具', propGrip:'调整握姿', propLeft:'给角色左手', propRight:'给角色右手', propLower:'压低', propRaise:'抬高', propCloser:'移近', propFarther:'移远', propEquipFirst:'先到背包的「玩具」拿一件道具', propNoWrist:'未识别到角色的手腕骨', propHidden:'先显示角色再递道具', propPickHand:'选角色的手', propHint:'扳机点角色，可递道具',
   hudToys: "玩具", toyControls: "侧握键玩道具，食指扳机点菜单", toyNeedController: "拿起左手或右手手柄来玩",
   toyBubbles: "泡泡枪", toyBubblesHint: "按住侧握键吹泡泡", toyPost: "星孔盖印器", toyPostHint: "点亮三枚星印", toyGoFloor: "前往简易地台", toyLeft: "左手拿", toyRight: "右手拿", toyStow: "收回道具", toyNewCard: "清空邮票",
   hudMore: "更多",

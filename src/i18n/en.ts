@@ -6,6 +6,7 @@ export const en: Record<keyof ZhMessages, string> = {
   hudBack: "Back to viewing",
   hudScenery: "Scenery",
   hudBackpack: "Backpack",
+  propGive:'Give toy', propGrip:'Adjust grip', propLeft:'To left hand', propRight:'To right hand', propLower:'Tilt down', propRaise:'Tilt up', propCloser:'Closer', propFarther:'Farther', propEquipFirst:'Take a toy from Backpack → Toys first', propNoWrist:'No wrist bones found on this model', propHidden:'Show the character before giving a toy', propPickHand:'Choose a hand', propHint:'Point at a character to give a toy',
   hudToys: "Toys", toyControls: "Grip to play. Trigger for menus.", toyNeedController: "Pick up a controller to play",
   toyBubbles: "Bubble blower", toyBubblesHint: "Hold grip for bubbles", toyPost: "Lunar stamp", toyPostHint: "Light three seals", toyGoFloor: "Go to studio floor", toyLeft: "Left hand", toyRight: "Right hand", toyStow: "Stow toy", toyNewCard: "Clear postcard",
   hudMore: "More",

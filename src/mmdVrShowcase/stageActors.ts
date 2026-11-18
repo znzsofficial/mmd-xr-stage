@@ -9,6 +9,8 @@ import { createModelLoadTask } from "./modelLoadTask";
 import { setObjectHeadingDegrees } from "./objectHeading";
 import { prepareStageObject } from "./prepareStageObject";
 import { firstCharacterScale } from "./firstCharacterScale";
+import { wristSockets } from './play/wristSocket';
+import { useStagePlay } from './play/stagePlay';
 import { applySavedObject, snapshotModel, snapshotObject, type SavedObject, type StageSnapshot } from "./stageSnapshot";
 
 type StageObject = {
@@ -122,9 +124,10 @@ export function createStageActors(scene: THREE.Scene, runtime: MmdRuntimeHandle,
       const id = ids.get(m.modelFile);
       if (!id) continue;
       const t = m.transform;
-      const bounds = liveBounds(runtime.getModelRoot(m.id));
+      const root = runtime.getModelRoot(m.id), bounds = liveBounds(root);
+      const sockets = root ? wristSockets(root) : {};
       bindings[id] = modelBindings(m);
-      live[id] = { runtimeId: m.id, position: [t.positionX, t.positionY, t.positionZ], visible: m.visible, ...(bounds && { bounds }) };
+      live[id] = { runtimeId: m.id, position: [t.positionX, t.positionY, t.positionZ], visible: m.visible, wrists:{left:!!sockets.left,right:!!sockets.right}, ...(bounds && { bounds }) };
     }
     for (const [runtimeId, o] of objects) {
       const id = ids.get(o.slot.objectFile);
@@ -142,6 +145,7 @@ export function createStageActors(scene: THREE.Scene, runtime: MmdRuntimeHandle,
     if (!m && !obj) return;
     const saved = m ? savedModel(m) : snapshotObject(obj!.slot.objectFile, obj!.group);
     const id = useBackpack.getState().entries.find(e => e.file === saved.file)?.id;
+    if (id && useStagePlay.getState().character?.assetId === id) useStagePlay.getState().stow();
     if (id) useBackpack.setState(s => ({ stored: { ...s.stored, [id]: saved }, bindings: m ? { ...s.bindings, [id]: modelBindings(m) } : s.bindings }));
     forgotten.add(saved.file);
     repairs.delete(saved.file);

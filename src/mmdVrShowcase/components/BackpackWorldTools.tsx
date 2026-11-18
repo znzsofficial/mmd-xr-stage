@@ -8,6 +8,7 @@ import { useMmdVrStore } from "../mmdVrStore";
 import { fileSource, PageControls } from "./BackpackPanels";
 import { HudButton, HudLine, HudSheet } from "./PorcelainControls";
 import { useHudWorldInput } from "./hudWorldInput";
+import { useStagePlay } from '../play/stagePlay';
 
 /** Resolve once on selection/move. Keep the controls stationary while the user aims.
  * A hidden or off-screen asset selected in the backpack uses the forward reading zone. */
@@ -43,7 +44,8 @@ function SelectedTools({ entry, instance }: { entry: BackpackEntry; instance: Ba
   const t = useLanguageStore(s => s.t);
   const transform = useMmdVrStore(s => (entry.kind === "model" ? s.models : s.objects).find(e => e.id === instance.runtimeId));
   const busy = useBackpack(s => s.busy), physicsBusy = useMmdVrStore(s => s.physicsBusy);
-  const [motions, setMotions] = useState(false);
+  const [page, setPage] = useState<'tools'|'motions'|'prop'>('tools');
+  const carries = useStagePlay(s=>s.character?.assetId===entry.id);
   const group = useRef<THREE.Group>(null), last = useRef<BackpackLive["position"] | null>(null);
   useFrame(({ camera, gl }) => {
     const pos = instance.bounds?.center ?? instance.position;
@@ -55,20 +57,39 @@ function SelectedTools({ entry, instance }: { entry: BackpackEntry; instance: Ba
   return <group ref={group} name="backpack-world-tools" scale={0.86} pointerEventsOrder={1} pointerEventsType={{ deny: ["touch", "grab"] }}>
     <HudSheet size={[1.34, 1.0]} />
     <HudLine position={[-0.16, 0.37, 0]} text={entry.file.name} width={0.93} role="title" />
-    <HudButton position={[0.47, 0.37, 0]} label={t(motions ? "hudTools" : "hudDone")} size={[0.31, 0.13]} variant="quiet" onPress={() => {
-      if (motions) setMotions(false); else useBackpack.getState().select(null);
+    <HudButton position={[0.47, 0.37, 0]} label={t(page !== 'tools' ? "hudTools" : "hudDone")} size={[0.31, 0.13]} variant="quiet" onPress={() => {
+      if (page !== 'tools') setPage('tools'); else useBackpack.getState().select(null);
     }} disabled={busy} />
-    {motions ? <MotionPicker id={entry.id} locked={locked} /> : <>
+    {page==='motions' ? <MotionPicker id={entry.id} locked={locked} /> : page==='prop' ? <CharacterPropTools id={entry.id} instance={instance} locked={locked}/> : <>
       <HudLine position={[0, 0.225, 0]} width={1.24} role="muted" text={busy ? t("hudWorking") : `${t(instance.visible ? "hudOnStage" : "hudOnStageHidden")} · ${Math.round(rotation)}° · ${formatMmdVrModelScale(scale)}`} />
       <HudButton position={[-0.315, 0.06, 0]} label={t("hudMove")} size={[0.59, 0.15]} disabled={locked} onPress={() => useBackpack.getState().beginPlace(entry.id)} />
-      {entry.kind === "model" ? <HudButton position={[0.315, 0.06, 0]} label={t("hudChangeMotion")} size={[0.59, 0.15]} disabled={locked} onPress={() => setMotions(true)} /> : null}
+      {entry.kind === "model" ? <HudButton position={[0.315, 0.06, 0]} label={t("hudChangeMotion")} size={[0.59, 0.15]} disabled={locked} onPress={() => setPage('motions')} /> : null}
       <HudButton position={[-0.465, -0.145, 0]} label={t("hudTurnLeft")} size={[0.3, 0.14]} disabled={locked || !transform} onPress={() => useMmdVrStore.getState().requestModelRotation(instance.runtimeId, rotation - 15)} />
       <HudButton position={[-0.15, -0.145, 0]} label={t("hudTurnRight")} size={[0.3, 0.14]} disabled={locked || !transform} onPress={() => useMmdVrStore.getState().requestModelRotation(instance.runtimeId, rotation + 15)} />
       <HudButton position={[0.165, -0.145, 0]} label={t("hudSmaller")} size={[0.29, 0.14]} disabled={locked || !transform || previousMmdVrModelScale(scale) === scale} onPress={() => useMmdVrStore.getState().requestModelScale(instance.runtimeId, previousMmdVrModelScale(scale))} />
       <HudButton position={[0.475, -0.145, 0]} label={t("hudLarger")} size={[0.28, 0.14]} disabled={locked || !transform || nextMmdVrModelScale(scale) === scale} onPress={() => useMmdVrStore.getState().requestModelScale(instance.runtimeId, nextMmdVrModelScale(scale))} />
-      <HudButton position={[0, -0.365, 0]} label={t("hudPutAway")} size={[1.24, 0.14]} disabled={locked} onPress={() => useBackpack.getState().putAway(entry.id)} />
+      {entry.kind==='model' && <HudButton position={[-.315,-.365,0]} size={[.59,.14]} label={t(carries?'propGrip':'propGive')} disabled={locked} onPress={()=>setPage('prop')}/>}
+      <HudButton position={[entry.kind==='model'?.315:0, -0.365, 0]} label={t("hudPutAway")} size={[entry.kind==='model'?.59:1.24, 0.14]} disabled={locked} onPress={() => useBackpack.getState().putAway(entry.id)} />
     </>}
   </group>;
+}
+
+function CharacterPropTools({id,instance,locked}:{id:string;instance:BackpackLive;locked:boolean}) {
+  const t=useLanguageStore(s=>s.t),held=useStagePlay(s=>s.held),prop=useStagePlay(s=>s.character?.assetId===id?s.character:null);
+  const toy=held?.toy??prop?.toy, wrists=instance.wrists;
+  const hint=!wrists?.left&&!wrists?.right?t('propNoWrist'):!instance.visible?t('propHidden'):!toy?t('propEquipFirst'):
+    `${t(toy==='post'?'toyPost':'toyBubbles')} · ${prop?`${prop.tilt}° / ${prop.inset} cm`:t('propPickHand')}`;
+  return <>
+    <HudLine position={[0,.21,0]} text={hint} width={1.23} role="muted"/>
+    {(['left','right'] as const).map((hand,i)=><HudButton key={hand} position={[(i-.5)*.63,.05,0]} size={[.59,.15]}
+      label={t(hand==='left'?'propLeft':'propRight')} active={prop?.hand===hand} disabled={locked||!toy||!wrists?.[hand]||!instance.visible||prop?.hand===hand}
+      onPress={()=>useStagePlay.getState().give(id,hand)}/>)}
+    {prop && <>
+      {([['propLower',-15,0],['propRaise',15,0],['propCloser',0,-1],['propFarther',0,1]] as const).map(([label,a,d],i)=><HudButton key={label} position={[(i-1.5)*.315,-.15,0]} size={[.30,.14]} label={t(label)}
+        disabled={locked||Math.abs(prop.tilt+a)>90||Math.abs(prop.inset+d)>5} onPress={()=>useStagePlay.getState().adjust(a,d)}/>)}
+      <HudButton position={[0,-.365,0]} size={[1.23,.14]} label={t('toyStow')} onPress={()=>useStagePlay.getState().stow()} disabled={locked}/>
+    </>}
+  </>;
 }
 
 function MotionPicker({ id, locked }: { id: string; locked: boolean }) {
