@@ -121,6 +121,8 @@ The frontmatter preserves the actual Canvas hex values from `HUD_COLORS`, rather
 
 The optional FPS badge retains a diagnostic exception: green text (`#9fe870`) over translucent black (`rgba(0,0,0,0.55)`). It is not a general success or selection style. Compatibility fields such as `accent.stageBg` are not HUD palette authority.
 
+Hand and controller rays share a `#79baff` beam and a hollow hit marker with a white inner band and ink outer rim. Both bands use the existing cursor quad, independent of scene exposure. The 39 mm cursor quad and 7 mm beam are visuals; neither enlarges the interaction target. Live House scenery colors are intentionally separate from the HUD palette.
+
 ## Typography
 
 All type is painted into textures using the system sans-serif stack; no bundled font or display face. Frontmatter font sizes, rounded tokens and spacing tokens are **Canvas pixels**, not CSS layout or world-space sizes.

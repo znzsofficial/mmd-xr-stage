@@ -31,6 +31,7 @@ export type MmdVrAntialiasPref = ImmersiveAntialiasPref;
 export type MmdVrTogglePref = ImmersiveTogglePref;
 export type MmdVrWalkSpeedPref = "auto" | "slow" | "normal" | "fast";
 export type MmdVrLightPreset = "stage" | "soft" | "contrast" | "daylight" | "warm" | "rim";
+export const PLACE_HALF_WIDTH = 5.5;
 export type MmdVrShadowResolutionPref = "auto" | "low" | "medium" | "high";
 export type MmdVrSnapTurnDegrees = 15 | 30 | 45;
 
@@ -92,6 +93,8 @@ export type MmdVrPrefs = {
   snapTurnDegrees: MmdVrSnapTurnDegrees;
   exposure: number;
   stageSkyEnabled: boolean;
+  liveHouseEnabled: boolean;
+  softHighlights: boolean;
   stageFogEnabled: boolean;
   stageRimLightEnabled: boolean;
   stageLightPoolEnabled: boolean;
@@ -195,9 +198,9 @@ type MmdVrStore = {
   setPlaceMode: (on: boolean) => void;
   placeModelId: string | null;
   setPlaceModelId: (id: string | null) => void;
-  pendingGroundPlace: { x: number; z: number } | null;
+  pendingGroundPlace: { id: string; x: number; z: number } | null;
   requestGroundPlace: (x: number, z: number) => void;
-  takeGroundPlace: () => { x: number; z: number } | null;
+  takeGroundPlace: () => { id: string; x: number; z: number } | null;
   pendingModelTransforms: { id: string; scale?: number; rotationY?: number; reset?: boolean }[];
   requestModelScale: (id: string, scale: number) => void;
   requestModelRotation: (id: string, rotationY: number) => void;
@@ -213,7 +216,7 @@ type MmdVrStore = {
   cycleLightPreset: () => void;
 };
 
-const LIGHT_ORDER: MmdVrLightPreset[] = ["stage", "soft", "daylight", "warm", "rim", "contrast"];
+const LIGHT_ORDER: MmdVrLightPreset[] = ["stage", "contrast", "soft", "daylight", "warm", "rim"];
 
 function normalizeWalk(value: unknown): MmdVrWalkSpeedPref {
   if (value === "auto" || value === "slow" || value === "normal" || value === "fast") return value;
@@ -300,6 +303,8 @@ export function normalizeMmdVrPrefs(parsed: Partial<MmdVrPrefs> = {}): MmdVrPref
     snapTurnDegrees: normalizeMmdVrSnapTurnDegrees(parsed.snapTurnDegrees),
     exposure: normalizeMmdVrExposure(parsed.exposure),
     stageSkyEnabled: parsed.stageSkyEnabled !== false,
+    liveHouseEnabled: parsed.liveHouseEnabled === true,
+    softHighlights: parsed.softHighlights === true,
     stageFogEnabled: parsed.stageFogEnabled !== false,
     stageRimLightEnabled: typeof parsed.stageRimLightEnabled === "boolean"
       ? parsed.stageRimLightEnabled
@@ -343,6 +348,8 @@ const prefsStorage = createLocalPrefsStorage<MmdVrPrefs>({
     snapTurnDegrees: 30,
     exposure: 1,
     stageSkyEnabled: true,
+    liveHouseEnabled: false,
+    softHighlights: false,
     stageFogEnabled: true,
     stageRimLightEnabled: false,
     stageLightPoolEnabled: false,
@@ -390,7 +397,7 @@ function sessionReset() {
     pendingModelRemovals: [] as string[],
     placeMode: false,
     placeModelId: null as string | null,
-    pendingGroundPlace: null as { x: number; z: number } | null,
+    pendingGroundPlace: null as { id: string; x: number; z: number } | null,
     pendingModelTransforms: [] as { id: string; scale?: number; rotationY?: number; reset?: boolean }[],
     duration: 0,
     seekEpoch: 0,
@@ -433,6 +440,8 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
     if (patch.snapTurnDegrees != null) prefs.snapTurnDegrees = normalizeMmdVrSnapTurnDegrees(patch.snapTurnDegrees);
     if (patch.exposure != null) prefs.exposure = normalizeMmdVrExposure(patch.exposure);
     if (patch.stageSkyEnabled != null) prefs.stageSkyEnabled = Boolean(patch.stageSkyEnabled);
+    if (patch.liveHouseEnabled != null) prefs.liveHouseEnabled = Boolean(patch.liveHouseEnabled);
+    if (patch.softHighlights != null) prefs.softHighlights = Boolean(patch.softHighlights);
     if (patch.stageFogEnabled != null) prefs.stageFogEnabled = Boolean(patch.stageFogEnabled);
     if (patch.stageRimLightEnabled != null) prefs.stageRimLightEnabled = Boolean(patch.stageRimLightEnabled);
     if (patch.stageLightPoolEnabled != null) prefs.stageLightPoolEnabled = Boolean(patch.stageLightPoolEnabled);
@@ -494,7 +503,7 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
   closeOverlay: () => {
     const current = get();
     // A partial restore must never replace the last complete stage.
-    const complete = !current.assetLoad.running && current.assetLoad.failures.length === 0 && !current.physicsBusy;
+    const complete = !current.assetLoad.running && current.assetLoad.failures.length === 0 && !current.physicsBusy && !current.physicsFatal;
     const savedStage = (complete ? current.captureStage?.() : null) ?? current.savedStage;
     endMmdVrAssetSession();
     set({
@@ -589,6 +598,7 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
     set((s) => ({
       models,
       modelCount: models.length,
+      pendingGroundPlace: s.pendingGroundPlace && (models.some(m => m.id === s.pendingGroundPlace?.id) || s.objects.some(o => o.id === s.pendingGroundPlace?.id)) ? s.pendingGroundPlace : null,
       placeModelId:
         s.placeModelId && (models.some((m) => m.id === s.placeModelId) || s.objects.some((o) => o.id === s.placeModelId))
           ? s.placeModelId
@@ -634,6 +644,7 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
   setObjects: (objects) =>
     set((s) => ({
       objects,
+      pendingGroundPlace: s.pendingGroundPlace && (s.models.some(m => m.id === s.pendingGroundPlace?.id) || objects.some(o => o.id === s.pendingGroundPlace?.id)) ? s.pendingGroundPlace : null,
       placeModelId:
         s.placeModelId && (s.models.some((m) => m.id === s.placeModelId) || objects.some((o) => o.id === s.placeModelId))
           ? s.placeModelId
@@ -669,22 +680,22 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
     const currentId = get().placeModelId;
     const currentValid = !!currentId && (models.some((m) => m.id === currentId) || objects.some((o) => o.id === currentId));
     const nextId = currentValid ? currentId : models[0]?.id ?? objects[0]?.id ?? null;
-    set({ placeMode, placeModelId: placeMode ? nextId : get().placeModelId });
+    set({ placeMode, pendingGroundPlace: null, placeModelId: placeMode ? nextId : get().placeModelId });
   },
   placeModelId: null,
-  setPlaceModelId: (placeModelId) => set({ placeModelId }),
+  setPlaceModelId: (placeModelId) => set({ placeModelId, pendingGroundPlace: null }),
   pendingGroundPlace: null,
   requestGroundPlace: (x, z) => {
-    if (!get().placeMode) return;
-    const clampedX = Math.min(5.5, Math.max(-5.5, x));
-    const clampedZ = Math.min(5.5, Math.max(-5.5, z));
-    set({ pendingGroundPlace: { x: clampedX, z: clampedZ } });
+    const { placeMode, placeModelId: id } = get();
+    if (!placeMode || !id || !Number.isFinite(x) || !Number.isFinite(z) || Math.abs(x) > PLACE_HALF_WIDTH || Math.abs(z) > PLACE_HALF_WIDTH) return;
+    set({ pendingGroundPlace: { id, x, z } });
   },
   takeGroundPlace: () => {
     const p = get().pendingGroundPlace;
     if (!p) return null;
     set({ pendingGroundPlace: null });
-    return p;
+    const { placeMode, placeModelId, models, objects } = get();
+    return placeMode && placeModelId === p.id && (models.some(m => m.id === p.id) || objects.some(o => o.id === p.id)) ? p : null;
   },
   pendingModelTransforms: [],
   requestModelScale: (id, scale) => {

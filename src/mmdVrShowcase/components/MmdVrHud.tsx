@@ -1084,6 +1084,7 @@ function VisualSettingsPanel({
   const prefs = useMmdVrStore((s) => s.prefs);
   const setPrefs = useMmdVrStore((s) => s.setPrefs);
   const cycleLightPreset = useMmdVrStore((s) => s.cycleLightPreset);
+  const t = useLanguageStore((s) => s.t);
   const lightLabel = prefs.lightPreset === "soft"
     ? lightSoftLabel
     : prefs.lightPreset === "contrast"
@@ -1147,12 +1148,15 @@ function VisualSettingsPanel({
         onPress={() => setPrefs({ stageLightPoolEnabled: !useMmdVrStore.getState().prefs.stageLightPoolEnabled })}
       />
       <HudButton
-        position={[0, -0.54, 0]}
+        position={[-0.45, -0.54, 0]}
         label={prefs.handTracking ? handTrackingOnLabel : handTrackingOffLabel}
         size={[0.8, 0.11]}
         active={prefs.handTracking}
         onPress={() => setPrefs({ handTracking: !useMmdVrStore.getState().prefs.handTracking })}
       />
+      <HudButton position={[0.45, -0.54, 0]} size={[0.85, 0.14]}
+        label={t(prefs.liveHouseEnabled ? "hudLiveHouse" : "hudSimpleStage")} active={prefs.liveHouseEnabled}
+        onPress={() => setPrefs({ liveHouseEnabled: !useMmdVrStore.getState().prefs.liveHouseEnabled })} />
     </group>
   );
 }
@@ -1505,6 +1509,7 @@ export function MmdVrControlBar({
   const placeMode = useMmdVrStore((s) => s.placeMode);
   const prefs = useMmdVrStore((s) => s.prefs);
   const profile = getMmdVrRenderProfile(prefs);
+  const gridVisible = profile.showGrid && (!prefs.liveHouseEnabled || placeMode || prefs.gridPref === "on");
   const setPlaying = useMmdVrStore((s) => s.setPlaying);
   const setLoop = useMmdVrStore((s) => s.setLoop);
   const setPlaceMode = useMmdVrStore((s) => s.setPlaceMode);
@@ -1693,8 +1698,9 @@ export function MmdVrControlBar({
       />
       </group>}
       {tab === "visual" && <group>
-        <HudButton position={[-0.4, 0.32, 0]} label={shadowsLabel} size={[0.65, 0.14]} active={profile.shadows} onPress={() => setPrefs({ shadowsPref: profile.shadows ? "off" : "on" })} />
-        <HudButton position={[0.4, 0.32, 0]} label={gridLabel} size={[0.65, 0.14]} active={profile.showGrid} onPress={() => setPrefs({ gridPref: profile.showGrid ? "off" : "on" })} />
+        <HudButton position={[-0.78, 0.32, 0]} label={shadowsLabel} size={[0.65, 0.14]} active={profile.shadows} onPress={() => setPrefs({ shadowsPref: profile.shadows ? "off" : "on" })} />
+        <HudButton position={[0, 0.32, 0]} label={gridLabel} size={[0.65, 0.14]} active={gridVisible} onPress={() => setPrefs({ gridPref: gridVisible ? "off" : "on" })} />
+        <HudButton position={[0.78, 0.32, 0]} label={t("hudSoftHighlights")} size={[0.76, 0.14]} active={prefs.softHighlights} onPress={() => setPrefs({ softHighlights: !prefs.softHighlights })} />
       </group>}
       {!materialPanelOpen && (tab === "visual" ? (
         <VisualSettingsPanel

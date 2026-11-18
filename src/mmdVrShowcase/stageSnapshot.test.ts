@@ -72,6 +72,19 @@ describe("same-page stage resume", () => {
     expect(restoreStageTime(NaN, 20)).toBe(0);
   });
 
+  it("keeps the last complete stage after fatal rollback, but saves a healthy deliberate removal", () => {
+    const saved = stage();
+    const empty = { ...saved, assets: [], models: [] };
+    const capture = vi.fn(() => empty);
+    useMmdVrStore.setState({ savedStage: saved, captureStage: capture, physicsFatal: true });
+    useMmdVrStore.getState().closeOverlay();
+    expect(capture).not.toHaveBeenCalled();
+    expect(useMmdVrStore.getState().savedStage).toBe(saved);
+    useMmdVrStore.setState({ captureStage: capture });
+    useMmdVrStore.getState().closeOverlay();
+    expect(useMmdVrStore.getState().savedStage).toBe(empty);
+  });
+
   it("replays visibility and material overrides using the new runtime model id", () => {
     const runtime = { setModelVisible: vi.fn(), setMaterialVisible: vi.fn(), setMaterialOverride: vi.fn() };
     const saved = stage().models[0];

@@ -19,7 +19,9 @@ import {
   setMmdVrClockTime,
 } from "../mmdVrClock";
 import { getMmdVrRenderProfile } from "../mmdVrQuality";
-import { useMmdVrStore, type MmdVrLightPreset, type MmdVrMaterialState } from "../mmdVrStore";
+import { PLACE_HALF_WIDTH, useMmdVrStore, type MmdVrLightPreset, type MmdVrMaterialState } from "../mmdVrStore";
+import { objectHeadingDegrees, setObjectHeadingDegrees } from "../objectHeading";
+import { LiveHouse } from "./LiveHouse";
 import { useMmdVrTheme } from "../mmdVrTheme";
 import { prepareMmdVrModel } from "../prepareMmdVrModel";
 import { getMmdVrControllerColliderMatrices } from "../mmdVrControllerColliders";
@@ -65,14 +67,14 @@ const LIGHT_PRESETS: Record<
   }
 > = {
   stage: {
-    ambient: 0.55,
-    ambientColor: "#dce7ff",
-    sun: 1.05,
-    sunColor: "#fff4e8",
-    hemi: 0.35,
+    ambient: 0.52,
+    ambientColor: "#f0eeea",
+    sun: 0.91,
+    sunColor: "#fff9ef",
+    hemi: 0.42,
     hemiSky: "#b8c8e0",
     hemiGround: "#1a2230",
-    sunPos: [3.2, 6.5, 2.4],
+    sunPos: [-3, 4.2, 4.8],
     skyZenith: "#1a2840",
     skyHorizon: "#0e1520",
     fogColor: "#0c1018",
@@ -101,14 +103,14 @@ const LIGHT_PRESETS: Record<
     poolColor: "#a891cf",
   },
   contrast: {
-    ambient: 0.28,
-    ambientColor: "#c8d5ef",
-    sun: 1.45,
-    sunColor: "#fff1df",
-    hemi: 0.2,
+    ambient: 0.41,
+    ambientColor: "#e4e9f2",
+    sun: 1.03,
+    sunColor: "#fff0e2",
+    hemi: 0.36,
     hemiSky: "#9eb4d5",
     hemiGround: "#090d14",
-    sunPos: [4.5, 7, 1.2],
+    sunPos: [3.6, 3.8, 4.2],
     skyZenith: "#0a1018",
     skyHorizon: "#05080c",
     fogColor: "#0a0e15",
@@ -215,25 +217,22 @@ function StageFloor({
   shadows,
   placeMode,
   floorColor,
+  deck,
 }: {
   segments: number;
   shadows: boolean;
   placeMode: boolean;
   floorColor: string;
+  deck: boolean;
 }) {
   const { accent } = useMmdVrTheme();
   return (
     <group position={[0, -0.02, 0]}>
-      <mesh
+      {!deck && <mesh
         rotation={[-Math.PI / 2, 0, 0]}
         position={[0, 0, 0]}
         receiveShadow={shadows}
-        onPointerDown={(e) => {
-          if (!placeMode) return;
-          e.stopPropagation();
-          const p = e.point;
-          useMmdVrStore.getState().requestGroundPlace(p.x, p.z);
-        }}
+        raycast={() => null}
       >
         <circleGeometry args={[8, segments]} />
         {shadows ? (
@@ -241,15 +240,16 @@ function StageFloor({
         ) : (
           <meshBasicMaterial color={floorColor} depthWrite={false} polygonOffset polygonOffsetFactor={1} polygonOffsetUnits={1} />
         )}
-      </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.002, 0]}>
+      </mesh>}
+      {!deck && <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.002, 0]}>
         <ringGeometry args={[3.2, 3.32, Math.max(16, Math.floor(segments / 2))]} />
         <meshBasicMaterial color={accent.gridMajor} transparent opacity={0.4} side={THREE.FrontSide} />
-      </mesh>
+      </mesh>}
       {placeMode ? (
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.004, 0]} raycast={() => null}>
-          <ringGeometry args={[7.6, 7.95, 48]} />
-          <meshBasicMaterial color={accent.marker} transparent opacity={0.35} side={THREE.DoubleSide} />
+        <mesh name="placement-surface" rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.021, 0]}
+          onPointerDown={e => { e.stopPropagation(); useMmdVrStore.getState().requestGroundPlace(e.point.x, e.point.z); }}>
+          <planeGeometry args={[2 * PLACE_HALF_WIDTH, 2 * PLACE_HALF_WIDTH]} />
+          <meshBasicMaterial color={accent.marker} transparent opacity={0.1} depthWrite={false} />
         </mesh>
       ) : null}
     </group>
@@ -461,6 +461,7 @@ export function MmdVrStageContent() {
       console.error("[mmdVr] physics toggle failed", error);
       if (!cancelled) {
         const fatal = isMmdRuntimeRebuildError(error);
+        if (fatal) readyToSaveRef.current = false;
         syncModelList();
         syncMaterialModels();
         lastEvaluatedTimeRef.current = -Infinity;
@@ -497,6 +498,7 @@ export function MmdVrStageContent() {
       console.error("[mmdVr] self-collision rebuild failed", error);
       if (!cancelled) {
         const fatal = isMmdRuntimeRebuildError(error);
+        if (fatal) readyToSaveRef.current = false;
         syncModelList();
         syncMaterialModels();
         lastEvaluatedTimeRef.current = -Infinity;
@@ -568,7 +570,6 @@ export function MmdVrStageContent() {
   useLayoutEffect(() => {
     const previousToneMapping = gl.toneMapping;
     const previousExposure = gl.toneMappingExposure;
-    gl.toneMapping = THREE.LinearToneMapping;
     return () => {
       gl.toneMapping = previousToneMapping;
       gl.toneMappingExposure = previousExposure;
@@ -576,8 +577,9 @@ export function MmdVrStageContent() {
   }, [gl]);
 
   useLayoutEffect(() => {
+    gl.toneMapping = mmdPrefs.softHighlights ? THREE.NeutralToneMapping : THREE.LinearToneMapping;
     gl.toneMappingExposure = mmdPrefs.exposure;
-  }, [gl, mmdPrefs.exposure]);
+  }, [gl, mmdPrefs.softHighlights, mmdPrefs.exposure]);
 
   function syncModelList() {
     const list = runtime.listModels().map((m) => ({
@@ -619,7 +621,7 @@ export function MmdVrStageContent() {
       name: entry.name,
       visible: entry.group.visible,
       scale: entry.group.scale.x,
-      rotationY: entry.group.rotation.y,
+      rotationY: objectHeadingDegrees(entry.group),
     }));
     setObjects(list);
   }
@@ -826,27 +828,12 @@ export function MmdVrStageContent() {
 
     const place = store.physicsBusy ? null : store.takeGroundPlace();
     if (place) {
-      const models = runtime.listModels();
-      const objectIds = [...objectsRef.current.keys()];
-      const targetId =
-        (store.placeModelId && (models.some((m) => m.id === store.placeModelId) || objectIds.includes(store.placeModelId))
-          ? store.placeModelId
-          : models.find((m) => m.visible)?.id) ?? models[0]?.id ?? objectIds[0];
-      if (targetId) {
-        const objectEntry = objectsRef.current.get(targetId);
-        if (objectEntry) {
-          objectEntry.group.position.set(place.x, 0, place.z);
-        } else {
-          runtime.setModelTransform(targetId, {
-            positionX: place.x,
-            positionY: 0,
-            positionZ: place.z,
-          });
-          physicsReseedNeeded = true;
-        }
-        if (store.placeModelId !== targetId) {
-          store.setPlaceModelId(targetId);
-        }
+      const objectEntry = objectsRef.current.get(place.id);
+      if (objectEntry) {
+        objectEntry.group.position.set(place.x, 0, place.z);
+      } else if (runtime.listModels().some(m => m.id === place.id)) {
+        runtime.setModelTransform(place.id, { positionX: place.x, positionY: 0, positionZ: place.z });
+        physicsReseedNeeded = true;
       }
     }
 
@@ -860,10 +847,9 @@ export function MmdVrStageContent() {
             objectEntry.group.position.set(...objectEntry.defaultPosition);
             objectEntry.group.scale.setScalar(1);
             objectEntry.group.rotation.y = 0;
-          } else {
-            if (request.scale != null) objectEntry.group.scale.setScalar(request.scale);
-            if (request.rotationY != null) objectEntry.group.rotation.y = request.rotationY;
           }
+          if (request.scale != null) objectEntry.group.scale.setScalar(request.scale);
+          if (request.rotationY != null) setObjectHeadingDegrees(objectEntry.group, request.rotationY);
           continue;
         }
         if (request.reset) {
@@ -1042,11 +1028,13 @@ export function MmdVrStageContent() {
         shadows={profile.shadows}
         placeMode={placeMode}
         floorColor={lightCfg.floorColor}
+        deck={mmdPrefs.liveHouseEnabled}
       />
+      {mmdPrefs.liveHouseEnabled && <LiveHouse concert={lightPreset === "contrast"} />}
       {mmdPrefs.stageLightPoolEnabled ? (
         <StageLightPool color={lightCfg.poolColor} opacity={Math.min(0.14, rimIntensity * 0.08)} />
       ) : null}
-      {profile.showGrid ? (
+      {profile.showGrid && (!mmdPrefs.liveHouseEnabled || placeMode || mmdPrefs.gridPref === "on") ? (
         <gridHelper
           args={[12, 12, accent.gridMajor, accent.gridMinor]}
           position={[0, 0.01, 0]}

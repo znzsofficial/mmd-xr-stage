@@ -79,6 +79,8 @@ describe("requestMmdVrEnter", () => {
         snapTurnDegrees: 30,
         exposure: 1,
         stageSkyEnabled: true,
+        liveHouseEnabled: false,
+        softHighlights: false,
         stageFogEnabled: true,
         stageRimLightEnabled: false,
         stageLightPoolEnabled: false,

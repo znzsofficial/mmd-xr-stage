@@ -210,9 +210,32 @@ describe("MMD VR adjustments", () => {
       seen.push(useMmdVrStore.getState().prefs.lightPreset);
     }
 
-    expect(seen).toEqual(["stage", "soft", "daylight", "warm", "rim", "contrast"]);
+    expect(seen).toEqual(["stage", "contrast", "soft", "daylight", "warm", "rim"]);
     useMmdVrStore.getState().cycleLightPreset();
     expect(useMmdVrStore.getState().prefs.lightPreset).toBe("stage");
+  });
+
+  it("binds a valid floor hit to its target; never replays it after a target change, cancel, removal or exit", () => {
+    const s = useMmdVrStore.getState();
+    s.setObjects([{ id: "prop", name: "prop", visible: true, rotationY: 0, scale: 1 }]);
+    s.setPlaceMode(true);
+    s.requestGroundPlace(7, 0);
+    expect(s.takeGroundPlace()).toBeNull();
+    s.requestGroundPlace(5.5, -5.5);
+    expect(s.takeGroundPlace()).toEqual({ id: "model-1", x: 5.5, z: -5.5 });
+    s.requestGroundPlace(1, 2);
+    s.setPlaceModelId("prop");
+    expect(s.takeGroundPlace()).toBeNull();
+    s.requestGroundPlace(1, 2);
+    s.setPlaceMode(false);
+    s.setPlaceMode(true);
+    expect(s.takeGroundPlace()).toBeNull();
+    s.requestGroundPlace(1, 2);
+    s.setObjects([]);
+    expect(s.takeGroundPlace()).toBeNull();
+    s.requestGroundPlace(1, 2);
+    s.closeOverlay();
+    expect(s.takeGroundPlace()).toBeNull();
   });
 
   it("keeps experimental physics session-only and off after exit", () => {

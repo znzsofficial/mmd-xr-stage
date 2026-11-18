@@ -1,4 +1,5 @@
 import type { WebGLRenderer } from "three";
+import { HUD_RAY } from "./hudPointer";
 import { buildQuestVrSessionInit, createProductXrSession } from "../xr";
 import { getMmdVrRenderProfile, type MmdVrQualityInput } from "./mmdVrQuality";
 import { useMmdVrStore, type MmdVrRenderQuality } from "./mmdVrStore";
@@ -15,10 +16,7 @@ const session = createProductXrSession<MmdVrAttachQuality>({
     gl.xr.setFoveation(profile.foveation);
   },
   controller: {
-    rayPointer: {
-      rayModel: { color: "#9fd9ff", opacity: 0.62 },
-      cursorModel: { color: "#ffffff", opacity: 0.95, size: 0.014, renderOrder: 100 },
-    },
+    rayPointer: HUD_RAY,
   },
   onSessionEnd: () => {
     if (useMmdVrStore.getState().overlayOpen) useMmdVrStore.getState().closeOverlay();
@@ -40,10 +38,7 @@ function applyHandTracking(handTracking: boolean) {
   session.xrStore.setHand(
     handTracking
       ? {
-          rayPointer: {
-            rayModel: { color: "#9fd9ff", opacity: 0.62, maxLength: 1.2 },
-            cursorModel: { color: "#ffffff", opacity: 0.95, size: 0.014, renderOrder: 100 },
-          },
+          rayPointer: HUD_RAY,
           touchPointer: { hoverRadius: 0.16 },
         }
       : false,
