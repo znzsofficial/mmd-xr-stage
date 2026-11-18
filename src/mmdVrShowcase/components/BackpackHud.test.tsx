@@ -50,7 +50,7 @@ afterEach(async () => {
   vi.restoreAllMocks(); vi.unstubAllGlobals();
 });
 
-it("can choose each of the five sets directly from viewing, with no scenery cycle or settings page", async () => {
+it("can choose every set directly from viewing, with no scenery cycle or settings page", async () => {
   await render();
   for (const id of [...sceneryIds].reverse()) {
     await click(t("hudScenery"));

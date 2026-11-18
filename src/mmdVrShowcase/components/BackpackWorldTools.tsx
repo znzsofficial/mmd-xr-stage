@@ -8,7 +8,7 @@ import { useMmdVrStore } from "../mmdVrStore";
 import { fileSource, PageControls } from "./BackpackPanels";
 import { HudButton, HudLine, HudSheet } from "./PorcelainControls";
 import { useHudWorldInput } from "./hudWorldInput";
-import { useStagePlay } from '../play/stagePlay';
+import { TOYS, useStagePlay } from '../play/stagePlay';
 
 /** Resolve once on selection/move. Keep the controls stationary while the user aims.
  * A hidden or off-screen asset selected in the backpack uses the forward reading zone. */
@@ -78,7 +78,7 @@ function CharacterPropTools({id,instance,locked}:{id:string;instance:BackpackLiv
   const t=useLanguageStore(s=>s.t),held=useStagePlay(s=>s.held),prop=useStagePlay(s=>s.character?.assetId===id?s.character:null);
   const toy=held?.toy??prop?.toy, wrists=instance.wrists;
   const hint=!wrists?.left&&!wrists?.right?t('propNoWrist'):!instance.visible?t('propHidden'):!toy?t('propEquipFirst'):
-    `${t(toy==='post'?'toyPost':'toyBubbles')} · ${prop?`${prop.tilt}° / ${prop.inset} cm`:t('propPickHand')}`;
+    `${t(TOYS[toy].label)} · ${prop?`${prop.tilt}° / ${prop.inset} cm`:t('propPickHand')}`;
   return <>
     <HudLine position={[0,.21,0]} text={hint} width={1.23} role="muted"/>
     {(['left','right'] as const).map((hand,i)=><HudButton key={hand} position={[(i-.5)*.63,.05,0]} size={[.59,.15]}

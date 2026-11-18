@@ -2,8 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { sceneryIds } from './catalog';
 import { ARBOR, ARBOR_POSTS, BACKLINE, canPlaceInScenery, LAWN_KNOLLS, LAWN_TREES, MEADOW_POSTS, MEADOW_SEAT, POOL, WEDGES } from './placementAreas';
 import { CLASS_FIXTURES, ROOM } from './ClassroomLayout';
+import { COURT_PIERS, COURT_RADIUS } from './placementAreas';
 
 describe('placeable ground at foot height', () => {
+  it('leaves clear space under the broken arch but excludes the feet of every pier and the floating rim',()=>{
+    for(const {x,z} of COURT_PIERS)expect(canPlaceInScenery('astralCourt',x,z)).toBe(false);
+    for(const z of [-5,-4.3,-2,0,3])expect(canPlaceInScenery('astralCourt',0,z)).toBe(true);
+    expect(canPlaceInScenery('astralCourt',0,COURT_RADIUS-.05)).toBe(false);
+  });
   it.each(sceneryIds)('has a usable origin and rejects invalid space in %s', id => {
     expect(canPlaceInScenery(id,0,0)).toBe(true);
     for(const [x,z] of [[NaN,0],[0,Infinity],[100,100]]) expect(canPlaceInScenery(id,x,z)).toBe(false);

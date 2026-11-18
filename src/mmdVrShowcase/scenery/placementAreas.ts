@@ -13,6 +13,13 @@ function hits(r: Footprint, x: number, z: number, clearance = CLEAR) {
 }
 
 export const SIMPLE_FLOOR_RADIUS = 8;
+export const COURT_RADIUS = 6.8;
+// Paired piers bracket a rear stargate; broken columns light the approaches.
+export const COURT_PIERS = [
+  {x:-2.78,z:-4.3,w:1.08,d:1.08}, {x:2.78,z:-4.3,w:1.08,d:1.08},
+  {x:-5.05,z:-1.2,w:.95,d:.95}, {x:5.05,z:-1.2,w:.95,d:.95},
+  {x:-4.2,z:3.4,w:.95,d:.95}, {x:4.2,z:3.4,w:.95,d:.95},
+];
 export const LIVE_DECK_SIZE = 11.6;
 export const WEDGES = [-1,1].map(side => ({ x: side*2.85, z: 2.4, w: .78, d: .56, yaw: -side*.28 }));
 export const BACKLINE = { drums:{x:-2.72,z:-4.52,w:2.05,d:1.32}, keys:{x:3.18,z:-4.34,w:1.63,d:.76} };
@@ -66,6 +73,7 @@ export function canPlaceInScenery(id: SceneryId, x: number, z: number): boolean 
   if (!Number.isFinite(x) || !Number.isFinite(z)) return false;
   switch (id) {
     case 'floor': return Math.hypot(x, z) <= SIMPLE_FLOOR_RADIUS - CLEAR;
+    case 'astralCourt': return Math.hypot(x,z) <= COURT_RADIUS-CLEAR && !COURT_PIERS.some(p=>hits(p,x,z));
     case 'liveHouse': return Math.max(Math.abs(x), Math.abs(z)) <= LIVE_DECK_SIZE / 2 - CLEAR &&
       z > -5.515 + CLEAR && !hits(cyc, x, z) && !wings.some(r => hits(r, x, z));
     case 'classroom': return Math.abs(x) < ROOM.w / 2 - CLEAR && Math.abs(z) < ROOM.d / 2 - CLEAR &&

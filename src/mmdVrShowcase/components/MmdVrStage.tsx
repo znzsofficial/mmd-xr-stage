@@ -21,6 +21,7 @@ import { PLACE_HALF_WIDTH, useMmdVrStore, type MmdVrLightPreset, type MmdVrMater
 import { objectHeadingDegrees, setObjectHeadingDegrees } from "../objectHeading";
 import { LiveHouse } from "./LiveHouse";
 import { StudioPlinth } from '../scenery/StudioPlinth';
+import { AstralCourt, CourtSky } from '../scenery/AstralCourt';
 import { prepareModelGpu } from "../prepareModelGpu";
 import { createPlacementWork } from '../placementWork';
 import { DaylightSet, DaySky, SUN_POSITIONS } from "../scenery/DaylightSets";
@@ -296,10 +297,10 @@ export function MmdVrStageRoom({ scenery, saved, slots }: { scenery: SceneryId; 
   const lightPreset = mmdPrefs.lightPreset;
   const daySet = scenery === "classroom" || scenery === "pool" || scenery === "lawn" ? scenery : null;
   const baseLight = LIGHT_PRESETS[lightPreset] ?? LIGHT_PRESETS.stage;
-  const lightCfg = useMemo(() => !daySet ? baseLight : ({ ...baseLight,
+  const lightCfg = useMemo(() => scenery==='astralCourt' ? {...baseLight, hemiSky:'#dadcf5', hemiGround:'#797883', hemi:baseLight.hemi+.42, fogColor:'#555572'} : !daySet ? baseLight : ({ ...baseLight,
     sunPos: SUN_POSITIONS[daySet], hemiSky: "#d4e5ee", hemiGround: daySet === "lawn" ? "#72845a" : "#a79d8d",
     hemi: baseLight.hemi + 0.32, fogColor: lightPreset === "warm" ? "#e7c8a7" : "#c5dfe6",
-  }), [daySet, baseLight, lightPreset]);
+  }), [daySet, baseLight, lightPreset, scenery]);
   const rimIntensity = lightCfg.rimIntensity > 0 ? lightCfg.rimIntensity : 0.28;
   const viewDistance = mmdPrefs.viewDistance;
   const shadowExtent = profile.quality === "high" ? 6 : profile.quality === "balanced" ? 5 : 4;
@@ -1001,7 +1002,7 @@ export function MmdVrStageRoom({ scenery, saved, slots }: { scenery: SceneryId; 
       {mmdPrefs.stageFogEnabled ? (
         <fog attach="fog" args={[lightCfg.fogColor, Math.min(10, viewDistance * 0.45), viewDistance]} />
       ) : null}
-      {mmdPrefs.stageSkyEnabled && daySet ? <DaySky sun={lightCfg.sunPos} warm={lightPreset === "warm"} /> : mmdPrefs.stageSkyEnabled ? (
+      {mmdPrefs.stageSkyEnabled && scenery==='astralCourt' ? <CourtSky/> : mmdPrefs.stageSkyEnabled && daySet ? <DaySky sun={lightCfg.sunPos} warm={lightPreset === "warm"} /> : mmdPrefs.stageSkyEnabled ? (
         <StageSky zenith={lightCfg.skyZenith} horizon={lightCfg.skyHorizon} bottom={lightCfg.fogColor} />
       ) : null}
       <ambientLight color={lightCfg.ambientColor} intensity={lightCfg.ambient} />
@@ -1038,6 +1039,7 @@ export function MmdVrStageRoom({ scenery, saved, slots }: { scenery: SceneryId; 
         deck={scenery !== "floor"}
       />
       {scenery === "liveHouse" && <LiveHouse concert={lightPreset === "contrast"} />}
+      {scenery === "astralCourt" && <AstralCourt shadows={profile.shadows}/>}
       {daySet && <DaylightSet id={daySet} shadows={profile.shadows} />}
       {mmdPrefs.stageLightPoolEnabled ? (
         <StageLightPool color={lightCfg.poolColor} opacity={Math.min(0.14, rimIntensity * 0.08)} />

@@ -8,7 +8,7 @@ import { POOL_SUN, PoolTerrace } from './PoolTerrace';
 import { Meadow } from './Meadow';
 import { MEADOW_SUN } from './placementAreas';
 
-type DaySet = Exclude<SceneryId, 'floor' | 'liveHouse'>;
+type DaySet = Extract<SceneryId, 'classroom' | 'pool' | 'lawn'>;
 type V = Part['p'];
 export const SUN_POSITIONS: Record<DaySet,V> = {classroom:CLASS_SUN,pool:POOL_SUN,lawn:MEADOW_SUN};
 

@@ -1,5 +1,10 @@
 import { create } from 'zustand';
-export type Toy = 'bubbles' | 'post';
+export const TOYS = {
+  bubbles: { label: 'toyBubbles', hint: 'toyBubblesHint' },
+  post: { label: 'toyPost', hint: 'toyPostHint' },
+  saber: { label: 'toySaber', hint: 'toySaberHint' },
+} as const;
+export type Toy = keyof typeof TOYS;
 export type Hand = 'left' | 'right';
 export type CharacterToy = { assetId: string; toy: Toy; hand: Hand; tilt: number; inset: number };
 export const POST_Z = -5.15;
@@ -10,15 +15,17 @@ export function markAt(x:number,y:number) {
 }
 export const useStagePlay = create<{
   held: {toy:Toy; hand:Hand} | null; character: CharacterToy | null; stamps:number[];
+  saberLit:boolean; toggleSaber:()=>void;
   give:(assetId:string, hand:Hand)=>void; adjust:(tilt:number,inset:number)=>void;
   equip:(toy:Toy,hand:Hand)=>void; stow:()=>void; stamp:(index:number)=>void; reset:()=>void; newCard:()=>void;
-}>((set,get)=>({ held:null,character:null,stamps:[],
-  equip:(toy,hand)=>set({held:{toy,hand},character:null}), stow:()=>set({held:null,character:null}),
+}>((set,get)=>({ held:null,character:null,stamps:[],saberLit:false,
+  toggleSaber:()=>{if(get().held?.toy==='saber')set({saberLit:!get().saberLit});},
+  equip:(toy,hand)=>set({held:{toy,hand},character:null,saberLit:false}), stow:()=>set({held:null,character:null,saberLit:false}),
   give:(assetId,hand)=>{const {held,character}=get();const toy=held?.toy??(character?.assetId===assetId?character.toy:null);
     if(toy)set({held:null,character:{assetId,hand,toy,tilt:0,inset:0}});},
   adjust:(tilt,inset)=>{const c=get().character;if(c)set({character:{...c,tilt:Math.max(-90,Math.min(90,c.tilt+tilt)),inset:Math.max(-5,Math.min(5,c.inset+inset))}});},
   stamp:index=>{const {held,stamps}=get();if(held?.toy==='post' && Number.isInteger(index) && index>=0 && index<3 && !stamps.includes(index))set({stamps:[...stamps,index]});},
-  newCard:()=>set({stamps:[]}), reset:()=>set({held:null,character:null,stamps:[]}),
+  newCard:()=>set({stamps:[]}), reset:()=>set({held:null,character:null,stamps:[],saberLit:false}),
 }));
 
 /** After UI, tracking loss or transfer, a held grip must be released before use. */

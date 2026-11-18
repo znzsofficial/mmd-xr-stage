@@ -25,7 +25,11 @@ Import PMX/PMD characters, VMD motions and GLB/glTF props on the prep page, then
 | **Live House** | **Studio plinth** |
 | ![Drums and an electric piano flank the wood stage of the Listening Room.](./docs/screenshots/live-house.webp) | ![Two octagonal softboxes face a round plinth with a graduated arch behind it.](./docs/screenshots/studio-plinth.webp) |
 
-The classroom image is the render used on the prep page. The other four are desktop XR simulator captures from `7b63232`. All five show built-in scenery without imported characters.
+**Astral Court · the saber beneath the orrery**
+
+![A lit teal saber above a stone star chart, facing a suspended orrery and a broken arch.](./docs/screenshots/astral-court.webp)
+
+The classroom image is the render used on the prep page. The remaining images are desktop XR simulator captures. All six show built-in scenery without imported characters.
 
 ## Features
 
@@ -38,9 +42,9 @@ The classroom image is the render used on the prep page. The other four are desk
 
 ### In VR
 
-- Choose a set from the viewing strip: the window-lit classroom, the pool terrace, the wisteria path, the live venue with drums and keys, or the studio plinth with softboxes. See the [standing spots for all five sets](./docs/vr-controls.md#在布景中给角色选位置). Only the current room's instances are loaded; scenery does not consume character or object slots.
+- Choose a set from the viewing strip: the window-lit classroom, pool terrace, wisteria path, live venue, studio plinth or Astral Court. See the [standing spots for each set](./docs/vr-controls.md#在布景中给角色选位置). Only the current room's instances are loaded; scenery does not consume character or object slots.
 - Pick a character or prop from the backpack, aim at free ground, and release the trigger to place it. Select a placed character to move, turn, scale, change its motion, or put it away. Hidden items remain reachable from the backpack.
-- Equip a bubble blower or a Lunar Post stamp from Backpack → Toys. Squeeze the side grip to use it; the trigger operates menus. To [give the toy to a character](./docs/vr-controls.md#把道具递给角色), point at the character, press the trigger, choose **Give toy**, then pick its left or right hand. The toy follows the wrist during VMD playback.
+- Equip a bubble blower, Lunar Post stamp or Astral saber from Backpack → Toys. Squeeze the side grip once to extend the saber, again to retract it. To [give a toy to a character](./docs/vr-controls.md#把道具递给角色), point at the character, press the trigger, choose **Give toy**, then pick its left or right hand. A lit saber stays lit and follows the wrist during VMD playback.
 - Render diagnostics distinguish requested settings, session-reported refresh/layer properties, callback cadence, model-update CPU cost and renderer resource/draw counters. No GPU time is inferred from these values.
 - After exiting VR, [export the last session's performance report](./docs/viewing-and-diagnostics.md) from the prep page before entering VR again or refreshing. It separates character placement and loader timings from frame intervals during viewing.
 - In-headset HUD with quality controls, model transform, height adjustment, snap turning, and exposure/lighting looks.

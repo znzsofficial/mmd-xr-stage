@@ -6,9 +6,11 @@ import { useHudWorldInput } from '../components/hudWorldInput';
 import { useMmdVrStore } from '../mmdVrStore';
 import { gripLatch, markAt, POST_Z, useStagePlay, type Toy, type Hand } from './stagePlay';
 import { MoonPost } from './MoonPost';
+import { AstralSaber } from './AstralSaber';
 
 const CAP=24;
 export function PlayPiece({toy}:{toy:Toy}) {
+  if(toy==='saber')return <AstralSaber/>;
   const post=toy==='post', main=post?'#47668a':'#62bcaf', trim=post?'#ffce76':'#f39f83';
   return <group name={`play:piece:${toy}`}>
     <mesh position={[0,.015,-.064]} scale={[.059,.062,.092]}><sphereGeometry args={[1,16,12]}/><meshStandardMaterial color={main} roughness={.38}/></mesh>
@@ -37,6 +39,7 @@ function InHand({toy,hand}:{toy:Toy;hand:Hand}) {
     const bag=useBackpack.getState(),stage=useMmdVrStore.getState();
     const usable=tracked&&!useHudWorldInput.getState().blocked&&!bag.busy&&!bag.draft&&!bag.selected&&!stage.placeMode&&!stage.assetLoad.running&&!stage.physicsBusy&&!stage.physicsFatal;
     const action=s.latch(usable,!!source?.gamepad?.buttons[1]?.pressed);
+    if(toy==='saber'&&action==='start')useStagePlay.getState().toggleSaber();
     const dt=Math.min(.05,Math.max(0,delta));s.cooldown=Math.max(0,s.cooldown-dt);
     if(tracked){
       s.pose.fromArray(grip.transform.matrix);s.ray.fromArray(ray.transform.matrix);
@@ -70,7 +73,7 @@ function InHand({toy,hand}:{toy:Toy;hand:Hand}) {
   });
   return <group pointerEvents="none"><group ref={body} visible={false}><PlayPiece toy={toy}/></group>
     {toy==='post'?<mesh name="post:aim" ref={reticle} visible={false}><ringGeometry args={[.065,.085,28]}/><meshBasicMaterial color="#fffce1" toneMapped={false}/></mesh>:
-    <instancedMesh name="play:bubbles" ref={bubbles} args={[undefined,undefined,CAP]} count={0} frustumCulled={false} onUpdate={m=>m.instanceMatrix.setUsage(DynamicDrawUsage)}>
+     toy==='bubbles'&&<instancedMesh name="play:bubbles" ref={bubbles} args={[undefined,undefined,CAP]} count={0} frustumCulled={false} onUpdate={m=>m.instanceMatrix.setUsage(DynamicDrawUsage)}>
       <sphereGeometry args={[1,14,10]}/><shaderMaterial transparent depthWrite={false}
         vertexShader={`varying vec3 vN,vEye;void main(){vec4 p=modelViewMatrix*instanceMatrix*vec4(position,1.);vN=normalMatrix*mat3(instanceMatrix)*normal;vEye=-p.xyz;gl_Position=projectionMatrix*p;}`}
         fragmentShader={`varying vec3 vN,vEye;void main(){vec3 n=normalize(vN);float rim=pow(1.-abs(dot(normalize(vEye),n)),1.2);float glint=smoothstep(.86,.98,dot(n,normalize(vec3(-.46,.57,.68))));vec3 hue=mix(vec3(.4,.96,.88),vec3(.99,.54,.83),.5+.5*sin(n.y*7.+n.x*3.));gl_FragColor=vec4(mix(hue,vec3(1.),glint),.11+.72*rim+.17*glint);

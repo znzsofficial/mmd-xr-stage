@@ -3,6 +3,7 @@ export const zh = {
   importBindResource: "为此引用选择资源文件",
   hudBack: "返回观看",
   hudScenery: "场景",
+  hudAstralCourt: "星环遗庭", toySaber: "星辉光剑", toySaberHint: "轻握侧键，展开／收起光刃",
   hudBackpack: "背包",
   propGive:'递道具', propGrip:'调整握姿', propLeft:'给角色左手', propRight:'给角色右手', propLower:'压低', propRaise:'抬高', propCloser:'移近', propFarther:'移远', propEquipFirst:'先到背包的「玩具」拿一件道具', propNoWrist:'未识别到角色的手腕骨', propHidden:'先显示角色再递道具', propPickHand:'选角色的手', propHint:'扳机点角色，可递道具',
   hudToys: "玩具", toyControls: "侧握键玩道具，食指扳机点菜单", toyNeedController: "拿起左手或右手手柄来玩",

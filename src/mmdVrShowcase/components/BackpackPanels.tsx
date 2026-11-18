@@ -7,7 +7,7 @@ import { SCENERY, sceneryIds } from "../scenery/catalog";
 import { HudButton, HudLine, HudSheet } from "./PorcelainControls";
 import { BackpackThumbnail, indexBackpackCovers } from "./BackpackThumbnail";
 import { useXRInputSourceState } from '@react-three/xr';
-import { useStagePlay, type Toy, type Hand } from '../play/stagePlay';
+import { TOYS, useStagePlay, type Toy, type Hand } from '../play/stagePlay';
 
 export function SceneryPanel({ onClose, onSelected, locked }: { onClose: () => void; onSelected: () => void; locked: boolean }) {
   const t = useLanguageStore(s => s.t);
@@ -89,12 +89,12 @@ function ToyShelf({locked,onClose}:{locked:boolean;onClose:()=>void}) {
   const left=useXRInputSourceState('controller','left'),right=useXRInputSourceState('controller','right');
   const characterHasToy=useStagePlay(s=>s.character!==null);
   const connected=(h:Hand)=>!!(h==='left'?left:right)?.inputSource.gripSpace;
-  const items:Toy[]=['bubbles','post'];
+  const items=Object.keys(TOYS) as Toy[];
   return <group name="play:shelf">
     <HudLine position={[0,.24,0]} text={t(left||right?'toyControls':'toyNeedController')} width={2.04} role="muted" />
-    {items.map((toy,i)=><group name={`play:shelf:${toy}`} key={toy} position-y={.018-i*.31}>
-      <HudLine position={[-.55,.045,0]} width={.91} text={t(toy==='bubbles'?'toyBubbles':'toyPost')} />
-      <HudLine position={[-.55,-.058,0]} width={.91} text={toy==='bubbles'?t('toyBubblesHint'):`${t('toyPostHint')} · ${n}/3`} role="muted" />
+    {items.map((toy,i)=><group name={`play:shelf:${toy}`} key={toy} position-y={.03-i*.245}>
+      <HudLine position={[-.55,.045,0]} width={.91} text={t(TOYS[toy].label)} />
+      <HudLine position={[-.55,-.058,0]} width={.91} text={t(TOYS[toy].hint)+(toy==='post'?` · ${n}/3`:'')} role="muted" />
       {toy==='post'&&room!=='floor'?<HudButton position={[.51,.018,0]} label={t('toyGoFloor')} size={[.91,.15]} disabled={locked} onPress={()=>useMmdVrStore.getState().setPrefs({scenery:'floor'})}/>: (['left','right'] as const).map((hand,j)=><HudButton key={hand} position={[.27+j*.47,.018,0]} size={[.44,.15]} active={held?.toy===toy&&held.hand===hand} label={t(hand==='left'?'toyLeft':'toyRight')} disabled={locked||!connected(hand)} onPress={()=>{useStagePlay.getState().equip(toy,hand);onClose();}}/>)}
     </group>)}
     <HudButton position={[-.46,-.67,0]} size={[.83,.15]} disabled={locked||(!held&&!characterHasToy)} label={t('toyStow')} onPress={()=>{useStagePlay.getState().stow();onClose();}} />

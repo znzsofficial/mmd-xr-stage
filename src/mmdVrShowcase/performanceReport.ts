@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { RenderDiagnostics, RenderRequest } from "./renderDiagnostics";
 import type { BackpackPlacementTiming } from "./backpack";
 
-type SceneSample = { models: number; objects: number; physics: boolean; scenery?: string; liveHouse: boolean; shadows: boolean; playing: boolean; heldToy?: 'bubbles' | 'post' | null };
+type SceneSample = { models: number; objects: number; physics: boolean; scenery?: string; liveHouse: boolean; shadows: boolean; playing: boolean; heldToy?: import('./play/stagePlay').Toy | null };
 type Window = Omit<RenderDiagnostics, "requested" | "active"> & SceneSample & { elapsedMs: number };
 const MAX_WINDOWS = 1800;
 

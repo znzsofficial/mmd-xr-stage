@@ -4,6 +4,7 @@ export const SCENERY = {
   classroom: { label: "hudClassroom", daylight: true },
   pool: { label: "hudPool", daylight: true },
   lawn: { label: "hudLawn", daylight: true },
+  astralCourt: { label: "hudAstralCourt", daylight: false },
 } as const;
 export type SceneryId = keyof typeof SCENERY;
 export const sceneryIds = Object.keys(SCENERY) as SceneryId[];

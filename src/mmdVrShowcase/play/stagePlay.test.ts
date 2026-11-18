@@ -4,6 +4,13 @@ import { gripLatch, markAt, POST_MARKS, useStagePlay } from './stagePlay';
 const get=useStagePlay.getState;
 beforeEach(()=>get().reset());
 describe('lunar postcard and held tools',()=>{
+  it('keeps a lit blade on the chosen animated wrist, but drops its light when stowed or re-equipped',()=>{
+    get().equip('saber','right');expect(get().saberLit).toBe(false);get().toggleSaber();
+    get().give('actor','left');get().toggleSaber();get().give('actor','right');
+    expect(get().held).toBeNull();expect(get().character).toMatchObject({toy:'saber',hand:'right'});expect(get().saberLit).toBe(true);
+    get().stow();expect(get().saberLit).toBe(false);get().equip('saber','left');get().toggleSaber();get().equip('bubbles','left');
+    get().toggleSaber();expect(get().saberLit).toBe(false);
+  });
   it('takes three distinct stamps, keeps the first postmark after stowing, resets at a room boundary',()=>{
     get().equip('post','left');expect(markAt(0,0)).toBe(-1);
     for(const i of [1,1,5,-1,0,2])get().stamp(i);
