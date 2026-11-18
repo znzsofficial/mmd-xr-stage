@@ -14,13 +14,14 @@ function hits(r: Footprint, x: number, z: number, clearance = CLEAR) {
 
 export const SIMPLE_FLOOR_RADIUS = 8;
 export const LIVE_DECK_SIZE = 11.6;
+export const WEDGES = [-1,1].map(side => ({ x: side*2.85, z: 2.4, w: .78, d: .56, yaw: -side*.28 }));
 // From the proscenium towards the audience: cyc, folded side drapes, truss
 // uprights, then the speaker stacks. The overhead truss is not an obstacle.
 const wings = [-1, 1].flatMap(side => [
   ...Array.from({ length: 7 }, (_, i) => ({ x: side * (3.4 + i * .30), z: -5.2 + i * .07, w: .37, d: .21, yaw: side * .36 })),
   { x: side * 4.55, z: -3.88, w: .84, d: .72 }, { x: side * 5.1, z: -4.55, w: .13, d: .13 },
   { x: side * 3.19, z: -5.22, w: .035, d: .04 },
-]);
+]).concat(WEDGES);
 
 export const POOL = {
   deck: { x: 0, z: 1, w: 23, d: 13.5 }, water: { x: 0, z: -12.4, w: 10.1, d: 13.35 },
@@ -29,12 +30,21 @@ export const POOL = {
   ladder: { x: -4.34, z: -5.75, w: .57, d: .43 },
   blocks: [-3.34, 0, 3.34].map(lane => ({ x: lane - 1.65, z: -19.42, w: .65, d: .7 })),
   benches: [-8, 8].map(x => ({x,z:-12.6,w:1.8,d:.51})),
+  loungers: [-1,1].flatMap(side => [0,1].map(i=>({x:side*(7.4+i*1.35),z:-2.95,w:.75,d:1.98,yaw:side*.16}))),
+  parasols: [-1,1].map(side=>({x:side*8.35,z:-1.35,w:.60,d:.60})),
 };
 const poolDeck = [POOL.deck, ...POOL.walks, POOL.farWalk];
-const poolObstacles = [POOL.water, POOL.ladder, ...POOL.blocks, ...POOL.benches];
+const poolObstacles = [POOL.water, POOL.ladder, ...POOL.blocks, ...POOL.benches, ...POOL.loungers, ...POOL.parasols];
 const shoeOffsets = [[0, 0], [CLEAR, 0], [-CLEAR, 0], [0, CLEAR], [0, -CLEAR]];
 const cyc = { x: 0, z: -5.32, w: 6.5, d: .088 };
 export const LAWN_SIZE = 58;
+export const MEADOW_SUN:[number,number,number]=[-4.8,3.6,-5.5];
+export const meadowPathX=(z:number)=>-3.1+1.7*Math.sin(z*.22+.9)+.038*z;
+export const MEADOW_SEAT = {x:4.1,z:-4.4,w:1.85,d:.68,yaw:-.55};
+export const MEADOW_POSTS = Array.from({length:13},(_,i)=>({x:-8.4-i*.47,z:5-i*1.85,w:.14,d:.14}));
+const firstPost=MEADOW_POSTS[0], lastPost=MEADOW_POSTS[MEADOW_POSTS.length-1];
+const meadowRail={x:(firstPost.x+lastPost.x)/2,z:(firstPost.z+lastPost.z)/2,w:.16,
+  d:Math.hypot(firstPost.x-lastPost.x,firstPost.z-lastPost.z)+.14,yaw:Math.atan2(firstPost.x-lastPost.x,firstPost.z-lastPost.z)};
 const landscapeRandom = seededRandom(11281);
 export const LAWN_KNOLLS = Array.from({ length: 58 }, () => {
   const x = landscapeRandom() * 54 - 27, z = landscapeRandom() * 54 - 27;
@@ -45,7 +55,7 @@ export const LAWN_KNOLLS = Array.from({ length: 58 }, () => {
 export const LAWN_TREES = Array.from({ length: 19 }, (_, i) => {
   const a = i * 2.399, r = 11 + landscapeRandom() * 12;
   return { x: Math.cos(a) * r, z: Math.sin(a) * r, h: 3.3 + 2.2 * landscapeRandom() };
-});
+}).concat([{x:5.75,z:-5.2,h:5.6},{x:-6.2,z:-9.4,h:4.4}]);
 
 export function canPlaceInScenery(id: SceneryId, x: number, z: number): boolean {
   if (!Number.isFinite(x) || !Number.isFinite(z)) return false;
@@ -60,7 +70,8 @@ export function canPlaceInScenery(id: SceneryId, x: number, z: number): boolean 
       shoeOffsets.every(([dx, dz]) =>
         poolDeck.some(r => hits(r, x + dx, z + dz, 0)));
     case 'lawn': return Math.max(Math.abs(x), Math.abs(z)) <= LAWN_SIZE / 2 - CLEAR &&
-      !LAWN_TREES.some(t => Math.hypot(x - t.x, z - t.z) < CLEAR + t.h * .042) &&
+      !hits(MEADOW_SEAT,x,z) && !hits(meadowRail,x,z) &&
+      !LAWN_TREES.some(t => Math.hypot(x - t.x, z - t.z) < CLEAR + t.h * .07) &&
       !LAWN_KNOLLS.some(k => {
         const c = Math.cos(k.yaw), s = Math.sin(k.yaw), dx = x - k.x, dz = z - k.z;
         // Horizontal section of the partially buried ellipsoid at ground level.

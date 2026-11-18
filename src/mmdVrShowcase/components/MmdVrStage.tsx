@@ -20,6 +20,7 @@ import { getMmdVrRenderProfile } from "../mmdVrQuality";
 import { PLACE_HALF_WIDTH, useMmdVrStore, type MmdVrLightPreset, type MmdVrMaterialState } from "../mmdVrStore";
 import { objectHeadingDegrees, setObjectHeadingDegrees } from "../objectHeading";
 import { LiveHouse } from "./LiveHouse";
+import { StudioPlinth } from '../scenery/StudioPlinth';
 import { prepareModelGpu } from "../prepareModelGpu";
 import { DaylightSet, DaySky, SUN_POSITIONS } from "../scenery/DaylightSets";
 import { showSceneryGrid, type SceneryId } from "../scenery/catalog";
@@ -221,24 +222,8 @@ function StageFloor({
 }) {
   const { accent } = useMmdVrTheme();
   return (
-    <group position={[0, -0.02, 0]}>
-      {!deck && <mesh
-        rotation={[-Math.PI / 2, 0, 0]}
-        position={[0, 0, 0]}
-        receiveShadow={shadows}
-        raycast={() => null}
-      >
-        <circleGeometry args={[8, segments]} />
-        {shadows ? (
-          <meshStandardMaterial color={floorColor} roughness={0.92} metalness={0.05} depthWrite={false} polygonOffset polygonOffsetFactor={1} polygonOffsetUnits={1} />
-        ) : (
-          <meshBasicMaterial color={floorColor} depthWrite={false} polygonOffset polygonOffsetFactor={1} polygonOffsetUnits={1} />
-        )}
-      </mesh>}
-      {!deck && <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.002, 0]}>
-        <ringGeometry args={[3.2, 3.32, Math.max(16, Math.floor(segments / 2))]} />
-        <meshBasicMaterial color={accent.gridMajor} transparent opacity={0.4} side={THREE.FrontSide} />
-      </mesh>}
+    <group>
+      {!deck && <StudioPlinth segments={segments} shadows={shadows} color={floorColor} />}
       {placeMode ? (
         <mesh name="placement-surface" rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.021, 0]}
           onPointerDown={e => { e.stopPropagation(); useMmdVrStore.getState().requestGroundPlace(e.point.x, e.point.z); }}>

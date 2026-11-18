@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { sceneryIds } from './catalog';
-import { canPlaceInScenery, LAWN_KNOLLS, LAWN_TREES } from './placementAreas';
+import { canPlaceInScenery, LAWN_KNOLLS, LAWN_TREES, MEADOW_POSTS, MEADOW_SEAT, POOL, WEDGES } from './placementAreas';
 import { CLASS_FIXTURES, ROOM } from './ClassroomLayout';
 
 describe('placeable ground at foot height', () => {
@@ -31,5 +31,14 @@ describe('placeable ground at foot height', () => {
   it('rejects the raised parts of the meadow while preserving the grassy clearing', () => {
     for(const f of [...LAWN_TREES,...LAWN_KNOLLS]) expect(canPlaceInScenery('lawn',f.x,f.z)).toBe(false);
     for(const [x,z] of [[3,-2],[-2.5,3],[0,-3.5]]) expect(canPlaceInScenery('lawn',x,z)).toBe(true);
+  });
+  it('keeps the new near-field furniture and fence out of backpack footprints while leaving viewing positions open', () => {
+    for(const fixture of [...POOL.loungers,...POOL.parasols])expect(canPlaceInScenery('pool',fixture.x,fixture.z)).toBe(false);
+    for(const fixture of WEDGES)expect(canPlaceInScenery('liveHouse',fixture.x,fixture.z)).toBe(false);
+    expect(canPlaceInScenery('lawn',MEADOW_SEAT.x,MEADOW_SEAT.z)).toBe(false);
+    for(let i=1;i<MEADOW_POSTS.length;i++) {const a=MEADOW_POSTS[i-1],b=MEADOW_POSTS[i];expect(canPlaceInScenery('lawn',(a.x+b.x)/2,(a.z+b.z)/2)).toBe(false);}
+    expect(canPlaceInScenery('pool',3,-4.9)).toBe(true);
+    expect(canPlaceInScenery('lawn',3.1,-3.5)).toBe(true);
+    expect(canPlaceInScenery('liveHouse',0,2.4)).toBe(true);
   });
 });
