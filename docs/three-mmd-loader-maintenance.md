@@ -24,7 +24,7 @@
 - Bullet 运行资产：`public/mmd/0.8.6/mmd_bullet.js`、`public/mmd/0.8.6/mmd_bullet.wasm`；版本化目录保证 ABI 配套的 JS/WASM 同步更新
 - pnpm patch：`patches/@yohawing__three-mmd-loader@0.8.6.patch`（rigid-body range contact 查询 + three r186/r187 TSL self-shadow 兼容降级，见下文）
 - `pnpm-workspace.yaml` 中的 `patchedDependencies` 负责应用补丁
-- 当前 lockfile patch hash：`f9a41902f91b97291209c698e8f6ddddda0262d65fd088e1eed698fc7cebd7d7`
+- 还包含重获追踪刚体中心查询与 CCD IK 活跃节点矩阵优化。升级后执行 `ccdSolverParity.test.ts` 并与原求解器对照；补丁 hash 以 `pnpm-lock.yaml` 为准。
 
 上游仓库提交了 `package-lock.json`，其开发文档和 CI 均使用 npm。不要在 `E:\WebProjects\three-mmd-loader` 中使用 pnpm 更新依赖或 lockfile。NekoVirtOS 仍使用 pnpm。
 

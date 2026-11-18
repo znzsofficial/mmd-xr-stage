@@ -109,6 +109,121 @@ index 35ad7804839e458df2f66bb413622f48815ead55..fac0cbf8beac5bef88fd547db236e408
      ensureModel(context) {
          const bodies = context.rigidBodies;
          if (!bodies)
+diff --git a/dist/runtime/ik/CcdIkSolver.js b/dist/runtime/ik/CcdIkSolver.js
+index abe9f161ac754ef03e832e83c2d9d2a03aefd27a..1392645f449e1b978299c328e4ced859c681d9f0 100644
+--- a/dist/runtime/ik/CcdIkSolver.js
++++ b/dist/runtime/ik/CcdIkSolver.js
+@@ -5,6 +5,7 @@ const matrixElementCount = 16;
+ export class CcdIkSolver {
+     scratchComposeLocalMatrix = new Float32Array(matrixElementCount);
+     scratchComposeStates = new Uint8Array(0);
++    scratchActiveOrder = [];
+     scratchTranslations = [];
+     scratchMatrices = new Float32Array(0);
+     scratchBaseRotations = [];
+@@ -94,10 +95,15 @@ export class CcdIkSolver {
+         const composeStates = this.ensureComposeStatesCapacity(input.bones.length);
+         let totalIterations = 0;
+         composeWorldMatrices(input.bones, translations, input.pose.rotations, matrices, this.scratchComposeLocalMatrix, composeStates);
++        // Keep the initial full compose (including topology checks). Within CCD,
++        // only links, goals, effectors and their ancestors can be read. Rebuild
++        // their order each solve: active chains and even parent indices can change.
++        const activeOrder = this.scratchActiveOrder;
++        collectActiveOrder(input.bones, input.chains, composeStates, activeOrder);
+         for (const chain of input.chains) {
+             const iterationCount = Math.min(Math.max(Math.trunc(chain.iterationCount), 0), maxIkLoopCount);
+             totalIterations +=
+-                solveChain(input.bones, translations, input.pose.rotations, matrices, chain, iterationCount, this.scratchComposeLocalMatrix, composeStates, this.scratchBaseRotations, this.scratchIkRotations, this.scratchBestRotations, this.scratchChainState, this.scratchIkVectors, this.scratchLinkLimits, this.scratchIkQuaternions, this.scratchIkEulerVectors, this.scratchRotation3);
++                solveChain(input.bones, translations, input.pose.rotations, matrices, chain, iterationCount, this.scratchComposeLocalMatrix, activeOrder, this.scratchBaseRotations, this.scratchIkRotations, this.scratchBestRotations, this.scratchChainState, this.scratchIkVectors, this.scratchLinkLimits, this.scratchIkQuaternions, this.scratchIkEulerVectors, this.scratchRotation3);
+             if (finalDistances) {
+                 finalDistances.push(vectorLength(subtractVectors(matrixTranslation(matrices, chain.effectorBoneIndex), matrixTranslation(matrices, chain.goalBoneIndex))));
+             }
+@@ -220,7 +226,7 @@ function copyQuaternionInto(source, target) {
+     target[2] = source[2];
+     target[3] = source[3];
+ }
+-function solveChain(bones, translations, rotations, matrices, chain, iterationCount, composeLocalMatrix, composeStates, baseRotations, ikRotations, bestRotations, chainState, vectorScratch, linkLimitsScratch, quaternionScratch, eulerScratch, rotation3Scratch) {
++function solveChain(bones, translations, rotations, matrices, chain, iterationCount, composeLocalMatrix, activeOrder, baseRotations, ikRotations, bestRotations, chainState, vectorScratch, linkLimitsScratch, quaternionScratch, eulerScratch, rotation3Scratch) {
+     resetChainStateScratch(chainState, chain.links.length);
+     copyRotationsInto(rotations, baseRotations);
+     resetIkRotations(ikRotations, rotations.length);
+@@ -272,7 +278,7 @@ function solveChain(bones, translations, rotations, matrices, chain, iterationCo
+                     limitAngle,
+                     axisIndex: singleAxis,
+                     composeLocalMatrix,
+-                    composeStates,
++                    activeOrder,
+                     vectorScratch,
+                     quaternionScratch
+                 });
+@@ -334,7 +340,7 @@ function solveChain(bones, translations, rotations, matrices, chain, iterationCo
+                 }
+             }
+             applyEffectiveRotation(rotations, baseRotations, ikRotations, link.boneIndex);
+-            composeWorldMatrices(bones, translations, rotations, matrices, composeLocalMatrix, composeStates);
++            composeActiveMatrices(bones, translations, rotations, matrices, composeLocalMatrix, activeOrder);
+         }
+         completedIterations += 1;
+         const currentTargetPosition = matrixTranslationInto(matrices, chain.effectorBoneIndex, vectorScratch[0]);
+@@ -361,7 +367,7 @@ function solveChain(bones, translations, rotations, matrices, chain, iterationCo
+                     applyEffectiveRotation(rotations, baseRotations, ikRotations, boneIndex);
+                 }
+             }
+-            composeWorldMatrices(bones, translations, rotations, matrices, composeLocalMatrix, composeStates);
++            composeActiveMatrices(bones, translations, rotations, matrices, composeLocalMatrix, activeOrder);
+             break;
+         }
+     }
+@@ -379,7 +385,7 @@ function axisTupleInto(axisIndex, target) {
+     target[2] = axisIndex === 2 ? 1 : 0;
+     return target;
+ }
+-function solvePlaneLink({ bones, translations, baseRotations, ikRotations, rotations, matrices, ikBoneIndex, ikTargetIndex, link, limits, linkIndex, chainState, iteration, limitAngle, axisIndex, composeLocalMatrix, composeStates, vectorScratch, quaternionScratch }) {
++function solvePlaneLink({ bones, translations, baseRotations, ikRotations, rotations, matrices, ikBoneIndex, ikTargetIndex, link, limits, linkIndex, chainState, iteration, limitAngle, axisIndex, composeLocalMatrix, activeOrder, vectorScratch, quaternionScratch }) {
+     const rotateAxis = axisTupleInto(axisIndex, vectorScratch[5]);
+     const ikPosition = matrixTranslationInto(matrices, ikBoneIndex, vectorScratch[6]);
+     const targetPosition = matrixTranslationInto(matrices, ikTargetIndex, vectorScratch[7]);
+@@ -427,7 +433,7 @@ function solvePlaneLink({ bones, translations, baseRotations, ikRotations, rotat
+         : localChainRotation;
+     multiplyQuaternionsInto(chainRotation, invertQuaternionInto(baseRotation, quaternionScratch[3]), ikRotations[link.boneIndex]);
+     applyEffectiveRotation(rotations, baseRotations, ikRotations, link.boneIndex);
+-    composeWorldMatrices(bones, translations, rotations, matrices, composeLocalMatrix, composeStates);
++    composeActiveMatrices(bones, translations, rotations, matrices, composeLocalMatrix, activeOrder);
+ }
+ function validateSkeleton(bones) {
+     for (const [index, bone] of bones.entries()) {
+@@ -506,6 +512,31 @@ function assertAcyclicParentChain(bones, boneIndex) {
+         currentIndex = bones[currentIndex]?.parentIndex ?? -1;
+     }
+ }
++function collectActiveOrder(bones, chains, visited, order) {
++    visited.fill(0, 0, bones.length);
++    order.length = 0;
++    for (const chain of chains) {
++        appendAncestors(chain.goalBoneIndex, bones, visited, order);
++        appendAncestors(chain.effectorBoneIndex, bones, visited, order);
++        for (const link of chain.links) appendAncestors(link.boneIndex, bones, visited, order);
++    }
++}
++function appendAncestors(index, bones, visited, order) {
++    const start = order.length;
++    while (index >= 0 && !visited[index]) {
++        visited[index] = 1;
++        order.push(index);
++        index = bones[index].parentIndex;
++    }
++    // Reverse just the new branch, so its parents precede their children even
++    // on PMX skeletons that don't store their bones in topological order.
++    for (let a = start, b = order.length - 1; a < b; a++, b--) {
++        const tmp = order[a]; order[a] = order[b]; order[b] = tmp;
++    }
++}
++function composeActiveMatrices(bones, translations, rotations, matrices, local, order) {
++    for (const index of order) composeWorldMatrixInOrder(index, bones, translations, rotations, matrices, local);
++}
+ function composeWorldMatrices(bones, translations, rotations, matrices, local, states) {
+     if (isParentBeforeChildOrdered(bones)) {
+         for (let index = 0; index < bones.length; index += 1) {
 diff --git a/dist/webgpu/self-shadow-pass.js b/dist/webgpu/self-shadow-pass.js
 index 06cd5adcb070478ddec40f76a55da9b64ce88abd..51c07d5426b47db762a240915dc7f187e6b78f28 100644
 --- a/dist/webgpu/self-shadow-pass.js
