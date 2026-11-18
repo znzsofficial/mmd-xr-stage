@@ -72,7 +72,7 @@ export function Meadow({shadows}:{shadows:boolean}) {
   const grass=useMemo(flowers,[]),foliage=useMemo(crownSpray,[]),p=useMemo(grove,[]);
   useEffect(()=>{let active=true;const texture=new TextureLoader().load(groundUrl,ready=>{if(active){ready.colorSpace=SRGBColorSpace;ready.anisotropy=4;setMap(ready);}});return ()=>{active=false;texture.dispose();};},[]);
   useEffect(()=>()=>{grass.dispose();foliage.dispose();},[grass,foliage]);
-  return <group name="scenery:lawn"><mesh rotation-x={-Math.PI/2} receiveShadow={shadows} raycast={noPick}><planeGeometry args={[LAWN_SIZE,LAWN_SIZE]} /><meshStandardMaterial map={map} color={map?'white':'#98ae6c'} roughness={1} /></mesh>
+  return <group name="scenery:lawn"><mesh rotation-x={-Math.PI/2} receiveShadow={shadows} raycast={noPick}><planeGeometry args={[LAWN_SIZE,LAWN_SIZE]} /><meshStandardMaterial key={map?'painted':'loading'} map={map} color={map?'white':'#98ae6c'} roughness={1} /></mesh>
     <Batch name="meadow-seat-and-split-rail" parts={p.wood} casts={shadows} /><Batch name="oak-and-birch-branches" parts={p.branches} round casts={shadows} />
     <Batch name="grove-canopies" parts={p.leaves} geometry={foliage} /><Batch name="distant-ridges" parts={p.hills} foliage />
     <mesh geometry={grass} raycast={noPick}><meshStandardMaterial vertexColors roughness={1} side={DoubleSide} /></mesh></group>;
