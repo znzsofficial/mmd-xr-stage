@@ -54,6 +54,7 @@ export const zh = {
   stageContinue: "继续上次舞台",
   stageRestart: "按当前选择重新开始",
   stageResumeHint: "上次的文件、摆放、材质和播放位置仍在本页内存中；刷新页面后清除。继续会使用上次的文件组合。",
+  exportSessionPerformance: "导出上次 VR 性能记录（JSON）",
   loadScene: "正在准备 VR 场景",
   loadSceneHint: "正在下载场景模块。你可以返回准备页，已选文件会保留。",
   loadBack: "返回准备页",

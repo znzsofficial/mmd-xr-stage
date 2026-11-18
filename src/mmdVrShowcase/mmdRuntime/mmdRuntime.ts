@@ -10,6 +10,7 @@ import type { MmdPhysicsBackend } from "@yohawing/three-mmd-loader/physics";
 import { DefaultMmdRuntime } from "@yohawing/three-mmd-loader/runtime";
 import * as THREE from "three";
 import { PhysicsPoseDisplay } from "./physicsPoseDisplay";
+import { PARK_Y } from "./colliderReentry";
 import { resolveCompanion } from "../../mmdImport/assetPaths";
 import { createBulletPhysicsBackend, type ColliderShapeFactory, type MmdPhysicsQuality } from "./mmdPhysics";
 import {
@@ -331,8 +332,9 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
         worldToPhysics.multiplyMatrices(unitRoot, inverseVisualRoot);
         const enabled = getEnabled?.() !== false;
         for (let index = 0; index < colliderMatrices.length; index += 1) {
-          if (!enabled) {
-            mappedCollider.makeTranslation(0, -1_000, 0);
+          const world = worldMatrices[index].elements;
+          if (!enabled || (world[12] === 0 && world[13] === PARK_Y && world[14] === 0)) {
+            mappedCollider.makeTranslation(0, PARK_Y, 0);
           } else {
             mappedCollider.multiplyMatrices(worldToPhysics, worldMatrices[index]);
           }
@@ -367,6 +369,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
           handColliders: handColliderProvider,
           handShape: options.handShape,
           simulationDelta: () => stepDelta,
+          modelScale: () => Math.min(10, Math.max(0.01, Number(colliderRoot?.userData.mmdVisualScale) || transform.scale)),
           onPhysicsBones: physicsDisplay?.record,
           handRadius: () => {
             const scale = Math.min(10, Math.max(0.01, Number(colliderRoot?.userData.mmdVisualScale) || transform.scale));

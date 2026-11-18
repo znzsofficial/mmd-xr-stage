@@ -7,6 +7,7 @@ import type {
   MmdPhysicsStepContext,
 } from "@yohawing/three-mmd-loader/physics";
 import type { MmdPhysicsQuality } from "../mmdPhysicsQuality";
+import { ColliderReentry, syntheticColliderBody } from "./colliderReentry";
 
 export type { MmdPhysicsQuality };
 export type MmdControllerColliderMatrix = MmdPhysicsMatrix4ColumnMajorTuple | Float32Array;
@@ -15,7 +16,6 @@ export type ColliderShapeFactory = (index: number, radius: number) => NonNullabl
 type PhysicsBoneObserver = (indices: MmdPhysicsMutableIndexBuffer | undefined, count: number, bodies: MmdPhysicsStepContext["rigidBodies"]) => void;
 type MmdDebugContact = { rigidBodyIndexA: number; rigidBodyIndexB: number };
 const MAX_DEBUG_CONTACTS = 256;
-const syntheticColliderBody = Symbol("syntheticColliderBody");
 type MmdDebugPhysicsBackend = MmdPhysicsBackend & {
   debugContactCount?: () => number;
   debugPhysicsContacts?: () => readonly MmdDebugContact[];
@@ -72,6 +72,7 @@ export async function createBulletPhysicsBackend(options: {
   handRadius?: number | (() => number);
   handShape?: ColliderShapeFactory;
   simulationDelta?: () => number | undefined;
+  modelScale?: () => number;
   onPhysicsBones?: PhysicsBoneObserver;
   quality?: () => MmdPhysicsQuality;
   boneFeedbackScale?: () => number;
@@ -95,7 +96,7 @@ export async function createBulletPhysicsBackend(options: {
     module as Parameters<typeof createCustomBulletMmdPhysicsBackend>[0],
     backendOptions,
   );
-  const diagnosticBackend = createPhysicsDiagnosticsBackend(bulletBackend, options.simulationDelta, options.onPhysicsBones);
+  const diagnosticBackend = createPhysicsDiagnosticsBackend(bulletBackend, options.simulationDelta, options.onPhysicsBones, options.modelScale);
   const backend = options.dynamicSelfCollision
     ? createDynamicSelfCollisionPhysicsBackend(diagnosticBackend)
     : diagnosticBackend;
@@ -128,7 +129,9 @@ export async function createBulletPhysicsBackend(options: {
     : colliderBackend;
 }
 
-export function createPhysicsDiagnosticsBackend(backend: MmdPhysicsBackend, simulationDelta?: () => number | undefined, onPhysicsBones?: PhysicsBoneObserver): MmdPhysicsBackend & MmdRuntimePhysicsDiagnostics {
+export function createPhysicsDiagnosticsBackend(backend: MmdPhysicsBackend, simulationDelta?: () => number | undefined, onPhysicsBones?: PhysicsBoneObserver, modelScale = () => 1): MmdPhysicsBackend & MmdRuntimePhysicsDiagnostics {
+  const native = backend as MmdPhysicsBackend & { readRigidBodyCenters?: (indices: readonly number[], out: Float32Array) => boolean };
+  const guard = native.readRigidBodyCenters ? new ColliderReentry(native.readRigidBodyCenters.bind(native), modelScale) : null;
   let rigidBodyCount = 0;
   let dynamicRigidBodyCount = 0;
   let stepCount = 0;
@@ -154,6 +157,7 @@ export function createPhysicsDiagnosticsBackend(backend: MmdPhysicsBackend, simu
         }
       }
       const dt = simulationDelta?.();
+      guard?.apply(context, context.seeking ? 0 : dt ?? context.deltaSeconds);
       const result = dt == null || context.seeking || dt === context.deltaSeconds
         ? backend.step(context)
         : backend.step({ ...context, deltaSeconds: dt });

@@ -39,6 +39,8 @@ pnpm deploy
 
 ## XR And Physics Invariants
 
+- XR collider recovery must not turn the parked pose into a high-speed strike. Re-arm each discontinuous slot only after it stays clear of the model's native dynamic-body bounds for two fixed-step durations. Regular tracked strokes go straight through. The loader patch also exposes `readRigidBodyCenters` for a shared, on-demand recovery check; never reset the whole Bullet world on a tracking change.
+
 - Keep VMD pose seconds separate from Bullet's bounded XR-frame delta. Paused interactive physics may advance even at pose 0. Seek, loop and reset are seed-only at the requested pose, not accumulated playback time. Exercise `scripts/paused-cloth-smoke.html` with the shipped Bullet backend when changing either clock.
 - For secondary-motion jitter, `PhysicsPoseDisplay` owns only the displayed pose of bones reported by Bullet. Restore raw local poses before evaluation, clear history on discontinuities and keep rotation-only bodies' animated local translations. Independently smoothing local rotation down a long chain can amplify hem movement. Measure skinned vertices as well as bone transforms; avoid committing private PMX assets or their paths.
 - Enhancement map loads commit complete sets per material. Compare actual File identities; invalidate pending work on selection changes and disposal, including reselecting the already committed files. Keep the last complete set on decode failure.

@@ -33,10 +33,10 @@ function ControllerCollider({ handedness, index }: { handedness: "left" | "right
   const positionRef = useRef(new THREE.Vector3());
   const hapticPathEnabledRef = useRef(false);
 
-  useFrame((state, delta) => {
+  useFrame((state, delta, frame) => {
     const object = ref.current;
     const tracked = object as (THREE.Object3D & { transformReady?: boolean }) | null;
-    const trackingReady = Boolean(tracked?.visible && tracked.transformReady !== false);
+    const trackingReady = Boolean(frame?.session.visibilityState === "visible" && tracked?.visible && tracked.transformReady !== false);
     if (!trackingReady) {
       setMmdVrControllerColliderMatrix(index, null);
       lastPositionRef.current = null;

@@ -1,9 +1,12 @@
 diff --git a/dist/physics/customBulletMmd.d.ts b/dist/physics/customBulletMmd.d.ts
-index 3a8cd5fe856fa4c5c3074e500eeeea0d1434a9ee..3f6553c75c78d57372a8f222efbfb142ae5ca3a6 100644
+index 3a8cd5fe856fa4c5c3074e500eeeea0d1434a9ee..bd1f383e055e4e528f22fdcc5c1fe0d4266ecc0f 100644
 --- a/dist/physics/customBulletMmd.d.ts
 +++ b/dist/physics/customBulletMmd.d.ts
-@@ -15,6 +15,7 @@ export type CustomBulletMmdModule = MmdAnimBulletModule;
+@@ -13,8 +13,10 @@ export interface CustomBulletMmdPhysicsBackendOptions {
+ /** mmd-anim Bullet module exposed through the stable Custom Bullet API name. */
+ export type CustomBulletMmdModule = MmdAnimBulletModule;
  export interface CustomBulletMmdPhysicsBackend extends MmdDirectBufferPhysicsBackend {
++    readRigidBodyCenters(indices: readonly number[], out: Float32Array): boolean;
      debugContactCount(): number;
      debugPhysicsContacts(): readonly MmdAnimBulletContactPoint[];
 +    debugPhysicsContactsForRigidBodyRange(firstRigidBodyIndex: number, rigidBodyCount: number): readonly MmdAnimBulletContactPoint[];
@@ -11,10 +14,16 @@ index 3a8cd5fe856fa4c5c3074e500eeeea0d1434a9ee..3f6553c75c78d57372a8f222efbfb142
  export declare function resolveCustomBulletMmdScriptUrl(baseUrl?: string): string;
  export declare function loadCustomBulletMmdModule(options?: CustomBulletMmdLoaderOptions): Promise<CustomBulletMmdModule>;
 diff --git a/dist/physics/customBulletMmd.js b/dist/physics/customBulletMmd.js
-index 75621cc232d2eeaee3bd133886ef0f7075e31dca..69fb6a232f34db90ddb7b1abcbfb455bf650bb0e 100644
+index 75621cc232d2eeaee3bd133886ef0f7075e31dca..4c37586cbae517152855be1a6b5ce933e66324d9 100644
 --- a/dist/physics/customBulletMmd.js
 +++ b/dist/physics/customBulletMmd.js
-@@ -80,4 +80,7 @@ class CustomBulletMmdCompatibilityBackend {
+@@ -77,7 +77,13 @@ class CustomBulletMmdCompatibilityBackend {
+     debugContactCount() {
+         return this.backend.debugContactCount();
+     }
++    readRigidBodyCenters(indices, out) {
++        return this.backend.readRigidBodyCenters(indices, out);
++    }
      debugPhysicsContacts() {
          return this.backend.debugPhysicsContacts();
      }
@@ -23,11 +32,14 @@ index 75621cc232d2eeaee3bd133886ef0f7075e31dca..69fb6a232f34db90ddb7b1abcbfb455b
 +    }
  }
 diff --git a/dist/physics/mmdAnimBullet.d.ts b/dist/physics/mmdAnimBullet.d.ts
-index cfc853282900018d84687bbcf5a40b20dfba95f9..30edcc5e02093852fd9da914979e717ad34e602f 100644
+index cfc853282900018d84687bbcf5a40b20dfba95f9..b3a14276a4c9689448e09368c12c58781db716cb 100644
 --- a/dist/physics/mmdAnimBullet.d.ts
 +++ b/dist/physics/mmdAnimBullet.d.ts
-@@ -44,6 +44,7 @@ export interface MmdAnimBulletContactPoint {
+@@ -42,8 +42,10 @@ export interface MmdAnimBulletContactPoint {
+     readonly normalWorldOnB: readonly [number, number, number];
+ }
  export interface MmdAnimBulletPhysicsBackend extends MmdPhysicsBackend {
++    readRigidBodyCenters(indices: readonly number[], out: Float32Array): boolean;
      debugContactCount(): number;
      debugPhysicsContacts(): readonly MmdAnimBulletContactPoint[];
 +    debugPhysicsContactsForRigidBodyRange(firstRigidBodyIndex: number, rigidBodyCount: number): readonly MmdAnimBulletContactPoint[];
@@ -35,10 +47,10 @@ index cfc853282900018d84687bbcf5a40b20dfba95f9..30edcc5e02093852fd9da914979e717a
  export declare function createMmdAnimBulletPhysicsBackend(module: MmdAnimBulletModule, options?: {
      fixedTimeStep?: number;
 diff --git a/dist/physics/mmdAnimBullet.js b/dist/physics/mmdAnimBullet.js
-index 35ad7804839e458df2f66bb413622f48815ead55..aecb4897f0fa360a682e2f33d83be0ab2acd7611 100644
+index 35ad7804839e458df2f66bb413622f48815ead55..fac0cbf8beac5bef88fd547db236e408cf4f8c8d 100644
 --- a/dist/physics/mmdAnimBullet.js
 +++ b/dist/physics/mmdAnimBullet.js
-@@ -156,6 +156,45 @@ class MmdAnimBulletPhysicsBackendImpl {
+@@ -156,6 +156,58 @@ class MmdAnimBulletPhysicsBackendImpl {
          }
          return contacts;
      }
@@ -80,6 +92,19 @@ index 35ad7804839e458df2f66bb413622f48815ead55..aecb4897f0fa360a682e2f33d83be0ab
 +            });
 +        }
 +        return contacts;
++    }
++    readRigidBodyCenters(indices, out) {
++        if (this.disposedState || out.length < indices.length * 3) return false;
++        const heap = this.module.HEAPF32;
++        const offset = this.transformPositionPointer >>> 2;
++        if (!heap) return false;
++        for (let i = 0; i < indices.length; i++) {
++            if (this.module._mmd_anim_bullet_world_get_rigidbody_transform(this.world, indices[i], this.transformPositionPointer, this.transformRotationPointer) !== 0) return false;
++            out[i * 3] = heap[offset];
++            out[i * 3 + 1] = heap[offset + 1];
++            out[i * 3 + 2] = heap[offset + 2];
++        }
++        return true;
 +    }
      ensureModel(context) {
          const bodies = context.rigidBodies;

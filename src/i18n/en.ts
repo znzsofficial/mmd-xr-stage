@@ -56,6 +56,7 @@ export const en: Record<keyof ZhMessages, string> = {
   stageContinue: "Continue last stage",
   stageRestart: "Start over with current selection",
   stageResumeHint: "Files, placement, materials and playback position remain in this page's memory until refresh. Continue uses the previous file selection.",
+  exportSessionPerformance: "Export last VR performance report (JSON)",
   loadScene: "Preparing the VR scene",
   loadSceneHint: "Downloading the scene module. You can return to setup without losing your file selection.",
   loadBack: "Back to setup",

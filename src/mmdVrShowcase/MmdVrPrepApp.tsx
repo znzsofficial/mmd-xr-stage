@@ -20,6 +20,7 @@ import { useThemeSettings } from "../system/useThemeSettings";
 import { expandAssetFiles, AssetImportError, IMPORT_LIMITS, type ArchiveEncoding, type ImportProgress } from "../mmdImport/importArchive";
 import { bindCompanion, mergeAssetFiles } from "../mmdImport/assetPaths";
 import { inspectAssets, type ImportReport } from "../mmdImport/inspectAssets";
+import { downloadPerformanceReport, useLastPerformanceReport } from "./performanceReport";
 
 function OptionGroup<T extends string>({
   value,
@@ -68,6 +69,7 @@ export function MmdVrPrepApp() {
   const assetLoad = useMmdVrStore((state) => state.assetLoad);
   const savedStage = useMmdVrStore((state) => state.savedStage);
   const errorMessage = useMmdVrStore((state) => state.errorMessage);
+  const performanceReport = useLastPerformanceReport((state) => state.report);
   const prefs = useMmdVrStore((state) => state.prefs);
   const setPrefs = useMmdVrStore((state) => state.setPrefs);
 
@@ -949,6 +951,7 @@ export function MmdVrPrepApp() {
             </div>
           )}
 
+          {performanceReport && phase !== "active" && phase !== "entering" && <button type="button" className="stage-btn stage-btn-secondary" onClick={() => downloadPerformanceReport(performanceReport)}>{t("exportSessionPerformance")}</button>}
           {savedStage && savedStage.assets.length > 0 && (
             <p className="stage-launch-note">
               {t("stageResumeHint")} ({Math.floor(savedStage.time / 60)}:{String(Math.floor(savedStage.time % 60)).padStart(2, "0")})

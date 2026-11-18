@@ -385,3 +385,6 @@ PR 合并且 NekoVirtOS 已升级到包含修复的正式版本后，才考虑�
 - NekoVirtOS build 可能提示 loader parser 的 `node:fs/promises`、`node:url` 被 Vite externalized。
 - 部分 bundle chunk 超过 500 kB。
 - 上述提示与本次物理/contact 修复无直接关系。
+## 追踪恢复补丁
+
+`readRigidBodyCenters(indices, out)` 用版本内已有的 WASM getter 读取指定刚体中心。输出缓冲区由调用方持有，不分配逐刚体对象；应用只在手部/手柄重获追踪或发生大幅跳位时查询，同一物理步共用一次。升级 loader 时与 contact-range、TSL 降级一起核验。`handContactProfile.test.ts` 用实际 Bullet 验证两种缩放下的重叠恢复与正常快速推动。
