@@ -2,10 +2,10 @@
 
 ## 从这里继续
 
-- [恢复会话：交接与待办](./HANDOFF.md)：生产版本、已完成项、下一轮加载排查和 Quest 验收步骤。
-- [拿头显测试：操作与导出](./viewing-and-diagnostics.md)：五分钟放置对照、持续观看及退出后保存 JSON。
-- [产品约束](../PRODUCT.md)：Quest 3S、观看为主、手柄为主的确认需求。
-- [VR GUI 设计系统](../DESIGN.md)：用户选定的浅瓷与墨蓝，仅适用于 VR HUD；是否已上线见交接文档。
+- **第一次进舞台**：[五景截图](../README.md#stage-gallery) · [导入角色和动作](./asset-workflow.md) · [在布景中选落点](./vr-controls.md#在布景中给角色选位置)。
+- **玩道具**：[玩家拿取与月面盖印](./vr-controls.md#手持玩具与月面邮局) · [递给角色、调整握姿和收回](./vr-controls.md#把道具递给角色)。
+- **查卡顿**：[Quest 放置与播放对照、导出 JSON](./viewing-and-diagnostics.md) · [已有真机记录](./viewing-and-diagnostics.md#已有测量)。
+- **继续维护**：[当前版本、验证结果与待办](./HANDOFF.md) · [产品约束](../PRODUCT.md) · [界面设计约定](../DESIGN.md)。
 
 专题文档描述实现与约束；旧路线图中的拆分前背景不代表当前已实现功能。版本和未发布状态以交接文档及 Git 为准。
 
