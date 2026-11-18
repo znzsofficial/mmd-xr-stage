@@ -64,6 +64,8 @@ pnpm deploy
 
 ## Verification And Files
 
+- For completed product changes, finish the release for the user: after verification, merge, push normally, deploy the tested build to the existing production Pages project per `docs/deployment.md`, and verify the main domain. Report the live link instead of handing the user a release command. If a check or deployment fails, report the blocker. This routine does not authorize force pushes.
+
 - Browser checks do not replace Quest hardware validation. For XR/physics changes, manually regress model scaling, cloth fall/contact, panel persistence, controller and hand collisions, controller contact counts, and haptics.
 - `sample/` is ignored; model assets must never be committed. `.gitattributes` expects LF text and treats `*.wasm` as binary.
 - Update `docs/THIRD_PARTY_NOTICES.md` when changing bundled third-party versions.
