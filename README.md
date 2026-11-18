@@ -20,14 +20,17 @@ MMD XR Stage is a single-purpose VR showcase for user-provided MMD (MikuMikuDanc
 ### Prep Page
 
 - Import folders, ZIP packages, or individual model, motion and scene files. Relative texture paths are preserved; missing resources and path conflicts appear in an import report.
+- The prep page can prepare the first selected character and its textures before entry. You can enter immediately or wait for the ready hint; GPU upload uses the XR renderer.
 - Continue the previous stage in the same browser tab, restoring placement, materials, visibility and playback position, or start over with the current selection.
 - Quest quality presets (safe / balanced / clarity) plus per-axis overrides: frame rate, framebuffer scale, foveation, antialias, shadows, DPR.
 - Live XR readiness probe: secure context, `navigator.xr` availability, and an advisory `immersive-vr` support check, surfaced before you enter.
 
 ### In VR
 
+- View your character on a simple floor, at a live venue, in a window-lit classroom, by an outdoor pool, or on a meadow. Choose the environment on the prep page or switch it in the VR visual settings. Built-in scenery uses no imported object slots.
 - Compact viewing controls keep play/pause, panel expansion and exit within reach; loading and physics errors remain accessible while the adjustment panel is closed.
 - Render diagnostics distinguish requested settings, session-reported refresh/layer properties, callback cadence, model-update CPU cost and renderer resource/draw counters. No GPU time is inferred from these values.
+- After exit, [export the last session's performance report](./docs/viewing-and-diagnostics.md) from the prep page before refreshing. It includes startup checkpoints and frame-interval percentiles.
 - In-headset HUD with quality controls, model transform, height adjustment, snap turning, and exposure/lighting looks.
 - Meta Quest hand tracking with articulated hands, pinch-based HUD interaction, and hand-to-model physics collision.
 - Optional controller collision, contact haptics, physics quality controls, and session-safe model disposal.

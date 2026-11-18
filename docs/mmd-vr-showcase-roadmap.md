@@ -370,7 +370,7 @@ src/mmdVrShowcase/
 
 ## 7. 近期建议顺序（执行）
 
-> 本节为历史排序；当前 GUI 收尾、贴图异步竞争、动画/物理时钟核验及 Quest 回归的先后顺序已集中在 [HANDOFF](./HANDOFF.md)。
+> 本节保留历史排序。近期已发布内容、加载卡顿排查与 Quest 3S 真机验收见 [HANDOFF](./HANDOFF.md)。
 
 > 全项目 VR 人力优先本文件；勿回流做 VR 桌面新 app。
 

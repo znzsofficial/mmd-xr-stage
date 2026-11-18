@@ -1,159 +1,34 @@
-# 会话交接 — 2026-11-18
+# 会话交接｜2026-11-18
 
-## 首先读这里
+## 恢复时先看
 
-**观看环境与加载。** 准备页「观看环境」和 VR「画面」均可选简易地台、Live House、窗边教室、夏日泳池、晴空草坪。旧版 Live House 偏好会迁移。用户观看自己导入的游戏角色；自带建模以布景为中心。场景目录在 `scenery/catalog.ts`，程序化几何使用共享批量绘制，日景太阳、角色主光和窗光使用同一方向。未引入新的 XR 会话或角色槽位。
+当前线上功能版本是 **`17da9b2`**（场景与加载），已包含 **`cc74058`**（CCD IK 优化）。[主域名](https://mmd-xr-stage.pages.dev) · [本次固定部署](https://36aab63c.mmd-xr-stage.pages.dev)。两次功能提交都已合入并推送 `master`。文档提交可能在其后，无需因此重新部署。
 
-加载侧按 File 缓存贴图引用、索引同包伴随文件，GLB 只为实际引用创建 URL。准备页预载一个不带物理的首选角色，运行时一次取得对应文件组合；更换、失败或清空时释放。续场按快照物理配置首次加载，贴图分批上传、有驱动支持时预编译着色器。`startup` 报告字段分开记录进场到首个可见 XR 帧及资产队列就绪后的帧；不冒充 GPU 提交时间。桌面模拟进场仍有长帧，不能宣称 Quest 首载无卡顿。IK 补丁见 `cc74058`、`docs/xr-runtime-performance.md`。
+上次发布验证：**195 项测试／50 个文件**，TypeScript、生产构建通过；线上 JS/CSS 和两套 WASM 已对照本地制品，模拟 XR 完成进场、退出及 JSON 下载。用户此前已在 Quest 3S 确认手柄和手追能用；这不代表最新场景、加载速度和手感已经通过头显验收。
 
-**重获追踪与性能导出。** 手或手柄在衣物里重现时，重叠槽位先停用，离开重叠区再恢复；连续拨动不做速度平滑。实际 Bullet 和复杂 PMX 已复验。准备页退出 VR 后可导出最近一次会话的 JSON，含可见帧间隔分布、最慢帧、两种超预算比例及约每秒的模型 CPU/舞台数据；见 `docs/viewing-and-diagnostics.md`。仍需 Quest 3S 实际运行数据。
+用户主要导入自己的游戏角色观看，手柄操作菜单、手追体验衣物。**内置建模指环境**（天空、太阳、教室、泳池、草坪），不做展示人偶。HUD 沿用浅瓷与墨蓝，生产后端为 WebGL + WebXR。产品和实现约束分别见 [PRODUCT](../PRODUCT.md)、[AGENTS](../AGENTS.md)。
 
-**静置裙摆颤抖：** 本机使用用户指定的原版 PMX 复现；实测显示层稳定后，72 Hz / 0.1× 下 461 个裙摆蒙皮顶点逐帧位移的 RMS-P95 下降约 58%，90 Hz / 1× 下下降约 54%。物理仍可被推动，模型与贴图不入库。数据、条件和限制见 `docs/xr-runtime-performance.md`；请用相同模型在 Quest 上对照静置、拨动和松手后的观感。
+## 下一轮：先定位剩余加载卡顿
 
-**增强贴图竞争与暂停衣物：已修。** 每个材质只允许最后一次选择提交；同名同时间文件按 File 身份区分。失败保留上套贴图，取消、卸载和迟到结果均释放。VMD 按播放位置取姿势，启用物理与碰撞时 Bullet 即使暂停也使用实际帧增量（每帧上限 50 ms）。拖进度、循环和重置按目标姿势重新初始化。183 项／45 文件、tsc、build 通过。`scripts/paused-cloth-smoke.html` 现场生成 PMX 裙摆和 VMD：暂停在 0.75 秒、腰骨漂移 0，控制器上移 15 cm，动态衣摆上移约 15.9 cm；另一个无 VMD 的模型约 15.0 cm。已测恢复、大小跨距 seek、零秒、缩放/reset 及纯静态模型，真实 Quest 服装手感待验。下方早期状态为历史记录。
+1. **单测首次进入、预载后进入、同页继续。** 用同一角色、贴图、VMD 和布景。在准备页分别记录从选文件到预检结束、到「首个角色已预载」的等待；进 VR 再记录角色出现时最明显的停顿。点击后变快，有可能只是把解析移到了准备页。
+2. **退出后先导出，再刷新。** 准备页底部点「导出上次 VR 性能记录（JSON）」。比较 `startup.firstVisibleXrFrameMs` 和 `firstFrameAfterAssetsReadyMs`；两者都是 XR 回调时间，不是 GPU 提交。结合实际 Hz、图层尺寸、帧间隔 P95、最慢帧、超过 1.5 个帧周期的比例及模型 CPU 做判断。字段详见[观看与诊断](./viewing-and-diagnostics.md)。
+3. **按结果选择优化。** 首进仍有长帧。下一步可区分 PMX 解析、网格组装、贴图解码／上传与 shader 编译；只有对应阶段确实占主导时，再试 Worker、压缩贴图或分批处理。当前架构足以扩展环境，优先维护清晰的场景和资源所有权。
 
-**手部精细碰撞：** 用户反馈 VR 入口修复后「基本都能用」。手部由六个同半径球改为每手一个腕部定位的扁平掌心和五个尺寸不同的指腹胶囊；调试形状共用物理参数。默认食指半径 9 mm，此前为 36 mm。真实 Bullet 对 0.2×／1×／2× 模型单位换算的掌心命中、指腹命中和侧面擦过做了回归。Quest 上需用有裙摆或发束动态刚体的 PMX 测指尖轻拨、掌心托起、离开视野再返回。有 VMD 的暂停物理时钟仍是独立待办。
+另外两组待验：用同一段动作比较简易地台和日景，首轮目标为实际 72 Hz、连续观看 15 分钟，看脸部、发丝、窗框和水面在双眼中是否清晰；再试白按钮／滑块上的双色准星，以及「暂停 → 指尖拨衣 → 手离开视野后返回 → 恢复播放」。用户暂时没法测时，可继续做本机加载剖析。**72 Hz 是目标，不是已测成绩。**
 
-本轮 178 项／45 文件、tsc、build 通过；IWER 完整应用开启物理后检查了 12 个姿态，切回手柄或关闭碰撞全部清除，切回手追可重新取得。
+## 已完成，不要重新当作待办
 
-**11 月 18 日：进入 VR 动态加载失败。** 验证到之前版本的 `MmdVrScene` URL 在生产缓存未命中时会返回 SPA HTML；浏览器用旧准备页＋HTML 模块响应复现相同错误。新访问的旧线上版本在桌面 Chromium 可正常执行场景模块，没有头显日志可判断该设备是哪次请求失败。修复改为准备页就绪时取得场景代码，Canvas 仍延迟到点击时挂载，不自动刷新或丢弃已选文件。用 Playwright + IWER、最小 PMX、实际准备页点击测试构建：拦截所有旧格式场景请求时仍收到 XRFrame 并可退出。发布时额外保留输入修复版和 Live House 版旧标签使用的配套 JS。用户 Quest 3S 需复试首次进入。
-
-**11 月 18 日：Live House 首版。** VR「画面」可在简易地台与 Live House 间切换，选择「自然观看」「小型演出」，并独立切换「柔化高光」。首次使用保留简易地台；布景与高光偏好可保存。手柄/手追共用墨蓝外缘、白内缘的空心落点。放置过程中切换或删除目标不重放旧命令；GLB 的朝向在界面以度表示，快照仍用四元数。物理重建不可恢复时保留上次完整快照。此前各版本记录见下。
-
-176 项／44 文件、TypeScript、生产构建已过；IWER 使用实际 selectstart/end 验证扳机展开、捏合收起，另验证「画面」的布景、灯光与高光切换。同机位截图为模拟器与最小测试 PMX，不代表真实人物肤色、双眼和长时帧率。下一项是 Quest 3S 上的真实 PMX＋VMD 对照：菜单落点、脸部／白衣／发丝、简易地台与 Live House 72 Hz 帧间隔；全屏 bloom 与暂停物理时钟仍为后续工作。
-
-### 历史：11 月 17 日输入失效紧急修复
-
-**用户真机确认：修复部署后，用户再次测试并明确反馈“手柄手追正常”。输入恢复已确认；此反馈不代表其他画质、物理或长时间性能项目已验收。**
-
-浅瓷发布后，用户报告“场景正常，手柄和手都不显示”。已复现外部 CDN 不可达时的手柄失效：原生 session 有两个 controller，但 XR 库等待 profile 下载失败，应用输入状态为零。当前修复将 profiles 与 controller/hand GLB 固定为本站 `/xr-input/1.0.20/`，保留 Quest 各代 profile 与 generic 回退。不能凭模拟器推断用户设备的唯一根因，发布后需请用户重新打开页面验收。
-
-验证：173 项 / 43 文件、TypeScript、构建通过；CDN 阻断下 IWER 实际扳机释放打开菜单、手追捏合释放关闭菜单，左右模型均加载。回归页保存在忽略目录 `sample/input-smoke.html?block=5`。
-
-**已发布 `24fb854`**，部署 <https://7530d188.mmd-xr-stage.pages.dev>，生产 <https://mmd-xr-stage.pages.dev>。生产入口、JS/CSS/Bullet/动画 WASM、本地 profile 索引与左右手模型哈希已匹配；遍历全部输入资产的验证在大 generic 模型下载期间超时，不能宣称全部远端文件已逐一核验。用户要求部署收尾后又进行了真机测试，已确认手柄与手追正常。输入本地化规则与测试边界已写入 AGENTS.md 和 docs/vr-controls.md。
-
-压缩会话后用户要求继续完成；**浅瓷与墨蓝 HUD 已完成验证、合并、推送和生产发布**。下一轮优先做 Quest 3S 验收，再处理下文记录的贴图竞争与物理时钟问题。
-
-- 工作目录：`E:\WebProjects\mmd-xr-stage`
-- 当前分支：`master`；功能分支 `design/vr-porcelain-controls` 已 fast-forward 合并。
-- 最新功能提交：`24fb854`（输入资源同源修复）；浅瓷 HUD 为 `c5232fd`。后续交接状态更新为纯文档提交。
-- 浅瓷 GUI、产品/设计文档均已提交并推送；未跟踪的 `.openchamber/` 截图和 `.impeccable/questions/` 本地产物保留，不应提交或清除。
-- 生产站点：<https://mmd-xr-stage.pages.dev>；最新部署：<https://7530d188.mmd-xr-stage.pages.dev>；此前浅瓷部署：<https://274fe0c5.mmd-xr-stage.pages.dev>。
-- 已对最终进度条修复完成 TypeScript、171 项测试和生产构建；部署后核对生产入口及 JS/CSS/Bullet/动画 WASM SHA-256，全部与 dist 一致。合并后数分钟内完成上线。
-
-## 用户已确认的方向
-
-- 头显 **Quest 3S**；菜单主要用手柄，手追只用来体验物理。
-- **观看为主，偶尔调整**。用户明确不满意旧 GUI 的配色、设计和风格，上一轮功能分页不能代表视觉获认可。
-- 已在可视化选择页选定 **浅瓷与墨蓝**（不是深色海盐方案，也不是平面青色方案）。无需再问同一方向。
-- 只改 VR HUD：冷白底、墨色文字、克制蓝色选中态、去厚描边和数值卡片外框。准备页、舞台灯光和模型材质保持独立。
-- 不反复输出 Impeccable 配置提醒，不为设计任务顺带修 hook/doctor 配置。
-- 倾向将同轮改动整合为一个有意义的提交；强推需单独授权，不能沿用过去一次强推许可。
-- 合并后及时部署（用户既有偏好为半小时内）；测试/构建尽量在合并前完成。
-
-## 已发布的近期基线
-
-| 提交 | 内容 | 验证 |
+| 版本 | 已发布内容 | 改动入口／证据 |
 |---|---|---|
-| `7f0b505` | loader 0.8.6、Three r187、R3F 9.8.2、XR 6.6.32、依赖刷新与补丁迁移 | 143 测试；WASM/WebGL smoke |
-| `3f8e02e` | 物理缓冲复用、刚体元数据缓存、辅助碰撞体/隐藏模型触觉误报修复、材质同步减分配 | 150 测试；真实 Bullet direct/copied 240 步轨迹差 0 |
-| `42a70b5` | XR generation 状态机、首 XRFrame 才 active、取消/超时、R3F renderer 所有权；StrictMode runtimeRef 修复 | 163 测试；IWER 首次模型加载和重入 |
-| `3ba4ded` | Node 26 基线、jsdom 31、GUI 四分类与召回、静态物件裁剪、CPU/renderer 诊断 | 169 测试；裁剪合成场景 draw calls 300→1 |
-| `c5232fd` | 浅瓷与墨蓝 HUD、进度条文字对比度修复、产品/设计/交接文档 | 最终源码 171 测试、tsc、build；生产制品哈希一致 |
+| `17da9b2` | 五种观看环境、旧 Live House 偏好迁移；首个角色预载与一次性交接、物理续场按快照装载、分批上传与条件式 shader 预编译 | `src/mmdVrShowcase/scenery/`、`mmdRuntime/preparedModel.ts`、`prepareModelGpu.ts`；[资产流程](./asset-workflow.md) |
+| `cc74058` | CCD IK 迭代只更新活跃链所需的世界矩阵；保留原约束、迭代次数和首次完整计算 | 原版逐值对照通过。本地指定模型＋合成 VMD 的模型 CPU 约 9.6 → 3.08–3.23 ms，不是 Quest 整机帧时；[测试条件](./xr-runtime-performance.md) |
+| `160fca1`、`5566163` | 重获追踪时重叠碰撞体等待移出再启用；可导出性能记录；显示层降低裙摆静置细颤 | 指定模型本机 72 Hz／0.1× 对照中，裙摆顶点位移指标下降约 58%；保留快速拨动与求解器原始姿态 |
+| `35bf752`、`e5d6530` | 增强贴图按最后选择提交，失败／卸载释放资源；暂停 VMD 后衣摆可交互；每手掌心盒＋五指胶囊 | `scripts/paused-cloth-smoke.html` 用生成的 PMX/VMD 和真实 Bullet 检查暂停、恢复、seek 与缩放 |
+| `51931ba`、`24fb854` | 场景代码随准备页就绪，Canvas 仍按需挂载；手柄 profile 和手模型同源加载 | [XR 生命周期](./xr-session-lifecycle.md)、[输入资源](./vr-controls.md)、[旧标签页发布兼容](./deployment.md) |
 
-Node 当前实际版本 **26.12.1**；`.node-version` 同值，engines `>=26.12.1 <27`；pnpm **11.20.0**。`@types/node` 26.6.6、jsdom 31.0.1。不要跟 npm `node latest` 的 27 alpha。
+## 维护入口
 
-Loader clone `E:\WebProjects\three-mmd-loader` 已同步 upstream/fork main 至 `9c47b94` / v0.8.6，mmd-anim v0.5.4 子模块 `f4f68d7`。该 clone 只用 npm；贡献分支本轮未 rebase/强推。
-
-## 本次发布实现
-
-### 代码
-
-- `src/mmdVrShowcase/hudAppearance.ts`：独立、固定的 HUD palette，button/tab/quiet 纹理绘制与禁用/危险状态。
-- `src/mmdVrShowcase/hudAppearance.test.ts`：普通、次要、选中、危险、禁用文本的颜色对比度 ≥4.5:1，及稳定 token 验证。
-- `src/mmdVrShowcase/components/MmdVrHud.tsx`：仅 HUD 改用新 palette（目前以 `useVrHudTheme as useMmdVrTheme` 本地 alias 接入）；冷白实体面板、细分隔、无厚按钮边框、tab 下划线、无边框数值标签、细滑块/小滑钮、观看条背景；修复拖动柄 renderOrder 与模型材质按钮垂直间距。
-- 最后一处 review 修复：时间文本原来叠在进度轨道上，现移到纹理 `y=24`，轨道在 `y=56..62`，进度 plane 高度 `0.13`。初始和动态绘制两处都已更新。
-- 会话、渲染后端、物理、场景颜色没有在这轮改动。不要把 UI 更新说成 WebGPU 迁移。
-
-### 文档
-
-- `PRODUCT.md`：用户确认的 Quest 3S / 观看 / 手柄场景和产品约束。
-- `DESIGN.md`：实际 HUD token、Canvas 像素与世界单位、控件状态及边界。
-- `.impeccable/design.json`：设计工具侧车，含预览 metadata；合成色阶和 HTML 示例**不是生产 token 或 XR 实测**。
-- `.impeccable/surfaces/vr-hud.md`：本轮方向契约与用户选择。
-- `docs/webgpu-xr-status.md`：当前支持调查与来源；见下节。
-- `docs/vr-controls.md`、索引、README、部署说明、诊断说明和旧路线图均做了状态校正。
-
-## 验证状态（不要扩大结论）
-
-- **最终源码 171 项 / 42 文件通过**；恢复会话后重新完成 tsc 与生产构建，包含进度条文字分离修复。此前 detector `[]` 通过。
-- 最终修复后已在 IWER 模拟页截图确认时间与轨道分离；当前 dist 已重建。测试中的 Three CJS/localStorage 提示及构建的 loader Node 模块外置、大 chunk 提示未导致检查失败。
-- 普通/选中/危险/禁用颜色对比测试已过；这不等于 Quest 3S 的镜片、亮度或文字角尺寸验收。
-- 独立审查初次 verdict `fix`：唯一阻塞为进度时间对比度。修复后 scoped verdict `ship` / resolved，文本在瓷色底上对比度 **5.47:1**。仅审阅源码与模拟截图，没有全场景/头显/seek 手感批准。
-- 模拟界面验证了模型/画面/观看模式；已有自动测试覆盖分页、材质访问、慢扳机释放/取消/防重复触发等。全部功能不能只凭截图宣称真机通过。
-- 此轮未添加 UI 图片资产，所有显示图形来自 Canvas/Three 绘制。截图是开发证据，不随产品打包。
-
-## 下一步
-
-1. 先 `git status`，读本交接、PRODUCT、DESIGN；本轮验证与发布已完成，无需重复发布。
-2. 在 Quest 3S 确认菜单可读性、B 键召回、慢扳机释放、拖动和动作进度操作；模拟页保留供复现。
-3. 优先真机复试暂停时拨动衣摆、继续播放和拖动进度；代码和可重复夹具已完成，见本页开头。
-4. 只暂存实际代码/文档/设计契约。**不要 `git add .`**，`.openchamber/` 截图、`.impeccable/questions/` 运行产物、`sample/` 不应提交。
-
-后续代码变更使用以下检查，本次已全部通过：
-
-```bash
-pnpm exec tsc -b --pretty false
-pnpm test
-pnpm build
-git diff --check
-```
-
-PowerShell 中分步检查 `$LASTEXITCODE`；不要把 test/build 输出过滤后将过滤命令的成功当作验证成功。
-
-## 本地运行/证据
-
-- 开发服务器原 PID `78944` / 端口 `4186` **已停止**，本会话创建的浏览器标签已关闭。
-- `sample/porcelain-smoke.html` 和 `sample/maintenance-minimal.pmx` 保留在已忽略目录，以便复验。前者使用现有传递依赖 **IWER 2.4.0**，安装模拟 Quest runtime，加载完整应用；顶部是测试驱动按钮，不是产品 UI。
-- 启动 `pnpm dev --host 127.0.0.1 --port 4186 --strictPort`，打开 `http://127.0.0.1:4186/sample/porcelain-smoke.html`。Enter → Menu/Visuals/Watch；Synthetic progress 只提供模拟 duration，实际 runtime 仍会将静态模型时钟写回 0，因此截图为 `0:00 / 2:00`，不是动作播放证明。
-- 截图（保留为未跟踪本地证据）：
-  - `.openchamber/screenshots/porcelain-model-2026-11-17T13-59-39-955.jpg`：较早版本，不能用于断言最终拖动柄/材质按钮位置。
-  - `.openchamber/screenshots/porcelain-visual-final-2026-11-17T14-03-46-087.jpg`
-  - `.openchamber/screenshots/porcelain-watch-final-2026-11-17T14-05-25-104.jpg`
-  - `.openchamber/screenshots/porcelain-progress-fixed-2026-11-17T14-14-09-711.jpg`：最终进度对比修复。
-- 外部临时目录 `C:\Users\NekoLaska\AppData\Local\Temp\opencode` 保存生成 PMX、性能前后 JSON、旧轮截图和 `verify-mmd-maintenance.mjs`。该验证脚本比较生产 HTML 资源引用及 dist JS/CSS/Bullet/动画 WASM SHA-256，使用动态 cache-buster；运行前读脚本确认路径。
-- Review agent `ses_e162b5dd5ffec3Beo03segGMe0` 已完成；documenter `ses_e1629d3cfffe5WK4sjJPRk2Hoy` 已完成。无需轮询。
-
-## 发布规则
-
-- Git 是 `master`，Pages 生产参数是 `--branch=main`；不要混淆。
-- 推送代理：`http://127.0.0.1:7897`。
-- 使用已验证版本，不临时升级部署工具：
-
-```bash
-git -c http.proxy=http://127.0.0.1:7897 -c https.proxy=http://127.0.0.1:7897 push origin master
-npx -y wrangler@4.128.0 pages deploy ./dist --project-name=mmd-xr-stage --branch=main
-```
-
-- 先完成验证和构建，再合并发布；不拿 deploy 代替测试。HTTP 200 可能是 SPA 回退，必须检查内容/哈希。
-
-## 待办（本轮不继续扩改）
-
-1. **Quest 3S 真机**：冷缓存首次进入、退出重入、菜单光学可读性、B 键召回、手柄慢按/松开、手追、左右眼裁剪、衣物缩放/碰撞/震动。模拟器成功不替代这一项。
-2. **贴图异步竞争：已修**，乱序、切回、部分解码失败、相同文件名与卸载回归通过。
-3. **动画/物理时钟：已修**，暂停物理步进与恢复/seek 已通过 PMX＋VMD＋Bullet 浏览器回归。
-4. **性能与大场景**：当前有模型 CPU cost、draw calls、三角形、资源数量；尚无 GPU timer query。需真实资产、Quest 数据后评估 LOD、材质合批、贴图预算；300→1 是视野外网格合成测试，不是整机 FPS 提升。
-5. **WebGPU XR 可选实验**：已有浏览器/Three 支持，但用户本轮只是询问，未授权迁移；保留 WebGL 默认。MMD shader、R3F/XR、会话 webgpu feature、GPUAdapter xrCompatible、双眼与材质一致性、回退均需验证。
-
-## WebGPU 结论与来源限制
-
-Meta 146.0 已公布实验支持，150.1 foveation、152.1 composition layers 的说明仍为实验。156.0 发布索引（11 月 13 日）提及 WebGPU in WebXR，但完整页获取失败，**不能断言全部设备默认开启或已完全稳定**。Three r187 源码有 XRGPUBinding 路径且明确尚无 WebGPU XR multiview。详见 `docs/webgpu-xr-status.md`。
-
-## 必须保留的约束
-
-- loader 0.8.6 的 contact-range 与 TSL self-shadow 降级 patch；XR 6.6.32 输入源清理 patch。
-- Bullet `public/mmd/0.8.6/` JS/WASM 与代码路径一致。
-- `[model, 2 controllers, 12 hand slots]` 顺序；PMX 物理世界单位尺度、碰撞矩阵 rigid 化和半径/模型尺度独立换算。
-- XR Session generation、首 XRFrame 状态、取消/卸载隔离、R3F 自有 renderer 不重复 dispose。
-- `runtimeRef` 只在 commit/layout effect 同步，不能写在 useMemo 中（已复现 StrictMode 模型被误删）。
-- `sample/` 资产不得提交；LF 文本；无需求不要引入新的 JSX 注释或 UI 框架。
+- 环境在准备页「观看环境」或 VR「画面」中选择。目录是 `src/mmdVrShowcase/scenery/catalog.ts`；布景不占用户 GLB 槽位。日景天空、主方向光和窗光共用方向；[VR 控制说明](./vr-controls.md)。
+- 调试先 `git status --short --branch`。Node `26.12.1`、pnpm `11.20.0`，依赖用 `pnpm install --frozen-lockfile`。代码变更按 [AGENTS](../AGENTS.md) 验证；发布按[部署说明](./deployment.md)，保留旧标签页所需文件。`.openchamber/` 是本地证据，`sample/` 含测试材料，均不暂存；用户模型只在本机使用。
+- `@react-three/xr` 调用 Zustand 4 旧比较接口的弃用提示仅见于开发模式；生产包没有这条提示，当前不按加载故障处理。
+- 更早的调试经过可查 [整理前的交接快照](https://github.com/znzsofficial/mmd-xr-stage/blob/17da9b2/docs/HANDOFF.md)。[历史路线图](./mmd-vr-showcase-roadmap.md)供溯源；近期进度以上述发布与验收项为准。
