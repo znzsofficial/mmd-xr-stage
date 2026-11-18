@@ -97,7 +97,7 @@ components:
 
 The user-selected direction is cool porcelain, ink typography and restrained cobalt selection. Quiet, flat controls support a Quest 3S viewer who mainly watches and occasionally adjusts settings with controllers.
 
-This system applies only to the VR HUD in `src/mmdVrShowcase/hudAppearance.ts` and `src/mmdVrShowcase/components/MmdVrHud.tsx`. The preparation console in `src/styles/mmd-vr-prep.css` retains its separate dark, user-accented system; stage lighting, backgrounds and model materials have independent colors. This was not a catalog-seeded world.
+This system applies only to the VR HUD in `src/mmdVrShowcase/hudAppearance.ts` and `src/mmdVrShowcase/components/MmdVrHud.tsx`. The preparation page has its own user-selected **窗光工作室** direction: warm white `#faf9f5`, ink text `#192f28`, deep green entry controls `#175948`, a classroom panorama and a pale green import area. The entry action is above the fold; device settings start collapsed. The original scene render for `prep/classroom-window.webp` shows the built-in classroom from `ac546a6`, with no imported assets or HUD. Serve the static picture and local line icons without creating a preview renderer. Stage lighting, backgrounds and model materials have independent colors.
 
 **Key Characteristics:**
 - Cool porcelain surfaces with ink labels.
