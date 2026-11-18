@@ -9,6 +9,7 @@ import {
 import type { MmdPhysicsBackend } from "@yohawing/three-mmd-loader/physics";
 import { DefaultMmdRuntime } from "@yohawing/three-mmd-loader/runtime";
 import * as THREE from "three";
+import { PhysicsPoseDisplay } from "./physicsPoseDisplay";
 import { resolveCompanion } from "../../mmdImport/assetPaths";
 import { createBulletPhysicsBackend, type ColliderShapeFactory, type MmdPhysicsQuality } from "./mmdPhysics";
 import {
@@ -118,6 +119,7 @@ export type MmdRuntimeHandle = {
 };
 
 type RuntimeEntryWithPhysics = RuntimeEntry & {
+  physicsDisplay?: PhysicsPoseDisplay;
   /** Dedicated Bullet world — do not share across models. */
   physicsBackend: MmdPhysicsBackend | null;
 };
@@ -354,6 +356,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       handColliders?.().length ?? 0,
     );
     // One Bullet world per model (library world holds a single uploaded model identity).
+    const physicsDisplay = withPhysics ? new PhysicsPoseDisplay() : undefined;
     const physicsBackend = withPhysics
       ? await createBulletPhysicsBackend({
           controllerColliders: colliderProvider,
@@ -364,6 +367,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
           handColliders: handColliderProvider,
           handShape: options.handShape,
           simulationDelta: () => stepDelta,
+          onPhysicsBones: physicsDisplay?.record,
           handRadius: () => {
             const scale = Math.min(10, Math.max(0.01, Number(colliderRoot?.userData.mmdVisualScale) || transform.scale));
             return (handColliderRadius?.() ?? 0.035) / scale;
@@ -453,6 +457,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       modelFile,
       companionFiles: companionFiles.length ? [...companionFiles] : [modelFile],
       physicsBackend,
+      physicsDisplay,
     };
     model.root.userData.mmdVisualScale = entry.transform.scale;
     // Tag root + meshes so post FX (DOF lock / selective bloom) can target a model id.
@@ -689,6 +694,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
         entry.bodyMotionName = file.name;
         entry.bodyMotionFile = file;
       }
+      entry.physicsDisplay?.restore(true);
       recomputeEntryAnimation(entry);
       // setAnimation resets physics state; clear clock so next step is "seeking".
       lastPhysicsSeconds.delete(entry.id);
@@ -754,6 +760,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       for (const entry of entries.values()) {
         if (!entry.visible || !entry.physicsBackend || entry.physicsBackend.disposed) continue;
         try {
+          entry.physicsDisplay?.restore(true);
           syncEntryWorldMatrix(entry, true);
           entry.physicsBackend.reset?.();
           entry.model.runtime.seek(t);
@@ -817,12 +824,13 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
         // Parent root matrixWorld must be current: library calls
         // mesh.updateWorldMatrix(false, true) and will not refresh parents.
         // Scale is forced to 1 during physics so colliders match bone spaces.
-        syncEntryWorldMatrix(entry, physicsOn);
-
         const prev = lastPhysicsSeconds.get(entry.id);
         const jumpedBack = prev !== undefined && seconds + 1e-4 < prev;
         const jumpedFar = prev !== undefined && seconds - prev > 0.25;
-        if (physicsOn && (jumpedBack || jumpedFar || prev === undefined)) {
+        const reset = jumpedBack || jumpedFar || prev === undefined;
+        entry.physicsDisplay?.restore(!physicsOn || reset);
+        syncEntryWorldMatrix(entry, physicsOn);
+        if (physicsOn && reset) {
           // seek() alone changes the loader clock but doesn't seed Bullet on a
           // forward scrub. Reset makes the next evaluated pose a seed-only step.
           entry.physicsBackend?.reset?.();
@@ -833,6 +841,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
         stepDelta = physicsOn ? physicsDelta : undefined;
         try {
           entry.model.update(seconds, { physics: physicsOn, ik: hasBodyMotion });
+          if (physicsOn && physicsDelta != null) entry.physicsDisplay?.present(entry.model.mesh.skeleton.bones, physicsDelta);
         } finally {
           stepDelta = undefined;
           if (physicsOn) syncEntryWorldMatrix(entry, false);

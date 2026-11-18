@@ -12,6 +12,7 @@ export type { MmdPhysicsQuality };
 export type MmdControllerColliderMatrix = MmdPhysicsMatrix4ColumnMajorTuple | Float32Array;
 export type MmdControllerColliderProvider = () => readonly MmdControllerColliderMatrix[];
 export type ColliderShapeFactory = (index: number, radius: number) => NonNullable<MmdPhysicsStepContext["rigidBodies"]>[number]["shape"];
+type PhysicsBoneObserver = (indices: MmdPhysicsMutableIndexBuffer | undefined, count: number, bodies: MmdPhysicsStepContext["rigidBodies"]) => void;
 type MmdDebugContact = { rigidBodyIndexA: number; rigidBodyIndexB: number };
 const MAX_DEBUG_CONTACTS = 256;
 const syntheticColliderBody = Symbol("syntheticColliderBody");
@@ -71,6 +72,7 @@ export async function createBulletPhysicsBackend(options: {
   handRadius?: number | (() => number);
   handShape?: ColliderShapeFactory;
   simulationDelta?: () => number | undefined;
+  onPhysicsBones?: PhysicsBoneObserver;
   quality?: () => MmdPhysicsQuality;
   boneFeedbackScale?: () => number;
   controllerFriction?: () => number;
@@ -93,7 +95,7 @@ export async function createBulletPhysicsBackend(options: {
     module as Parameters<typeof createCustomBulletMmdPhysicsBackend>[0],
     backendOptions,
   );
-  const diagnosticBackend = createPhysicsDiagnosticsBackend(bulletBackend, options.simulationDelta);
+  const diagnosticBackend = createPhysicsDiagnosticsBackend(bulletBackend, options.simulationDelta, options.onPhysicsBones);
   const backend = options.dynamicSelfCollision
     ? createDynamicSelfCollisionPhysicsBackend(diagnosticBackend)
     : diagnosticBackend;
@@ -126,7 +128,7 @@ export async function createBulletPhysicsBackend(options: {
     : colliderBackend;
 }
 
-export function createPhysicsDiagnosticsBackend(backend: MmdPhysicsBackend, simulationDelta?: () => number | undefined): MmdPhysicsBackend & MmdRuntimePhysicsDiagnostics {
+export function createPhysicsDiagnosticsBackend(backend: MmdPhysicsBackend, simulationDelta?: () => number | undefined, onPhysicsBones?: PhysicsBoneObserver): MmdPhysicsBackend & MmdRuntimePhysicsDiagnostics {
   let rigidBodyCount = 0;
   let dynamicRigidBodyCount = 0;
   let stepCount = 0;
@@ -152,9 +154,11 @@ export function createPhysicsDiagnosticsBackend(backend: MmdPhysicsBackend, simu
         }
       }
       const dt = simulationDelta?.();
-      return dt == null || context.seeking || dt === context.deltaSeconds
+      const result = dt == null || context.seeking || dt === context.deltaSeconds
         ? backend.step(context)
         : backend.step({ ...context, deltaSeconds: dt });
+      onPhysicsBones?.(context.output?.updatedBoneIndices, result.updatedBoneCount ?? 0, context.rigidBodies);
+      return result;
     },
     reset: (context) => backend.reset?.(context),
     dispose: () => backend.dispose?.(),

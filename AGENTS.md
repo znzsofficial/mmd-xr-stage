@@ -40,6 +40,7 @@ pnpm deploy
 ## XR And Physics Invariants
 
 - Keep VMD pose seconds separate from Bullet's bounded XR-frame delta. Paused interactive physics may advance even at pose 0. Seek, loop and reset are seed-only at the requested pose, not accumulated playback time. Exercise `scripts/paused-cloth-smoke.html` with the shipped Bullet backend when changing either clock.
+- For secondary-motion jitter, `PhysicsPoseDisplay` owns only the displayed pose of bones reported by Bullet. Restore raw local poses before evaluation, clear history on discontinuities and keep rotation-only bodies' animated local translations. Independently smoothing local rotation down a long chain can amplify hem movement. Measure skinned vertices as well as bone transforms; avoid committing private PMX assets or their paths.
 - Enhancement map loads commit complete sets per material. Compare actual File identities; invalidate pending work on selection changes and disposal, including reselecting the already committed files. Keep the last complete set on decode failure.
 
 - Keep `MmdVrScene` statically reachable from the prep entry, but mount Canvas only on enter. After a release an already-open tab can otherwise fetch SPA HTML at a retired lazy chunk URL. Exercise the built prep page with a selected PMX and a simulated XR frame, not just individual asset HTTP checks. See `docs/deployment.md` for the temporary old-tab bridge.
