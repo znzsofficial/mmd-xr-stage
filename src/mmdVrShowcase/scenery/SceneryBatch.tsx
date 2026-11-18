@@ -1,9 +1,9 @@
 import { useLayoutEffect, useRef } from "react";
-import { Color, InstancedMesh, Object3D } from "three";
+import { Color, InstancedMesh, Object3D, type BufferGeometry, type MeshStandardMaterial, type Texture } from "three";
 
 export type Part = { p: [number, number, number]; s: [number, number, number]; color: string; rx?: number; ry?: number; rz?: number };
 
-export function Batch({ parts, round, lit, name, casts = false, foliage = false }: { parts: Part[]; round?: boolean; lit?: boolean; name: string; casts?: boolean; foliage?: boolean }) {
+export function Batch({ parts, round, lit, name, casts = false, foliage = false, geometry, shade, map }: { parts: Part[]; round?: boolean; lit?: boolean; name: string; casts?: boolean; foliage?: boolean; geometry?: BufferGeometry; shade?: MeshStandardMaterial['onBeforeCompile']; map?: Texture }) {
   const ref = useRef<InstancedMesh>(null);
   useLayoutEffect(() => {
     const mesh = ref.current!;
@@ -13,11 +13,11 @@ export function Batch({ parts, round, lit, name, casts = false, foliage = false 
       mesh.setMatrixAt(index, pose.matrix); mesh.setColorAt(index, color.set(tint));
     });
     mesh.instanceMatrix.needsUpdate = true;
-    mesh.instanceColor!.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     mesh.computeBoundingSphere();
   }, [parts]);
-  return <instancedMesh ref={ref} args={[undefined, undefined, parts.length]} name={name} receiveShadow={!lit} castShadow={casts} raycast={() => null}>
-    {foliage ? <icosahedronGeometry args={[0.5, 1]} /> : round ? <cylinderGeometry args={[0.5, 0.5, 1, 16]} /> : <boxGeometry />}
-    {lit ? <meshBasicMaterial /> : <meshStandardMaterial roughness={0.88} />}
+  return <instancedMesh ref={ref} args={[geometry, undefined, parts.length]} name={name} receiveShadow={!lit} castShadow={casts} raycast={() => null}>
+    {geometry ? null : foliage ? <icosahedronGeometry args={[0.5, 1]} /> : round ? <cylinderGeometry args={[0.5, 0.5, 1, 16]} /> : <boxGeometry />}
+    {lit ? <meshBasicMaterial /> : <meshStandardMaterial key={shade?.name} roughness={0.88} vertexColors={!!geometry?.hasAttribute('color')} {...(shade && {onBeforeCompile: shade})} map={map ?? null} />}
   </instancedMesh>;
 }

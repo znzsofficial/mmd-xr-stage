@@ -11,7 +11,7 @@
 | 文档 | 内容 |
 |------|------|
 | [mmd-vr-showcase-roadmap.md](./mmd-vr-showcase-roadmap.md) | 长期路线图与拆分前历史；近期执行顺序见 HANDOFF |
-| [asset-workflow.md](./asset-workflow.md) | 导入预检、首个角色预载、失败重试与同页续场 |
+| [asset-workflow.md](./asset-workflow.md) | 导入预检、同页背包、空场进入与恢复布局 |
 | [viewing-and-diagnostics.md](./viewing-and-diagnostics.md) | 导出性能 JSON，区分启动耗时、回调间隔和模型 CPU |
 | [three-mmd-loader-maintenance.md](./three-mmd-loader-maintenance.md) | three-mmd-loader 本地补丁、根因与升级收尾步骤 |
 | [xr-runtime-performance.md](./xr-runtime-performance.md) | CCD IK 补丁与等价对照、裙摆抖动测量、手部碰撞及 Bullet 回归 |

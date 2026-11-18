@@ -2,6 +2,7 @@ import type { TranslationKey } from "../languageStore";
 import { requestImmersiveEnter } from "../xr";
 import type { MmdVrAssetSlot } from "./mmdVrAssets";
 import { beginMmdVrAssetSession, endMmdVrAssetSession } from "./mmdVrAssets";
+import { prepareBackpackEntry } from "./backpack";
 import { useMmdVrStore } from "./mmdVrStore";
 import { beginMmdVrSessionFromClick, endMmdVrSession, getMmdVrSessionSnapshot, waitForMmdVrPresentation } from "./mmdVrSession";
 
@@ -42,9 +43,11 @@ export function requestMmdVrEnter(opts: {
       return current.overlayOpen || current.phase === "entering" || current.phase === "active";
     },
     setEntering: () => {
-      store.prepareStage(Boolean(opts.resume));
-      const selectedAssets = opts.resume && store.savedStage ? store.savedStage.assets : assets;
-      if (selectedAssets?.length) beginMmdVrAssetSession(selectedAssets);
+      const saved = opts.resume ? store.savedStage : null;
+      prepareBackpackEntry(saved != null);
+      store.prepareStage(saved != null);
+      // Even an empty stage needs an explicit handoff; never promote old pending slots.
+      beginMmdVrAssetSession(saved?.assets ?? assets ?? []);
       store.setPhase("entering");
     },
     setLastError: (v) => store.setLastError(v),

@@ -11,7 +11,6 @@ import * as THREE from "three";
 import { PhysicsPoseDisplay } from "./physicsPoseDisplay";
 import { PARK_Y } from "./colliderReentry";
 import { createLocalTextureResolver } from "./localTextureResolver";
-import { preparedModel } from "./preparedModel";
 export { createLocalTextureResolver } from "./localTextureResolver";
 import { createBulletPhysicsBackend, type ColliderShapeFactory, type MmdPhysicsQuality } from "./mmdPhysics";
 import {
@@ -74,6 +73,7 @@ export type MmdProjectModelAssets = {
 };
 
 export type MmdAddModelOptions = {
+  isStale?: () => boolean;
   physics?: boolean;
   preferredId?: string;
   transform?: Partial<MmdModelTransform>;
@@ -97,7 +97,7 @@ export type MmdRuntimeHandle = {
   setModelTransform: (id: string, patch: Partial<MmdModelTransform>) => void;
   /** When true, update() will not overwrite root TRS from entry.transform (gizmo drag). */
   setModelGizmoLock: (id: string, locked: boolean) => void;
-  loadMotion: (file: File, slot?: MmdMotionSlot, modelId?: string | null) => Promise<void>;
+  loadMotion: (file: File, slot?: MmdMotionSlot, modelId?: string | null, isStale?: () => boolean) => Promise<void>;
   setMorphWeight: (modelId: string, morphName: string, weight: number) => void;
   setMaterialVisible: (modelId: string, materialName: string, visible: boolean) => void;
   setMaterialOverride: (modelId: string, materialName: string, patch: Partial<MaterialOverride>) => void;
@@ -111,7 +111,7 @@ export type MmdRuntimeHandle = {
   setPhysicsEnabled: (enabled: boolean) => Promise<void>;
   rebuildPhysics: () => Promise<void>;
   /** Re-seed soft-body pose from current animation (fix floating / stuck cloth). */
-  resetPhysics: (seconds?: number) => void;
+  resetPhysics: (seconds?: number, modelId?: string) => void;
   getControllerContactCount: (controllerIndex?: number) => number;
   getRigidBodyCount: () => number;
   getDynamicRigidBodyCount: () => number;
@@ -295,8 +295,11 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
     withPhysics: boolean,
     transform: MmdModelTransform,
     preferredId?: string,
+    isStale: () => boolean = () => false,
   ) {
-    assertActive();
+    const stale = () => disposed || isStale();
+    const assertCurrent = () => { if (stale()) throw new DOMException("Stage changed", "AbortError"); };
+    assertCurrent();
     const textureResolver = createLocalTextureResolver(modelFile, companionFiles);
     let colliderRoot: THREE.Object3D | null = null;
     const unitRoot = new THREE.Matrix4();
@@ -374,9 +377,9 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
           dynamicSelfCollision: physicsDynamicSelfCollision,
         })
       : null;
-    if (disposed) {
+    if (stale()) {
       physicsBackend?.dispose?.();
-      assertActive();
+      assertCurrent();
     }
     const runtimeOptions = withPhysics && physicsBackend
       ? {
@@ -392,18 +395,14 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
     });
     let model;
     try {
-      const warm = !withPhysics && preparedModel.take(modelFile, companionFiles);
-      const ready = warm ? await warm : null;
-      if (!ready) assertActive();
-      model = ready ?? await loader.loadModel(modelFile);
+      assertCurrent();
+      model = await loader.loadModel(modelFile);
+      assertCurrent();
       if (withPhysics) bindStaticMmdPhysicsRuntime(model);
       colliderRoot = model.root;
       prepareModel?.(model.root);
-      if (disposed) {
-        disposeLoadedModelObject(model);
-        assertActive();
-      }
     } catch (error) {
+      if (model) disposeLoadedModelObject(model);
       physicsBackend?.dispose?.();
       throw error;
     }
@@ -467,8 +466,8 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
     applyMaterialOverrides(entry, lightingContext());
     if (options.prepareGpu) {
       try {
-        await options.prepareGpu(model.root, () => disposed);
-        assertActive();
+        await options.prepareGpu(model.root, stale);
+        assertCurrent();
       } catch (error) {
         disposeEntryPhysics(entry); disposeModelObject(entry); throw error;
       }
@@ -611,6 +610,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
         physicsWanted,
         transform,
         options.preferredId,
+        options.isStale,
       );
       selectedId = entry.id;
       recomputeGlobal();
@@ -677,7 +677,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
         applyMaterialOverrides(entry, lightingContext());
       }
     },
-    async loadMotion(file, slot = "body", modelId = selectedId) {
+    async loadMotion(file, slot = "body", modelId = selectedId, isStale) {
       assertActive();
       const id = modelId ?? selectedId;
       if (!id) throw new Error("No model selected");
@@ -686,22 +686,22 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       const loader = new ThreeMmdLoader();
       const animation = await loader.loadAnimation(file);
       assertActive();
-      if (entries.get(id) !== entry) throw new DOMException("MMD model removed", "AbortError");
-      if (slot === "face") {
-        entry.faceAnimation = animation;
-        entry.faceMotionName = file.name;
-        entry.faceMotionFile = file;
-      } else if (slot === "camera") {
-        entry.cameraAnimation = animation;
-        entry.cameraMotionName = file.name;
-        entry.cameraMotionFile = file;
-      } else {
-        entry.bodyAnimation = animation;
-        entry.bodyMotionName = file.name;
-        entry.bodyMotionFile = file;
-      }
+      if (entries.get(id) !== entry || isStale?.()) throw new DOMException("MMD model changed", "AbortError");
+      // Validate/merge on a candidate. A malformed VMD (or failed bind) must
+      // not change the exportable files, duration or the previous motion.
+      const candidate = { ...entry };
+      candidate[`${slot}Animation`] = animation;
+      candidate[`${slot}MotionName`] = file.name;
+      candidate[`${slot}MotionFile`] = file;
       entry.physicsDisplay?.restore(true);
-      recomputeEntryAnimation(entry);
+      try {
+        recomputeEntryAnimation(candidate);
+      } catch (error) {
+        if (entry.appliedAnimation) entry.model.setAnimation(entry.appliedAnimation);
+        else if (entry.physicsBackend) bindStaticMmdPhysicsRuntime(entry.model);
+        throw error;
+      }
+      Object.assign(entry, candidate);
       // setAnimation resets physics state; clear clock so next step is "seeking".
       lastPhysicsSeconds.delete(entry.id);
       recomputeGlobal();
@@ -759,11 +759,12 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       physicsTransition = transition.catch(() => undefined);
       await transition;
     },
-    resetPhysics(seconds) {
+    resetPhysics(seconds, modelId) {
       if (!physicsWanted) return;
       const t = Number.isFinite(seconds) ? Math.max(0, seconds as number) : 0;
       // The next Bullet step seeds from this pose without integrating elapsed time.
       for (const entry of entries.values()) {
+        if (modelId && entry.id !== modelId) continue;
         if (!entry.visible || !entry.physicsBackend || entry.physicsBackend.disposed) continue;
         try {
           entry.physicsDisplay?.restore(true);

@@ -17,6 +17,7 @@ import {
   type ImmersiveTogglePref,
 } from "../xr";
 import { endMmdVrAssetSession } from "./mmdVrAssets";
+import { invalidateBackpackCommands, useBackpack } from "./backpack";
 import { resetMmdVrClock } from "./mmdVrClock";
 import { resolveScenery, type SceneryId } from "./scenery/catalog";
 import type { MmdPhysicsQuality } from "./mmdPhysicsQuality";
@@ -416,6 +417,7 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
   setStageCapture: (captureStage) => set({ captureStage }),
   prepareStage: (resume) => {
     const saved = resume ? get().savedStage : null;
+    if (saved?.scenery && saved.scenery !== get().prefs.scenery) get().setPrefs({ scenery: saved.scenery });
     set({ resumeStage: saved, physicsEnabled: saved?.physicsEnabled ?? false,
       physicsControllerCollisions: saved?.controllerCollisions ?? true });
   },
@@ -511,8 +513,10 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
   closeOverlay: () => {
     const current = get();
     // A partial restore must never replace the last complete stage.
-    const complete = !current.assetLoad.running && current.assetLoad.failures.length === 0 && !current.physicsBusy && !current.physicsFatal;
-    const savedStage = (complete ? current.captureStage?.() : null) ?? current.savedStage;
+    const bag = useBackpack.getState();
+    const complete = !bag.busy && !current.assetLoad.running && current.assetLoad.failures.length === 0 && !current.physicsBusy && !current.physicsFatal;
+    const savedStage = (complete ? current.captureStage?.() : null) ?? bag.layouts[current.prefs.scenery] ?? current.savedStage;
+    invalidateBackpackCommands();
     endMmdVrAssetSession();
     set({
       savedStage,
@@ -527,6 +531,7 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
     });
   },
   failEnter: (errorMessage = "enter_failed") => {
+    invalidateBackpackCommands();
     endMmdVrAssetSession();
     set({
       entryEpoch: get().entryEpoch + 1,

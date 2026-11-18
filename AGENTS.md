@@ -2,7 +2,8 @@
 
 ## Project Shape
 
-- Built-in modelling is environment content for imported characters. Use `scenery/catalog.ts` as the set identity across prep, HUD and reports. Sets do not own user file slots, collision worlds, or renderer lifetimes. Preloaded characters have a single owner: transfer once by File and companion identity, or dispose on invalidation.
+- Built-in modelling is environment content for imported characters. Use `scenery/catalog.ts` as the set identity across prep, HUD, layouts and reports. Author placeable ground together with the layout: a point inside furniture or over pool water cannot be accepted just because the pointing plane intersects it.
+- The backpack owns file references for the lifetime of this page. Import is not a stage spawn; a fresh XR entry can have zero models. Keep runtime IDs separate from stable asset IDs; only mounted instances consume the three character/three object slots. Keep complete scene layouts as data, not hidden GPU/Bullet instances. End/switch invalidates command tokens only after taking any valid snapshot. Placement yaw is in **degrees** at the store boundary.
 
 - When resuming this work, read `docs/HANDOFF.md` for branch/release state and outstanding checks. Read `PRODUCT.md` and `DESIGN.md` before VR UI edits; the porcelain palette is scoped to HUD, not the prep page or stage lighting.
 
@@ -59,7 +60,7 @@ pnpm deploy
 - Preserve the controller matrix scale normalization and the independent collider-radius/model-scale conversion. These are needed for scaled models and cloth contact.
 - Physics wrappers cache immutable body definitions by array identity, matching the loader. Replace `rigidBodies` when definitions change. Copied buffers are per-wrapper scratch: preserve prefix copying and tail clearing on every step, and never retain them as historical snapshots. Controller contact counts must exclude synthetic-to-synthetic contacts (hidden colliders overlap at Y=-1000) and hidden/disposed models. See `docs/xr-runtime-performance.md` for benchmarks and the native Bullet smoke check.
 - Ordinary GLB/glTF environment meshes use bounding-sphere frustum culling via `prepareStageObject`; skinned/morph meshes remain conservative. PMX character culling remains disabled. Do not freeze the movable object root's matrices.
-- VR HUD pages share a single panel position; never place settings/material/object panels meters below the playback strip. Right-controller B recalls the menu relative to the current head pose. Trigger release activates buttons without relying on XR's short-click threshold; suppress the following click to avoid double activation. See `docs/vr-controls.md`.
+- Put routine model operations at the selected target. Right-controller B recalls the common menu; provide a backpack path to selecting hidden or occluded items. Keep advanced pages at a common panel position. Trigger release activates once even on a slow press. Ordinary hand contact with clothes must never select or translate the character. See `docs/vr-controls.md`.
 
 ## Verification And Files
 

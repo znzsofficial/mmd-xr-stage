@@ -6,35 +6,39 @@ import { applySavedModel, type SavedModel } from "./stageSnapshot";
 export function createModelLoadTask(runtime: MmdRuntimeHandle, slot: MmdVrModelSlot, options: {
   transform: Partial<MmdModelTransform>;
   saved?: SavedModel;
+  companions?: () => readonly File[];
   physicsEnabled: () => boolean;
   isStale: () => boolean;
 }) {
   let modelId: string | null = null;
   let restore = options.saved;
   return {
+    get modelId() { return modelId; },
     async load() {
+      if (options.isStale()) return;
       if (modelId) {
         const old = runtime.exportProjectModels().find((entry) => entry.id === modelId);
         if (old) restore = { file: old.modelFile, transform: old.transform, visible: old.visible,
           materialVisible: old.materialVisible, materialOverrides: old.materialOverrides };
-        runtime.removeModel(modelId);
-        modelId = null;
       }
-      const report = await runtime.addModel(slot.modelFile, slot.companionFiles, {
-        physics: options.physicsEnabled(), transform: restore?.transform ?? options.transform,
+      const report = await runtime.addModel(slot.modelFile, options.companions?.() ?? slot.companionFiles, {
+        physics: options.physicsEnabled(), transform: restore?.transform ?? options.transform, isStale: options.isStale,
       });
-      modelId = report.modelId;
-      if (options.isStale()) {
-        runtime.removeModel(modelId);
-        modelId = null;
-        return;
+      try {
+        if (options.isStale()) throw new DOMException("Stage changed", "AbortError");
+        if (restore) applySavedModel(runtime, report.modelId, restore);
+      } catch (error) {
+        runtime.removeModel(report.modelId);
+        throw error;
       }
-      if (restore) applySavedModel(runtime, modelId, restore);
+      // Commit replacement only after the repaired copy has loaded and restored.
+      if (modelId) runtime.removeModel(modelId);
+      modelId = report.modelId;
       return [...new Set([...report.missingTextures, ...report.textureWarnings])];
     },
     loadMotion(file: File, phase: "body" | "face") {
       if (!modelId) return Promise.reject(new Error("Model not loaded"));
-      return runtime.loadMotion(file, phase, modelId);
+      return runtime.loadMotion(file, phase, modelId, options.isStale);
     },
   };
 }

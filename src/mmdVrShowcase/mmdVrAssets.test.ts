@@ -90,4 +90,12 @@ describe("mmdVrAssets", () => {
     endMmdVrAssetSession();
     expect(getMmdVrSessionAssets()).toHaveLength(0);
   });
+
+  it("treats an explicit empty handoff as a fresh empty stage", () => {
+    beginMmdVrAssetSession([fakeModelSlot("old.pmx")]);
+    setMmdVrPendingAssets([fakeModelSlot("pending.pmx")]);
+    beginMmdVrAssetSession([]);
+    beginMmdVrAssetSession();
+    expect(getMmdVrSessionAssets()).toEqual([]);
+  });
 });

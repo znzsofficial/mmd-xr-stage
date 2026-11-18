@@ -4,6 +4,17 @@ import type { RenderDiagnostics } from "./renderDiagnostics";
 
 const request = { frameRate: "120 Hz", antialias: true, framebufferScale: 1, foveation: null };
 describe("completed XR performance report", () => {
+  it("separates aiming and confirmation from time observing the empty room and records each placement once", () => {
+    const session = createPerformanceRecording(request, performance.now() - 60000);
+    session.startupFrame(false);
+    const placement = { token: 3, wasMove:false, kind:'model' as const, confirmedAt:performance.now()-250, previewDelayMs:185 };
+    session.placementFrame(placement); session.startupFrame(true); session.placementFrame(placement);
+    session.interval(.012,72); session.interval(.012,72);
+    const report = session.finish()!;
+    expect(report.placements).toHaveLength(1);
+    expect(report.placements[0]).toMatchObject({kind:'model',moved:false,selectToPointMs:185});
+    expect(report.placements[0].confirmToReadyFrameMs).toBeLessThan(report.startup.firstFrameAfterAssetsReadyMs!);
+  });
   it("uses actual Hz as the budget, includes visible stalls and excludes the gap across resume", () => {
     const session = createPerformanceRecording(request);
     session.interval(2, 72); // first callback has no previous immersive frame

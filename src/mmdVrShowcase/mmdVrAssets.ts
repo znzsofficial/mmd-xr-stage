@@ -80,7 +80,7 @@ export function takeMmdVrPendingAssets(): MmdVrAssetSlot[] {
  * Safe to call on remount — does not wipe sessionAssets.
  */
 export function beginMmdVrAssetSession(slots?: readonly MmdVrAssetSlot[]) {
-  if (slots?.length) {
+  if (slots !== undefined) {
     sessionAssets = normalizeSlots(slots);
     pendingAssets = [];
     return;

@@ -30,17 +30,19 @@ it("keeps one asset panel mounted and switches settings without losing playback 
   const click = async (label: string) => { expect(buttons(label).length).toBeGreaterThan(0); await act(async () => buttons(label)[0].click()); };
   try {
     await act(async () => root.render(<MmdVrControlBar {...props} />));
-    await click(t("settingsMmdVrPanelShow"));
+    await click(t("hudMore"));
     expect(buttons("Hide asset")).toHaveLength(1);
     await click(t("loadNext"));
     expect(buttons("Hide asset")).toHaveLength(1);
     await click(t("hudVisual"));
     expect(buttons("Hide asset")).toHaveLength(0);
     await click(t("hudSimpleStage"));
+    await click(t("hudLiveHouse"));
     expect(useMmdVrStore.getState().prefs.scenery).toBe("liveHouse");
     await click(t("hudSoftHighlights"));
     expect(useMmdVrStore.getState().prefs.softHighlights).toBe(true);
     await click(t("hudLiveHouse"));
+    await click(t("hudClassroom"));
     expect(useMmdVrStore.getState().prefs.scenery).toBe("classroom");
     await click(t("hudPhysics"));
     expect(buttons("Physics off")).toHaveLength(1);

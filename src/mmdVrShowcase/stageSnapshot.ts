@@ -3,6 +3,7 @@ import type { MmdModelTransform } from "./mmdRuntime/mmdRuntimeEntry";
 import type { MaterialOverride } from "./mmdRuntime/mmdRuntimeMaterials";
 import type { MmdRuntimeHandle } from "./mmdRuntime/mmdRuntime";
 import type { Object3D } from "three";
+import type { SceneryId } from "./scenery/catalog";
 
 export type SavedModel = {
   file: File;
@@ -19,6 +20,7 @@ export type SavedObject = {
   visible: boolean;
 };
 export type StageSnapshot = {
+  scenery?: SceneryId;
   assets: MmdVrAssetSlot[];
   models: SavedModel[];
   objects: SavedObject[];
@@ -28,6 +30,10 @@ export type StageSnapshot = {
   physicsEnabled: boolean;
   controllerCollisions: boolean;
 };
+
+export function snapshotObject(file: File, group: Object3D): SavedObject {
+  return { file, position: group.position.toArray(), quaternion: group.quaternion.toArray(), scale: group.scale.toArray(), visible: group.visible };
+}
 
 export function snapshotModel(model: SavedModel): SavedModel {
   return { ...model, transform: { ...model.transform }, materialVisible: { ...model.materialVisible },

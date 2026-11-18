@@ -1,6 +1,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import { runtimeTiming } from "../runtimeTiming";
+import { useBackpack } from "../backpack";
 import { createPerformanceRecording, useLastPerformanceReport } from "../performanceReport";
 import { useMmdVrStore } from "../mmdVrStore";
 import { createFrameCadence, readRenderDiagnostics, useRenderDiagnostics, type RenderRequest } from "../renderDiagnostics";
@@ -37,6 +38,7 @@ export function MmdVrDiagnostics({ requested }: { requested: RenderRequest }) {
     if (visibleFrame) {
       const s = useMmdVrStore.getState();
       recording.current?.startupFrame(!s.assetLoad.running && (s.modelCount > 0 || s.objects.length > 0));
+      recording.current?.placementFrame(useBackpack.getState().lastCompletedPlacement);
       recording.current?.interval(delta, session.frameRate);
     }
     else recording.current?.interrupt();

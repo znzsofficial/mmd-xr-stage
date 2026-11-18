@@ -3,7 +3,8 @@ import { beginMmdVrSessionFromClick, endMmdVrSession, waitForMmdVrPresentation }
 import { useMmdVrStore } from "./mmdVrStore";
 import { requestMmdVrEnter } from "./requestMmdVrEnter";
 import { getXrDiagnostics, getXrSystem } from "../xr/xrDetect";
-import { endMmdVrAssetSession, getMmdVrSessionAssets } from "./mmdVrAssets";
+import { beginMmdVrAssetSession, endMmdVrAssetSession, getMmdVrSessionAssets, peekMmdVrPendingAssets, setMmdVrPendingAssets } from "./mmdVrAssets";
+import { clearBackpack, syncBackpackFiles, useBackpack } from "./backpack";
 import type { StageSnapshot } from "./stageSnapshot";
 
 vi.mock("../xr/xrDetect", async () => {
@@ -41,6 +42,7 @@ describe("requestMmdVrEnter", () => {
     vi.mocked(waitForMmdVrPresentation).mockReset();
     vi.mocked(waitForMmdVrPresentation).mockResolvedValue({ id: "mmd-s1" } as unknown as XRSession);
     endMmdVrAssetSession();
+    clearBackpack();
     addNotification.mockClear();
     vi.mocked(beginMmdVrSessionFromClick).mockClear();
     vi.mocked(beginMmdVrSessionFromClick).mockResolvedValue({ id: "mmd-s1" } as unknown as XRSession);
@@ -200,21 +202,32 @@ describe("requestMmdVrEnter", () => {
     expect(addNotification).not.toHaveBeenCalled();
   });
 
-  it("uses the saved asset set only for explicit continue, preserving user activation", async () => {
-    const file = new File(["saved"], "saved.pmx");
+  it("restores only saved instances and scenery on continue, then opens a fresh empty stage on the same page", async () => {
+    const file = new File(["saved"], "saved.pmx"), spare = new File(["unused"], "unused.glb");
+    syncBackpackFiles([file, spare]);
     const saved: StageSnapshot = { assets: [{ kind: "model", modelFile: file, companionFiles: [file], bodyMotionFile: null }],
-      models: [], objects: [], time: 10, playing: false, loop: true, physicsEnabled: false, controllerCollisions: true };
+      scenery: "classroom", models: [], objects: [], time: 10, playing: false, loop: true, physicsEnabled: false, controllerCollisions: true };
     useMmdVrStore.setState({ savedStage: saved });
+    useBackpack.setState({ layouts: { classroom: saved } });
     const entering = requestMmdVrEnter({ t: t as never, addNotification, resume: true, assets: [] });
     expect(beginMmdVrSessionFromClick).toHaveBeenCalledOnce();
+    expect(getMmdVrSessionAssets()).toHaveLength(1);
     expect(getMmdVrSessionAssets()[0]).toMatchObject({ modelFile: file });
     expect(useMmdVrStore.getState().resumeStage).toBe(saved);
+    expect(useMmdVrStore.getState().prefs.scenery).toBe("classroom");
+    expect(useBackpack.getState().layouts.classroom).toBe(saved);
     await entering;
     useMmdVrStore.getState().closeOverlay();
-    const replacement = new File(["new"], "new.pmx");
-    await requestMmdVrEnter({ t: t as never, addNotification, assets: [{ kind: "model", modelFile: replacement, companionFiles: [replacement], bodyMotionFile: null }] });
+    // An old session and the deprecated pending-slot handoff must both be overwritten by [].
+    beginMmdVrAssetSession(saved.assets);
+    setMmdVrPendingAssets(saved.assets);
+    await requestMmdVrEnter({ t: t as never, addNotification });
+    beginMmdVrAssetSession(); // Simulate a consumer attaching on remount.
     expect(useMmdVrStore.getState().resumeStage).toBeNull();
-    expect(getMmdVrSessionAssets()[0]).toMatchObject({ modelFile: replacement });
+    expect(getMmdVrSessionAssets()).toEqual([]);
+    expect(peekMmdVrPendingAssets()).toEqual([]);
+    expect(useBackpack.getState().layouts).toEqual({});
+    expect(useBackpack.getState().files).toEqual([file, spare]);
   });
 
   it("commits every model before the XR session resolves", async () => {

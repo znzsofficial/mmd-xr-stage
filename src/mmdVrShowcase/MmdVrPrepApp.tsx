@@ -1,22 +1,15 @@
 import { Icon } from "@iconify-icon/react";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import { useLanguageStore, type TranslationKey } from "../languageStore";
-import {
-  collectFilesFromDataTransfer,
-  listMmdModels,
-  listMmdMotions,
-  listMmdObjects,
-  relativePath,
-} from "../mmdImport/folderFiles";
+import { collectFilesFromDataTransfer, relativePath } from "../mmdImport/folderFiles";
 import { useNotificationStore } from "../notificationStore";
 import { getXrSystem } from "../xr";
 import { MmdVrOverlay } from "./MmdVrOverlay";
-import { MMD_VR_MAX_MODELS, MMD_VR_MAX_OBJECTS, type MmdVrAssetSlot } from "./mmdVrAssets";
+import { clearBackpack, syncBackpackFiles, useBackpack } from "./backpack";
 import { formatMmdVrProfileSummary, getMmdVrRenderProfile } from "./mmdVrQuality";
 import { requestMmdVrEnter } from "./requestMmdVrEnter";
 import { useMmdVrStore } from "./mmdVrStore";
 import { SCENERY, sceneryIds, resolveScenery } from "./scenery/catalog";
-import { preparedModel } from "./mmdRuntime/preparedModel";
 import { ACCENT_CHROMA, ACCENT_COLORS, ACCENT_HUES, updateThemeSettings } from "../system/theme";
 import { useThemeSettings } from "../system/useThemeSettings";
 import { expandAssetFiles, AssetImportError, IMPORT_LIMITS, type ArchiveEncoding, type ImportProgress } from "../mmdImport/importArchive";
@@ -53,6 +46,13 @@ function OptionGroup<T extends string>({
 type QuestPreset = "safe" | "balanced" | "clarity" | "custom";
 type XrReadiness = "checking" | "ready" | "unverified" | "insecure" | "no-xr";
 
+const ISSUE_LABEL = { missing: "importMissing", ambiguous: "importAmbiguous", invalid: "importInvalid", fallback: "importFallback" } as const;
+const CATALOG_GROUPS = [
+  { kind: "model", label: "mmdVrPrepModels" },
+  { kind: "object", label: "mmdVrPrepObjects" },
+  { kind: "motion", label: "mmdVrPrepMotions" },
+] as const;
+
 function getQuestPreset(prefs: ReturnType<typeof useMmdVrStore.getState>["prefs"]): QuestPreset {
   if (!prefs.advancedRenderOverrides) return "custom";
   if (prefs.dprPref !== "auto" || prefs.antialiasPref !== "auto") return "custom";
@@ -70,6 +70,10 @@ export function MmdVrPrepApp() {
   const phase = useMmdVrStore((state) => state.phase);
   const assetLoad = useMmdVrStore((state) => state.assetLoad);
   const savedStage = useMmdVrStore((state) => state.savedStage);
+  const files = useBackpack((state) => state.files);
+  const entries = useBackpack((state) => state.entries);
+  const layouts = useBackpack((state) => state.layouts);
+  const bindings = useBackpack((state) => state.bindings);
   const errorMessage = useMmdVrStore((state) => state.errorMessage);
   const performanceReport = useLastPerformanceReport((state) => state.report);
   const prefs = useMmdVrStore((state) => state.prefs);
@@ -80,29 +84,21 @@ export function MmdVrPrepApp() {
   const repairInputRef = useRef<HTMLInputElement | null>(null);
   const repairTargetRef = useRef<{ file: File; reference: string } | null>(null);
   const importAbortRef = useRef<AbortController | null>(null);
-  const filesRef = useRef<File[]>([]);
   const importGenerationRef = useRef(0);
 
-  const [files, setFiles] = useState<File[]>([]);
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState<ImportProgress | null>(null);
   const [importError, setImportError] = useState<{ key: TranslationKey; detail: string } | null>(null);
   const [conflicts, setConflicts] = useState<string[]>([]);
   const [encoding, setEncoding] = useState<ArchiveEncoding>("auto");
   const [report, setReport] = useState<ImportReport | null>(null);
-  const [checkingAssets, setCheckingAssets] = useState(false);
+  const [checkingAssets, setCheckingAssets] = useState(files.length > 0);
   const [readiness, setReadiness] = useState<XrReadiness>("checking");
-  const [selectedPaths, setSelectedPaths] = useState<string[]>([]);
-  const [selectedObjectPaths, setSelectedObjectPaths] = useState<string[]>([]);
-  const [bodyMotionPath, setBodyMotionPath] = useState("");
-  const [faceMotionPath, setFaceMotionPath] = useState("");
   const [dragging, setDragging] = useState(false);
-  const [warmState, setWarmState] = useState<"idle" | "loading" | "ready">("idle");
 
   const questPreset = getQuestPreset(prefs);
   const highLoadConfig = prefs.frameRatePref === "120"
     || (prefs.advancedRenderOverrides && prefs.framebufferScalePref === "1" && prefs.foveationPref === "off");
-  const selectedMotionCount = Number(Boolean(bodyMotionPath)) + Number(Boolean(faceMotionPath));
 
   function applyQuestPreset(preset: Exclude<QuestPreset, "custom">) {
     if (preset === "safe") {
@@ -116,31 +112,28 @@ export function MmdVrPrepApp() {
     setPrefs({ renderQuality: "high", dprPref: "auto", frameRatePref: "90", antialiasPref: "auto", framebufferScalePref: "1", foveationPref: "medium", shadowsPref: "off", advancedRenderOverrides: true });
   }
 
-  const models = useMemo(() => listMmdModels(files), [files]);
-  const motions = useMemo(() => listMmdMotions(files), [files]);
-  const objects = useMemo(() => listMmdObjects(files), [files]);
-  const selectedModels = useMemo(
-    () => models.filter((model) => selectedPaths.includes(relativePath(model))).slice(0, MMD_VR_MAX_MODELS),
-    [models, selectedPaths],
-  );
-  const selectedObjects = useMemo(
-    () => objects.filter((object) => selectedObjectPaths.includes(relativePath(object))).slice(0, MMD_VR_MAX_OBJECTS),
-    [objects, selectedObjectPaths],
-  );
-  const firstModel = selectedModels[0];
-  useEffect(() => {
-    let alive = true;
-    setWarmState("idle");
-    if (!firstModel || !report || importing || checkingAssets) return;
-    const timer = window.setTimeout(() => {
-      if (useMmdVrStore.getState().overlayOpen) return;
-      setWarmState("loading");
-      void preparedModel.warm(firstModel, files).then(ok => {
-        if (alive && !useMmdVrStore.getState().overlayOpen) setWarmState(ok ? "ready" : "idle");
-      });
-    }, 80);
-    return () => { alive = false; window.clearTimeout(timer); preparedModel.clear(); };
-  }, [firstModel, files, report, importing, checkingAssets]);
+  const catalog = useMemo(() => CATALOG_GROUPS.map(({ kind, label }) => ({
+    label, items: entries.filter(entry => entry.kind === kind),
+  })), [entries]);
+
+  const inUse = useMemo(() => {
+    const referenced = new Set<File>();
+    for (const layout of [savedStage, ...Object.values(layouts)]) {
+      for (const slot of layout?.assets ?? []) {
+        if (slot.kind === "object") referenced.add(slot.objectFile);
+        else {
+          referenced.add(slot.modelFile);
+          if (slot.bodyMotionFile) referenced.add(slot.bodyMotionFile);
+          if (slot.faceMotionFile) referenced.add(slot.faceMotionFile);
+        }
+      }
+    }
+    for (const motion of Object.values(bindings)) {
+      if (motion.body) referenced.add(motion.body);
+      if (motion.face) referenced.add(motion.face);
+    }
+    return referenced;
+  }, [savedStage, layouts, bindings]);
 
   useEffect(() => {
     const input = folderInputRef.current;
@@ -172,41 +165,24 @@ export function MmdVrPrepApp() {
     };
   }, []);
 
+  // Keep original File identities for relative paths and explicit repair bindings.
+  function publishFiles(next: File[]) {
+    setReport(null);
+    setCheckingAssets(next.length > 0);
+    syncBackpackFiles(next);
+  }
+
   function ingest(nextFiles: File[]) {
-    const merged = mergeAssetFiles(filesRef.current, nextFiles);
+    const merged = mergeAssetFiles(useBackpack.getState().files, nextFiles);
     if (merged.files.length > IMPORT_LIMITS.entries || merged.files.reduce((sum, file) => sum + file.size, 0) > IMPORT_LIMITS.totalBytes) {
       throw new AssetImportError("limit", nextFiles[0]?.name ?? "");
     }
-    filesRef.current = merged.files;
-    setFiles(merged.files);
+    if (merged.accepted.length) publishFiles(merged.files);
     setConflicts(merged.conflicts);
-    setSelectedPaths((prevSel) => {
-      const remaining = MMD_VR_MAX_MODELS - prevSel.length;
-      if (remaining <= 0) return prevSel;
-      const additions = listMmdModels(merged.accepted)
-        .map(relativePath)
-        .filter((path) => !prevSel.includes(path))
-        .slice(0, remaining);
-      return [...prevSel, ...additions];
-    });
-    setSelectedObjectPaths((prevSel) => {
-      const remaining = MMD_VR_MAX_OBJECTS - prevSel.length;
-      if (remaining <= 0) return prevSel;
-      const additions = listMmdObjects(merged.accepted)
-        .map(relativePath)
-        .filter((path) => !prevSel.includes(path))
-        .slice(0, remaining);
-      return [...prevSel, ...additions];
-    });
   }
 
-  function removeImportedFile(path: string) {
-    filesRef.current = filesRef.current.filter((file) => relativePath(file) !== path);
-    setFiles(filesRef.current);
-    setSelectedPaths((prev) => prev.filter((item) => item !== path));
-    setSelectedObjectPaths((prev) => prev.filter((item) => item !== path));
-    setBodyMotionPath((prev) => (prev === path ? "" : prev));
-    setFaceMotionPath((prev) => (prev === path ? "" : prev));
+  function removeImportedFile(target: File) {
+    publishFiles(useBackpack.getState().files.filter((file) => file !== target));
   }
 
   function onFilesChange(event: ChangeEvent<HTMLInputElement>) {
@@ -262,18 +238,16 @@ export function MmdVrPrepApp() {
 
   useEffect(() => {
     const abort = new AbortController();
-    setCheckingAssets(files.length > 0);
-    setReport(null);
     if (files.length) {
       void inspectAssets(files, abort.signal)
         .then((report) => {
-          if (!abort.signal.aborted) {
+          if (!abort.signal.aborted && files === useBackpack.getState().files) {
             setReport(report);
             setCheckingAssets(false);
           }
         })
         .catch((error) => {
-          if (!abort.signal.aborted) {
+          if (!abort.signal.aborted && files === useBackpack.getState().files) {
             setImportError({ key: "importFailed", detail: String(error) });
             setCheckingAssets(false);
           }
@@ -282,15 +256,22 @@ export function MmdVrPrepApp() {
     return () => abort.abort();
   }, [files]);
 
+  useEffect(() => {
+    if (!report || files !== useBackpack.getState().files) return;
+    // Keep backpack warnings short; the full per-reference list and repair UI live here.
+    const warnings = new Map<string, string>();
+    for (const issue of report.issues) {
+      if (!warnings.has(issue.file)) warnings.set(issue.file, `${t(ISSUE_LABEL[issue.kind])}: ${issue.reference}`);
+    }
+    syncBackpackFiles(files, warnings);
+  }, [files, report, t]);
+
   function clearImports() {
     importAbortRef.current?.abort();
     importGenerationRef.current += 1;
-    filesRef.current = [];
-    setFiles([]);
-    setSelectedPaths([]);
-    setSelectedObjectPaths([]);
-    setBodyMotionPath("");
-    setFaceMotionPath("");
+    clearBackpack();
+    repairTargetRef.current = null;
+    setCheckingAssets(false);
     setReport(null);
     setConflicts([]);
     setImportError(null);
@@ -304,59 +285,25 @@ export function MmdVrPrepApp() {
     const target = repairTargetRef.current;
     event.target.value = "";
     repairTargetRef.current = null;
-    if (!file || !target || !filesRef.current.includes(target.file)) return;
+    const current = useBackpack.getState().files;
+    if (!file || !target || !current.includes(target.file)) return;
     if (
       file.size > IMPORT_LIMITS.fileBytes ||
-      filesRef.current.length >= IMPORT_LIMITS.entries ||
-      filesRef.current.reduce((n, f) => n + f.size, 0) + file.size > IMPORT_LIMITS.totalBytes
+      current.length >= IMPORT_LIMITS.entries ||
+      current.reduce((n, f) => n + f.size, 0) + file.size > IMPORT_LIMITS.totalBytes
     ) {
       setImportError({ key: "importTooLarge", detail: file.name });
       return;
     }
     bindCompanion(target.file, target.reference, file);
-    filesRef.current = [...filesRef.current, file];
-    setFiles(filesRef.current);
-  }
-
-  function toggleModel(path: string) {
-    setSelectedPaths((current) => {
-      if (current.includes(path)) return current.filter((item) => item !== path);
-      if (current.length >= MMD_VR_MAX_MODELS) return current;
-      return [...current, path];
-    });
-  }
-
-  function toggleObject(path: string) {
-    setSelectedObjectPaths((current) => {
-      if (current.includes(path)) return current.filter((item) => item !== path);
-      if (current.length >= MMD_VR_MAX_OBJECTS) return current;
-      return [...current, path];
-    });
+    publishFiles([...current, file]);
   }
 
   function enterVr(resume = false) {
-    setWarmState("idle");
-    if (resume && savedStage?.physicsEnabled) preparedModel.clear();
-    const bodyMotion = motions.find((file) => relativePath(file) === bodyMotionPath) ?? null;
-    const faceMotion = motions.find((file) => relativePath(file) === faceMotionPath) ?? null;
-    const assets: MmdVrAssetSlot[] = [
-      ...selectedModels.map((modelFile) => ({
-        kind: "model" as const,
-        modelFile,
-        companionFiles: [...files],
-        bodyMotionFile: bodyMotion,
-        faceMotionFile: faceMotion,
-      })),
-      ...selectedObjects.map((objectFile) => ({
-        kind: "object" as const,
-        objectFile,
-        companionFiles: [...files],
-      })),
-    ];
-    void requestMmdVrEnter({ t, addNotification, assets, resume });
+    void requestMmdVrEnter({ t, addNotification, assets: [], resume });
   }
 
-  const hasReadyContent = Boolean(selectedModels.length || selectedObjects.length);
+  const entryDisabled = importing || checkingAssets || readiness === "insecure" || readiness === "no-xr" || phase === "entering" || phase === "active";
   const readinessClass =
     readiness === "insecure" || readiness === "no-xr"
       ? "is-error"
@@ -394,7 +341,7 @@ export function MmdVrPrepApp() {
             </span>
           </div>
 
-          {files.length > 0 && (
+          {(files.length > 0 || savedStage) && (
             <button
               type="button"
               className="stage-btn stage-btn-ghost stage-btn-sm"
@@ -448,7 +395,7 @@ export function MmdVrPrepApp() {
                 <Icon icon="solar:archive-linear" width={18} height={18} />
                 <span>{t("importZip")}</span>
               </button>
-              <div className="stage-encoding-picker">
+               <label className="stage-encoding-picker">
                 <span className="stage-picker-label">{t("importEncoding")}</span>
                 <select
                   className="stage-select-sm"
@@ -460,7 +407,7 @@ export function MmdVrPrepApp() {
                   <option value="shift-jis">Shift-JIS</option>
                   <option value="gbk">GBK</option>
                 </select>
-              </div>
+               </label>
             </div>
             <input ref={folderInputRef} hidden type="file" multiple onChange={onFilesChange} />
             <input ref={fileInputRef} hidden type="file" multiple onChange={onFilesChange} />
@@ -541,7 +488,7 @@ export function MmdVrPrepApp() {
                       <li key={index} className="stage-issue-item">
                         <div className="stage-issue-info">
                           <span className={`stage-issue-tag tag-${issue.kind}`}>
-                            {t(({ missing: "importMissing", ambiguous: "importAmbiguous", invalid: "importInvalid", fallback: "importFallback" } as const)[issue.kind])}
+                            {t(ISSUE_LABEL[issue.kind])}
                           </span>
                           <span className="stage-issue-path">{issue.file}</span>
                           <code className="stage-issue-ref">{issue.reference}</code>
@@ -571,122 +518,29 @@ export function MmdVrPrepApp() {
           )}
           <input ref={repairInputRef} type="file" hidden onChange={repairResource} />
 
-          <section className="stage-section">
-            <div className="stage-section-header">
-              <div>
-                <h3 className="stage-section-title">{t("mmdVrPrepModels")}</h3>
-                <span className="stage-section-sub">{t("mmdVrPrepModelLimit").replace("{count}", String(MMD_VR_MAX_MODELS))}</span>
-              </div>
-              <span className="stage-count-badge">{selectedModels.length}/{MMD_VR_MAX_MODELS}</span>
-            </div>
-            {models.length ? (
-              <div className="stage-asset-grid">
-                {models.map((model, index) => {
-                  const path = relativePath(model);
-                  const selected = selectedPaths.includes(path);
-                  return (
-                    <div key={path} className={`stage-asset-tile ${selected ? "is-selected" : ""}`}>
-                      <div className="stage-tile-index">{String(index + 1).padStart(2, "0")}</div>
-                      <button type="button" className="stage-tile-btn" onClick={() => toggleModel(path)}>
-                        <div className="stage-tile-name">{model.name}</div>
-                        <div className="stage-tile-path">{path}</div>
-                      </button>
-                      <div className="stage-tile-check" aria-hidden="true" onClick={() => toggleModel(path)}>
-                        <Icon icon={selected ? "solar:check-circle-bold" : "solar:add-circle-linear"} width={20} height={20} />
-                      </div>
-                      <button
-                        type="button"
-                        className="stage-btn-icon stage-tile-remove"
-                        aria-label={t("mmdVrPrepRemoveFile")}
-                        onClick={() => removeImportedFile(path)}
-                      >
-                        <Icon icon="solar:trash-bin-trash-linear" width={16} height={16} />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="stage-empty-placeholder">
-                <Icon icon="solar:user-broken" width={28} height={28} />
-                <span>{files.length ? t("mmdVrPrepNoModels") : t("mmdVrPrepAwaiting")}</span>
-              </div>
-            )}
-          </section>
-
-          <section className="stage-section">
-            <div className="stage-section-header">
-              <div>
-                <h3 className="stage-section-title">{t("mmdVrPrepObjects")}</h3>
-                <span className="stage-section-sub">{t("mmdVrPrepObjectLimit").replace("{count}", String(MMD_VR_MAX_OBJECTS))}</span>
-              </div>
-              <span className="stage-count-badge">{selectedObjects.length}/{MMD_VR_MAX_OBJECTS}</span>
-            </div>
-            {objects.length ? (
-              <div className="stage-asset-grid">
-                {objects.map((object, index) => {
-                  const path = relativePath(object);
-                  const selected = selectedObjectPaths.includes(path);
-                  return (
-                    <div key={path} className={`stage-asset-tile ${selected ? "is-selected" : ""}`}>
-                      <div className="stage-tile-index">{String(index + 1).padStart(2, "0")}</div>
-                      <button type="button" className="stage-tile-btn" onClick={() => toggleObject(path)}>
-                        <div className="stage-tile-name">{object.name}</div>
-                        <div className="stage-tile-path">{path}</div>
-                      </button>
-                      <div className="stage-tile-check" aria-hidden="true" onClick={() => toggleObject(path)}>
-                        <Icon icon={selected ? "solar:check-circle-bold" : "solar:add-circle-linear"} width={20} height={20} />
-                      </div>
-                      <button
-                        type="button"
-                        className="stage-btn-icon stage-tile-remove"
-                        aria-label={t("mmdVrPrepRemoveFile")}
-                        onClick={() => removeImportedFile(path)}
-                      >
-                        <Icon icon="solar:trash-bin-trash-linear" width={16} height={16} />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="stage-empty-placeholder">
-                <Icon icon="solar:box-broken" width={28} height={28} />
-                <span>{files.length ? t("mmdVrPrepNoObjects") : t("mmdVrPrepAwaiting")}</span>
-              </div>
-            )}
-          </section>
-
-          <section className="stage-section">
-            <div className="stage-section-header">
-              <div>
-                <h3 className="stage-section-title">{t("mmdVrPrepMotionHint")}</h3>
-              </div>
-            </div>
-            <div className="stage-motion-controls">
-              <label className="stage-field">
-                <span className="stage-field-label">{t("mmdVrPrepBodyMotion")}</span>
-                <select className="stage-select" value={bodyMotionPath} onChange={(e) => setBodyMotionPath(e.target.value)}>
-                  <option value="">{t("mmdVrPrepNoMotion")}</option>
-                  {motions.map((motion) => (
-                    <option key={relativePath(motion)} value={relativePath(motion)}>
-                      {motion.name}
-                    </option>
+          <section className="stage-section" aria-labelledby="backpack-heading">
+            <h2 className="stage-section-title" id="backpack-heading">{t("mmdVrPrepBackpack")}</h2>
+            {entries.length === 0 ? (
+              <p className="stage-section-sub">{t(files.length ? "mmdVrPrepNoCatalogFiles" : "mmdVrPrepEmptyBackpack")}</p>
+            ) : catalog.map(({ label, items }) => items.length > 0 && (
+              <details className="stage-catalog-group" key={label} open={items.length <= 6}>
+                <summary className="stage-catalog-summary">{t(label)} <span className="stage-count-badge">{items.length}</span></summary>
+                <ul className="stage-asset-grid" aria-label={t(label)}>
+                  {items.map(({ file, path, id }) => (
+                      <li key={id} className="stage-asset-tile">
+                        <div className="stage-tile-info" title={path}>
+                          <div className="stage-tile-name">{file.name}</div>
+                          {path !== file.name && <div className="stage-tile-path">{path}</div>}
+                        </div>
+                        {inUse.has(file) ? <span className="stage-tile-in-use">{t("mmdVrPrepFileInUse")}</span> : <button type="button" className="stage-btn-icon stage-tile-remove"
+                          aria-label={`${t("mmdVrPrepRemoveFile")}: ${path}`} onClick={() => removeImportedFile(file)}>
+                          <Icon icon="solar:trash-bin-trash-linear" width={16} height={16} />
+                        </button>}
+                      </li>
                   ))}
-                </select>
-              </label>
-              <label className="stage-field">
-                <span className="stage-field-label">{t("mmdVrPrepFaceMotion")}</span>
-                <select className="stage-select" value={faceMotionPath} onChange={(e) => setFaceMotionPath(e.target.value)}>
-                  <option value="">{t("mmdVrPrepNoMotion")}</option>
-                  {motions.map((motion) => (
-                    <option key={relativePath(motion)} value={relativePath(motion)}>
-                      {motion.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
+                </ul>
+              </details>
+            ))}
           </section>
 
           <details className="stage-config-card" open>
@@ -977,18 +831,18 @@ export function MmdVrPrepApp() {
           )}
 
           {performanceReport && phase !== "active" && phase !== "entering" && <button type="button" className="stage-btn stage-btn-secondary" onClick={() => downloadPerformanceReport(performanceReport)}>{t("exportSessionPerformance")}</button>}
-          {savedStage && savedStage.assets.length > 0 && (
+          {savedStage && (
             <p className="stage-launch-note">
               {t("stageResumeHint")} ({Math.floor(savedStage.time / 60)}:{String(Math.floor(savedStage.time % 60)).padStart(2, "0")})
             </p>
           )}
 
           <div className="stage-launch-row">
-            {savedStage && savedStage.assets.length > 0 && (
+            {savedStage && (
               <button
                 type="button"
                 className="stage-btn stage-btn-secondary stage-btn-lg"
-                disabled={importing || readiness === "insecure" || readiness === "no-xr" || phase === "entering" || phase === "active"}
+                disabled={entryDisabled}
                 onClick={() => enterVr(true)}
               >
                 <Icon icon="solar:play-circle-bold" width={20} height={20} />
@@ -998,16 +852,14 @@ export function MmdVrPrepApp() {
             <button
               type="button"
               className="stage-btn stage-btn-primary stage-btn-lg"
-              disabled={importing || checkingAssets || !hasReadyContent || readiness === "insecure" || readiness === "no-xr" || phase === "entering" || phase === "active"}
+              disabled={entryDisabled}
               onClick={() => enterVr(false)}
             >
               <Icon icon="boxicons:vr-headset-filled" width={22} height={22} />
-              <span>{phase === "entering" ? t("settingsMmdVrEntering") : savedStage ? t("stageRestart") : t("settingsMmdVrEnter")}</span>
+              <span>{phase === "entering" ? t("settingsMmdVrEntering") : t("stageRestart")}</span>
               <Icon icon="solar:arrow-right-linear" width={18} height={18} />
             </button>
           </div>
-          {warmState !== "idle" && <p role="status" className="stage-launch-hint">{t(warmState === "ready" ? "modelWarmReady" : "modelWarmLoading")}</p>}
-          <p className="stage-launch-hint">{t("mmdVrPrepEnterHint")}</p>
         </div>
       </footer>
 

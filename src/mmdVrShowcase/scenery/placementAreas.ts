@@ -1,0 +1,70 @@
+import { CLASS_OBSTACLES, ROOM, seededRandom, type Footprint } from './ClassroomLayout';
+import type { SceneryId } from './catalog';
+
+// A placement is a point on a supported y=0 surface with a little shoe room;
+// it doesn't pretend to know a particular imported object's swept bounds.
+const CLEAR = .18;
+function hits(r: Footprint, x: number, z: number, clearance = CLEAR) {
+  const c = Math.cos(r.yaw ?? 0), s = Math.sin(r.yaw ?? 0);
+  const dx = x - r.x, dz = z - r.z;
+  const u = Math.max(0, Math.abs(c * dx - s * dz) - r.w / 2);
+  const v = Math.max(0, Math.abs(s * dx + c * dz) - r.d / 2);
+  return u * u + v * v <= clearance * clearance;
+}
+
+export const SIMPLE_FLOOR_RADIUS = 8;
+export const LIVE_DECK_SIZE = 11.6;
+// From the proscenium towards the audience: cyc, folded side drapes, truss
+// uprights, then the speaker stacks. The overhead truss is not an obstacle.
+const wings = [-1, 1].flatMap(side => [
+  ...Array.from({ length: 7 }, (_, i) => ({ x: side * (3.4 + i * .30), z: -5.2 + i * .07, w: .37, d: .21, yaw: side * .36 })),
+  { x: side * 4.55, z: -3.88, w: .84, d: .72 }, { x: side * 5.1, z: -4.55, w: .13, d: .13 },
+  { x: side * 3.19, z: -5.22, w: .035, d: .04 },
+]);
+
+export const POOL = {
+  deck: { x: 0, z: 1, w: 23, d: 13.5 }, water: { x: 0, z: -12.4, w: 10.1, d: 13.35 },
+  walks: [-6.2, 6.2].map(x => ({ x, z: -12.4, w: 2.35, d: 13.4 })),
+  farWalk: { x: 0, z: -19.48, w: 14.7, d: 1.1 },
+  ladder: { x: -4.34, z: -5.75, w: .57, d: .43 },
+  blocks: [-3.34, 0, 3.34].map(lane => ({ x: lane - 1.65, z: -19.42, w: .65, d: .7 })),
+  benches: [-8, 8].map(x => ({x,z:-12.6,w:1.8,d:.51})),
+};
+const poolDeck = [POOL.deck, ...POOL.walks, POOL.farWalk];
+const poolObstacles = [POOL.water, POOL.ladder, ...POOL.blocks, ...POOL.benches];
+const shoeOffsets = [[0, 0], [CLEAR, 0], [-CLEAR, 0], [0, CLEAR], [0, -CLEAR]];
+const cyc = { x: 0, z: -5.32, w: 6.5, d: .088 };
+export const LAWN_SIZE = 58;
+const landscapeRandom = seededRandom(11281);
+export const LAWN_KNOLLS = Array.from({ length: 58 }, () => {
+  const x = landscapeRandom() * 54 - 27, z = landscapeRandom() * 54 - 27;
+  if (Math.hypot(x, z) < 9) return [];
+  return [{ x, z, w: 3 + landscapeRandom() * 6, h: .6 + landscapeRandom() * 1.4,
+    d: 2 + landscapeRandom() * 4, yaw: landscapeRandom() * 3 }];
+}).flat();
+export const LAWN_TREES = Array.from({ length: 19 }, (_, i) => {
+  const a = i * 2.399, r = 11 + landscapeRandom() * 12;
+  return { x: Math.cos(a) * r, z: Math.sin(a) * r, h: 3.3 + 2.2 * landscapeRandom() };
+});
+
+export function canPlaceInScenery(id: SceneryId, x: number, z: number): boolean {
+  if (!Number.isFinite(x) || !Number.isFinite(z)) return false;
+  switch (id) {
+    case 'floor': return Math.hypot(x, z) <= SIMPLE_FLOOR_RADIUS - CLEAR;
+    case 'liveHouse': return Math.max(Math.abs(x), Math.abs(z)) <= LIVE_DECK_SIZE / 2 - CLEAR &&
+      z > -5.515 + CLEAR && !hits(cyc, x, z) && !wings.some(r => hits(r, x, z));
+    case 'classroom': return Math.abs(x) < ROOM.w / 2 - CLEAR && Math.abs(z) < ROOM.d / 2 - CLEAR &&
+      !CLASS_OBSTACLES.some(r => hits(r, x, z));
+    case 'pool': return !poolObstacles.some(r => hits(r, x, z)) &&
+      // Connected deck pieces overlap: test the union, not four separately inset rectangles.
+      shoeOffsets.every(([dx, dz]) =>
+        poolDeck.some(r => hits(r, x + dx, z + dz, 0)));
+    case 'lawn': return Math.max(Math.abs(x), Math.abs(z)) <= LAWN_SIZE / 2 - CLEAR &&
+      !LAWN_TREES.some(t => Math.hypot(x - t.x, z - t.z) < CLEAR + t.h * .042) &&
+      !LAWN_KNOLLS.some(k => {
+        const c = Math.cos(k.yaw), s = Math.sin(k.yaw), dx = x - k.x, dz = z - k.z;
+        // Horizontal section of the partially buried ellipsoid at ground level.
+        return Math.hypot((c * dx - s * dz) / (k.w / 2 + CLEAR), (s * dx + c * dz) / (k.d / 2 + CLEAR)) < Math.sqrt(1 - (.48 / k.h) ** 2);
+      });
+  }
+}

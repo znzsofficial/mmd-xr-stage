@@ -14,6 +14,8 @@ import { getMmdVrRenderProfile } from "./mmdVrQuality";
 import { useMmdVrStore } from "./mmdVrStore";
 import { describeRenderRequest } from "./renderDiagnostics";
 import { MmdVrDiagnostics } from "./components/MmdVrDiagnostics";
+import { BackpackPlacement } from "./components/BackpackPlacement";
+import { BackpackWorldTools } from "./components/BackpackWorldTools";
 
 export function MmdVrScene() {
   const closeOverlay = useMmdVrStore((state) => state.closeOverlay);
@@ -160,6 +162,8 @@ export function MmdVrScene() {
               busy={exiting}
             />
             <MmdVrStageContent />
+            <BackpackPlacement />
+            <BackpackWorldTools />
           </XR>
         </Canvas>
         {!hideExitHud ? (

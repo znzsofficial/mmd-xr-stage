@@ -35,12 +35,12 @@ describe("compact playback controls", () => {
   it("lets users play, pause, expand and exit without reopening the adjustment panel", async () => {
     const onExpand = vi.fn(), onExit = vi.fn();
     const t = useLanguageStore.getState().t;
-    await act(async () => root.render(<CompactPlaybackControls onExpand={onExpand} onExit={onExit} busy={false} />));
+    await act(async () => root.render(<CompactPlaybackControls onExpand={onExpand} onScenery={vi.fn()} onBackpack={vi.fn()} onExit={onExit} busy={false} />));
     await act(async () => button(t("settingsMmdVrPlay")).click());
     expect(useMmdVrStore.getState().playing).toBe(true);
     await act(async () => button(t("settingsMmdVrPause")).click());
     expect(useMmdVrStore.getState().playing).toBe(false);
-    await act(async () => button(t("settingsMmdVrPanelShow")).click());
+    await act(async () => button(t("hudMore")).click());
     await act(async () => button(t("settingsVrDesktopExit")).click());
     expect(onExpand).toHaveBeenCalledOnce();
     expect(onExit).toHaveBeenCalledOnce();
@@ -59,8 +59,8 @@ describe("compact playback controls", () => {
   it("activates on a deliberate trigger release without requiring the XR short-click timeout", async () => {
     const onExpand = vi.fn();
     const t = useLanguageStore.getState().t;
-    await act(async () => root.render(<CompactPlaybackControls onExpand={onExpand} onExit={() => {}} busy={false} />));
-    const target = button(t("settingsMmdVrPanelShow"));
+    await act(async () => root.render(<CompactPlaybackControls onExpand={onExpand} onScenery={vi.fn()} onBackpack={vi.fn()} onExit={() => {}} busy={false} />));
+    const target = button(t("hudMore"));
     const pointer = (name: string) => new PointerEvent(name, { bubbles: true, pointerId: 1 });
     await act(async () => target.dispatchEvent(pointer("pointerdown")));
     await act(async () => target.dispatchEvent(pointer("pointerup")));
@@ -70,6 +70,7 @@ describe("compact playback controls", () => {
     await act(async () => target.dispatchEvent(pointer("pointerdown")));
     await act(async () => target.dispatchEvent(pointer("pointercancel")));
     await act(async () => target.dispatchEvent(pointer("pointerup")));
+    await act(async () => target.click());
     expect(onExpand).toHaveBeenCalledOnce();
   });
 });

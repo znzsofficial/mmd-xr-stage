@@ -18,7 +18,7 @@ MMD XR Stage loads local model, animation and environment assets into an immersi
 
 ## Operating Context
 
-Assets are chosen on the preparation page before entering VR. The viewer can play/pause, adjust models and materials, place environment objects, configure lighting and physics, and recall the menu. Quest hardware validation is required for readability, interaction comfort and actual performance.
+Local files enter a same-tab backpack. A fresh visit starts on an empty stage: choose the environment in VR, take a character from the backpack and decide where it stands. The everyday move/turn/scale/motion actions belong near the selected character. Advanced settings stay available and out of sight during viewing. Refreshing clears the backpack. Quest hardware validation is required for readability, interaction comfort and actual performance.
 
 ## Capabilities and Constraints
 
@@ -26,7 +26,7 @@ The existing implementation uses React Three Fiber, Three.js and WebGL/WebXR wit
 
 ## Brand Commitments
 
-The product name is MMD XR Stage. The user rejects the current VR GUI's colors and styling and asks for a more modern interface. No specific visual reference has been selected. The preparation page is outside this visual redesign.
+The product name is MMD XR Stage. The selected VR control palette is 浅瓷与墨蓝 (porcelain and ink blue); the preparation page and the stage use their own palettes.
 
 ## Product Principles
 

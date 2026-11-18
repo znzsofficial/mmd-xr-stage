@@ -136,6 +136,8 @@ Button textures are 88 px high, with width `max(256, round(88 × geometryWidth /
 
 ## Layout
 
+**Backpack workflow revision.** The public watch strip opens a direct scenery picker or the page's backpack. Pickers and advanced settings replace the strip at its recalled location. Only explicit selection opens a porcelain tool sheet beside the targeted asset; its anchor is stable during playback and it gives up input when the public menu or recovery surface is in focus. Placement uses a directional footprint or a crossed invalid mark. Local sheets and common controls share `components/PorcelainControls.tsx`; room geometry, sunlight, wood and fabric do not use HUD tokens. Earlier four-tab measurements below describe the advanced/legacy layout.
+
 Geometry dimensions below are **local Three.js units**, meter-based in the XR scene before parent transforms; they are not texture pixels. Model/object control groups additionally scale by 1.2.
 
 - Expanded backdrop: 2.76 × 2.24; watch backdrop: 1.95 × 0.84. Both use a 1320 × 1120 texture at local position `[0, -0.06, -0.018]`; compact mode omits separators.
