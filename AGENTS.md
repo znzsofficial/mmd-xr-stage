@@ -39,6 +39,9 @@ pnpm deploy
 
 ## XR And Physics Invariants
 
+- Keep VMD pose seconds separate from Bullet's bounded XR-frame delta. Paused interactive physics may advance even at pose 0. Seek, loop and reset are seed-only at the requested pose, not accumulated playback time. Exercise `scripts/paused-cloth-smoke.html` with the shipped Bullet backend when changing either clock.
+- Enhancement map loads commit complete sets per material. Compare actual File identities; invalidate pending work on selection changes and disposal, including reselecting the already committed files. Keep the last complete set on decode failure.
+
 - Keep `MmdVrScene` statically reachable from the prep entry, but mount Canvas only on enter. After a release an already-open tab can otherwise fetch SPA HTML at a retired lazy chunk URL. Exercise the built prep page with a selected PMX and a simulated XR frame, not just individual asset HTTP checks. See `docs/deployment.md` for the temporary old-tab bridge.
 
 - XR input profiles and controller/hand models must stay same-origin via `createAppXrStore.baseAssetPath` and `public/xr-input/1.0.20/`. The upstream default CDN is a functional dependency: a failed controller profile fetch prevents controller state and pointers from being created. Keep the local profile index limited to bundled files, preserve generic fallback and license notices, and test actual trigger/pinch events rather than only invoking HUD callbacks.

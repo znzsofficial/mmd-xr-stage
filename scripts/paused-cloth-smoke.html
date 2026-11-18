@@ -1,0 +1,36 @@
+<!doctype html><meta charset="utf-8"><title>Paused skirt physics regression</title><pre id="status">Loading PMX, VMD and Bullet</pre>
+<script type="module">
+import * as THREE from 'three';
+import { createMmdRuntimeHandle } from '/src/mmdVrShowcase/mmdRuntime/mmdRuntime.ts';
+import { clothSmokeFixture } from './cloth-smoke-fixture.js';
+const status=document.querySelector('#status'), dt=1/60;
+const collider=new THREE.Matrix4().makeTranslation(0,.45,0), second=new THREE.Matrix4().makeTranslation(1.5,.45,0);
+const rt=createMmdRuntimeHandle(new THREE.Scene(),{controllerColliders:()=>[collider,second],controllerColliderRadius:()=>.08});
+try {
+  const {pmx,vmd}=clothSmokeFixture();
+  const {modelId}=await rt.addModel(pmx,[pmx],{physics:true,transform:{scale:1}}); await rt.loadMotion(vmd,'body',modelId);
+  const staticModel=await rt.addModel(pmx,[pmx],{physics:true,transform:{scale:1,positionX:1.5}});
+  const staticHem=rt.getModelRoot(staticModel.modelId).getObjectByName('hem');
+  const root=rt.getModelRoot(modelId); const waist=root.getObjectByName('waist'),hem=root.getObjectByName('hem');
+  if(!waist?.isBone||!hem?.isBone||rt.duration<1.9)throw Error('skinned fixture or motion missing');
+  const cam=new THREE.PerspectiveCamera(), pos=bone=>bone.getWorldPosition(new THREE.Vector3());
+  const step=(pose,delta=dt,seek=false)=>rt.update(pose,true,cam,1,false,delta,seek);
+  for(let i=0;i<=45;i++)step(i*dt);
+  const pose=.75;for(let i=0;i<45;i++)step(pose);
+  const waistBefore=pos(waist),before=pos(hem),staticBefore=pos(staticHem); let contacts=0;
+  for(let i=1;i<=30;i++){collider.setPosition(waistBefore.x,.45+i*.005,0);second.setPosition(1.5,.45+i*.005,0);step(pose);contacts+=rt.getControllerContactCount(0);}
+  const after=pos(hem),drift=pos(waist).distanceTo(waistBefore),lift=after.y-before.y,staticLift=pos(staticHem).y-staticBefore.y;
+  step(pose+dt);const resumeShift=pos(hem).distanceTo(after), resumedWaist=pos(waist).x-waistBefore.x;
+  const seeks=[];
+  for(const t of [1.45,1.48,.1,0]){step(t,0,true);const a=pos(hem);step(t);const d=pos(hem).distanceTo(a);seeks.push({t,seedY:a.y,nextShift:d});}
+  rt.setModelTransform(modelId,{scale:.5});rt.resetPhysics(0);
+  const scaledSeed=pos(hem).y;step(0);const scaledShift=Math.abs(pos(hem).y-scaledSeed);
+  rt.removeModel(modelId);const onlyStatic=rt.duration===0;second.setPosition(1.5,.45,0);rt.resetPhysics(0);
+  for(let i=0;i<60;i++)step(0);const onlyBefore=pos(staticHem);
+  for(let i=1;i<=30;i++){second.setPosition(1.5,.45+.005*i,0);step(0);}
+  const onlyLift=pos(staticHem).y-onlyBefore.y;
+  const metrics={lift,staticLift,contacts,drift,resumeShift,resumedWaist,seeks,scaledSeed,scaledShift,onlyStatic,onlyLift};
+  if(!(contacts>0 && lift>.06 && staticLift>.06 && drift<1e-5 && resumeShift<.05 && resumedWaist>0 && resumedWaist<.01 && seeks.every(s=>Math.abs(s.seedY-.65)<.005 && s.nextShift<.06) && Math.abs(scaledSeed-.325)<.005 && scaledShift<.06 && onlyStatic && onlyLift>.06))throw Error(JSON.stringify(metrics));
+  status.textContent='PASS '+JSON.stringify(metrics);
+}catch(e){status.textContent='FAIL '+e.stack;console.error(e)}finally{rt.dispose()}
+</script>

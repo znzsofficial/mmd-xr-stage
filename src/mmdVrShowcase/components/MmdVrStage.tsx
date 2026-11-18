@@ -322,7 +322,8 @@ export function MmdVrStageContent() {
   const objectsRef = useRef<Map<string, MmdVrObjectRef>>(new Map());
   const lastEvaluatedTimeRef = useRef(-Infinity);
   const timeRef = useRef(0);
-  const physicsOnlyTimeRef = useRef(0);
+  const staticSettleElapsed = useRef(0);
+  const pendingSeekSeed = useRef(false);
   const physicsContactPollRef = useRef(0);
   const hapticContactPollRef = useRef(0);
   const lastPhysicsResetEpochRef = useRef(0);
@@ -351,7 +352,6 @@ export function MmdVrStageContent() {
   });
   const placeMode = useMmdVrStore((s) => s.placeMode);
   const physicsEnabled = useMmdVrStore((s) => s.physicsEnabled);
-  const physicsBusy = useMmdVrStore((s) => s.physicsBusy);
   const physicsDynamicSelfCollision = useMmdVrStore((s) => s.prefs.physicsDynamicSelfCollision);
   const setPhysicsBusy = useMmdVrStore((s) => s.setPhysicsBusy);
 
@@ -702,6 +702,7 @@ export function MmdVrStageContent() {
     lastSeekEpochRef.current = seekEpoch;
     const dur = runtime.duration;
     timeRef.current = dur > 0 ? Math.min(Math.max(0, seekSeconds), dur) : 0;
+    pendingSeekSeed.current = true;
     setMmdVrClockTime(timeRef.current, true);
   }, [seekEpoch, seekSeconds, runtime]);
 
@@ -886,18 +887,20 @@ export function MmdVrStageContent() {
     }
     if ((physicsReseedNeeded || physicsResetRequested) && store.physicsEnabled && !store.physicsBusy) {
       runtime.resetPhysics(timeRef.current);
-      physicsOnlyTimeRef.current = 0;
+      staticSettleElapsed.current = 0;
     }
 
     const rt = runtimeRef.current;
     if (!rt) return;
     const duration = rt.duration;
     const simulationDelta = clampMmdVrSimulationDelta(delta);
-    if (playingRef.current && duration > 0) {
+    const advancedMotion = playingRef.current && duration > 0 && !pendingSeekSeed.current;
+    if (advancedMotion) {
       timeRef.current += simulationDelta;
       if (timeRef.current >= duration) {
         if (loopRef.current) {
           timeRef.current = 0;
+          pendingSeekSeed.current = true;
         } else {
           timeRef.current = duration;
           playingRef.current = false;
@@ -911,23 +914,12 @@ export function MmdVrStageContent() {
         }
       }
     }
-    // No-motion physics: let Bullet settle for a few seconds (gravity sags
-    // clothes), then freeze the timeline so deltaSeconds=0 — Bullet stops
-    // stepping and the bone-feedback loop can't sustain oscillation.
-    // Exception: when controller collisions are on, keep stepping so the
-    // user can interact with cloth.
-    const controllerCollisionsActive = store.physicsEnabled
-      && !store.physicsBusy
-      && store.physicsControllerCollisions;
-    if (store.physicsEnabled && !store.physicsBusy && duration <= 0) {
-      if (controllerCollisionsActive) {
-        physicsOnlyTimeRef.current += simulationDelta;
-      } else {
-        physicsOnlyTimeRef.current = Math.min(physicsOnlyTimeRef.current + simulationDelta, 5);
-      }
-    } else if (!store.physicsEnabled || duration > 0) {
-      physicsOnlyTimeRef.current = 0;
-    }
+    const physicsOn = store.physicsEnabled && !store.physicsBusy;
+    let physicsDelta = advancedMotion || store.physicsControllerCollisions ? simulationDelta : 0;
+    if (physicsOn && duration <= 0) {
+      if (!store.physicsControllerCollisions) physicsDelta = Math.min(simulationDelta, 5 - staticSettleElapsed.current);
+      staticSettleElapsed.current = Math.min(5, staticSettleElapsed.current + physicsDelta);
+    } else if (!store.physicsEnabled || duration > 0) staticSettleElapsed.current = 0;
     setMmdVrClockTime(timeRef.current);
 
     const perspective = camera as THREE.PerspectiveCamera;
@@ -936,16 +928,16 @@ export function MmdVrStageContent() {
       perspective.aspect = aspect;
       perspective.updateProjectionMatrix();
     }
-    const evaluationTime = duration > 0 ? timeRef.current : physicsOnlyTimeRef.current;
-    const physicsOn = physicsEnabled && !physicsBusy;
+    const evaluationTime = duration > 0 ? timeRef.current : 0;
     // Paused + no physics: bone/IK/morph evaluation would recompute identical
     // results, so skip it and keep rendering the frozen pose. Physics must
     // keep stepping when enabled so controller collisions stay alive, and a
     // seek while paused must still re-evaluate the target frame once.
     const timeChanged = Math.abs(evaluationTime - lastEvaluatedTimeRef.current) > 1e-5;
-    if (playingRef.current || physicsOn || timeChanged) {
+    if (playingRef.current || physicsOn || timeChanged || pendingSeekSeed.current) {
       const start = performance.now();
-      rt.update(evaluationTime, physicsOn, perspective, aspect, false);
+      rt.update(evaluationTime, physicsOn, perspective, aspect, false, physicsDelta, pendingSeekSeed.current);
+      pendingSeekSeed.current = false;
       runtimeTiming.record(performance.now() - start);
       lastEvaluatedTimeRef.current = evaluationTime;
     }

@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import * as THREE from "three";
 import type { ThreeMmdModel } from "@yohawing/three-mmd-loader";
-import { applyMaterialOverrides, DEFAULT_MATERIAL_OVERRIDE, type MaterialPipelineEntry } from "./mmdRuntimeMaterials";
+import { applyMaterialOverrides, DEFAULT_MATERIAL_OVERRIDE, disposeEntryEnhancementTextures, refreshMaterialTextures, type MaterialPipelineEntry } from "./mmdRuntimeMaterials";
 
 function entryFor(material: THREE.Material): MaterialPipelineEntry {
   return {
@@ -10,6 +10,78 @@ function entryFor(material: THREE.Material): MaterialPipelineEntry {
     model: { mesh: new THREE.SkinnedMesh(new THREE.BufferGeometry(), material) } as ThreeMmdModel,
   };
 }
+
+describe("enhancement texture ownership", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  function setup() {
+    const material = new THREE.MeshToonMaterial();
+    const entry = entryFor(material);
+    const loads: { resolve: (map: THREE.Texture<HTMLImageElement>) => void; reject: (error: Error) => void }[] = [];
+    vi.spyOn(THREE.TextureLoader.prototype, "loadAsync").mockImplementation(() =>
+      new Promise<THREE.Texture<HTMLImageElement>>((resolve, reject) => loads.push({ resolve, reject })));
+    const tex = () => { const texture = new THREE.Texture<HTMLImageElement>(); vi.spyOn(texture, "dispose"); return texture; };
+    const file = () => new File(["x"], "map.png", { lastModified: 1 });
+    const update = (ao: File | null, emission: File | null = null) => {
+      Object.assign(entry.materialOverrides.body, { aoMapFile: ao, emissionMapFile: emission });
+      return refreshMaterialTextures(entry);
+    };
+    return { material, entry, loads, tex, file, update };
+  }
+
+  it("commits B when same-name A finishes last, deduplicates pending B and updates the paused shader", async () => {
+    const { material, entry, loads, tex, file, update } = setup();
+    const uniform = { value: null };
+    material.userData.mmdEnhanceShader = { uniforms: { mmdEnhanceAoMap: uniform } };
+    applyMaterialOverrides(entry);
+    const b = file(); const first = update(file()), second = update(b), same = update(b);
+    expect(loads).toHaveLength(2);
+    const aMap = tex(), bMap = tex();
+    loads[1].resolve(bMap); await Promise.all([second, same]);
+    loads[0].resolve(aMap); await first;
+    expect(uniform.value).toBe(bMap);
+    expect(aMap.dispose).toHaveBeenCalledOnce(); expect(bMap.dispose).not.toHaveBeenCalled();
+    disposeEntryEnhancementTextures(entry);
+    expect(bMap.dispose).toHaveBeenCalledOnce();
+  });
+
+  it("returning to the committed selection cancels the replacement, including a late decode", async () => {
+    const { material, loads, tex, file, update } = setup();
+    const a = file(), keep = tex(), stale = tex();
+    const first = update(a); loads[0].resolve(keep); await first;
+    const replace = update(file()); await update(a);
+    loads[1].resolve(stale); await replace;
+    expect(material.userData.mmdEnhanceTextures.aoMap).toBe(keep);
+    expect(stale.dispose).toHaveBeenCalledOnce(); expect(keep.dispose).not.toHaveBeenCalled();
+    await update(null); expect(keep.dispose).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the last complete set on partial failure, revokes blob URLs and permits retry", async () => {
+    const { material, loads, tex, file, update } = setup();
+    const revoke = vi.spyOn(URL, "revokeObjectURL"), warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const keep = tex(), partial = tex(), a = file(), e = file();
+    let p = update(file()); loads[0].resolve(keep); await p;
+    p = update(a, e); loads[1].resolve(partial); await vi.waitFor(() => expect(loads).toHaveLength(3));
+    loads[2].reject(new Error("decode failed")); await p;
+    expect(partial.dispose).toHaveBeenCalledOnce(); expect(keep.dispose).not.toHaveBeenCalled();
+    expect(material.userData.mmdEnhanceTextures.aoMap).toBe(keep);
+    expect(new Set(revoke.mock.calls.map(([url]) => url)).size).toBe(3); expect(warn).toHaveBeenCalledOnce();
+    p = update(a, e); const fresh = tex(); loads[3].resolve(fresh); await vi.waitFor(() => expect(loads).toHaveLength(5));
+    loads[4].resolve(tex()); await p;
+    expect(material.userData.mmdEnhanceTextures.aoMap).toBe(fresh); expect(keep.dispose).toHaveBeenCalledOnce();
+  });
+
+  it("unloading during a multi-file load frees staged and late textures exactly once", async () => {
+    const { entry, material, loads, tex, file, update } = setup();
+    const partial = tex(), late = tex(), p = update(file(), file()); loads[0].resolve(partial);
+    await vi.waitFor(() => expect(loads).toHaveLength(2));
+    disposeEntryEnhancementTextures(entry);
+    expect(partial.dispose).toHaveBeenCalledOnce();
+    loads[1].resolve(late); await p;
+    expect(partial.dispose).toHaveBeenCalledOnce(); expect(late.dispose).toHaveBeenCalledOnce();
+    expect(material.userData.mmdEnhanceTextures).toBeUndefined();
+  });
+});
 
 describe("material hot-path synchronization", () => {
   it("updates fallback uniforms without repeatedly invalidating the material program", () => {

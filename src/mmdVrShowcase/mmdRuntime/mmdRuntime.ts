@@ -113,7 +113,7 @@ export type MmdRuntimeHandle = {
   getRigidBodyCount: () => number;
   getDynamicRigidBodyCount: () => number;
   getPhysicsStepCount: () => number;
-  update: (seconds: number, physics: boolean, camera: THREE.PerspectiveCamera, aspect: number, useMotionCamera: boolean) => void;
+  update: (poseSeconds: number, physics: boolean, camera: THREE.PerspectiveCamera, aspect: number, useMotionCamera: boolean, physicsDelta?: number, reseed?: boolean) => void;
   dispose: () => void;
 };
 
@@ -224,6 +224,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
   let physicsTransition: Promise<void> = Promise.resolve();
   /** Last evaluated timeline seconds per model (for seek / physics continuity). */
   const lastPhysicsSeconds = new Map<string, number>();
+  let stepDelta: number | undefined;
   let duration = 0;
   let hasCameraTrack = false;
   let envIntensity = 0;
@@ -362,6 +363,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
           },
           handColliders: handColliderProvider,
           handShape: options.handShape,
+          simulationDelta: () => stepDelta,
           handRadius: () => {
             const scale = Math.min(10, Math.max(0.01, Number(colliderRoot?.userData.mmdVisualScale) || transform.scale));
             return (handColliderRadius?.() ?? 0.035) / scale;
@@ -617,6 +619,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
     setModelVisible(id, visible) {
       const entry = entries.get(id);
       if (!entry) return;
+      if (entry.visible !== visible) lastPhysicsSeconds.delete(id);
       entry.visible = visible;
       applyMaterialVisibility(entry);
       applyMaterialOverrides(entry, lightingContext());
@@ -747,17 +750,12 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
     resetPhysics(seconds) {
       if (!physicsWanted) return;
       const t = Number.isFinite(seconds) ? Math.max(0, seconds as number) : 0;
-      // Force a "seeking" step without physics:false (which calls reset_world and
-      // can leave soft bodies without working body colliders until re-upload).
-      // Runtime marks seeking when seconds < previousEvaluateSeconds.
-      const ahead = t + 1 / 30;
+      // The next Bullet step seeds from this pose without integrating elapsed time.
       for (const entry of entries.values()) {
         if (!entry.visible || !entry.physicsBackend || entry.physicsBackend.disposed) continue;
         try {
           syncEntryWorldMatrix(entry, true);
-          entry.model.runtime.seek(ahead);
-          entry.model.update(ahead, { physics: true, ik: entry.bodyAnimation != null });
-          syncEntryWorldMatrix(entry, true);
+          entry.physicsBackend.reset?.();
           entry.model.runtime.seek(t);
           entry.model.update(t, { physics: true, ik: entry.bodyAnimation != null });
           // Restore visual scale after physics rebind.
@@ -808,12 +806,11 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       }
       return count;
     },
-    update(seconds, physics, camera, aspect, useMotionCamera) {
+    update(seconds, physics, camera, aspect, useMotionCamera, physicsDelta, reseed = false) {
       let cameraApplied = false;
-      // Official viewer: physics only when enabled AND t > 0 (not seeking).
-      // At t≈0 use physics:false so the next play frame is a "seeking" rebind.
       const wantPhysics = physics && physicsWanted;
-      const physicsOn = wantPhysics && seconds > 1e-4;
+      const physicsOn = wantPhysics && (physicsDelta !== undefined || seconds > 1e-4);
+      if (reseed) lastPhysicsSeconds.clear();
       for (const entry of entries.values()) {
         if (!entry.visible) continue;
 
@@ -826,15 +823,20 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
         const jumpedBack = prev !== undefined && seconds + 1e-4 < prev;
         const jumpedFar = prev !== undefined && seconds - prev > 0.25;
         if (physicsOn && (jumpedBack || jumpedFar || prev === undefined)) {
-          try {
-            entry.model.runtime.seek(seconds);
-          } catch {
-            // ignore
-          }
+          // seek() alone changes the loader clock but doesn't seed Bullet on a
+          // forward scrub. Reset makes the next evaluated pose a seed-only step.
+          entry.physicsBackend?.reset?.();
+          entry.model.runtime.seek(seconds);
         }
 
         const hasBodyMotion = entry.bodyAnimation != null;
-        entry.model.update(seconds, { physics: physicsOn, ik: hasBodyMotion });
+        stepDelta = physicsOn ? physicsDelta : undefined;
+        try {
+          entry.model.update(seconds, { physics: physicsOn, ik: hasBodyMotion });
+        } finally {
+          stepDelta = undefined;
+          if (physicsOn) syncEntryWorldMatrix(entry, false);
+        }
         if (physicsOn) {
           lastPhysicsSeconds.set(entry.id, seconds);
         } else if (!wantPhysics) {
@@ -843,8 +845,6 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
 
         // Face / manual morphs after skeleton + physics.
         applyMorphOverrides(entry);
-        // Restore user scale for rendering (physics ran at unit scale).
-        if (physicsOn) syncEntryWorldMatrix(entry, false);
         const materials = getMeshMaterials(entry.model.mesh);
         if (directionalLight) syncMmdSpecularDirection(materials, directionalLight);
         applyMaterialOverrides(entry, lightingContext());

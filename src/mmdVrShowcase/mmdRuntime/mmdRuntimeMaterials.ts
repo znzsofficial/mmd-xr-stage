@@ -47,10 +47,12 @@ type EnhancementTextures = {
   maskMap?: THREE.Texture | null;
 };
 
-type EnhancementTextureState = EnhancementTextures & {
-  signature: string;
-  requestId: number;
-};
+const mapKeys = ["aoMap", "emissionMap", "maskMap"] as const;
+type Files = readonly (File | null)[];
+type TextureRequest = { files: Files; staged: EnhancementTextures; done: Promise<void> };
+const pending = new WeakMap<THREE.Material, TextureRequest>();
+const committedFiles = new WeakMap<THREE.Material, Files>();
+const emptyFiles = [null, null, null] as const;
 
 export function createDefaultMaterialOverrides(names: string[]) {
   const overrides: Record<string, MaterialOverride> = {};
@@ -60,46 +62,40 @@ export function createDefaultMaterialOverrides(names: string[]) {
   return overrides;
 }
 
-function textureSignature(override: MaterialOverride) {
-  return [
-    override.aoMapFile?.name ?? "",
-    override.aoMapFile?.lastModified ?? 0,
-    override.emissionMapFile?.name ?? "",
-    override.emissionMapFile?.lastModified ?? 0,
-    override.maskMapFile?.name ?? "",
-    override.maskMapFile?.lastModified ?? 0,
-  ].join("|");
+function sameFiles(a: Files, b: Files) {
+  return a.every((file, i) => file === b[i]);
 }
 
-function loadTextureFromFile(file: File) {
-  return new Promise<THREE.Texture>((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const loader = new THREE.TextureLoader();
-    loader.load(
-      url,
-      (texture) => {
-        texture.colorSpace = THREE.SRGBColorSpace;
-        texture.needsUpdate = true;
-        URL.revokeObjectURL(url);
-        resolve(texture);
-      },
-      undefined,
-      (error) => {
-        URL.revokeObjectURL(url);
-        reject(error instanceof Error ? error : new Error(String(error)));
-      },
-    );
-  });
+async function loadTextureFromFile(file: File) {
+  const url = URL.createObjectURL(file);
+  try {
+    const texture = await new THREE.TextureLoader().loadAsync(url);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.needsUpdate = true;
+    return texture;
+  } finally { URL.revokeObjectURL(url); }
+}
+
+function release(maps: EnhancementTextures | undefined) {
+  if (!maps) return;
+  for (const key of mapKeys) {
+    maps[key]?.dispose();
+    maps[key] = null;
+  }
+}
+
+function cancelPending(material: THREE.Material) {
+  const old = pending.get(material);
+  pending.delete(material);
+  release(old?.staged);
 }
 
 export function disposeEnhancementTextures(material: THREE.Material) {
   const userData = material.userData as Record<string, unknown>;
-  const prev = userData.mmdEnhanceTextures as EnhancementTextureState | undefined;
-  prev?.aoMap?.dispose?.();
-  prev?.emissionMap?.dispose?.();
-  prev?.maskMap?.dispose?.();
+  cancelPending(material);
+  committedFiles.delete(material);
+  release(userData.mmdEnhanceTextures as EnhancementTextures | undefined);
   delete userData.mmdEnhanceTextures;
-  delete userData.mmdEnhanceTextureRequestId;
 }
 
 const singleMaterialCache = new WeakMap<THREE.Material, THREE.Material[]>();
@@ -122,35 +118,42 @@ export function disposeEntryEnhancementTextures(entry: MaterialPipelineEntry) {
   });
 }
 
-async function syncEnhancementTextures(entry: MaterialPipelineEntry) {
-  const materials = getMeshMaterials(entry.model.mesh);
-  await Promise.all(materials.map(async (material, index) => {
-    if (!material) return;
-    const name = entry.materialNames[index] ?? `Material ${index + 1}`;
-    const override = entry.materialOverrides[name];
-    if (!override) return;
-    const userData = material.userData as Record<string, unknown>;
-    const nextSignature = textureSignature(override);
-    const prev = userData.mmdEnhanceTextures as EnhancementTextureState | undefined;
-    if (prev && prev.signature === nextSignature) return;
-    const nextRequestId = ((prev?.requestId ?? 0) + 1) >>> 0;
-    userData.mmdEnhanceTextureRequestId = nextRequestId;
-    const next: EnhancementTextures = { aoMap: null, emissionMap: null, maskMap: null };
-    if (override.aoMapFile) next.aoMap = await loadTextureFromFile(override.aoMapFile);
-    if (override.emissionMapFile) next.emissionMap = await loadTextureFromFile(override.emissionMapFile);
-    if (override.maskMapFile) next.maskMap = await loadTextureFromFile(override.maskMapFile);
-    if (userData.mmdEnhanceTextureRequestId !== nextRequestId) {
-      next.aoMap?.dispose?.();
-      next.emissionMap?.dispose?.();
-      next.maskMap?.dispose?.();
+function syncEnhancementTextures(material: THREE.Material, override: MaterialOverride, name: string) {
+  const files = [override.aoMapFile, override.emissionMapFile, override.maskMapFile];
+  const previous = pending.get(material);
+  if (previous && sameFiles(previous.files, files)) return previous.done;
+  cancelPending(material); // Includes selecting the already committed set again.
+  if (sameFiles(committedFiles.get(material) ?? emptyFiles, files)) return;
+  // Request identity is never recycled, even if a material is disposed and reused.
+  const request: TextureRequest = { files, staged: {}, done: Promise.resolve() };
+  pending.set(material, request);
+  request.done = (async () => {
+    try {
+      for (const [i, key] of mapKeys.entries()) {
+        const file = files[i];
+        if (!file) continue;
+        const texture = await loadTextureFromFile(file);
+        if (pending.get(material) !== request) { texture.dispose(); return; }
+        request.staged[key] = texture;
+      }
+    } catch (error) {
+      if (pending.get(material) === request) {
+        cancelPending(material);
+        console.warn(`[mmdVr] Enhancement textures for ${name} could not be loaded; retaining previous maps`, error);
+      }
       return;
     }
-    prev?.aoMap?.dispose?.();
-    prev?.emissionMap?.dispose?.();
-    prev?.maskMap?.dispose?.();
-    userData.mmdEnhanceTextures = { ...next, signature: nextSignature, requestId: nextRequestId } satisfies EnhancementTextureState;
-    material.needsUpdate = true;
-  }));
+    const oldMaps = material.userData.mmdEnhanceTextures;
+    material.userData.mmdEnhanceTextures = request.staged;
+    committedFiles.set(material, files);
+    pending.delete(material);
+    try {
+      const state = material.userData.mmdEnhanceState as MmdMaterialEnhanceState | undefined;
+      if (state) syncMmdMaterialEnhance(material, state);
+      material.needsUpdate = true;
+    } finally { release(oldMaps); }
+  })();
+  return request.done;
 }
 
 export function applyMaterialVisibility(entry: MaterialPipelineEntry) {
@@ -333,10 +336,12 @@ export function applyMaterialOverride(
   });
 }
 
-export function refreshMaterialTextures(entry: MaterialPipelineEntry) {
-  void syncEnhancementTextures(entry).catch(() => {
-    // ignore texture load failures
-  });
+export async function refreshMaterialTextures(entry: MaterialPipelineEntry) {
+  await Promise.all(getMeshMaterials(entry.model.mesh).map((material, index) => {
+    const name = entry.materialNames[index] ?? `Material ${index + 1}`;
+    const override = entry.materialOverrides[name];
+    if (material && override) return syncEnhancementTextures(material, override, name);
+  }));
 }
 
 export function mergeMaterialOverride(

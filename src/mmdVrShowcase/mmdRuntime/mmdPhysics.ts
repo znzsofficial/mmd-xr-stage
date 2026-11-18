@@ -70,6 +70,7 @@ export async function createBulletPhysicsBackend(options: {
   handColliders?: MmdControllerColliderProvider;
   handRadius?: number | (() => number);
   handShape?: ColliderShapeFactory;
+  simulationDelta?: () => number | undefined;
   quality?: () => MmdPhysicsQuality;
   boneFeedbackScale?: () => number;
   controllerFriction?: () => number;
@@ -92,7 +93,7 @@ export async function createBulletPhysicsBackend(options: {
     module as Parameters<typeof createCustomBulletMmdPhysicsBackend>[0],
     backendOptions,
   );
-  const diagnosticBackend = createPhysicsDiagnosticsBackend(bulletBackend);
+  const diagnosticBackend = createPhysicsDiagnosticsBackend(bulletBackend, options.simulationDelta);
   const backend = options.dynamicSelfCollision
     ? createDynamicSelfCollisionPhysicsBackend(diagnosticBackend)
     : diagnosticBackend;
@@ -125,7 +126,7 @@ export async function createBulletPhysicsBackend(options: {
     : colliderBackend;
 }
 
-export function createPhysicsDiagnosticsBackend(backend: MmdPhysicsBackend): MmdPhysicsBackend & MmdRuntimePhysicsDiagnostics {
+export function createPhysicsDiagnosticsBackend(backend: MmdPhysicsBackend, simulationDelta?: () => number | undefined): MmdPhysicsBackend & MmdRuntimePhysicsDiagnostics {
   let rigidBodyCount = 0;
   let dynamicRigidBodyCount = 0;
   let stepCount = 0;
@@ -150,7 +151,10 @@ export function createPhysicsDiagnosticsBackend(backend: MmdPhysicsBackend): Mmd
           if (body.motionType !== "static") dynamicRigidBodyCount += 1;
         }
       }
-      return backend.step(context);
+      const dt = simulationDelta?.();
+      return dt == null || context.seeking || dt === context.deltaSeconds
+        ? backend.step(context)
+        : backend.step({ ...context, deltaSeconds: dt });
     },
     reset: (context) => backend.reset?.(context),
     dispose: () => backend.dispose?.(),
