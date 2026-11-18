@@ -26,6 +26,7 @@ import { useMmdVrTheme } from "../mmdVrTheme";
 import { prepareMmdVrModel } from "../prepareMmdVrModel";
 import { getMmdVrControllerColliderMatrices } from "../mmdVrControllerColliders";
 import { getMmdVrHandColliderMatrices } from "../mmdVrHandColliders";
+import { handContactShape, handReferenceRadius } from "../handContactProfile";
 import {
   clearMmdVrHapticContacts,
   MMD_VR_HAPTIC_POLL_INTERVAL,
@@ -402,7 +403,8 @@ export function MmdVrStageContent() {
       controllerColliderRadius: () => useMmdVrStore.getState().prefs.physicsColliderRadius,
       handColliders: getMmdVrHandColliderMatrices,
       handCollidersEnabled: () => useMmdVrStore.getState().physicsControllerCollisions,
-      handColliderRadius: () => Math.max(0.025, useMmdVrStore.getState().prefs.physicsColliderRadius * 0.45),
+      handColliderRadius: () => handReferenceRadius(useMmdVrStore.getState().prefs.physicsColliderRadius),
+      handShape: handContactShape,
       physicsQuality: () => useMmdVrStore.getState().prefs.physicsQuality,
       physicsDynamicSelfCollision: () => useMmdVrStore.getState().prefs.physicsDynamicSelfCollision,
       physicsBoneFeedbackScale: () => {

@@ -11,6 +11,7 @@ import type { MmdPhysicsQuality } from "../mmdPhysicsQuality";
 export type { MmdPhysicsQuality };
 export type MmdControllerColliderMatrix = MmdPhysicsMatrix4ColumnMajorTuple | Float32Array;
 export type MmdControllerColliderProvider = () => readonly MmdControllerColliderMatrix[];
+export type ColliderShapeFactory = (index: number, radius: number) => NonNullable<MmdPhysicsStepContext["rigidBodies"]>[number]["shape"];
 type MmdDebugContact = { rigidBodyIndexA: number; rigidBodyIndexB: number };
 const MAX_DEBUG_CONTACTS = 256;
 const syntheticColliderBody = Symbol("syntheticColliderBody");
@@ -68,6 +69,7 @@ export async function createBulletPhysicsBackend(options: {
   controllerRadius?: number | (() => number);
   handColliders?: MmdControllerColliderProvider;
   handRadius?: number | (() => number);
+  handShape?: ColliderShapeFactory;
   quality?: () => MmdPhysicsQuality;
   boneFeedbackScale?: () => number;
   controllerFriction?: () => number;
@@ -108,6 +110,7 @@ export async function createBulletPhysicsBackend(options: {
         undefined,
         options.controllerFriction,
         options.controllerRestitution,
+        options.handShape,
       )
     : backend;
   return options.controllerColliders
@@ -221,6 +224,7 @@ export function createControllerColliderPhysicsBackend(
   beforeStep?: () => void,
   friction: number | (() => number) = 0.5,
   restitution: number | (() => number) = 0,
+  makeShape: ColliderShapeFactory = (_, r) => ({ type: "sphere", size: [r, r, r] }),
 ): MmdControllerColliderPhysicsBackend {
   let sourceSkeleton: MmdPhysicsStepContext["skeleton"];
   let sourceRigidBodies: MmdPhysicsStepContext["rigidBodies"];
@@ -329,7 +333,7 @@ export function createControllerColliderPhysicsBackend(
             name: `xr-controller-${index}`,
             boneIndex: boneCount + index,
             motionType: "static" as const,
-            shape: { type: "sphere" as const, size: [colliderRadius, colliderRadius, colliderRadius] as const },
+            shape: makeShape(index, colliderRadius),
             localTranslation: [0, 0, 0] as const,
             localRotation: [0, 0, 0, 1] as const,
             mass: 0,

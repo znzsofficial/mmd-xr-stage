@@ -10,7 +10,7 @@ import type { MmdPhysicsBackend } from "@yohawing/three-mmd-loader/physics";
 import { DefaultMmdRuntime } from "@yohawing/three-mmd-loader/runtime";
 import * as THREE from "three";
 import { resolveCompanion } from "../../mmdImport/assetPaths";
-import { createBulletPhysicsBackend, type MmdPhysicsQuality } from "./mmdPhysics";
+import { createBulletPhysicsBackend, type ColliderShapeFactory, type MmdPhysicsQuality } from "./mmdPhysics";
 import {
   applyMaterialOverride,
   applyMaterialOverrides,
@@ -206,6 +206,7 @@ export type MmdRuntimeOptions = {
   handColliders?: () => readonly THREE.Matrix4[];
   handCollidersEnabled?: () => boolean;
   handColliderRadius?: () => number;
+  handShape?: ColliderShapeFactory;
   physicsQuality?: () => MmdPhysicsQuality;
   physicsBoneFeedbackScale?: () => number;
   physicsDynamicSelfCollision?: () => boolean;
@@ -360,6 +361,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
             return (controllerColliderRadius?.() ?? 0.08) / scale;
           },
           handColliders: handColliderProvider,
+          handShape: options.handShape,
           handRadius: () => {
             const scale = Math.min(10, Math.max(0.01, Number(colliderRoot?.userData.mmdVisualScale) || transform.scale));
             return (handColliderRadius?.() ?? 0.035) / scale;

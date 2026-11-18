@@ -1,7 +1,8 @@
 import * as THREE from "three";
+import { HAND_JOINTS } from "./handContactProfile";
 
 /** 6 joints per hand (wrist + 5 finger tips), 2 hands → 12 fixed slots. */
-export const MMD_VR_HAND_COLLIDER_SLOTS = 12;
+export const MMD_VR_HAND_COLLIDER_SLOTS = HAND_JOINTS.length * 2;
 
 const HIDDEN_HAND_MATRIX = new THREE.Matrix4().makeTranslation(0, -1_000, 0);
 const handMatrices = Array.from({ length: MMD_VR_HAND_COLLIDER_SLOTS }, () => HIDDEN_HAND_MATRIX.clone());

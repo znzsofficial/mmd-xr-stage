@@ -45,7 +45,7 @@ pnpm deploy
 
 - MMD XR must request the optional `hand-tracking` feature when the session is created. This allows hand tracking to be enabled after entering XR; preserve `beginFromClick(init?)` initialization passthrough.
 - `handTracking` is the persisted preference name and defaults to `true`. Do not reintroduce `handDetail`.
-- Hand colliders use 12 fixed slots: each hand has a wrist and five fingertip colliders. Keep their provider mapping in `src/mmdVrShowcase/mmdVrHandColliders.ts` and `components/MmdVrHandColliders.tsx`.
+- Hand colliders use 12 fixed slots: each wrist anchors a palm box and the five tips anchor rounded distal finger pads. `handContactProfile.ts` defines the same dimensions and poses for physics and debug meshes (box half-extents, capsule radius and center-to-center length). Keep shape dimensions stable across poses: in loader 0.8.6 changing rigid-body definitions recreates the Bullet world. Convert dimensions by model scale independently of the rigid transforms.
 - Physics wrapper order is `[model, controller colliders (2), hand colliders (12)]`: the controller wrapper is outermost and added first, with the hand wrapper inside it. Controller contact indexing starts at the original `sourceRigidBodyCount`; do not add the 12 hand slots to that offset. Forward contact diagnostics through every wrapper.
 - Controller and hand providers must use the shared model visual-space mapping and WebXR-to-MMD coordinate conversion.
 - Preserve the controller matrix scale normalization and the independent collider-radius/model-scale conversion. These are needed for scaled models and cloth contact.
