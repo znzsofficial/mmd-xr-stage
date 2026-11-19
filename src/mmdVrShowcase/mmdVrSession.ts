@@ -19,7 +19,8 @@ const session = createProductXrSession<MmdVrAttachQuality>({
     rayPointer: HUD_RAY,
   },
   onSessionEnd: () => {
-    if (useMmdVrStore.getState().overlayOpen) useMmdVrStore.getState().closeOverlay();
+    const s=useMmdVrStore.getState();
+    if (s.overlayOpen && s.presentation==='xr') s.closeOverlay();
   },
 });
 

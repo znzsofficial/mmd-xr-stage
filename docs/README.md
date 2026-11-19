@@ -2,6 +2,8 @@
 
 ## 从这里继续
 
+- **不用戴头显**：[屏幕观看：放角色、转镜头和播动作](./screen-viewing.md)。
+
 - **第一次进舞台**：[布景截图](../README.md#stage-gallery) · [导入角色和动作](./asset-workflow.md) · [在布景中选落点](./vr-controls.md#在布景中给角色选位置)。
 - **玩道具**：[玩家拿取与月面盖印](./vr-controls.md#手持玩具与月面邮局) · [递给角色、调整握姿和收回](./vr-controls.md#把道具递给角色)。
 - **查卡顿**：[Quest 放置与播放对照、导出 JSON](./viewing-and-diagnostics.md) · [已有真机记录](./viewing-and-diagnostics.md#已有测量)。

@@ -6,6 +6,7 @@ import { collectFilesFromDataTransfer, relativePath } from "../mmdImport/folderF
 import { useNotificationStore } from "../notificationStore";
 import { getXrSystem } from "../xr";
 import { MmdVrOverlay } from "./MmdVrOverlay";
+import { enterScreen } from './screen/enterScreen';
 import { clearBackpack, syncBackpackFiles, useBackpack } from "./backpack";
 import { formatMmdVrProfileSummary, getMmdVrRenderProfile } from "./mmdVrQuality";
 import { requestMmdVrEnter } from "./requestMmdVrEnter";
@@ -69,6 +70,7 @@ export function MmdVrPrepApp() {
   const themeSettings = useThemeSettings();
   const addNotification = useNotificationStore((state) => state.addNotification);
   const phase = useMmdVrStore((state) => state.phase);
+  const screenFailed = useMmdVrStore(state=>state.presentation==='screen'&&state.phase==='error');
   const assetLoad = useMmdVrStore((state) => state.assetLoad);
   const savedStage = useMmdVrStore((state) => state.savedStage);
   const files = useBackpack((state) => state.files);
@@ -360,10 +362,14 @@ export function MmdVrPrepApp() {
         <div className="stage-intro">
           <div>
             <h1 className="stage-intro-title">{t("mmdVrPrepTitle")}</h1>
-            <p className="stage-intro-lead">{t("mmdVrPrepLead")}</p>
+             <p className="stage-intro-lead">{t("mmdVrPrepLead")}</p>
+             {screenFailed&&errorMessage&&<p role="alert">{t('screenWebgl')} <small>{errorMessage}</small></p>}
           </div>
           <div className="stage-launch-actions">
             <div className="stage-launch-row">
+              <button type="button" className="stage-btn stage-btn-secondary stage-btn-lg" disabled={importing || checkingAssets || phase === 'entering' || phase === 'active'} onClick={enterScreen}>
+                <PrepIcon name="screen"/><span>{t('screenWatch')}</span>
+              </button>
               {savedStage && <button type="button" className="stage-btn stage-btn-secondary stage-btn-lg" disabled={entryDisabled} onClick={() => enterVr(true)}>
                 <PrepIcon name="play" /><span>{t("stageContinue")}</span>
               </button>}
@@ -821,7 +827,7 @@ export function MmdVrPrepApp() {
 
       <footer className="stage-records">
         <div className="stage-launch-inner">
-          {errorMessage && (
+           {errorMessage && !screenFailed && (
             <div className="stage-alert stage-alert-danger" role="alert">
               <div className="stage-alert-title">
                  <PrepIcon name="alert" />

@@ -43,6 +43,7 @@ export function requestMmdVrEnter(opts: {
       return current.overlayOpen || current.phase === "entering" || current.phase === "active";
     },
     setEntering: () => {
+      useMmdVrStore.setState({presentation:'xr'});
       const saved = opts.resume ? store.savedStage : null;
       prepareBackpackEntry(saved != null);
       store.prepareStage(saved != null);

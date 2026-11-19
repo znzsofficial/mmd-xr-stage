@@ -13,7 +13,7 @@
 
 </div>
 
-Import PMX/PMD characters, VMD motions and GLB/glTF props on the prep page, then choose a set and place them in VR on your Quest. BGM playback is not implemented.
+Import PMX/PMD characters, VMD motions and GLB/glTF props on the prep page. Choose **Watch on screen** in a WebGL 2 browser or enter immersive VR on Quest. BGM playback is not implemented.
 
 ## Stage gallery
 
@@ -41,6 +41,8 @@ The classroom image is the render used on the prep page. The remaining images ar
 - Live XR readiness probe: secure context, `navigator.xr` availability, and an advisory `immersive-vr` support check, surfaced before you enter.
 
 ### In VR
+
+For desktop and touch controls instead, see [Watching without a headset](./docs/screen-viewing.md). The same-tab backpack and scene layouts work in either mode.
 
 - Choose a set from the viewing strip: the window-lit classroom, pool terrace, wisteria path, live venue, studio plinth or Astral Court. See the [standing spots for each set](./docs/vr-controls.md#在布景中给角色选位置). Only the current room's instances are loaded; scenery does not consume character or object slots.
 - Pick a character or prop from the backpack, aim at free ground, and release the trigger to place it. Select a placed character to move, turn, scale, change its motion, or put it away. Hidden items remain reachable from the backpack.

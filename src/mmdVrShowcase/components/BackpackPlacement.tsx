@@ -91,26 +91,28 @@ function DropSurface({ id, scenery }: { id: string; scenery: SceneryId }) {
   </>;
 }
 
-function PickTarget({ id, live }: { id: string; live: BackpackLive }) {
+function PickTarget({ id, live, onScreenPick }: { id: string; live: BackpackLive; onScreenPick?:()=>void }) {
   const held = useRef<number | null>(null);
   const [x,y,z] = live.position;
   const size: [number,number,number] = live.bounds ? [Math.max(.09,live.bounds.size[0]),Math.max(.09,live.bounds.size[1]),Math.max(.09,live.bounds.size[2])] : [.48,1.56,.38];
   return <mesh name={`backpack:pick:${id}`} pointerEventsType={rayOnly} pointerEventsOrder={-1} position={live.bounds?.center ?? [x,y+.78,z]}
-    onPointerDown={e => { e.stopPropagation(); held.current = e.pointerId; }}
+    onClick={onScreenPick ? e=>{if(e.button===0&&e.delta<5){e.stopPropagation();useBackpack.getState().select(id);onScreenPick();}} : undefined}
+    onPointerDown={e => { if(onScreenPick)return;e.stopPropagation(); held.current = e.pointerId; }}
     onPointerLeave={e => { if (e.pointerId === held.current) held.current = null; }}
     onPointerCancel={() => { held.current = null; }}
-    onPointerUp={e => { e.stopPropagation(); if (held.current === e.pointerId) { held.current = null; useBackpack.getState().select(id); } }}>
+    onPointerUp={e => { if(onScreenPick)return;e.stopPropagation(); if (held.current === e.pointerId) { held.current = null; useBackpack.getState().select(id); } }}>
     <boxGeometry args={size} />
     <meshBasicMaterial visible={false} />
   </mesh>;
 }
 
-export function BackpackPlacement() {
+export function BackpackPlacement({onScreenPick}:{onScreenPick?:()=>void}={}) {
   const draft = useBackpack(s => s.draft), live = useBackpack(s => s.live), busy = useBackpack(s => s.busy);
   const scenery = useMmdVrStore(s => s.prefs.scenery);
   const panelOpen = useHudWorldInput(s => s.blocked);
+  const xr = useMmdVrStore(s=>s.presentation==='xr');
   const blocked = useMmdVrStore(s => s.assetLoad.running || s.physicsBusy || s.physicsFatal || s.placeMode);
-  if (blocked || busy || panelOpen) return null;
+  if (blocked || busy || (xr && panelOpen)) return null;
   return draft ? <DropSurface key={`${scenery}:${draft}`} id={draft} scenery={scenery} /> :
-    <>{Object.entries(live).map(([id,entry]) => entry.visible && <PickTarget key={id} id={id} live={entry} />)}</>;
+    <>{Object.entries(live).map(([id,entry]) => entry.visible && <PickTarget key={id} id={id} live={entry} onScreenPick={onScreenPick} />)}</>;
 }

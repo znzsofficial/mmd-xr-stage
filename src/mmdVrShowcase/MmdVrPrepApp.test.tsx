@@ -53,6 +53,12 @@ const fresh = () => container.querySelector<HTMLButtonElement>(".stage-btn-prima
 const button = (text: string) => [...container.querySelectorAll<HTMLButtonElement>("button")].find(b => b.textContent === text);
 
 describe("prep import and resume controls", () => {
+  it('offers screen playback even when insecure LAN access disables immersive entry', async()=>{
+    Object.defineProperty(window,'isSecureContext',{configurable:true,value:false});await mount();
+    expect(fresh().disabled).toBe(true);const screen=button('屏幕观看')!;expect(screen.disabled).toBe(false);
+    await act(async()=>screen.click());expect(requestMmdVrEnter).not.toHaveBeenCalled();expect(useMmdVrStore.getState()).toMatchObject({presentation:'screen',overlayOpen:true});
+    await act(async()=>useMmdVrStore.getState().closeOverlay());
+  });
   it("enters an empty stage before importing anything", async () => {
     await mount();
     expect(useBackpack.getState().entries).toEqual([]);

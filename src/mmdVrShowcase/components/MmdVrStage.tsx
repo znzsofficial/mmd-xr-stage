@@ -408,10 +408,10 @@ export function MmdVrStageRoom({ scenery, saved, slots }: { scenery: SceneryId; 
   const runtime = useMemo(() => {
     const handle = createMmdRuntimeHandle(scene, {
       controllerColliders: getMmdVrControllerColliderMatrices,
-      controllerCollidersEnabled: () => useMmdVrStore.getState().physicsControllerCollisions,
+      controllerCollidersEnabled: () => gl.xr.isPresenting && useMmdVrStore.getState().physicsControllerCollisions,
       controllerColliderRadius: () => useMmdVrStore.getState().prefs.physicsColliderRadius,
       handColliders: getMmdVrHandColliderMatrices,
-      handCollidersEnabled: () => useMmdVrStore.getState().physicsControllerCollisions,
+      handCollidersEnabled: () => gl.xr.isPresenting && useMmdVrStore.getState().physicsControllerCollisions,
       handColliderRadius: () => handReferenceRadius(useMmdVrStore.getState().prefs.physicsColliderRadius),
       handShape: handContactShape,
       physicsQuality: () => useMmdVrStore.getState().prefs.physicsQuality,
@@ -922,9 +922,10 @@ export function MmdVrStageRoom({ scenery, saved, slots }: { scenery: SceneryId; 
       }
     }
     const physicsOn = store.physicsEnabled && !store.physicsBusy;
-    let physicsDelta = advancedMotion || store.physicsControllerCollisions ? simulationDelta : 0;
+    const interactive = store.presentation==='xr' && store.physicsControllerCollisions;
+    let physicsDelta = advancedMotion || interactive ? simulationDelta : 0;
     if (physicsOn && duration <= 0) {
-      if (!store.physicsControllerCollisions) physicsDelta = Math.min(simulationDelta, 5 - staticSettleElapsed.current);
+      if (!interactive) physicsDelta = Math.min(simulationDelta, 5 - staticSettleElapsed.current);
       staticSettleElapsed.current = Math.min(5, staticSettleElapsed.current + physicsDelta);
     } else if (!store.physicsEnabled || duration > 0) staticSettleElapsed.current = 0;
     setMmdVrClockTime(timeRef.current);
@@ -945,7 +946,7 @@ export function MmdVrStageRoom({ scenery, saved, slots }: { scenery: SceneryId; 
       const start = performance.now();
       rt.update(evaluationTime, physicsOn, perspective, aspect, false, physicsDelta, pendingSeekSeed.current);
       pendingSeekSeed.current = false;
-      runtimeTiming.record(performance.now() - start);
+      if(store.presentation==='xr')runtimeTiming.record(performance.now() - start);
       lastEvaluatedTimeRef.current = evaluationTime;
     }
     if (wristGroup.current) {
@@ -954,6 +955,7 @@ export function MmdVrStageRoom({ scenery, saved, slots }: { scenery: SceneryId; 
       if (live && prop && !store.physicsBusy) poseWristToy(wristGroup.current, rt.getModelRoot(live.runtimeId), prop);
       else wristGroup.current.visible = false;
     }
+    if(store.presentation!=='xr')return;
     hapticContactPollRef.current += delta;
     if (hapticContactPollRef.current >= MMD_VR_HAPTIC_POLL_INTERVAL) {
       hapticContactPollRef.current %= MMD_VR_HAPTIC_POLL_INTERVAL;

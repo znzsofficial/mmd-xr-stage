@@ -138,7 +138,8 @@ type MmdVrStore = {
   setLastError: (value: string | null) => void;
   setPhase: (phase: MmdVrSessionPhase, errorMessage?: string | null) => void;
   overlayOpen: boolean;
-  openOverlay: () => void;
+  presentation: 'xr' | 'screen';
+  openOverlay: (presentation?: 'xr' | 'screen') => void;
   closeOverlay: () => void;
   failEnter: (errorMessage?: string | null) => void;
   markEntered: () => void;
@@ -500,7 +501,9 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
   setLastError: (lastError) => set({ lastError }),
   setPhase: (phase, errorMessage = null) => set({ phase, errorMessage }),
   overlayOpen: false,
-  openOverlay: () => set((state) => ({
+  presentation: 'xr',
+  openOverlay: (presentation = 'xr') => set((state) => ({
+    presentation,
     entryEpoch: state.entryEpoch + 1,
     entryStartedAt: performance.now(),
     assetLoad: emptyAssetLoadProgress(),
@@ -508,7 +511,7 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
     overlayOpen: true,
     errorMessage: null,
     lastError: null,
-    physicsDebugEnabled: state.prefs.detailedPhysicsDiagnostics,
+    physicsDebugEnabled: presentation==='xr' && state.prefs.detailedPhysicsDiagnostics,
   })),
   closeOverlay: () => {
     const current = get();

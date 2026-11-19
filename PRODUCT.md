@@ -16,6 +16,8 @@ The viewer imports game characters. Built-in modelling means places for those ch
 
 MMD XR Stage loads local model, animation and environment assets into an immersive WebXR stage. Success means dependable entry and playback, unobstructed viewing, and settings that are easy to reach and dismiss.
 
+When a headset is not in use, the same stage can be watched with a mouse or touch. Screen viewing and VR share the current tab's local files and set layouts.
+
 ## Operating Context
 
 Local files enter a same-tab backpack. A fresh visit starts on an empty stage: choose the environment in VR, take a character from the backpack and decide where it stands. The everyday move/turn/scale/motion actions belong near the selected character. Advanced settings stay available and out of sight during viewing. Refreshing clears the backpack. Quest hardware validation is required for readability, interaction comfort and actual performance.
