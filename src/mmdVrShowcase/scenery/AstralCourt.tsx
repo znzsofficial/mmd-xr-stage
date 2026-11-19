@@ -8,6 +8,7 @@ import { noPick, paintedSurface } from './sceneryPaint';
 import duskUrl from './astral-dusk.webp';
 import workshopUrl from './meridian-workshop.webp';
 import { useBakedSurface } from './useBakedSurface';
+import { Observatory } from './Observatory';
 
 const TAU = Math.PI * 2;
 const stone = ['#747b8d','#9596a2','#858796','#666e84','#8e91a0'];
@@ -121,7 +122,7 @@ function masonry(){
   }
   // Floating remnants around the horizon give stereo depth outside the court.
   for(let i=0;i<21;i++){
-    const a=i*2.399+.34,r=12+rnd()*10,x=Math.cos(a)*r,z=Math.sin(a)*r,y=rnd()*2.8-1.7,s=.75+rnd()*1.8;
+    const a=i*2.399+.34,r=(Math.sin(a)<.2?53:13)+rnd()*10,x=Math.cos(a)*r,z=Math.sin(a)*r,y=rnd()*2.8-1.7,s=.75+rnd()*1.8;
     islets.push({p:[x,y-s*.70,z],s:[s*1.45,s*1.5,s],ry:a,color:'#d7d8df'});
     if(i%3===0){for(const sign of [-1,1])columns.push({p:[x+sign*.44*s,y+s*.48,z],s:[.28,s,.28],color:stone[1]});
       blocks.push({p:[x,y+s*.99,z],s:[s*.88+.34,.20,.41],color:stone[0]});jewels.push({p:[x,y+s*.51,z],s:[.12,.26,.12],color:'#b3e3d7'});}
@@ -134,7 +135,7 @@ function Orrery(){
     const a=i*TAU/48;return {p:[Math.cos(a)*1.71,Math.sin(a)*1.71,0],rz:a-Math.PI/2,s:[.029,i%4?.068:.146,.04],color:i%4?'#b99471':'#e4c887'} as Part;
   }),[]);
   useFrame((_,delta)=>{if(ring.current)ring.current.rotation.z+=Math.min(delta,.05)*.045;});
-  return <group position={[0,3.16,-4.65]} rotation={[.09,-.21,.18]}>
+  return <group position={[0,4.12,-4.65]} rotation={[.09,-.21,.18]}>
     <group ref={ring}>
       <mesh raycast={noPick}><torusGeometry args={[1.82,.046,8,80]}/><meshStandardMaterial color="#cba975" roughness={.51}/></mesh>
       <Batch parts={ticks} name="court:hours" lit/>
@@ -172,6 +173,6 @@ export function AstralCourt({shadows}:{shadows:boolean}){
     {workshop&&<mesh name="court:meridian-atlas" geometry={fabric} raycast={noPick}><meshStandardMaterial map={workshop} side={DoubleSide} roughness={.84}/></mesh>}
     <Batch parts={p.blocks} name="court:bases" casts={shadows}/><Batch parts={p.columns} name="court:columns" round casts={shadows}/>
     <Batch parts={p.islets} name="court:sky-islands" geometry={cliffGeo}/><Batch parts={p.jewels} name="court:waystones" geometry={facet}/>
-    <Orrery/>
+    <Orrery/><Observatory floor={floor} shadows={shadows}/>
   </group>;
 }

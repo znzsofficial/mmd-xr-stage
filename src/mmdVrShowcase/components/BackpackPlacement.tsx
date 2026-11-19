@@ -81,7 +81,7 @@ function DropSurface({ id, scenery }: { id: string; scenery: SceneryId }) {
         const s = useMmdVrStore.getState();
         if (hit?.allowed && !s.physicsBusy && !s.assetLoad.running && s.prefs.scenery === scenery) useBackpack.getState().confirmPlace(id, hit.x, hit.z, hit.yaw);
       }}>
-      <planeGeometry args={[72,72]} /><meshBasicMaterial visible={false} />
+      <planeGeometry args={scenery==='astralCourt'?[108,108]:[72,72]} /><meshBasicMaterial visible={false} />
     </mesh>
     <group ref={marker} visible={false} pointerEvents="none">
       {[valid, invalid].map((ref, i) => <group ref={ref} key={i}><mesh rotation-x={-Math.PI/2} raycast={noRaycast} renderOrder={2}>

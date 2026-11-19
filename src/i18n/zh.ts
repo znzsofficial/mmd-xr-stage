@@ -3,6 +3,7 @@ export const zh = {
   importBindResource: "为此引用选择资源文件",
   hudBack: "返回观看",
   hudScenery: "场景",
+  courtTour:'游览机位',courtOverview:'俯看星桥',courtNorth:'北侧观星台',courtWest:'西侧星图库',courtEast:'东侧测星台',courtReturn:'桥上回望圆庭',
   visitKite:'去草坪',visitEncore:'去 Live House',visitFerry:'去泳池',visitPost:'去地台',toyHoldOrVisit:'可在此拿，换景可玩',toyList:'全部手持道具',
   toyKite:'借风线轴',toyKiteHint:'侧握换风，可递给角色',toyEncore:'丝带话筒',toyEncoreHint:'瞄准两翼，侧握染印',toyShell:'贝壳泡泡枪',toyShellHint:'瞄准拱门，侧握发船',
   storyKite:'放学后的纸鸢站',storyFerry:'泡影渡口',storyEncore:'返场染印社',storyWindLeft:'左风签',storyWindRight:'右风签',storyFerryLeft:'左门发船',storyFerryRight:'右门发船',storyDyeLeft:'染左翼',storyDyeRight:'染右翼',storyClear:'清除染印',storyView:'玩法机位',storyProp:'角色道具',storyKiteHelp:'选风签放飞纸鸢；选中角色后，可把线轴交给她。',storyFerryHelp:'选一道拱门，让彩环引船从那一侧入画。',storyEncoreHelp:'依次染两翼，第一侧决定开幕方向；话筒可递给角色。',

@@ -25,9 +25,11 @@ Import PMX/PMD characters, VMD motions and GLB/glTF props on the prep page. Choo
 | **Live House** | **Studio plinth** |
 | ![Drums and an electric piano flank the wood stage of the Listening Room.](./docs/screenshots/live-house.webp) | ![A softbox and colour proof sheets frame the graduated studio arch.](./docs/screenshots/studio-plinth.webp) |
 
-**Astral Court · the saber beneath the orrery**
+**Astral Court · the observatory district**
 
-![A lit teal saber above a stone star chart, facing a suspended orrery and a broken arch.](./docs/screenshots/astral-court.webp)
+![Looking back toward the original orrery from the north causeway, with both gallery bridges opening to the sides.](./docs/screenshots/observatory-return.webp)
+
+Walk from the original star court to a copper-domed north observatory, a western chart gallery and an eastern transit telescope. All three terraces accept characters and props. In screen mode use **Visit a terrace** for a [bird's-eye view of the route](./docs/screenshots/observatory-overview.webp) or a [closer look in the chart gallery](./docs/screenshots/observatory-west.webp).
 
 **Dawn Chapel · the lily window above the sanctuary**
 
@@ -35,7 +37,7 @@ Import PMX/PMD characters, VMD motions and GLB/glTF props on the prep page. Choo
 
 Close views from the same camera, before (left) and after (right): [wisteria under the timber arbor](./docs/screenshots/wisteria-detail.webp) · [the meridian standard and enamel hour scale](./docs/screenshots/meridian-detail.webp).
 
-The four-set gallery and chapel are captured in screen mode. The classroom is the prep-page render; Astral Court is a desktop XR simulator capture. All show built-in scenery without imported characters. See [how the scenery is made](./docs/scenery/README.md) for the modelling and texture workflow.
+The gallery shows the built-in sets in screen mode, except for the classroom prep-page render. All show scenery without imported characters. See [how the scenery is made](./docs/scenery/README.md) for the modelling and texture workflow.
 
 ## Features
 

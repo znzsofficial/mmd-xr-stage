@@ -1,6 +1,7 @@
 import { CLASS_OBSTACLES, ROOM, seededRandom, type Footprint } from './ClassroomLayout';
 import type { SceneryId } from './catalog';
 import { CHAPEL, CHAPEL_OBSTACLES } from './ChapelLayout';
+import { OLD_COURT_RADIUS, onObservatoryFloor, ROUTE_FEET } from './ObservatoryLayout';
 
 // A placement is a point on a supported y=0 surface with a little shoe room;
 // it doesn't pretend to know a particular imported object's swept bounds.
@@ -14,7 +15,7 @@ function hits(r: Footprint, x: number, z: number, clearance = CLEAR) {
 }
 
 export const SIMPLE_FLOOR_RADIUS = 8;
-export const COURT_RADIUS = 6.8;
+export const COURT_RADIUS = OLD_COURT_RADIUS;
 // Paired piers bracket a rear stargate; broken columns light the approaches.
 export const COURT_PIERS = [
   {x:-2.78,z:-4.3,w:1.08,d:1.08}, {x:2.78,z:-4.3,w:1.08,d:1.08},
@@ -75,7 +76,7 @@ export function canPlaceInScenery(id: SceneryId, x: number, z: number): boolean 
   switch (id) {
     case 'chapel': return Math.abs(x)<CHAPEL.width/2-.30 && Math.abs(z)<CHAPEL.length/2-.30 && !CHAPEL_OBSTACLES.some(r=>hits(r,x,z));
     case 'floor': return Math.hypot(x, z) <= SIMPLE_FLOOR_RADIUS - CLEAR;
-    case 'astralCourt': return Math.hypot(x,z) <= COURT_RADIUS-CLEAR && !COURT_PIERS.some(p=>hits(p,x,z));
+    case 'astralCourt': return shoeOffsets.every(([dx,dz])=>onObservatoryFloor(x+dx,z+dz)) && !COURT_PIERS.some(p=>hits(p,x,z)) && !ROUTE_FEET.some(p=>hits(p,x,z));
     case 'liveHouse': return Math.max(Math.abs(x), Math.abs(z)) <= LIVE_DECK_SIZE / 2 - CLEAR &&
       z > -5.515 + CLEAR && !hits(cyc, x, z) && !wings.some(r => hits(r, x, z));
     case 'classroom': return Math.abs(x) < ROOM.w / 2 - CLEAR && Math.abs(z) < ROOM.d / 2 - CLEAR &&

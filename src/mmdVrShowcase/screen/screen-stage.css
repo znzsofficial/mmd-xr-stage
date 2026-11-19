@@ -20,6 +20,7 @@
 .screen-picture canvas{touch-action:none}
 .screen-picture>div:first-child{position:absolute!important;inset:0}
 .screen-corner{position:absolute;z-index:1;top:.85rem;left:clamp(.7rem,3vw,2.3rem);display:flex;gap:.45rem}
+.screen-corner:has(select){max-width:calc(100% - 1.2rem);flex-wrap:wrap}.screen-corner select{max-width:9rem}
 .screen-caption{position:absolute;left:clamp(.7rem,3vw,2.3rem);bottom:.85rem;max-width:calc(100% - 2rem);max-height:45%;overflow:auto;padding:.4rem .7rem;border-radius:.38rem;background:#20392fed;color:white;font-size:.84rem;overflow-wrap:anywhere}
 .screen-caption button{min-height:2rem;margin:.18rem .2rem .18rem .5rem}
 .screen-library{width:min(19rem,38%);flex:none;overflow-y:auto;background:var(--paper);border-left:1px solid var(--line);padding:1rem;overscroll-behavior:contain;scrollbar-color:#91a398 var(--paper)}

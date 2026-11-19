@@ -3,6 +3,7 @@
 ## Project Shape
 
 - Built-in modelling is environment content for imported characters. Use `scenery/catalog.ts` as the set identity across prep, HUD, layouts and reports. Author placeable ground together with the layout: a point inside furniture or over pool water cannot be accepted just because the pointing plane intersects it.
+- When expanding scenery, build connected destinations at human scale, with room to place the user's actors at each one. Check the walk in XR, the screen camera, and the actual placement ray at the far end; decorating the starting spot or enlarging a skybox does not extend the playable space.
 - The backpack owns file references for the lifetime of this page. Import is not a stage spawn; a fresh XR entry can have zero models. Keep runtime IDs separate from stable asset IDs; only mounted instances consume the three character/three object slots. Keep complete scene layouts as data, not hidden GPU/Bullet instances. End/switch invalidates command tokens only after taking any valid snapshot. Placement yaw is in **degrees** at the store boundary.
 
 - When resuming this work, read `docs/HANDOFF.md` first. Keep it short; put play status and instructions in `docs/gameplay/`, modelling in `docs/scenery/`, and timing evidence plus optimization priorities in `docs/performance/`. Read `PRODUCT.md` and `DESIGN.md` before VR UI edits; the porcelain palette is scoped to HUD, not the prep page or stage lighting.

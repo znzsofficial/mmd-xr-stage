@@ -466,7 +466,9 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
     if (patch.physicsHapticLevel != null) prefs.physicsHapticLevel = normalizeHapticLevel(patch.physicsHapticLevel);
     if (patch.physicsDynamicSelfCollision != null) prefs.physicsDynamicSelfCollision = Boolean(patch.physicsDynamicSelfCollision);
     prefsStorage.write(prefs);
-    set({ prefs, loop: prefs.loop });
+    // Leaving a distant terrace should not start the next set 39m from its door.
+    const leaveDistrict = get().prefs.scenery === 'astralCourt' && prefs.scenery !== 'astralCourt';
+    set({ prefs, loop: prefs.loop, ...(leaveDistrict ? {viewEpoch:get().viewEpoch+1} : {}) });
   },
   cyclePhysicsColliderRadius: () => {
     const radii = [0.04, 0.08, 0.12, 0.16];

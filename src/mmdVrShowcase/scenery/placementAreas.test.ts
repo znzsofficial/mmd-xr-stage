@@ -3,6 +3,7 @@ import { sceneryIds } from './catalog';
 import { ARBOR, ARBOR_POSTS, BACKLINE, canPlaceInScenery, LAWN_KNOLLS, LAWN_TREES, MEADOW_POSTS, MEADOW_SEAT, POOL, WEDGES } from './placementAreas';
 import { CLASS_FIXTURES, ROOM } from './ClassroomLayout';
 import { COURT_PIERS, COURT_RADIUS } from './placementAreas';
+import { ROUTE_FEET } from './ObservatoryLayout';
 import { CHAPEL_DAIS, CHAPEL_PEWS, CHAPEL_PIERS } from './ChapelLayout';
 
 describe('placeable ground at foot height', () => {
@@ -19,6 +20,13 @@ describe('placeable ground at foot height', () => {
   it.each(sceneryIds)('has a usable origin and rejects invalid space in %s', id => {
     expect(canPlaceInScenery(id,0,0)).toBe(true);
     for(const [x,z] of [[NaN,0],[0,Infinity],[100,100]]) expect(canPlaceInScenery(id,x,z)).toBe(false);
+  });
+  it('connects the gate, crossing and three distant terraces with continuous shoe room, but not the sky between islands',()=>{
+    const allowed=(x:number,z:number)=>canPlaceInScenery('astralCourt',x,z);
+    for(let z=0;z>=-43;z-=.125)expect(allowed(.32,z)).toBe(true);
+    for(let x=-26;x<=26;x+=.125)expect(allowed(x,-19.7)).toBe(true);
+    for(const p of ROUTE_FEET)expect(allowed(p.x,p.z)).toBe(false);
+    for(const [x,z] of [[1.65,-13],[3,-30],[10,-12],[10,-27],[0,-46.16],[-28.78,-20],[23,-12]])expect(allowed(x,z)).toBe(false);
   });
   it('leaves a continuous centre aisle and a window lane; the teaching and student furniture remains occupied', () => {
     for(let z=-4.8;z<4.7;z+=.15) for(const x of [-4.55,-1.15,0,1.15]) expect(canPlaceInScenery('classroom',x,z)).toBe(true);
