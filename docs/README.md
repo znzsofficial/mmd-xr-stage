@@ -2,6 +2,8 @@
 
 ## 从这里继续
 
+- **想知道布景怎么做**：[从立体部件、Python 贴图到实时水面](./scenery-art.md)。
+
 - **不用戴头显**：[屏幕观看：放角色、转镜头和播动作](./screen-viewing.md)。
 
 - **第一次进舞台**：[布景截图](../README.md#stage-gallery) · [导入角色和动作](./asset-workflow.md) · [在布景中选落点](./vr-controls.md#在布景中给角色选位置)。

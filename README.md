@@ -21,9 +21,9 @@ Import PMX/PMD characters, VMD motions and GLB/glTF props on the prep page. Choo
 
 | Summer pool | Wisteria meadow |
 | :---: | :---: |
-| ![Backstroke flags above the lanes; a depth marker is set into the pool deck.](./docs/screenshots/pool-terrace.webp) | ![A wisteria arbor casts a lattice shadow across the path beside a park bench.](./docs/screenshots/wisteria-path.webp) |
+| ![Backstroke flags above the lanes; a depth marker is set into the pool deck.](./docs/screenshots/pool-terrace.webp) | ![Lupines border the gravel path under the wisteria arbor.](./docs/screenshots/wisteria-path.webp) |
 | **Live House** | **Studio plinth** |
-| ![Drums and an electric piano flank the wood stage of the Listening Room.](./docs/screenshots/live-house.webp) | ![Two octagonal softboxes face a round plinth with a graduated arch behind it.](./docs/screenshots/studio-plinth.webp) |
+| ![Drums and an electric piano flank the wood stage of the Listening Room.](./docs/screenshots/live-house.webp) | ![A softbox and colour proof sheets frame the graduated studio arch.](./docs/screenshots/studio-plinth.webp) |
 
 **Astral Court · the saber beneath the orrery**
 
@@ -33,7 +33,7 @@ Import PMX/PMD characters, VMD motions and GLB/glTF props on the prep page. Choo
 
 ![A clear limestone aisle between oak pews, leading to the altar and its eight-petal stained-glass rose.](./docs/screenshots/dawn-chapel.webp)
 
-The chapel is captured in screen mode; the classroom is the render used on the prep page. The other five are desktop XR simulator captures. All show built-in scenery without imported characters.
+The four-set gallery and chapel are captured in screen mode. The classroom is the prep-page render; Astral Court is a desktop XR simulator capture. All show built-in scenery without imported characters. See [how the scenery is made](./docs/scenery-art.md) for the modelling and texture workflow.
 
 ## Features
 

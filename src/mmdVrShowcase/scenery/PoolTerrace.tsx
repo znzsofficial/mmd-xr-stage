@@ -3,7 +3,8 @@ import { useFrame } from '@react-three/fiber';
 import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, TorusGeometry, Vector3, type ShaderMaterial } from 'three';
 import { POOL } from './placementAreas';
 import { span } from './detailParts';
-import { seededRandom } from './ClassroomLayout';
+import { useBakedSurface } from './useBakedSurface';
+import pavementURL from './lido-pavement.webp';
 import { Batch, type Part } from './SceneryBatch';
 import { noPick, paintedSurface } from './sceneryPaint';
 
@@ -52,9 +53,19 @@ function furnishings() {
     for(const x of [-.32,.32]){put(x,.30,0,[.055,.09,1.8],'#a57c56');for(const z of [-.63,.63])put(x,.16,z,[.07,.32,.075],'#9e7853');}
     for(let j=0;j<9;j++)put(0,.37,-.83+j*.14,[.73,.04,.125],'#d3ae7c');
     for(let j=0;j<5;j++)put(0,.44+j*.094,.38+j*.098,[.73,.05,.13],'#d5b280',-.73);
-    put(0,.409,-.44,[.62,.038,.57],'#63a7a5');for(const dz of [-.64,-.57])put(0,.43,dz,[.62,.008,.026],'#e7efe3');
+    // Folded striped towelling with the hem turned over the side rail and fringe.
+    put(0,.409,-.44,[.72,.044,.57],'#63a7a5');put(-.344,.337,-.44,[.036,.151,.57],'#568d90');
+    for(const dz of [-.665,-.622,-.579,-.322,-.279,-.236]){
+      put(0,.433,dz,[.72,.006,.018],'#efddae');put(-.365,.336,dz,[.006,.15,.018],'#dacda3');}
+    for(let j=0;j<15;j++)put(-.345,.247,-.704+j*.037,[.014,.044+(j%3)*.007,.012],'#e3d5b6');
+    for(const dx of [-.32,.32])for(const dz of [-.62,.63])put(dx,.048,dz,[.086,.067,.091],'#686e69');
   }
-  for(const r of POOL.parasols){tube([r.x,.06,r.z],[.6,.12,.6],'#c2b79d');tube([r.x,1.28,r.z],[.061,2.44,.061],'#bc9369');}
+  for(const r of POOL.parasols){tube([r.x,.06,r.z],[.6,.12,.6],'#c2b79d');tube([r.x,1.28,r.z],[.061,2.44,.061],'#bc9369');
+    tube([r.x,.16,r.z],[.11,.12,.11],'#828d86');tube([r.x,1.80,r.z],[.11,.09,.11],'#8f9181');
+    for(let j=0;j<12;j++){const a=j*Math.PI/6,s=Math.sin(a),c=Math.cos(a);
+      blocks.push(span([r.x,2.455,r.z],[r.x+.82*s,2.32,r.z+.82*c],.019,'#dfc293'),span([r.x+.82*s,2.32,r.z+.82*c],[r.x+1.41*s,2.016,r.z+1.41*c],.018,'#c4ad86'),span([r.x,1.82,r.z],[r.x+.75*s,2.32,r.z+.75*c],.018,'#c9b28d'));
+    }
+  }
   // A low pool pavilion and its changing-room doors anchor the far end.
   box([.8,-.18,-22],[19,.65,4.5],'#dcceb6');box([.8,1.44,-23.15],[18.5,2.86,1.42],'#f2dfb9');
   box([.8,2.98,-22.5],[19,.18,3.6],'#598c88');box([.8,3.12,-22.5],[19.2,.13,3.8],'#e8dfc5');
@@ -72,25 +83,14 @@ function furnishings() {
   const rescue=POOL.rescue;
   for(const dx of [-.32,.32]){box([rescue.x+dx,.76,rescue.z],[.065,1.52,.07],'#547d78');box([rescue.x+dx,.035,rescue.z],[.17,.07,.40],steel);}
   box([rescue.x,1.34,rescue.z],[.89,.50,.07],'#dae5d4');box([rescue.x,1.59,rescue.z],[.91,.05,.10],'#4f807a');
-  // Ceramic depth bands set flush into the coping, outside the character's feet.
-  for(let i=0;i<41;i++)box([(i-20)*.244,.007,-5.58],[.226,.009,.105],i%4===0?'#3d8588':'#8eb7ad');
+  // Narrow ceramic kickplates and glazed transoms catch sky light across the pool.
+  for(let j=0;j<8;j++){const x=-7+j*2.14;box([x,.22,-22.366],[1.22,.24,.018],'#88a29a');box([x,2.48,-22.425],[1.44,.35,.05],'#a0bec0');
+    for(const dx of [-.64,0,.64])box([x+dx,2.48,-22.39],[.055,.37,.042],'#e6d7b7');}
   for(let j=0;j<24;j++) {const a=j*.73,x=(j%2?-1:1)*(14+3*Math.sin(a)),z=-29+(j>>1)*3.7,h=3.2+1.1*Math.cos(a);tube([x,(h-.2)/2,z],[.27,h+.2,.27],'#847663');for(let k=0;k<4;k++)crowns.push({p:[x+.82*Math.sin(k*2),h+.4*Math.cos(k*2),z+.8*Math.cos(k*2)],s:[2.7,2.2,2.3],color:['#769568','#8aab72','#668662','#94ad73'][k]});}
   return {blocks,drums,crowns};
 }
 
 const lineY=(x:number)=>2.64+.37*(x/5.45)**2;
-function deckStone(){return paintedSurface(1024,600,g=>{
-  const rand=seededRandom(4270),slabs=['#e4d6bd','#e9dcc4','#e5d9c3','#e2d6be','#e7d9c0'];
-  g.fillStyle='#b7ad99';g.fillRect(0,0,1024,600);
-  for(let j=0;j<19;j++)for(let i=-1;i<19;i++){
-    const x=i*64+(j%2)*32,y=j*34;g.fillStyle=slabs[Math.floor(rand()*slabs.length)];g.fillRect(x+.5,y+.4,63.2,33.1);
-  }
-  for(const tint of ['rgba(115,104,87,.17)','rgba(255,250,229,.32)']){g.fillStyle=tint;for(let i=0;i<3400;i++)g.fillRect(rand()*1024,rand()*600,rand()*2.2+.6,rand()*1.5+.5);}
-  for(const x of [376,648]){
-    g.fillStyle='#f5ead3';g.fillRect(x-25,10,50,18);g.strokeStyle='#648784';g.lineWidth=1;g.strokeRect(x-25,10,50,18);
-    g.textAlign='center';g.fillStyle='#295b64';g.font='bold 12px system-ui';g.fillText('1.12 m',x,23);
-  }
-});}
 function flagCloth(){
   const p:number[]=[],c:number[]=[],color=new Color();
   for(const z of [-9.5,-16.8])for(let i=-10;i<=10;i++){
@@ -127,6 +127,14 @@ function Water() {
       vec2 tile=uv*3.;vec2 gap=abs(fract(tile+.5)-.5)/max(fwidth(tile),vec2(.001));float grout=1.-smoothstep(.2,1.2,min(gap.x,gap.y));
       float stripe=(1.-smoothstep(.075,.13,abs(mod(hit.x+3.34,3.34)-1.67)))*step(bed,min(wall.x,wall.y));
       vec3 c=mix(vec3(.32,.73,.72),vec3(.035,.24,.31),stripe);c=mix(c,vec3(.2,.48,.53),grout*.42);
+      // A glazed ribbon just below the coping. Pattern lives on the refracted
+      // wall, not on the surface, so it moves correctly against the floating boat.
+      if(bed>min(wall.x,wall.y)){
+        float border=smoothstep(-.64,-.62,hit.y)*(1.-smoothstep(-.27,-.25,hit.y));
+        float wave=abs(hit.y+.449+.073*sin(uv.x*6.30));
+        vec3 enamel=mix(vec3(.047,.32,.43),vec3(.64,.79,.66),1.-smoothstep(.018,.036,wave));
+        c=mix(c,mix(enamel,vec3(.44,.67,.64),grout*.55),border*.9);
+      }
       float caustic=abs(sin(uv.x*6.1+t+.85*sin(uv.y*4.-t))+cos(uv.y*5.-.61*t+sin(uv.x*3.7)));
       c+=vec3(.18,.24,.19)*(1.-smoothstep(.025,.18,caustic))*exp(-.4*dist);c=mix(c,vec3(.015,.31,.40),1.-exp(-dist*.39));
       float fres=.025+.86*pow(1.-max(dot(n,eye),0.),4.);c=mix(c,vec3(.47,.73,.83),fres);
@@ -137,14 +145,14 @@ function Water() {
 }
 
 export function PoolTerrace({shadows}:{shadows:boolean}) {
-  const p=useMemo(furnishings,[]), top=useMemo(canopy,[]),flags=useMemo(flagCloth,[]),ring=useMemo(lifeRing,[]),stone=useMemo(deckStone,[]);
+  const p=useMemo(furnishings,[]), top=useMemo(canopy,[]),flags=useMemo(flagCloth,[]),ring=useMemo(lifeRing,[]),stone=useBakedSurface(pavementURL);
   const sign=useMemo(()=>paintedSurface(512,96,g=>{g.fillStyle='#216b74';g.fillRect(0,0,512,96);g.fillStyle='#faf2d7';g.textAlign='center';g.font='600 44px system-ui';g.fillText('AQUATICS CLUB',256,63);}),[]);
-  useEffect(()=>()=>{top.dispose();sign.dispose();flags.dispose();ring.dispose();stone.dispose();},[top,sign,flags,ring,stone]);
+  useEffect(()=>()=>{top.dispose();sign.dispose();flags.dispose();ring.dispose();},[top,sign,flags,ring]);
   return <group name="scenery:pool"><Batch name="lido-terrace-and-pavilion" parts={p.blocks} casts={shadows} /><Batch name="pool-metalwork" parts={p.drums} round /><Batch name="pool-gardens" parts={p.crowns} foliage />
     {POOL.parasols.map(r=><mesh key={r.x} position={[r.x,2.51,r.z]} geometry={top} castShadow={shadows} raycast={noPick}><meshStandardMaterial side={DoubleSide} vertexColors roughness={1}/></mesh>)}
     <mesh position={[0,2.93,-20.69]} raycast={noPick}><planeGeometry args={[3.35,.62]} /><meshStandardMaterial map={sign} /></mesh>
     <mesh geometry={flags} raycast={noPick}><meshStandardMaterial vertexColors roughness={1} side={DoubleSide}/></mesh>
     <mesh geometry={ring} position={[POOL.rescue.x,1.18,POOL.rescue.z+.11]} raycast={noPick}><meshStandardMaterial vertexColors roughness={.76}/></mesh>
-    <mesh rotation-x={-Math.PI/2} position={[POOL.deck.x,.002,POOL.deck.z]} receiveShadow={shadows} raycast={noPick}><planeGeometry args={[POOL.deck.w,POOL.deck.d]}/><meshStandardMaterial map={stone} roughness={.94} polygonOffset polygonOffsetFactor={-1}/></mesh>
+    <mesh rotation-x={-Math.PI/2} position={[POOL.deck.x,.002,POOL.deck.z]} receiveShadow={shadows} raycast={noPick}><planeGeometry args={[POOL.deck.w,POOL.deck.d]}/><meshStandardMaterial key={stone?'tiles':'loading'} map={stone} color={stone?'white':'#e4d6bd'} roughness={.94} polygonOffset polygonOffsetFactor={-1}/></mesh>
     <Water /></group>;
 }

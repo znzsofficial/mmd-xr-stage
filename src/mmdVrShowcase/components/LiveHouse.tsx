@@ -4,7 +4,8 @@ import { Batch, type Part } from "../scenery/SceneryBatch";
 import { WEDGES, LIVE_DECK_SIZE, BACKLINE } from '../scenery/placementAreas';
 import { span } from '../scenery/detailParts';
 import { noPick, paintedSurface } from '../scenery/sceneryPaint';
-import { seededRandom } from '../scenery/ClassroomLayout';
+import { useBakedSurface } from '../scenery/useBakedSurface';
+import parquetURL from '../scenery/club-parquet.webp';
 
 function architecture(concert: boolean) {
   const blocks: Part[] = [];
@@ -78,12 +79,15 @@ function architecture(concert: boolean) {
   round(0,.54,.08,.70,.39,shell,Math.PI/2);
   for(const z of [-.13,.29])round(0,.54,z,.72,.038,metal,Math.PI/2);
   round(0,.54,.315,.66,.013,'#dfd6c0',Math.PI/2);round(.14,.43,.328,.12,.015,'#322f30',Math.PI/2);
+  for(let j=0;j<10;j++){const a=j*Math.PI/5,xx=.339*Math.cos(a),yy=.54+.339*Math.sin(a);
+    box([d.x+xx,yy,d.z+.087],[.035,.045,.39],metal);round(xx,yy,.317,.042,.034,'#c8c5b7',Math.PI/2);}
+  for(const sign of [-1,1])cones.push(span([d.x+sign*.25,.40,d.z+.15],[d.x+sign*.43,.18,d.z+.33],.035,metal));
   for(const [x,z,w,y] of [[-.52,.01,.38,.76],[.54,-.04,.44,.66],[-.17,-.04,.31,.95],[.20,-.04,.34,.9]]){
     round(x,y,z,w,.24,shell);round(x,y+.12,z,w+.025,.021,metal);round(x,y+.135,z,w-.025,.009,'#dbd0bf');round(x,y-.115,z,w+.02,.025,metal);
     for(const sign of [-1,1])round(x+sign*w*.39,y,z+w*.31,.026,.20,metal);
   }
   for(const [x,z,y,w] of [[-.77,-.12,1.37,.44],[.72,-.24,1.52,.57],[-.64,.34,1.03,.33]]){
-    round(x,y-.014,z,w,.024,'#d9ad65');round(x,y+.013,z,w*.22,.041,'#bb955a');round(x,(y+.17)/2,z,.029,y-.17,metal);
+    round(x,y-.014,z,w,.016,'#c8a467');round(x,y-.001,z,w*.83,.011,'#d5b780');round(x,y+.009,z,w*.55,.014,'#d0ab69');round(x,y+.027,z,w*.22,.041,'#b99660');round(x,y+.055,z,.044,.023,'#52484b');round(x,(y+.17)/2,z,.029,y-.17,metal);
     for(let i=0;i<3;i++){const a=i*2.094;cones.push(span([d.x+x,.38,d.z+z],[d.x+x+.16*Math.sin(a),.18,d.z+z+.16*Math.cos(a)],.021,metal));}
   }
   // Side-stage electric piano: crossed stand, individual ebony and ivory keys.
@@ -95,24 +99,21 @@ function architecture(concert: boolean) {
     if(i<34&&![2,6].includes(i%7))box([x+.021,1.102,k.z+.065],[.026,.046,.177],'#363237');
   }
   strips.push({p:[k.x-.46,1.06,k.z-.146],s:[.13,.008,.071],color:'#94b8b1'});
+  // Physical controls on the sound bank and a sustain pedal tucked under the keys.
+  for(let i=0;i<8;i++){box([k.x-.21+i*.069,1.06,k.z-.129],[.018,.012,.107],'#20222a');box([k.x-.21+i*.069,1.074,k.z-.13+Math.sin(i*1.9)*.026],[.047,.022,.021],'#a6a79d');}
+  for(let i=0;i<6;i++)box([k.x+.46+i*.048,1.063,k.z-.13],[.037,.018,.044],i===1?'#c49a6e':'#8e9193');
+  box([k.x+.15,.029,k.z+.18],[.13,.058,.24],'#393a3c');box([k.x+.15,.061,k.z+.16],[.072,.026,.16],metal);
+  // A quilted strip on the riser fascia and two sticks resting on the snare.
+  for(let j=0;j<16;j++)box([d.x+(j-7.5)*.122,.09,d.z+d.d/2+.003],[.079,.055,.012],j%2?'#ac8667':'#897474',0,.36);
+  for(const sign of [-1,1])cones.push(span([d.x-.52-sign*.12,.914,d.z-.06],[d.x-.52+sign*.095,.926,d.z+.14],.014,'#d8b38b'));
   return { blocks, lamps, strips, cones };
 }
 
-function stageBoards(){return paintedSurface(1024,1024,g=>{
-  const rng=seededRandom(60118),wood=['#917461','#826957','#8b705e','#967965','#886c59'];
-  g.fillStyle='#514740';g.fillRect(0,0,1024,1024);
-  for(let row=0;row<32;row++)for(let x=-200*rng();x<1024;){const w=166+rng()*173,y=row*32;
-    g.fillStyle=wood[Math.floor(rng()*wood.length)];g.fillRect(x+1,y+.8,w-1,30.5);
-    g.save();g.beginPath();g.rect(x+1,y+1,w-2,30);g.clip();
-    for(let j=0;j<17;j++){const yy=y+2+rng()*28;g.strokeStyle=j%3?'rgba(52,32,22,.13)':'rgba(235,205,165,.19)';g.lineWidth=.6+rng()*.9;
-      g.beginPath();g.moveTo(x,yy);g.bezierCurveTo(x+w*.28,yy-3*rng(),x+w*.72,yy+3*rng(),x+w,yy+2*rng()-1);g.stroke();}
-    g.restore();x+=w;
-  }
-  // Small strips of spike tape mark the two sidestage instrument positions.
-  for(const p of [BACKLINE.drums,BACKLINE.keys])for(const s of [-1,1]){
-    const px=512+(p.x+s*(p.w/2+.09))*1024/LIVE_DECK_SIZE,py=512+(p.z+p.d/2+.09)*1024/LIVE_DECK_SIZE;
-    g.fillStyle='#c8b586';g.fillRect(px-8,py,16,2.6);g.fillRect(px-s*8,py-10,2.7,12);
-  }
+function drumHead(){return paintedSurface(256,256,g=>{
+  g.fillStyle='#e3dcc6';g.fillRect(0,0,256,256);g.translate(128,128);
+  for(const r of [119,111,75]){g.beginPath();g.strokeStyle=r===75?'#cbbd9f':'#afa695';g.lineWidth=r===75?1.4:2;g.arc(0,0,r,0,Math.PI*2);g.stroke();}
+  g.strokeStyle='#596565';g.lineWidth=3.5;g.beginPath();for(let j=0;j<=100;j++){const x=-55+j*1.1,y=5+Math.sin(x*.18)*15*(1-Math.abs(x)/57);if(j===0)g.moveTo(x,y);else g.lineTo(x,y);}g.stroke();
+  g.fillStyle='#4b5a5c';g.textAlign='center';g.font='600 17px system-ui';g.fillText('LISTENING ROOM',0,-28);g.font='12px system-ui';g.fillText('HOUSE  KIT',-14,36);
 });}
 
 // Bake the light wash into the drape vertices, not a transparent screen quad.
@@ -142,11 +143,12 @@ function Cyclorama({ concert }: { concert: boolean }) {
 
 export function LiveHouse({ concert }: { concert: boolean }) {
   const parts = useMemo(() => architecture(concert), [concert]);
-  const boards=useMemo(stageBoards,[]);
+  const boards=useBakedSurface(parquetURL),head=useMemo(drumHead,[]);
   const print=useMemo(()=>paintedSurface(768,128,g=>{g.fillStyle='#302b31';g.fillRect(0,0,768,128);g.strokeStyle='#b69a78';g.strokeRect(8,8,752,112);g.fillStyle='#f1d8a4';g.font='600 54px system-ui';g.textAlign='center';g.fillText('THE LISTENING ROOM',384,82);}),[]);
-  useEffect(()=>()=>{print.dispose();boards.dispose();},[print,boards]);
+  useEffect(()=>()=>{print.dispose();head.dispose();},[print,head]);
   return <group name="live-house">
-    <mesh rotation-x={-Math.PI/2} receiveShadow raycast={noPick}><planeGeometry args={[LIVE_DECK_SIZE,LIVE_DECK_SIZE]}/><meshStandardMaterial map={boards} roughness={.68}/></mesh>
+    <mesh rotation-x={-Math.PI/2} receiveShadow raycast={noPick}><planeGeometry args={[LIVE_DECK_SIZE,LIVE_DECK_SIZE]}/><meshStandardMaterial key={boards?'grain':'loading'} color={boards?'white':'#8a705e'} map={boards} roughness={.68}/></mesh>
+    <mesh position={[BACKLINE.drums.x,.54,BACKLINE.drums.z+.324]} raycast={noPick}><circleGeometry args={[.328,40]}/><meshStandardMaterial map={head} roughness={.82}/></mesh>
     <Cyclorama concert={concert} />
     <Batch parts={parts.blocks} name="deck-curtains-truss" />
     <Batch parts={parts.cones} name="speaker-drivers" round />
