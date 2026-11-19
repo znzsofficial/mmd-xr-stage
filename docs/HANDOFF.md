@@ -1,8 +1,8 @@
 # 会话交接｜2026-11-19
 
-[线上舞台](https://mmd-xr-stage.pages.dev) · [固定功能版 `91d6aa0`](https://4a93af3d.mmd-xr-stage.pages.dev) · [分类文档索引](./README.md)
+[线上舞台](https://mmd-xr-stage.pages.dev) · [固定功能版 `f28edaa`](https://79779c1a.mmd-xr-stage.pages.dev) · [分类文档索引](./README.md)
 
-**线上基线**：VMD＋物理播放合并冗余骨架传播；一次观看内复用有上限的已解析 VMD，回场重新绑定。294 项测试、真实动作骨矩阵／表情／蒙皮对照、暂停拨衣与掌面托裙回落、模拟 XR 往返恢复播放、生产构建与主域名 44 项资源哈希通过。[本地测量](./performance/xr-runtime-performance.md#逐帧骨架更新与回场-vmd-复用) · [玩家／角色／环境设置](./gameplay/vr-controls.md)。
+**线上基线**：「胸部受压形变」在 VR 角色设置与屏幕播放条，默认开。保留原手臂、手腕和手指轨迹，只形变可识别的胸骨及关联蒙皮；旧掌面试验独立，接触细调已移入场内。实模开关物理各 1800 帧，497 根非胸部骨骼世界矩阵差为零。295 项测试通过，模拟 XR、生产构建及主域名 44 项资源哈希已核对。[本地测量](./performance/xr-runtime-performance.md) · [操作](./gameplay/vr-controls.md)。
 
 ## 下次从这里开始
 
