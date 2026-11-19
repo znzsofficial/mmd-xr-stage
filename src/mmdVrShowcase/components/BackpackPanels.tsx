@@ -12,8 +12,9 @@ import { TOYS, useStagePlay, type Toy, type Hand } from '../play/stagePlay';
 export function SceneryPanel({ onClose, onSelected, locked }: { onClose: () => void; onSelected: () => void; locked: boolean }) {
   const t = useLanguageStore(s => s.t);
   const current = useMmdVrStore(s => s.prefs.scenery);
+  const extra = Math.max(0, Math.ceil(sceneryIds.length / 2) - 3) * .23;
   return <group name="hud-scenery">
-    <HudSheet size={[1.98, 1.07]} />
+    <group position-y={-extra/2}><HudSheet size={[1.98, 1.07+extra]} /></group>
     <HudLine position={[-0.48, 0.37, 0]} text={t("hudScenery")} width={0.8} role="title" />
     <HudButton position={[0.57, 0.37, 0]} label={t("hudBack")} size={[0.65, 0.14]} onPress={onClose} variant="quiet" />
     {sceneryIds.map((id, i) => <HudButton key={id} position={[(i % 2 - 0.5) * 0.92, 0.13 - Math.floor(i / 2) * 0.23, 0]}

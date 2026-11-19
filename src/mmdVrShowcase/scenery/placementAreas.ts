@@ -1,5 +1,6 @@
 import { CLASS_OBSTACLES, ROOM, seededRandom, type Footprint } from './ClassroomLayout';
 import type { SceneryId } from './catalog';
+import { CHAPEL, CHAPEL_OBSTACLES } from './ChapelLayout';
 
 // A placement is a point on a supported y=0 surface with a little shoe room;
 // it doesn't pretend to know a particular imported object's swept bounds.
@@ -72,6 +73,7 @@ export const LAWN_TREES = Array.from({ length: 19 }, (_, i) => {
 export function canPlaceInScenery(id: SceneryId, x: number, z: number): boolean {
   if (!Number.isFinite(x) || !Number.isFinite(z)) return false;
   switch (id) {
+    case 'chapel': return Math.abs(x)<CHAPEL.width/2-.30 && Math.abs(z)<CHAPEL.length/2-.30 && !CHAPEL_OBSTACLES.some(r=>hits(r,x,z));
     case 'floor': return Math.hypot(x, z) <= SIMPLE_FLOOR_RADIUS - CLEAR;
     case 'astralCourt': return Math.hypot(x,z) <= COURT_RADIUS-CLEAR && !COURT_PIERS.some(p=>hits(p,x,z));
     case 'liveHouse': return Math.max(Math.abs(x), Math.abs(z)) <= LIVE_DECK_SIZE / 2 - CLEAR &&

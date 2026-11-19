@@ -5,6 +5,7 @@ export const en: Record<keyof ZhMessages, string> = {
   importBindResource: "Choose a file for this reference",
   hudBack: "Back to viewing",
   hudScenery: "Scenery",
+  hudChapel: "Dawn Chapel",
   screenHideAsset:'Hide',screenShowAsset:'Show',
   screenWatch:'Watch on screen', screenAim:'Click a footprint on the ground to place', screenOrbit:'Drag to orbit · Scroll or pinch to zoom', screenCenter:'Place at centre', screenLoop:'Loop', screenSeek:'Playback position', screenFit:'Frame selection', screenEmpty:'No characters or props yet. Return to setup to import files, or drag to explore the set.', screenPickMotion:'Choose motion', screenWebgl:'WebGL could not start. Enable hardware acceleration or try a browser with WebGL 2.', screenHide:'Close backpack', screenSaber:'Give character a saber',
   hudAstralCourt: "Astral Court", toySaber: "Astral saber", toySaberHint: "Squeeze to light or retract",

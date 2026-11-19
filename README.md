@@ -29,7 +29,11 @@ Import PMX/PMD characters, VMD motions and GLB/glTF props on the prep page. Choo
 
 ![A lit teal saber above a stone star chart, facing a suspended orrery and a broken arch.](./docs/screenshots/astral-court.webp)
 
-The classroom image is the render used on the prep page. The remaining images are desktop XR simulator captures. All six show built-in scenery without imported characters.
+**Dawn Chapel · the lily window above the sanctuary**
+
+![A clear limestone aisle between oak pews, leading to the altar and its eight-petal stained-glass rose.](./docs/screenshots/dawn-chapel.webp)
+
+The chapel is captured in screen mode; the classroom is the render used on the prep page. The other five are desktop XR simulator captures. All show built-in scenery without imported characters.
 
 ## Features
 
@@ -44,7 +48,7 @@ The classroom image is the render used on the prep page. The remaining images ar
 
 For desktop and touch controls instead, see [Watching without a headset](./docs/screen-viewing.md). The same-tab backpack and scene layouts work in either mode.
 
-- Choose a set from the viewing strip: the window-lit classroom, pool terrace, wisteria path, live venue, studio plinth or Astral Court. See the [standing spots for each set](./docs/vr-controls.md#在布景中给角色选位置). Only the current room's instances are loaded; scenery does not consume character or object slots.
+- Choose a set from the viewing strip: the window-lit classroom, pool terrace, wisteria path, live venue, studio plinth, Astral Court or Dawn Chapel. See the [standing spots for each set](./docs/vr-controls.md#在布景中给角色选位置). Only the current room's instances are loaded; scenery does not consume character or object slots.
 - Pick a character or prop from the backpack, aim at free ground, and release the trigger to place it. Select a placed character to move, turn, scale, change its motion, or put it away. Hidden items remain reachable from the backpack.
 - Equip a bubble blower, Lunar Post stamp or Astral saber from Backpack → Toys. Squeeze the side grip once to extend the saber, again to retract it. To [give a toy to a character](./docs/vr-controls.md#把道具递给角色), point at the character, press the trigger, choose **Give toy**, then pick its left or right hand. A lit saber stays lit and follows the wrist during VMD playback.
 - Render diagnostics distinguish requested settings, session-reported refresh/layer properties, callback cadence, model-update CPU cost and renderer resource/draw counters. No GPU time is inferred from these values.

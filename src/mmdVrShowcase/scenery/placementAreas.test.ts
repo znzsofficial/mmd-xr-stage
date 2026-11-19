@@ -3,8 +3,14 @@ import { sceneryIds } from './catalog';
 import { ARBOR, ARBOR_POSTS, BACKLINE, canPlaceInScenery, LAWN_KNOLLS, LAWN_TREES, MEADOW_POSTS, MEADOW_SEAT, POOL, WEDGES } from './placementAreas';
 import { CLASS_FIXTURES, ROOM } from './ClassroomLayout';
 import { COURT_PIERS, COURT_RADIUS } from './placementAreas';
+import { CHAPEL_DAIS, CHAPEL_PEWS, CHAPEL_PIERS } from './ChapelLayout';
 
 describe('placeable ground at foot height', () => {
+  it('preserves the chapel portrait and procession lanes but rejects pews, pier feet, steps and positions beyond the walls',()=>{
+    for(let z=-5.26;z<7.8;z+=.15)for(const x of [-4.8,-.85,0,.85,4.8])expect(canPlaceInScenery('chapel',x,z)).toBe(true);
+    for(const {x,z} of [...CHAPEL_PEWS,...CHAPEL_PIERS,CHAPEL_DAIS])expect(canPlaceInScenery('chapel',x,z)).toBe(false);
+    for(const [x,z] of [[1.49,-2.4],[0,-5.52],[5.68,1.5],[0,9.01]])expect(canPlaceInScenery('chapel',x,z)).toBe(false);
+  });
   it('leaves clear space under the broken arch but excludes the feet of every pier and the floating rim',()=>{
     for(const {x,z} of COURT_PIERS)expect(canPlaceInScenery('astralCourt',x,z)).toBe(false);
     for(const z of [-5,-4.3,-2,0,3])expect(canPlaceInScenery('astralCourt',0,z)).toBe(true);

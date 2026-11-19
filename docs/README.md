@@ -19,7 +19,7 @@
 | [three-mmd-loader-maintenance.md](./three-mmd-loader-maintenance.md) | three-mmd-loader 本地补丁、根因与升级收尾步骤 |
 | [xr-runtime-performance.md](./xr-runtime-performance.md) | CCD IK 补丁与等价对照、裙摆抖动测量、手部碰撞及 Bullet 回归 |
 | [xr-session-lifecycle.md](./xr-session-lifecycle.md) | XR 进入状态、取消、首帧、StrictMode 与资源所有权 |
-| [vr-controls.md](./vr-controls.md) | 光剑、泡泡枪和盖印器，六种布景的角色站位、菜单召回与手追 |
+| [vr-controls.md](./vr-controls.md) | 光剑、泡泡枪和盖印器，各布景的角色站位、菜单召回与手追 |
 | [webgpu-xr-status.md](./webgpu-xr-status.md) | WebGPU XR 支持现状、来源与本项目迁移边界 |
 | [deployment.md](./deployment.md) | Pages 部署路径与 wrangler ≥4.130 代理委托坑 |
 | [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md) | Bullet 运行时第三方声明 |

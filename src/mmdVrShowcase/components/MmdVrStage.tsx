@@ -22,6 +22,8 @@ import { objectHeadingDegrees, setObjectHeadingDegrees } from "../objectHeading"
 import { LiveHouse } from "./LiveHouse";
 import { StudioPlinth } from '../scenery/StudioPlinth';
 import { AstralCourt, CourtSky } from '../scenery/AstralCourt';
+import { DawnChapel } from '../scenery/DawnChapel';
+import { CHAPEL_SUN } from '../scenery/ChapelLayout';
 import { prepareModelGpu } from "../prepareModelGpu";
 import { createPlacementWork } from '../placementWork';
 import { DaylightSet, DaySky, SUN_POSITIONS } from "../scenery/DaylightSets";
@@ -297,7 +299,7 @@ export function MmdVrStageRoom({ scenery, saved, slots }: { scenery: SceneryId; 
   const lightPreset = mmdPrefs.lightPreset;
   const daySet = scenery === "classroom" || scenery === "pool" || scenery === "lawn" ? scenery : null;
   const baseLight = LIGHT_PRESETS[lightPreset] ?? LIGHT_PRESETS.stage;
-  const lightCfg = useMemo(() => scenery==='astralCourt' ? {...baseLight, hemiSky:'#dadcf5', hemiGround:'#797883', hemi:baseLight.hemi+.42, fogColor:'#555572'} : !daySet ? baseLight : ({ ...baseLight,
+  const lightCfg = useMemo(() => scenery==='chapel' ? {...baseLight, sunPos:CHAPEL_SUN, hemiSky:'#f5ede0', hemiGround:'#bcada1', hemi:baseLight.hemi+.56, fogColor:'#d9d1c7'} : scenery==='astralCourt' ? {...baseLight, hemiSky:'#dadcf5', hemiGround:'#797883', hemi:baseLight.hemi+.42, fogColor:'#555572'} : !daySet ? baseLight : ({ ...baseLight,
     sunPos: SUN_POSITIONS[daySet], hemiSky: "#d4e5ee", hemiGround: daySet === "lawn" ? "#72845a" : "#a79d8d",
     hemi: baseLight.hemi + 0.32, fogColor: lightPreset === "warm" ? "#e7c8a7" : "#c5dfe6",
   }), [daySet, baseLight, lightPreset, scenery]);
@@ -1042,6 +1044,7 @@ export function MmdVrStageRoom({ scenery, saved, slots }: { scenery: SceneryId; 
       />
       {scenery === "liveHouse" && <LiveHouse concert={lightPreset === "contrast"} />}
       {scenery === "astralCourt" && <AstralCourt shadows={profile.shadows}/>}
+      {scenery === 'chapel' && <DawnChapel shadows={profile.shadows}/>}
       {daySet && <DaylightSet id={daySet} shadows={profile.shadows} />}
       {mmdPrefs.stageLightPoolEnabled ? (
         <StageLightPool color={lightCfg.poolColor} opacity={Math.min(0.14, rimIntensity * 0.08)} />

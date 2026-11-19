@@ -8,6 +8,7 @@ import type { SceneryId } from '../scenery/catalog';
 
 type Point = [number,number,number];
 const views: Record<SceneryId,[Point,Point]> = {
+  chapel:[[.25,1.63,4.7],[0,1.68,-3.8]],
   floor:[[1.4,1.65,4.0],[0,.95,-.4]], liveHouse:[[.8,1.7,4.4],[0,1.05,-1.3]],
   classroom:[[.15,1.58,3.95],[0,1.05,-1.4]], pool:[[2.1,1.7,2.8],[0,.85,-3.7]],
   lawn:[[.6,1.65,3.7],[0,1.0,-1.4]], astralCourt:[[.85,1.65,4.4],[0,1.47,-1.25]],
