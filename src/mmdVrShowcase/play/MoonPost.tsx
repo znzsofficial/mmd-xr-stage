@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { paintedSurface, noPick } from '../scenery/sceneryPaint';
-import { POST_MARKS, POST_Z, useStagePlay } from './stagePlay';
+import { POST_MARKS, POST_Z, useLunarCard } from './lunarCard';
+import { useStagePlay } from './stagePlay';
 
 const palette=['#ffc883','#a2ece1','#ffc3cd'];
 function emblem(g:CanvasRenderingContext2D,i:number,r:number,color:string) {
@@ -26,7 +27,7 @@ function cardTexture(first:number) {return paintedSurface(1024,560,g=>{
   g.save();g.translate(850,118);g.rotate(-.15);g.strokeStyle=palette[first];g.lineWidth=3;for(const r of [62,69]){g.beginPath();g.arc(0,0,r,0,2*Math.PI);g.stroke();}emblem(g,first,34,palette[first]);g.restore();
   g.fillStyle='#eee2c9';g.fillRect(31,h-58,w-62,29);g.fillStyle='#244051';g.font='600 15px system-ui';g.fillText('EARTH   →   LUNA',50,h-37);g.fillText('01  /  FIRST ISSUE',w-205,h-37);
 });}
-export function MoonPost(){const stamps=useStagePlay(s=>s.stamps), held=useStagePlay(s=>s.held?.toy==='post');const first=stamps[0]??0;
+export function MoonPost(){const stamps=useLunarCard(s=>s.stamps), held=useStagePlay(s=>s.held?.toy==='post');const first=stamps[0]??0;
   const card=useMemo(()=>stamps.length===3?cardTexture(first):null,[stamps.length,first]);useEffect(()=>()=>card?.dispose(),[card]);
   if(!held&&!card)return null;
   return <group name="play:moon-post" pointerEvents="none">

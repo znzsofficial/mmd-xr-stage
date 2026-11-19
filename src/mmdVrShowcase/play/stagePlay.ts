@@ -1,52 +1,55 @@
 import { create } from 'zustand';
 import type { SceneryId } from '../scenery/catalog';
-export const TOYS = {
-  kite: { label:'toyKite', hint:'toyKiteHint', home:'lawn', visit:'visitKite' },
-  encore: { label:'toyEncore', hint:'toyEncoreHint', home:'liveHouse', visit:'visitEncore' },
-  bubbles: { label:'toyBubbles', hint:'toyBubblesHint', home:'pool', visit:'visitFerry' },
-  post: { label:'toyPost', hint:'toyPostHint', home:'floor', visit:'visitPost' },
-  saber: { label:'toySaber', hint:'toySaberHint', home:'astralCourt', visit:'visitSaber' },
-  dildo: { label:'toyDildo', hint:'guideDildoVr', home:null, visit:null },
-} as const;
-export type Toy = keyof typeof TOYS;
-export const shelfToys = Object.keys(TOYS) as readonly Toy[];
-export const toyWorksHere=(toy:Toy,room:SceneryId)=>TOYS[toy].home===room;
-export const toyHomeLabel={kite:'hudLawn',encore:'toyClubName',bubbles:'hudPool',post:'toyStudioName',saber:'hudAstralCourt',dildo:'allSets'} as const satisfies Record<Toy,string>;
-export const TOY_GUIDES={
-  kite:['guideKiteVr','guideKiteScreen','guideKiteEnd'], encore:['guideEncoreVr','guideEncoreScreen','guideEncoreEnd'],
-  bubbles:['guideBubblesVr','guideBubblesScreen','guideBubblesEnd'], post:['guidePostVr','guidePostScreen','guidePostEnd'],
-  saber:['guideSaberVr','guideSaberScreen','guideSaberEnd'],
-  dildo:['guideDildoVr','guideDildoScreen','guideDildoEnd'],
-} as const satisfies Record<Toy,readonly [string,string,string]>;
-export type Hand = 'left' | 'right';
-export const STORIES = {
-  lawn: {name:'storyKite', toy:'kite', left:'storyWindLeft', right:'storyWindRight'},
-  pool: {name:'storyFerry', toy:'bubbles', left:'storyFerryLeft', right:'storyFerryRight'},
-  liveHouse: {name:'storyEncore', toy:'encore', left:'storyDyeLeft', right:'storyDyeRight'},
-} as const;
-export type StoryRoom = keyof typeof STORIES;
-export function isStoryRoom(room: SceneryId):room is StoryRoom {return Object.hasOwn(STORIES,room);}
-export type CharacterToy = { assetId: string; toy: Toy; hand: Hand; tilt: number; inset: number };
-export const POST_Z = -5.15;
-export const POST_MARKS = [[-1.7,2.15],[0,2.82],[1.7,2.15]] as const;
-export const MARK_RADIUS = .38;
-export function markAt(x:number,y:number) {
-  return POST_MARKS.findIndex(([a,b]) => (x-a)**2+(y-b)**2 <= MARK_RADIUS**2);
+import { TOYS, shelfToys, type Hand, type Toy } from './propCatalog';
+
+export type { Hand, Toy, StoryRoom } from './propCatalog';
+export { isStoryRoom } from './propCatalog';
+export type CharacterToy = { assetId:string; toy:Toy; hand:Hand; tilt:number; inset:number };
+type Owners = { held:{toy:Toy; hand:Hand}|null; character:CharacterToy|null };
+export const ownerOf = (s:Owners) => s.held ?? s.character;
+export const canUseGrip = (s:Owners,toy:Toy,hand:Hand,room:SceneryId) =>
+  s.held?.toy===toy && s.held.hand===hand && TOYS[toy].home===room;
+export const canGiveTo = (actor:{visible:boolean; wrists?:Partial<Record<Hand,boolean>>}|undefined, hand:Hand) =>
+  !!actor?.visible && !!actor.wrists?.[hand];
+
+type Play = Owners & {
+  equip:(toy:Toy,hand:Hand)=>void; stow:()=>void; reset:()=>void;
+  give:(assetId:string,hand:Hand)=>void; adjust:(tilt:number,inset:number)=>void;
+};
+export const useStagePlay = create<Play>((set,get)=>{
+  const release = () => {const old=ownerOf(get()); if(old)TOYS[old.toy].onStow?.();};
+  return {
+    held:null, character:null,
+    equip:(toy,hand)=>{
+      if(ownerOf(get())?.toy!==toy)release();
+      TOYS[toy].onEquip?.();
+      set({held:{toy,hand},character:null});
+    },
+    give:(assetId,hand)=>{
+      const {held,character}=get();
+      const toy=held?.toy??(character?.assetId===assetId?character.toy:null);
+      if(toy)set({held:null,character:{assetId,hand,toy,tilt:0,inset:0}});
+    },
+    adjust:(tilt,inset)=>{const c=get().character;if(c)set({character:{...c,
+      tilt:Math.max(-90,Math.min(90,c.tilt+tilt)),inset:Math.max(-5,Math.min(5,c.inset+inset))}});},
+    stow:()=>{release();set({held:null,character:null});},
+    reset:()=>{
+      release(); // End the active hand effect, then clear even unowned room artwork.
+      for(const toy of shelfToys)TOYS[toy].onLeave?.();
+      set({held:null,character:null});
+    },
+  };
+});
+
+/** Screen cues may create a hand proxy; a second wrist selection is only a transfer. */
+export function giveScreenToy(assetId:string,toy:Toy,hand:Hand,room:SceneryId) {
+  const play=useStagePlay.getState();
+  if(play.held?.toy!==toy && !(play.character?.assetId===assetId && play.character.toy===toy)) {
+    play.equip(toy,hand);
+    if(TOYS[toy].home===room)TOYS[toy].onScreenEquipAtHome?.();
+  }
+  play.give(assetId,hand);
 }
-export const useStagePlay = create<{
-  held: {toy:Toy; hand:Hand} | null; character: CharacterToy | null; stamps:number[];
-  saberLit:boolean; toggleSaber:()=>void;
-  give:(assetId:string, hand:Hand)=>void; adjust:(tilt:number,inset:number)=>void;
-  equip:(toy:Toy,hand:Hand)=>void; stow:()=>void; stamp:(index:number)=>void; reset:()=>void; newCard:()=>void;
-}>((set,get)=>({ held:null,character:null,stamps:[],saberLit:false,
-  toggleSaber:()=>{if(get().held?.toy==='saber')set({saberLit:!get().saberLit});},
-  equip:(toy,hand)=>set({held:{toy,hand},character:null,saberLit:false}), stow:()=>set({held:null,character:null,saberLit:false}),
-  give:(assetId,hand)=>{const {held,character}=get();const toy=held?.toy??(character?.assetId===assetId?character.toy:null);
-    if(toy)set({held:null,character:{assetId,hand,toy,tilt:0,inset:0}});},
-  adjust:(tilt,inset)=>{const c=get().character;if(c)set({character:{...c,tilt:Math.max(-90,Math.min(90,c.tilt+tilt)),inset:Math.max(-5,Math.min(5,c.inset+inset))}});},
-  stamp:index=>{const {held,stamps}=get();if(held?.toy==='post' && Number.isInteger(index) && index>=0 && index<3 && !stamps.includes(index))set({stamps:[...stamps,index]});},
-  newCard:()=>set({stamps:[]}), reset:()=>set({held:null,character:null,stamps:[],saberLit:false}),
-}));
 
 /** After UI, tracking loss or transfer, a held grip must be released before use. */
 export function gripLatch() {

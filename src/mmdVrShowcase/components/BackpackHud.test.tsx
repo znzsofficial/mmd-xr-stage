@@ -11,6 +11,7 @@ import { BackpackWorldTools, positionWorldTools } from "./BackpackWorldTools";
 import { MmdVrControlBar } from "./MmdVrHud";
 import { useHudWorldInput } from "./hudWorldInput";
 import { useStagePlay } from '../play/stagePlay';
+import { shelfToys, TOYS } from '../play/propCatalog';
 
 const harness = vi.hoisted(() => ({ camera: {} as unknown, b: (_: string) => {} }));
 vi.mock("@react-three/fiber", () => ({ useThree: (selector: (s: typeof harness) => unknown) => selector(harness), useFrame: vi.fn() }));
@@ -74,13 +75,21 @@ it('shows where to take a toy, keeps it on the player for unsupported wrists and
   await click(t('toyStow'));expect(useStagePlay.getState().character).toBeNull();
 });
 
-it('keeps all handheld props visible in the chapel and after travelling from their shelf, without equipping on travel',async()=>{
+it('browses every guide in the chapel, returns to its page and travels without equipping',async()=>{
   useStagePlay.getState().reset();store().setPrefs({scenery:'chapel'});await render();await recall();await click(t('hudBackpack'));await click(t('hudToys'));
-  const allProps=()=>{for(const id of ['kite','encore','bubbles','post','saber'])expect(host.querySelector(`[name="play:shelf:${id}"]`)).not.toBeNull();};
-  allProps();await click(t('toyRight'));expect(useStagePlay.getState().held).toBeNull(); // no connected controllers
-  expect(button(t('visitKite'))).toBeUndefined();await click(t('toyGuide'));expect(labels()).toContain(t('guideKiteVr'));expect(button(t('toyRight'))).toBeUndefined();
-  await click(t('toyCloseGuide'));allProps();expect(store().prefs.scenery).toBe('chapel');
-  await click(t('toyGuide'));await click(t('visitKite'));expect(store().prefs.scenery).toBe('lawn');allProps();expect(useStagePlay.getState().held).toBeNull();
+  const row=(toy:string)=>host.querySelector(`[name="play:shelf:${toy}"]`);
+  await click(t('toyRight'));expect(useStagePlay.getState().held).toBeNull(); // no connected controllers
+  expect(button(t('visitKite'))).toBeUndefined();
+  for(const toy of shelfToys){
+    if(!row(toy))await click(t('loadNext'));
+    const guide=row(toy)?.querySelector<HTMLElement>(`[name="hud:${t('toyGuide')}"]`);
+    expect(guide,toy).toBeTruthy();await act(async()=>guide!.click());
+    expect(labels()).toContain(t(TOYS[toy].guide.vr));expect(labels()).toContain(t(TOYS[toy].guide.end));
+    expect(button(t('toyRight'))).toBeUndefined();await click(t('toyCloseGuide'));expect(row(toy)).toBeTruthy();
+  }
+  for(let i=0;!row('kite')&&i<shelfToys.length;i++)await click(t('loadPrevious'));
+  expect(store().prefs.scenery).toBe('chapel');
+  await click(t('toyGuide'));await click(t('visitKite'));expect(store().prefs.scenery).toBe('lawn');expect(useStagePlay.getState().held).toBeNull();
 });
 
 it("browses a larger backpack without consuming stage slots, labels duplicate filenames by source, and can select hidden items at capacity", async () => {

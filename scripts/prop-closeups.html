@@ -1,0 +1,25 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>手持道具 · 外观近检</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#e9e5dd;color:#2b3333;font-family:system-ui,sans-serif}main{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:#c9c4b8}figure{margin:0;min-width:0;background:#f4f1ea}section{height:clamp(195px,25vw,370px)}figcaption{padding:10px 16px 14px;font-size:16px}small{color:#5b605e;margin-left:.75em;font-variant-numeric:tabular-nums}@media(max-width:800px){main{grid-template-columns:repeat(2,1fr)}}
+</style><main id="root"></main>
+<script type="module">
+// Dev-only contact sheet. Actual game components, unmodified geometry. One
+// isolated view of each at different magnifications, no backdrop/ground draws.
+import React,{useEffect,useLayoutEffect} from 'react';import {createRoot} from 'react-dom/client';
+import {Canvas,useThree} from '@react-three/fiber';import {useLanguageStore} from '/src/languageStore';
+import {TOYS,shelfToys} from '/src/mmdVrShowcase/play/propCatalog';import {PlayPiece} from '/src/mmdVrShowcase/play/HeldPlay';
+import {useMmdVrStore} from '/src/mmdVrShowcase/mmdVrStore';import {giveScreenToy} from '/src/mmdVrShowcase/play/stagePlay';
+const h=React.createElement, t=useLanguageStore.getState().t;
+useMmdVrStore.setState(s=>({prefs:{...s.prefs,scenery:'pool'}}));giveScreenToy('inspection','encore','left','liveHouse');
+const shots={kite:[[.33,.23,.43],[0,.004,-.068],.31],encore:[[.29,.17,.47],[0,-.004,-.075],.32],bubbles:[[.34,.17,-.37],[0,.002,-.084],.28],post:[[.28,.15,-.43],[0,-.016,-.078],.25],saber:[[.35,.26,-.21],[0,-.041,-.068],.29],dildo:[[.24,.12,.42],[0,.042,-.05],.20]};
+function Capture({id}){
+  const {gl,scene,camera,size,invalidate}=useThree();
+  useLayoutEffect(()=>{const [p,target,span]=shots[id]??shots.post;camera.position.set(...p);camera.lookAt(...target);camera.zoom=Math.min(size.height,size.width)/span;camera.updateProjectionMatrix();invalidate();},[id,size,gl,camera,invalidate]);
+  useEffect(()=>{const frame=requestAnimationFrame(()=>{gl.render(scene,camera);const {calls,triangles}=gl.info.render;
+    document.querySelector(`[data-stats="${id}"]`).textContent=`${calls} draw · ${triangles.toLocaleString('en')} tri`;
+    (window.metrics??={})[id]={calls,triangles};});return ()=>cancelAnimationFrame(frame);},[id,gl,scene,camera,size]);
+  return h(React.Fragment,null,h('ambientLight',{intensity:.65}),h('hemisphereLight',{args:['#fff3dd','#b2adab',1.1]}),h('directionalLight',{position:[2,3,2],intensity:2.1}),h('directionalLight',{position:[-2,1,-3],intensity:1.25}),h(PlayPiece,{toy:id}));
+}
+function Figure({id}){return h('figure',null,h('section',null,h(Canvas,{orthographic:true,dpr:Math.min(devicePixelRatio,2),frameloop:'demand',gl:{alpha:true,antialias:true},camera:{near:.005,far:4}},h(Capture,{id}))),h('figcaption',null,t(TOYS[id].label),h('small',{'data-stats':id})));}
+createRoot(document.querySelector('main')).render(h(React.Fragment,null,...shelfToys.map(id=>h(Figure,{key:id,id}))));
+</script></html>

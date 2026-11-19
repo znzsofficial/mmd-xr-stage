@@ -3,16 +3,15 @@ import { useFrame } from '@react-three/fiber';
 import { DoubleSide, Group, Mesh, Vector3 } from 'three';
 import { noPick } from '../../scenery/sceneryPaint';
 import { makeBoat, makeGate, makeRing, makeWake } from './ferryModels';
-import { advanceFerry, boatPose, boatSize, GATE_X, GATE_Y, GATE_Z, resetFerry, ringPose, sideSign } from './voyage';
+import { advanceFerry, boatPose, boatSize, GATE_X, GATE_Y, GATE_Z, ringPose, sideSign } from './voyage';
 
-export { aimFerry, launchFerry, resetFerry, type FerrySide } from './voyage';
 const forward = new Vector3(0,0,1);
 
 /** Mount once, at the world root, while viewing the pool. All commands share one finite voyage. */
 export function FerryStation() {
   const models=useMemo(()=>({left:makeGate('left'),right:makeGate('right'),boat:makeBoat(),wake:makeWake(),ring:makeRing()}),[]);
   const boat=useRef<Group>(null), ring=useRef<Mesh>(null);
-  useLayoutEffect(()=>()=>{resetFerry();for(const g of Object.values(models))g.dispose();},[models]);
+  useLayoutEffect(()=>()=>{for(const g of Object.values(models))g.dispose();},[models]);
   useFrame((_,delta)=>{
     const ferry=boat.current, film=ring.current;
     if (!ferry || !film) return;

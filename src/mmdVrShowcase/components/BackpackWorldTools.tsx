@@ -8,8 +8,8 @@ import { useMmdVrStore } from "../mmdVrStore";
 import { fileSource, PageControls } from "./BackpackPanels";
 import { HudButton, HudLine, HudSheet } from "./PorcelainControls";
 import { useHudWorldInput } from "./hudWorldInput";
-import { isStoryRoom, STORIES, TOYS, useStagePlay } from '../play/stagePlay';
-import { cueStory } from '../play/storyActions';
+import { isStoryRoom, STORIES, toyLabel } from '../play/propCatalog';
+import { canGiveTo, useStagePlay } from '../play/stagePlay';
 
 /** Resolve once on selection/move. Keep the controls stationary while the user aims.
  * A hidden or off-screen asset selected in the backpack uses the forward reading zone. */
@@ -78,7 +78,7 @@ function SelectedTools({ entry, instance }: { entry: BackpackEntry; instance: Ba
       <HudButton position={[0.475, -0.145, 0]} label={t("hudLarger")} size={[0.28, 0.14]} disabled={locked || !transform || nextMmdVrModelScale(scale) === scale} onPress={() => useMmdVrStore.getState().requestModelScale(instance.runtimeId, nextMmdVrModelScale(scale))} />
       <HudButton position={[0,-.365,0]} label={t('hudPutAway')} size={[1.24,.14]} disabled={locked} onPress={()=>useBackpack.getState().putAway(entry.id)} />
     </>}
-    {cues&&isStoryRoom(room)&&(['left','right'] as const).map((side,i)=><HudButton key={side} position={[(i-.5)*.63,-.555,0]} size={[.59,.14]} disabled={locked||!instance.visible} label={t(STORIES[room][side])} onPress={()=>cueStory(room,side)}/>)}
+    {cues&&isStoryRoom(room)&&(['left','right'] as const).map((side,i)=><HudButton key={side} position={[(i-.5)*.63,-.555,0]} size={[.59,.14]} disabled={locked||!instance.visible} label={t(STORIES[room][side])} onPress={()=>STORIES[room].cue(side)}/>)}
   </group>;
 }
 
@@ -87,11 +87,11 @@ function CharacterPropTools({id,instance,locked}:{id:string;instance:BackpackLiv
   const room=useMmdVrStore(s=>s.prefs.scenery);
   const toy=held?.toy??prop?.toy, wrists=instance.wrists;
   const hint=!wrists?.left&&!wrists?.right?t('propNoWrist'):!instance.visible?t('propHidden'):!toy?t('propEquipFirst'):
-    `${t(room==='pool'&&toy==='bubbles'?'toyShell':TOYS[toy].label)} · ${prop?`${prop.tilt}° / ${prop.inset} cm`:t('propPickHand')}`;
+    `${t(toyLabel(toy,room))} · ${prop?`${prop.tilt}° / ${prop.inset} cm`:t('propPickHand')}`;
   return <>
     <HudLine position={[0,.21,0]} text={hint} width={1.23} role="muted"/>
     {(['left','right'] as const).map((hand,i)=><HudButton key={hand} position={[(i-.5)*.63,.05,0]} size={[.59,.15]}
-      label={t(hand==='left'?'propLeft':'propRight')} active={prop?.hand===hand} disabled={locked||!toy||!wrists?.[hand]||!instance.visible||prop?.hand===hand}
+      label={t(hand==='left'?'propLeft':'propRight')} active={prop?.hand===hand} disabled={locked||!toy||!canGiveTo(instance,hand)||prop?.hand===hand}
       onPress={()=>useStagePlay.getState().give(id,hand)}/>)}
     {prop && <>
       {([['propLower',-15,0],['propRaise',15,0],['propCloser',0,-1],['propFarther',0,1]] as const).map(([label,a,d],i)=><HudButton key={label} position={[(i-1.5)*.315,-.15,0]} size={[.30,.14]} label={t(label)}

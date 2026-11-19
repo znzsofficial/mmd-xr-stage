@@ -1,28 +1,59 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-import { gripLatch, markAt, POST_MARKS, shelfToys, STORIES, TOYS, useStagePlay } from './stagePlay';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { Vector3 } from 'three';
+import { canUseGrip, giveScreenToy, gripLatch, useStagePlay } from './stagePlay';
+import { shelfToys, STORIES, TOYS, toyLabel } from './propCatalog';
+import { markAt, POST_MARKS, stamp, useLunarCard } from './lunarCard';
+import { saberLit } from './saberLight';
+import { advanceFerry, GATE_X, GATE_Y } from './ferry/voyage';
+import { BADGE_X, BADGE_Y, useEncorePrint } from './encore/encoreRound';
+import { useKiteStore } from './kite/kiteStore';
 
-const get=useStagePlay.getState;
+vi.mock('@react-three/fiber',()=>{throw Error('Prop metadata/ownership loaded a scene renderer');});
+const get=useStagePlay.getState, forward=new Vector3(0,0,-1);
 beforeEach(()=>get().reset());
-describe('lunar postcard and held tools',()=>{
-  it('lists every toy once and gives the same story prop across both wrists',()=>{
-    expect(new Set(shelfToys)).toEqual(new Set(['bubbles','post','saber','kite','encore','dildo']));expect(shelfToys).toHaveLength(6);
-    for(const room of ['pool','lawn','liveHouse'] as const){const toy=STORIES[room].toy;
-      expect(TOYS[toy].home).toBe(room);
-      get().equip(toy,'left');get().give('actor','right');get().give('actor','left');expect(get().character).toMatchObject({toy,assetId:'actor',hand:'left'});expect(get().held).toBeNull();get().stow();
+
+describe('shared prop catalog and ownership',()=>{
+  it('can assign every shelf entry to either wrist without also holding a second copy',()=>{
+    expect(shelfToys).toEqual(expect.arrayContaining(['bubbles','post','saber','kite','encore','dildo']));
+    for(const toy of shelfToys){
+      get().equip(toy,'left');get().give('actor','right');get().give('other','left');
+      expect(get().character).toMatchObject({toy,assetId:'actor',hand:'right'});
+      get().give('actor','left');expect(get().character?.hand).toBe('left');expect(get().held).toBeNull();
+      get().stow();expect(get().character).toBeNull();
     }
+    expect(toyLabel('bubbles','pool')).toBe('toyShell');expect(toyLabel('bubbles','lawn')).toBe('toyBubbles');
   });
-  it('keeps a lit blade on the chosen animated wrist, but drops its light when stowed or re-equipped',()=>{
-    get().equip('saber','right');expect(get().saberLit).toBe(false);get().toggleSaber();
-    get().give('actor','left');get().toggleSaber();get().give('actor','right');
-    expect(get().held).toBeNull();expect(get().character).toMatchObject({toy:'saber',hand:'right'});expect(get().saberLit).toBe(true);
-    get().stow();expect(get().saberLit).toBe(false);get().equip('saber','left');get().toggleSaber();get().equip('bubbles','left');
-    get().toggleSaber();expect(get().saberLit).toBe(false);
+  it('uses the actual controller, room and current owner; a wrist transfer cannot fire an old grip',()=>{
+    get().equip('saber','right');expect(canUseGrip(get(),'saber','left','astralCourt')).toBe(false);
+    expect(canUseGrip(get(),'saber','right','chapel')).toBe(false);
+    expect(canUseGrip(get(),'saber','right','astralCourt')).toBe(true);
+    TOYS.saber.onGrip!(new Vector3(),forward);get().give('actor','left');get().give('actor','right');
+    expect(canUseGrip(get(),'saber','right','astralCourt')).toBe(false);expect(saberLit()).toBe(true);
+    get().equip('saber','right');expect(saberLit()).toBe(false);
+    TOYS.saber.onGrip!(new Vector3(),forward);get().equip('post','right');expect(saberLit()).toBe(false);
   });
-  it('takes three distinct stamps, keeps the first postmark after stowing, resets at a room boundary',()=>{
+  it('lights only a freshly equipped screen saber at home; switching wrists preserves the blade',()=>{
+    giveScreenToy('actor','saber','left','chapel');expect(saberLit()).toBe(false);
+    get().reset();giveScreenToy('actor','saber','left','astralCourt');expect(saberLit()).toBe(true);
+    giveScreenToy('actor','saber','right','astralCourt');expect(saberLit()).toBe(true);
+    get().stow();expect(saberLit()).toBe(false);
+  });
+  it('keeps the in-flight ferry on handoff, ends it on replacement, and leaves no kite after a zone switch',()=>{
+    get().equip('bubbles','left');TOYS.bubbles.onGrip!(new Vector3(0,1,2),forward);expect(advanceFerry(0)).toBeNull();
+    TOYS.bubbles.onGrip!(new Vector3(-GATE_X,GATE_Y,2),forward);expect(advanceFerry(.5)?.side).toBe('left');
+    get().give('actor','right');expect(advanceFerry(0)?.elapsed).toBe(.5);
+    get().equip('kite','right');expect(advanceFerry(0)).toBeNull();
+    STORIES.lawn.cue('right');TOYS.kite.onGrip!(new Vector3(),forward);get().give('actor','left');
+    expect(useKiteStore.getState()).toEqual({active:true,wind:'left'});
+    get().reset();expect(useKiteStore.getState()).toEqual({active:false,wind:'right'});
+  });
+  it('retains completed curtain and postcard when stowed, clears unowned artwork on leaving',()=>{
+    get().equip('encore','left');TOYS.encore.onGrip!(new Vector3(BADGE_X,BADGE_Y,0),forward);
+    STORIES.liveHouse.cue('left');get().stow();expect(useEncorePrint.getState()).toEqual({first:'right',complete:true});
     get().equip('post','left');expect(markAt(0,0)).toBe(-1);
-    for(const i of [1,1,5,-1,0,2])get().stamp(i);
-    expect(get().stamps).toEqual([1,0,2]);get().stow();expect(get().held).toBeNull();expect(get().stamps[0]).toBe(1);
-    get().reset();get().equip('bubbles','right');for(const [x,y] of POST_MARKS)get().stamp(markAt(x,y));expect(get().stamps).toEqual([]);
+    for(const i of [1,1,5,-1,0,2]){const point=POST_MARKS[i];stamp(point?markAt(point[0],point[1]):i);}
+    get().stow();expect(useLunarCard.getState().stamps).toEqual([1,0,2]);
+    get().reset();expect(useLunarCard.getState().stamps).toEqual([]);expect(useEncorePrint.getState().first).toBeNull();
   });
   it('requires a fresh squeeze after a menu or lost tracking rather than activating on recovery',()=>{
     const step=gripLatch();expect(step(true,true)).toBe('off');step(true,false);

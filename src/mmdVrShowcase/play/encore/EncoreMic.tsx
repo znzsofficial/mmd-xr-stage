@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, LatheGeometry, Vector2 } from 'three';
 import { noPick, paintedSurface } from '../../scenery/sceneryPaint';
 import { useStagePlay } from '../stagePlay';
+import { ball, box, PaintedParts } from '../modelParts';
 
 // Turn the enamel handle, gold collar and cap in one mesh. Keep the narrow
 // part of the handle at the established wrist/palm socket, y = 0 here.
@@ -18,16 +19,23 @@ function handleGeometry() {
   const palette = profile.map(([, , c]) => new Color(c));
   for (let i = 0; i < colors.count; i++) { const c = palette[i % profile.length]; colors.setXYZ(i,c.r,c.g,c.b); }
   g.setAttribute('color',colors);
-  return g;
+  const p=new PaintedParts();p.add(g);
+  // Recessed thumb slide with a vermilion enamel index and three grip teeth.
+  p.add(ball(0,.003,.0195,.009,.024,.0025),'#d4a872');
+  p.add(ball(0,.003,.0215,.0068,.019,.0018),'#382f36');
+  p.add(box(0,.006,.024,.010,.016,.003),'#ae5362');
+  for(const y of [.002,.006,.010])p.add(box(0,y,.026,.008,.0014,.0014),'#e5bd91');
+  return p.finish();
 }
 
 function grilleTexture() {
   return paintedSurface(256, 128, g => {
-    g.fillStyle = '#cec2ad'; g.fillRect(0,0,256,128);
-    g.fillStyle = '#625761';
-    for (let j=0;j<16;j++) for(let i=-1;i<32;i++) {
-      g.beginPath(); g.ellipse(i*8+(j%2)*4,j*8,2.8,2.2,0,0,Math.PI*2); g.fill();
-    }
+    g.fillStyle = '#524c55'; g.fillRect(0,0,256,128);
+    // Woven capsule over a dark acoustic liner. Alternate the top wire at
+    // the crossing rather than giving a metal shell a flat dot pattern.
+    const stroke=(x:number,y:number,w:number,h:number,tint:string,width:number)=>{g.strokeStyle=tint;g.lineWidth=width;g.beginPath();g.moveTo(x,y);g.lineTo(x+w,y+h);g.stroke();};
+    for(let x=-144;x<400;x+=12){stroke(x,0,128,128,'#c9bda9',2.7);stroke(x,0,-128,128,'#ddcfb7',2.5);}
+    for(let y=0;y<128;y+=12)for(let x=-12;x<264;x+=12)stroke(x-2,y-2,4,4,'#f7e2bc',1.7);
     for (let x=0;x<256;x+=64) { g.fillStyle='#ecce98'; g.fillRect(x-2,0,4,128); }
     g.fillStyle='#382d38'; g.fillRect(0,60,256,9); g.fillStyle='#dfb47c'; g.fillRect(0,61,256,5);
   });

@@ -3,10 +3,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import type { ShaderMaterial } from 'three';
 import { noPick } from '../../scenery/sceneryPaint';
 import { badgeTexture, silkTexture } from './encorePrint';
-import { BADGE_RADIUS, BADGE_X, BADGE_Y, BADGE_Z, resetEncore, useEncorePrint, type Wing } from './encoreRound';
-
-export { aimEncore, dyeEncore, resetEncore } from './encoreRound';
-export { EncoreMic } from './EncoreMic';
+import { BADGE_RADIUS, BADGE_X, BADGE_Y, BADGE_Z, useEncorePrint, type Wing } from './encoreRound';
 
 function DyeWell({ side, stamped }: { side: Wing; stamped: boolean }) {
   const print = useMemo(() => badgeTexture(side, stamped), [side, stamped]);
@@ -67,7 +64,6 @@ function PrintedCurtain({ first, complete }: { first: Wing; complete: boolean })
 /** Mount for the lifetime of Live House in either viewer, independently of the prop. */
 export function EncoreStation() {
   const { first, complete } = useEncorePrint();
-  useEffect(() => resetEncore, []);
   return <group name="play:encore-station" pointerEvents="none">
     <DyeWell side="left" stamped={complete || first === 'left'} />
     <DyeWell side="right" stamped={complete || first === 'right'} />

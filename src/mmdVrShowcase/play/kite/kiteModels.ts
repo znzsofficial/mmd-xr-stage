@@ -1,4 +1,5 @@
 import { BufferGeometry, Color, Float32BufferAttribute, Vector3 } from 'three';
+import { coil, PaintedParts, turn } from '../modelParts';
 
 type Point = [number, number, number];
 const lerp = (a: Point, b: Point, t: number): Point => [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t];
@@ -39,8 +40,8 @@ export function makeReel() {
   const m = craft(), bamboo = '#dfa959', bindings = '#245965', y = .089;
   // Hollow hexagonal flanges like two bamboo wagon wheels, and a lacquered
   // offset crank. Keep the part actually in the palm at the standard toy grip.
-  m.rod([0,-.076,.014],[0,.048,0],.015,.02,bamboo);
-  for (const h of [-.065,-.056,.031]) m.rod([0,h,.007-h*.10],[0,h+.006,.007-h*.10],.02,.02,bindings);
+  m.rod([0,-.076,.014],[0,.048,0],.014,.015,bamboo);
+  m.rod([0,.031,.004],[0,.037,.003],.02,.02,bindings);
   for (const sign of [-1,1]) {
     const x = sign*.043, rim = (i: number): Point => [x, y+.056*Math.cos(i*Math.PI/3), .056*Math.sin(i*Math.PI/3)];
     m.rod([0,.034,0],[x,y,0],.007,.006,'#906439');
@@ -51,17 +52,21 @@ export function makeReel() {
   }
   m.rod([-.055,y,0],[.058,y,0],.009,.009,'#995b39');
   m.rod([-.036,y,0],[.036,y,0],.039,.039,'#e1d2a7',14);
-  // Ridged thread with an indigo leader: discrete bindings, merged in this draw.
-  for (let i=0; i<13; i++) {
-    const x = -.034+i*.0054; m.rod([x,y,0],[x+.002,y,0],.041,.041,i>=10?'#486b71':'#fff0c5',14);
-  }
   m.rod([.058,y,0],[.058,y-.027,.019],.004,.005,bindings);
   m.rod([.058,y-.027,.019],[.078,y-.027,.019],.006,.007,bamboo);
   const [x,h,z] = GUIDE;
   m.rod([0,y+.017,-.02],[x,h-.009,z],.005,.003,bindings);
   const hoop = (i: number): Point => [x+.009*Math.cos(i*Math.PI/4), h+.009*Math.sin(i*Math.PI/4), z];
   for (let i=0; i<8; i++) m.rod(hoop(i),hoop(i+1),.0022,.0022,'#b5793b',5);
-  return m.finish();
+  const parts=new PaintedParts();parts.add(m.finish());
+  // Continuous pale cotton winding with a short dyed leader. Both ends
+  // feed the original spool axle; GUIDE remains the actual outgoing eyelet.
+  parts.add(coil(.0398,.0036,15,.0017,20).rotateZ(-Math.PI/2).translate(-.007,y,0),'#f9e9bf');
+  parts.add(coil(.0398,.0036,4,.0017,20).rotateZ(-Math.PI/2).translate(.0272,y,0),'#4e7982');
+  parts.add(turn([[.014,-.077],[.019,-.074],[.02,-.067],[.018,-.062],[.016,-.047],[.0165,-.026],[.019,-.009],[.019,.001],[.015,.004]],20).rotateX(-.10).translate(0,0,.008),'#ad7549');
+  parts.add(coil(.0172,.006,6,.0018).rotateX(-.10).translate(0,-.035,.0115),'#975e40');
+  parts.add(turn([[.018,-.076],[.0203,-.073],[.0203,-.069],[.0195,-.068]],24).rotateX(-.10).translate(0,0,.008),'#b38a55');
+  return parts.finish();
 }
 
 export function makeSwallow() {

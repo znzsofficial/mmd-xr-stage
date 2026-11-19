@@ -4,13 +4,11 @@ import { BufferAttribute, BufferGeometry, Color, DoubleSide, DynamicDrawUsage, G
 import { useBackpack } from '../../backpack';
 import { useMmdVrStore } from '../../mmdVrStore';
 import { noPick } from '../../scenery/sceneryPaint';
+import { MEADOW_SEAT } from '../../scenery/placementAreas';
 import { useStagePlay } from '../stagePlay';
 import { CORD_SAMPLES, displayedEyelet, EYELET_NAME, flightPoint, headOf, REEL_NAME, registerEyelet, writeCord } from './kiteFlight';
 import { GUIDE, makeReel, makeStreamer, makeSwallow } from './kiteModels';
 import { setKiteWind, useKiteStore } from './kiteStore';
-
-export { getKiteWind, resetKite, setKiteWind } from './kiteStore';
-export { EYELET_NAME, REEL_NAME } from './kiteFlight';
 
 export function KiteReel() {
   const scene = useThree(s => s.scene), eyelet = useRef<Group>(null);
@@ -118,4 +116,10 @@ export function KiteStation() {
   // Don't override an explicit simultaneous cue, or relaunch on resetKite().
   useLayoutEffect(() => { if (owner && !useKiteStore.getState().active) setKiteWind('right'); }, [owner]);
   return active && owner ? <Flight key={owner}/> : null;
+}
+
+export function MeadowStation() {
+  const screen=useMmdVrStore(s=>s.presentation==='screen');
+  const held=useStagePlay(s=>s.held?.toy==='kite');
+  return <>{screen&&held&&<group name="story:bench-reel" position={[MEADOW_SEAT.x,.53,MEADOW_SEAT.z]} rotation-y={MEADOW_SEAT.yaw} pointerEvents="none"><KiteReel/></group>}<KiteStation/></>;
 }
