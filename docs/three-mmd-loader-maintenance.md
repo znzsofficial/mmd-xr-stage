@@ -183,6 +183,8 @@
 
 ### 离线诊断结果
 
+复核 0.8.6 时请以[设置清查](./gameplay/settings-audit.md)为准：当前原生后端读取 `maxSubSteps`、`fixedTimeStep`，不消费舞台传入的 `solverIterations` 和 `dynamicWithBoneRotationFeedbackScale`。历史记录中的传参数值不是已在该后端生效的证据。
+
 - 珠霜裙子主要由第 6 组的 `288` 个纯动态刚体组成，PMX mask 原本禁止同组互撞。
 - 珠霜有 `78` 个弹簧关节；默认模型没有弹簧关节，但关闭弹簧未消除差异。
 - Bullet 仿真 3 秒后，珠霜 `288` 个裙子刚体中约 `238` 个向下、`28` 个小幅向上，离线环境没有复现真机中的整体上漂。

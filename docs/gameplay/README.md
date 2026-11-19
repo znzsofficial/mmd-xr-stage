@@ -13,6 +13,8 @@
 
 ## 上手与验收
 
+- [当前设置清查：哪些保留，哪些属于旧试验或未接通的参数](./settings-audit.md)
+
 - [导入、缺贴图修复与同页续场](./asset-workflow.md) · [屏幕放置、机位与动作](./screen-viewing.md) · [手柄递道具与握姿](./vr-controls.md#把道具递给角色)。
 - [七景站位](./vr-controls.md#在布景中给角色选位置) · [三幕实景截图](../../README.md#three-short-scenes-to-play)。
 - **已验**：屏幕三幕空场试演，模拟 XR 的射线选门、按序染印、线轴左右腕交接、VMD 跟随、收回和切景清理；月面三印成票也已模拟验证。
