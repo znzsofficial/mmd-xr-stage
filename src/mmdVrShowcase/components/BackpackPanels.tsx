@@ -57,7 +57,7 @@ export function BackpackPanel({ onClose, locked }: { onClose: () => void; locked
   const pages = Math.max(1, Math.ceil(list.length / ROWS)), page = Math.min(index, pages - 1);
   const hint = kind === "motion" ? t("hudApplyFromCharacter") : `${t("hudOnStage")} ${used} / ${limit}${full ? ` · ${t("hudReturnFirst")}` : ""}`;
   return <group name="hud-backpack">
-    <HudSheet size={[2.24, 1.72]} />
+    <group position-y={kind==='toy'?-.11:0}><HudSheet size={[2.24, kind==='toy'?1.94:1.72]} /></group>
     <HudLine position={[-0.49, 0.69, 0]} text={t("hudBackpack")} role="title" width={1.05} />
     <HudButton position={[0.67, 0.69, 0]} size={[0.66, 0.14]} variant="quiet" label={t("hudBack")} onPress={onClose} />
     {(Object.keys(pagesByKind) as (keyof typeof pagesByKind)[]).map((k, i) => <HudButton key={k} position={[(i - 1.5) * 0.52, 0.45, 0]} size={[0.49, 0.16]}
@@ -91,16 +91,19 @@ function ToyShelf({locked,onClose}:{locked:boolean;onClose:()=>void}) {
   const left=useXRInputSourceState('controller','left'),right=useXRInputSourceState('controller','right');
   const characterHasToy=useStagePlay(s=>s.character!==null);
   const connected=(h:Hand)=>!!(h==='left'?left:right)?.inputSource.gripSpace;
-  const items=shelfToys(room),story=isStoryRoom(room)?STORIES[room]:null;
+  const story=isStoryRoom(room)?STORIES[room]:null;
   return <group name="play:shelf">
     <HudLine position={[0,.24,0]} text={t(left||right?'toyControls':'toyNeedController')+(story?` · ${t(story.name)}`:'')} width={2.04} role="muted" />
-    {items.map((toy,i)=><group name={`play:shelf:${toy}`} key={toy} position-y={.03-i*.245}>
-      <HudLine position={[-.55,.045,0]} width={.91} text={t(room==='pool'&&toy==='bubbles'?'toyShell':TOYS[toy].label)} />
-      <HudLine position={[-.55,-.058,0]} width={.91} text={t(room==='pool'&&toy==='bubbles'?'toyShellHint':TOYS[toy].hint)+(toy==='post'?` · ${n}/3`:'')} role="muted" />
-      {toy==='post'&&room!=='floor'?<HudButton position={[.51,.018,0]} label={t('toyGoFloor')} size={[.91,.15]} disabled={locked} onPress={()=>useMmdVrStore.getState().setPrefs({scenery:'floor'})}/>: (['left','right'] as const).map((hand,j)=><HudButton key={hand} position={[.27+j*.47,.018,0]} size={[.44,.15]} active={held?.toy===toy&&held.hand===hand} label={t(hand==='left'?'toyLeft':'toyRight')} disabled={locked||!connected(hand)} onPress={()=>{useStagePlay.getState().equip(toy,hand);onClose();}}/>)}
-    </group>)}
-    <HudButton position={[-.46,-.67,0]} size={[.83,.15]} disabled={locked||(!held&&!characterHasToy)} label={t('toyStow')} onPress={()=>{useStagePlay.getState().stow();onClose();}} />
-    {room==='liveHouse'?<HudButton position={[.49,-.67,0]} size={[.83,.15]} disabled={locked} label={t('storyClear')} onPress={resetEncore}/>:
-      room==='floor'&&<HudButton position={[.49,-.67,0]} size={[.83,.15]} disabled={locked||!n} label={t('toyNewCard')} onPress={()=>useStagePlay.getState().newCard()} />}
+    {shelfToys.map((toy,i)=>{const {home,visit}=TOYS[toy],away=home!==null&&room!==home;
+      const hint=toy==='bubbles'?(room==='pool'?'toyShellHint':'toyBubblesHint'):away?'toyHoldOrVisit':TOYS[toy].hint;
+      return <group name={`play:shelf:${toy}`} key={toy} position-y={.05-i*.205}>
+        <HudLine position={[-.59,.041,0]} width={.92} text={t(room==='pool'&&toy==='bubbles'?'toyShell':TOYS[toy].label)} />
+        <HudLine position={[-.59,-.044,0]} width={.92} text={t(hint)+(toy==='post'&&!away?` · ${n}/3`:'')} role="muted" />
+        {away&&visit&&<HudButton position={[.055,0,0]} size={[.36,.145]} variant="quiet" label={t(visit)} disabled={locked} onPress={()=>useMmdVrStore.getState().setPrefs({scenery:home})}/>}
+        {(['left','right'] as const).map((hand,j)=><HudButton key={hand} position={[.47+j*.42,0,0]} size={[.38,.15]} active={held?.toy===toy&&held.hand===hand} label={t(hand==='left'?'toyLeft':'toyRight')} disabled={locked||!connected(hand)} onPress={()=>{useStagePlay.getState().equip(toy,hand);onClose();}}/>)}
+      </group>;})}
+    <HudButton position={[-.46,-.98,0]} size={[.83,.15]} disabled={locked||(!held&&!characterHasToy)} label={t('toyStow')} onPress={()=>{useStagePlay.getState().stow();onClose();}} />
+    {room==='liveHouse'?<HudButton position={[.49,-.98,0]} size={[.83,.15]} disabled={locked} label={t('storyClear')} onPress={resetEncore}/>:
+      room==='floor'&&<HudButton position={[.49,-.98,0]} size={[.83,.15]} disabled={locked||!n} label={t('toyNewCard')} onPress={()=>useStagePlay.getState().newCard()} />}
   </group>;
 }

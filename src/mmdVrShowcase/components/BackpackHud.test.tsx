@@ -72,6 +72,14 @@ it('shows where to take a toy, keeps it on the player for unsupported wrists and
   await click(t('toyStow'));expect(useStagePlay.getState().character).toBeNull();
 });
 
+it('keeps all handheld props visible in the chapel and after travelling from their shelf, without equipping on travel',async()=>{
+  useStagePlay.getState().reset();store().setPrefs({scenery:'chapel'});await render();await click(t('hudBackpack'));await click(t('hudToys'));
+  const allProps=()=>{for(const id of ['kite','encore','bubbles','post','saber'])expect(host.querySelector(`[name="play:shelf:${id}"]`)).not.toBeNull();};
+  allProps();await click(t('toyRight'));expect(useStagePlay.getState().held).toBeNull(); // no connected controllers
+  await click(t('visitKite'));expect(store().prefs.scenery).toBe('lawn');allProps();expect(button(t('visitKite'))).toBeUndefined();
+  await click(t('visitFerry'));expect(store().prefs.scenery).toBe('pool');expect(labels()).toContain(t('toyShell'));allProps();expect(useStagePlay.getState().held).toBeNull();
+});
+
 it("browses a larger backpack without consuming stage slots, labels duplicate filenames by source, and can select hidden items at capacity", async () => {
   useBackpack.setState({ live: { a0: instance("runtime:0", false), a1: instance("runtime:1"), a2: instance("runtime:2") } });
   await render(); await click(t("hudBackpack"));

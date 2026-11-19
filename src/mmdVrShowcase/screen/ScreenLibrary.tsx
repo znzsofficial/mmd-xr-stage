@@ -3,7 +3,8 @@ import { useBackpack, type BackpackEntry } from '../backpack';
 import { nextMmdVrModelScale, previousMmdVrModelScale } from '../mmdVrAdjustments';
 import { useMmdVrStore } from '../mmdVrStore';
 import { useState } from 'react';
-import { isStoryRoom, STORIES, TOYS, useStagePlay, type Hand, type Toy, type StoryRoom } from '../play/stagePlay';
+import { isStoryRoom, shelfToys, STORIES, TOYS, useStagePlay, type Hand, type Toy, type StoryRoom } from '../play/stagePlay';
+import { SCENERY } from '../scenery/catalog';
 import { cueStory, resetEncore } from '../play/storyActions';
 
 export function ScreenLibrary({locked,close,frame,storyView}:{locked:boolean;close:()=>void;frame:()=>void;storyView?:()=>void}) {
@@ -14,6 +15,11 @@ export function ScreenLibrary({locked,close,frame,storyView}:{locked:boolean;clo
   return <aside className="screen-library" aria-label={t('hudBackpack')}>
     <div className="screen-library-head"><h2>{t('hudBackpack')}</h2><button onClick={close}>{t('screenHide')}</button></div>
     {isStoryRoom(room)&&<ScreenCues key={room} room={room} locked={locked} view={storyView}/>}
+    <details className="screen-toy-guide"><summary>{t('toyList')} · {shelfToys.length}</summary>
+      <ul>{shelfToys.map(toy=>{const {home,visit,label}=TOYS[toy];return <li key={toy}>
+        <span>{t(room==='pool'&&toy==='bubbles'?'toyShell':label)}</span>
+        {home&&visit&&(home===room?<small>{t(SCENERY[home].label)}</small>:<button disabled={locked} onClick={()=>useMmdVrStore.getState().setPrefs({scenery:home})}>{t(visit)}</button>)}
+      </li>;})}</ul></details>
     {!assets.length&&<p>{t('screenEmpty')}</p>}
     {(['model','object'] as const).map(kind=>{const list=assets.filter(e=>e.kind===kind);return list.length>0&&<section key={kind}>
       <h3>{t(kind==='model'?'hudCharacters':'hudObjects')} <small>{list.filter(e=>b.live[e.id]).length} / 3</small></h3>
@@ -40,8 +46,8 @@ function SelectedItem({entry,locked,frame,move}:{entry:BackpackEntry;locked:bool
   const transform=useMmdVrStore(s=>(entry.kind==='model'?s.models:s.objects).find(e=>e.id===live?.runtimeId));
   const stage=useMmdVrStore.getState(), prop=useStagePlay(s=>s.character), motions=b.entries.filter(e=>e.kind==='motion');
   const room=useMmdVrStore(s=>s.prefs.scenery),localToy=isStoryRoom(room)?STORIES[room].toy:null;
-  const [choice,setChoice]=useState<'local'|'saber'>('local');
-  const toy:Toy=choice==='local'&&localToy?localToy:'saber';
+  const [choice,setChoice]=useState<Toy|null>(null);
+  const toy=choice??(prop?.assetId===entry.id?prop.toy:localToy??'saber');
   const give=(hand:Hand)=>{if(!live?.visible||!live.wrists?.[hand])return; const play=useStagePlay.getState();
     if(play.held?.toy!==toy&&(play.character?.assetId!==entry.id||play.character.toy!==toy)){play.equip(toy,hand);if(toy==='saber')play.toggleSaber();}play.give(entry.id,hand);};
   if(!live||!transform)return null;
@@ -54,8 +60,8 @@ function SelectedItem({entry,locked,frame,move}:{entry:BackpackEntry;locked:bool
       <select disabled={locked} value={motions.find(e=>e.file===b.bindings[entry.id]?.[kind])?.id??''} onChange={e=>{const motion=motions.find(m=>m.id===e.target.value);if(motion)b.applyMotion(entry.id,motion.file,kind);}}>
         <option value="" disabled>{t('screenPickMotion')}</option>{motions.map(m=><option key={m.id} value={m.id}>{m.path}</option>)}
       </select></label>)}
-    {(live.wrists?.left||live.wrists?.right)&&<fieldset className="screen-props"><legend>{t(localToy?'storyProp':'screenSaber')}</legend>
-      {localToy&&<select aria-label={t('storyProp')} value={toy} onChange={e=>setChoice(e.target.value===localToy?'local':'saber')}><option value={localToy}>{t(localToy==='bubbles'?'toyShell':TOYS[localToy].label)}</option><option value="saber">{t('toySaber')}</option></select>}
+    {(live.wrists?.left||live.wrists?.right)&&<fieldset className="screen-props"><legend>{t('storyProp')}</legend>
+      <select disabled={locked} aria-label={t('storyProp')} value={toy} onChange={e=>{const item=shelfToys.find(v=>v===e.target.value);if(item)setChoice(item);}}>{shelfToys.map(v=><option value={v} key={v}>{t(room==='pool'&&v==='bubbles'?'toyShell':TOYS[v].label)}</option>)}</select>
       {(['left','right'] as const).map(hand=><button key={hand} disabled={locked||!live.visible||!live.wrists?.[hand]} aria-pressed={prop?.assetId===entry.id&&prop.toy===toy&&prop.hand===hand} onClick={()=>give(hand)}>{t(hand==='left'?'propLeft':'propRight')}</button>)}
       {prop?.assetId===entry.id&&prop.toy!==localToy&&<button disabled={locked} onClick={()=>useStagePlay.getState().stow()}>{t('toyStow')}</button>}
     </fieldset>}

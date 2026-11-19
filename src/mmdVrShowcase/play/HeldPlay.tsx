@@ -65,7 +65,7 @@ function InHand({toy,hand}:{toy:Toy;hand:Hand}) {
         const distance=Math.abs(s.dir.z)>.0001?(POST_Z-s.at.z)/s.dir.z:-1;
         const x=s.at.x+distance*s.dir.x,y=s.at.y+distance*s.dir.y;
         const hit=distance>0&&distance<18?markAt(x,y):-1;
-        reticle.current.visible=usable&&hit!==-1&&useStagePlay.getState().stamps.length<3;
+        reticle.current.visible=stage.prefs.scenery==='floor'&&usable&&hit!==-1&&useStagePlay.getState().stamps.length<3;
         if(reticle.current.visible){reticle.current.position.set(x,y,POST_Z+.012);if(action==='start')useStagePlay.getState().stamp(hit);}
       }
       if(toy==='bubbles'&&action!=='off'&&(action==='start'||s.cooldown<=0)){

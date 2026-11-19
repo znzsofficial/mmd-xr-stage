@@ -5,6 +5,7 @@ export const en: Record<keyof ZhMessages, string> = {
   importBindResource: "Choose a file for this reference",
   hudBack: "Back to viewing",
   hudScenery: "Scenery",
+  visitKite:'To meadow',visitEncore:'To club',visitFerry:'To pool',visitPost:'To studio',toyHoldOrVisit:'Hold here, visit set to play',toyList:'All handheld props',
   toyKite:'Bamboo reel',toyKiteHint:'Squeeze to switch winds',toyEncore:'Ribbon microphone',toyEncoreHint:'Aim at a wing and squeeze',toyShell:'Shell blower',toyShellHint:'Aim at a gate and squeeze',
   storyKite:'After-school kite stand',storyFerry:'Bubble ferry',storyEncore:'Encore print shop',storyWindLeft:'Left wind',storyWindRight:'Right wind',storyFerryLeft:'Left gate',storyFerryRight:'Right gate',storyDyeLeft:'Print left wing',storyDyeRight:'Print right wing',storyClear:'Clear print',storyView:'Frame the scene',storyProp:'Character prop',storyKiteHelp:'Choose a wind to fly the kite. Select a character to hand over the reel.',storyFerryHelp:'Choose a shell gate to send the boat through it.',storyEncoreHelp:'Print both wings. The first sets the reveal direction. Hand the mic to a character.',
   hudChapel: "Dawn Chapel",
