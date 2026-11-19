@@ -30,4 +30,4 @@
 
 对照入口：[准备页](../../src/mmdVrShowcase/MmdVrPrepApp.tsx) · [VR HUD](../../src/mmdVrShowcase/components/MmdVrHud.tsx) · [画质及走速映射](../../src/mmdVrShowcase/mmdVrQuality.ts) · [XR 会话与手追](../../src/mmdVrShowcase/mmdVrSession.ts) · [舞台光照、视距与物理](../../src/mmdVrShowcase/components/MmdVrStage.tsx) · [屏幕观看](../../src/mmdVrShowcase/screen/ScreenStage.tsx)。
 
-**应保留的边界。** 角色物理总开关、玩家拨衣、可用腕骨持物和场景摆放是不同功能。角色自己的掌面实验（`051318c`）只补缺失接触面，需有合适的模型与动作；保持在准备页「实验功能」，无需开启同组自碰撞。保留位置、转向、大小、换动作、循环、进度、重置视角、菜单召回、缺贴图修复与退出。诊断计时本身仍有用；隐藏调试入口不等同于停止性能记录。
+**当前入口。** 角色自己的掌面试验只补缺失掌面，默认关，现已移入场内「接触细调」。跳舞时手臂经过胸前用「角色 → 胸部受压形变」，默认开；不调整手臂。两者均独立于玩家手追拨衣。性能记录无需开启物理调试。[当前操作](./vr-controls.md)

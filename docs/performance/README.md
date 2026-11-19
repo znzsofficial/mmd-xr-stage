@@ -14,6 +14,8 @@
 
 ## 查记录或跑对照
 
+下次戴头显先用[短测清单](./next-quest-export.md)：同一支舞开关物理、留角色在教室去草坪再返回。固定版 `f28edaa` 的 JSON 没有胸部受压开关或接触命中，实际视觉效果另留一句感受。
+
 最新[桌面配对结果](./xr-runtime-performance.md#逐帧骨架更新与回场-vmd-复用)：播放已合并物理输入前的多余骨架更新，回场已复用 VMD 解析结果。后续本机优先区分新模型解析、贴图透明判断与 GPU 上传，验证只读数据能否安全复用；整次头显回场仍按 `roomRestores[]` 看。
 
 - [历次真机报告的条件、样本与结论](./viewing-and-diagnostics.md#已有测量) · [如何复测并导出](./viewing-and-diagnostics.md)。
