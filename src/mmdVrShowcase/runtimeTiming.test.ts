@@ -15,3 +15,9 @@ it('reports phase means per completed pose, even with multiple models in one fra
   expect(t.readAndReset()).toMatchObject({mean:22,physicsPoseWork:{evaluations:2,animationIkMs:3,prepareMs:1.5,backendMs:6,writeBackMs:1}});
   t.record(3);expect(t.readAndReset()).toEqual({mean:3,max:3});
 });
+
+it('keeps native step bins separate from pose counts and flushes seed-only samples at a window boundary',()=>{
+  const t=createRuntimeTiming();t.recordBullet(5,0,1,true);t.recordBullet(1,8,3,false);t.recordBullet(NaN,2,1,false);t.record(21);
+  expect(t.readAndReset()?.bulletStepWork).toEqual({steps:2,seedOnly:1,feedMs:3,worldStepMs:4,outputsMs:2});
+  t.recordBullet(3,0,0,true);expect(t.readAndReset()).toBeNull();t.record(4);expect(t.readAndReset()?.bulletStepWork).toBeUndefined();
+});

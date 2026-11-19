@@ -10,7 +10,7 @@ overrides:
 
 patchedDependencies:
   '@pmndrs/xr@6.6.32': 82446919f4cdeff5e0782ad8008296a7291d6b9c4acc579052899034a767f882
-  '@yohawing/three-mmd-loader@0.8.6': a720b12555ad53c99d3bb795a94b273252d81cb500b8b059674509cc0d6f3e4f
+  '@yohawing/three-mmd-loader@0.8.6': bc803aed06d982e7551628c4e680246ad93fd7c702cfea15ea517eaf5a5073c2
 
 importers:
 
@@ -27,7 +27,7 @@ importers:
         version: 6.6.32(@react-three/fiber@9.8.2(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(three@0.187.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(three@0.187.0)
       '@yohawing/three-mmd-loader':
         specifier: 0.8.6
-        version: 0.8.6(patch_hash=a720b12555ad53c99d3bb795a94b273252d81cb500b8b059674509cc0d6f3e4f)(three@0.187.0)
+        version: 0.8.6(patch_hash=bc803aed06d982e7551628c4e680246ad93fd7c702cfea15ea517eaf5a5073c2)(three@0.187.0)
       '@zip.js/zip.js':
         specifier: ^2.25.0
         version: 2.25.0
@@ -1428,7 +1428,7 @@ snapshots:
 
   '@vitest/spy@5.1.0': {}
 
-  '@yohawing/three-mmd-loader@0.8.6(patch_hash=a720b12555ad53c99d3bb795a94b273252d81cb500b8b059674509cc0d6f3e4f)(three@0.187.0)':
+  '@yohawing/three-mmd-loader@0.8.6(patch_hash=bc803aed06d982e7551628c4e680246ad93fd7c702cfea15ea517eaf5a5073c2)(three@0.187.0)':
     dependencies:
       '@types/three': 0.187.0
       three: 0.187.0

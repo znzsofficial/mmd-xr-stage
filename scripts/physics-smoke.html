@@ -33,6 +33,8 @@ try {
       if(result.updatedBoneCount !== 1 || buffers.updatedBoneIndices[0] !== 1) throw Error('Invalid output bone indices');
     }
     const contacts=backend.debugControllerContactCount(0);
+    const raw=native.debugPhysicsContacts();
+    if(raw.some(c=>c.rigidBodyIndexA>=2 && c.rigidBodyIndexB>=2))throw Error('Parked or tracked interaction slots are colliding with one another');
     if(!contacts || backend.debugControllerContactCount(1)!==0) throw Error('Controller contact missing or assigned to wrong hand '+JSON.stringify({direct,contacts,right:backend.debugControllerContactCount(1),finalY:trajectory.at(-1)}));
     backend.reset(context);
     if(backend.debugControllerContactCount()!==0) throw Error('Stale contacts after reset');

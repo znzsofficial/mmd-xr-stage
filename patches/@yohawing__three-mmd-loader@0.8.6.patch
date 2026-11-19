@@ -1,8 +1,16 @@
 diff --git a/dist/physics/customBulletMmd.d.ts b/dist/physics/customBulletMmd.d.ts
-index 3a8cd5fe856fa4c5c3074e500eeeea0d1434a9ee..bd1f383e055e4e528f22fdcc5c1fe0d4266ecc0f 100644
+index 3a8cd5fe856fa4c5c3074e500eeeea0d1434a9ee..ac153645ba2fccc839cece4af89334713dfe2b33 100644
 --- a/dist/physics/customBulletMmd.d.ts
 +++ b/dist/physics/customBulletMmd.d.ts
-@@ -13,8 +13,10 @@ export interface CustomBulletMmdPhysicsBackendOptions {
+@@ -7,14 +7,18 @@ export interface CustomBulletMmdLoaderOptions {
+     readonly timeoutMs?: number;
+ }
+ export interface CustomBulletMmdPhysicsBackendOptions {
++    /** Completed calls only. Reset/seed operations count towards feedMs; the ABI does not return substep counts. */
++    readonly onStepWork?: (feedMs: number, worldStepMs: number, outputsMs: number, seedOnly: boolean) => void;
+     readonly fixedTimeStep?: number;
+     readonly maxSubSteps?: number;
+ }
  /** mmd-anim Bullet module exposed through the stable Custom Bullet API name. */
  export type CustomBulletMmdModule = MmdAnimBulletModule;
  export interface CustomBulletMmdPhysicsBackend extends MmdDirectBufferPhysicsBackend {
@@ -32,10 +40,10 @@ index 75621cc232d2eeaee3bd133886ef0f7075e31dca..4c37586cbae517152855be1a6b5ce933
 +    }
  }
 diff --git a/dist/physics/mmdAnimBullet.d.ts b/dist/physics/mmdAnimBullet.d.ts
-index cfc853282900018d84687bbcf5a40b20dfba95f9..b3a14276a4c9689448e09368c12c58781db716cb 100644
+index cfc853282900018d84687bbcf5a40b20dfba95f9..35a80281b97ea0c18c00804948b00943510592d1 100644
 --- a/dist/physics/mmdAnimBullet.d.ts
 +++ b/dist/physics/mmdAnimBullet.d.ts
-@@ -42,8 +42,10 @@ export interface MmdAnimBulletContactPoint {
+@@ -42,10 +42,13 @@ export interface MmdAnimBulletContactPoint {
      readonly normalWorldOnB: readonly [number, number, number];
  }
  export interface MmdAnimBulletPhysicsBackend extends MmdPhysicsBackend {
@@ -45,12 +53,50 @@ index cfc853282900018d84687bbcf5a40b20dfba95f9..b3a14276a4c9689448e09368c12c5878
 +    debugPhysicsContactsForRigidBodyRange(firstRigidBodyIndex: number, rigidBodyCount: number): readonly MmdAnimBulletContactPoint[];
  }
  export declare function createMmdAnimBulletPhysicsBackend(module: MmdAnimBulletModule, options?: {
++    onStepWork?: (feedMs: number, worldStepMs: number, outputsMs: number, seedOnly: boolean) => void;
      fixedTimeStep?: number;
+     maxSubSteps?: number;
+ }): MmdAnimBulletPhysicsBackend;
 diff --git a/dist/physics/mmdAnimBullet.js b/dist/physics/mmdAnimBullet.js
-index 35ad7804839e458df2f66bb413622f48815ead55..fac0cbf8beac5bef88fd547db236e408cf4f8c8d 100644
+index 35ad7804839e458df2f66bb413622f48815ead55..66b52bd4fd944fc5511e4f48dc6b3d78c1409282 100644
 --- a/dist/physics/mmdAnimBullet.js
 +++ b/dist/physics/mmdAnimBullet.js
-@@ -156,6 +156,58 @@ class MmdAnimBulletPhysicsBackendImpl {
+@@ -64,6 +64,8 @@ class MmdAnimBulletPhysicsBackendImpl {
+     step(context) {
+         if (this.disposedState)
+             return { simulated: false, diagnostics: this.diagnostics() };
++        const observe = this.options.onStepWork;
++        const start = observe ? performance.now() : 0;
+         if (!this.ensureModel(context)) {
+             return { simulated: false, diagnostics: [{ level: "error", code: "PHYSICS_BACKEND_MODEL_UPLOAD_FAILED", message: "Failed to upload MMD model to mmd-anim Bullet." }] };
+         }
+@@ -76,6 +78,7 @@ class MmdAnimBulletPhysicsBackendImpl {
+             // constrained hair chain and makes the tail explode after a few frames.
+             this.feedBodies(inputWorld, toggles, false, false);
+         }
++        let nativeAt = 0;
+         if (seedOnly) {
+             this.module._mmd_anim_bullet_world_reset(this.world);
+             if (inputWorld)
+@@ -85,10 +88,15 @@ class MmdAnimBulletPhysicsBackendImpl {
+             this.module._mmd_anim_bullet_world_settle_to_current(this.world);
+             this.pendingReset = false;
+         }
+-        else if (this.module._mmd_anim_bullet_world_step(this.world, Math.max(0, context.deltaSeconds), this.options.maxSubSteps ?? 5, this.options.fixedTimeStep ?? 1 / 60) !== 0) {
+-            return { simulated: false, diagnostics: [{ level: "error", code: "PHYSICS_BACKEND_STEP_FAILED", message: "mmd-anim Bullet step failed." }] };
++        else {
++            if (observe) nativeAt = performance.now();
++            if (this.module._mmd_anim_bullet_world_step(this.world, Math.max(0, context.deltaSeconds), this.options.maxSubSteps ?? 5, this.options.fixedTimeStep ?? 1 / 60) !== 0) {
++                return { simulated: false, diagnostics: [{ level: "error", code: "PHYSICS_BACKEND_STEP_FAILED", message: "mmd-anim Bullet step failed." }] };
++            }
+         }
++        const outputAt = observe ? performance.now() : 0;
+         const updated = this.copyDynamicOutputs(context, toggles);
++        if (observe) observe((seedOnly ? outputAt : nativeAt) - start, seedOnly ? 0 : outputAt - nativeAt, performance.now() - outputAt, seedOnly);
+         return { simulated: !seedOnly && updated > 0, updatedBoneCount: updated };
+     }
+     reset(_context) {
+@@ -156,6 +164,58 @@ class MmdAnimBulletPhysicsBackendImpl {
          }
          return contacts;
      }
@@ -110,10 +156,16 @@ index 35ad7804839e458df2f66bb413622f48815ead55..fac0cbf8beac5bef88fd547db236e408
          const bodies = context.rigidBodies;
          if (!bodies)
 diff --git a/dist/runtime/core.js b/dist/runtime/core.js
-index 0f31e1ab87080db0144c0b85e3b35a549b50a5b2..d2480f1fa94b4a55ee78afc4bdd119f86dd89cea 100644
+index 0f31e1ab87080db0144c0b85e3b35a549b50a5b2..d0a33aebf0aee8ff56f06c726910357d586747aa 100644
 --- a/dist/runtime/core.js
 +++ b/dist/runtime/core.js
-@@ -109,12 +109,16 @@ export class DefaultMmdRuntime {
+@@ -1,4 +1,5 @@
+ import * as THREE from "three";
++import { syncRenderPalettes } from './syncRenderPalettes.js';
+ import { validateMorphOverrides } from "./morphOverrides.js";
+ import { writeBonePhysicsToggleBuffer } from "../physics/legacyPhysicsBridge.js";
+ import { applyMmdAnimation, isMmdAnimation, preparePreAppendTransforms, sampleMmdCameraTrackInto, sampleMmdLightTrackInto } from "./animation.js";
+@@ -109,12 +110,16 @@ export class DefaultMmdRuntime {
          localRotation: new THREE.Quaternion()
      };
      constructor(options = {}) {
@@ -130,7 +182,7 @@ index 0f31e1ab87080db0144c0b85e3b35a549b50a5b2..d2480f1fa94b4a55ee78afc4bdd119f8
          if (options?.morphOverrides) {
              const morphs = this.mesh ? readMmdMeshRuntimeData(this.mesh).mmdMorphs : undefined;
              validateMorphOverrides(options.morphOverrides, Array.isArray(morphs) ? morphs.length : this.mesh?.morphTargetInfluences?.length ?? 0);
-@@ -141,7 +145,7 @@ export class DefaultMmdRuntime {
+@@ -141,7 +146,7 @@ export class DefaultMmdRuntime {
          }
          else {
              this.stepStatefulSpringPhysics();
@@ -139,7 +191,16 @@ index 0f31e1ab87080db0144c0b85e3b35a549b50a5b2..d2480f1fa94b4a55ee78afc4bdd119f8
              this.physicsDisabled = false;
          }
          this.mesh?.skeleton.update();
-@@ -471,13 +475,14 @@ export class DefaultMmdRuntime {
+@@ -165,7 +170,7 @@ export class DefaultMmdRuntime {
+             evaluateOptions = meshOrOptions;
+         }
+         const state = this.evaluate(seconds, evaluateOptions);
+-        syncRuntimeMeshForRender(mesh ?? undefined);
++        syncRenderPalettes(mesh ?? undefined);
+         return state;
+     }
+     seek(seconds) {
+@@ -471,13 +476,14 @@ export class DefaultMmdRuntime {
              }
          }
      }
@@ -155,7 +216,7 @@ index 0f31e1ab87080db0144c0b85e3b35a549b50a5b2..d2480f1fa94b4a55ee78afc4bdd119f8
          mesh.updateWorldMatrix(false, true);
          const boneCount = mesh.skeleton.bones.length;
          const directBuffers = acquireDirectStepBuffersIfPossible(backend, data, boneCount);
-@@ -516,7 +521,10 @@ export class DefaultMmdRuntime {
+@@ -516,7 +522,10 @@ export class DefaultMmdRuntime {
              inputWorldMatricesColumnMajor = extractMmdWorldMatricesIntoFloat32(mesh, directBuffers.inputWorldMatricesColumnMajor);
          }
          else {
@@ -167,7 +228,7 @@ index 0f31e1ab87080db0144c0b85e3b35a549b50a5b2..d2480f1fa94b4a55ee78afc4bdd119f8
              this.scratchExternalPhysicsInput.worldMatricesColumnMajor = inputWorldMatricesColumnMajor;
          }
          const prePhysics = createPrePhysicsInputBuffersIfNeeded(data.skeleton, inputTranslations, inputRotations, inputWorldMatricesColumnMajor, this.scratchPrePhysics);
-@@ -579,7 +587,9 @@ export class DefaultMmdRuntime {
+@@ -579,7 +588,9 @@ export class DefaultMmdRuntime {
              bonePhysicsToggles: bonePhysicsToggleBuffer,
              morphImpulses: data.morphImpulses
          };
@@ -177,7 +238,7 @@ index 0f31e1ab87080db0144c0b85e3b35a549b50a5b2..d2480f1fa94b4a55ee78afc4bdd119f8
          const updatedBoneCount = result.updatedBoneCount ?? context.output?.updatedBoneIndices?.length ?? 0;
          if (!result.simulated && updatedBoneCount === 0) {
              return;
-@@ -588,6 +598,7 @@ export class DefaultMmdRuntime {
+@@ -588,6 +599,7 @@ export class DefaultMmdRuntime {
              mergePhysicsOutputDeltas(context, inputTranslations, inputRotations, prePhysics, this.scratchPrePhysics);
          }
          applyPhysicsOutputToSkeleton(mesh, context, updatedBoneCount);
@@ -185,7 +246,7 @@ index 0f31e1ab87080db0144c0b85e3b35a549b50a5b2..d2480f1fa94b4a55ee78afc4bdd119f8
      }
      resetPhysicsState() {
          this.physicsSimulation?.reset(this.state.seconds);
-@@ -595,6 +606,11 @@ export class DefaultMmdRuntime {
+@@ -595,6 +607,11 @@ export class DefaultMmdRuntime {
      }
      captureDebugStage(stage) {
          const mesh = this.mesh;
@@ -197,6 +258,39 @@ index 0f31e1ab87080db0144c0b85e3b35a549b50a5b2..d2480f1fa94b4a55ee78afc4bdd119f8
          if (!mesh) {
              clearDebugStage(this.debugStages[stage]);
              return;
+@@ -617,32 +634,9 @@ function findPropertyFrameIndex(frames, frame) {
+     }
+     return Math.max(0, high);
+ }
+-function syncRuntimeMeshForRender(mesh) {
+-    if (!mesh) {
+-        return;
+-    }
+-    // Keep renderer-facing world and bone matrices in sync after runtime evaluation.
+-    mesh.updateMatrixWorld(true);
+-    updateSkinnedMeshSkeletons(mesh);
+-}
+-function updateSkinnedMeshSkeletons(object) {
+-    if (isSkinnedMesh(object)) {
+-        object.skeleton.update();
+-    }
+-    const children = object.children;
+-    for (let index = 0; index < children.length; index += 1) {
+-        const child = children[index];
+-        if (child) {
+-            updateSkinnedMeshSkeletons(child);
+-        }
+-    }
+-}
+ function isObject3D(value) {
+     return value instanceof THREE.Object3D || hasBooleanFlag(value, "isObject3D");
+ }
+-function isSkinnedMesh(value) {
+-    return value instanceof THREE.SkinnedMesh || hasBooleanFlag(value, "isSkinnedMesh");
+-}
+ function hasBooleanFlag(value, key) {
+     return (typeof value === "object" &&
+         value !== null &&
 diff --git a/dist/runtime/ik/CcdIkSolver.js b/dist/runtime/ik/CcdIkSolver.js
 index abe9f161ac754ef03e832e83c2d9d2a03aefd27a..1392645f449e1b978299c328e4ced859c681d9f0 100644
 --- a/dist/runtime/ik/CcdIkSolver.js
@@ -312,6 +406,79 @@ index abe9f161ac754ef03e832e83c2d9d2a03aefd27a..1392645f449e1b978299c328e4ced859
  function composeWorldMatrices(bones, translations, rotations, matrices, local, states) {
      if (isParentBeforeChildOrdered(bones)) {
          for (let index = 0; index < bones.length; index += 1) {
+diff --git a/dist/runtime/mmdAnimRuntime.js b/dist/runtime/mmdAnimRuntime.js
+index 039ebe229a2510463c857f342b72665cdc7128d6..451ed1ca206cb0ffae2fc631e80b83b147164015 100644
+--- a/dist/runtime/mmdAnimRuntime.js
++++ b/dist/runtime/mmdAnimRuntime.js
+@@ -1,4 +1,5 @@
+ import * as THREE from "three";
++import { syncRenderPalettes } from './syncRenderPalettes.js';
+ import { applyMorphOverrides, validateMorphOverrides } from "./morphOverrides.js";
+ import { writeBonePhysicsToggleBuffer } from "../physics/legacyPhysicsBridge.js";
+ import { sampleMmdCameraTrackInto, sampleMmdLightTrackInto } from "./animation.js";
+@@ -352,7 +353,7 @@ export class MmdAnimRuntime {
+             evaluateOptions = meshOrOptions;
+         }
+         const state = this.evaluate(seconds, evaluateOptions);
+-        syncRuntimeObjectForRender(renderObject ?? this.mesh);
++        syncRenderPalettes(renderObject ?? this.mesh);
+         return state;
+     }
+     seek(seconds) {
+@@ -762,25 +763,6 @@ function syncMorphWeights(mesh, weights) {
+         influences[index] = weights[index] ?? 0;
+     }
+ }
+-function syncRuntimeObjectForRender(object) {
+-    if (!object) {
+-        return;
+-    }
+-    object.updateMatrixWorld(true);
+-    updateSkinnedMeshSkeletons(object);
+-}
+-function updateSkinnedMeshSkeletons(object) {
+-    if (isSkinnedMesh(object)) {
+-        object.skeleton.update();
+-    }
+-    const children = object.children;
+-    for (let index = 0; index < children.length; index += 1) {
+-        const child = children[index];
+-        if (child) {
+-            updateSkinnedMeshSkeletons(child);
+-        }
+-    }
+-}
+ function ensureScratchMatrixArrayLength(matrices, length) {
+     for (let index = matrices.length; index < length; index += 1) {
+         matrices.push(new THREE.Matrix4());
+diff --git a/dist/runtime/syncRenderPalettes.js b/dist/runtime/syncRenderPalettes.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..6cdc3a335dbbdf10574246d29dd95b9b7722072e
+--- /dev/null
++++ b/dist/runtime/syncRenderPalettes.js
+@@ -0,0 +1,22 @@
++/** Body splits, material-order and outline proxies can share one Skeleton.
++ * All world matrices are final before this walk. Revisit the hierarchy on each
++ * tick (reparenting/rebinding is legal), but upload each distinct CPU palette once. */
++export function syncRenderPalettes(root) {
++    if (!root) return;
++    root.updateMatrixWorld(true);
++    let first, others;
++    function visit(object) {
++        if (object.isSkinnedMesh === true) {
++            const skeleton = object.skeleton;
++            if (first === undefined) {
++                first = skeleton;
++                skeleton.update();
++            } else if (skeleton !== first && !others?.has(skeleton)) {
++                (others ??= new Set()).add(skeleton);
++                skeleton.update();
++            }
++        }
++        for (const child of object.children) visit(child);
++    }
++    visit(root);
++}
 diff --git a/dist/runtime/types.d.ts b/dist/runtime/types.d.ts
 index d82f2a20c7e422f1186db8914cfc1b713e2529e2..a31cffd6a6d1a2999509fd75d5e2aac9e6447a95 100644
 --- a/dist/runtime/types.d.ts

@@ -74,6 +74,7 @@ export async function createBulletPhysicsBackend(options: {
   simulationDelta?: () => number | undefined;
   modelScale?: () => number;
   onPhysicsBones?: PhysicsBoneObserver;
+  onBulletStepWork?: (feedMs:number,worldStepMs:number,outputsMs:number,seedOnly:boolean)=>void;
   quality?: () => MmdPhysicsQuality;
   boneFeedbackScale?: () => number;
   controllerFriction?: () => number;
@@ -84,6 +85,7 @@ export async function createBulletPhysicsBackend(options: {
   const module = await loadBulletModule();
   const qualityOptions = PHYSICS_QUALITY_OPTIONS[options.quality?.() ?? "medium"];
   const backendOptions = {
+    onStepWork: options.onBulletStepWork,
     fixedTimeStep: 1 / 60,
     maxSubSteps: qualityOptions.maxSubSteps,
     resetCatchUpSteps: 0,
@@ -259,6 +261,7 @@ export function createControllerColliderPhysicsBackend(
   let totalControllerContacts = 0;
   let bodyMetadataSource: MmdPhysicsStepContext["rigidBodies"];
   let controllerGroup = -1;
+  let modelGroupMask = 0;
   let copiedInputTranslations = new Float32Array(0);
   let copiedInputRotations = new Float32Array(0);
   let copiedInputMatrices = new Float32Array(0);
@@ -294,8 +297,10 @@ export function createControllerColliderPhysicsBackend(
       if (bodyMetadataSource !== context.rigidBodies) {
         bodyMetadataSource = context.rigidBodies;
         dynamicRigidBodyCount = 0;
+        modelGroupMask = 0;
         for (const body of context.rigidBodies) {
           if (body.motionType !== "static") dynamicRigidBodyCount += 1;
+          if (!(syntheticColliderBody in body)) modelGroupMask |= 1 << Math.min(15, Math.max(0, Math.trunc(body.collisionGroup ?? 0)));
         }
         controllerGroup = chooseControllerCollisionGroup(context.rigidBodies);
       }
@@ -335,7 +340,7 @@ export function createControllerColliderPhysicsBackend(
           ],
         };
         augmentedRigidBodies = [
-          ...context.rigidBodies.map((body) => controllerGroupMask === 0 ? body : ({
+          ...context.rigidBodies.map((body) => controllerGroupMask === 0 || syntheticColliderBody in body ? body : ({
             ...body,
             collisionMask: (body.collisionMask ?? 0xffff) | controllerGroupMask,
           })),
@@ -352,7 +357,9 @@ export function createControllerColliderPhysicsBackend(
             friction: colliderFriction,
             restitution: colliderRestitution,
             collisionGroup: controllerGroup < 0 ? 15 : controllerGroup,
-            collisionMask: controllerGroup < 0 ? 0 : 0xffff,
+            // Hands/controllers only interact with model groups. Parked slots
+            // coincide; don't create helper-helper manifolds just to discard them later.
+            collisionMask: controllerGroup < 0 ? 0 : modelGroupMask,
           })),
         ];
       }

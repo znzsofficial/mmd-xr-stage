@@ -410,6 +410,7 @@ export function MmdVrStageRoom({ scenery, saved, slots }: { scenery: SceneryId; 
   const runtime = useMemo(() => {
     const handle = createMmdRuntimeHandle(scene, {
       onPhysicsPoseWork: useMmdVrStore.getState().presentation==='xr' ? runtimeTiming.recordPose : undefined,
+      onBulletStepWork: useMmdVrStore.getState().presentation==='xr' ? runtimeTiming.recordBullet : undefined,
       controllerColliders: getMmdVrControllerColliderMatrices,
       controllerCollidersEnabled: () => gl.xr.isPresenting && useMmdVrStore.getState().physicsControllerCollisions,
       controllerColliderRadius: () => useMmdVrStore.getState().prefs.physicsColliderRadius,

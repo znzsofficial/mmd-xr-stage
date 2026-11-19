@@ -198,6 +198,7 @@ export type MmdRuntimeOptions = {
   capturePhysicsStageSnapshots?:boolean;
   /** Per completed external-physics pose, not a GPU or pure Bullet solver timer. */
   onPhysicsPoseWork?: (animationIkMs:number, prepareMs:number, backendMs:number, writeBackMs:number)=>void;
+  onBulletStepWork?: (feedMs:number,worldStepMs:number,outputsMs:number,seedOnly:boolean)=>void;
   controllerColliders?: () => readonly THREE.Matrix4[];
   controllerCollidersEnabled?: () => boolean;
   controllerColliderRadius?: () => number;
@@ -373,6 +374,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
           simulationDelta: () => stepDelta,
           modelScale: () => Math.min(10, Math.max(0.01, Number(colliderRoot?.userData.mmdVisualScale) || transform.scale)),
           onPhysicsBones: physicsDisplay?.record,
+          onBulletStepWork: options.onBulletStepWork,
           handRadius: () => {
             const scale = Math.min(10, Math.max(0.01, Number(colliderRoot?.userData.mmdVisualScale) || transform.scale));
             return (handColliderRadius?.() ?? 0.035) / scale;

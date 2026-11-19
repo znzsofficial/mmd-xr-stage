@@ -12,6 +12,20 @@ const context = (): MmdPhysicsStepContext => ({
 });
 
 describe("XR collider physics regression", () => {
+  it('admits every available hand/controller to model group pair but no helper pairs, including a full group table',()=>{
+    for(const groups of [[0,3,12],Array.from({length:15},(_,i)=>i),Array.from({length:16},(_,i)=>i)]){
+      const step=vi.fn((_c:MmdPhysicsStepContext)=>({simulated:true}));const base={name:'test',disabled:false,disposed:false,step};
+      const chain=createControllerColliderPhysicsBackend(createControllerColliderPhysicsBackend(base,()=>Array(12).fill(identity)),()=>[identity,identity]);
+      const input=context();const model=groups.map((collisionGroup,index)=>({...input.rigidBodies![0],index,collisionGroup,collisionMask:0}));
+      chain.step({...input,rigidBodies:model});const out=step.mock.calls[0][0].rigidBodies!,helpers=out.slice(model.length);
+      const admits=(a:typeof out[number],b:typeof out[number])=>!!((a.collisionMask??65535)&(1<<(b.collisionGroup??0))) && !!((b.collisionMask??65535)&(1<<(a.collisionGroup??0)));
+      for(const [i,h] of helpers.entries()){
+        for(const h2 of helpers)expect(admits(h,h2)).toBe(false);
+        for(const b of out.slice(0,model.length))expect(admits(h,b)).toBe(groups.length+(i<2?0:1)<16);
+      }
+      expect(model.every(b=>b.collisionMask===0)).toBe(true);
+    }
+  });
   it("keeps the controller range before all 12 hand slots and forwards contact diagnostics", () => {
     const query = vi.fn((first: number) => [
       { rigidBodyIndexA: first, rigidBodyIndexB: 0 },
