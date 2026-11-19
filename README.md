@@ -33,7 +33,7 @@ Import PMX/PMD characters, VMD motions and GLB/glTF props on the prep page. Choo
 
 ![A clear limestone aisle between oak pews, leading to the altar and its eight-petal stained-glass rose.](./docs/screenshots/dawn-chapel.webp)
 
-The four-set gallery and chapel are captured in screen mode. The classroom is the prep-page render; Astral Court is a desktop XR simulator capture. All show built-in scenery without imported characters. See [how the scenery is made](./docs/scenery-art.md) for the modelling and texture workflow.
+The four-set gallery and chapel are captured in screen mode. The classroom is the prep-page render; Astral Court is a desktop XR simulator capture. All show built-in scenery without imported characters. See [how the scenery is made](./docs/scenery/README.md) for the modelling and texture workflow.
 
 ## Features
 
@@ -43,7 +43,7 @@ The four-set gallery and chapel are captured in screen mode. The classroom is th
 | :---: | :---: | :---: |
 | ![Paper swallow flying from the reel by the meadow bench.](./docs/screenshots/kite-stand.webp) | ![Striped canopy ferry leaving one of two pool gates.](./docs/screenshots/bubble-ferry.webp) | ![Sunrise printed across the club curtain.](./docs/screenshots/encore-print.webp) |
 
-Fly a kite from a character's wrist in the meadow, send a bubble ferry through either pool gate, or print the club's curtain wings in your chosen order and hand over the encore mic. On screen, open the **Backpack** for the current set's cues; in VR, take its prop from **Backpack → Toys**. See the [scene and controller guide](./docs/vr-controls.md#三幕布景玩法).
+Fly a kite from a character's wrist in the meadow, send a bubble ferry through either pool gate, or print the club's curtain wings in your chosen order and hand over the encore mic. On screen, open the **Backpack** for the current set's cues; in VR, take its prop from **Backpack → Toys**. The fourth vignette, Lunar Post, uses a VR controller to stamp a postcard on the studio plinth. See the [guide to all four vignettes](./docs/gameplay/README.md).
 
 ### Prep Page
 
@@ -54,13 +54,13 @@ Fly a kite from a character's wrist in the meadow, send a bubble ferry through e
 
 ### In VR
 
-For desktop and touch controls instead, see [Watching without a headset](./docs/screen-viewing.md). The same-tab backpack and scene layouts work in either mode.
+For desktop and touch controls instead, see [Watching without a headset](./docs/gameplay/screen-viewing.md). The same-tab backpack and scene layouts work in either mode.
 
-- Choose a set from the viewing strip: the window-lit classroom, pool terrace, wisteria path, live venue, studio plinth, Astral Court or Dawn Chapel. See the [standing spots for each set](./docs/vr-controls.md#在布景中给角色选位置). Only the current room's instances are loaded; scenery does not consume character or object slots.
+- Choose a set from the viewing strip: the window-lit classroom, pool terrace, wisteria path, live venue, studio plinth, Astral Court or Dawn Chapel. See the [standing spots for each set](./docs/gameplay/vr-controls.md#在布景中给角色选位置). Only the current room's instances are loaded; scenery does not consume character or object slots.
 - Pick a character or prop from the backpack, aim at free ground, and release the trigger to place it. Select a placed character to move, turn, scale, change its motion, or put it away. Hidden items remain reachable from the backpack.
-- Open Backpack → Toys for the current set's props. To [give a toy to a character](./docs/vr-controls.md#把道具递给角色), point at the character, press the trigger, choose **Give toy**, then pick its left or right hand. The prop follows the wrist during VMD playback. The Astral saber works in every set: squeeze the side grip once to extend it, again to retract it.
+- Open Backpack → Toys for the current set's props. To [give a toy to a character](./docs/gameplay/vr-controls.md#把道具递给角色), point at the character, press the trigger, choose **Give toy**, then pick its left or right hand. The prop follows the wrist during VMD playback. The Astral saber works in every set: squeeze the side grip once to extend it, again to retract it.
 - Render diagnostics distinguish requested settings, session-reported refresh/layer properties, callback cadence, model-update CPU cost and renderer resource/draw counters. No GPU time is inferred from these values.
-- After exiting VR, [export the last session's performance report](./docs/viewing-and-diagnostics.md) from the prep page before entering VR again or refreshing. It separates character placement and loader timings from frame intervals during viewing.
+- After exiting VR, [export the last session's performance report](./docs/performance/viewing-and-diagnostics.md) from the prep page before entering VR again or refreshing. It separates character placement and loader timings from frame intervals during viewing.
 - In-headset HUD with quality controls, model transform, height adjustment, snap turning, and exposure/lighting looks.
 - Meta Quest hand tracking with articulated hands, pinch-based HUD interaction, and hand-to-model physics collision.
 - Optional controller collision, contact haptics, physics quality controls, and session-safe model disposal.
@@ -107,7 +107,7 @@ Production uses WebGL. WebGPU-in-WebXR now has browser and Three.js implementati
 
 ## Local Data
 
-Preferences are stored locally via `localStorage`. Imported files and the previous-stage snapshot stay in page memory and are cleared on refresh. ZIP imports support UTF-8 and optional Shift-JIS/GBK filename decoding; encrypted archives are not supported. See [asset import and stage resume](./docs/asset-workflow.md) for limits and recovery behavior. This repository ships no character or motion assets. Use only assets whose creator terms permit your intended use.
+Preferences are stored locally via `localStorage`. Imported files and the previous-stage snapshot stay in page memory and are cleared on refresh. ZIP imports support UTF-8 and optional Shift-JIS/GBK filename decoding; encrypted archives are not supported. See [asset import and stage resume](./docs/gameplay/asset-workflow.md) for limits and recovery behavior. This repository ships no character or motion assets. Use only assets whose creator terms permit your intended use.
 
 ## Deployment
 

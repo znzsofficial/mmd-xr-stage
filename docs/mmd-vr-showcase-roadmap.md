@@ -2,9 +2,9 @@
 
 状态校正：2026-11-17；下文功能编号和多数计划保留自 2026-08-04。
 
-> **历史路线图**：项目已从 NekoVirtOS 拆出，当前只有准备页与 MMD VR 舞台。Studio/VR 桌面对比及其文档名称属于拆分前背景，相关文件不在本仓。近期执行状态请读 [HANDOFF](./HANDOFF.md)，不要据旧表推断功能已完成。
+> **历史路线图**：项目已从 NekoVirtOS 拆出。下文保留当时计划；目前同一舞台已有屏幕与 VR 两种观看模式。Studio/VR 桌面对比及其文档名称属于拆分前背景。当前任务见[交接页](./HANDOFF.md)，已上线的原案玩法见[四幕清单](./gameplay/README.md)。
 
-当前相关：[产品](../PRODUCT.md) · [VR 控件](./vr-controls.md) · [XR 生命周期](./xr-session-lifecycle.md) · [文档索引](./README.md)
+当前相关：[产品](../PRODUCT.md) · [VR 控件](./gameplay/vr-controls.md) · [XR 生命周期](./xr-session-lifecycle.md) · [文档索引](./README.md)
 
 ---
 
