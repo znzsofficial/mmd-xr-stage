@@ -1,8 +1,8 @@
 # 会话交接｜2026-11-19
 
-[线上舞台](https://mmd-xr-stage.pages.dev) · [固定功能版 `57e923b`](https://5135f9c2.mmd-xr-stage.pages.dev) · [分类文档索引](./README.md)
+[线上舞台](https://mmd-xr-stage.pages.dev) · [固定功能版 `be863f1`](https://5cf5f2cd.mmd-xr-stage.pages.dev) · [分类文档索引](./README.md)
 
-**线上基线**：观看默认净场，B 呼出；纯手追可点左腕侧菜单或低头点选。角色首层只留换动作、摆位置与当前可用的持物动作。默认材质不再在回场时重复设置。289 项测试、生产构建、模拟 B／手部射线、连廊往返恢复 VMD、主域名 44 项资源哈希通过。[操作](./gameplay/vr-controls.md) · [校园连廊](./performance/campus-passage.md)
+**线上基线**：观看默认净场。B → 更多打开「自己／重力／画质」左侧栏，默认显示身高和行走速度；角色工具仍在角色旁。真实扳机事件的模拟 XR 已验证侧栏切换、调身高、展开物理参数、切画面效果与恢复净场，生产构建及主域名 44 项资源哈希通过。[操作](./gameplay/vr-controls.md) · [校园连廊](./performance/campus-passage.md)
 
 ## 下次从这里开始
 
