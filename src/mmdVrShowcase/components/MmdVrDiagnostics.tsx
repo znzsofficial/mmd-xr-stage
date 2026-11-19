@@ -21,6 +21,12 @@ export function MmdVrDiagnostics({ requested }: { requested: RenderRequest }) {
     recording.current = null; lastSession.current = null;
   }
   useEffect(() => () => { finish(); runtimeTiming.readAndReset(); useRenderDiagnostics.getState().set(null); }, []);
+  useEffect(()=>useMmdVrStore.subscribe((s,p)=>{
+    const r=recording.current;if(!r)return;
+    if(!s.overlayOpen || s.prefs.scenery!==p.prefs.scenery || s.entryEpoch!==p.entryEpoch){r.abandonRebuild();return;}
+    if(s.physicsBusy&&!p.physicsBusy)r.beginRebuild(s.prefs.scenery,s.physicsEnabled);
+    else if(!s.physicsBusy&&p.physicsBusy)r.endRebuild(!s.physicsError&&!s.physicsFatal);
+  }),[]);
   useFrame((_, delta, frame) => {
     const session = gl.xr.getSession();
     if (session !== lastSession.current) {

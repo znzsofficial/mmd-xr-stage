@@ -1,9 +1,18 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { createPerformanceRecording } from "./performanceReport";
 import type { RenderDiagnostics } from "./renderDiagnostics";
 
 const request = { frameRate: "120 Hz", antialias: true, framebufferScale: 1, foveation: null };
 describe("completed XR performance report", () => {
+  it('measures finished rebuilds on a wall clock independent of visible callback gaps, omitting abandoned rooms',()=>{
+    const clock=vi.spyOn(performance,'now');try{
+      clock.mockReturnValue(1000);const rec=createPerformanceRecording(request);rec.interval(.01,120);rec.interval(.02,120);
+      clock.mockReturnValue(2200);rec.beginRebuild('floor',false);rec.abandonRebuild();rec.endRebuild(false);
+      clock.mockReturnValue(4000);rec.beginRebuild('astralCourt',true);
+      clock.mockReturnValue(8750);rec.endRebuild(true);rec.endRebuild(true);
+      expect(rec.finish()).toMatchObject({visibleIntervalMs:20,physicsRebuilds:[{scenery:'astralCourt',requestedEnabled:true,startWallMs:3000,durationWallMs:4750,success:true}]});
+    }finally{clock.mockRestore();}
+  });
   it("separates aiming and confirmation from time observing the empty room and records each placement once", () => {
     const session = createPerformanceRecording(request, performance.now() - 60000);
     session.startupFrame(false);

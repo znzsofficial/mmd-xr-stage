@@ -1,31 +1,3 @@
-diff --git a/dist/three/performance.js b/dist/three/performance.js
---- a/dist/three/performance.js
-+++ b/dist/three/performance.js
-@@ -1,6 +1,24 @@
- const loaderPerformanceFlag = "__THREE_MMD_LOADER_PERF__";
- let loaderProfileId = 0;
- export function createLoaderPerformanceProfile(label, options = {}) {
-+    // Callback-only diagnostics for private local files: no filename-bearing
-+    // User Timing entries or global cleanup, even for concurrent loads.
-+    if (options.enabled === false && options.onMeasure) {
-+        const times = new Map();
-+        return {
-+            measures: [],
-+            mark(name) { times.set(name, performance.now()); },
-+            measure(name, start, end) {
-+                if (times.has(start) && times.has(end)) {
-+                    options.onMeasure({ label: "model", name,
-+                        durationMs: times.get(end) - times.get(start) });
-+                }
-+            },
-+            clear() {
-+                times.clear();
-+            }
-+        };
-+    }
-     if (!isLoaderPerformanceEnabled(options)) {
-         return undefined;
-     }
 diff --git a/dist/physics/customBulletMmd.d.ts b/dist/physics/customBulletMmd.d.ts
 index 3a8cd5fe856fa4c5c3074e500eeeea0d1434a9ee..bd1f383e055e4e528f22fdcc5c1fe0d4266ecc0f 100644
 --- a/dist/physics/customBulletMmd.d.ts
@@ -137,6 +109,94 @@ index 35ad7804839e458df2f66bb413622f48815ead55..fac0cbf8beac5bef88fd547db236e408
      ensureModel(context) {
          const bodies = context.rigidBodies;
          if (!bodies)
+diff --git a/dist/runtime/core.js b/dist/runtime/core.js
+index 0f31e1ab87080db0144c0b85e3b35a549b50a5b2..d2480f1fa94b4a55ee78afc4bdd119f86dd89cea 100644
+--- a/dist/runtime/core.js
++++ b/dist/runtime/core.js
+@@ -109,12 +109,16 @@ export class DefaultMmdRuntime {
+         localRotation: new THREE.Quaternion()
+     };
+     constructor(options = {}) {
++        this.captureStageSnapshots = options.captureStageSnapshots !== false;
++        this.onPhysicsPoseWork = options.onPhysicsPoseWork;
+         this.frameRate = normalizeFrameRate(options.frameRate ?? 30);
+         this.physicsMode = options.physics ?? "none";
+         this.physicsBackend = options.physicsBackend;
+         this.state = createFrameState(options.initialSeconds ?? 0, this.frameRate);
+     }
+     evaluate(seconds, options) {
++        const profile = options?.physics !== false && this.onPhysicsPoseWork;
++        const started = profile ? performance.now() : undefined;
+         if (options?.morphOverrides) {
+             const morphs = this.mesh ? readMmdMeshRuntimeData(this.mesh).mmdMorphs : undefined;
+             validateMorphOverrides(options.morphOverrides, Array.isArray(morphs) ? morphs.length : this.mesh?.morphTargetInfluences?.length ?? 0);
+@@ -141,7 +145,7 @@ export class DefaultMmdRuntime {
+         }
+         else {
+             this.stepStatefulSpringPhysics();
+-            this.stepExternalPhysics(previousSeconds);
++            this.stepExternalPhysics(previousSeconds, started);
+             this.physicsDisabled = false;
+         }
+         this.mesh?.skeleton.update();
+@@ -471,13 +475,14 @@ export class DefaultMmdRuntime {
+             }
+         }
+     }
+-    stepExternalPhysics(previousSeconds) {
++    stepExternalPhysics(previousSeconds, started) {
+         const mesh = this.mesh;
+         const data = this.externalPhysicsData;
+         const backend = this.physicsBackend;
+         if (!mesh || !data || !backend || backend.disabled || backend.disposed) {
+             return;
+         }
++        const prepareAt = started === undefined ? 0 : performance.now();
+         mesh.updateWorldMatrix(false, true);
+         const boneCount = mesh.skeleton.bones.length;
+         const directBuffers = acquireDirectStepBuffersIfPossible(backend, data, boneCount);
+@@ -516,7 +521,10 @@ export class DefaultMmdRuntime {
+             inputWorldMatricesColumnMajor = extractMmdWorldMatricesIntoFloat32(mesh, directBuffers.inputWorldMatricesColumnMajor);
+         }
+         else {
+-            inputWorldMatricesColumnMajor = copyNumbersToFloat32Scratch(extractMmdWorldMatricesInto(mesh, this.scratchExternalPhysicsInput.worldMatricesColumnMajorNumbers), this.scratchExternalPhysicsInput.worldMatricesColumnMajor);
++            // Same signed-axis conversion as the direct path. Models requiring a
++            // pre-physics rest pose cannot acquire direct backend buffers.
++            const storage = ensureFloat32ArrayLength(this.scratchExternalPhysicsInput.worldMatricesColumnMajor, boneCount * 16);
++            inputWorldMatricesColumnMajor = extractMmdWorldMatricesIntoFloat32(mesh, storage);
+             this.scratchExternalPhysicsInput.worldMatricesColumnMajor = inputWorldMatricesColumnMajor;
+         }
+         const prePhysics = createPrePhysicsInputBuffersIfNeeded(data.skeleton, inputTranslations, inputRotations, inputWorldMatricesColumnMajor, this.scratchPrePhysics);
+@@ -579,7 +587,9 @@ export class DefaultMmdRuntime {
+             bonePhysicsToggles: bonePhysicsToggleBuffer,
+             morphImpulses: data.morphImpulses
+         };
++        const stepAt = started === undefined ? 0 : performance.now();
+         const result = backend.step(context);
++        const writeAt = started === undefined ? 0 : performance.now();
+         const updatedBoneCount = result.updatedBoneCount ?? context.output?.updatedBoneIndices?.length ?? 0;
+         if (!result.simulated && updatedBoneCount === 0) {
+             return;
+@@ -588,6 +598,7 @@ export class DefaultMmdRuntime {
+             mergePhysicsOutputDeltas(context, inputTranslations, inputRotations, prePhysics, this.scratchPrePhysics);
+         }
+         applyPhysicsOutputToSkeleton(mesh, context, updatedBoneCount);
++        if (started !== undefined) this.onPhysicsPoseWork(prepareAt - started, stepAt - prepareAt, writeAt - stepAt, performance.now() - writeAt);
+     }
+     resetPhysicsState() {
+         this.physicsSimulation?.reset(this.state.seconds);
+@@ -595,6 +606,11 @@ export class DefaultMmdRuntime {
+     }
+     captureDebugStage(stage) {
+         const mesh = this.mesh;
++        if (!this.captureStageSnapshots) {
++            // This barrier has observable side effects independent of copying debug data.
++            mesh?.updateWorldMatrix(false, true);
++            return;
++        }
+         if (!mesh) {
+             clearDebugStage(this.debugStages[stage]);
+             return;
 diff --git a/dist/runtime/ik/CcdIkSolver.js b/dist/runtime/ik/CcdIkSolver.js
 index abe9f161ac754ef03e832e83c2d9d2a03aefd27a..1392645f449e1b978299c328e4ced859c681d9f0 100644
 --- a/dist/runtime/ik/CcdIkSolver.js
@@ -252,6 +312,50 @@ index abe9f161ac754ef03e832e83c2d9d2a03aefd27a..1392645f449e1b978299c328e4ced859
  function composeWorldMatrices(bones, translations, rotations, matrices, local, states) {
      if (isParentBeforeChildOrdered(bones)) {
          for (let index = 0; index < bones.length; index += 1) {
+diff --git a/dist/runtime/types.d.ts b/dist/runtime/types.d.ts
+index d82f2a20c7e422f1186db8914cfc1b713e2529e2..a31cffd6a6d1a2999509fd75d5e2aac9e6447a95 100644
+--- a/dist/runtime/types.d.ts
++++ b/dist/runtime/types.d.ts
+@@ -100,6 +100,10 @@ export interface MmdRuntimeAsyncTickOptions extends MmdRuntimeTickOptions {
+     readonly signal?: AbortSignal;
+ }
+ export interface DefaultMmdRuntimeOptions {
++    /** JS runtime only: false leaves intermediate debugState arrays empty; matrix synchronization is retained. */
++    readonly captureStageSnapshots?: boolean;
++    /** Completed external-physics evaluations only. Non-overlapping wall times (ms), one call per model. */
++    readonly onPhysicsPoseWork?: (animationIkMs: number, prepareMs: number, backendMs: number, writeBackMs: number) => void;
+     /** MMD timeline frame rate. Defaults to 30. */
+     readonly frameRate?: number;
+     /** Initial runtime time in seconds. Defaults to 0. */
+diff --git a/dist/three/performance.js b/dist/three/performance.js
+index 21175b4597aa46d6034db165c1b73d714cffb070..b7565c690bbb502705f925654f891e8fc7a01d22 100644
+--- a/dist/three/performance.js
++++ b/dist/three/performance.js
+@@ -1,6 +1,24 @@
+ const loaderPerformanceFlag = "__THREE_MMD_LOADER_PERF__";
+ let loaderProfileId = 0;
+ export function createLoaderPerformanceProfile(label, options = {}) {
++    // Callback-only diagnostics for private local files: no filename-bearing
++    // User Timing entries or global cleanup, even for concurrent loads.
++    if (options.enabled === false && options.onMeasure) {
++        const times = new Map();
++        return {
++            measures: [],
++            mark(name) { times.set(name, performance.now()); },
++            measure(name, start, end) {
++                if (times.has(start) && times.has(end)) {
++                    options.onMeasure({ label: "model", name,
++                        durationMs: times.get(end) - times.get(start) });
++                }
++            },
++            clear() {
++                times.clear();
++            }
++        };
++    }
+     if (!isLoaderPerformanceEnabled(options)) {
+         return undefined;
+     }
 diff --git a/dist/webgpu/self-shadow-pass.js b/dist/webgpu/self-shadow-pass.js
 index 06cd5adcb070478ddec40f76a55da9b64ce88abd..51c07d5426b47db762a240915dc7f187e6b78f28 100644
 --- a/dist/webgpu/self-shadow-pass.js

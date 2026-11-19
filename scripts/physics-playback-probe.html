@@ -1,0 +1,42 @@
+<!doctype html><meta charset="utf-8"><title>MMD physics pose parity / CPU</title>
+<p>Local development benchmark. Select one PMX and companion images. Uses a generated centre-bone VMD and a fixed clock; no rendering.</p>
+<input type="file" multiple><button id="run">Compare</button><pre id="result"></pre>
+<script type="module">
+import * as THREE from 'three';
+import {createMmdRuntimeHandle} from '/src/mmdVrShowcase/mmdRuntime/mmdRuntime.ts';
+import {prepareMmdVrModel} from '/src/mmdVrShowcase/prepareMmdVrModel.ts';
+import {handContactShape,handReferenceRadius} from '/src/mmdVrShowcase/handContactProfile.ts';
+import {clothSmokeFixture} from './cloth-smoke-fixture.js';
+
+async function compare(files) {
+  const pmx=files.find(f=>/\.pmx$/i.test(f.name));if(!pmx)throw Error('Select a local PMX first.');
+  const dt=1/72,warmup=240,n=900,scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera();
+  const light=new THREE.DirectionalLight();light.position.set(-3,4.2,4.8);scene.add(light);
+  const parked=new THREE.Matrix4().makeTranslation(0,-1000,0),hands=Array(12).fill(parked),controllers=[parked,parked];
+  const bytes=new Uint8Array(await clothSmokeFixture().vmd.arrayBuffer());
+  const name=new Uint8Array([0x83,0x5a,0x83,0x93,0x83,0x5e,0x81,0x5b]); // センター, Shift-JIS
+  for(const offset of [54,165]){bytes.fill(0,offset,offset+15);bytes.set(name,offset);}new DataView(bytes.buffer).setFloat32(165+19,1.5,true);
+  const vmd=new File([bytes],'probe.vmd');const results=[];
+  for(const snapshots of [true,false,false,true]) {
+    let sampling=false,count=0,animation=0,prepare=0,backend=0,writeBack=0;
+    const rt=createMmdRuntimeHandle(scene,{prepareModel:prepareMmdVrModel,capturePhysicsStageSnapshots:snapshots,
+      controllerColliders:()=>controllers,handColliders:()=>hands,handShape:handContactShape,handColliderRadius:()=>handReferenceRadius(.08),
+      onPhysicsPoseWork(a,p,b,w){if(sampling){count++;animation+=a;prepare+=p;backend+=b;writeBack+=w;}}});
+    try{const {modelId}=await rt.addModel(pmx,files,{physics:true,transform:{scale:.1}});rt.setLighting({directionalLight:light,ambientIntensity:.52,envIntensity:0});
+      await rt.loadMotion(vmd,'body',modelId);const root=rt.getModelRoot(modelId);let bones;root.traverse(o=>{if(!bones&&o.isSkinnedMesh)bones=o.skeleton.bones});
+      if(!bones.some(b=>[b.name,b.userData.mmdBoneName].includes('センター')))throw Error('Probe needs a センター bone.');
+      const times=[],signature=new Float32Array(Math.ceil((warmup+n)/30)*bones.length*16);let k=0;
+      for(let i=0;i<warmup+n;i++){
+        sampling=i>=warmup;const t=performance.now();rt.update((i%144)*dt,true,camera,1,false,dt);if(sampling)times.push(performance.now()-t);
+        if(i%30===0){root.updateMatrixWorld(true);for(const b of bones){signature.set(b.matrixWorld.elements,k);k+=16;}}
+      }
+      if(count!==n)throw Error('Unexpected number of completed poses: '+count);
+      const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',signature)),v=>v.toString(16).padStart(2,'0')).join('');
+      if(results.length&&results[0].hash!==hash)throw Error('Pose parity failed');
+      const mean=times.reduce((s,v)=>s+v,0)/n;times.sort((a,b)=>a-b);results.push({snapshots,bones:bones.length,dynamic:rt.getDynamicRigidBodyCount(),n,mean,p95:times[Math.ceil(.95*n)-1],hash,
+        phases:[animation,prepare,backend,writeBack].map(v=>v/count)});
+    }finally{rt.dispose();}
+  }return results;
+}
+window.compare=()=>compare([...document.querySelector('input').files]);document.querySelector('button').onclick=async e=>{const button=e.currentTarget;button.disabled=true;try{document.querySelector('pre').textContent=JSON.stringify(await window.compare(),null,2);}catch(e){document.querySelector('pre').textContent=String(e);}finally{button.disabled=false;}};
+</script>

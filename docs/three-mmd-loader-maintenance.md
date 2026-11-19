@@ -26,6 +26,7 @@
 - `pnpm-workspace.yaml` 中的 `patchedDependencies` 负责应用补丁
 - 还包含重获追踪刚体中心查询与 CCD IK 活跃节点矩阵优化。升级后执行 `ccdSolverParity.test.ts` 并与原求解器对照；补丁 hash 以 `pnpm-lock.yaml` 为准。
 - `performance.js` 为 `enabled:false` 配合 `onMeasure` 提供仅回调的阶段计时，不把私有文件名写入全局 Performance Timeline。背包新建角色时将七个不重叠的阶段加入匿名报告；升级后用一次 XR 放置及导出验证字段和隐私边界。
+- `DefaultMmdRuntime` 的 `captureStageSnapshots:false` 仅关闭调试数组复制，保留各阶段的世界矩阵更新；库默认行为不变。`onPhysicsPoseWork` 提供一次 external physics 求值的四个非重叠片段。升级时复核 `physicsSnapshotParity.test.ts`、`scripts/physics-playback-probe.html`、真实 Bullet 回归和导出字段，见[桌面对照](./xr-runtime-performance.md)。
 
 上游仓库提交了 `package-lock.json`，其开发文档和 CI 均使用 npm。不要在 `E:\WebProjects\three-mmd-loader` 中使用 pnpm 更新依赖或 lockfile。NekoVirtOS 仍使用 pnpm。
 

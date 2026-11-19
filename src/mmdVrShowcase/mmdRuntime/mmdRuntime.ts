@@ -194,6 +194,10 @@ export function isMmdRuntimeRebuildError(error: unknown): error is MmdRuntimeReb
 }
 
 export type MmdRuntimeOptions = {
+  /** For diagnostic consumers and the parity benchmark. The stage never reads loader.debugState(). */
+  capturePhysicsStageSnapshots?:boolean;
+  /** Per completed external-physics pose, not a GPU or pure Bullet solver timer. */
+  onPhysicsPoseWork?: (animationIkMs:number, prepareMs:number, backendMs:number, writeBackMs:number)=>void;
   controllerColliders?: () => readonly THREE.Matrix4[];
   controllerCollidersEnabled?: () => boolean;
   controllerColliderRadius?: () => number;
@@ -388,6 +392,8 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       ? {
           physics: "external" as const,
           physicsBackend,
+          captureStageSnapshots: options.capturePhysicsStageSnapshots ?? false,
+          onPhysicsPoseWork: options.onPhysicsPoseWork,
         }
       : { physics: "none" as const };
 

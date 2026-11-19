@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { RenderDiagnostics, RenderRequest } from "./renderDiagnostics";
 import type { BackpackPlacementTiming } from "./backpack";
+import type { SceneryId } from './scenery/catalog';
 
 type SceneSample = { models: number; objects: number; physics: boolean; scenery?: string; liveHouse: boolean; shadows: boolean; playing: boolean; heldToy?: import('./play/stagePlay').Toy | null };
 type Window = Omit<RenderDiagnostics, "requested" | "active"> & SceneSample & { elapsedMs: number };
@@ -17,7 +18,18 @@ export function createPerformanceRecording(requested: RenderRequest, entryStarte
   let count = 0, duration = 0, max = 0, knownBudget = 0, over = 0, late = 0, written = 0;
   let skipNext = true;
   let firstVisibleXrFrameMs: number | null = null, firstFrameAfterAssetsReadyMs: number | null = null;
+  const wallStart=performance.now();
+  const physicsRebuilds:{scenery:SceneryId;requestedEnabled:boolean;startWallMs:number;durationWallMs:number;success:boolean}[]=[];
+  let rebuilding:{scenery:SceneryId;requestedEnabled:boolean;at:number}|null=null;
   return {
+    beginRebuild(scenery:SceneryId,requestedEnabled:boolean){rebuilding={scenery,requestedEnabled,at:performance.now()};},
+    abandonRebuild(){rebuilding=null;},
+    endRebuild(success:boolean){
+      if(!rebuilding)return;
+      const {at,scenery,requestedEnabled}=rebuilding;rebuilding=null;
+      if(physicsRebuilds.length===64)physicsRebuilds.shift();
+      physicsRebuilds.push({scenery,requestedEnabled,startWallMs:Math.round(at-wallStart),durationWallMs:Math.round(performance.now()-at),success});
+    },
     placementFrame(event: BackpackPlacementTiming | null) {
       if (!event || event.token === lastPlacementToken) return;
       lastPlacementToken = event.token;
@@ -57,7 +69,7 @@ export function createPerformanceRecording(requested: RenderRequest, entryStarte
       };
       const start = written > MAX_WINDOWS ? written % MAX_WINDOWS : 0;
       return { schemaVersion: 1, startedAt, requested, visibleIntervalMs: Math.round(duration), intervalCount: count,
-        startup: { firstVisibleXrFrameMs, firstFrameAfterAssetsReadyMs }, placements,
+        startup: { firstVisibleXrFrameMs, firstFrameAfterAssetsReadyMs }, placements, physicsRebuilds,
         reportedRefreshRates: Object.fromEntries(rates), intervalsWithReportedRate: knownBudget,
         callbackIntervalMs: { mean: duration / count, p50Upper: quantile(.50), p95Upper: quantile(.95), p99Upper: quantile(.99), worst: max },
         overBudgetFraction: knownBudget ? over / knownBudget : null,
