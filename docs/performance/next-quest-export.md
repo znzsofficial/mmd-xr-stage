@@ -1,6 +1,6 @@
 # 下次 Quest 导出：一名角色、一次往返、一份 JSON
 
-[线上舞台](https://mmd-xr-stage.pages.dev) · [固定版 `0729993`](https://1ae15cd7.mmd-xr-stage.pages.dev)。**本轮已经完成**，见[14:36Z 测量](./viewing-and-diagnostics.md#已有测量)。此清单保留给下一版性能改动复测。原始 JSON 保存在本机即可。
+[线上舞台](https://mmd-xr-stage.pages.dev) · [固定版 `0e6e123`](https://272a5104.mmd-xr-stage.pages.dev)。上次[14:36Z 基线](./viewing-and-diagnostics.md#已有测量)已收到。有机会在同 PMX、同贴图和同条件下复测时，单独看成功回教室的 `modelWork.loaderStagesMs['load-textures']` 及整次回场时间。原始 JSON 保存在本机即可。
 
 ## 最小一趟
 
