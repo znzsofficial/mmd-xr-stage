@@ -101,4 +101,10 @@ describe("same-page stage resume", () => {
     expect(group.scale.toArray()).toEqual([0.2, 0.3, 0.4]);
     expect(group.visible).toBe(false);
   });
+
+  it('skips the fresh appearance but keeps a changed enhancement File by identity',()=>{
+    const r={setModelVisible:vi.fn(),setMaterialVisible:vi.fn(),setMaterialOverride:vi.fn()},m=stage().models[0];
+    const map=new File(['map'],'custom.png');applySavedModel(r,'restored',{...m,visible:true,materialVisible:{body:true,hair:true},materialOverrides:{body:{...DEFAULT_MATERIAL_OVERRIDE},hair:{...DEFAULT_MATERIAL_OVERRIDE,aoMapFile:map}}});
+    expect(r.setModelVisible).not.toHaveBeenCalled();expect(r.setMaterialVisible).not.toHaveBeenCalled();expect(r.setMaterialOverride.mock.calls).toEqual([['restored','hair',{aoMapFile:map}]]);
+  });
 });

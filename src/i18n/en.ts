@@ -5,6 +5,8 @@ export const en: Record<keyof ZhMessages, string> = {
   importBindResource: "Choose a file for this reference",
   hudBack: "Back to viewing",
   hudScenery: "Scenery",
+  watchDetails:'Details',
+  watchMenu:'Menu',watchArrange:'Arrange',watchExperiments:'Experiments',watchStart:'Choose a set, then place a character from your backpack.',watchRecall:'Press right B for controls. With hands, raise your left wrist or look down for Menu.',
   toyClubName:'Live House',toyStudioName:'Studio plinth',
   toyGuide:'How to use',toyCloseGuide:'Close guide',toyShelfRule:'Take or give any prop in any set.',toyShelfHome:'Active in: ',visitSaber:'To Astral Court',
   toyGuideEquip:'Trigger Left hand or Right hand in any set.',toyGuideGive:'Point at a character → Give prop → choose its hand.',toyGuideScreenGive:'Select a placed character, then choose its prop and wrist.',

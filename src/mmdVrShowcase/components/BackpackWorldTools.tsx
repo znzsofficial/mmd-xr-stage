@@ -45,7 +45,8 @@ function SelectedTools({ entry, instance }: { entry: BackpackEntry; instance: Ba
   const t = useLanguageStore(s => s.t);
   const transform = useMmdVrStore(s => (entry.kind === "model" ? s.models : s.objects).find(e => e.id === instance.runtimeId));
   const busy = useBackpack(s => s.busy), physicsBusy = useMmdVrStore(s => s.physicsBusy);
-  const [page, setPage] = useState<'tools'|'motions'|'prop'>('tools');
+  const [page, setPage] = useState<'tools'|'arrange'|'motions'|'prop'>(entry.kind==='model'?'tools':'arrange');
+  const holding=useStagePlay(s=>s.held!==null);
   const carries = useStagePlay(s=>s.character?.assetId===entry.id);
   const characterToy=useStagePlay(s=>s.character?.toy),room=useMmdVrStore(s=>s.prefs.scenery);
   const cues=page==='prop'&&carries&&isStoryRoom(room)&&characterToy===STORIES[room].toy;
@@ -58,21 +59,24 @@ function SelectedTools({ entry, instance }: { entry: BackpackEntry; instance: Ba
   const locked = busy || physicsBusy;
   const scale = transform?.scale ?? 1, rotation = transform?.rotationY ?? 0;
   return <group ref={group} name="backpack-world-tools" scale={0.86} pointerEventsOrder={1} pointerEventsType={{ deny: ["touch", "grab"] }}>
-    <group position-y={cues?-.10:0}><HudSheet size={[1.34, cues?1.20:1.0]} /></group>
+    <group position-y={page==='tools' ? ((holding||carries) ? .08 : .18) : cues ? -.10 : 0}><HudSheet size={[1.34, page==='tools' ? ((holding||carries) ? .76 : .55) : cues ? 1.20 : 1.0]} /></group>
     <HudLine position={[-0.16, 0.37, 0]} text={entry.file.name} width={0.93} role="title" />
-    <HudButton position={[0.47, 0.37, 0]} label={t(page !== 'tools' ? "hudTools" : "hudDone")} size={[0.31, 0.13]} variant="quiet" onPress={() => {
-      if (page !== 'tools') setPage('tools'); else useBackpack.getState().select(null);
+    <HudButton position={[0.47, 0.37, 0]} label={t(page !== 'tools' && entry.kind==='model' ? "hudTools" : "hudDone")} size={[0.31, 0.13]} variant="quiet" onPress={() => {
+      if (page !== 'tools' && entry.kind==='model') setPage('tools'); else useBackpack.getState().select(null);
     }} disabled={busy} />
-    {page==='motions' ? <MotionPicker id={entry.id} locked={locked} /> : page==='prop' ? <CharacterPropTools id={entry.id} instance={instance} locked={locked}/> : <>
+    {page==='motions' ? <MotionPicker id={entry.id} locked={locked} /> : page==='prop' ? <CharacterPropTools id={entry.id} instance={instance} locked={locked}/> : page==='tools'?<>
+      <HudButton position={[-.315,.09,0]} size={[.59,.16]} label={t('hudChangeMotion')} disabled={locked} onPress={()=>setPage('motions')}/>
+      <HudButton position={[.315,.09,0]} size={[.59,.16]} label={t('watchArrange')} disabled={locked} onPress={()=>setPage('arrange')}/>
+      {(holding||carries)&&<HudButton position={[0,-.15,0]} size={[1.22,.14]} label={t(carries?'propGrip':'propGive')} disabled={locked} onPress={()=>setPage('prop')}/>}
+    </>:<>
       <HudLine position={[0, 0.225, 0]} width={1.24} role="muted" text={busy ? t("hudWorking") : `${t(instance.visible ? "hudOnStage" : "hudOnStageHidden")} · ${Math.round(rotation)}° · ${formatMmdVrModelScale(scale)}`} />
       <HudButton position={[-0.315, 0.06, 0]} label={t("hudMove")} size={[0.59, 0.15]} disabled={locked} onPress={() => useBackpack.getState().beginPlace(entry.id)} />
-      {entry.kind === "model" ? <HudButton position={[0.315, 0.06, 0]} label={t("hudChangeMotion")} size={[0.59, 0.15]} disabled={locked} onPress={() => setPage('motions')} /> : null}
+      <HudButton position={[.315,.06,0]} label={t('watchDetails')} size={[.59,.15]} disabled={locked} onPress={()=>useHudWorldInput.setState({inspect:instance.runtimeId})}/>
       <HudButton position={[-0.465, -0.145, 0]} label={t("hudTurnLeft")} size={[0.3, 0.14]} disabled={locked || !transform} onPress={() => useMmdVrStore.getState().requestModelRotation(instance.runtimeId, rotation - 15)} />
       <HudButton position={[-0.15, -0.145, 0]} label={t("hudTurnRight")} size={[0.3, 0.14]} disabled={locked || !transform} onPress={() => useMmdVrStore.getState().requestModelRotation(instance.runtimeId, rotation + 15)} />
       <HudButton position={[0.165, -0.145, 0]} label={t("hudSmaller")} size={[0.29, 0.14]} disabled={locked || !transform || previousMmdVrModelScale(scale) === scale} onPress={() => useMmdVrStore.getState().requestModelScale(instance.runtimeId, previousMmdVrModelScale(scale))} />
       <HudButton position={[0.475, -0.145, 0]} label={t("hudLarger")} size={[0.28, 0.14]} disabled={locked || !transform || nextMmdVrModelScale(scale) === scale} onPress={() => useMmdVrStore.getState().requestModelScale(instance.runtimeId, nextMmdVrModelScale(scale))} />
-      {entry.kind==='model' && <HudButton position={[-.315,-.365,0]} size={[.59,.14]} label={t(carries?'propGrip':'propGive')} disabled={locked} onPress={()=>setPage('prop')}/>}
-      <HudButton position={[entry.kind==='model'?.315:0, -0.365, 0]} label={t("hudPutAway")} size={[entry.kind==='model'?.59:1.24, 0.14]} disabled={locked} onPress={() => useBackpack.getState().putAway(entry.id)} />
+      <HudButton position={[0,-.365,0]} label={t('hudPutAway')} size={[1.24,.14]} disabled={locked} onPress={()=>useBackpack.getState().putAway(entry.id)} />
     </>}
     {cues&&isStoryRoom(room)&&(['left','right'] as const).map((side,i)=><HudButton key={side} position={[(i-.5)*.63,-.555,0]} size={[.59,.14]} disabled={locked||!instance.visible} label={t(STORIES[room][side])} onPress={()=>cueStory(room,side)}/>)}
   </group>;

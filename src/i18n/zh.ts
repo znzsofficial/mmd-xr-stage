@@ -3,6 +3,8 @@ export const zh = {
   importBindResource: "为此引用选择资源文件",
   hudBack: "返回观看",
   hudScenery: "场景",
+  watchDetails:'详情',
+  watchMenu:'菜单',watchArrange:'摆位置',watchExperiments:'实验功能',watchStart:'先选场景，再从背包放角色。',watchRecall:'右手 B 呼出菜单；手追可抬起左腕或低头点「菜单」。',
   toyClubName:'Live House',toyStudioName:'简易地台',
   toyGuide:'用法',toyCloseGuide:'关闭说明',toyShelfRule:'各景都可拿取或递给角色。',toyShelfHome:'生效地点：',visitSaber:'去星环遗庭',
   toyGuideEquip:'扳机点「左手拿」或「右手拿」，不用换景。',toyGuideGive:'扳机点角色 → 递道具 → 选角色的手。',toyGuideScreenGive:'选中已放置的角色，在「角色道具」选道具和左右手。',

@@ -64,7 +64,7 @@ Fly a kite from a character's wrist in the meadow, send a bubble ferry through e
 
 For desktop and touch controls instead, see [Watching without a headset](./docs/gameplay/screen-viewing.md). The same-tab backpack and scene layouts work in either mode.
 
-- Choose a set from the viewing strip: the window-lit classroom, pool terrace, wisteria path, live venue, studio plinth, Astral Court or Dawn Chapel. See the [standing spots for each set](./docs/gameplay/vr-controls.md#在布景中给角色选位置). Only the current room's instances are loaded; scenery does not consume character or object slots.
+- Watch with no floating controls. Press **right B** for playback, backpack and scenery. With hands, raise your left wrist and point at **Menu** with the other hand, or look down and point at the menu there. A first empty visit shows the controls once. See the [standing spots for each set](./docs/gameplay/vr-controls.md#在布景中给角色选位置).
 - Pick a character or prop from the backpack, aim at free ground, and release the trigger to place it. Select a placed character to move, turn, scale, change its motion, or put it away. Hidden items remain reachable from the backpack.
 - Open Backpack → Toys in any set and choose a hand to take any of the five props. **How to use** explains the controls and offers a shortcut to the set where the effect works. To [give a toy to a character](./docs/gameplay/vr-controls.md#把道具递给角色), point at the character, press the trigger, choose **Give toy**, then pick its left or right hand. The prop follows the wrist during VMD playback.
 - Render diagnostics distinguish requested settings, session-reported refresh/layer properties, callback cadence, model-update CPU cost and renderer resource/draw counters. No GPU time is inferred from these values.

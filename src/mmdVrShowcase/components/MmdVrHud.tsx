@@ -29,6 +29,9 @@ import { formatAssetProgress, paginateLoadDetails } from "../loadText";
 import { useRenderDiagnostics } from "../renderDiagnostics";
 import { diagnosticLines } from "../diagnosticText";
 import { resolveHudSurface } from "../hudMode";
+import { WatchRecall } from './WatchRecall';
+
+let introducedWatch = false; // one first-empty-stage hint per document, never per room
 
 /** Match paintProgressBar track insets (px on 640-wide canvas). */
 const PROGRESS_PAD = 16;
@@ -142,19 +145,19 @@ export function CriticalNotice({ onDetails }: { onDetails: () => void }) {
 }
 
 type StripNavigation = { expanded: true } | { expanded?: false; onScenery: () => void; onBackpack: () => void };
-export function CompactPlaybackControls({ onExpand, onExit, busy, playbackLocked, ...nav }: { onExpand: () => void; onExit: () => void; busy: boolean; playbackLocked?: boolean } & StripNavigation) {
+export function CompactPlaybackControls({ onExpand, onExit, onTransport, busy, playbackLocked, ...nav }: { onExpand: () => void; onExit: () => void; onTransport?:()=>void; busy: boolean; playbackLocked?: boolean } & StripNavigation) {
   const t = useLanguageStore((s) => s.t);
   const playing = useMmdVrStore((s) => s.playing);
   const modelCount = useMmdVrStore((s) => s.modelCount);
   return <group>
     {!nav.expanded && <>
-      <HudButton position={[-0.89, 0, 0]} size={[0.42, 0.15]} label={t("hudScenery")} onPress={nav.onScenery} disabled={busy} />
-      <HudButton position={[-0.425, 0, 0]} size={[0.46, 0.15]} label={t("hudBackpack")} onPress={nav.onBackpack} disabled={busy} />
+      <HudButton position={[.59, 0, 0]} size={[.55, .17]} label={t("hudScenery")} onPress={nav.onScenery} disabled={busy} />
+      <HudButton position={[0, 0, 0]} size={[.55, .17]} label={t("hudBackpack")} onPress={nav.onBackpack} disabled={busy} />
     </>}
-    <HudButton position={[nav.expanded ? -0.55 : 0.035, 0, 0]} size={[nav.expanded ? 0.5 : 0.41, 0.15]} label={t(playing ? "settingsMmdVrPause" : "settingsMmdVrPlay")} active={playing}
-      disabled={busy || playbackLocked || modelCount === 0} onPress={() => useMmdVrStore.getState().setPlaying(!useMmdVrStore.getState().playing)} />
-    <HudButton position={[nav.expanded ? 0 : 0.485, 0, 0]} label={t(nav.expanded ? "hudBack" : "hudMore")} size={[nav.expanded ? 0.5 : 0.42, 0.15]} variant="quiet" disabled={busy} onPress={onExpand} />
-    <HudButton position={[nav.expanded ? 0.55 : 0.92, 0, 0]} label={t("settingsVrDesktopExit")} size={[nav.expanded ? 0.5 : 0.37, 0.15]} variant="quiet" disabled={busy} onPress={onExit} />
+    <HudButton position={[nav.expanded ? -.55 : -.59, 0, 0]} size={[.55, .17]} label={t(playing ? "settingsMmdVrPause" : "settingsMmdVrPlay")} active={playing}
+      disabled={busy || playbackLocked || modelCount === 0} onPress={() => {useMmdVrStore.getState().setPlaying(!useMmdVrStore.getState().playing);onTransport?.();}} />
+    <HudButton position={[0, nav.expanded?0:-.24, 0]} label={t(nav.expanded ? "hudBack" : "hudMore")} size={[.5,.14]} variant="quiet" disabled={busy} onPress={onExpand} />
+    <HudButton position={[.55, nav.expanded?0:-.24, 0]} label={t("settingsVrDesktopExit")} size={[.5,.14]} variant="quiet" disabled={busy} onPress={onExit} />
   </group>;
 }
 
@@ -1396,7 +1399,11 @@ export function MmdVrControlBar({
   const selectedLive = useBackpack(s => s.selected ? s.live[s.selected] : null);
   const draftName = useBackpack(s => s.entries.find(e => e.id === s.draft)?.file.name);
   const [recallingBusy, setRecallingBusy] = useState(false);
-  const [tab, setTab] = useState<"models" | "visual" | "physics" | "comfort">("models");
+  const [intro,setIntro]=useState(()=>!introducedWatch&&!useMmdVrStore.getState().resumeStage?.assets.length&&modelCount===0&&objectCount===0&&!selectedLive&&!useBackpack.getState().layouts[prefs.scenery]?.assets.length);
+  const [dock,setDock]=useState(false);
+  const quiet=()=>{setIntro(false);setDock(false);setPage('watch');};
+  useEffect(()=>{if(intro)introducedWatch=true;},[intro]);
+  const [tab, setTab] = useState<"models" | "visual" | "physics" | "comfort">("visual");
   const [assetIndex, setAssetIndex] = useState(0);
   const models = useMmdVrStore((s) => s.models);
   const objects = useMmdVrStore((s) => s.objects);
@@ -1425,15 +1432,21 @@ export function MmdVrControlBar({
     setPanelPosition(group.position.toArray());
   }, [camera, gl]);
   useEffect(() => { recall(); }, [viewEpoch, recall]);
+  const inspect=useHudWorldInput(s=>s.inspect);
+  useLayoutEffect(()=>{if(!inspect)return;useHudWorldInput.setState({inspect:null});
+    const ix=[...models,...objects].findIndex(o=>o.id===inspect);if(ix<0)return;
+    setAssetIndex(ix);setTab('models');setIntro(false);setDock(false);setPage('advanced');recall();
+  },[inspect,models,objects,recall]);
   const previousSelection = useRef(selected);
   useEffect(() => {
-    if (draft) setPage("watch");
+    if (draft) {setIntro(false);setDock(false);setPage("watch");}
     if (draft || (!selected && previousSelection.current)) recall();
     previousSelection.current = selected;
   }, [draft, selected, recall]);
   useEffect(() => {
     if (recallingBusy && !bagBusy) { useBackpack.getState().select(null); setRecallingBusy(false); }
   }, [recallingBusy, bagBusy]);
+  function summon() {setIntro(false);setDock(true);setPage('watch');recall();}
   useXRControllerButtonEvent(rightController, "b-button", (state) => {
     if (state !== "pressed" || interacting.current) return;
     queueMicrotask(() => {
@@ -1443,8 +1456,7 @@ export function MmdVrControlBar({
       if (bag.busy) setRecallingBusy(true); else if (bag.selected && !bag.error) bag.select(null);
       useMmdVrStore.getState().setPlaceMode(false);
       setPhysicsDetails(false); setDiagnosticsOpen(false);
-      recall();
-      setPage("watch");
+      summon();
     });
   });
   // Yaw-only billboard: keep the panel upright and always facing the user,
@@ -1478,7 +1490,7 @@ export function MmdVrControlBar({
     pendingFailures: assetLoad.failures.length > 0 && dismissedLoadEpoch !== retryEpoch,
     physicsDetails: physicsDetails && Boolean(physicsError), diagnostics: diagnosticsOpen });
   const notice = <CriticalNotice onDetails={() => setPhysicsDetails(true)} />;
-  const worldBlocked = busy || inputHeld || Boolean(bagError) || surface !== "watch" || page !== "watch" || recallingBusy;
+  const worldBlocked = busy || inputHeld || Boolean(bagError) || surface !== "watch" || page !== "watch" || recallingBusy || ((dock||intro)&&!draft&&!placeMode);
   const editsLocked = busy || physicsBusy || physicsFatal || bagBusy || assetLoad.running;
   useLayoutEffect(() => {
     useHudWorldInput.setState({ blocked: worldBlocked });
@@ -1506,10 +1518,10 @@ export function MmdVrControlBar({
   </group>;
   if (surface === "watch") {
     const locked = editsLocked || inputHeld;
-    const open = (next: typeof page) => { if (interacting.current) return; recall(); setPage(next); };
+    const open = (next: typeof page) => { if (interacting.current) return; setIntro(false);setDock(false);recall(); setPage(next); };
     if (page === "bag" || page === "scenery" || page === "advancedScenery") return <group position={panelPosition} ref={panelGroupRef} pointerEventsOrder={2}>
-      {notice}{page === "bag" ? <BackpackPanel locked={locked} onClose={() => setPage("watch")} /> : <SceneryPanel locked={locked}
-        onClose={() => setPage("watch")} onSelected={() => setPage(page === "advancedScenery" ? "advanced" : "watch")} />}
+      {notice}{page === "bag" ? <BackpackPanel locked={locked} onClose={quiet} /> : <SceneryPanel locked={locked}
+        onClose={quiet} onSelected={() => page === 'advancedScenery'?setPage('advanced'):summon()} />}
     </group>;
     if (draft || placeMode) return <group position={panelPosition} ref={panelGroupRef} pointerEventsOrder={2}>
       {notice}<HudSheet size={[1.98, 0.36]} />
@@ -1519,21 +1531,23 @@ export function MmdVrControlBar({
     </group>;
     if (selected && selectedLive && !worldBlocked && !physicsFatal)
       return <group position={panelPosition} ref={panelGroupRef}>{notice}</group>;
+    if(!intro&&!dock)return <><group name="watch:quiet" ref={panelGroupRef} position={panelPosition}>{notice}</group>
+      {!rightController&&<WatchRecall open={summon}/>}</>;
     return (
       <group position={panelPosition} ref={panelGroupRef} pointerEventsOrder={2}>
-        <HudSheet size={[2.33, 0.51]} />
+        <group position-y={-.04}><HudSheet size={[1.89,intro ? .92 : .75]} /></group>
         {notice}
-        <CompactPlaybackControls onScenery={() => open("scenery")} onBackpack={() => open("bag")} onExpand={() => open("advanced")} onExit={onExit} busy={busy || inputHeld} playbackLocked={bagBusy || physicsBusy} />
-        <group position={[0.53, -0.39, 0]}>{!locked || inputHeld ? <ProgressBar onInteractionChange={onDragChange} /> : null}</group>
-        <HudLine position={[-0.54, -0.17, 0]} text={bagBusy ? t("hudWorking") : toy ? t('propHint') : t("hudRecallShort")} width={1.09} role="muted" />
+        <CompactPlaybackControls onScenery={() => open("scenery")} onBackpack={() => open("bag")} onExpand={() => {setTab('visual');useMmdVrStore.getState().setMaterialPanelModelId(null);open('advanced');}} onTransport={quiet} onExit={onExit} busy={busy || inputHeld} playbackLocked={bagBusy || physicsBusy} />
+        <HudButton position={[-.55,-.24,0]} label={t('hudBack')} size={[.51,.14]} variant="quiet" onPress={quiet}/>
+        {intro?<><HudLine position={[0,.25,0]} center text={t('watchStart')} width={1.78}/><HudLine position={[0,-.405,0]} center text={t('watchRecall')} width={1.79} role="muted"/></>:<group position={[.41,.005,0]} scale={.85}>{!locked || inputHeld ? <ProgressBar onInteractionChange={onDragChange} /> : null}</group>}
         {toy && !assetLoad.failures.length && <HudButton position={[0,.43,0]} label={t('toyStow')} size={[.86,.14]} onPress={()=>useStagePlay.getState().stow()}/>}
         {assetLoad.failures.length > 0 ? <HudButton position={[0, 0.43, 0]} label={t("loadDetails")} size={[0.95, 0.13]} onPress={() => setDismissedLoadEpoch(-1)} /> : null}
-        <DragHandle
+        {!intro&&<DragHandle
           label={panelDragLabel}
-          position={[0, 0.165, 0.012]}
+          position={[-.44, 0.215, 0.012]}
           onDragChange={onDragChange}
           onPositionChange={setPanelPosition}
-        />
+        />}
       </group>
     );
   }
@@ -1545,8 +1559,8 @@ export function MmdVrControlBar({
       <DragHandle label={panelDragLabel} onDragChange={onDragChange} onPositionChange={setPanelPosition} />
       <HudButton position={[-0.98, 0.83, 0.03]} label={t("hudRecall")} size={[0.55, 0.14]} variant="quiet" onPress={recall} />
       <HudButton position={[0.98, 0.83, 0.03]} label={t("hudBack")} size={[0.55, 0.14]} variant="quiet" onPress={() => setPage("watch")} />
-      {(["models", "visual", "physics", "comfort"] as const).map((value, index) => (
-        <HudButton key={value} position={[(index - 1.5) * 0.63, 0.59, 0.03]} size={[0.59, 0.16]}
+      {(["visual", "physics", "comfort"] as const).map((value, index) => (
+        <HudButton key={value} position={[(index - 1) * 0.63, 0.59, 0.03]} size={[0.59, 0.16]}
           label={t(({ models: "hudModels", visual: "hudVisual", physics: "hudPhysics", comfort: "hudComfort" } as const)[value])}
           variant="tab" active={tab === value} onPress={() => { setTab(value); useMmdVrStore.getState().setMaterialPanelModelId(null); }} />
       ))}

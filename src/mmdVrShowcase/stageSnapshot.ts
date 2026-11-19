@@ -1,6 +1,6 @@
 import type { MmdVrAssetSlot } from "./mmdVrAssets";
 import type { MmdModelTransform } from "./mmdRuntime/mmdRuntimeEntry";
-import type { MaterialOverride } from "./mmdRuntime/mmdRuntimeMaterials";
+import {DEFAULT_MATERIAL_OVERRIDE,type MaterialOverride} from "./mmdRuntime/mmdRuntimeMaterials";
 import type { MmdRuntimeHandle } from "./mmdRuntime/mmdRuntime";
 import type { Object3D } from "three";
 import type { SceneryId } from "./scenery/catalog";
@@ -44,10 +44,14 @@ export function restoreStageTime(saved: number, duration: number) {
   return Number.isFinite(saved) ? Math.min(Math.max(0, saved), Math.max(0, duration)) : 0;
 }
 
+/** Only called on a newly loaded instance whose initial appearance is already applied. */
 export function applySavedModel(runtime: Pick<MmdRuntimeHandle, "setModelVisible" | "setMaterialVisible" | "setMaterialOverride">, modelId: string, saved: SavedModel) {
-  runtime.setModelVisible(modelId, saved.visible);
-  for (const [name, visible] of Object.entries(saved.materialVisible)) runtime.setMaterialVisible(modelId, name, visible);
-  for (const [name, override] of Object.entries(saved.materialOverrides)) runtime.setMaterialOverride(modelId, name, override);
+  if(!saved.visible)runtime.setModelVisible(modelId,false);
+  for (const [name, visible] of Object.entries(saved.materialVisible)) if(!visible)runtime.setMaterialVisible(modelId,name,false);
+  for (const [name, override] of Object.entries(saved.materialOverrides)) {
+    const patch=Object.fromEntries(Object.entries(override).filter(([key,v])=>v!==DEFAULT_MATERIAL_OVERRIDE[key as keyof MaterialOverride]));
+    if(Object.keys(patch).length)runtime.setMaterialOverride(modelId,name,patch);
+  }
 }
 
 export function applySavedObject(group: Object3D, saved: SavedObject) {

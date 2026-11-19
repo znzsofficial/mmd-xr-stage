@@ -30,11 +30,9 @@ it("keeps one asset panel mounted and switches settings without losing playback 
   const click = async (label: string) => { expect(buttons(label).length).toBeGreaterThan(0); await act(async () => buttons(label)[0].click()); };
   try {
     await act(async () => root.render(<MmdVrControlBar {...props} />));
-    await click(t("hudMore"));
-    expect(buttons("Hide asset")).toHaveLength(1);
-    await click(t("loadNext"));
-    expect(buttons("Hide asset")).toHaveLength(1);
-    await click(t("hudVisual"));
+    expect(buttons(t('hudMore'))).toHaveLength(0);
+    await act(async()=>harness.buttonEvent?.('pressed'));await click(t('settingsMmdVrPlay'));expect(state.setPlaying).toBeDefined();expect(buttons(t('hudMore'))).toHaveLength(0);
+    await act(async()=>harness.buttonEvent?.('pressed'));await click(t("hudMore"));
     expect(buttons("Hide asset")).toHaveLength(0);
     await click(t("hudSimpleStage"));
     await click(t("hudLiveHouse"));
@@ -50,6 +48,7 @@ it("keeps one asset panel mounted and switches settings without losing playback 
     expect(buttons("Physics off")).toHaveLength(0);
     await click(t("hudBack"));
     expect(buttons(t("hudModels"))).toHaveLength(0);
+    await act(async()=>harness.buttonEvent?.('pressed'));
     await click(t("settingsVrDesktopExit"));
     expect(exit).toHaveBeenCalledOnce();
   } finally {

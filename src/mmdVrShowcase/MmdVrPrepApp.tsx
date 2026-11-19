@@ -803,10 +803,6 @@ export function MmdVrPrepApp() {
                   </label>
 
                   <label className="stage-toggle-row">
-                    <span>{t('actorPalmCloth')}</span>
-                    <input type="checkbox" checked={prefs.actorPalmCloth} onChange={e=>setPrefs({actorPalmCloth:e.target.checked})}/>
-                  </label>
-                  <label className="stage-toggle-row">
                     <span>{t("settingsMmdVrDetailedPhysicsDiagnostics")}</span>
                     <input
                       type="checkbox"
@@ -823,8 +819,12 @@ export function MmdVrPrepApp() {
                   )}
                   <p className="stage-hint-text">{t("settingsVrDesktopQualityHint")}</p>
                 </div>
-              </details>
-            </div>
+               </details>
+               <details className="stage-sub-details"><summary className="stage-sub-summary"><span>{t('watchExperiments')}</span><PrepIcon name="down" size={14} className="stage-sub-arrow"/></summary>
+                 <div className="stage-sub-content"><label className="stage-toggle-row"><span>{t('actorPalmCloth')}</span>
+                   <input type="checkbox" checked={prefs.actorPalmCloth} onChange={e=>setPrefs({actorPalmCloth:e.target.checked})}/></label></div>
+               </details>
+             </div>
            </details>
         </aside></div>
       </main>

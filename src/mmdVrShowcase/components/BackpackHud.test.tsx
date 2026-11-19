@@ -31,6 +31,7 @@ const mesh = (name: string) => [...host.querySelectorAll<HTMLElement>("mesh")].f
 const button = (label: string) => mesh(`hud:${label}`);
 const click = async (label: string) => { const el = button(label); expect(el, label).toBeDefined(); await act(async () => el!.click()); };
 const labels = () => [...host.querySelectorAll("mesh")].map(el => el.getAttribute("name")).filter(n => n?.startsWith("hud-label")).join("\n");
+const recall=()=>act(async()=>harness.b('pressed'));
 const render = async () => {
   const props = { busy: false, onDragChange: vi.fn(), onExit: vi.fn(), panelDragLabel: "Drag", placeOffLabel: "Move selected asset" } as unknown as Parameters<typeof MmdVrControlBar>[0];
   await act(async () => root.render(<><MmdVrControlBar {...props} /><BackpackWorldTools /></>));
@@ -51,7 +52,7 @@ afterEach(async () => {
 });
 
 it("can choose every set directly from viewing, with no scenery cycle or settings page", async () => {
-  await render();
+  await render();await recall();
   for (const id of [...sceneryIds].reverse()) {
     await click(t("hudScenery"));
     for (const other of sceneryIds) expect(button(t(SCENERY[other].label))).toBeDefined();
@@ -64,8 +65,9 @@ it("can choose every set directly from viewing, with no scenery cycle or setting
 
 it('shows where to take a toy, keeps it on the player for unsupported wrists and transfers only to the selected character',async()=>{
   useStagePlay.getState().reset();useBackpack.setState({selected:'a0',live:{a0:{...instance('m42'),wrists:{left:false,right:true}}}});
-  await render();await click(t('propGive'));expect(labels()).toContain(t('propEquipFirst'));
+  await render();expect(button(t('propGive'))).toBeUndefined();
   await act(async()=>useStagePlay.getState().equip('bubbles','left'));
+  await click(t('propGive'));
   await click(t('propLeft'));expect(useStagePlay.getState().held).toBeTruthy();
   await click(t('propRight'));expect(useStagePlay.getState().character).toMatchObject({assetId:'a0',hand:'right',toy:'bubbles'});expect(useStagePlay.getState().held).toBeNull();
   await click(t('propRaise'));await click(t('propCloser'));expect(useStagePlay.getState().character).toMatchObject({tilt:15,inset:-1});
@@ -73,7 +75,7 @@ it('shows where to take a toy, keeps it on the player for unsupported wrists and
 });
 
 it('keeps all handheld props visible in the chapel and after travelling from their shelf, without equipping on travel',async()=>{
-  useStagePlay.getState().reset();store().setPrefs({scenery:'chapel'});await render();await click(t('hudBackpack'));await click(t('hudToys'));
+  useStagePlay.getState().reset();store().setPrefs({scenery:'chapel'});await render();await recall();await click(t('hudBackpack'));await click(t('hudToys'));
   const allProps=()=>{for(const id of ['kite','encore','bubbles','post','saber'])expect(host.querySelector(`[name="play:shelf:${id}"]`)).not.toBeNull();};
   allProps();await click(t('toyRight'));expect(useStagePlay.getState().held).toBeNull(); // no connected controllers
   expect(button(t('visitKite'))).toBeUndefined();await click(t('toyGuide'));expect(labels()).toContain(t('guideKiteVr'));expect(button(t('toyRight'))).toBeUndefined();
@@ -83,7 +85,7 @@ it('keeps all handheld props visible in the chapel and after travelling from the
 
 it("browses a larger backpack without consuming stage slots, labels duplicate filenames by source, and can select hidden items at capacity", async () => {
   useBackpack.setState({ live: { a0: instance("runtime:0", false), a1: instance("runtime:1"), a2: instance("runtime:2") } });
-  await render(); await click(t("hudBackpack"));
+  await render(); await recall();await click(t("hudBackpack"));
   expect(labels()).toContain("concert"); expect(labels()).toContain("school"); expect(labels()).toContain("missing texture");
   expect(labels()).toContain(t("hudOnStageHidden")); expect(labels()).toContain(t("hudReturnFirst"));
   await click(t("loadNext")); expect(labels()).toContain("C.pmx"); await click(t("hudPlace"));
@@ -91,17 +93,18 @@ it("browses a larger backpack without consuming stage slots, labels duplicate fi
   await click(t("hudMotions")); expect(labels()).toContain("Wave.vmd"); expect(button(t("hudPlace"))).toBeUndefined();
   await click(t("hudObjects")); expect(labels()).toContain("Lamp.glb"); expect(labels()).toContain("0 / 3");
   await click(t("hudCharacters")); await click(t("hudSelect"));
-  expect(bag().selected).toBe("a0"); expect(button(t("hudMove"))).toBeDefined(); expect(button(t("hudBackpack"))).toBeUndefined();
+  expect(bag().selected).toBe("a0"); expect(button(t("watchArrange"))).toBeDefined(); expect(button(t("hudBackpack"))).toBeUndefined();
 });
 
 it("cancels new placement explicitly or with right B without issuing a stage command; B also exits local move and preserves the original pose", async () => {
-  await render(); await click(t("hudBackpack")); await click(t("hudPlace"));
+  await render();await recall(); await click(t("hudBackpack")); await click(t("hudPlace"));
   expect(bag().draft).toBe("a0"); expect(button(t("hudCharacters"))).toBeUndefined();
   await click(t("hudCancelPlace")); expect(bag().command).toBeNull(); expect(bag().live).toEqual({});
-  await click(t("hudBackpack")); await click(t("hudPlace"));
+  await recall();await click(t("hudBackpack")); await click(t("hudPlace"));
   await act(async () => harness.b("released")); expect(bag().draft).toBe("a0");
   await act(async () => harness.b("pressed")); expect(bag().draft).toBeNull(); expect(button(t("hudBackpack"))).toBeDefined();
   const existing = instance("runtime:obj");
+  await click(t('hudBack'));
   await act(async () => useBackpack.setState({ selected: "obj", live: { obj: existing } }));
   await click(t("hudMove")); await act(async () => harness.b("pressed"));
   expect(bag().command).toBeNull(); expect(bag().live.obj).toBe(existing); expect(bag().selected).toBeNull();
@@ -111,9 +114,9 @@ it("cancels new placement explicitly or with right B without issuing a stage com
 it("targets the selected runtime for transforms, but the stable character and exact file for body/face motions", async () => {
   useBackpack.setState({ live: { a0: instance("runtime:77"), obj: instance("runtime:88") }, selected: "a0" });
   useMmdVrStore.setState({ models: [transform("runtime:77")], objects: [transform("runtime:88")] });
-  await render(); await click(t("hudTurnLeft")); await click(t("hudLarger"));
+  await render();await click(t('watchArrange'));await click(t("hudTurnLeft")); await click(t("hudLarger"));
   expect(store().takeModelTransformRequests()).toEqual([{ id: "runtime:77", rotationY: 15, scale: 1.25 }]);
-  await click(t("hudChangeMotion")); await click(t("hudApplyBody"));
+  await click(t('hudTools'));await click(t("hudChangeMotion")); await click(t("hudApplyBody"));
   expect(bag().command).toMatchObject({ type: "motion", id: "a0", file: entries[5].file, kind: "body" });
   await act(async () => bag().finishCommand(bag().command!));
   await click(t("loadNext")); await click(t("hudApplyFace"));
@@ -129,8 +132,7 @@ it("uses the same draft and scene locks from advanced controls, and never allows
   useMmdVrStore.setState({ models: [transform("live:character")], modelCount: 1, objects: [transform("live:object")] });
   await render();
   for (const id of ["a0", "obj"]) {
-    await click(t("hudMore"));
-    if (id === "obj") await click(t("loadNext"));
+    await act(async()=>bag().select(id));if(id==='a0')await click(t('watchArrange'));await click(t('watchDetails'));
     expect(useHudWorldInput.getState().blocked).toBe(true);
     await act(async () => useMmdVrStore.setState({ physicsBusy: true }));
     await click("Move selected asset"); expect(bag().draft).toBeNull();
@@ -139,7 +141,7 @@ it("uses the same draft and scene locks from advanced controls, and never allows
     expect(useHudWorldInput.getState().blocked).toBe(false); expect(store().placeMode).toBe(false);
     await click(t("hudCancelPlace")); expect(bag().command).toBeNull();
   }
-  await click(t("hudMore")); await click(t("hudVisual"));
+  await recall();await click(t("hudMore")); await click(t("hudVisual"));
   await click(t(SCENERY[store().prefs.scenery].label));
   expect(useHudWorldInput.getState().blocked).toBe(true);
   await act(async () => useBackpack.setState({ busy: true }));
@@ -152,13 +154,13 @@ it("uses the same draft and scene locks from advanced controls, and never allows
 it("blocks stage edits during physics work, gives load recovery priority over a world selection, and exposes failed backpack commands", async () => {
   useBackpack.setState({ selected: "a0", live: { a0: instance("runtime:77") } });
   useMmdVrStore.setState({ models: [transform("runtime:77")], physicsBusy: true });
-  await render(); await click(t("hudTurnRight")); await click(t("hudMove")); await click(t("hudPutAway"));
+  await render(); await click(t("watchArrange")); expect(button(t('hudTurnRight'))).toBeUndefined();
   expect(store().takeModelTransformRequests()).toEqual([]); expect(bag().draft).toBeNull(); expect(bag().command).toBeNull();
   await act(async () => useMmdVrStore.setState({ physicsBusy: false, assetLoad: { ...store().assetLoad, running: true } }));
   expect(button(t("hudMove"))).toBeUndefined(); expect(button(t("loadBack"))).toBeDefined();
   await act(async () => { useMmdVrStore.setState({ assetLoad: { ...store().assetLoad, running: false } }); useBackpack.setState({ error: "File could not load" }); });
   expect(button(t("hudMove"))).toBeUndefined(); await click(t("hudBack"));
-  expect(bag().error).toBeNull(); expect(button(t("hudMove"))).toBeDefined();
+  expect(bag().error).toBeNull(); expect(button(t("watchArrange"))).toBeDefined();
 });
 
 it("anchors tools beside a visible target and in front of a seated, turned viewer when the target is behind", () => {
