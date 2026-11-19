@@ -28,7 +28,8 @@ export type StageSnapshot = {
   playing: boolean;
   loop: boolean;
   physicsEnabled: boolean;
-  controllerCollisions: boolean;
+  /** Older in-memory layouts can carry this flag. Contact now follows XR physics. */
+  controllerCollisions?: boolean;
 };
 
 export function snapshotObject(file: File, group: Object3D): SavedObject {

@@ -49,7 +49,7 @@ export function ScreenLibrary({locked,close,frame,storyView}:{locked:boolean;clo
       <label><input type="checkbox" checked={grid} onChange={e=>useMmdVrStore.getState().setPrefs({gridPref:e.target.checked?'on':'off'})}/>{t('settingsMmdVrGrid')}</label>
     </details>
     <details className="screen-stage-options"><summary>{t('contactDetails')}</summary>
-      <p>{t(physics?'contactDisableFirst':'contactNextPhysics')}</p><label><input type="checkbox" checked={palm} disabled={locked||physics} onChange={e=>useMmdVrStore.getState().setPrefs({actorPalmCloth:e.target.checked})}/>{t('actorPalmShort')}</label>
+      <p>{t('missingPalmContact')}</p><label><input type="checkbox" checked={palm} disabled={locked||physics} onChange={e=>useMmdVrStore.getState().setPrefs({actorPalmCloth:e.target.checked})}/>{t('actorPalmShort')}</label><p>{t(physics?'contactDisableFirst':'contactNextPhysics')}</p>
     </details>
     {!assets.length&&<p>{t('screenEmpty')}</p>}
     {(['model','object'] as const).map(kind=>{const list=assets.filter(e=>e.kind===kind);return list.length>0&&<section key={kind}>

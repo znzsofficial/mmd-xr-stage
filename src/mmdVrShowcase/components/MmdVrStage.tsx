@@ -391,7 +391,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache }: { scenery
     const s = useMmdVrStore.getState();
     if (!readyToSaveRef.current || s.physicsBusy || s.physicsFatal || s.assetLoad.running || s.assetLoad.failures.length) return null;
     const snapshot = { ...actors.capture(), scenery, time: timeRef.current, playing: s.playing, loop: s.loop,
-      physicsEnabled: s.physicsEnabled, controllerCollisions: s.physicsControllerCollisions };
+      physicsEnabled: s.physicsEnabled };
     useBackpack.setState(b => {
       const ids = new Map(b.entries.map(e => [e.file, e.id]));
       const stored = { ...b.stored }, bindings = { ...b.bindings };
@@ -419,10 +419,10 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache }: { scenery
       onPhysicsPoseWork: useMmdVrStore.getState().presentation==='xr' ? runtimeTiming.recordPose : undefined,
       onBulletStepWork: useMmdVrStore.getState().presentation==='xr' ? runtimeTiming.recordBullet : undefined,
       controllerColliders: getMmdVrControllerColliderMatrices,
-      controllerCollidersEnabled: () => gl.xr.isPresenting && useMmdVrStore.getState().physicsControllerCollisions,
+      controllerCollidersEnabled: () => gl.xr.isPresenting,
       controllerColliderRadius: () => useMmdVrStore.getState().prefs.physicsColliderRadius,
       handColliders: getMmdVrHandColliderMatrices,
-      handCollidersEnabled: () => gl.xr.isPresenting && useMmdVrStore.getState().physicsControllerCollisions,
+      handCollidersEnabled: () => gl.xr.isPresenting,
       handColliderRadius: () => handReferenceRadius(useMmdVrStore.getState().prefs.physicsColliderRadius),
       handShape: handContactShape,
       controllerColliderFriction: () => {
@@ -448,7 +448,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache }: { scenery
     const { saved } = initialAssets.current;
     useMmdVrStore.setState({
       physicsEnabled: appliedPhysicsEnabledRef.current,
-      ...(saved ? { physicsControllerCollisions: saved.controllerCollisions, loop: saved.loop } : {}),
+      ...(saved ? { loop: saved.loop } : {}),
       physicsBusy: false, physicsError: null, physicsFatal: false, playing: false,
       models: [], modelCount: 0, objects: [], materialModels: {}, materialPanelModelId: null,
       placeMode: false, placeModelId: null, pendingGroundPlace: null, pendingModelTransforms: [],
@@ -888,7 +888,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache }: { scenery
       }
     }
     const physicsOn = store.physicsEnabled && !store.physicsBusy;
-    const interactive = store.presentation==='xr' && store.physicsControllerCollisions;
+    const interactive = store.presentation==='xr';
     let physicsDelta = advancedMotion || interactive ? simulationDelta : 0;
     if (physicsOn && duration <= 0) {
       if (!interactive) physicsDelta = Math.min(simulationDelta, 5 - staticSettleElapsed.current);
@@ -927,7 +927,6 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache }: { scenery
       hapticContactPollRef.current %= MMD_VR_HAPTIC_POLL_INTERVAL;
       if (store.physicsEnabled
         && !store.physicsBusy
-        && store.physicsControllerCollisions
         && store.prefs.physicsHapticLevel !== "off") {
         setMmdVrHapticContacts(
           rt.getControllerContactCount(0) > 0,

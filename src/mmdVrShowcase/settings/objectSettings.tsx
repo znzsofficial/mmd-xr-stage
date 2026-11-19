@@ -35,7 +35,7 @@ export function PlayerSettings({onDrag}:Drag) {
 }
 
 export function CharacterSettings({locked}:{locked:boolean}) {
-  const t=useLanguageStore(s=>s.t), physics=useMmdVrStore(s=>s.physicsEnabled), contact=useMmdVrStore(s=>s.physicsControllerCollisions), count=useMmdVrStore(s=>s.modelCount);
+  const t=useLanguageStore(s=>s.t), physics=useMmdVrStore(s=>s.physicsEnabled), count=useMmdVrStore(s=>s.modelCount);
   const p=useMmdVrStore(s=>s.prefs),set=useMmdVrStore(s=>s.setPrefs),[tuning,showTuning]=useState(false);
   const physicsSwitch=(y:number)=><HudButton position={[-.49,y,0]} size={[.88,.18]} label={t(physics?'settingsMmdVrPhysicsOn':'settingsMmdVrPhysicsOff')} disabled={locked||!count} active={physics} onPress={()=>useMmdVrStore.getState().setPhysicsEnabled(!physics)}/>;
   if(tuning)return <group name="settings:contact-detail">
@@ -43,7 +43,7 @@ export function CharacterSettings({locked}:{locked:boolean}) {
     <HudButton position={[-.49,.32,0]} size={[.88,.16]} disabled={locked||physics} label={`${t('settingsMmdVrPhysicsRadius')}: ${Math.round(p.physicsColliderRadius*100)} cm`} onPress={()=>useMmdVrStore.getState().cyclePhysicsColliderRadius()}/>
     <HudButton position={[.49,.32,0]} size={[.88,.16]} disabled={locked||physics} label={t(p.physicsColliderFriction==='low'?'touchFrictionLow':p.physicsColliderFriction==='high'?'touchFrictionHigh':'contactNormalFriction')} onPress={()=>useMmdVrStore.getState().cyclePhysicsColliderFriction()}/>
     <HudButton position={[-.49,.11,0]} size={[.88,.16]} disabled={locked||physics} label={t(p.physicsColliderRestitution==='none'?'touchBounceNone':p.physicsColliderRestitution==='low'?'touchBounceLow':'touchBounceHigh')} onPress={()=>useMmdVrStore.getState().cyclePhysicsColliderRestitution()}/>
-    <HudLine position={[0,-.11,0]} width={1.85} role="title" text={t('actorTouch')}/>
+    <HudLine position={[0,-.11,0]} width={1.85} role="title" text={t('missingPalmContact')}/>
     <HudButton position={[0,-.31,0]} size={[1.85,.16]} disabled={locked||physics} active={p.actorPalmCloth} label={t(p.actorPalmCloth?'actorPalmOn':'actorPalmOff')} onPress={()=>set({actorPalmCloth:!p.actorPalmCloth})}/>
     <HudLine position={[0,-.53,0]} width={1.85} role="muted" text={t(physics?'contactDisableFirst':'contactNextPhysics')}/>
     {physicsSwitch(-.73)}
@@ -53,9 +53,8 @@ export function CharacterSettings({locked}:{locked:boolean}) {
     <HudLine position={[0,.54,0]} width={1.85} role="title" text={t('characterPhysics')}/>
     {physicsSwitch(.32)}
     <HudButton position={[.49,.32,0]} size={[.88,.18]} label={t('settingsMmdVrPhysicsReset')} disabled={locked||!physics||!count} variant="quiet" onPress={()=>useMmdVrStore.getState().requestPhysicsReset()}/>
-    <HudButton position={[-.49,.09,0]} size={[.88,.18]} label={t(contact?'settingsMmdVrPhysicsCollisionOn':'settingsMmdVrPhysicsCollisionOff')} disabled={locked||!physics||!count} active={contact&&physics} onPress={()=>useMmdVrStore.getState().setPhysicsControllerCollisions(!contact)}/>
-    <HudButton position={[.49,.09,0]} size={[.88,.18]} label={t('contactDetails')} variant="quiet" onPress={()=>showTuning(true)}/>
-    {!count&&<HudLine position={[0,-.10,0]} width={1.85} text={t('settingsPlaceFirst')} role="muted"/>}
+    <HudButton position={[0,.09,0]} size={[1.85,.18]} label={t('contactDetails')} variant="quiet" onPress={()=>showTuning(true)}/>
+    <HudLine position={[0,-.10,0]} width={1.85} text={t(count?'touchWithPhysics':'settingsPlaceFirst')} role="muted"/>
     <HudLine position={[0,-.30,0]} width={1.85} role="title" text={t('actorTouch')}/>
     <HudButton position={[0,-.50,0]} size={[1.85,.18]} label={t(p.chestCompression?'chestPressureOn':'chestPressureOff')} active={p.chestCompression} disabled={locked} onPress={()=>set({chestCompression:!p.chestCompression})}/>
     <HudLine position={[0,-.70,0]} width={1.85} role="muted" text={t('chestNoPhysics')}/>

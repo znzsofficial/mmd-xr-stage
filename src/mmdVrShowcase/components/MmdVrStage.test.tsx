@@ -39,10 +39,10 @@ it("keeps paused motion and HUD time fixed while forwarding the frame delta, and
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   harness.three = { scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(), size: { width: 640, height: 480 }, gl: {} };
   const update = vi.fn();
-  const runtime = { duration: 2, update, dispose: vi.fn(), listModels: () => [], exportProjectModels: () => [], setPhysicsEnabled: vi.fn(async () => {}) };
+  const runtime = { duration: 2, update, dispose: vi.fn(), listModels: () => [], exportProjectModels: () => [], getControllerContactCount: () => 0, setPhysicsEnabled: vi.fn(async () => {}) };
   vi.mocked(createMmdRuntimeHandle).mockReturnValue(runtime as unknown as ReturnType<typeof createMmdRuntimeHandle>);
   const s = useMmdVrStore.getState(); s.openOverlay();
-  useMmdVrStore.setState({ playing: false, loop: true, physicsEnabled: true, physicsBusy: false, physicsControllerCollisions: true });
+  useMmdVrStore.setState({ playing: false, loop: true, physicsEnabled: true, physicsBusy: false });
   const root = createRoot(document.createElement("div"));
   const frame = async () => { await act(async () => harness.frame?.({}, 1 / 90)); return update.mock.lastCall!; };
   try {
@@ -52,8 +52,9 @@ it("keeps paused motion and HUD time fixed while forwarding the frame delta, and
     const paused = await frame();
     expect([paused[0], paused[1], paused[5], paused[6]]).toEqual([0.75, true, 1 / 90, false]);
     expect(getMmdVrClock().time).toBe(0.75);
-    await act(async () => s.setPhysicsControllerCollisions(false));
+    await act(async () => useMmdVrStore.setState({presentation:'screen'}));
     expect((await frame())[5]).toBe(0);
+    await act(async () => useMmdVrStore.setState({presentation:'xr'}));
     await act(async () => { s.setPlaying(true); s.requestSeek(1.999); });
     expect((await frame())[0]).toBe(1.999);
     const loop = await frame(); expect([loop[0], loop[6]]).toEqual([0, true]);

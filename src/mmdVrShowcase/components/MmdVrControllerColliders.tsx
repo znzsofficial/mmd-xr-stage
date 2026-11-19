@@ -21,7 +21,6 @@ function ControllerCollider({ handedness, index }: { handedness: "left" | "right
   const physicsEnabled = useMmdVrStore((state) => state.physicsEnabled);
   const physicsDebugEnabled = useMmdVrStore((state) => state.physicsDebugEnabled);
   const physicsBusy = useMmdVrStore((state) => state.physicsBusy);
-  const collisionsEnabled = useMmdVrStore((state) => state.physicsControllerCollisions);
   const colliderRadius = useMmdVrStore((state) => state.prefs.physicsColliderRadius);
   const hapticLevel = useMmdVrStore((state) => state.prefs.physicsHapticLevel);
   const contactCount = useMmdVrStore((state) => state.physicsControllerContactCounts[index]);
@@ -61,7 +60,6 @@ function ControllerCollider({ handedness, index }: { handedness: "left" | "right
     const hapticPathEnabled = trackingReady
       && physicsEnabled
       && !physicsBusy
-      && collisionsEnabled
       && hapticLevel !== "off"
       && supportsMmdVrHaptics(gamepad);
     if (!hapticPathEnabled) {

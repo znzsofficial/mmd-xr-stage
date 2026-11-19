@@ -10,8 +10,7 @@ export function enterScreen() {
   const snapshot = useBackpack.getState().layouts[room] ?? (state.savedStage?.scenery === room ? state.savedStage : null);
   prepareBackpackEntry(true);
   state.prepareStage(false);
-  useMmdVrStore.setState({resumeStage:snapshot, physicsEnabled:snapshot?.physicsEnabled ?? false,
-    physicsControllerCollisions:snapshot?.controllerCollisions ?? true, phase:'idle'});
+  useMmdVrStore.setState({resumeStage:snapshot, physicsEnabled:snapshot?.physicsEnabled ?? false, phase:'idle'});
   beginMmdVrAssetSession(snapshot?.assets ?? []);
   state.openOverlay('screen');
 }

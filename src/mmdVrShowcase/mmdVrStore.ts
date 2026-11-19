@@ -153,8 +153,6 @@ type MmdVrStore = {
   setPhysicsEnabled: (enabled: boolean) => void;
   physicsDebugEnabled: boolean;
   setPhysicsDebugEnabled: (enabled: boolean) => void;
-  physicsControllerCollisions: boolean;
-  setPhysicsControllerCollisions: (enabled: boolean) => void;
   cyclePhysicsHapticLevel: () => void;
   cyclePhysicsColliderRadius: () => void;
   cyclePhysicsColliderFriction: () => void;
@@ -368,7 +366,6 @@ function sessionReset() {
     physicsFatal: false,
     physicsEnabled: false,
     physicsDebugEnabled: false,
-    physicsControllerCollisions: true,
     physicsResetEpoch: 0,
     physicsBusy: false,
     physicsContactCount: 0,
@@ -404,8 +401,7 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
   prepareStage: (resume) => {
     const saved = resume ? get().savedStage : null;
     if (saved?.scenery && saved.scenery !== get().prefs.scenery) get().setPrefs({ scenery: saved.scenery });
-    set({ resumeStage: saved, physicsEnabled: saved?.physicsEnabled ?? false,
-      physicsControllerCollisions: saved?.controllerCollisions ?? true });
+    set({ resumeStage: saved, physicsEnabled: saved?.physicsEnabled ?? false });
   },
   assetLoad: emptyAssetLoadProgress(),
   setAssetLoad: (assetLoad) => set({ assetLoad }),
@@ -557,10 +553,6 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
         physicsRigidBodyCount: 0,
         physicsStepCount: 0,
       }),
-  physicsControllerCollisions: true,
-  setPhysicsControllerCollisions: (physicsControllerCollisions) => set(physicsControllerCollisions
-    ? { physicsControllerCollisions }
-    : { physicsControllerCollisions, physicsControllerContactCounts: [0, 0] }),
   cyclePhysicsHapticLevel: () => {
     const cur = get().prefs.physicsHapticLevel;
     const next = cur === "off" ? "low" : cur === "low" ? "normal" : "off";

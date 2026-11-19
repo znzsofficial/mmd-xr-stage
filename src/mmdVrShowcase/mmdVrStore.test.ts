@@ -284,13 +284,11 @@ describe("MMD VR adjustments", () => {
   it("cycles session physics controls and restores defaults after exit", () => {
     const store = useMmdVrStore.getState();
     store.cyclePhysicsColliderRadius();
-    useMmdVrStore.getState().setPhysicsControllerCollisions(false);
     useMmdVrStore.getState().cyclePhysicsHapticLevel();
     useMmdVrStore.getState().requestPhysicsReset();
 
     expect(useMmdVrStore.getState()).toMatchObject({
       prefs: { physicsColliderRadius: 0.12 },
-      physicsControllerCollisions: false,
       physicsResetEpoch: 1,
     });
     expect(useMmdVrStore.getState().prefs.physicsHapticLevel).toBe("normal");
@@ -300,7 +298,6 @@ describe("MMD VR adjustments", () => {
     // Session-only fields reset; prefs fields persist.
     expect(useMmdVrStore.getState()).toMatchObject({
       prefs: { physicsColliderRadius: 0.12 },
-      physicsControllerCollisions: true,
       physicsResetEpoch: 0,
     });
     expect(useMmdVrStore.getState().prefs.physicsHapticLevel).toBe("normal");

@@ -13,7 +13,6 @@ function HandCollider({ handedness, baseIndex }: { handedness: "left" | "right";
   const hand = useXRInputSourceState("hand", handedness);
   const physicsEnabled = useMmdVrStore((state) => state.physicsEnabled);
   const physicsDebugEnabled = useMmdVrStore((state) => state.physicsDebugEnabled);
-  const collisionsEnabled = useMmdVrStore((state) => state.physicsControllerCollisions);
   const radius = useMmdVrStore((state) => handReferenceRadius(state.prefs.physicsColliderRadius));
   const refs = useRef<Partial<Record<(typeof HAND_JOINTS)[number], THREE.Object3D | null>>>({});
   const active = useRef(false);
@@ -23,7 +22,7 @@ function HandCollider({ handedness, baseIndex }: { handedness: "left" | "right";
   }, [baseIndex]);
 
   useFrame((_, __, frame) => {
-    if (!hand || !physicsEnabled || !collisionsEnabled || !frame || frame.session.visibilityState !== "visible") {
+    if (!hand || !physicsEnabled || !frame || frame.session.visibilityState !== "visible") {
       if (active.current) {
         for (let i = 0; i < HAND_JOINTS.length; i += 1) setMmdVrHandColliderMatrix(baseIndex + i, null);
         active.current = false;
@@ -53,7 +52,7 @@ function HandCollider({ handedness, baseIndex }: { handedness: "left" | "right";
       : null),
     [hand, radius],
   );
-  if (!jointSpaces || !physicsEnabled || !collisionsEnabled) return null;
+  if (!jointSpaces || !physicsEnabled) return null;
 
   return (
     <>
