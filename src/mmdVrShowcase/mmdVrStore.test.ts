@@ -63,8 +63,10 @@ describe("MMD VR adjustments", () => {
     expect(normalizeMmdVrHeightOffset(51)).toBe(50);
     expect(normalizeMmdVrPrefs({ viewDistance: 2 }).viewDistance).toBe(10);
     expect(normalizeMmdVrPrefs({ viewDistance: 120 }).viewDistance).toBe(100);
-    expect(normalizeMmdVrPrefs().physicsDynamicSelfCollision).toBe(false);
-    expect(normalizeMmdVrPrefs({ physicsDynamicSelfCollision: true }).physicsDynamicSelfCollision).toBe(true);
+    const old=JSON.parse('{"physicsDynamicSelfCollision":true,"physicsQuality":"high","physicsBoneFeedback":"hard","actorPalmCloth":true}');
+    const migrated=normalizeMmdVrPrefs(old);
+    for(const key of ['physicsDynamicSelfCollision','physicsQuality','physicsBoneFeedback'])expect(migrated).not.toHaveProperty(key);
+    expect(migrated.actorPalmCloth).toBe(true);
     expect(normalizeMmdVrPrefs().handTracking).toBe(true);
     expect(normalizeMmdVrPrefs({ handTracking: false }).handTracking).toBe(false);
     expect(normalizeMmdVrPrefs()).toMatchObject({
@@ -282,13 +284,12 @@ describe("MMD VR adjustments", () => {
   it("cycles session physics controls and restores defaults after exit", () => {
     const store = useMmdVrStore.getState();
     store.cyclePhysicsColliderRadius();
-    useMmdVrStore.getState().cyclePhysicsQuality();
     useMmdVrStore.getState().setPhysicsControllerCollisions(false);
     useMmdVrStore.getState().cyclePhysicsHapticLevel();
     useMmdVrStore.getState().requestPhysicsReset();
 
     expect(useMmdVrStore.getState()).toMatchObject({
-      prefs: { physicsColliderRadius: 0.12, physicsQuality: "high" },
+      prefs: { physicsColliderRadius: 0.12 },
       physicsControllerCollisions: false,
       physicsResetEpoch: 1,
     });
@@ -298,7 +299,7 @@ describe("MMD VR adjustments", () => {
 
     // Session-only fields reset; prefs fields persist.
     expect(useMmdVrStore.getState()).toMatchObject({
-      prefs: { physicsColliderRadius: 0.12, physicsQuality: "high" },
+      prefs: { physicsColliderRadius: 0.12 },
       physicsControllerCollisions: true,
       physicsResetEpoch: 0,
     });
@@ -307,20 +308,16 @@ describe("MMD VR adjustments", () => {
     // Restore prefs defaults for subsequent tests.
     useMmdVrStore.getState().setPrefs({
       physicsColliderRadius: 0.08,
-      physicsQuality: "medium",
       physicsHapticLevel: "low",
-      physicsDynamicSelfCollision: false,
     });
   });
 
   it("cycles physics tuning tiers and persists across exit", () => {
     const store = useMmdVrStore.getState();
-    store.cyclePhysicsBoneFeedback();
     useMmdVrStore.getState().cyclePhysicsColliderFriction();
     useMmdVrStore.getState().cyclePhysicsColliderRestitution();
 
     expect(useMmdVrStore.getState().prefs).toMatchObject({
-      physicsBoneFeedback: "hard",
       physicsColliderFriction: "high",
       physicsColliderRestitution: "low",
     });
@@ -329,14 +326,12 @@ describe("MMD VR adjustments", () => {
 
     // Prefs persist across session exit.
     expect(useMmdVrStore.getState().prefs).toMatchObject({
-      physicsBoneFeedback: "hard",
       physicsColliderFriction: "high",
       physicsColliderRestitution: "low",
     });
 
     // Restore prefs defaults for subsequent tests.
     useMmdVrStore.getState().setPrefs({
-      physicsBoneFeedback: "normal",
       physicsColliderFriction: "medium",
       physicsColliderRestitution: "none",
     });

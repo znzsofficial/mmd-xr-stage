@@ -20,12 +20,12 @@ it("opens on personal adjustments, keeps physics details contextual, and retains
   harness.camera = new THREE.PerspectiveCamera();
   const state = useMmdVrStore.getState();
   useMmdVrStore.setState({ assetLoad: { running: false, completed: 0, total: 0, fileName: "", phase: null, failures: [] },
-    physicsError: null, physicsBusy: false, materialPanelModelId: null, duration: 0,
+    physicsError: null, physicsBusy: false, materialPanelModelId: null, duration: 30,
     modelCount: 2, models: [{ id: "a", name: "a.pmx", visible: true, scale: 1, rotationY: 0 }, { id: "b", name: "b.pmx", visible: true, scale: 1, rotationY: 0 }], objects: [], materialModels: {} });
   const host = document.createElement("div"); const root = createRoot(host);
   const t = useLanguageStore.getState().t;
   const exit = vi.fn();
-  const props = { onExit: exit, onDragChange: vi.fn(), busy: false, hideLabel: "Hide asset", showLabel: "Show asset", scaleLabel: "Scale", placeOnLabel: "Place", placeOffLabel: "Place", resetValueLabel: "Reset", removeLabel: "Remove", materialsLabel: "Materials", physicsOnLabel: "Physics on", physicsOffLabel: "Physics off", physicsQualityLabels: ["Low", "Medium", "High"], physicsHapticLevelLabels: ["Off", "Low", "High"], physicsBoneFeedbackLabels: ["Soft", "Normal", "Hard"], physicsColliderFrictionLabels: ["Low", "Mid", "High"], physicsColliderRestitutionLabels: ["None", "Low", "High"], walkLabels: ["Slow", "Normal", "Fast"] } as unknown as Parameters<typeof MmdVrControlBar>[0];
+  const props = { onExit: exit, onDragChange: vi.fn(), busy: false };
   const buttons = (label: string) => [...host.querySelectorAll<HTMLElement>("mesh")].filter(m => m.getAttribute("name") === `hud:${label}`);
   const click = async (label: string) => { expect(buttons(label).length).toBeGreaterThan(0); await act(async () => buttons(label)[0].click()); };
   try {
@@ -37,20 +37,14 @@ it("opens on personal adjustments, keeps physics details contextual, and retains
     const startHeight=useMmdVrStore.getState().prefs.heightOffset;
     await click('+');expect(useMmdVrStore.getState().prefs.heightOffset).toBeGreaterThan(startHeight);
     expect(buttons(t('hudDiagnostics'))).toHaveLength(0);
-    await click(t('hudGraphics'));expect(buttons('+')).toHaveLength(0);expect(buttons(t('hudDiagnostics'))).toHaveLength(1);
-    await click(t("hudSimpleStage"));
-    await click(t("hudLiveHouse"));
-    expect(useMmdVrStore.getState().prefs.scenery).toBe("liveHouse");
+    await click(t('settingsEnvironment'));expect(buttons('+')).toHaveLength(0);expect(buttons(t('hudDiagnostics'))).toHaveLength(1);
+    expect(buttons(t('hudSimpleStage'))).toHaveLength(0);
     await click(t("hudSoftHighlights"));
     expect(useMmdVrStore.getState().prefs.softHighlights).toBe(true);
-    await click(t("hudLiveHouse"));
-    await click(t("hudClassroom"));
-    expect(useMmdVrStore.getState().prefs.scenery).toBe("classroom");
-    await click(t("hudGravity"));expect(buttons('Medium')).toHaveLength(0);
-    await click(t('hudSolverDetails'));expect(buttons(t('hudSolverLess'))).toHaveLength(1);
-    expect(buttons("Physics off")).toHaveLength(1);
-    await click(t("hudSelf"));expect(buttons('+')).toHaveLength(1);expect(buttons(t('hudSolverLess'))).toHaveLength(0);
-    expect(buttons("Physics off")).toHaveLength(0);
+    await click(t('settingsCharacter'));expect(buttons(t('hudSolverDetails'))).toHaveLength(0);
+    expect(buttons(t('settingsMmdVrPhysicsOff'))).toHaveLength(1);
+    await click(t('settingsPlayer'));expect(buttons('+')).toHaveLength(1);
+    expect(buttons(t('settingsMmdVrPhysicsOff'))).toHaveLength(0);
     await click(t("hudBack"));
     expect(buttons(t("hudModels"))).toHaveLength(0);
     await act(async()=>harness.buttonEvent?.('pressed'));

@@ -240,7 +240,6 @@ export type MmdRuntimeOptions = {
   handColliderRadius?: () => number;
   handShape?: ColliderShapeFactory;
   physicsQuality?: () => MmdPhysicsQuality;
-  physicsBoneFeedbackScale?: () => number;
   physicsDynamicSelfCollision?: () => boolean;
   prepareModel?: (root: THREE.Object3D) => void;
   prepareGpu?: (root: THREE.Object3D, stale: () => boolean, work?: MmdAddModelOptions['work']) => Promise<void>;
@@ -417,7 +416,6 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
             return (handColliderRadius?.() ?? 0.035) / scale;
           },
           quality: physicsQuality,
-          boneFeedbackScale: options.physicsBoneFeedbackScale,
           controllerFriction: options.controllerColliderFriction,
           controllerRestitution: options.controllerColliderRestitution,
           dynamicSelfCollision: physicsDynamicSelfCollision,

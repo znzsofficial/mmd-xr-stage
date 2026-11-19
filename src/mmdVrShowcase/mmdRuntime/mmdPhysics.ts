@@ -28,11 +28,8 @@ type MmdRuntimePhysicsDiagnostics = {
   debugStepCount: () => number;
 };
 
-const PHYSICS_QUALITY_OPTIONS: Record<MmdPhysicsQuality, { maxSubSteps: number; solverIterations: number }> = {
-  low: { maxSubSteps: 3, solverIterations: 15 },
-  medium: { maxSubSteps: 5, solverIterations: 20 },
-  high: { maxSubSteps: 8, solverIterations: 20 },
-};
+// The 0.8.6 backend reads the catch-up limit, not solver iteration or bone-feedback options.
+const MAX_SUBSTEPS: Record<MmdPhysicsQuality, number> = { low:3, medium:5, high:8 };
 export type MmdControllerColliderPhysicsBackend = MmdPhysicsBackend & Partial<MmdDirectBufferPhysicsBackend> & {
   debugControllerContactCount: (controllerIndex?: number) => number;
   debugRigidBodyCount: () => number;
@@ -77,23 +74,16 @@ export async function createBulletPhysicsBackend(options: {
   onPhysicsBones?: PhysicsBoneObserver;
   onBulletStepWork?: (feedMs:number,worldStepMs:number,outputsMs:number,seedOnly:boolean)=>void;
   quality?: () => MmdPhysicsQuality;
-  boneFeedbackScale?: () => number;
   controllerFriction?: () => number;
   controllerRestitution?: () => number;
   dynamicSelfCollision?: boolean;
 } = {}): Promise<MmdPhysicsBackend> {
   const { createCustomBulletMmdPhysicsBackend } = await import("@yohawing/three-mmd-loader/physics");
   const module = await loadBulletModule();
-  const qualityOptions = PHYSICS_QUALITY_OPTIONS[options.quality?.() ?? "medium"];
   const backendOptions = {
     onStepWork: options.onBulletStepWork,
     fixedTimeStep: 1 / 60,
-    maxSubSteps: qualityOptions.maxSubSteps,
-    resetCatchUpSteps: 0,
-    dynamicWithBoneRotationFeedbackScale: options.boneFeedbackScale?.() ?? 1,
-    solverIterations: qualityOptions.solverIterations,
-    splitImpulse: true,
-    splitImpulsePenetrationThreshold: -0.04,
+    maxSubSteps: MAX_SUBSTEPS[options.quality?.() ?? 'medium'],
   };
   const bulletBackend = createCustomBulletMmdPhysicsBackend(
     module as Parameters<typeof createCustomBulletMmdPhysicsBackend>[0],
@@ -104,10 +94,7 @@ export async function createBulletPhysicsBackend(options: {
     ? createDynamicSelfCollisionPhysicsBackend(diagnosticBackend)
     : diagnosticBackend;
   const refreshStepOptions = () => {
-    const next = PHYSICS_QUALITY_OPTIONS[options.quality?.() ?? "medium"];
-    backendOptions.maxSubSteps = next.maxSubSteps;
-    backendOptions.solverIterations = next.solverIterations;
-    backendOptions.dynamicWithBoneRotationFeedbackScale = options.boneFeedbackScale?.() ?? 1;
+    backendOptions.maxSubSteps = MAX_SUBSTEPS[options.quality?.() ?? 'medium'];
   };
   const colliderBackend = options.handColliders
     ? createControllerColliderPhysicsBackend(

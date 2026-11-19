@@ -20,7 +20,6 @@ import { endMmdVrAssetSession } from "./mmdVrAssets";
 import { invalidateBackpackCommands, useBackpack } from "./backpack";
 import { resetMmdVrClock } from "./mmdVrClock";
 import { resolveScenery, type SceneryId } from "./scenery/catalog";
-import type { MmdPhysicsQuality } from "./mmdPhysicsQuality";
 import type { MmdVrHapticLevel } from "./mmdVrHaptics";
 import { normalizeMmdVrHeightOffset, normalizeMmdVrModelScale, normalizeMmdVrViewDistance } from "./mmdVrAdjustments";
 
@@ -37,7 +36,6 @@ export const PLACE_HALF_WIDTH = 5.5;
 export type MmdVrShadowResolutionPref = "auto" | "low" | "medium" | "high";
 export type MmdVrSnapTurnDegrees = 15 | 30 | 45;
 
-export type MmdVrBoneFeedback = "soft" | "normal" | "hard";
 export type MmdVrColliderFriction = "low" | "medium" | "high";
 export type MmdVrColliderRestitution = "none" | "low" | "high";
 
@@ -100,18 +98,15 @@ export type MmdVrPrefs = {
   stageFogEnabled: boolean;
   stageRimLightEnabled: boolean;
   stageLightPoolEnabled: boolean;
-  /** Enables articulated hand rendering, interaction, and collision when available. */
+  /** Show tracked hand meshes. Menu rays and player contact have independent lifetimes. */
   handTracking: boolean;
   advancedRenderOverrides: boolean;
   detailedPhysicsDiagnostics: boolean;
   panelFollowUser: boolean;
   physicsColliderRadius: number;
-  physicsQuality: MmdPhysicsQuality;
-  physicsBoneFeedback: MmdVrBoneFeedback;
   physicsColliderFriction: MmdVrColliderFriction;
   physicsColliderRestitution: MmdVrColliderRestitution;
   physicsHapticLevel: MmdVrHapticLevel;
-  physicsDynamicSelfCollision: boolean;
   actorPalmCloth: boolean;
 };
 
@@ -161,8 +156,6 @@ type MmdVrStore = {
   setPhysicsControllerCollisions: (enabled: boolean) => void;
   cyclePhysicsHapticLevel: () => void;
   cyclePhysicsColliderRadius: () => void;
-  cyclePhysicsQuality: () => void;
-  cyclePhysicsBoneFeedback: () => void;
   cyclePhysicsColliderFriction: () => void;
   cyclePhysicsColliderRestitution: () => void;
   physicsResetEpoch: number;
@@ -256,20 +249,12 @@ export function normalizeMmdVrExposure(value: unknown): number {
   return Math.round(Math.min(1.3, Math.max(0.7, exposure)) * 10) / 10;
 }
 
-function normalizePhysicsQuality(value: unknown): MmdPhysicsQuality {
-  if (value === "low" || value === "medium" || value === "high") return value;
-  return "medium";
-}
 
 function normalizePhysicsColliderRadius(value: unknown): number {
   const radius = typeof value === "number" && Number.isFinite(value) ? value : 0.08;
   return [0.04, 0.08, 0.12, 0.16].includes(radius) ? radius : 0.08;
 }
 
-function normalizeBoneFeedback(value: unknown): MmdVrBoneFeedback {
-  if (value === "soft" || value === "normal" || value === "hard") return value;
-  return "normal";
-}
 
 function normalizeColliderFriction(value: unknown): MmdVrColliderFriction {
   if (value === "low" || value === "medium" || value === "high") return value;
@@ -322,12 +307,9 @@ export function normalizeMmdVrPrefs(parsed: Partial<MmdVrPrefs> & { liveHouseEna
     detailedPhysicsDiagnostics: Boolean(parsed.detailedPhysicsDiagnostics),
     panelFollowUser: parsed.panelFollowUser !== false,
     physicsColliderRadius: normalizePhysicsColliderRadius(parsed.physicsColliderRadius),
-    physicsQuality: normalizePhysicsQuality(parsed.physicsQuality),
-    physicsBoneFeedback: normalizeBoneFeedback(parsed.physicsBoneFeedback),
     physicsColliderFriction: normalizeColliderFriction(parsed.physicsColliderFriction),
     physicsColliderRestitution: normalizeColliderRestitution(parsed.physicsColliderRestitution),
     physicsHapticLevel: normalizeHapticLevel(parsed.physicsHapticLevel),
-    physicsDynamicSelfCollision: Boolean(parsed.physicsDynamicSelfCollision),
     actorPalmCloth: parsed.actorPalmCloth===true,
   };
 }
@@ -364,12 +346,9 @@ const prefsStorage = createLocalPrefsStorage<MmdVrPrefs>({
     detailedPhysicsDiagnostics: false,
     panelFollowUser: true,
     physicsColliderRadius: 0.08,
-    physicsQuality: "medium" as MmdPhysicsQuality,
-    physicsBoneFeedback: "normal" as MmdVrBoneFeedback,
     physicsColliderFriction: "medium" as MmdVrColliderFriction,
     physicsColliderRestitution: "none" as MmdVrColliderRestitution,
     physicsHapticLevel: "low" as MmdVrHapticLevel,
-    physicsDynamicSelfCollision: false,
     actorPalmCloth: false,
   }),
   normalize: normalizeMmdVrPrefs,
@@ -462,12 +441,9 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
     if (patch.detailedPhysicsDiagnostics != null) prefs.detailedPhysicsDiagnostics = Boolean(patch.detailedPhysicsDiagnostics);
     if (patch.panelFollowUser != null) prefs.panelFollowUser = Boolean(patch.panelFollowUser);
     if (patch.physicsColliderRadius != null) prefs.physicsColliderRadius = normalizePhysicsColliderRadius(patch.physicsColliderRadius);
-    if (patch.physicsQuality != null) prefs.physicsQuality = normalizePhysicsQuality(patch.physicsQuality);
-    if (patch.physicsBoneFeedback != null) prefs.physicsBoneFeedback = normalizeBoneFeedback(patch.physicsBoneFeedback);
     if (patch.physicsColliderFriction != null) prefs.physicsColliderFriction = normalizeColliderFriction(patch.physicsColliderFriction);
     if (patch.physicsColliderRestitution != null) prefs.physicsColliderRestitution = normalizeColliderRestitution(patch.physicsColliderRestitution);
     if (patch.physicsHapticLevel != null) prefs.physicsHapticLevel = normalizeHapticLevel(patch.physicsHapticLevel);
-    if (patch.physicsDynamicSelfCollision != null) prefs.physicsDynamicSelfCollision = Boolean(patch.physicsDynamicSelfCollision);
     prefsStorage.write(prefs);
     // Leaving a distant terrace should not start the next set 39m from its door.
     const previousRoom=get().prefs.scenery;
@@ -478,14 +454,6 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
     const radii = [0.04, 0.08, 0.12, 0.16];
     const cur = get().prefs.physicsColliderRadius;
     get().setPrefs({ physicsColliderRadius: radii[(radii.indexOf(cur) + 1) % radii.length] });
-  },
-  cyclePhysicsQuality: () => {
-    const cur = get().prefs.physicsQuality;
-    get().setPrefs({ physicsQuality: cur === "low" ? "medium" : cur === "medium" ? "high" : "low" });
-  },
-  cyclePhysicsBoneFeedback: () => {
-    const cur = get().prefs.physicsBoneFeedback;
-    get().setPrefs({ physicsBoneFeedback: cur === "soft" ? "normal" : cur === "normal" ? "hard" : "soft" });
   },
   cyclePhysicsColliderFriction: () => {
     const cur = get().prefs.physicsColliderFriction;

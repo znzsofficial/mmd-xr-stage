@@ -1,3 +1,4 @@
+import {DeviceSettings} from './prep/DeviceSettings';
 import { PrepIcon } from "./prep/PrepIcon";
 import classroomWindow from "./prep/classroom-window.webp";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from "react";
@@ -8,44 +9,14 @@ import { getXrSystem } from "../xr";
 import { MmdVrOverlay } from "./MmdVrOverlay";
 import { enterScreen } from './screen/enterScreen';
 import { clearBackpack, syncBackpackFiles, useBackpack } from "./backpack";
-import { formatMmdVrProfileSummary, getMmdVrRenderProfile } from "./mmdVrQuality";
 import { requestMmdVrEnter } from "./requestMmdVrEnter";
 import { useMmdVrStore } from "./mmdVrStore";
 import { SCENERY, sceneryIds, resolveScenery } from "./scenery/catalog";
-import { ACCENT_CHROMA, ACCENT_COLORS, ACCENT_HUES, updateThemeSettings } from "../system/theme";
-import { useThemeSettings } from "../system/useThemeSettings";
 import { expandAssetFiles, AssetImportError, IMPORT_LIMITS, type ArchiveEncoding, type ImportProgress } from "../mmdImport/importArchive";
 import { bindCompanion, mergeAssetFiles } from "../mmdImport/assetPaths";
 import { inspectAssets, type ImportReport } from "../mmdImport/inspectAssets";
 import { downloadPerformanceReport, useLastPerformanceReport } from "./performanceReport";
 
-function OptionGroup<T extends string>({
-  value,
-  options,
-  onChange,
-}: {
-  value: T;
-  options: readonly { id: T; label: string }[];
-  onChange: (value: T) => void;
-}) {
-  return (
-    <div className="stage-seg-control">
-      {options.map((option) => (
-        <button
-          key={option.id}
-          type="button"
-          className={value === option.id ? "is-active" : ""}
-          aria-pressed={value === option.id}
-          onClick={() => onChange(option.id)}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-type QuestPreset = "safe" | "balanced" | "clarity" | "custom";
 type XrReadiness = "checking" | "ready" | "unverified" | "insecure" | "no-xr";
 
 const ISSUE_LABEL = { missing: "importMissing", ambiguous: "importAmbiguous", invalid: "importInvalid", fallback: "importFallback" } as const;
@@ -55,19 +26,8 @@ const CATALOG_GROUPS = [
   { kind: "motion", label: "mmdVrPrepMotions" },
 ] as const;
 
-function getQuestPreset(prefs: ReturnType<typeof useMmdVrStore.getState>["prefs"]): QuestPreset {
-  if (!prefs.advancedRenderOverrides) return "custom";
-  if (prefs.dprPref !== "auto" || prefs.antialiasPref !== "auto") return "custom";
-  if (prefs.renderQuality === "low" && prefs.frameRatePref === "72" && prefs.framebufferScalePref === "0.7" && prefs.foveationPref === "high" && prefs.shadowsPref === "off") return "safe";
-  if (prefs.renderQuality === "balanced" && prefs.frameRatePref === "90" && prefs.framebufferScalePref === "0.85" && prefs.foveationPref === "medium" && prefs.shadowsPref === "off") return "balanced";
-  if (prefs.renderQuality === "high" && prefs.frameRatePref === "90" && prefs.framebufferScalePref === "1" && prefs.foveationPref === "medium" && prefs.shadowsPref === "off") return "clarity";
-  return "custom";
-}
-
 export function MmdVrPrepApp() {
   const t = useLanguageStore((state) => state.t);
-  const language = useLanguageStore((state) => state.language);
-  const themeSettings = useThemeSettings();
   const addNotification = useNotificationStore((state) => state.addNotification);
   const phase = useMmdVrStore((state) => state.phase);
   const screenFailed = useMmdVrStore(state=>state.presentation==='screen'&&state.phase==='error');
@@ -99,21 +59,6 @@ export function MmdVrPrepApp() {
   const [readiness, setReadiness] = useState<XrReadiness>("checking");
   const [dragging, setDragging] = useState(false);
 
-  const questPreset = getQuestPreset(prefs);
-  const highLoadConfig = prefs.frameRatePref === "120"
-    || (prefs.advancedRenderOverrides && prefs.framebufferScalePref === "1" && prefs.foveationPref === "off");
-
-  function applyQuestPreset(preset: Exclude<QuestPreset, "custom">) {
-    if (preset === "safe") {
-      setPrefs({ renderQuality: "low", dprPref: "auto", frameRatePref: "72", antialiasPref: "auto", framebufferScalePref: "0.7", foveationPref: "high", shadowsPref: "off", advancedRenderOverrides: true });
-      return;
-    }
-    if (preset === "balanced") {
-      setPrefs({ renderQuality: "balanced", dprPref: "auto", frameRatePref: "90", antialiasPref: "auto", framebufferScalePref: "0.85", foveationPref: "medium", shadowsPref: "off", advancedRenderOverrides: true });
-      return;
-    }
-    setPrefs({ renderQuality: "high", dprPref: "auto", frameRatePref: "90", antialiasPref: "auto", framebufferScalePref: "1", foveationPref: "medium", shadowsPref: "off", advancedRenderOverrides: true });
-  }
 
   const catalog = useMemo(() => CATALOG_GROUPS.map(({ kind, label }) => ({
     label, items: entries.filter(entry => entry.kind === kind),
@@ -580,252 +525,7 @@ export function MmdVrPrepApp() {
                {sceneryIds.map(id => <option key={id} value={id}>{t(SCENERY[id].label)}</option>)}
              </select>
            </label>
-           <details className="stage-config-card">
-            <summary className="stage-config-summary">
-              <div className="stage-config-summary-left">
-                <div className="stage-config-icon">
-                   <PrepIcon name="tune" size={20} />
-                </div>
-                <div>
-                   <span className="stage-section-title">{t("mmdVrPrepRuntimeConfig")}</span>
-                  <span className="stage-config-preview">{formatMmdVrProfileSummary(getMmdVrRenderProfile(prefs), language)}</span>
-                </div>
-              </div>
-               <PrepIcon name="down" className="stage-arrow-icon" />
-            </summary>
-
-            <div className="stage-config-body">
-              <p className="stage-config-notice">{t("diagPrepHint")}</p>
-
-              <div className="stage-form-row">
-                <span className="stage-row-label">{t("settingsMmdVrQuestPreset")}</span>
-                <OptionGroup
-                  value={questPreset}
-                  options={[
-                    { id: "safe", label: t("settingsMmdVrPresetSafe") },
-                    { id: "balanced", label: t("settingsMmdVrPresetBalanced") },
-                    { id: "clarity", label: t("settingsMmdVrPresetClarity") },
-                    { id: "custom", label: t("settingsMmdVrPresetCustom") },
-                  ]}
-                  onChange={(preset) => {
-                    if (preset === "custom") setPrefs({ advancedRenderOverrides: false });
-                    else applyQuestPreset(preset);
-                  }}
-                />
-              </div>
-
-              <div className="stage-form-row">
-                <span className="stage-row-label">{t("settingsAccent")}</span>
-                <div className="stage-swatch-list" role="group" aria-label={t("settingsAccent")}>
-                  {ACCENT_COLORS.map((color) => {
-                    const labelKey = `accent${color[0].toUpperCase()}${color.slice(1)}` as TranslationKey;
-                    return (
-                      <button
-                        key={color}
-                        type="button"
-                        className={`stage-swatch-btn ${themeSettings.accentColor === color ? "is-active" : ""}`}
-                        style={{ background: `oklch(0.62 ${ACCENT_CHROMA[color]} ${ACCENT_HUES[color]})` }}
-                        aria-label={t(labelKey)}
-                        aria-pressed={themeSettings.accentColor === color}
-                        title={t(labelKey)}
-                        onClick={() => updateThemeSettings({ accentColor: color })}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-
-              <details className="stage-sub-details">
-                <summary className="stage-sub-summary">
-                   <PrepIcon name="tune" size={16} />
-                  <span>{t("settingsMmdVrAdvancedConfig")}</span>
-                   <PrepIcon name="down" size={14} className="stage-sub-arrow" />
-                </summary>
-                <div className="stage-sub-content">
-                  <div className="stage-form-row">
-                    <span className="stage-row-label">{t("settingsVrDesktopQuality")}</span>
-                    <OptionGroup
-                      value={prefs.renderQuality}
-                      options={[
-                        { id: "high", label: t("settingsVrDesktopQualityHigh") },
-                        { id: "balanced", label: t("settingsVrDesktopQualityBalanced") },
-                        { id: "low", label: t("settingsVrDesktopQualityLow") },
-                      ]}
-                      onChange={(renderQuality) => setPrefs({ renderQuality })}
-                    />
-                  </div>
-
-                  <div className="stage-form-row">
-                    <span className="stage-row-label">{t("settingsVrDesktopDpr")}</span>
-                    <OptionGroup
-                      value={prefs.dprPref}
-                      options={[
-                        { id: "auto", label: t("settingsVrDesktopQualityAuto") },
-                        { id: "1", label: "1×" },
-                        { id: "1.25", label: "1.25×" },
-                        { id: "1.5", label: "1.5×" },
-                      ]}
-                      onChange={(dprPref) => setPrefs({ dprPref })}
-                    />
-                  </div>
-
-                  <div className="stage-form-row">
-                    <span className="stage-row-label">{t("settingsVrDesktopFrameRate")}</span>
-                    <OptionGroup
-                      value={prefs.frameRatePref}
-                      options={[
-                        { id: "auto", label: t("settingsVrDesktopQualityAuto") },
-                        { id: "72", label: "72 Hz" },
-                        { id: "80", label: "80 Hz" },
-                        { id: "90", label: "90 Hz" },
-                        { id: "120", label: "120 Hz" },
-                      ]}
-                      onChange={(frameRatePref) => setPrefs({ frameRatePref })}
-                    />
-                  </div>
-
-                  <details className="stage-exp-box">
-                    <summary className="stage-exp-summary">
-                       <PrepIcon name="tune" size={15} />
-                      <span>{t("settingsMmdVrExperimentalRendering")}</span>
-                    </summary>
-                    <div className="stage-exp-body">
-                      <label className="stage-toggle-row">
-                        <span>{t("settingsMmdVrEnableRenderOverrides")}</span>
-                        <input
-                          type="checkbox"
-                          checked={prefs.advancedRenderOverrides}
-                          onChange={(e) => setPrefs({ advancedRenderOverrides: e.target.checked })}
-                        />
-                      </label>
-                      <div className="stage-form-row">
-                        <span className="stage-row-label">{t("settingsVrDesktopFramebufferScale")}</span>
-                        <OptionGroup
-                          value={prefs.framebufferScalePref}
-                          options={[
-                            { id: "auto", label: t("settingsVrDesktopQualityAuto") },
-                            { id: "0.7", label: "70%" },
-                            { id: "0.85", label: "85%" },
-                            { id: "1", label: "100%" },
-                          ]}
-                          onChange={(framebufferScalePref) => setPrefs({ framebufferScalePref, advancedRenderOverrides: true })}
-                        />
-                      </div>
-                      <div className="stage-form-row">
-                        <span className="stage-row-label">{t("settingsVrDesktopFoveation")}</span>
-                        <OptionGroup
-                          value={prefs.foveationPref}
-                          options={[
-                            { id: "high", label: t("settingsMmdVrFoveationPerformance") },
-                            { id: "medium", label: t("settingsMmdVrFoveationBalanced") },
-                            { id: "off", label: t("settingsMmdVrFoveationOff") },
-                          ]}
-                          onChange={(foveationPref) => setPrefs({ foveationPref, advancedRenderOverrides: true })}
-                        />
-                      </div>
-                    </div>
-                  </details>
-
-                  <div className="stage-form-row">
-                    <span className="stage-row-label">{t("settingsVrDesktopAntialias")}</span>
-                    <OptionGroup
-                      value={prefs.antialiasPref}
-                      options={[
-                        { id: "auto", label: t("settingsVrDesktopQualityAuto") },
-                        { id: "on", label: t("settingsVrDesktopAaOn") },
-                        { id: "off", label: t("settingsVrDesktopAaOff") },
-                      ]}
-                      onChange={(antialiasPref) => setPrefs({ antialiasPref })}
-                    />
-                  </div>
-
-                  <div className="stage-form-row">
-                    <span className="stage-row-label">{t("settingsMmdVrShadows")}</span>
-                    <OptionGroup
-                      value={prefs.shadowsPref}
-                      options={[
-                        { id: "auto", label: t("settingsVrDesktopQualityAuto") },
-                        { id: "on", label: t("settingsVrDesktopAaOn") },
-                        { id: "off", label: t("settingsVrDesktopAaOff") },
-                      ]}
-                      onChange={(shadowsPref) => setPrefs({ shadowsPref })}
-                    />
-                  </div>
-
-                  <div className="stage-form-row">
-                    <span className="stage-row-label">{t("settingsMmdVrShadowResolution")}</span>
-                    <OptionGroup
-                      value={prefs.shadowResolutionPref}
-                      options={[
-                        { id: "auto", label: t("settingsVrDesktopQualityAuto") },
-                        { id: "low", label: "512" },
-                        { id: "medium", label: "1024" },
-                        { id: "high", label: "2048" },
-                      ]}
-                      onChange={(shadowResolutionPref) => setPrefs({ shadowResolutionPref })}
-                    />
-                  </div>
-
-                  <div className="stage-form-row">
-                    <span className="stage-row-label">{t("settingsMmdVrGrid")}</span>
-                    <OptionGroup
-                      value={prefs.gridPref}
-                      options={[
-                        { id: "auto", label: t("settingsVrDesktopQualityAuto") },
-                        { id: "on", label: t("settingsVrDesktopAaOn") },
-                        { id: "off", label: t("settingsVrDesktopAaOff") },
-                      ]}
-                      onChange={(gridPref) => setPrefs({ gridPref })}
-                    />
-                  </div>
-
-                  <div className="stage-form-row">
-                    <span className="stage-row-label">{t("settingsMmdVrWalkSpeed")}</span>
-                    <OptionGroup
-                      value={prefs.walkSpeedPref}
-                      options={[
-                        { id: "auto", label: t("settingsVrDesktopQualityAuto") },
-                        { id: "slow", label: t("settingsMmdVrWalkSlow") },
-                        { id: "normal", label: t("settingsMmdVrWalkNormal") },
-                        { id: "fast", label: t("settingsMmdVrWalkFast") },
-                      ]}
-                      onChange={(walkSpeedPref) => setPrefs({ walkSpeedPref })}
-                    />
-                  </div>
-
-                  <label className="stage-toggle-row">
-                    <span>{t("settingsVrDesktopShowFps")}</span>
-                    <input
-                      type="checkbox"
-                      checked={prefs.showFps}
-                      onChange={(e) => setPrefs({ showFps: e.target.checked })}
-                    />
-                  </label>
-
-                  <label className="stage-toggle-row">
-                    <span>{t("settingsMmdVrDetailedPhysicsDiagnostics")}</span>
-                    <input
-                      type="checkbox"
-                      checked={prefs.detailedPhysicsDiagnostics}
-                      onChange={(e) => setPrefs({ detailedPhysicsDiagnostics: e.target.checked })}
-                    />
-                  </label>
-
-                  {highLoadConfig && (
-                    <div className="stage-alert stage-alert-warning">
-                       <PrepIcon name="alert" size={16} />
-                      <span>{t("settingsMmdVrHighLoadWarning")}</span>
-                    </div>
-                  )}
-                  <p className="stage-hint-text">{t("settingsVrDesktopQualityHint")}</p>
-                </div>
-               </details>
-               <details className="stage-sub-details"><summary className="stage-sub-summary"><span>{t('watchExperiments')}</span><PrepIcon name="down" size={14} className="stage-sub-arrow"/></summary>
-                 <div className="stage-sub-content"><label className="stage-toggle-row"><span>{t('actorPalmCloth')}</span>
-                   <input type="checkbox" checked={prefs.actorPalmCloth} onChange={e=>setPrefs({actorPalmCloth:e.target.checked})}/></label></div>
-               </details>
-             </div>
-           </details>
+           <DeviceSettings/>
         </aside></div>
       </main>
 

@@ -11,7 +11,6 @@ import { HAND_JOINTS, handContactLayout, handReferenceRadius } from "../handCont
 
 function HandCollider({ handedness, baseIndex }: { handedness: "left" | "right"; baseIndex: 0 | 6 }) {
   const hand = useXRInputSourceState("hand", handedness);
-  const handTracking = useMmdVrStore((state) => state.prefs.handTracking);
   const physicsEnabled = useMmdVrStore((state) => state.physicsEnabled);
   const physicsDebugEnabled = useMmdVrStore((state) => state.physicsDebugEnabled);
   const collisionsEnabled = useMmdVrStore((state) => state.physicsControllerCollisions);
@@ -24,7 +23,7 @@ function HandCollider({ handedness, baseIndex }: { handedness: "left" | "right";
   }, [baseIndex]);
 
   useFrame((_, __, frame) => {
-    if (!hand || !handTracking || !physicsEnabled || !collisionsEnabled || !frame || frame.session.visibilityState !== "visible") {
+    if (!hand || !physicsEnabled || !collisionsEnabled || !frame || frame.session.visibilityState !== "visible") {
       if (active.current) {
         for (let i = 0; i < HAND_JOINTS.length; i += 1) setMmdVrHandColliderMatrix(baseIndex + i, null);
         active.current = false;
@@ -54,7 +53,7 @@ function HandCollider({ handedness, baseIndex }: { handedness: "left" | "right";
       : null),
     [hand, radius],
   );
-  if (!jointSpaces || !handTracking || !physicsEnabled || !collisionsEnabled) return null;
+  if (!jointSpaces || !physicsEnabled || !collisionsEnabled) return null;
 
   return (
     <>

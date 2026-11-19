@@ -16,7 +16,7 @@ beforeEach(() => {
   // These tests drive pointer handlers without a WebGL context.
   vi.spyOn(console, "error").mockImplementation(() => {});
   vi.spyOn(console, "warn").mockImplementation(() => {});
-  useMmdVrStore.setState({ playing: false, modelCount: 1, physicsError: null });
+  useMmdVrStore.setState({ playing: false, modelCount: 1, duration:30, physicsError: null });
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -54,6 +54,13 @@ describe("compact playback controls", () => {
     expect(onDetails).toHaveBeenCalledOnce();
     await act(async () => useMmdVrStore.setState({ physicsError: null }));
     expect(container.querySelector("mesh")).toBeNull();
+  });
+
+  it('does not hide the menu or start an empty timeline for a model without motion',async()=>{
+    useMmdVrStore.setState({duration:0});const onTransport=vi.fn();
+    await act(async()=>root.render(<CompactPlaybackControls onTransport={onTransport} onExpand={vi.fn()} onScenery={vi.fn()} onBackpack={vi.fn()} onExit={vi.fn()} busy={false}/>));
+    await act(async()=>button(useLanguageStore.getState().t('settingsMmdVrPlay')).click());
+    expect(onTransport).not.toHaveBeenCalled();expect(useMmdVrStore.getState().playing).toBe(false);
   });
 
   it("activates on a deliberate trigger release without requiring the XR short-click timeout", async () => {

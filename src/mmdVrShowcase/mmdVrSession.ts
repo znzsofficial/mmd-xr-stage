@@ -27,8 +27,7 @@ const session = createProductXrSession<MmdVrAttachQuality>({
 export const mmdVrXrStore = session.xrStore;
 
 /**
- * Applies the hand-tracking pref to the XR store: enables the articulated hand
- * implementation (with a reachable ray pointer) or falls back to controllers.
+ * Applies hand model visibility while preserving the hand pointer.
  * Hand states only exist while hand tracking is active, so this has no effect
  * when controllers are used.
  */
@@ -36,14 +35,9 @@ let appliedHandTracking: boolean | undefined;
 function applyHandTracking(handTracking: boolean) {
   if (handTracking === appliedHandTracking) return;
   appliedHandTracking = handTracking;
-  session.xrStore.setHand(
-    handTracking
-      ? {
-          rayPointer: HUD_RAY,
-          touchPointer: { hoverRadius: 0.16 },
-        }
-      : false,
-  );
+  // Visibility is cosmetic: a hand-only viewer must always be able to point
+  // at Menu, including on first entry with an old saved false preference.
+  session.xrStore.setHand({model:handTracking,rayPointer:HUD_RAY,touchPointer:{hoverRadius:.16}});
 }
 applyHandTracking(useMmdVrStore.getState().prefs.handTracking);
 useMmdVrStore.subscribe((state) => applyHandTracking(state.prefs.handTracking));

@@ -25,6 +25,7 @@ import { AstralCourt, CourtSky } from '../scenery/AstralCourt';
 import { DawnChapel } from '../scenery/DawnChapel';
 import { CHAPEL_SUN } from '../scenery/ChapelLayout';
 import {xrRoomRestoreTiming} from '../roomRestoreTiming';
+import {hasStageLamps} from '../settings/stageLamps';
 import { prepareModelGpu } from "../prepareModelGpu";
 import { createPlacementWork } from '../placementWork';
 import { DaylightSet, DaySky, SUN_POSITIONS } from "../scenery/DaylightSets";
@@ -344,7 +345,6 @@ export function MmdVrStageRoom({ scenery, saved, slots }: { scenery: SceneryId; 
   const lifecycleGenerationRef = useRef(0);
   const physicsOperationCountRef = useRef(0);
   const appliedPhysicsEnabledRef = useRef(saved?.physicsEnabled ?? useMmdVrStore.getState().physicsEnabled);
-  const appliedSelfCollisionRef = useRef(useMmdVrStore.getState().prefs.physicsDynamicSelfCollision);
   const labelsRef = useRef({
     loading: "Loading…",
     failed: "Load failed",
@@ -358,7 +358,6 @@ export function MmdVrStageRoom({ scenery, saved, slots }: { scenery: SceneryId; 
   const assetLoading = useMmdVrStore(s => s.assetLoad.running);
   const command = useBackpack(s => s.command);
   const waitForLoad = !physicsBusy && (assetLoading || !!command);
-  const physicsDynamicSelfCollision = useMmdVrStore((s) => s.prefs.physicsDynamicSelfCollision);
   const setPhysicsBusy = useMmdVrStore((s) => s.setPhysicsBusy);
 
   // Keep labels current without re-running the load effect on language change.
@@ -420,12 +419,6 @@ export function MmdVrStageRoom({ scenery, saved, slots }: { scenery: SceneryId; 
       handCollidersEnabled: () => gl.xr.isPresenting && useMmdVrStore.getState().physicsControllerCollisions,
       handColliderRadius: () => handReferenceRadius(useMmdVrStore.getState().prefs.physicsColliderRadius),
       handShape: handContactShape,
-      physicsQuality: () => useMmdVrStore.getState().prefs.physicsQuality,
-      physicsDynamicSelfCollision: () => useMmdVrStore.getState().prefs.physicsDynamicSelfCollision,
-      physicsBoneFeedbackScale: () => {
-        const map = { soft: 0.35, normal: 1, hard: 1.8 } as const;
-        return map[useMmdVrStore.getState().prefs.physicsBoneFeedback];
-      },
       controllerColliderFriction: () => {
         const map = { low: 0.2, medium: 0.5, high: 0.9 } as const;
         return map[useMmdVrStore.getState().prefs.physicsColliderFriction];
@@ -506,9 +499,6 @@ export function MmdVrStageRoom({ scenery, saved, slots }: { scenery: SceneryId; 
     void runtime.setPhysicsEnabled(physicsEnabled).then(() => {
       if (!cancelled && !isRoomStale()) {
         appliedPhysicsEnabledRef.current = physicsEnabled;
-        if (physicsEnabled) {
-          appliedSelfCollisionRef.current = useMmdVrStore.getState().prefs.physicsDynamicSelfCollision;
-        }
         syncModelList();
         syncMaterialModels();
         lastEvaluatedTimeRef.current = -Infinity;
@@ -536,46 +526,6 @@ export function MmdVrStageRoom({ scenery, saved, slots }: { scenery: SceneryId; 
     };
   }, [physicsEnabled, runtime, setPhysicsBusy, waitForLoad]);
 
-  useEffect(() => {
-    if (waitForLoad || !useMmdVrStore.getState().physicsEnabled) return;
-    if (physicsDynamicSelfCollision === appliedSelfCollisionRef.current) return;
-    let cancelled = false;
-    captureStage();
-    setPhysicsBusy(true);
-    useMmdVrStore.getState().setPhysicsError(null);
-    physicsOperationCountRef.current += 1;
-    void runtime.rebuildPhysics().then(() => {
-      if (!cancelled && !isRoomStale()) {
-        appliedSelfCollisionRef.current = physicsDynamicSelfCollision;
-        syncModelList();
-        syncMaterialModels();
-        lastEvaluatedTimeRef.current = -Infinity;
-      }
-    }).catch((error) => {
-      if (!cancelled && !isRoomStale()) {
-        console.error("[mmdVr] self-collision rebuild failed", error);
-        const fatal = isMmdRuntimeRebuildError(error);
-        if (fatal) readyToSaveRef.current = false;
-        syncModelList();
-        syncMaterialModels();
-        lastEvaluatedTimeRef.current = -Infinity;
-        const store = useMmdVrStore.getState();
-        store.setPrefs({ physicsDynamicSelfCollision: appliedSelfCollisionRef.current });
-        store.setPhysicsError(fatal ? labelsRef.current.physicsFatal : labelsRef.current.physicsRestored, fatal);
-        if (fatal) {
-          store.setPlaying(false);
-          appliedPhysicsEnabledRef.current = false;
-          store.setPhysicsEnabled(false);
-        }
-      }
-    }).finally(() => {
-      physicsOperationCountRef.current = Math.max(0, physicsOperationCountRef.current - 1);
-      if (!isRoomStale() && physicsOperationCountRef.current === 0) setPhysicsBusy(false);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [physicsDynamicSelfCollision, runtime, setPhysicsBusy, waitForLoad]);
 
   useEffect(() => {
     const generation = ++lifecycleGenerationRef.current;
@@ -1034,7 +984,7 @@ export function MmdVrStageRoom({ scenery, saved, slots }: { scenery: SceneryId; 
         shadow-camera-bottom={-shadowExtent}
       />
       <hemisphereLight args={[lightCfg.hemiSky, lightCfg.hemiGround, lightCfg.hemi]} />
-      {mmdPrefs.stageRimLightEnabled ? (
+      {mmdPrefs.stageRimLightEnabled && hasStageLamps(scenery) ? (
         <pointLight
           color={lightCfg.rimColor}
           intensity={rimIntensity}
@@ -1054,7 +1004,7 @@ export function MmdVrStageRoom({ scenery, saved, slots }: { scenery: SceneryId; 
       {scenery === "astralCourt" && <AstralCourt shadows={profile.shadows}/>}
       {scenery === 'chapel' && <DawnChapel shadows={profile.shadows}/>}
       {daySet && <DaylightSet id={daySet} shadows={profile.shadows} />}
-      {mmdPrefs.stageLightPoolEnabled ? (
+      {mmdPrefs.stageLightPoolEnabled && hasStageLamps(scenery) ? (
         <StageLightPool color={lightCfg.poolColor} opacity={Math.min(0.14, rimIntensity * 0.08)} />
       ) : null}
       {showSceneryGrid(scenery, profile.showGrid, mmdPrefs.gridPref === "on", placeMode) ? (
