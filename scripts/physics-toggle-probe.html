@@ -1,0 +1,39 @@
+<!doctype html><meta charset="utf-8"><title>Physics toggle parity</title>
+<p>Local development only. Pick a PMX and its textures. Compares full reload and in-place switching with the shipped Bullet and a fixed motion clock.</p>
+<input type="file" multiple><button>Compare</button><pre></pre>
+<script type="module">
+import * as THREE from 'three';
+import {createMmdRuntimeHandle} from '/src/mmdVrShowcase/mmdRuntime/mmdRuntime.ts';
+import {clothSmokeFixture} from './cloth-smoke-fixture.js';
+import {prepareMmdVrModel} from '/src/mmdVrShowcase/prepareMmdVrModel.ts';
+
+async function compare(files){
+  const fixture=clothSmokeFixture(),pmx=files.find(f=>/\.pmx$/i.test(f.name))??fixture.pmx;
+  const bytes=new Uint8Array(await fixture.vmd.arrayBuffer());
+  if(files.length){for(const at of [54,165]){bytes.fill(0,at,at+15);bytes.set([0x83,0x5a,0x83,0x93,0x83,0x5e,0x81,0x5b],at);}new DataView(bytes.buffer).setFloat32(184,1.5,true);}
+  const vmd=new File([bytes],'dance.vmd'),cam=new THREE.PerspectiveCamera(),rows=[],poses=[];
+  for(const reuse of [false,true]){
+    const scene=new THREE.Scene();let self=false,uploads=0;
+    const rt=createMmdRuntimeHandle(scene,{reusePhysicsModels:reuse,prepareModel:prepareMmdVrModel,prepareGpu:async()=>{uploads++},physicsDynamicSelfCollision:()=>self});
+    try{
+      const {modelId}=await rt.addModel(pmx,files,{transform:{scale:.13,positionX:.34,rotationY:29}});
+      await rt.loadMotion(vmd,'body',modelId);const original=rt.getModelRoot(modelId),signature=[];
+      const step=(time,physics)=>rt.update(time,physics,cam,1,false,1/72);
+      step(.49,false);
+      const ctx=CanvasRenderingContext2D.prototype,read=ctx.getImageData;let reads=0;
+      ctx.getImageData=function(...args){if(args[2]>=2048&&args[3]>=2048)reads++;return read.apply(this,args)};
+      try{for(const [i,enabled] of [true,true,false,true,false].entries()){
+        uploads=0;reads=0;const t=performance.now();if(i===1){self=true;await rt.rebuildPhysics()}else await rt.setPhysicsEnabled(enabled);
+        const ms=performance.now()-t,root=rt.getModelRoot(modelId);let skin;root.traverse(o=>{if(!skin&&o.isSkinnedMesh)skin=o});
+        if((original===root)!==reuse||uploads!==(reuse?0:1))throw Error('Render resources not owned as expected');
+        for(let j=0;j<64;j++){step((i+1)*.5+j/72,enabled);if(j===0||j===23||j===63){root.updateMatrixWorld(true);for(const b of skin.skeleton.bones)signature.push(...b.matrixWorld.elements);signature.push(...skin.morphTargetInfluences??[]);}}
+        rows.push({reuse,op:i===1?'self':enabled?'on':'off',ms,reads,gpuPreparations:uploads,bones:skin.skeleton.bones.length});
+      }}finally{ctx.getImageData=read}
+      poses.push(new Float32Array(signature));
+    }finally{rt.dispose()}
+  }
+  if(poses[0].length!==poses[1].length)throw Error('Rig mismatch');let max=0,idx=0;for(let i=0;i<poses[0].length;i++){const d=Math.abs(poses[0][i]-poses[1][i]);if(!Number.isFinite(d))throw Error('Non-finite pose');if(d>max){max=d;idx=i}}
+  if(max>1e-6)throw Error(`Pose mismatch ${max} at ${idx}/${poses[0].length}`);return {max,values:poses[0].length,rows};
+}
+window.compare=()=>compare([...document.querySelector('input').files]);document.querySelector('button').onclick=async()=>{try{document.querySelector('pre').textContent=JSON.stringify(await window.compare(),null,2)}catch(e){document.querySelector('pre').textContent=String(e)}};
+</script>

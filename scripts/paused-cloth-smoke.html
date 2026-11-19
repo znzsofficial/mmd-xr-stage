@@ -15,6 +15,11 @@ try {
   if(!waist?.isBone||!hem?.isBone||rt.duration<1.9)throw Error('skinned fixture or motion missing');
   const cam=new THREE.PerspectiveCamera(), pos=bone=>bone.getWorldPosition(new THREE.Vector3());
   const step=(pose,delta=dt,seek=false)=>rt.update(pose,true,cam,1,false,delta,seek);
+  // Toggle both actors after VMD evaluation, one with no motion at all. The
+  // same bone references must then still receive the animated and static cloth.
+  step(.4);await rt.setPhysicsEnabled(false);rt.update(.4,false,cam,1,false);
+  await rt.setPhysicsEnabled(true);
+  if(rt.getModelRoot(modelId)!==root||rt.getModelRoot(staticModel.modelId).getObjectByName('hem')!==staticHem)throw Error('toggle replaced the live rigs');
   for(let i=0;i<=45;i++)step(i*dt);
   const pose=.75;for(let i=0;i<45;i++)step(pose);
   const waistBefore=pos(waist),before=pos(hem),staticBefore=pos(staticHem); let contacts=0;

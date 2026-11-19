@@ -28,6 +28,7 @@
 - `performance.js` 为 `enabled:false` 配合 `onMeasure` 提供仅回调的阶段计时，不把私有文件名写入全局 Performance Timeline。背包新建角色时将七个不重叠的阶段加入匿名报告；升级后用一次 XR 放置及导出验证字段和隐私边界。
 - `DefaultMmdRuntime` 的 `captureStageSnapshots:false` 仅关闭调试数组复制，保留各阶段的世界矩阵更新；库默认行为不变。`onPhysicsPoseWork` 提供一次 external physics 求值的四个非重叠片段。升级时复核 `physicsSnapshotParity.test.ts`、`scripts/physics-playback-probe.html`、真实 Bullet 回归和导出字段，见[桌面对照](./performance/xr-runtime-performance.md)。
 - `syncRenderPalettes` 在整层级矩阵同步后按 Skeleton 身份去重，不跨 tick 缓存；`renderPaletteParity.test.ts` 覆盖多套绑定矩阵、代理重绑和两个运行时入口。Bullet 的可选 `onStepWork` 按成功调用采集输入、原生 step 和输出耗时，不改变 ABI 或子步规则。
+- 原地切换需要 `createDetachedRuntime` 沿用加载器的 WASM／兼容求值器选择规则，`exchangeRuntime` 同时切换 `setAnimation`、`update`、`updateAsync` 和释放时读取的运行时。只替换公开的 `model.runtime` 无效，旧实现的方法闭包捕获另一个引用。升级需跑[真实切换对照](./performance/physics-toggle.md)。
 - 材质加载时，同一本地默认图片由多个材质复用：`materials.js` 的单次调用内保存透明度采样网格，`textures.js` 按原 UV 算法实际读取的像素中心收集 alpha。只复用图片采样，不复用不同材质的判断。最多 8 张 512² 单通道网格（2 MiB），没有跨放置／重建的缓存；opaque 的快速返回和无法读图的重试需保持原语义。升级后跑 `materialAlphaTileParity.test.ts` 和 `scripts/material-load-probe.html`。
 
 上游仓库提交了 `package-lock.json`，其开发文档和 CI 均使用 npm。不要在 `E:\WebProjects\three-mmd-loader` 中使用 pnpm 更新依赖或 lockfile。NekoVirtOS 仍使用 pnpm。

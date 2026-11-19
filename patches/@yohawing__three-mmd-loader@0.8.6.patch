@@ -494,6 +494,42 @@ index d82f2a20c7e422f1186db8914cfc1b713e2529e2..a31cffd6a6d1a2999509fd75d5e2aac9
      /** MMD timeline frame rate. Defaults to 30. */
      readonly frameRate?: number;
      /** Initial runtime time in seconds. Defaults to 0. */
+diff --git a/dist/three/index.js b/dist/three/index.js
+--- a/dist/three/index.js
++++ b/dist/three/index.js
+@@ -150,3 +150,7 @@
++    async createDetachedRuntime(context) {
++        await this.getCore();
++        return this.createRuntime(context);
++    }
+     createRuntime(context) {
+         const explicitRuntime = this.options.runtimeFactory?.(context);
+         if (explicitRuntime) {
+@@ -379,3 +383,10 @@
+-        runtime: options.runtime,
++        get runtime() {
++            return options.runtime;
++        },
++        exchangeRuntime(next) {
++            const previous = options.runtime;
++            options.runtime = next;
++            return previous;
++        },
+         source: options.source,
+         diagnostics: {
+diff --git a/dist/three/index.d.ts b/dist/three/index.d.ts
+--- a/dist/three/index.d.ts
++++ b/dist/three/index.d.ts
+@@ -131,3 +131,4 @@
+     readonly runtime: MmdRuntime;
++    exchangeRuntime(next: MmdRuntime): MmdRuntime;
+     readonly source: ThreeMmdModelSourceDescriptor;
+     /** Structured diagnostics grouped by subsystem. */
+@@ -186,3 +187,4 @@
+     loadModel(source: ModelSource, options?: ThreeMmdLoadModelOptions): Promise<ThreeMmdModel>;
++    createDetachedRuntime(context: ThreeMmdRuntimeFactoryContext): Promise<MmdRuntime>;
+     private createRuntime;
+     private canCreateImplicitMmdAnimRuntime;
 diff --git a/dist/three/material/material-texture-set.js b/dist/three/material/material-texture-set.js
 index 968b2d05d6f3f9fe8d803a5bee42ededd11dfe11..b9fae91d12c4a10ef6364f29f1010bbbaba74420 100644
 --- a/dist/three/material/material-texture-set.js

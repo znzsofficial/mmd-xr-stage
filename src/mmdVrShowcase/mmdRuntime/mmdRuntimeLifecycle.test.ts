@@ -165,4 +165,42 @@ describe("runtime asynchronous lifecycle", () => {
     await expect(pending).rejects.toMatchObject({ name: "AbortError" });
     expect(model.setAnimation).not.toHaveBeenCalled();
   });
+
+  it.each(['dispose','clearAll'] as const)('releases an arriving world after %s without resurrecting its actor', async end => {
+    const model = modelFixture(), load = vi.spyOn(ThreeMmdLoader.prototype,'loadModel').mockResolvedValue(model);
+    const release = vi.spyOn(model.mesh.geometry,'dispose'), factory = vi.mocked(createBulletPhysicsBackend);
+    const world = {name:'bullet',disabled:false,disposed:false,step:()=>({simulated:true}),dispose:vi.fn()};
+    let ready!: (value:Awaited<ReturnType<typeof createBulletPhysicsBackend>>) => void;
+    factory.mockReturnValueOnce(new Promise(resolve => { ready = resolve; }));
+    const rt=createMmdRuntimeHandle(new THREE.Scene());await rt.addModel(new File(['x'],'m.pmx'));
+    const pending=rt.setPhysicsEnabled(true);await Promise.resolve();rt[end]();ready(world);
+    await expect(pending).rejects.toMatchObject({name:'AbortError'});
+    expect(world.dispose).toHaveBeenCalledOnce();expect(release).toHaveBeenCalledOnce();expect(load).toHaveBeenCalledOnce();expect(rt.listModels()).toHaveLength(0);
+    rt.dispose();
+  });
+
+  it('preserves both live actors and frees a prepared world when the second world cannot be created', async()=>{
+    const load=vi.spyOn(ThreeMmdLoader.prototype,'loadModel').mockImplementation(async()=>modelFixture());
+    const rt=createMmdRuntimeHandle(new THREE.Scene());const file=new File(['x'],'m.pmx');
+    const a=await rt.addModel(file),b=await rt.addModel(file);rt.selectModel(a.modelId);rt.setModelVisible(b.modelId,false);
+    const before=rt.listModels(),roots=before.map(m=>rt.getModelRoot(m.id));
+    const dispose=vi.fn();vi.mocked(createBulletPhysicsBackend).mockResolvedValueOnce({name:'bullet',disabled:false,disposed:false,step:()=>({simulated:true}),dispose}).mockRejectedValueOnce(Error('world unavailable'));
+    try{await expect(rt.setPhysicsEnabled(true)).rejects.toThrow('world unavailable');expect(rt.listModels()).toEqual(before);expect(rt.selectedId).toBe(a.modelId);
+      before.forEach((m,i)=>expect(rt.getModelRoot(m.id)).toBe(roots[i]));expect(load).toHaveBeenCalledTimes(2);expect(dispose).toHaveBeenCalledOnce();
+    }finally{rt.dispose()}
+  });
+
+  it('cold-restores the previous mode after a partial two-actor commit, releasing both replacement worlds',async()=>{
+    const load=vi.spyOn(ThreeMmdLoader.prototype,'loadModel').mockImplementation(async()=>{
+      const model=modelFixture();let current=model.runtime;
+      Object.defineProperty(model,'runtime',{get:()=>current});model.exchangeRuntime=next=>{const previous=current;current=next;return previous};return model;
+    });
+    const file=new File(['x'],'m.pmx'),rt=createMmdRuntimeHandle(new THREE.Scene());const a=await rt.addModel(file),b=await rt.addModel(file);
+    const second=await load.mock.results[1].value as ThreeMmdModel;vi.spyOn(second,'exchangeRuntime').mockImplementationOnce(()=>{throw Error('bind failed')});
+    rt.selectModel(a.modelId);rt.setModelTransform(b.modelId,{scale:.21,positionX:4});const before=rt.listModels();
+    const releases=[vi.fn(),vi.fn()];for(const dispose of releases)vi.mocked(createBulletPhysicsBackend).mockResolvedValueOnce({name:'bullet',disabled:false,disposed:false,step:()=>({simulated:true}),dispose});
+    try{await expect(rt.setPhysicsEnabled(true)).rejects.toThrow('bind failed');expect(load).toHaveBeenCalledTimes(4);expect(rt.listModels()).toEqual(before);expect(rt.selectedId).toBe(a.modelId);
+      releases.forEach(fn=>expect(fn).toHaveBeenCalledOnce());await rt.setPhysicsEnabled(false);expect(load).toHaveBeenCalledTimes(4);
+    }finally{rt.dispose()}
+  });
 });
