@@ -1,8 +1,8 @@
 # 会话交接｜2026-11-19
 
-[线上舞台](https://mmd-xr-stage.pages.dev) · [固定功能版 `0729993`](https://1ae15cd7.mmd-xr-stage.pages.dev) · [分类文档索引](./README.md)
+[线上舞台](https://mmd-xr-stage.pages.dev) · [固定功能版 `bd4a5fc`](https://96632d78.mmd-xr-stage.pages.dev) · [分类文档索引](./README.md)
 
-**线上基线**：VR 开角色物理即可用手柄或手追拨衣，暂停也可；胸部受压默认开，保留原手臂轨迹；角色托裙摆只作缺少掌面模型的可选补救，默认关。已验证真实 Bullet 暂停拨衣、模拟 XR 12 槽跟踪／清除／恢复，生产主域名 44 项哈希一致。[物理和准备页选项](./gameplay/vr-controls.md#角色物理与接触)。
+**线上基线**：六件手持道具可拿取、递给角色。开角色物理后，手追掌心／指腹可使受压部位局部形变，支持暂停和未绑动作。指定原版模型、真实 Bullet 测了左右手不同槽位及两种尺寸，撤手后回落、在模型内恢复追踪未产生形变。未戴头显验证这次触感。295 项测试、模拟 XR 双腕交接与持物播放、生产构建和主域名 44 项哈希通过。[物理与操作](./gameplay/vr-controls.md#角色物理与接触) · [手追接触探针](../scripts/tracked-pressure-probe.html)。
 
 ## 下次从这里开始
 
