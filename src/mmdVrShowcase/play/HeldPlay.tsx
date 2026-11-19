@@ -1,5 +1,5 @@
 import { useFrame } from '@react-three/fiber';
-import { useEffect, useMemo, useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import { DynamicDrawUsage, Group, InstancedMesh, Matrix4, Mesh, Object3D, Vector3 } from 'three';
 import { useBackpack } from '../backpack';
 import { useHudWorldInput } from '../components/hudWorldInput';
@@ -7,10 +7,16 @@ import { useMmdVrStore } from '../mmdVrStore';
 import { gripLatch, markAt, POST_Z, useStagePlay, type Toy, type Hand } from './stagePlay';
 import { MoonPost } from './MoonPost';
 import { AstralSaber } from './AstralSaber';
+import { KiteReel } from './kite/KiteStation';
+import { EncoreMic } from './encore/EncoreStation';
+import { squeezeStory } from './storyActions';
+import { StoryStations } from './StoryStations';
 
 const CAP=24;
 export function PlayPiece({toy}:{toy:Toy}) {
   if(toy==='saber')return <AstralSaber/>;
+  if(toy==='kite')return <KiteReel/>;
+  if(toy==='encore')return <EncoreMic/>;
   const post=toy==='post', main=post?'#47668a':'#62bcaf', trim=post?'#ffce76':'#f39f83';
   return <group name={`play:piece:${toy}`}>
     <mesh position={[0,.015,-.064]} scale={[.059,.062,.092]}><sphereGeometry args={[1,16,12]}/><meshStandardMaterial color={main} roughness={.38}/></mesh>
@@ -18,8 +24,16 @@ export function PlayPiece({toy}:{toy:Toy}) {
     <mesh position={[0,-.042,-.06]} rotation-z={-.17}><capsuleGeometry args={[.021,.032,3,10]}/><meshStandardMaterial color={main}/></mesh>
     <mesh position={[0,.025,-.173]}><torusGeometry args={[post?.039:.049,.009,7,post?6:24]}/><meshStandardMaterial color={trim} roughness={.4}/></mesh>
     {!post&&<mesh position={[0,.025,-.167]} rotation-z={.4}><torusGeometry args={[.027,.004,5,16]}/><meshStandardMaterial color="#dbf3d4"/></mesh>}
+    {!post&&<ShellBadge/>}
   </group>;
 }
+
+/** Scalloped ceramic thumb rest on the pool edition of the bubble blower. */
+function ShellBadge(){const pool=useMmdVrStore(s=>s.prefs.scenery==='pool');if(!pool)return null;
+  return <group position={[0,.075,-.068]} rotation-x={-.40}>
+    {[-2,-1,0,1,2].map(i=><mesh key={i} position={[i*.010,.012-Math.abs(i)*.003,0]} rotation-z={-i*.24} scale={[.014,.034,.012]}>
+      <sphereGeometry args={[1,10,7]}/><meshStandardMaterial color={i%2?'#f9c5a9':'#edb59b'}/></mesh>)}
+  </group>;}
 
 function InHand({toy,hand}:{toy:Toy;hand:Hand}) {
   const body=useRef<Group>(null), bubbles=useRef<InstancedMesh>(null),reticle=useRef<Mesh>(null);
@@ -45,7 +59,8 @@ function InHand({toy,hand}:{toy:Toy;hand:Hand}) {
       s.pose.fromArray(grip.transform.matrix);s.ray.fromArray(ray.transform.matrix);
       const origin=gl.xr.getCamera().parent;if(origin){origin.updateWorldMatrix(true,false);s.pose.premultiply(origin.matrixWorld);s.ray.premultiply(origin.matrixWorld);}
       prop.position.setFromMatrixPosition(s.pose);prop.quaternion.setFromRotationMatrix(s.ray);
-      s.dir.set(0,0,-1).applyQuaternion(prop.quaternion);s.at.set(0,.025,-.177).applyQuaternion(prop.quaternion).add(prop.position);
+       s.dir.set(0,0,-1).applyQuaternion(prop.quaternion);s.at.set(0,.025,-.177).applyQuaternion(prop.quaternion).add(prop.position);
+       if(action==='start')squeezeStory(stage.prefs.scenery,toy,s.at,s.dir);
       if(toy==='post'&&reticle.current){
         const distance=Math.abs(s.dir.z)>.0001?(POST_Z-s.at.z)/s.dir.z:-1;
         const x=s.at.x+distance*s.dir.x,y=s.at.y+distance*s.dir.y;
@@ -83,6 +98,5 @@ function InHand({toy,hand}:{toy:Toy;hand:Hand}) {
 }
 
 export function StagePlay(){const held=useStagePlay(s=>s.held),scenery=useMmdVrStore(s=>s.prefs.scenery);
-  useEffect(()=>{const off=useMmdVrStore.subscribe((s,p)=>{if(s.prefs.scenery!==p.prefs.scenery||s.entryEpoch!==p.entryEpoch||!s.overlayOpen&&p.overlayOpen)useStagePlay.getState().reset();});return ()=>{off();useStagePlay.getState().reset();};},[]);
-  return <>{held&&<InHand key={`${held.hand}:${held.toy}`} {...held} />}{scenery==='floor'&&<MoonPost/>}</>;
+  return <>{held&&<InHand key={`${held.hand}:${held.toy}`} {...held} />}<StoryStations/>{scenery==='floor'&&<MoonPost/>}</>;
 }

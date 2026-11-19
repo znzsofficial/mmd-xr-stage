@@ -138,6 +138,8 @@ export function createStageActors(scene: THREE.Scene, runtime: MmdRuntimeHandle,
     // The same character may have different actions in two rooms. Publish the
     // files actually bound to the active instance atomically with its new id.
     useBackpack.setState({ live, bindings });
+    const carrier=useStagePlay.getState().character?.assetId;
+    if(carrier && live[carrier]?.visible===false)useStagePlay.getState().stow();
   }
 
   function putAway(runtimeId: string) {

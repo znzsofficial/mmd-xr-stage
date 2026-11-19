@@ -8,7 +8,8 @@ import { getMmdVrClock } from '../mmdVrClock';
 import { getMmdVrRenderProfile } from '../mmdVrQuality';
 import { useMmdVrStore } from '../mmdVrStore';
 import { MmdVrThemeProvider } from '../mmdVrTheme';
-import { useStagePlay } from '../play/stagePlay';
+import { isStoryRoom } from '../play/stagePlay';
+import { StoryStations } from '../play/StoryStations';
 import { PrepIcon } from '../prep/PrepIcon';
 import { resolveScenery, SCENERY, sceneryIds } from '../scenery/catalog';
 import { ScreenCamera, type CameraActions } from './ScreenCamera';
@@ -38,8 +39,7 @@ export function ScreenStage(){
   const locked=busy||load.running||physicsBusy||fatal;
   useLayoutEffect(()=>{const el=dialog.current!;el.showModal();return ()=>el.close();},[]);
   useEffect(()=>{const generation=++life.current,epoch=useMmdVrStore.getState().entryEpoch;
-    const off=useMmdVrStore.subscribe((s,p)=>{if(s.prefs.scenery!==p.prefs.scenery||!s.overlayOpen)useStagePlay.getState().reset();});
-    return ()=>{off();queueMicrotask(()=>{const s=useMmdVrStore.getState();if(generation===life.current&&s.entryEpoch===epoch&&s.overlayOpen)s.closeOverlay();});};},[]);
+    return ()=>queueMicrotask(()=>{const s=useMmdVrStore.getState();if(generation===life.current&&s.entryEpoch===epoch&&s.overlayOpen)s.closeOverlay();});},[]);
   useEffect(()=>{if(selected)setLibrary(true);},[selected]);
   const close=()=>stage.closeOverlay();
   const message=err||physicsError||load.failures.map(f=>`${f.fileName}: ${f.message}`).join(' · ');
@@ -50,11 +50,11 @@ export function ScreenStage(){
       </select><button className="screen-back" onClick={close}>{t('loadBack')}</button></header>
     <div className="screen-workspace"><div className="screen-picture">
       <MmdVrThemeProvider><Canvas gl={{antialias:true,powerPreference:'high-performance'}} shadows={profile.shadows} dpr={[1,1.6]} camera={{position:[0,1.65,4],near:.03,far:prefs.viewDistance,fov:50}} fallback={<p role="alert">{t('screenWebgl')}</p>}>
-        <MmdVrStageContent/><BackpackPlacement onScreenPick={()=>setLibrary(true)}/><ScreenCamera actions={actions}/>
+        <MmdVrStageContent/><StoryStations/><BackpackPlacement onScreenPick={()=>setLibrary(true)}/><ScreenCamera actions={actions}/>
       </Canvas></MmdVrThemeProvider>
       <div className="screen-corner"><button aria-expanded={library&&!draft} onClick={()=>{if(draft){useBackpack.getState().cancelPlace();setLibrary(true);}else setLibrary(v=>!v);}}><PrepIcon name="bag"/>{t('hudBackpack')}</button><button onClick={()=>actions.current?.reset()}>{t('settingsMmdVrResetView')}</button></div>
       <div className="screen-caption" role="status">{message?<><span>{message}</span>{load.failures.length>0&&<button disabled={locked} onClick={stage.retryFailedAssets}>{t('loadRetry')}</button>}{err&&<button onClick={()=>useBackpack.getState().dismissError()}>{t('hudDone')}</button>}</>:locked?t('hudWorking'):draft?<><span>{t('screenAim')}</span><button onClick={()=>actions.current?.center()}>{t('screenCenter')}</button><button onClick={()=>useBackpack.getState().cancelPlace()}>{t('hudCancelPlace')}</button></>:t('screenOrbit')}</div>
-    </div>{library&&!draft&&<ScreenLibrary locked={locked} frame={()=>actions.current?.frame()} close={()=>setLibrary(false)}/>}</div>
+    </div>{library&&!draft&&<ScreenLibrary locked={locked} frame={()=>actions.current?.frame()} storyView={isStoryRoom(prefs.scenery)?()=>actions.current?.story():undefined} close={()=>setLibrary(false)}/>}</div>
     <Transport locked={locked}/>
   </dialog>;
 }

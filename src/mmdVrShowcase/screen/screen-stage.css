@@ -26,6 +26,7 @@
 .screen-library-head,.screen-library h3,.screen-stage .screen-item{display:flex;align-items:center;justify-content:space-between;gap:.6rem}
 .screen-library p{margin:1.25rem 0;color:var(--quiet);line-height:1.7}
 .screen-library section{margin-top:1.2rem}.screen-library h3{font-size:.9rem;overflow-wrap:anywhere;margin-bottom:.42rem}
+.screen-library .screen-story p{margin:.45rem 0 .6rem}.screen-story{border-bottom:1px solid var(--line)}
 .screen-library h3 small,.screen-field{color:var(--quiet);font-size:.8rem}
 .screen-stage .screen-item{width:100%;text-align:left;margin:.16rem 0;padding:.6rem .65rem}
 .screen-item span{overflow-wrap:anywhere;min-width:0;font-weight:500}.screen-item strong{font-size:.79rem;white-space:nowrap;color:var(--green)}

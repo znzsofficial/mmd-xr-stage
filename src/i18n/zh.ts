@@ -3,6 +3,8 @@ export const zh = {
   importBindResource: "为此引用选择资源文件",
   hudBack: "返回观看",
   hudScenery: "场景",
+  toyKite:'借风线轴',toyKiteHint:'侧握换风，可递给角色',toyEncore:'丝带话筒',toyEncoreHint:'瞄准两翼，侧握染印',toyShell:'贝壳泡泡枪',toyShellHint:'瞄准拱门，侧握发船',
+  storyKite:'放学后的纸鸢站',storyFerry:'泡影渡口',storyEncore:'返场染印社',storyWindLeft:'左风签',storyWindRight:'右风签',storyFerryLeft:'左门发船',storyFerryRight:'右门发船',storyDyeLeft:'染左翼',storyDyeRight:'染右翼',storyClear:'清除染印',storyView:'玩法机位',storyProp:'角色道具',storyKiteHelp:'选风签放飞纸鸢；选中角色后，可把线轴交给她。',storyFerryHelp:'选一道拱门，让彩环引船从那一侧入画。',storyEncoreHelp:'依次染两翼，第一侧决定开幕方向；话筒可递给角色。',
   hudChapel: "晨光礼拜堂",
   screenHideAsset:'隐藏',screenShowAsset:'显示',
   screenWatch:'屏幕观看', screenAim:'点击地面上的脚印放置', screenOrbit:'拖动环绕 · 滚轮或双指缩放', screenCenter:'放在中央', screenLoop:'循环', screenSeek:'播放位置', screenFit:'看向选中项', screenEmpty:'背包里还没有角色或物件。返回准备页导入文件，或直接拖动欣赏布景。', screenPickMotion:'选择动作', screenWebgl:'此浏览器无法启动 WebGL 画面。请开启硬件加速或换用支持 WebGL 2 的浏览器。', screenHide:'收起背包', screenSaber:'把光剑交给角色',

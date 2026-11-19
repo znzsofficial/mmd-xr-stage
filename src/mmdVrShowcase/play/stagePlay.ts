@@ -1,11 +1,27 @@
 import { create } from 'zustand';
+import type { SceneryId } from '../scenery/catalog';
 export const TOYS = {
   bubbles: { label: 'toyBubbles', hint: 'toyBubblesHint' },
   post: { label: 'toyPost', hint: 'toyPostHint' },
   saber: { label: 'toySaber', hint: 'toySaberHint' },
+  kite: { label:'toyKite', hint:'toyKiteHint' },
+  encore: { label:'toyEncore', hint:'toyEncoreHint' },
 } as const;
 export type Toy = keyof typeof TOYS;
 export type Hand = 'left' | 'right';
+export const STORIES = {
+  lawn: {name:'storyKite', toy:'kite', left:'storyWindLeft', right:'storyWindRight'},
+  pool: {name:'storyFerry', toy:'bubbles', left:'storyFerryLeft', right:'storyFerryRight'},
+  liveHouse: {name:'storyEncore', toy:'encore', left:'storyDyeLeft', right:'storyDyeRight'},
+} as const;
+export type StoryRoom = keyof typeof STORIES;
+export function isStoryRoom(room: SceneryId):room is StoryRoom {return Object.hasOwn(STORIES,room);}
+/** Keep three readable rows. The two general toys are available everywhere;
+ * the room's prop occupies the remaining slot. Outside a story, keep the studio shortcut. */
+export function shelfToys(room:SceneryId):readonly Toy[] {
+  if(room==='lawn'||room==='liveHouse')return [STORIES[room].toy,'bubbles','saber'];
+  return ['bubbles','post','saber'];
+}
 export type CharacterToy = { assetId: string; toy: Toy; hand: Hand; tilt: number; inset: number };
 export const POST_Z = -5.15;
 export const POST_MARKS = [[-1.7,2.15],[0,2.82],[1.7,2.15]] as const;

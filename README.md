@@ -37,6 +37,14 @@ The chapel is captured in screen mode; the classroom is the render used on the p
 
 ## Features
 
+### Three short scenes to play
+
+| Kite stand | Bubble ferry | Encore print |
+| :---: | :---: | :---: |
+| ![Paper swallow flying from the reel by the meadow bench.](./docs/screenshots/kite-stand.webp) | ![Striped canopy ferry leaving one of two pool gates.](./docs/screenshots/bubble-ferry.webp) | ![Sunrise printed across the club curtain.](./docs/screenshots/encore-print.webp) |
+
+Fly a kite from a character's wrist in the meadow, send a bubble ferry through either pool gate, or print the club's curtain wings in your chosen order and hand over the encore mic. On screen, open the **Backpack** for the current set's cues; in VR, take its prop from **Backpack → Toys**. See the [scene and controller guide](./docs/vr-controls.md#三幕布景玩法).
+
 ### Prep Page
 
 - Import folders, ZIP packages, or individual model, motion and scene files. Relative texture paths are preserved; missing resources and path conflicts appear in an import report.
@@ -50,7 +58,7 @@ For desktop and touch controls instead, see [Watching without a headset](./docs/
 
 - Choose a set from the viewing strip: the window-lit classroom, pool terrace, wisteria path, live venue, studio plinth, Astral Court or Dawn Chapel. See the [standing spots for each set](./docs/vr-controls.md#在布景中给角色选位置). Only the current room's instances are loaded; scenery does not consume character or object slots.
 - Pick a character or prop from the backpack, aim at free ground, and release the trigger to place it. Select a placed character to move, turn, scale, change its motion, or put it away. Hidden items remain reachable from the backpack.
-- Equip a bubble blower, Lunar Post stamp or Astral saber from Backpack → Toys. Squeeze the side grip once to extend the saber, again to retract it. To [give a toy to a character](./docs/vr-controls.md#把道具递给角色), point at the character, press the trigger, choose **Give toy**, then pick its left or right hand. A lit saber stays lit and follows the wrist during VMD playback.
+- Open Backpack → Toys for the current set's props. To [give a toy to a character](./docs/vr-controls.md#把道具递给角色), point at the character, press the trigger, choose **Give toy**, then pick its left or right hand. The prop follows the wrist during VMD playback. The Astral saber works in every set: squeeze the side grip once to extend it, again to retract it.
 - Render diagnostics distinguish requested settings, session-reported refresh/layer properties, callback cadence, model-update CPU cost and renderer resource/draw counters. No GPU time is inferred from these values.
 - After exiting VR, [export the last session's performance report](./docs/viewing-and-diagnostics.md) from the prep page before entering VR again or refreshing. It separates character placement and loader timings from frame intervals during viewing.
 - In-headset HUD with quality controls, model transform, height adjustment, snap turning, and exposure/lighting looks.
