@@ -30,6 +30,8 @@
 .screen-library .screen-story p{margin:.45rem 0 .6rem}.screen-story{border-bottom:1px solid var(--line)}
 .screen-toy-guide{margin-top:.8rem;color:var(--quiet)}.screen-toy-guide summary{cursor:pointer;font-weight:600;color:var(--ink)}
 .screen-toy-guide ul{list-style:none;padding:0;margin:.45rem 0}.screen-toy-guide li{display:flex;align-items:center;justify-content:space-between;gap:.4rem;min-height:2.1rem}.screen-toy-guide li button{margin:.1rem 0}
+.screen-toy-guide li{flex-wrap:wrap;margin:.55rem 0}.screen-toy-guide li small{display:block;color:var(--quiet);font-size:.78rem}.screen-toy-guide li div{display:flex;gap:.22rem;flex-wrap:wrap}.screen-toy-guide li button{font-size:.82rem;padding:.34rem .5rem}
+.screen-guide-dialog{max-width:min(25rem,88vw);padding:1rem 1.2rem;border:1px solid var(--line);border-radius:.55rem;background:var(--paper);color:var(--ink)}.screen-guide-dialog::backdrop{background:#192f285a}.screen-library .screen-guide-dialog p{margin:.65rem 0}
 .screen-library h3 small,.screen-field{color:var(--quiet);font-size:.8rem}
 .screen-stage .screen-item{width:100%;text-align:left;margin:.16rem 0;padding:.6rem .65rem}
 .screen-item span{overflow-wrap:anywhere;min-width:0;font-weight:500}.screen-item strong{font-size:.79rem;white-space:nowrap;color:var(--green)}

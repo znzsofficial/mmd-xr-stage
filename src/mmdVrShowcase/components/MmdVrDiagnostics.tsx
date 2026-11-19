@@ -1,6 +1,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import { runtimeTiming } from "../runtimeTiming";
+import {xrRoomRestoreTiming} from '../roomRestoreTiming';
 import { useBackpack } from "../backpack";
 import { useStagePlay } from '../play/stagePlay';
 import { createPerformanceRecording, useLastPerformanceReport } from "../performanceReport";
@@ -13,6 +14,7 @@ export function MmdVrDiagnostics({ requested }: { requested: RenderRequest }) {
   const lastSession = useRef<XRSession | null>(null);
   const recording = useRef<ReturnType<typeof createPerformanceRecording> | null>(null);
   function finish() {
+    xrRoomRestoreTiming.cancel();
     if (recording.current) {
       lastSession.current?.removeEventListener("visibilitychange", recording.current.interrupt);
       const report = recording.current.finish();
@@ -23,7 +25,8 @@ export function MmdVrDiagnostics({ requested }: { requested: RenderRequest }) {
   useEffect(() => () => { finish(); runtimeTiming.readAndReset(); useRenderDiagnostics.getState().set(null); }, []);
   useEffect(()=>useMmdVrStore.subscribe((s,p)=>{
     const r=recording.current;if(!r)return;
-    if(!s.overlayOpen || s.prefs.scenery!==p.prefs.scenery || s.entryEpoch!==p.entryEpoch){r.abandonRebuild();return;}
+    if(!s.overlayOpen||s.entryEpoch!==p.entryEpoch){r.abandonRebuild();xrRoomRestoreTiming.cancel();return;}
+    if(s.prefs.scenery!==p.prefs.scenery){r.abandonRebuild();xrRoomRestoreTiming.begin(p.prefs.scenery,s.prefs.scenery,!!useBackpack.getState().layouts[s.prefs.scenery]?.assets.length);return;}
     if(s.physicsBusy&&!p.physicsBusy)r.beginRebuild(s.prefs.scenery,s.physicsEnabled);
     else if(!s.physicsBusy&&p.physicsBusy)r.endRebuild(!s.physicsError&&!s.physicsFatal);
   }),[]);
@@ -44,6 +47,7 @@ export function MmdVrDiagnostics({ requested }: { requested: RenderRequest }) {
     const visibleFrame = frame?.session === session && (!session.visibilityState || session.visibilityState === "visible");
     if (visibleFrame) {
       const s = useMmdVrStore.getState();
+      const restore=xrRoomRestoreTiming.frame(s.prefs.scenery);if(restore)recording.current?.restored(restore);
       recording.current?.startupFrame(!s.assetLoad.running && (s.modelCount > 0 || s.objects.length > 0));
       recording.current?.placementFrame(useBackpack.getState().lastCompletedPlacement);
       recording.current?.interval(delta, session.frameRate);

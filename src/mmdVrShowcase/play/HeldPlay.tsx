@@ -4,7 +4,7 @@ import { DynamicDrawUsage, Group, InstancedMesh, Matrix4, Mesh, Object3D, Vector
 import { useBackpack } from '../backpack';
 import { useHudWorldInput } from '../components/hudWorldInput';
 import { useMmdVrStore } from '../mmdVrStore';
-import { gripLatch, markAt, POST_Z, useStagePlay, type Toy, type Hand } from './stagePlay';
+import { gripLatch, markAt, POST_Z, toyWorksHere, useStagePlay, type Toy, type Hand } from './stagePlay';
 import { MoonPost } from './MoonPost';
 import { AstralSaber } from './AstralSaber';
 import { KiteReel } from './kite/KiteStation';
@@ -52,7 +52,7 @@ function InHand({toy,hand}:{toy:Toy;hand:Hand}) {
     if(s.source!==(source??null)){s.latch(false,false);s.source=source??null;}
     const bag=useBackpack.getState(),stage=useMmdVrStore.getState();
     const usable=tracked&&!useHudWorldInput.getState().blocked&&!bag.busy&&!bag.draft&&!bag.selected&&!stage.placeMode&&!stage.assetLoad.running&&!stage.physicsBusy&&!stage.physicsFatal;
-    const action=s.latch(usable,!!source?.gamepad?.buttons[1]?.pressed);
+    const action=s.latch(usable&&toyWorksHere(toy,stage.prefs.scenery),!!source?.gamepad?.buttons[1]?.pressed);
     if(toy==='saber'&&action==='start')useStagePlay.getState().toggleSaber();
     const dt=Math.min(.05,Math.max(0,delta));s.cooldown=Math.max(0,s.cooldown-dt);
     if(tracked){

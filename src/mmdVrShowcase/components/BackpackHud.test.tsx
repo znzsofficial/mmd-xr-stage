@@ -76,8 +76,9 @@ it('keeps all handheld props visible in the chapel and after travelling from the
   useStagePlay.getState().reset();store().setPrefs({scenery:'chapel'});await render();await click(t('hudBackpack'));await click(t('hudToys'));
   const allProps=()=>{for(const id of ['kite','encore','bubbles','post','saber'])expect(host.querySelector(`[name="play:shelf:${id}"]`)).not.toBeNull();};
   allProps();await click(t('toyRight'));expect(useStagePlay.getState().held).toBeNull(); // no connected controllers
-  await click(t('visitKite'));expect(store().prefs.scenery).toBe('lawn');allProps();expect(button(t('visitKite'))).toBeUndefined();
-  await click(t('visitFerry'));expect(store().prefs.scenery).toBe('pool');expect(labels()).toContain(t('toyShell'));allProps();expect(useStagePlay.getState().held).toBeNull();
+  expect(button(t('visitKite'))).toBeUndefined();await click(t('toyGuide'));expect(labels()).toContain(t('guideKiteVr'));expect(button(t('toyRight'))).toBeUndefined();
+  await click(t('toyCloseGuide'));allProps();expect(store().prefs.scenery).toBe('chapel');
+  await click(t('toyGuide'));await click(t('visitKite'));expect(store().prefs.scenery).toBe('lawn');allProps();expect(useStagePlay.getState().held).toBeNull();
 });
 
 it("browses a larger backpack without consuming stage slots, labels duplicate filenames by source, and can select hidden items at capacity", async () => {

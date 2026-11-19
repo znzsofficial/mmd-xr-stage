@@ -32,6 +32,8 @@
 
 ## 放置耗时：从松开扳机开始算
 
+**返回已有角色的布景**单独看 `roomRestores[]`。`entryToVisibleFrameMs` 从切景请求到完成布局恢复后观察到的首个可见 XR 帧回调；分为开始队列前、执行队列到布景就绪、就绪到回调三段。`taskWallMs` 按角色／物件／身体及表情动作汇总，`modelWork` 记录各模型解析、贴图、预上传等阶段。子阶段已包含在总量内，不重复相加。仅统计带已保存资产的切景，放弃的切景不算成功，不导出私有文件名。它与 `placements[].confirmToReadyFrameMs` 是不同的计时，不是显示器实际呈现或 GPU 耗时。
+
 **材质贴图读回对照（桌面 Chromium）**：在 `scripts/material-load-probe.html` 选择一个本地原版 PMX 和配套图片，改前、改后各新建 5 次 loader。21 个材质的测试角色每次整图 `getImageData` 从 19 次 / 304 MiB 降至 3 次 / 48 MiB（累计返回字节，不是显存峰值）。`load-textures` 中位数从 626.3 ms 降到 239.7 ms；21 项材质的透明模式、alphaTest、depthWrite 和贴图尺寸签名一致，零贴图告警。计时不含 GPU 上传和等待 XR 帧，不能据此外推遗庭报告的 1.395 秒会缩短多少。
 
 报告的 `startup.firstVisibleXrFrameMs` 从打开本次 XR 覆盖层开始，到首个可见 XR 回调。`firstFrameAfterAssetsReadyMs` 是模型/物件列表已就绪且队列不再运行时的首个可见帧回调；都不是 GPU 完成提交的时间。约一秒的 `windows` 记录实际 `scenery` 选择。

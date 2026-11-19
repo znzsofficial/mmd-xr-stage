@@ -9,6 +9,7 @@ import { createModelLoadTask } from "./modelLoadTask";
 import { setObjectHeadingDegrees } from "./objectHeading";
 import { prepareStageObject } from "./prepareStageObject";
 import { firstCharacterScale } from "./firstCharacterScale";
+import {createPlacementWork,type PlacementWork} from './placementWork';
 import { wristSockets } from './play/wristSocket';
 import { useStagePlay } from './play/stagePlay';
 import { applySavedObject, snapshotModel, snapshotObject, type SavedObject, type StageSnapshot } from "./stageSnapshot";
@@ -192,11 +193,12 @@ export function createStageActors(scene: THREE.Scene, runtime: MmdRuntimeHandle,
     } }));
   }
 
-  function restoreTasks(slots: readonly MmdVrAssetSlot[], saved: StageSnapshot | null, stale: () => boolean): AssetLoadTask[] {
+  function restoreTasks(slots: readonly MmdVrAssetSlot[], saved: StageSnapshot | null, stale: () => boolean, works?:PlacementWork[]): AssetLoadTask[] {
     const tasks: AssetLoadTask[] = [], chars = slots.filter(s => s.kind === "model"), props = slots.filter(s => s.kind === "object");
     chars.forEach((slot, i) => {
       const id = `model:${i}`, skip = () => forgotten.has(slot.modelFile);
-      const task = createModelLoadTask(runtime, slot, { physicsEnabled, isStale: () => stale() || skip(),
+      const work=works?createPlacementWork():undefined;if(work)works!.push(work);
+      const task = createModelLoadTask(runtime, slot, { work,physicsEnabled, isStale: () => stale() || skip(),
         companions: () => companions(slot.modelFile, slot.companionFiles),
         transform: { positionX: (i - (chars.length - 1) / 2) * 1.1 }, saved: saved?.models.find(m => m.file === slot.modelFile) });
       tasks.push({ id, fileName: relativePath(slot.modelFile), phase: "model", run: async () => {

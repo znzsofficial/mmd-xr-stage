@@ -5,10 +5,17 @@ export const TOYS = {
   encore: { label:'toyEncore', hint:'toyEncoreHint', home:'liveHouse', visit:'visitEncore' },
   bubbles: { label:'toyBubbles', hint:'toyBubblesHint', home:'pool', visit:'visitFerry' },
   post: { label:'toyPost', hint:'toyPostHint', home:'floor', visit:'visitPost' },
-  saber: { label:'toySaber', hint:'toySaberHint', home:null, visit:null },
+  saber: { label:'toySaber', hint:'toySaberHint', home:'astralCourt', visit:'visitSaber' },
 } as const;
 export type Toy = keyof typeof TOYS;
 export const shelfToys = Object.keys(TOYS) as readonly Toy[];
+export const toyWorksHere=(toy:Toy,room:SceneryId)=>TOYS[toy].home===room;
+export const toyHomeLabel={kite:'hudLawn',encore:'toyClubName',bubbles:'hudPool',post:'toyStudioName',saber:'hudAstralCourt'} as const satisfies Record<Toy,string>;
+export const TOY_GUIDES={
+  kite:['guideKiteVr','guideKiteScreen','guideKiteEnd'], encore:['guideEncoreVr','guideEncoreScreen','guideEncoreEnd'],
+  bubbles:['guideBubblesVr','guideBubblesScreen','guideBubblesEnd'], post:['guidePostVr','guidePostScreen','guidePostEnd'],
+  saber:['guideSaberVr','guideSaberScreen','guideSaberEnd'],
+} as const satisfies Record<Toy,readonly [string,string,string]>;
 export type Hand = 'left' | 'right';
 export const STORIES = {
   lawn: {name:'storyKite', toy:'kite', left:'storyWindLeft', right:'storyWindRight'},

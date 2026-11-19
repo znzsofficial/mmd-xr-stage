@@ -24,6 +24,7 @@ import { StudioPlinth } from '../scenery/StudioPlinth';
 import { AstralCourt, CourtSky } from '../scenery/AstralCourt';
 import { DawnChapel } from '../scenery/DawnChapel';
 import { CHAPEL_SUN } from '../scenery/ChapelLayout';
+import {xrRoomRestoreTiming} from '../roomRestoreTiming';
 import { prepareModelGpu } from "../prepareModelGpu";
 import { createPlacementWork } from '../placementWork';
 import { DaylightSet, DaySky, SUN_POSITIONS } from "../scenery/DaylightSets";
@@ -724,8 +725,10 @@ export function MmdVrStageRoom({ scenery, saved, slots }: { scenery: SceneryId; 
     const gen = ++loadGenRef.current;
     let cancelled = false;
     const isStale = () => cancelled || gen !== loadGenRef.current || isRoomStale();
+    const trace=initialLoad.current&&saved&&useMmdVrStore.getState().presentation==='xr'?xrRoomRestoreTiming.bind(scenery):undefined;
     if (!loadQueueRef.current) {
-      loadQueueRef.current = createAssetLoadQueue(actors.restoreTasks(slots, saved, isRoomStale));
+      const tasks=actors.restoreTasks(slots,saved,isRoomStale,trace?.modelWork);
+      loadQueueRef.current = createAssetLoadQueue(trace?.wrap(tasks)??tasks);
     }
     setStatusLine(labelsRef.current.loading);
     queueMicrotask(() => void (async () => {
@@ -754,6 +757,7 @@ export function MmdVrStageRoom({ scenery, saved, slots }: { scenery: SceneryId; 
         if (initialLoad.current && runtime.duration > 0) setPlaying(saved?.playing ?? true);
         initialLoad.current = false;
         saveRoom();
+        trace?.ready(!useMmdVrStore.getState().assetLoad.failures.length);
       } catch (err) {
         if (isStale()) return;
         const msg = err instanceof Error ? err.message : String(err);
@@ -768,6 +772,7 @@ export function MmdVrStageRoom({ scenery, saved, slots }: { scenery: SceneryId; 
         syncModelList();
         syncMaterialModels();
         syncObjects();
+        trace?.ready(false);
       }
     })());
 
