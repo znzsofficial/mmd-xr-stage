@@ -7,6 +7,8 @@ import { useMmdVrStore } from '../mmdVrStore';
 import type { SceneryId } from '../scenery/catalog';
 import { isStoryRoom, type StoryRoom } from '../play/stagePlay';
 import { COURT_SHOTS } from '../scenery/ObservatoryLayout';
+import { CHAPEL_SHOTS } from '../scenery/ChapelLayout';
+export const tourShots=(room:SceneryId)=>room==='chapel'?CHAPEL_SHOTS:room==='astralCourt'?COURT_SHOTS:[];
 
 type Point = [number,number,number];
 const views: Record<SceneryId,[Point,Point]> = {
@@ -36,7 +38,7 @@ export function ScreenCamera({actions}:{actions:RefObject<CameraActions|null>}) 
       const dist=Math.min(20,Math.max(.4, .68*Math.max(h,Math.max(w,d)/Math.max(.15,camera.aspect))/Math.tan(camera.fov*Math.PI/360)+Math.max(w,d)*.5));
       const dir=camera.position.clone().sub(orbit.target).normalize();orbit.target.copy(target);camera.position.copy(target).addScaledVector(dir,dist);orbit.update();
     };
-    actions.current={reset,frame,tour(index){const shot=COURT_SHOTS[index];if(scenery==='astralCourt'&&shot){setLens(index===0?Math.min(130,Math.max(99,2*Math.atan(1.1/camera.aspect)*180/Math.PI)):50);camera.position.set(...shot.eye);orbit.target.set(...shot.aim);orbit.update();}},story(){if(isStoryRoom(scenery)){const [eye,look]=storyViews[scenery];camera.position.set(...eye);orbit.target.set(...look);orbit.update();}},center(){const b=useBackpack.getState(),s=useMmdVrStore.getState();if(!b.draft||s.physicsBusy||s.assetLoad.running||s.physicsFatal)return;
+    actions.current={reset,frame,tour(index){const shot=tourShots(scenery)[index];if(shot){setLens(scenery==='astralCourt'&&index===0?Math.min(130,Math.max(99,2*Math.atan(1.1/camera.aspect)*180/Math.PI)):50);camera.position.fromArray(shot.eye);orbit.target.fromArray(shot.aim);orbit.update();}},story(){if(isStoryRoom(scenery)){const [eye,look]=storyViews[scenery];camera.position.set(...eye);orbit.target.set(...look);orbit.update();}},center(){const b=useBackpack.getState(),s=useMmdVrStore.getState();if(!b.draft||s.physicsBusy||s.assetLoad.running||s.physicsFatal)return;
       const prev=b.live[b.draft], transform=prev&&(s.models.find(m=>m.id===prev.runtimeId)??s.objects.find(o=>o.id===prev.runtimeId));
       b.confirmPlace(b.draft,0,0,transform?.rotationY??Math.atan2(camera.position.x,camera.position.z)*180/Math.PI);
     }};

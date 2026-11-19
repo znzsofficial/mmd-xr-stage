@@ -1008,7 +1008,7 @@ export function MmdVrStageRoom({ scenery, saved, slots }: { scenery: SceneryId; 
       {mmdPrefs.stageFogEnabled ? (
         <fog attach="fog" args={[lightCfg.fogColor, Math.min(10, viewDistance * 0.45), viewDistance]} />
       ) : null}
-      {mmdPrefs.stageSkyEnabled && scenery==='astralCourt' ? <CourtSky/> : mmdPrefs.stageSkyEnabled && daySet ? <DaySky sun={lightCfg.sunPos} warm={lightPreset === "warm"} /> : mmdPrefs.stageSkyEnabled ? (
+      {mmdPrefs.stageSkyEnabled && scenery==='astralCourt' ? <CourtSky/> : mmdPrefs.stageSkyEnabled && (daySet||scenery==='chapel') ? <DaySky sun={lightCfg.sunPos} warm={lightPreset === "warm"||scenery==='chapel'} /> : mmdPrefs.stageSkyEnabled ? (
         <StageSky zenith={lightCfg.skyZenith} horizon={lightCfg.skyHorizon} bottom={lightCfg.fogColor} />
       ) : null}
       <ambientLight color={lightCfg.ambientColor} intensity={lightCfg.ambient} />

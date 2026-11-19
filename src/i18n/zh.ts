@@ -3,6 +3,7 @@ export const zh = {
   importBindResource: "为此引用选择资源文件",
   hudBack: "返回观看",
   hudScenery: "场景",
+  chapelWindow:'百合彩窗',chapelDoor:'从正门看花园',chapelGarden:'薰衣草水庭',chapelFacade:'池畔回望教堂',
   courtTour:'游览机位',courtOverview:'俯看星桥',courtNorth:'北侧观星台',courtWest:'西侧星图库',courtEast:'东侧测星台',courtReturn:'桥上回望圆庭',
   visitKite:'去草坪',visitEncore:'去 Live House',visitFerry:'去泳池',visitPost:'去地台',toyHoldOrVisit:'可在此拿，换景可玩',toyList:'全部手持道具',
   toyKite:'借风线轴',toyKiteHint:'侧握换风，可递给角色',toyEncore:'丝带话筒',toyEncoreHint:'瞄准两翼，侧握染印',toyShell:'贝壳泡泡枪',toyShellHint:'瞄准拱门，侧握发船',

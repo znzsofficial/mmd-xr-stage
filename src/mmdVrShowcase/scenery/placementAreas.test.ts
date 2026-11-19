@@ -10,7 +10,13 @@ describe('placeable ground at foot height', () => {
   it('preserves the chapel portrait and procession lanes but rejects pews, pier feet, steps and positions beyond the walls',()=>{
     for(let z=-5.26;z<7.8;z+=.15)for(const x of [-4.8,-.85,0,.85,4.8])expect(canPlaceInScenery('chapel',x,z)).toBe(true);
     for(const {x,z} of [...CHAPEL_PEWS,...CHAPEL_PIERS,CHAPEL_DAIS])expect(canPlaceInScenery('chapel',x,z)).toBe(false);
-    for(const [x,z] of [[1.49,-2.4],[0,-5.52],[5.68,1.5],[0,9.01]])expect(canPlaceInScenery('chapel',x,z)).toBe(false);
+    for(const [x,z] of [[1.49,-2.4],[0,-5.52],[5.68,1.5],[2.9,9.01]])expect(canPlaceInScenery('chapel',x,z)).toBe(false);
+  });
+  it('lets actors pass through the opened chapel door and around the water garden, but not through its masonry or planting',()=>{
+    for(let z=6;z<20;z+=.125)for(const x of [-.88,0,.88])expect(canPlaceInScenery('chapel',x,z)).toBe(true);
+    for(let z=12;z<32;z+=.25)expect(canPlaceInScenery('chapel',3.25,z)).toBe(true);
+    for(const [x,z] of [[1.55,9.85],[4,9],[0,24],[6.35,15],[-12.65,20],[9.7,-1],[0,33.1],[-14,18]])expect(canPlaceInScenery('chapel',x,z)).toBe(false);
+    expect(canPlaceInScenery('chapel',-11.15,22)).toBe(true);
   });
   it('leaves clear space under the broken arch but excludes the feet of every pier and the floating rim',()=>{
     for(const {x,z} of COURT_PIERS)expect(canPlaceInScenery('astralCourt',x,z)).toBe(false);

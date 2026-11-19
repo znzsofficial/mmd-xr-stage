@@ -467,7 +467,8 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
     if (patch.physicsDynamicSelfCollision != null) prefs.physicsDynamicSelfCollision = Boolean(patch.physicsDynamicSelfCollision);
     prefsStorage.write(prefs);
     // Leaving a distant terrace should not start the next set 39m from its door.
-    const leaveDistrict = get().prefs.scenery === 'astralCourt' && prefs.scenery !== 'astralCourt';
+    const previousRoom=get().prefs.scenery;
+    const leaveDistrict = (previousRoom==='astralCourt'||previousRoom==='chapel')&&prefs.scenery!==previousRoom;
     set({ prefs, loop: prefs.loop, ...(leaveDistrict ? {viewEpoch:get().viewEpoch+1} : {}) });
   },
   cyclePhysicsColliderRadius: () => {

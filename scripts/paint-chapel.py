@@ -64,7 +64,7 @@ save(patina(im),'rose',(512,512))
 # A lancet pair: a vine rises from a blue vase into a white lily. Geometric
 # panes keep their lead seams visible behind the silhouette at a distance.
 im=Image.new('RGB',(440,800),'#d5c8a6');g=ImageDraw.Draw(im)
-pal=['#76a5bb','#a1c3c4','#c3d4c1','#e5c996','#b2ccd5','#d8c4ab']
+pal=['#528fb3','#83b9b5','#bdd5d7','#e2ae72','#80ace0','#d7a9a2']
 for j in range(-1,10):
     for i in range(-1,6):
         x=i*104+(j%2)*52;y=j*100
@@ -81,7 +81,7 @@ for s in (-1,1):
     glass(g,[(x-21,604),(x+21,604),(x+29,621),(x+12,663),(x-13,663),(x-28,621)],'#657eaa')
     for y in (370,694):g.line((x-74,y,x+74,y),fill=lead,width=3)
 for x in (13,427,220):g.line((x,20,x,792),fill='#625958',width=8)
-save(patina(im),'lancet',(256,512))
+dyed=patina(im);save(dyed,'lancet',(384,640))
 
 # Four courses of bedded limestone, edges periodic when mapped onto long walls.
 im=Image.new('RGB',(512,512),'#b5aa99');g=ImageDraw.Draw(im)
@@ -112,16 +112,15 @@ for z in [-4.15,3.45]:
 im=patina(im)
 # Oblique transmitted light from the left bank of windows, fixed to the stone,
 # not a transparent overlay or an extra light on the viewer's character.
-light=Image.new('RGBA',(W,H));l=ImageDraw.Draw(light)
+# Trace each floor texel backwards to the left window using CHAPEL_SUN.
+# Use the actual lily cartoon (including the pointed top and opaque leading).
+yy,xx=np.mgrid[:H,:W];wx=xx/ppm-5.8;wz=yy/ppm-9
+height=(wx+5.8)*4.7/5.8;pane=np.array(dyed,dtype='f');lit=np.zeros((H,W,4),dtype=np.uint8)
 for z in [-7.5,-4.5,-1.5,1.5,4.5,7.5]:
-    def project(u,v):return px(-5.8+1.23*v,z+u-.60*v)
-    for j in range(6):
-        for i in range(4):
-            u=-.83+i*.42;v=1.12+j*.49;w=.40;h=.47
-            if j==5 and i in (0,3):continue
-            col=[(252,211,139,126),(137,203,221,108),(255,235,176,145),(227,161,164,98)][(i+j//2)%4]
-            l.polygon([project(u,v),project(u+w,v),project(u+w,v+h),project(u,v+h)],fill=col)
-im=Image.alpha_composite(im.convert('RGBA'),light.filter(ImageFilter.GaussianBlur(3.5))).convert('RGB')
+    u=wz+height*(2.8/4.7)-z;mask=(np.abs(u)<.86)&(height>1.17)&(height<3.59+1.02*np.sqrt(np.maximum(0,1-np.abs(u/.86))))
+    sx=np.uint16(np.clip((.5+u[mask]/1.72)*(pane.shape[1]-1),0,pane.shape[1]-1));sy=np.uint16(np.clip((4.61-height[mask])/3.44*(pane.shape[0]-1),0,pane.shape[0]-1));sample=pane[sy,sx];v=sample.mean(axis=1)
+    lit[mask,:3]=np.uint8(np.clip((sample-v[:,None])*1.52+v[:,None]*1.12+19,0,255));lit[mask,3]=np.uint8(np.clip((v-82)*1.7,0,190))
+im=Image.alpha_composite(im.convert('RGBA'),Image.fromarray(lit).filter(ImageFilter.GaussianBlur(1.65))).convert('RGB')
 # Contact shadow under the pews gives the heavy carved oak a grounded silhouette
 # with shadow maps switched off. The central strip remains pale for dark habits.
 occlusion=Image.new('L',(W,H));o=ImageDraw.Draw(occlusion)
@@ -133,3 +132,26 @@ for z in [-2.4,-.85,.70,2.25,3.8,5.35]:
 o.rectangle([px(-3.93,-9),px(3.95,-5.55)],fill=75)
 im=Image.composite(Image.blend(im,Image.new('RGB',im.size,'#5e5556'),.78),im,occlusion.filter(ImageFilter.GaussianBlur(3)))
 save(im,'pavement')
+
+# One print for the entire cloister pavement, with an inlaid forecourt and
+# contact shades. Equal spatial density on both axes (~40 pixels per metre).
+W,H=1104,1792;ppm=40
+def pt(x,z):return ((x+13.8)*ppm,(z+11.8)*ppm)
+im=Image.new('RGB',(W,H),'#b2a28e');d=ImageDraw.Draw(im)
+for j in range(56):
+    for i in range(-1,25):
+        x=i*48+(j%2)*24;y=j*32;n=int(rng.integers(-8,9));d.rectangle((x+1,y+1,x+47,y+31),fill=(213+n,199+n,175+n));d.line((x+2,y+2,x+46,y+2),fill=(225+n,212+n,191+n))
+for k in [-1,1]:
+    for off,w,col in [(1.50,.12,'#a28a6d'),(1.65,.033,'#a38c78')]:
+        x=k*off;d.rectangle([pt(x-w/2,9),pt(x+w/2,20.2)],fill=col)
+for radius in [2.38,2.55,3.36,3.44,3.8,3.86]:d.ellipse([pt(-radius,24-radius),pt(radius,24+radius)],outline='#938878',width=3)
+for i in range(64):
+    a=tau*i/64;d.line([pt(3.45*cos(a),24+3.45*sin(a)),pt(3.77*cos(a),24+3.77*sin(a))],fill='#998b74',width=2 if i%4 else 4)
+mask=Image.new('L',(W,H));o=ImageDraw.Draw(mask)
+for k in [-1,1]:
+    for z,depth in [(15,6.6),(25.8,7.4)]:o.rectangle([pt(k*6.35-1.78,z-depth/2+.06),pt(k*6.35+2.05,z+depth/2+.12)],fill=96)
+for x in [-12.65,-9.9]:
+    for z in [17,20,23,26,29]:o.polygon([pt(x-.28,z-.29),pt(x+.28,z-.29),pt(x+1.75,z-1.09),pt(x+1.31,z-1.16)],fill=130)
+o.ellipse([pt(-1.92,21.90),pt(2.45,25.92)],fill=125)
+im=Image.composite(Image.blend(im,Image.new('RGB',im.size,'#827e75'),.74),im,mask.filter(ImageFilter.GaussianBlur(3)))
+save(patina(im,.9),'garden')

@@ -29,11 +29,13 @@ Import PMX/PMD characters, VMD motions and GLB/glTF props on the prep page. Choo
 
 ![Looking back toward the original orrery from the north causeway, with both gallery bridges opening to the sides.](./docs/screenshots/observatory-return.webp)
 
-Walk from the original star court to a copper-domed north observatory, a western chart gallery and an eastern transit telescope. All three terraces accept characters and props. In screen mode use **Visit a terrace** for a [bird's-eye view of the route](./docs/screenshots/observatory-overview.webp) or a [closer look in the chart gallery](./docs/screenshots/observatory-west.webp).
+Walk from the original star court to a copper-domed north observatory, a western chart gallery and an eastern transit telescope. All three terraces accept characters and props. In screen mode use **Tour viewpoints** for a [bird's-eye view of the route](./docs/screenshots/observatory-overview.webp) or a [closer look in the chart gallery](./docs/screenshots/observatory-west.webp).
 
 **Dawn Chapel · the lily window above the sanctuary**
 
 ![A clear limestone aisle between oak pews, leading to the altar and its eight-petal stained-glass rose.](./docs/screenshots/dawn-chapel.webp)
+
+Look through the [leaded lily panes](./docs/screenshots/chapel-lily-glass.webp), follow their coloured light to the open oak doors, then walk outside. The [lavender court](./docs/screenshots/chapel-water-court.webp) has a rippling basin, a shaded arcade and a [view back to the bellcote](./docs/screenshots/chapel-bellcote.webp). The garden and nave share one layout.
 
 Close views from the same camera, before (left) and after (right): [wisteria under the timber arbor](./docs/screenshots/wisteria-detail.webp) · [the meridian standard and enamel hour scale](./docs/screenshots/meridian-detail.webp).
 

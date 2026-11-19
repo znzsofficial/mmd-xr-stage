@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, OctahedronGeometry, RepeatWrapping, SRGBColorSpace, TextureLoader, type Texture } from 'three';
+import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, OctahedronGeometry, Path, RepeatWrapping, Shape, ShapeGeometry, SRGBColorSpace, TextureLoader, type Texture } from 'three';
 import { CHAPEL, CHAPEL_BAYS, CHAPEL_DAIS, CHAPEL_PEWS, CHAPEL_PIERS } from './ChapelLayout';
 import { Batch, type Part } from './SceneryBatch';
 import { noPick } from './sceneryPaint';
@@ -8,6 +8,8 @@ import roseURL from './chapel-rose.webp';
 import lancetURL from './chapel-lancet.webp';
 import stoneURL from './chapel-ashlar.webp';
 import floorURL from './chapel-pavement.webp';
+import { ChapelGarden } from './ChapelGarden';
+import { ChapelGlass } from './ChapelGlass';
 
 type V = Part['p'];
 const half=CHAPEL.width/2, end=CHAPEL.length/2;
@@ -33,15 +35,17 @@ function chapelSurfaces(){
   const shell=new Surface(),glass=new Surface();
   for(const side of [-1,1]){
     const Y=CHAPEL.shoulder;
-    shell.quad([side*half,0,-end],[side*half,0,end],[side*half,Y,end],[side*half,Y,-end],[[0,0],[9,0],[9,Y/3],[0,Y/3]]);
     for(const z of CHAPEL_BAYS){
-      // Single opaque leaded pane in a moulded recess. Crop the same cartoon to
-      // a pointed crown; don't alpha-blend layered cards across the stereo view.
-      const x=side*(half-.037),w=.86,sill=1.17,spring=3.59,top=4.61;
+      const x=side*half,w=.86,sill=1.17,spring=3.59,top=4.61;
+      const wall=(a:number,b:number,h1:number,h2:number,upper:number)=>{
+        const pts:V[]=[[x,h1,z+a],[x,h2,z+b],[x,upper,z+b],[x,upper,z+a]];
+        shell.quad(pts[0],pts[1],pts[2],pts[3],pts.map(q=>[q[2]/2,q[1]/3]));};
+      wall(-1.5,-w,0,0,Y);wall(w,1.5,0,0,Y);wall(-w,w,0,0,sill);
       const pt=(u:number,h:number):V=>[x,h,z+u];
       const uv=(u:number,h:number)=>[.5+u/(2*w),(h-sill)/(top-sill)];
       const edge:[number,number][]=[[-w,sill],[w,sill],[w,spring]];
       for(let j=1;j<=16;j++){const u=w*(1-j/8);edge.push([u,spring+(top-spring)*Math.sqrt(1-Math.abs(u/w))]);}
+      for(let j=2;j<edge.length-1;j++)wall(edge[j+1][0],edge[j][0],edge[j+1][1],edge[j][1],Y);
       for(let j=0;j<edge.length;j++){const a=edge[j],b=edge[(j+1)%edge.length];glass.tri([pt(0,spring),pt(...a),pt(...b)],[uv(0,spring),uv(...a),uv(...b)]);}
       for(let i=0;i<12;i++){
         const u=i/12,v=(i+1)/12;
@@ -49,11 +53,15 @@ function chapelSurfaces(){
         for(let k=-1;k<1;k++) shell.quad(web(u,k),web(v,k),web(v,k+1),web(u,k+1),[[u*3,k*.75],[v*3,k*.75],[v*3,(k+1)*.75],[u*3,(k+1)*.75]],'#d2c8be');
       }
     }
-    for(const z of [-end,end])for(let i=0;i<16;i++){
-      const p=arch(side,i/16,z),q=arch(side,(i+1)/16,z);
-      shell.quad([p[0],0,z],[q[0],0,z],q,p,[[p[0]/2,0],[q[0]/2,0],[q[0]/2,q[1]/3],[p[0]/2,p[1]/3]]);
-    }
   }
+  // Triangulate the actual gable outlines: the rose and the garden door are
+  // apertures. Geometry behind the pane is visible from either side in stereo.
+  for(const z of [-end,end]){const outline=new Shape();outline.moveTo(-half,0);
+    if(z===end){outline.lineTo(-1.42,0);outline.lineTo(-1.42,2.78);outline.absarc(0,2.78,1.42,Math.PI,0,true);outline.lineTo(1.42,0);}
+    outline.lineTo(half,0);for(let i=0;i<=32;i++){const v=arch(i<=16?1:-1,i<=16?i/16:(32-i)/16,z);outline.lineTo(v[0],v[1]);}outline.closePath();
+    if(z<0){const hole=new Path();hole.absarc(0,4.91,1.72,0,Math.PI*2,true);outline.holes.push(hole);}
+    const g=new ShapeGeometry(outline,36),idx=g.index!,p=g.getAttribute('position');
+    for(let i=0;i<idx.count;i+=3){const pts=[0,1,2].map(j=>{const n=idx.getX(i+j);return [p.getX(n),p.getY(n),z] as V});shell.tri(pts,pts.map(q=>[q[0]/2,q[1]/3]));}g.dispose();}
   return {masonry:shell.finish(),lancets:glass.finish()};
 }
 
@@ -156,11 +164,13 @@ function fittings(){
       const a=i*2.4;const tip:V=[x+.22*Math.sin(a),1.65+(i%4)*.10,z+.20*Math.cos(a)];ribs.push(span([x,1.41,z],tip,.018,'#778362'));
       for(let k=0;k<5;k++){const b=k*Math.PI*2/5+i;flowers.push({p:[tip[0]+.039*Math.cos(b),tip[1]+.02,tip[2]+.039*Math.sin(b)],s:[.043,.066,.034],rx:.6*Math.cos(b),rz:.6*Math.sin(b),color:i%3?'#f8efd7':'#d7bcc2'});}
     }
-    // Carved double doors and small brass pulls finish the view on turning around.
-    box([sign*.70,1.61,8.91],[1.38,3.22,.13],wood);
-    for(const x of [sign*.17,sign*1.23])box([x,1.57,8.816],[.096,3.03,.057],edgeWood);
-    for(const y of [.23,1.08,2.82])box([sign*.70,y,8.813],[1.26,.10,.064],edgeWood);
-    round([sign*.19,1.15,8.76],[.053,.18,.053],gold);
+    // The oak leaves swing out against the reveals, framing the view out.
+    box([sign*1.53,1.48,9.68],[.13,2.96,1.36],wood);
+    for(const z of [9.10,10.24])box([sign*1.45,1.51,z],[.055,2.81,.083],edgeWood);
+    for(const y of [.23,1.08,2.76])box([sign*1.45,y,9.68],[.055,.094,1.26],edgeWood);
+    round([sign*1.405,1.16,10.14],[.05,.18,.05],gold);
+    box([sign*1.52,1.38,8.98],[.21,2.76,.46],capital);
+    for(let j=0;j<14;j++){const a=j*Math.PI/28,b=(j+1)*Math.PI/28;ribs.push(span([sign*1.52*Math.cos(a),2.78+1.52*Math.sin(a),9.03],[sign*1.52*Math.cos(b),2.78+1.52*Math.sin(b),9.03],.20,capital,.36));}
   }
   return {blocks,rounds,ribs,lights,flowers};
 }
@@ -183,10 +193,11 @@ export function DawnChapel({shadows}:{shadows:boolean}){
     <mesh rotation-x={-Math.PI/2} receiveShadow={shadows} raycast={noPick}><planeGeometry args={[CHAPEL.width,CHAPEL.length]}/><meshStandardMaterial key={maps.floor?'inlay':'plain'} color={maps.floor?'white':'#d1c4b4'} map={maps.floor??null} roughness={.86}/></mesh>
     <Batch parts={p.blocks} name="chapel:joinery" casts={shadows}/><Batch parts={p.rounds} name="chapel:turnings" round casts={shadows}/>
     <Batch parts={p.ribs} name="chapel:ribs" round/><Batch parts={p.flowers} name="chapel:lilies" geometry={petal}/><Batch parts={p.lights} name="chapel:candlelight" geometry={petal} lit/>
-    <mesh name="chapel:side-glass" geometry={surface.lancets} raycast={noPick}><meshBasicMaterial key={maps.glass?'ready':'loading'} map={maps.glass??null} color={maps.glass?'white':'#c4d9d9'} side={DoubleSide} toneMapped={false}/></mesh>
+    {maps.glass&&<mesh name="chapel:side-glass" geometry={surface.lancets} raycast={noPick}><ChapelGlass map={maps.glass}/></mesh>}
     <group position={[0,4.91,-8.93]}>
-      <mesh raycast={noPick}><circleGeometry args={[1.74,80]}/><meshBasicMaterial key={maps.rose?'ready':'loading'} color={maps.rose?'white':'#bccad1'} map={maps.rose??null} toneMapped={false}/></mesh>
+      {maps.rose&&<mesh name="chapel:rose-glass" raycast={noPick}><circleGeometry args={[1.74,80]}/><ChapelGlass map={maps.rose}/></mesh>}
       {([ [1.71,.053,'#aa9577'],[1.81,.086,shadowStone],[1.94,.070,capital] ] as const).map(([r,t,color])=><mesh key={r} position-z={t} raycast={noPick}><torusGeometry args={[r,t,8,80]}/><meshStandardMaterial color={color}/></mesh>)}
     </group>
+    <ChapelGarden shadows={shadows} rose={maps.rose}/>
   </group>;
 }
