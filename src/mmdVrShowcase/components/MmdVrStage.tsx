@@ -19,17 +19,16 @@ import {
 import { getMmdVrRenderProfile } from "../mmdVrQuality";
 import { PLACE_HALF_WIDTH, useMmdVrStore, type MmdVrLightPreset, type MmdVrMaterialState } from "../mmdVrStore";
 import { objectHeadingDegrees, setObjectHeadingDegrees } from "../objectHeading";
-import { LiveHouse } from "./LiveHouse";
+import { RoomSet,roomSets } from '../scenery/roomSets';
 import { StudioPlinth } from '../scenery/StudioPlinth';
-import { AstralCourt, CourtSky } from '../scenery/AstralCourt';
-import { DawnChapel } from '../scenery/DawnChapel';
-import { CHAPEL_SUN } from '../scenery/ChapelLayout';
+import { CourtSky } from '../scenery/AstralCourt';
 import {xrRoomRestoreTiming} from '../roomRestoreTiming';
 import {hasStageLamps} from '../settings/stageLamps';
 import {createRoomMotionCache,type RoomMotionCache} from '../mmdRuntime/roomMotionCache';
+import {createRoomAlphaTiles,type RoomAlphaTiles} from '../mmdRuntime/roomAlphaTiles';
 import { prepareModelGpu } from "../prepareModelGpu";
 import { createPlacementWork } from '../placementWork';
-import { DaylightSet, DaySky, SUN_POSITIONS } from "../scenery/DaylightSets";
+import { DaySky } from "../scenery/DaylightSets";
 import { showSceneryGrid, type SceneryId } from "../scenery/catalog";
 import { canPlaceInScenery } from "../scenery/placementAreas";
 import { useMmdVrTheme } from "../mmdVrTheme";
@@ -283,7 +282,8 @@ function StageLightPool({ color, opacity }: { color: string; opacity: number }) 
 
 export function MmdVrStageContent() {
   const motionCache=useMemo(()=>createRoomMotionCache(),[]);
-  useEffect(()=>()=>motionCache.clear(),[motionCache]);
+  const alphaTiles=useMemo(()=>createRoomAlphaTiles(),[]);
+  useEffect(()=>()=>{motionCache.clear();alphaTiles.clear();},[motionCache,alphaTiles]);
   const scenery = useMmdVrStore(s => s.prefs.scenery);
   // A→B→A may batch into a single React render. The old A's command and
   // loader closures must still retire, even though the final scenery is A.
@@ -292,22 +292,22 @@ export function MmdVrStageContent() {
   const initial = useRef({ scenery, saved: useMmdVrStore.getState().resumeStage, slots: getMmdVrSessionAssets() });
   const saved = useBackpack.getState().layouts[scenery] ?? (initial.current.scenery === scenery ? initial.current.saved : null);
   const slots = saved?.assets ?? (initial.current.scenery === scenery ? initial.current.slots : []);
-  return <MmdVrStageRoom key={`${scenery}:${generation}`} scenery={scenery} saved={saved} slots={slots} motionCache={motionCache} />;
+  return <MmdVrStageRoom key={`${scenery}:${generation}`} scenery={scenery} saved={saved} slots={slots} motionCache={motionCache} alphaTiles={alphaTiles} />;
 }
 
 /** A single room owns a runtime: late restores and physics rebuilds can never target a new room's actors. */
-export function MmdVrStageRoom({ scenery, saved, slots, motionCache }: { scenery: SceneryId; saved: StageSnapshot | null; slots: readonly MmdVrAssetSlot[]; motionCache?:RoomMotionCache }) {
+export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles }: { scenery: SceneryId; saved: StageSnapshot | null; slots: readonly MmdVrAssetSlot[]; motionCache?:RoomMotionCache; alphaTiles?:RoomAlphaTiles }) {
   const { scene, camera, size, gl } = useThree();
   const { accent } = useMmdVrTheme();
   const mmdPrefs = useMmdVrStore((s) => s.prefs);
   const profile = getMmdVrRenderProfile(mmdPrefs);
   const lightPreset = mmdPrefs.lightPreset;
-  const daySet = scenery === "classroom" || scenery === "pool" || scenery === "lawn" ? scenery : null;
+  const room=roomSets[scenery];
   const baseLight = LIGHT_PRESETS[lightPreset] ?? LIGHT_PRESETS.stage;
-  const lightCfg = useMemo(() => scenery==='chapel' ? {...baseLight, sunPos:CHAPEL_SUN, hemiSky:'#f5ede0', hemiGround:'#bcada1', hemi:baseLight.hemi+.56, fogColor:'#d9d1c7'} : scenery==='astralCourt' ? {...baseLight, hemiSky:'#dadcf5', hemiGround:'#797883', hemi:baseLight.hemi+.42, fogColor:'#555572'} : !daySet ? baseLight : ({ ...baseLight,
-    sunPos: SUN_POSITIONS[daySet], hemiSky: "#d4e5ee", hemiGround: daySet === "lawn" ? "#72845a" : "#a79d8d",
-    hemi: baseLight.hemi + 0.32, fogColor: lightPreset === "warm" ? "#e7c8a7" : "#c5dfe6",
-  }), [daySet, baseLight, lightPreset, scenery]);
+  const lightCfg = useMemo(()=>({...baseLight,sunPos:room.sun??baseLight.sunPos,
+    ambient:baseLight.ambient+(room.ambient??0),hemi:baseLight.hemi+(room.hemi??0),
+    hemiSky:room.hemiSky??baseLight.hemiSky,hemiGround:room.hemiGround??baseLight.hemiGround,
+    fogColor:((lightPreset==='warm'?room.warmFog:null)??room.fog)??baseLight.fogColor}),[room,baseLight,lightPreset]);
   const rimIntensity = lightCfg.rimIntensity > 0 ? lightCfg.rimIntensity : 0.28;
   const viewDistance = mmdPrefs.viewDistance;
   const shadowExtent = profile.quality === "high" ? 6 : profile.quality === "balanced" ? 5 : 4;
@@ -414,6 +414,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache }: { scenery
   const runtime = useMemo(() => {
     const handle = createMmdRuntimeHandle(scene, {
       motionCache,
+      alphaTiles,
       actorPalmCloth: ()=>useMmdVrStore.getState().prefs.actorPalmCloth,
       chestCompression: ()=>useMmdVrStore.getState().prefs.chestCompression,
       onPhysicsPoseWork: useMmdVrStore.getState().presentation==='xr' ? runtimeTiming.recordPose : undefined,
@@ -437,7 +438,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache }: { scenery
       prepareGpu: (root, stale, work) => prepareModelGpu(gl, scene, camera, root, stale, work),
     });
     return handle;
-  }, [scene, gl]);
+  }, [scene, gl, motionCache, alphaTiles]);
   const actors = useMemo(() => createStageActors(scene, runtime, () => useMmdVrStore.getState().physicsEnabled, () => timeRef.current), [scene, runtime]);
   const wristGroup = useRef<THREE.Group>(null);
   const characterToy = useStagePlay(s => s.character?.toy);
@@ -969,7 +970,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache }: { scenery
       {mmdPrefs.stageFogEnabled ? (
         <fog attach="fog" args={[lightCfg.fogColor, Math.min(10, viewDistance * 0.45), viewDistance]} />
       ) : null}
-      {mmdPrefs.stageSkyEnabled && scenery==='astralCourt' ? <CourtSky/> : mmdPrefs.stageSkyEnabled && (daySet||scenery==='chapel') ? <DaySky sun={lightCfg.sunPos} warm={lightPreset === "warm"||scenery==='chapel'} /> : mmdPrefs.stageSkyEnabled ? (
+      {mmdPrefs.stageSkyEnabled && room.sky==='court' ? <CourtSky/> : mmdPrefs.stageSkyEnabled && room.sky==='day' ? <DaySky sun={lightCfg.sunPos} warm={lightPreset === 'warm'||!!room.warm} /> : mmdPrefs.stageSkyEnabled ? (
         <StageSky zenith={lightCfg.skyZenith} horizon={lightCfg.skyHorizon} bottom={lightCfg.fogColor} />
       ) : null}
       <ambientLight color={lightCfg.ambientColor} intensity={lightCfg.ambient} />
@@ -1005,10 +1006,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache }: { scenery
         floorColor={lightCfg.floorColor}
         deck={scenery !== "floor"}
       />
-      {scenery === "liveHouse" && <LiveHouse concert={lightPreset === "contrast"} />}
-      {scenery === "astralCourt" && <AstralCourt shadows={profile.shadows}/>}
-      {scenery === 'chapel' && <DawnChapel shadows={profile.shadows}/>}
-      {daySet && <DaylightSet id={daySet} shadows={profile.shadows} />}
+      <RoomSet id={scenery} shadows={profile.shadows} concert={lightPreset==='contrast'}/>
       {mmdPrefs.stageLightPoolEnabled && hasStageLamps(scenery) ? (
         <StageLightPool color={lightCfg.poolColor} opacity={Math.min(0.14, rimIntensity * 0.08)} />
       ) : null}

@@ -1,16 +1,8 @@
 import { useMemo } from 'react';
 import { BackSide, Color, Vector3 } from 'three';
 import type { Part } from './SceneryBatch';
-import type { SceneryId } from './catalog';
-import { Classroom } from './Classroom';
-import { CLASS_SUN } from './ClassroomLayout';
-import { POOL_SUN, PoolTerrace } from './PoolTerrace';
-import { Meadow } from './Meadow';
-import { MEADOW_SUN } from './placementAreas';
 
-type DaySet = Extract<SceneryId, 'classroom' | 'pool' | 'lawn'>;
 type V = Part['p'];
-export const SUN_POSITIONS: Record<DaySet,V> = {classroom:CLASS_SUN,pool:POOL_SUN,lawn:MEADOW_SUN};
 
 export function DaySky({ sun, warm }: { sun: V; warm: boolean }) {
   const uniforms = useMemo(() => ({ sun: { value: new Vector3(...sun).normalize() },
@@ -32,12 +24,4 @@ export function DaySky({ sun, warm }: { sun: V; warm: boolean }) {
         #include <colorspace_fragment>
       }`} />
   </mesh>;
-}
-
-export function DaylightSet({ id, shadows }: { id: DaySet; shadows: boolean }) {
-  switch(id){
-    case 'classroom': return <Classroom shadows={shadows} />;
-    case 'pool': return <PoolTerrace shadows={shadows} />;
-    case 'lawn': return <Meadow shadows={shadows} />;
-  }
 }

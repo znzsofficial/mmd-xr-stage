@@ -3,6 +3,7 @@ import type { SceneryId } from './catalog';
 import { chapelFloor, CHAPEL_OBSTACLES } from './ChapelLayout';
 import { OLD_COURT_RADIUS, onObservatoryFloor, ROUTE_FEET } from './ObservatoryLayout';
 import { classPassageFloor, lawnSchoolFoot, passagePost } from './CampusLayout';
+import {canPlaceInClinic} from './clinic/clinicLayout';
 
 // A placement is a point on a supported y=0 surface with a little shoe room;
 // it doesn't pretend to know a particular imported object's swept bounds.
@@ -75,6 +76,7 @@ export const LAWN_TREES = Array.from({ length: 19 }, (_, i) => {
 export function canPlaceInScenery(id: SceneryId, x: number, z: number): boolean {
   if (!Number.isFinite(x) || !Number.isFinite(z)) return false;
   switch (id) {
+    case 'clinic': return canPlaceInClinic(x,z);
     case 'chapel': return shoeOffsets.every(([dx,dz])=>chapelFloor(x+dx,z+dz)) && !CHAPEL_OBSTACLES.some(r=>hits(r,x,z));
     case 'floor': return Math.hypot(x, z) <= SIMPLE_FLOOR_RADIUS - CLEAR;
     case 'astralCourt': return shoeOffsets.every(([dx,dz])=>onObservatoryFloor(x+dx,z+dz)) && !COURT_PIERS.some(p=>hits(p,x,z)) && !ROUTE_FEET.some(p=>hits(p,x,z));

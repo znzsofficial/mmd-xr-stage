@@ -90,7 +90,7 @@ describe("runtime asynchronous lifecycle", () => {
       expect(publish.mock.lastCall?.[0].failures).toEqual([]);
     } finally { runtime.dispose(); }
   });
-  it("disposes a model arriving after the runtime has been closed", async () => {
+  it.each(['dispose','clearAll'] as const)("disposes a model arriving after %s", async (end) => {
     const scene = new THREE.Scene();
     const model = modelFixture();
     const dispose = vi.spyOn(model.mesh.geometry, "dispose");
@@ -98,12 +98,13 @@ describe("runtime asynchronous lifecycle", () => {
     vi.spyOn(ThreeMmdLoader.prototype, "loadModel").mockReturnValueOnce(new Promise((done) => { resolve = done; }));
     const runtime = createMmdRuntimeHandle(scene);
     const pending = runtime.addModel(new File(["pmx"], "model.pmx"));
-    runtime.dispose();
+    runtime[end]();
     resolve(model);
     await expect(pending).rejects.toMatchObject({ name: "AbortError" });
     expect(scene.children).toHaveLength(0);
     expect(dispose).toHaveBeenCalledOnce();
     expect((model.runtime as unknown as { dispose: () => void }).dispose).toHaveBeenCalledOnce();
+    runtime.dispose();
   });
 
   it("converts controller coordinates and radius independently of visual model scale", async () => {

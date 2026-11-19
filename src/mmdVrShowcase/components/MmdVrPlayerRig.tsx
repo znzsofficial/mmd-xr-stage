@@ -3,7 +3,9 @@ import { useXRControllerLocomotion, useXRInputSourceState, XROrigin } from "@rea
 import { useCallback, useEffect, useRef, useState } from "react";
 import type * as THREE from "three";
 import { Vector3 } from 'three';
-import {campusRoom,CAMPUS_OFFSET,CampusGate,nearCampusDoor} from '../scenery/CampusLayout';
+import {nearCampusDoor} from '../scenery/CampusLayout';
+import {RoomGate} from '../scenery/connections';
+import {canWalkInClinic,moveInClinic} from '../scenery/clinic/clinicLayout';
 import {hintLawnPrints,walkBetweenZones} from '../scenery/campusTransit';
 import {
   MMD_VR_HEIGHT_OFFSET_MAX,
@@ -34,7 +36,8 @@ export function MmdVrPlayerRig({onExit,busy}:{onExit:()=>void;busy:boolean}) {
   const rightController = useXRInputSourceState("controller", "right");
   const stickHeightRef = useRef({ value: heightOffset, elapsed: 0, active: false });
   const [eye]=useState(()=>new Vector3());
-  const [gate]=useState(()=>new CampusGate());
+  const [gate]=useState(()=>new RoomGate());
+  const clinicOrigin=useRef<{x:number;z:number}|null>(null);
   const releaseHints=useRef<(()=>void)|null>(null);
   useEffect(()=>()=>{releaseHints.current?.();releaseHints.current=null;},[mmdPrefs.scenery]);
 
@@ -49,8 +52,10 @@ export function MmdVrPlayerRig({onExit,busy}:{onExit:()=>void;busy:boolean}) {
   useEffect(() => {
     const g = originRef.current;
     if (!g) return;
-    g.position.set(0, heightOffset, 0);
+    const clinic=useMmdVrStore.getState().prefs.scenery==='clinic';
+    g.position.set(0, heightOffset, clinic?2.8:0);
     g.rotation.set(0, 0, 0);
+    clinicOrigin.current=clinic?{x:g.position.x,z:g.position.z}:null;gate.reset();
   }, [viewEpoch]);
 
   useEffect(() => {
@@ -65,12 +70,24 @@ export function MmdVrPlayerRig({onExit,busy}:{onExit:()=>void;busy:boolean}) {
 
   useFrame(({gl}, delta) => {
     const room=mmdPrefs.scenery,origin=originRef.current;
-    if(origin&&gl.xr.isPresenting&&campusRoom(room)&&!panelDragging){
+    if(origin&&gl.xr.isPresenting&&!panelDragging&&(room==='clinic'||gate.hasExits(room))){
       gl.xr.getCamera().getWorldPosition(eye);
+      if(room==='clinic'){
+        // Constrain thumbstick translation only. A real step or head turn must
+        // never itself move the XR origin or snap the user back to an entrance.
+        const prev=clinicOrigin.current;
+        if(prev){const dx=origin.position.x-prev.x,dz=origin.position.z-prev.z;
+          if((dx||dz)&&canWalkInClinic(eye.x-dx,eye.z-dz)){
+            const target=moveInClinic(eye.x-dx,eye.z-dz,dx,dz);
+            origin.position.x+=target.x-eye.x;origin.position.z+=target.z-eye.z;origin.updateMatrixWorld(true);
+          }
+          prev.x=origin.position.x;prev.z=origin.position.z;
+        }else clinicOrigin.current={x:origin.position.x,z:origin.position.z};
+      }
       if(room==='classroom'&&!releaseHints.current&&nearCampusDoor(eye.x,eye.z))releaseHints.current=hintLawnPrints();
-      if(gate.next(room,eye.x,eye.z)&&walkBetweenZones(room)){
-        const sign=room==='classroom'?1:-1;
-        origin.position.x+=sign*CAMPUS_OFFSET.x;origin.position.z+=sign*CAMPUS_OFFSET.z;origin.updateMatrixWorld(true);
+      const link=gate.next(room,eye.x,eye.z);
+      if(link&&walkBetweenZones(link)){
+        origin.position.x+=link.offset[0];origin.position.z+=link.offset[1];origin.updateMatrixWorld(true);
       }
     }else gate.reset();
     const stick = rightController?.gamepad["xr-standard-thumbstick"];

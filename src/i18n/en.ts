@@ -21,6 +21,7 @@ export const en: Record<keyof ZhMessages, string> = {
   guidePostVr:'Aim at three different stars. Release and squeeze at each.',guidePostScreen:'Stamping needs VR. On screen, give the punch to a character.',guidePostEnd:'Collect all three to reveal the card. The first sets its seal.',
   guideSaberVr:'Squeeze to extend the blade. Release and squeeze to retract.',guideSaberScreen:'Give the saber to a character in Astral Court to light it.',guideSaberEnd:'In other sets the hilt is a posing prop; the blade stays off.',
   actorPalmCloth:'Character palms can lift skirts (experimental; requires physics)',
+  hudClinic:'Women’s hospital',clinicHall:'Waiting hall',clinicExam:'Gynecology exam room',clinicSurgery:'Operating room',clinicRestroom:'Women’s restroom',clinicEducation:'Patient education wall',
   campusWindow:'Arbor from the windows',campusHall:'School breezeway',campusGoLawn:'Cross to the meadow',campusSchool:'Look back at school',campusArbor:'Wisteria path',campusGoClass:'Cross back to class',
   courtTour:'Tour viewpoints',courtOverview:'Bridge junction from above',courtNorth:'North observatory',courtWest:'West chart gallery',courtEast:'East meridian scope',courtReturn:'Look back at the gate',
   chapelWindow:'Lily window',chapelDoor:'Through the open doors',chapelGarden:'Lavender court',chapelFacade:'Chapel from the basin',

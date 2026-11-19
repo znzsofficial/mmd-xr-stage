@@ -5,6 +5,7 @@ import { useBackpack, type BackpackLive } from "../backpack";
 import { HUD_COLORS } from "../hudAppearance";
 import { useMmdVrStore } from "../mmdVrStore";
 import { canPlaceInScenery } from "../scenery/placementAreas";
+import {clinicPlacementVisible} from '../scenery/clinic/clinicLayout';
 import type { SceneryId } from "../scenery/catalog";
 import { useLanguageStore } from "../../languageStore";
 import { useHudWorldInput } from "./hudWorldInput";
@@ -50,7 +51,7 @@ function DropSurface({ id, scenery }: { id: string; scenery: SceneryId }) {
     if (pressed.current != null && e.pointerId !== pressed.current) return;
     e.stopPropagation();
     const { x, z } = e.point;
-    const allowed = canPlaceInScenery(scenery, x, z);
+    const allowed = canPlaceInScenery(scenery, x, z) && (scenery!=='clinic'||clinicPlacementVisible(e.ray.origin,x,z));
     (gl.xr.isPresenting ? gl.xr.getCamera() : camera).getWorldPosition(head);
     const s = useMmdVrStore.getState(), live = useBackpack.getState().live[id];
     const existing = live ? s.models.find(e => e.id === live.runtimeId) ?? s.objects.find(e => e.id === live.runtimeId) : undefined;

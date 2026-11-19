@@ -606,10 +606,22 @@ index d82f2a20c7e422f1186db8914cfc1b713e2529e2..99e42c1aeaa132abc939f2cefcad2d6e
      readonly frameRate?: number;
      /** Initial runtime time in seconds. Defaults to 0. */
 diff --git a/dist/three/index.d.ts b/dist/three/index.d.ts
-index 32cdfea65cd251cc123ca58c826aa81da2e4112b..bca3c968a240aafd66027d53e2454e329b1bf292 100644
+index 32cdfea65cd251cc123ca58c826aa81da2e4112b..c8b96b59fecfac025e5a2aecf2678e9ff8fee38e 100644
 --- a/dist/three/index.d.ts
 +++ b/dist/three/index.d.ts
-@@ -129,6 +129,7 @@ export interface ThreeMmdModel {
+@@ -53,6 +53,11 @@ export interface ThreeMmdLoaderOptions {
+     readonly ddsLoader?: ThreeMmdTextureLoader;
+     /** Enables geometry-aware texture alpha checks. Defaults to off, except when outlines require it internally. */
+     readonly geometryAwareAlpha?: boolean;
++    /** Exact 512x512 alpha sampling lattice for local, default-loaded PNG files. */
++    readonly localPngAlphaTiles?: {
++        get(file: File, width: number, height: number): Uint8Array | null | undefined;
++        set(file: File, width: number, height: number, tile: Uint8Array | null): void;
++    };
+     /** Options forwarded to the per-model runtime. */
+     readonly runtime?: DefaultMmdRuntimeOptions;
+     /** Creates a per-model runtime. When omitted, the bundled mmd-anim runtime is used for PMX. */
+@@ -129,6 +134,7 @@ export interface ThreeMmdModel {
      readonly renderOrderMeshes: readonly THREE.SkinnedMesh[];
      /** Runtime bound to this model. */
      readonly runtime: MmdRuntime;
@@ -617,7 +629,7 @@ index 32cdfea65cd251cc123ca58c826aa81da2e4112b..bca3c968a240aafd66027d53e2454e32
      readonly source: ThreeMmdModelSourceDescriptor;
      /** Structured diagnostics grouped by subsystem. */
      readonly diagnostics: {
-@@ -184,6 +185,7 @@ export declare class ThreeMmdLoader {
+@@ -184,6 +190,7 @@ export declare class ThreeMmdLoader {
      private implicitMmdAnimWasmReady;
      constructor(options?: ThreeMmdLoaderOptions);
      loadModel(source: ModelSource, options?: ThreeMmdLoadModelOptions): Promise<ThreeMmdModel>;
@@ -626,10 +638,23 @@ index 32cdfea65cd251cc123ca58c826aa81da2e4112b..bca3c968a240aafd66027d53e2454e32
      private canCreateImplicitMmdAnimRuntime;
      private getCore;
 diff --git a/dist/three/index.js b/dist/three/index.js
-index e1ceb537212187d6277e7782ee7b1dfbd8aa0d70..d9191d8fb175d6d216fce8164abeb9638f5efcb4 100644
+index e1ceb537212187d6277e7782ee7b1dfbd8aa0d70..72888d3e542e5173b11d89b5494cbe2fdce94e16 100644
 --- a/dist/three/index.js
 +++ b/dist/three/index.js
-@@ -147,6 +147,10 @@ export class ThreeMmdLoader {
+@@ -88,8 +88,11 @@ export class ThreeMmdLoader {
+                     geometry: mesh.geometry,
+                     morphs: modelData.morphs,
+                     geometryAwareAlpha: this.options.geometryAwareAlpha || effectiveOutlines,
++                    localPngAlphaTiles: this.options.localPngAlphaTiles,
+                     materialDiagnostics,
+-                    textureCache: this.textureCache
++                    // Each default-loaded texture is disposed with its model. Deduplicate
++                    // within the pass, never hand a sibling a model-owned GPU object.
++                    textureCache: this.options.textureLoader ? this.textureCache : new Map()
+                 });
+                 const textureDiagnostics = await texturePromise;
+                 profile?.mark("textures");
+@@ -147,6 +150,10 @@ export class ThreeMmdLoader {
              profile?.clear();
          }
      }
@@ -640,7 +665,7 @@ index e1ceb537212187d6277e7782ee7b1dfbd8aa0d70..d9191d8fb175d6d216fce8164abeb963
      createRuntime(context) {
          const explicitRuntime = this.options.runtimeFactory?.(context);
          if (explicitRuntime) {
-@@ -376,7 +380,14 @@ function createThreeMmdModel(options) {
+@@ -376,7 +383,14 @@ function createThreeMmdModel(options) {
          mesh: options.mesh,
          outlineMeshes,
          renderOrderMeshes,
@@ -657,7 +682,7 @@ index e1ceb537212187d6277e7782ee7b1dfbd8aa0d70..d9191d8fb175d6d216fce8164abeb963
          diagnostics: {
              core: options.coreDiagnostic,
 diff --git a/dist/three/material/material-texture-set.js b/dist/three/material/material-texture-set.js
-index 968b2d05d6f3f9fe8d803a5bee42ededd11dfe11..b9fae91d12c4a10ef6364f29f1010bbbaba74420 100644
+index 968b2d05d6f3f9fe8d803a5bee42ededd11dfe11..c098ba142920cc5a4c7bf26374f683e3b9474ae9 100644
 --- a/dist/three/material/material-texture-set.js
 +++ b/dist/three/material/material-texture-set.js
 @@ -37,7 +37,7 @@ export function evaluateMmdDefaultMaterialTransparency(material, morphs, geometr
@@ -665,7 +690,7 @@ index 968b2d05d6f3f9fe8d803a5bee42ededd11dfe11..b9fae91d12c4a10ef6364f29f1010bbb
          (texture && needsTextureTransparencyScan
              ? (options.geometryAwareAlpha
 -                ? evaluateCachedMmdTextureAlphaGeometry(texture, geometry, materialIndex)
-+                ? evaluateCachedMmdTextureAlphaGeometry(texture, geometry, materialIndex, options.alphaTiles)
++                ? evaluateCachedMmdTextureAlphaGeometry(texture, geometry, materialIndex, options.alphaTiles, options.localPngAlphaTiles)
                  : textureAlpha.evaluateMmdTextureAlphaTexture(texture))
              : undefined);
      const textureTransparencyMode = rawTextureTransparencyMode === "alphaTest" && isLikelyMmdSoftAlphaOverlayMaterial(material)
@@ -674,7 +699,7 @@ index 968b2d05d6f3f9fe8d803a5bee42ededd11dfe11..b9fae91d12c4a10ef6364f29f1010bbb
      return /(hair\s*shadow|hairshadow|shadow|shade|cheek|blush|髪影|髪の影|影|頬|ほほ|チーク)/u.test(materialName);
  }
 -function evaluateCachedMmdTextureAlphaGeometry(texture, geometry, materialIndex) {
-+function evaluateCachedMmdTextureAlphaGeometry(texture, geometry, materialIndex, alphaTiles) {
++function evaluateCachedMmdTextureAlphaGeometry(texture, geometry, materialIndex, alphaTiles, localPngAlphaTiles) {
      let geometryCache = geometryAlphaCache.get(texture);
      if (!geometryCache) {
          geometryCache = new WeakMap();
@@ -683,29 +708,32 @@ index 968b2d05d6f3f9fe8d803a5bee42ededd11dfe11..b9fae91d12c4a10ef6364f29f1010bbb
          return materialCache.get(materialIndex);
      }
 -    const alphaMode = textureAlpha.evaluateMmdTextureAlphaGeometry(texture, geometry, materialIndex);
-+    const alphaMode = textureAlpha.evaluateMmdTextureAlphaGeometry(texture, geometry, materialIndex, undefined, alphaTiles);
++    const alphaMode = textureAlpha.evaluateMmdTextureAlphaGeometry(texture, geometry, materialIndex, {localPngAlphaTiles}, alphaTiles);
      materialCache.set(materialIndex, alphaMode);
      return alphaMode;
  }
 diff --git a/dist/three/materials.js b/dist/three/materials.js
-index 20234e3ad8f90753b13ee787b80223fcd722e095..83ea4b6af81bccc733fe1f3901cdbaac4f19423b 100644
+index 20234e3ad8f90753b13ee787b80223fcd722e095..d1b87add39c50213273c30db1c83cc8e06142be6 100644
 --- a/dist/three/materials.js
 +++ b/dist/three/materials.js
-@@ -33,6 +33,8 @@ export async function applyThreeMmdMaterialTextures(threeMaterials, mmdMaterials
+@@ -32,7 +32,10 @@ export async function applyThreeMmdMaterialTextures(threeMaterials, mmdMaterials
+     const textureDiagnostics = [];
      const materialDiagnostics = options.materialDiagnostics;
      const resolver = createTextureResolver(options.textureResolver, options.textureMap ?? (options.modelUrl ? {} : undefined));
-     const textureLoader = options.textureLoader ?? new THREE.TextureLoader();
+-    const textureLoader = options.textureLoader ?? new THREE.TextureLoader();
++    // loadResolvedTextureUncached creates the default loader and marks ownership.
++    const textureLoader = options.textureLoader;
 +    // One material pass only. Custom loaders may supply mutable or animated sources.
 +    const alphaTiles = options.geometryAwareAlpha && !options.textureLoader ? new Map() : undefined;
      await Promise.all(mmdMaterials.map(async (mmdMaterial, materialIndex) => {
          const material = threeMaterials[materialIndex];
          if (!material) {
-@@ -46,7 +48,7 @@ export async function applyThreeMmdMaterialTextures(threeMaterials, mmdMaterials
+@@ -46,7 +49,7 @@ export async function applyThreeMmdMaterialTextures(threeMaterials, mmdMaterials
              material.gradientMap = gradientMap;
          }
          if (options.geometry) {
 -            const { transparencyMode, textureTransparencyMode, morphAlphaTransparent, diagnostic } = evaluateMmdDefaultMaterialTransparency(mmdMaterial, options.morphs ?? [], options.geometry, materialIndex, texture, { geometryAwareAlpha: options.geometryAwareAlpha });
-+            const { transparencyMode, textureTransparencyMode, morphAlphaTransparent, diagnostic } = evaluateMmdDefaultMaterialTransparency(mmdMaterial, options.morphs ?? [], options.geometry, materialIndex, texture, { geometryAwareAlpha: options.geometryAwareAlpha, alphaTiles });
++            const { transparencyMode, textureTransparencyMode, morphAlphaTransparent, diagnostic } = evaluateMmdDefaultMaterialTransparency(mmdMaterial, options.morphs ?? [], options.geometry, materialIndex, texture, { geometryAwareAlpha: options.geometryAwareAlpha, alphaTiles, localPngAlphaTiles: options.localPngAlphaTiles });
              material.transparent = transparencyMode === "alphaBlend";
              material.depthWrite = mmdMaterialDepthWrite(transparencyMode);
              const suppressesColor = mmdMaterialSuppressesColorAtAlpha(mmdMaterial.diffuse[3], mmdMaterial.flags);
@@ -739,10 +767,19 @@ index 21175b4597aa46d6034db165c1b73d714cffb070..b7565c690bbb502705f925654f891e8f
          return undefined;
      }
 diff --git a/dist/three/textures.js b/dist/three/textures.js
-index 51925a6c86df40611a48f309fe11670ef9e01a88..e2a575f59c296099098af91c6d7c465df901f2c0 100644
+index 51925a6c86df40611a48f309fe11670ef9e01a88..92d296d9b0fa83b190a7fa57a2e102d9ec7db4ba 100644
 --- a/dist/three/textures.js
 +++ b/dist/three/textures.js
-@@ -224,16 +224,12 @@ export function evaluateMmdTextureAlphaTexture(texture, options = {}) {
+@@ -13,6 +13,8 @@ const bundledSharedToonTextureUrls = {
+ };
+ let defaultToonGradientMap;
+ const blobTextureCacheKeys = new WeakMap();
++// Only the browser's default image path, never URL sources or custom decoders.
++const pngSourceFiles = new WeakMap();
+ const blobTgaTextureCache = new WeakMap();
+ let nextBlobTextureCacheKey = 1;
+ function createAlphaStats() {
+@@ -224,16 +226,12 @@ export function evaluateMmdTextureAlphaTexture(texture, options = {}) {
      }
      return evaluateMmdTextureAlphaRgba(data, options);
  }
@@ -760,7 +797,7 @@ index 51925a6c86df40611a48f309fe11670ef9e01a88..e2a575f59c296099098af91c6d7c465d
      const uvAttribute = geometry.getAttribute("uv");
      if (!uvAttribute) {
          return undefined;
-@@ -245,12 +241,30 @@ export function evaluateMmdTextureAlphaGeometry(texture, geometry, materialIndex
+@@ -245,12 +243,33 @@ export function evaluateMmdTextureAlphaGeometry(texture, geometry, materialIndex
      const indexArray = geometry.index?.array;
      const stats = createAlphaStats();
      const resolution = 512;
@@ -769,6 +806,8 @@ index 51925a6c86df40611a48f309fe11670ef9e01a88..e2a575f59c296099098af91c6d7c465d
 +    // Retain <= 8 * 256 KiB of alpha per load, never full-resolution RGBA.
 +    const share = alphaTiles && typeof HTMLImageElement !== 'undefined' && image instanceof HTMLImageElement && image.complete;
 +    let grid = share ? alphaTiles.get(image) : undefined;
++    const file = grid === undefined && share && options.localPngAlphaTiles ? pngSourceFiles.get(texture) : undefined;
++    if (file) grid = options.localPngAlphaTiles.get(file, image.width, image.height);
 +    let rgba, width = 0, height = 0;
 +    if (grid === undefined) {
 +        const pixels = readableRgbaTextureData(image);
@@ -777,6 +816,7 @@ index 51925a6c86df40611a48f309fe11670ef9e01a88..e2a575f59c296099098af91c6d7c465d
 +        const hasAlpha = hasAnyReadableAlpha(rgba, width, height);
 +        if (share) {
 +            grid = hasAlpha ? gatherAlphaTile(rgba, width, height, resolution) : null;
++            if (file) options.localPngAlphaTiles.set(file, width, height, grid);
 +            if (alphaTiles.size >= 8) alphaTiles.delete(alphaTiles.keys().next().value);
 +            alphaTiles.set(image, grid);
 +        }
@@ -792,7 +832,17 @@ index 51925a6c86df40611a48f309fe11670ef9e01a88..e2a575f59c296099098af91c6d7c465d
          }
      }
      return stats.sampleCount > 0 ? evaluateAlphaStats(stats, options) : undefined;
-@@ -946,7 +960,17 @@ function sampleRgbaAlphaByUv(rgba, width, height, uvX, uvY) {
+@@ -694,6 +713,9 @@ async function loadResolvedTextureUncached(resolved, texturePath, textureInfo, t
+                 configureMmdTexture(texture, textureInfo);
+                 if (!textureLoader) {
+                     texture.userData.mmdTextureOwnership = "loader";
++                    if (typeof File !== "undefined" && resolved instanceof File && /\.png$/i.test(texturePath) && /\.png$/i.test(resolved.name)) {
++                        pngSourceFiles.set(texture, resolved);
++                    }
+                 }
+                 if (request.alphaMode) {
+                     texture.userData.mmdTextureAlphaMode = request.alphaMode;
+@@ -946,7 +968,17 @@ function sampleRgbaAlphaByUv(rgba, width, height, uvX, uvY) {
      const y = wrap(uvY, height);
      return rgba[(y * width + x) * 4 + 3] ?? 255;
  }
@@ -811,7 +861,7 @@ index 51925a6c86df40611a48f309fe11670ef9e01a88..e2a575f59c296099098af91c6d7c465d
      const minU = Math.min(uvAX, uvBX, uvCX);
      const maxU = Math.max(uvAX, uvBX, uvCX);
      const minV = Math.min(uvAY, uvBY, uvCY);
-@@ -957,11 +981,11 @@ function recordRasterizedUvTriangleAlpha(stats, rgba, width, height, uvAX, uvAY,
+@@ -957,11 +989,11 @@ function recordRasterizedUvTriangleAlpha(stats, rgba, width, height, uvAX, uvAY,
      const shiftMaxV = Math.floor(1 - minV);
      for (let shiftU = shiftMinU; shiftU <= shiftMaxU; shiftU += 1) {
          for (let shiftV = shiftMinV; shiftV <= shiftMaxV; shiftV += 1) {
@@ -825,7 +875,7 @@ index 51925a6c86df40611a48f309fe11670ef9e01a88..e2a575f59c296099098af91c6d7c465d
      const ax = uvAX * resolution;
      const ay = uvAY * resolution;
      const bx = uvBX * resolution;
-@@ -987,7 +1011,7 @@ function recordRasterizedUvTriangleAlphaTile(stats, rgba, width, height, uvAX, u
+@@ -987,7 +1019,7 @@ function recordRasterizedUvTriangleAlphaTile(stats, rgba, width, height, uvAX, u
              const wB = ((cy - ay) * (px - cx) + (ax - cx) * (py - cy)) / denominator;
              const wC = 1 - wA - wB;
              if (wA >= 0 && wB >= 0 && wC >= 0) {

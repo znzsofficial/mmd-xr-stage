@@ -446,7 +446,7 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
     prefsStorage.write(prefs);
     // Leaving a distant terrace should not start the next set 39m from its door.
     const previousRoom=get().prefs.scenery;
-    const leaveDistrict = (previousRoom==='astralCourt'||previousRoom==='chapel')&&prefs.scenery!==previousRoom;
+    const leaveDistrict = (previousRoom==='astralCourt'||previousRoom==='chapel'||previousRoom==='clinic'||prefs.scenery==='clinic')&&prefs.scenery!==previousRoom;
     set({ prefs, loop: prefs.loop, ...(leaveDistrict ? {viewEpoch:get().viewEpoch+1} : {}) });
   },
   cyclePhysicsColliderRadius: () => {

@@ -12,7 +12,8 @@ import { isStoryRoom } from '../play/stagePlay';
 import { StoryStations } from '../play/StoryStations';
 import { PrepIcon } from '../prep/PrepIcon';
 import { resolveScenery, SCENERY, sceneryIds } from '../scenery/catalog';
-import { ScreenCamera, tourShots, type CameraActions } from './ScreenCamera';
+import { ScreenCamera, type CameraActions } from './ScreenCamera';
+import {tourShots} from '../scenery/roomViews';
 import { ScreenLibrary } from './ScreenLibrary';
 import './screen-stage.css';
 
@@ -55,7 +56,7 @@ export function ScreenStage(){
         <MmdVrStageContent/><StoryStations/><BackpackPlacement onScreenPick={()=>setLibrary(true)}/><ScreenCamera actions={actions} onReady={setCameraReady}/>
       </Canvas></MmdVrThemeProvider>
       <div className="screen-corner"><button aria-expanded={library&&!draft} onClick={()=>{if(draft){useBackpack.getState().cancelPlace();setLibrary(true);}else setLibrary(v=>!v);}}><PrepIcon name="bag"/>{t('hudBackpack')}</button><button onClick={()=>actions.current?.reset()}>{t('settingsMmdVrResetView')}</button>
-        {tourShots(prefs.scenery).length>0&&<select aria-label={t('courtTour')} value="" onChange={e=>actions.current?.tour(Number(e.target.value))}><option value="" disabled>{t('courtTour')}</option>{tourShots(prefs.scenery).map((s,i)=><option key={s.key} disabled={(s.key==='campusGoLawn'||s.key==='campusGoClass')&&(locked||!!draft||load.failures.length>0)} value={i}>{t(s.key)}</option>)}</select>}
+        {tourShots(prefs.scenery).length>0&&<select aria-label={t('courtTour')} value="" onChange={e=>actions.current?.tour(Number(e.target.value))}><option value="" disabled>{t('courtTour')}</option>{tourShots(prefs.scenery).map((s,i)=><option key={s.key} disabled={!!s.link&&(locked||!!draft||load.failures.length>0)} value={i}>{t(s.key)}</option>)}</select>}
       </div>
       <div className="screen-caption" role="status">{message?<><span>{message}</span>{load.failures.length>0&&<button disabled={locked} onClick={stage.retryFailedAssets}>{t('loadRetry')}</button>}{err&&<button onClick={()=>useBackpack.getState().dismissError()}>{t('hudDone')}</button>}</>:locked?t('hudWorking'):draft?<><span>{t('screenAim')}</span><button onClick={()=>actions.current?.center()}>{t('screenCenter')}</button><button onClick={()=>useBackpack.getState().cancelPlace()}>{t('hudCancelPlace')}</button></>:t('screenOrbit')}</div>
     </div>{library&&!draft&&<ScreenLibrary locked={locked} frame={()=>actions.current?.frame()} storyView={isStoryRoom(prefs.scenery)?()=>actions.current?.story():undefined} close={()=>setLibrary(false)}/>}</div>

@@ -12,4 +12,4 @@
 [查看角色腕骨选择与握姿微调](./gameplay/vr-controls.md#把道具递给角色)
 
 ## 在布景中给角色选位置
-[查看七景站位](./gameplay/vr-controls.md#在布景中给角色选位置)
+[查看各布景站位](./gameplay/vr-controls.md#在布景中给角色选位置)

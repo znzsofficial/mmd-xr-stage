@@ -2,23 +2,6 @@ import type { Part } from './SceneryBatch';
 export type CampusRoom='classroom'|'lawn';
 export const CAMPUS_OFFSET={x:14,z:-6.8}; // class origin in the meadow's coordinate system
 export const CAMPUS_DOOR=-3.65;
-export function campusRoom(s:string):s is CampusRoom{return s==='classroom'||s==='lawn';}
-export function otherZone(room:CampusRoom):CampusRoom{return room==='classroom'?'lawn':'classroom';}
-export function crossingBand(room:CampusRoom,x:number,z:number){
-  if(room==='lawn'){x-=CAMPUS_OFFSET.x;z-=CAMPUS_OFFSET.z;}
-  return z>6.24&&z<8.20&&(room==='classroom'?x< -8.75&&x> -11.8:x> -7.8&&x< -5.4);
-}
-// Only a directed crossing counts. A room picker change, reset or initial
-// headset pose inside the gallery must not immediately take the visitor back.
-export class CampusGate{
-  private previous:{room:CampusRoom;x:number;z:number}|null=null;
-  next(room:CampusRoom,x:number,z:number){const p=this.previous;
-    if(!p)this.previous={room,x,z};else {const gate=room==='classroom'?-8.75:CAMPUS_OFFSET.x-7.8;
-      const crossed=p.room===room&&Math.hypot(x-p.x,z-p.z)<3&&(room==='classroom'?p.x>=gate&&x<gate:p.x<=gate&&x>gate)&&crossingBand(room,x,z);
-      p.room=room;p.x=x;p.z=z;return crossed;}
-    return false;}
-  reset(){this.previous=null;}
-}
 export function nearCampusDoor(x:number,z:number){return x< -2.52&&x> -10.8&&z>4.7&&z<8.51;}
 export function classPassageFloor(x:number,z:number){
   return Math.abs(x-CAMPUS_DOOR)<.81&&z>5.35&&z<7.05 || x>=-8.61&&x<=-2.55&&z>=6.14&&z<=8.26;

@@ -1,19 +1,19 @@
 import {useBackpack} from '../backpack';
 import {useMmdVrStore} from '../mmdVrStore';
-import {otherZone,type CampusRoom} from './CampusLayout';
+import type {RoomLink} from './connections';
 import ground from './meadow-walk.webp';
 import flowers from './garden-botanicals.webp';
 import timber from './garden-joinery.webp';
 
 // Let the normal room-generation boundary take a complete snapshot before it
 // tears down actors and Bullet. Do not walk out of a half-restored room.
-export function canWalkBetweenZones(room:CampusRoom){
+export function canWalkBetweenZones(room:RoomLink['from']){
   const s=useMmdVrStore.getState(),b=useBackpack.getState();
   return s.overlayOpen&&s.prefs.scenery===room&&!s.physicsBusy&&!s.physicsFatal&&!s.assetLoad.running&&!s.assetLoad.failures.length&&!s.placeMode&&!b.busy&&!b.command&&!b.draft;
 }
-export function walkBetweenZones(room:CampusRoom){
-  if(!canWalkBetweenZones(room))return false;
-  useMmdVrStore.getState().setPrefs({scenery:otherZone(room)});return true;
+export function walkBetweenZones(link:RoomLink){
+  if(!canWalkBetweenZones(link.from))return false;
+  useMmdVrStore.getState().setPrefs({scenery:link.to});return true;
 }
 
 /** Start only when approaching the rear door. Same URL/credentials as the

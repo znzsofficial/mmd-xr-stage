@@ -1,0 +1,59 @@
+<!doctype html><meta charset="utf-8"><title>PMX room load pairs</title>
+<p>Select one local PMX and its images. Uses a warm parser and one 256×256 WebGL renderer. Each load creates and disposes a new room runtime. Only counts, timings and material hashes are returned.</p>
+<input type="file" multiple><button>Measure</button><pre></pre>
+<script type="module">
+import * as T from 'three';
+import {ThreeMmdLoader} from '@yohawing/three-mmd-loader';
+import {createLocalTextureResolver} from '../src/mmdVrShowcase/mmdRuntime/localTextureResolver.ts';
+import {disposeLoadedModelObject} from '../src/mmdVrShowcase/mmdRuntime/mmdRuntimeEntry.ts';
+import {createRoomAlphaTiles} from '../src/mmdVrShowcase/mmdRuntime/roomAlphaTiles.ts';
+import {createMmdRuntimeHandle} from '../src/mmdVrShowcase/mmdRuntime/mmdRuntime.ts';
+import {prepareModelGpu} from '../src/mmdVrShowcase/prepareModelGpu.ts';
+import {prepareMmdVrModel} from '../src/mmdVrShowcase/prepareMmdVrModel.ts';
+import {createPlacementWork} from '../src/mmdVrShowcase/placementWork.ts';
+
+window.compare=async()=>{
+  const files=[...document.querySelector('input').files], pmx=files.find(f=>/\.pmx$/i.test(f.name));
+  if(!pmx)throw Error('Select a PMX and its textures');
+  const gl=new T.WebGLRenderer({antialias:false}),camera=new T.PerspectiveCamera(50,1,.01,100);
+  gl.setSize(256,256);camera.position.z=4;camera.updateMatrixWorld();
+  const cache=createRoomAlphaTiles(),rows=[],p=CanvasRenderingContext2D.prototype;
+  const draw=p.drawImage,read=p.getImageData;let reads,readBytes,canvasMs;
+  p.drawImage=function(...a){const t=performance.now();try{return draw.apply(this,a);}finally{canvasMs+=performance.now()-t;}};
+  p.getImageData=function(...a){const t=performance.now();try{const d=read.apply(this,a);reads++;readBytes+=d.data.byteLength;return d;}finally{canvasMs+=performance.now()-t;}};
+  async function load(reuse){
+    const scene=new T.Scene();scene.add(new T.AmbientLight());
+    const work=createPlacementWork(),rt=createMmdRuntimeHandle(scene,{alphaTiles:reuse?cache:undefined,prepareModel:prepareMmdVrModel,
+      prepareGpu:(root,stale,work)=>prepareModelGpu(gl,scene,camera,root,stale,work)});
+    reads=readBytes=canvasMs=0;let result, releases=0;
+    try{
+      const start=performance.now(), report=await rt.addModel(pmx,files,{physics:false,transform:{scale:.1},work});
+      const totalMs=performance.now()-start;let mesh;rt.getModelRoot(report.modelId).traverse(o=>{if(!mesh && o.isSkinnedMesh)mesh=o;});
+      const mats=[mesh.material].flat(), decisions=mats.map(m=>[m.userData.mmdMaterial.transparencyMode,m.userData.mmdMaterial.textureTransparencyMode,m.transparent,m.depthWrite,m.alphaTest,m.map?.image?.width,m.map?.image?.height]);
+      const signature=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(decisions)))),n=>n.toString(16).padStart(2,'0')).join('');
+      const textures=new Set();rt.getModelRoot(report.modelId).traverse(o=>{for(const m of [o.material].flat())if(m)for(const v of Object.values(m))if(v?.isTexture && v.image)textures.add(v);});
+      const owned=[...textures].filter(t=>t.userData.mmdTextureOwnership==='loader');for(const t of owned)t.addEventListener('dispose',()=>{releases++;});
+      result={reuse,...work,totalMs,reads,readBytes,canvasMs,materials:mats.length,signature,warnings:report.textureWarnings.length,owned:owned.length};
+    }finally{rt.dispose();}
+    return {...result,releases,remainingTextures:gl.info.memory.textures};
+  }
+  try{
+    const warm=await load(true);
+    // Six AB / BA pairs, no runtime, scene, mesh or material surviving a round.
+    for(let i=0;i<6;i++) for(const reuse of i%2?[true,false]:[false,true]){
+      const row=await load(reuse);
+      if(row.signature!==warm.signature || row.warnings!==warm.warnings || row.remainingTextures!==warm.remainingTextures || row.releases!==row.owned)throw Error(`Material/diagnostics/texture release mismatch: ${JSON.stringify({warm,row})}`);
+      rows.push(row);
+    }
+    cache.clear();const cleared=await load(true);
+    if(cleared.reads!==warm.reads || cleared.signature!==warm.signature)throw Error('Cleared cache did not reproduce initial readback and materials');
+    // Even a caller reusing one loader must get independent, disposable maps.
+    const loader=new ThreeMmdLoader({textureResolver:createLocalTextureResolver(pmx,files)}), a=await loader.loadModel(pmx);let b;
+    try{b=await loader.loadModel(pmx);const maps=m=>new Set([m.mesh.material].flat().map(x=>x.map).filter(Boolean));
+      const first=maps(a);if([...maps(b)].some(t=>first.has(t)))throw Error('Models share owned maps');
+    }finally{disposeLoadedModelObject(a);if(b)disposeLoadedModelObject(b);}
+    return {warm,rows,cleared};
+  }finally{p.drawImage=draw;p.getImageData=read;cache.clear();gl.dispose();gl.forceContextLoss();}
+};
+document.querySelector('button').onclick=async e=>{const b=e.currentTarget;b.disabled=true;try{document.querySelector('pre').textContent=JSON.stringify(await compare(),null,2);}catch(err){document.querySelector('pre').textContent=String(err);}finally{b.disabled=false;}};
+</script>

@@ -41,7 +41,17 @@ Look through the [leaded lily panes](./docs/screenshots/chapel-lily-glass.webp),
 
 Close views from the same camera, before (left) and after (right): [wisteria under the timber arbor](./docs/screenshots/wisteria-detail.webp) · [the meridian standard and enamel hour scale](./docs/screenshots/meridian-detail.webp).
 
+**Women’s hospital · a walkable gynecology and obstetrics floor**
+
+| Gynecology exam room | Operating room |
+| :---: | :---: |
+| ![Examination chair with leg rests, ultrasound console and privacy curtain.](./docs/screenshots/clinic-exam.webp) | ![Padded operating table under an articulated cluster of surgical lamps.](./docs/screenshots/clinic-or.webp) |
+
+From the [waiting hall](./docs/screenshots/clinic-entrance.webp), walk into either clinical room or the [women’s restroom](./docs/screenshots/clinic-wc.webp). Six original bilingual education plates are mounted across the ward. Choose **Tour viewpoints → Patient education wall** to see the [three waiting-room prints](./docs/screenshots/clinic-education.webp) or [look closer](./docs/screenshots/clinic-education-detail.webp).
+
 The gallery shows the built-in sets in screen mode, except for the classroom prep-page render. All show scenery without imported characters. See [how the scenery is made](./docs/scenery/README.md) for the modelling and texture workflow.
+
+**Handheld props:** [close-up sheet of all six in-game models](./docs/screenshots/handheld-closeups.webp), from the wound kite spool and ribbon mic grille to the stamp face and saber emitter.
 
 ## Features
 

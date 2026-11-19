@@ -19,6 +19,7 @@ export const zh = {
   guidePostVr:'对准三枚不同星印，每枚松开再握一次侧键。',guidePostScreen:'盖印需 VR 手柄；屏幕可把盖印器递给角色摆姿势。',guidePostEnd:'集齐三枚显出邮票，第一枚决定邮徽。',
   guideSaberVr:'轻握一次侧键展开光刃，松开再握一次收起。',guideSaberScreen:'在遗庭把光剑递给角色，光刃随腕骨移动。',guideSaberEnd:'在其他布景可拿剑柄摆姿势，光刃不展开。',
   actorPalmCloth:'角色手掌托裙摆（试验，需开物理）',
+  hudClinic:'妇科医院',clinicHall:'门诊候诊廊',clinicExam:'妇科诊室',clinicSurgery:'手术室',clinicRestroom:'女卫生间',clinicEducation:'候诊宣教墙',
   campusWindow:'从窗边望花架',campusHall:'走到连廊',campusGoLawn:'穿过连廊去草坪',campusSchool:'回望教学楼',campusArbor:'花架小径',campusGoClass:'沿连廊回教室',
   chapelWindow:'百合彩窗',chapelDoor:'从正门看花园',chapelGarden:'薰衣草水庭',chapelFacade:'池畔回望教堂',
   courtTour:'游览机位',courtOverview:'俯看星桥',courtNorth:'北侧观星台',courtWest:'西侧星图库',courtEast:'东侧测星台',courtReturn:'桥上回望圆庭',

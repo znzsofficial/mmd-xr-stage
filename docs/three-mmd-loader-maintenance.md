@@ -30,7 +30,7 @@
 - `syncRenderPalettes` 在整层级矩阵同步后按 Skeleton 身份去重，不跨 tick 缓存；`renderPaletteParity.test.ts` 覆盖多套绑定矩阵、代理重绑和两个运行时入口。Bullet 的可选 `onStepWork` 按成功调用采集输入、原生 step 和输出耗时，不改变 ABI 或子步规则。
 - 舞台额外开启 `coalescePhysicsWorldUpdates`。仅在外部物理生效、禁用快照时允许局部坐标求解段共用后续的显式世界矩阵更新。库默认保持原有行为。升级前复核 append / CCD 是否仍仅读局部姿态，保留 Bullet 输入前与输出后的更新；跑[真实动作骨矩阵、表情与蒙皮顶点配对回归](./performance/xr-runtime-performance.md#逐帧骨架更新与回场-vmd-复用)。
 - 原地切换需要 `createDetachedRuntime` 沿用加载器的 WASM／兼容求值器选择规则，`exchangeRuntime` 同时切换 `setAnimation`、`update`、`updateAsync` 和释放时读取的运行时。只替换公开的 `model.runtime` 无效，旧实现的方法闭包捕获另一个引用。升级需跑[真实切换对照](./performance/physics-toggle.md)。
-- 材质加载时，同一本地默认图片由多个材质复用：`materials.js` 的单次调用内保存透明度采样网格，`textures.js` 按原 UV 算法实际读取的像素中心收集 alpha。只复用图片采样，不复用不同材质的判断。最多 8 张 512² 单通道网格（2 MiB），没有跨放置／重建的缓存；opaque 的快速返回和无法读图的重试需保持原语义。升级后跑 `materialAlphaTileParity.test.ts` 和 `scripts/material-load-probe.html`。
+- 材质加载时只复用图片 alpha 采样，不复用各材质的 UV 判定。舞台另为同一观看内的重复加载提供有界缓存（最多 8 张、合计不超过 2 MiB），只接受同一 `File` 身份、尺寸匹配的静态 PNG。核对不可读重试、退出清理及默认贴图的释放。升级后跑 `materialAlphaTileParity.test.ts`、`roomAlphaTiles.test.ts` 和[真实回场探针](./performance/load-work-room-alpha.md)。
 
 上游仓库提交了 `package-lock.json`，其开发文档和 CI 均使用 npm。不要在 `E:\WebProjects\three-mmd-loader` 中使用 pnpm 更新依赖或 lockfile。NekoVirtOS 仍使用 pnpm。
 

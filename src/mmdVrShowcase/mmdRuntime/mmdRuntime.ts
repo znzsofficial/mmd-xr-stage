@@ -227,6 +227,7 @@ export function isMmdRuntimeRebuildError(error: unknown): error is MmdRuntimeReb
 }
 
 export type MmdRuntimeOptions = {
+  alphaTiles?: import('./roomAlphaTiles').RoomAlphaTiles;
   motionCache?: import('./roomMotionCache').RoomMotionCache;
   actorPalmCloth?:boolean|(()=>boolean);
   chestCompression?:()=>boolean;
@@ -258,6 +259,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
   const palmsRequested=()=>typeof options.actorPalmCloth==='function'?options.actorPalmCloth():options.actorPalmCloth===true;
   let disposed = false;
   let membershipGeneration = 0;
+  let clearGeneration = 0; // simultaneous adds are valid; a clear retires all pending adds
   const assertActive = () => {
     if (disposed) throw new DOMException("MMD runtime disposed", "AbortError");
   };
@@ -444,6 +446,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
 
     const loader = new ThreeMmdLoader({
       textureResolver,
+      localPngAlphaTiles: options.alphaTiles?.forLoad(stale),
       performance: work ? placementLoaderProfile(work) : undefined,
       runtime: runtimeOptions,
       ...(withPhysics ? { runtimeFactory: () => new DefaultMmdRuntime(runtimeOptions) } : {}),
@@ -703,6 +706,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
     },
     clearAll() {
       membershipGeneration++;
+      clearGeneration++;
       for (const id of [...entries.keys()]) removeEntry(id);
       selectedId = null;
       duration = 0;
@@ -710,6 +714,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
     },
     async addModel(modelFile, companionFiles = [], options = {}) {
       membershipGeneration++;
+      const generation = clearGeneration;
       physicsWanted = Boolean(options.physics ?? physicsWanted);
       const base: MmdModelTransform = {
         ...DEFAULT_MODEL_TRANSFORM,
@@ -723,7 +728,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
         physicsWanted,
         transform,
         options.preferredId,
-        options.isStale,
+        () => generation !== clearGeneration || options.isStale?.() === true,
         options.work,
       );
       membershipGeneration++;
