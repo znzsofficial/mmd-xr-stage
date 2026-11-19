@@ -10,6 +10,7 @@ export const zh = {
   watchDetails:'详情',
   watchMenu:'菜单',watchArrange:'摆位置',watchExperiments:'实验功能',watchStart:'先选场景，再从背包放角色。',watchRecall:'右手 B 呼出菜单；手追可抬起左腕或低头点「菜单」。',
   toyClubName:'Live House',toyStudioName:'简易地台',
+  toyDildo:'硅胶假阳具',allSets:'所有布景',guideDildoVr:'握住底座摆姿，无需按侧握键。',guideDildoScreen:'可递给角色，在角色工具里调整握姿。',guideDildoEnd:'收回或切景时，手持道具归还背包。',
   toyGuide:'用法',toyCloseGuide:'关闭说明',toyShelfRule:'各景都可拿取或递给角色。',toyShelfHome:'生效地点：',visitSaber:'去星环遗庭',
   toyGuideEquip:'扳机点「左手拿」或「右手拿」，不用换景。',toyGuideGive:'扳机点角色 → 递道具 → 选角色的手。',toyGuideScreenGive:'选中已放置的角色，在「角色道具」选道具和左右手。',
   guideKiteVr:'在草坪拿起线轴，轻握侧键换风向。',guideKiteScreen:'在草坪背包点「左风签」或「右风签」放飞。',guideKiteEnd:'递给角色后线随手走；收回线轴，纸鸢落下。',

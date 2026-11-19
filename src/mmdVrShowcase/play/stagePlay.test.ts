@@ -5,7 +5,7 @@ const get=useStagePlay.getState;
 beforeEach(()=>get().reset());
 describe('lunar postcard and held tools',()=>{
   it('lists every toy once and gives the same story prop across both wrists',()=>{
-    expect(new Set(shelfToys)).toEqual(new Set(['bubbles','post','saber','kite','encore']));expect(shelfToys).toHaveLength(5);
+    expect(new Set(shelfToys)).toEqual(new Set(['bubbles','post','saber','kite','encore','dildo']));expect(shelfToys).toHaveLength(6);
     for(const room of ['pool','lawn','liveHouse'] as const){const toy=STORIES[room].toy;
       expect(TOYS[toy].home).toBe(room);
       get().equip(toy,'left');get().give('actor','right');get().give('actor','left');expect(get().character).toMatchObject({toy,assetId:'actor',hand:'left'});expect(get().held).toBeNull();get().stow();

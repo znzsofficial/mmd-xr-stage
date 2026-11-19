@@ -72,6 +72,7 @@ export async function createBulletPhysicsBackend(options: {
   simulationDelta?: () => number | undefined;
   modelScale?: () => number;
   onPhysicsBones?: PhysicsBoneObserver;
+  onEligibleColliders?: (mask:number)=>void;
   onBulletStepWork?: (feedMs:number,worldStepMs:number,outputsMs:number,seedOnly:boolean)=>void;
   quality?: () => MmdPhysicsQuality;
   controllerFriction?: () => number;
@@ -89,7 +90,7 @@ export async function createBulletPhysicsBackend(options: {
     module as Parameters<typeof createCustomBulletMmdPhysicsBackend>[0],
     backendOptions,
   );
-  const diagnosticBackend = createPhysicsDiagnosticsBackend(bulletBackend, options.simulationDelta, options.onPhysicsBones, options.modelScale);
+  const diagnosticBackend = createPhysicsDiagnosticsBackend(bulletBackend, options.simulationDelta, options.onPhysicsBones, options.modelScale, options.onEligibleColliders);
   const backend = options.dynamicSelfCollision
     ? createDynamicSelfCollisionPhysicsBackend(diagnosticBackend)
     : diagnosticBackend;
@@ -119,7 +120,7 @@ export async function createBulletPhysicsBackend(options: {
     : colliderBackend;
 }
 
-export function createPhysicsDiagnosticsBackend(backend: MmdPhysicsBackend, simulationDelta?: () => number | undefined, onPhysicsBones?: PhysicsBoneObserver, modelScale = () => 1): MmdPhysicsBackend & MmdRuntimePhysicsDiagnostics {
+export function createPhysicsDiagnosticsBackend(backend: MmdPhysicsBackend, simulationDelta?: () => number | undefined, onPhysicsBones?: PhysicsBoneObserver, modelScale = () => 1, onEligibleColliders?:(mask:number)=>void): MmdPhysicsBackend & MmdRuntimePhysicsDiagnostics {
   const native = backend as MmdPhysicsBackend & { readRigidBodyCenters?: (indices: readonly number[], out: Float32Array) => boolean };
   const guard = native.readRigidBodyCenters ? new ColliderReentry(native.readRigidBodyCenters.bind(native), modelScale) : null;
   let rigidBodyCount = 0;
@@ -147,7 +148,8 @@ export function createPhysicsDiagnosticsBackend(backend: MmdPhysicsBackend, simu
         }
       }
       const dt = simulationDelta?.();
-      guard?.apply(context, context.seeking ? 0 : dt ?? context.deltaSeconds);
+      const accepted=guard?.apply(context, context.seeking ? 0 : dt ?? context.deltaSeconds)??0;
+      onEligibleColliders?.(accepted);
       const result = dt == null || context.seeking || dt === context.deltaSeconds
         ? backend.step(context)
         : backend.step({ ...context, deltaSeconds: dt });

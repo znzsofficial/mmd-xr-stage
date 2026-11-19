@@ -22,7 +22,7 @@ function ScreenToyGuide({toy,room,locked,close}:{toy:Toy;room:SceneryId;locked:b
   return <dialog ref={dialog} className="screen-guide-dialog" aria-labelledby="toy-guide-title" onCancel={e=>{e.preventDefault();e.stopPropagation();close();}}>
     <h3 id="toy-guide-title">{t(item.label)} · {t('toyGuide')}</h3><p>{t('toyShelfHome')}{t(toyHomeLabel[toy])}</p>
     <p>{t('toyGuideScreenGive')}</p><p>{t(screen)}</p><p><strong>VR</strong> · {t(vr)}</p><p>{t(end)}</p>
-    <div className="screen-buttons"><button autoFocus onClick={close}>{t('toyCloseGuide')}</button>{room!==item.home&&<button disabled={locked} onClick={()=>{close();useMmdVrStore.getState().setPrefs({scenery:item.home});}}>{t(item.visit)}</button>}</div>
+    <div className="screen-buttons"><button autoFocus onClick={close}>{t('toyCloseGuide')}</button>{item.home&&room!==item.home&&<button disabled={locked} onClick={()=>{close();useMmdVrStore.getState().setPrefs({scenery:item.home});}}>{t(item.visit)}</button>}</div>
   </dialog>;
 }
 

@@ -13,6 +13,7 @@ import { PhysicsPoseDisplay } from "./physicsPoseDisplay";
 import { PARK_Y } from "./colliderReentry";
 import { configureActorPalms } from './actorPalms';
 import {fitChestCompression} from './chestCompression';
+import {TrackedPressure} from './trackedPressure';
 import { createLocalTextureResolver } from "./localTextureResolver";
 export { createLocalTextureResolver } from "./localTextureResolver";
 import { createBulletPhysicsBackend, type ColliderShapeFactory, type MmdPhysicsQuality } from "./mmdPhysics";
@@ -126,6 +127,8 @@ export type MmdRuntimeHandle = {
 
 type RuntimeEntryWithPhysics = RuntimeEntry & {
   chest?:ReturnType<typeof fitChestCompression>;
+  handEligibility:{mask:number};
+  trackedPressure?:TrackedPressure;
   bindPose: Float64Array;
   createWorld: (display: PhysicsPoseDisplay) => Promise<MmdPhysicsBackend>;
   physicsDisplay?: PhysicsPoseDisplay;
@@ -407,13 +410,15 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
     );
     // One Bullet world per model (library world holds a single uploaded model identity).
     const physicsDisplay = withPhysics ? new PhysicsPoseDisplay() : undefined;
+    const handEligibility={mask:0};
     const createWorld = (display: PhysicsPoseDisplay) => createBulletPhysicsBackend({
           controllerColliders: colliderProvider,
           controllerRadius: () => {
             const scale = Math.min(10, Math.max(0.01, Number(colliderRoot?.userData.mmdVisualScale) || transform.scale));
             return (controllerColliderRadius?.() ?? 0.08) / scale;
           },
-          handColliders: handColliderProvider,
+           handColliders: handColliderProvider,
+           onEligibleColliders:handColliderProvider ? mask=>{handEligibility.mask=mask >>> (colliderProvider?2:0);} : undefined,
           handShape: options.handShape,
           simulationDelta: () => stepDelta,
           modelScale: () => Math.min(10, Math.max(0.01, Number(colliderRoot?.userData.mmdVisualScale) || transform.scale)),
@@ -508,7 +513,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       companionFiles: companionFiles.length ? [...companionFiles] : [modelFile],
       physicsBackend,
       physicsDisplay,
-      bindPose, createWorld,
+      bindPose, createWorld, handEligibility,
     };
     model.root.userData.mmdVisualScale = entry.transform.scale;
     // Tag root + meshes so post FX (DOF lock / selective bloom) can target a model id.
@@ -958,6 +963,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
         }
 
         const hasBodyMotion = entry.bodyAnimation != null;
+        entry.handEligibility.mask=0;
         stepDelta = physicsOn ? physicsDelta : undefined;
         try {
           entry.model.update(seconds, { physics: physicsOn, ik: hasBodyMotion });
@@ -972,9 +978,17 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
           lastPhysicsSeconds.delete(entry.id);
         }
 
-        if(hasBodyMotion && options.chestCompression?.()){
+        const dancePressure=hasBodyMotion && !!options.chestCompression?.();
+        const handMask=physicsOn ? entry.handEligibility.mask : 0;
+        // Continue the release even after all tracked slots disappeared. No
+        // tracking history or contact query is needed in controller-only VR.
+        if(dancePressure || handMask || (physicsOn && entry.trackedPressure)){
           if(entry.chest===undefined)entry.chest=fitChestCompression(entry.model.mesh);
-          if(entry.chest?.apply(seconds,physicsDelta,reseed||(physicsOn&&reset)))entry.model.mesh.skeleton.update();
+          if(entry.chest && handMask && handColliders){
+            entry.trackedPressure??=new TrackedPressure();
+            entry.trackedPressure.prepare(handColliders(),handMask,handColliderRadius?.()??.033);
+          }else if(entry.trackedPressure)entry.trackedPressure.mask=0;
+          if(entry.chest?.apply(seconds,physicsDelta,reseed||(physicsOn&&reset),dancePressure,entry.trackedPressure))entry.model.mesh.skeleton.update();
         }else entry.chest?.reset();
         // Face / manual morphs after skeleton + physics.
         applyMorphOverrides(entry);

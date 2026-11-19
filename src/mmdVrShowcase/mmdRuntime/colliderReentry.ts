@@ -22,7 +22,7 @@ export class ColliderReentry {
   apply(context: MmdPhysicsStepContext, dt: number) {
     const { rigidBodies, inputWorldMatricesColumnMajor: matrices } = context;
     // Both collider wrappers own the appended Float32Array tail, in copied and direct mode.
-    if (!rigidBodies || !(matrices instanceof Float32Array)) return;
+    if (!rigidBodies || !(matrices instanceof Float32Array)) return 0;
     if (this.bodies !== rigidBodies) {
       this.bodies = rigidBodies;
       this.slots = []; this.dynamic = []; this.radii = [];
@@ -37,12 +37,15 @@ export class ColliderReentry {
     }
     let valid: boolean | undefined;
     const scale = this.modelScale(), jumpSq = (0.40 / scale) ** 2, clearance = .04 / scale;
-    for (const slot of this.slots) {
+    let accepted=0;
+    for (let n=0;n<this.slots.length;n++) {
+      const slot=this.slots[n];
       const i = slot.offset, x = matrices[i], y = matrices[i+1], z = matrices[i+2];
       const parked = x === 0 && y === PARK_Y && z === 0;
       if (parked || (slot.seen && (x-slot.x)**2 + (y-slot.y)**2 + (z-slot.z)**2 > jumpSq)) slot.cooling = 2/60;
       slot.x = x; slot.y = y; slot.z = z; slot.seen = true;
-      if (parked || slot.cooling <= 0) continue;
+      if (parked) continue;
+      if (slot.cooling <= 0) {accepted|=1<<n;continue;}
       // Read native dynamic centers only on recovery, once per model/step, shared by all slots.
       valid ??= this.readCenters(this.dynamic, this.centers);
       let clear = valid;
@@ -50,11 +53,12 @@ export class ColliderReentry {
         const r = slot.radius + this.radii[j] + clearance;
         clear = (x-this.centers[3*j])**2 + (y-this.centers[3*j+1])**2 + (z-this.centers[3*j+2])**2 > r*r;
       }
-      if (clear) slot.cooling -= Math.max(0, dt);
+      if (clear) {slot.cooling -= Math.max(0, dt);if(slot.cooling<=0)accepted|=1<<n;}
       else {
         matrices[i] = 0; matrices[i+1] = PARK_Y; matrices[i+2] = 0;
         slot.cooling = 2/60;
       }
     }
+    return accepted;
   }
 }

@@ -1,6 +1,6 @@
 import { useFrame } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
-import { DynamicDrawUsage, Group, InstancedMesh, Matrix4, Mesh, Object3D, Vector3 } from 'three';
+import { DynamicDrawUsage, Group, InstancedMesh, Matrix4, Mesh, Object3D, Vector2, Vector3 } from 'three';
 import { useBackpack } from '../backpack';
 import { useHudWorldInput } from '../components/hudWorldInput';
 import { useMmdVrStore } from '../mmdVrStore';
@@ -13,7 +13,10 @@ import { squeezeStory } from './storyActions';
 import { StoryStations } from './StoryStations';
 
 const CAP=24;
+// Single smooth silicone shell. Origin lies in the grip, common to controller and wrist.
+const siliconeProfile=[[0,-46],[28,-46],[33,-44],[34,-41],[31,-38],[22,-36],[18,-30],[17,-18],[17,0],[18,24],[19,52],[18,78],[17,90],[18.5,95],[19,99],[18,104],[15,110],[10,115],[4,118],[0,119]].map(([r,y])=>new Vector2(r/1000,y/1000));
 export function PlayPiece({toy}:{toy:Toy}) {
+  if(toy==='dildo')return <mesh name="play:piece:dildo" rotation-x={-.38} position={[0,.01,-.035]}><latheGeometry args={[siliconeProfile,32]}/><meshStandardMaterial color="#9877ab" roughness={.52}/></mesh>;
   if(toy==='saber')return <AstralSaber/>;
   if(toy==='kite')return <KiteReel/>;
   if(toy==='encore')return <EncoreMic/>;

@@ -12,6 +12,7 @@ export const en: Record<keyof ZhMessages, string> = {
   watchDetails:'Details',
   watchMenu:'Menu',watchArrange:'Arrange',watchExperiments:'Experiments',watchStart:'Choose a set, then place a character from your backpack.',watchRecall:'Press right B for controls. With hands, raise your left wrist or look down for Menu.',
   toyClubName:'Live House',toyStudioName:'Studio plinth',
+  toyDildo:'Silicone dildo',allSets:'All sets',guideDildoVr:'Hold the base to pose. No grip action needed.',guideDildoScreen:'Give it to a character and adjust the grip.',guideDildoEnd:'Stowing or changing sets returns it to the backpack.',
   toyGuide:'How to use',toyCloseGuide:'Close guide',toyShelfRule:'Take or give any prop in any set.',toyShelfHome:'Active in: ',visitSaber:'To Astral Court',
   toyGuideEquip:'Trigger Left hand or Right hand in any set.',toyGuideGive:'Point at a character → Give prop → choose its hand.',toyGuideScreenGive:'Select a placed character, then choose its prop and wrist.',
   guideKiteVr:'In the meadow, squeeze the reel to change the wind.',guideKiteScreen:'Choose Left wind or Right wind in the meadow backpack.',guideKiteEnd:'The line follows the wrist. Stow the reel to end the flight.',
