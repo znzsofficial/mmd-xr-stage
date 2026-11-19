@@ -1,8 +1,8 @@
 # 会话交接｜2026-11-19
 
-[线上舞台](https://mmd-xr-stage.pages.dev) · [固定功能版 `be863f1`](https://5cf5f2cd.mmd-xr-stage.pages.dev) · [分类文档索引](./README.md)
+[线上舞台](https://mmd-xr-stage.pages.dev) · [固定功能版 `14b2927`](https://1b132bfd.mmd-xr-stage.pages.dev) · [分类文档索引](./README.md)
 
-**线上基线**：观看默认净场。B → 更多打开「自己／重力／画质」左侧栏，默认显示身高和行走速度；角色工具仍在角色旁。真实扳机事件的模拟 XR 已验证侧栏切换、调身高、展开物理参数、切画面效果与恢复净场，生产构建及主域名 44 项资源哈希通过。[操作](./gameplay/vr-controls.md) · [校园连廊](./performance/campus-passage.md)
+**线上基线**：用户选择按对象分类：B → 更多 → 玩家／角色／环境。废弃的碰撞覆盖不再读取，显示手模型和菜单射线独立，接触调校在进场前。准备页设备、预设和运行中面板分别维护。291 项测试、模拟手模型隐藏后捏合召回、角色物理与拨衣开关、真 Bullet 接触回归、屏幕及生产构建通过，主域名 44 项资源哈希一致。[操作](./gameplay/vr-controls.md) · [清理依据](./gameplay/settings-audit.md) · [校园连廊](./performance/campus-passage.md)
 
 ## 下次从这里开始
 
