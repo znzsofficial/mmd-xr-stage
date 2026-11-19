@@ -1,0 +1,31 @@
+<!doctype html><meta charset="utf-8"><title>Paired CPU playback</title>
+<p>Local PMX, its textures and a VMD. Independent Bullet worlds, same time and pose, alternating run order. No renderer.</p>
+<input type="file" multiple><button>Compare</button><pre></pre>
+<script type="module">
+import * as T from 'three';
+import {createMmdRuntimeHandle} from '../src/mmdVrShowcase/mmdRuntime/mmdRuntime.ts';
+import {prepareMmdVrModel} from '../src/mmdVrShowcase/prepareMmdVrModel.ts';
+import {handContactShape,handReferenceRadius} from '../src/mmdVrShowcase/handContactProfile.ts';
+window.compare=async()=>{
+ const files=[...document.querySelector('input').files],pmx=files.find(f=>/\.pmx$/i.test(f.name)),vmd=files.find(f=>/\.vmd$/i.test(f.name));if(!pmx||!vmd)throw Error('Select a model and motion.');
+ const camera=new T.PerspectiveCamera(),park=new T.Matrix4().makeTranslation(0,-1000,0),controllers=[park,park],hands=Array(12).fill(park),variants=[];
+ const mean=a=>a.reduce((s,v)=>s+v,0)/a.length,p95=a=>[...a].sort((x,y)=>x-y)[Math.ceil(.95*a.length)-1];
+ try{for(const coalesce of [false,true]){const row={coalesce,time:[],blocks:[],anim:0,world:0,propagations:0,sampling:false},scene=new T.Scene(),light=new T.DirectionalLight();light.position.set(-3,4.2,4.8);scene.add(light);
+   const rt=row.rt=createMmdRuntimeHandle(scene,{coalescePhysicsWorldUpdates:coalesce,prepareModel:prepareMmdVrModel,controllerColliders:()=>controllers,handColliders:()=>hands,handShape:handContactShape,handColliderRadius:()=>handReferenceRadius(.08),onPhysicsPoseWork(a){if(row.sampling)row.anim+=a;},onBulletStepWork(f,s){if(row.sampling)row.world+=s;}});variants.push(row);
+   const {modelId}=await rt.addModel(pmx,files,{physics:true,transform:{scale:.1}});rt.setLighting({directionalLight:light,envIntensity:0,ambientIntensity:.52});await rt.loadMotion(vmd,'body',modelId);
+   rt.getModelRoot(modelId).traverse(n=>{if(!row.mesh&&n.isSkinnedMesh)row.mesh=n});const mesh=row.mesh,original=mesh.updateWorldMatrix;
+   mesh.updateWorldMatrix=function(parents,children,...rest){if(row.sampling&&children)row.propagations++;return original.call(this,parents,children,...rest);};
+ }
+ let compared=0,vertexSamples=0;const va=new T.Vector3(),vb=new T.Vector3();for(let block=-6;block<24;block++){
+   for(const row of (block%2?[variants[1],variants[0]]:variants)){const len=row.time.length;row.sampling=block>=0;
+     for(let i=0;i<40;i++){const frame=(block+6)*40+i,sec=(frame/72)%row.rt.duration,start=performance.now();row.rt.update(sec,true,camera,1,false,1/72);if(row.sampling)row.time.push(performance.now()-start);}
+     if(row.sampling)row.blocks.push(mean(row.time.slice(len)));
+   }
+   const [a,b]=variants.map(r=>r.mesh);for(let j=0;j<a.skeleton.bones.length;j++){const aa=a.skeleton.bones[j].matrixWorld.elements,bb=b.skeleton.bones[j].matrixWorld.elements;for(let k=0;k<16;k++){if(aa[k]!==bb[k]||!Number.isFinite(aa[k]))throw Error('Matrix mismatch');compared++;}}
+   for(let j=0;j<(a.morphTargetInfluences?.length??0);j++){if(a.morphTargetInfluences[j]!==b.morphTargetInfluences[j])throw Error('Morph mismatch');compared++;}
+   const n=a.geometry.getAttribute('position').count;for(let j=0;j<Math.min(64,n);j++){const i=Math.floor(j*n/Math.min(64,n));a.getVertexPosition(i,va);b.getVertexPosition(i,vb);if(!va.equals(vb)||!Number.isFinite(va.lengthSq()))throw Error('Skinned vertex mismatch');vertexSamples++;}
+ }
+ return {compared,vertexSamples,pairedWins:variants[1].blocks.filter((v,i)=>v<variants[0].blocks[i]).length,rows:variants.map(r=>({coalesce:r.coalesce,mean:mean(r.time),p95:p95(r.time),anim:r.anim/r.time.length,world:r.world/r.time.length,meshPasses:r.propagations/r.time.length}))};
+ }finally{for(const r of variants)r.rt.dispose();}
+};document.querySelector('button').onclick=async e=>{const b=e.target;b.disabled=true;try{document.querySelector('pre').textContent=JSON.stringify(await window.compare(),null,2);}finally{b.disabled=false;}};
+</script>

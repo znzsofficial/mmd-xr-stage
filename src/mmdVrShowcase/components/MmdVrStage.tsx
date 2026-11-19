@@ -26,6 +26,7 @@ import { DawnChapel } from '../scenery/DawnChapel';
 import { CHAPEL_SUN } from '../scenery/ChapelLayout';
 import {xrRoomRestoreTiming} from '../roomRestoreTiming';
 import {hasStageLamps} from '../settings/stageLamps';
+import {createRoomMotionCache,type RoomMotionCache} from '../mmdRuntime/roomMotionCache';
 import { prepareModelGpu } from "../prepareModelGpu";
 import { createPlacementWork } from '../placementWork';
 import { DaylightSet, DaySky, SUN_POSITIONS } from "../scenery/DaylightSets";
@@ -281,6 +282,8 @@ function StageLightPool({ color, opacity }: { color: string; opacity: number }) 
 }
 
 export function MmdVrStageContent() {
+  const motionCache=useMemo(()=>createRoomMotionCache(),[]);
+  useEffect(()=>()=>motionCache.clear(),[motionCache]);
   const scenery = useMmdVrStore(s => s.prefs.scenery);
   // A→B→A may batch into a single React render. The old A's command and
   // loader closures must still retire, even though the final scenery is A.
@@ -289,11 +292,11 @@ export function MmdVrStageContent() {
   const initial = useRef({ scenery, saved: useMmdVrStore.getState().resumeStage, slots: getMmdVrSessionAssets() });
   const saved = useBackpack.getState().layouts[scenery] ?? (initial.current.scenery === scenery ? initial.current.saved : null);
   const slots = saved?.assets ?? (initial.current.scenery === scenery ? initial.current.slots : []);
-  return <MmdVrStageRoom key={`${scenery}:${generation}`} scenery={scenery} saved={saved} slots={slots} />;
+  return <MmdVrStageRoom key={`${scenery}:${generation}`} scenery={scenery} saved={saved} slots={slots} motionCache={motionCache} />;
 }
 
 /** A single room owns a runtime: late restores and physics rebuilds can never target a new room's actors. */
-export function MmdVrStageRoom({ scenery, saved, slots }: { scenery: SceneryId; saved: StageSnapshot | null; slots: readonly MmdVrAssetSlot[] }) {
+export function MmdVrStageRoom({ scenery, saved, slots, motionCache }: { scenery: SceneryId; saved: StageSnapshot | null; slots: readonly MmdVrAssetSlot[]; motionCache?:RoomMotionCache }) {
   const { scene, camera, size, gl } = useThree();
   const { accent } = useMmdVrTheme();
   const mmdPrefs = useMmdVrStore((s) => s.prefs);
@@ -409,6 +412,7 @@ export function MmdVrStageRoom({ scenery, saved, slots }: { scenery: SceneryId; 
 
   const runtime = useMemo(() => {
     const handle = createMmdRuntimeHandle(scene, {
+      motionCache,
       actorPalmCloth: useMmdVrStore.getState().prefs.actorPalmCloth,
       onPhysicsPoseWork: useMmdVrStore.getState().presentation==='xr' ? runtimeTiming.recordPose : undefined,
       onBulletStepWork: useMmdVrStore.getState().presentation==='xr' ? runtimeTiming.recordBullet : undefined,

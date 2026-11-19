@@ -156,7 +156,7 @@ index 35ad7804839e458df2f66bb413622f48815ead55..66b52bd4fd944fc5511e4f48dc6b3d78
          const bodies = context.rigidBodies;
          if (!bodies)
 diff --git a/dist/runtime/core.js b/dist/runtime/core.js
-index 0f31e1ab87080db0144c0b85e3b35a549b50a5b2..d0a33aebf0aee8ff56f06c726910357d586747aa 100644
+index 0f31e1ab87080db0144c0b85e3b35a549b50a5b2..6ffad49ce0a2de92f6ff75947c65dbfd2873f7d0 100644
 --- a/dist/runtime/core.js
 +++ b/dist/runtime/core.js
 @@ -1,4 +1,5 @@
@@ -165,11 +165,12 @@ index 0f31e1ab87080db0144c0b85e3b35a549b50a5b2..d0a33aebf0aee8ff56f06c726910357d
  import { validateMorphOverrides } from "./morphOverrides.js";
  import { writeBonePhysicsToggleBuffer } from "../physics/legacyPhysicsBridge.js";
  import { applyMmdAnimation, isMmdAnimation, preparePreAppendTransforms, sampleMmdCameraTrackInto, sampleMmdLightTrackInto } from "./animation.js";
-@@ -109,12 +110,16 @@ export class DefaultMmdRuntime {
+@@ -109,30 +110,40 @@ export class DefaultMmdRuntime {
          localRotation: new THREE.Quaternion()
      };
      constructor(options = {}) {
 +        this.captureStageSnapshots = options.captureStageSnapshots !== false;
++        this.coalescePhysicsWorldUpdates = options.coalescePhysicsWorldUpdates === true && !this.captureStageSnapshots;
 +        this.onPhysicsPoseWork = options.onPhysicsPoseWork;
          this.frameRate = normalizeFrameRate(options.frameRate ?? 30);
          this.physicsMode = options.physics ?? "none";
@@ -182,7 +183,34 @@ index 0f31e1ab87080db0144c0b85e3b35a549b50a5b2..d0a33aebf0aee8ff56f06c726910357d
          if (options?.morphOverrides) {
              const morphs = this.mesh ? readMmdMeshRuntimeData(this.mesh).mmdMorphs : undefined;
              validateMorphOverrides(options.morphOverrides, Array.isArray(morphs) ? morphs.length : this.mesh?.morphTargetInfluences?.length ?? 0);
-@@ -141,7 +146,7 @@ export class DefaultMmdRuntime {
+         }
+         const previousSeconds = this.state.seconds;
++        // Append and the CCD bridge consume local transforms. Bullet refreshes
++        // the complete hierarchy immediately before it
++        // reads matrices. Keep the final post-physics barrier for evaluate/tick.
++        const defer = this.coalescePhysicsWorldUpdates && options?.physics !== false &&
++            this.externalPhysicsData && this.physicsBackend && !this.physicsBackend.disabled && !this.physicsBackend.disposed;
+         writeFrameState(this.state, seconds, this.frameRate);
+         if (this.mesh && (this.mmdAnimation || options?.morphOverrides || this.hadMorphOverrides)) {
+             this.applyCurrentMmdAnimation(this.state.frame, options?.morphOverrides);
+             this.updateCurrentIkStates(this.state.frame);
+-            this.captureDebugStage("vmdInterpolation");
++            if (!defer) this.captureDebugStage("vmdInterpolation");
+         }
+         this.hadMorphOverrides = (options?.morphOverrides?.indices.length ?? 0) > 0;
+         this.applyCurrentAppendTransforms();
+-        this.captureDebugStage("appendTransform");
++        if (!defer) this.captureDebugStage("appendTransform");
+         if (options?.ik !== false) {
+-            this.solveIk();
++            this.solveIk(!defer);
+         }
+-        this.captureDebugStage("ik");
++        if (!defer) this.captureDebugStage("ik");
+         if (options?.physics === false) {
+             if (!this.physicsDisabled) {
+                 this.resetPhysicsState();
+@@ -141,7 +152,7 @@ export class DefaultMmdRuntime {
          }
          else {
              this.stepStatefulSpringPhysics();
@@ -191,7 +219,7 @@ index 0f31e1ab87080db0144c0b85e3b35a549b50a5b2..d0a33aebf0aee8ff56f06c726910357d
              this.physicsDisabled = false;
          }
          this.mesh?.skeleton.update();
-@@ -165,7 +170,7 @@ export class DefaultMmdRuntime {
+@@ -165,7 +176,7 @@ export class DefaultMmdRuntime {
              evaluateOptions = meshOrOptions;
          }
          const state = this.evaluate(seconds, evaluateOptions);
@@ -200,7 +228,29 @@ index 0f31e1ab87080db0144c0b85e3b35a549b50a5b2..d0a33aebf0aee8ff56f06c726910357d
          return state;
      }
      seek(seconds) {
-@@ -471,13 +476,14 @@ export class DefaultMmdRuntime {
+@@ -316,10 +327,10 @@ export class DefaultMmdRuntime {
+             transform.quaternion.copy(bone.quaternion);
+         }
+     }
+-    solveIk() {
++    solveIk(propagate = true) {
+         const chains = this.currentEnabledIkChains();
+         if (!this.hasHandTwistIkChain()) {
+-            const sourceBoneIndices = solvePreparedIk(this.mesh, this.ikSolver, chains, this.scratchIk);
++            const sourceBoneIndices = solvePreparedIk(this.mesh, this.ikSolver, chains, this.scratchIk, propagate);
+             this.reapplyCurrentAppendTransformsForSources(sourceBoneIndices);
+             return sourceBoneIndices;
+         }
+@@ -328,7 +339,7 @@ export class DefaultMmdRuntime {
+         for (const chain of chains) {
+             this.scratchSingleIkChain[0] = chain;
+             this.scratchSingleIkChain.length = 1;
+-            const chainSourceBoneIndices = solvePreparedIk(this.mesh, this.ikSolver, this.scratchSingleIkChain, this.scratchIk);
++            const chainSourceBoneIndices = solvePreparedIk(this.mesh, this.ikSolver, this.scratchSingleIkChain, this.scratchIk, propagate);
+             for (const index of chainSourceBoneIndices) {
+                 changedBoneIndices.add(index);
+             }
+@@ -471,13 +482,14 @@ export class DefaultMmdRuntime {
              }
          }
      }
@@ -216,7 +266,7 @@ index 0f31e1ab87080db0144c0b85e3b35a549b50a5b2..d0a33aebf0aee8ff56f06c726910357d
          mesh.updateWorldMatrix(false, true);
          const boneCount = mesh.skeleton.bones.length;
          const directBuffers = acquireDirectStepBuffersIfPossible(backend, data, boneCount);
-@@ -516,7 +522,10 @@ export class DefaultMmdRuntime {
+@@ -516,7 +528,10 @@ export class DefaultMmdRuntime {
              inputWorldMatricesColumnMajor = extractMmdWorldMatricesIntoFloat32(mesh, directBuffers.inputWorldMatricesColumnMajor);
          }
          else {
@@ -228,7 +278,7 @@ index 0f31e1ab87080db0144c0b85e3b35a549b50a5b2..d0a33aebf0aee8ff56f06c726910357d
              this.scratchExternalPhysicsInput.worldMatricesColumnMajor = inputWorldMatricesColumnMajor;
          }
          const prePhysics = createPrePhysicsInputBuffersIfNeeded(data.skeleton, inputTranslations, inputRotations, inputWorldMatricesColumnMajor, this.scratchPrePhysics);
-@@ -579,7 +588,9 @@ export class DefaultMmdRuntime {
+@@ -579,7 +594,9 @@ export class DefaultMmdRuntime {
              bonePhysicsToggles: bonePhysicsToggleBuffer,
              morphImpulses: data.morphImpulses
          };
@@ -238,7 +288,7 @@ index 0f31e1ab87080db0144c0b85e3b35a549b50a5b2..d0a33aebf0aee8ff56f06c726910357d
          const updatedBoneCount = result.updatedBoneCount ?? context.output?.updatedBoneIndices?.length ?? 0;
          if (!result.simulated && updatedBoneCount === 0) {
              return;
-@@ -588,6 +599,7 @@ export class DefaultMmdRuntime {
+@@ -588,6 +605,7 @@ export class DefaultMmdRuntime {
              mergePhysicsOutputDeltas(context, inputTranslations, inputRotations, prePhysics, this.scratchPrePhysics);
          }
          applyPhysicsOutputToSkeleton(mesh, context, updatedBoneCount);
@@ -246,7 +296,7 @@ index 0f31e1ab87080db0144c0b85e3b35a549b50a5b2..d0a33aebf0aee8ff56f06c726910357d
      }
      resetPhysicsState() {
          this.physicsSimulation?.reset(this.state.seconds);
-@@ -595,6 +607,11 @@ export class DefaultMmdRuntime {
+@@ -595,6 +613,11 @@ export class DefaultMmdRuntime {
      }
      captureDebugStage(stage) {
          const mesh = this.mesh;
@@ -258,7 +308,7 @@ index 0f31e1ab87080db0144c0b85e3b35a549b50a5b2..d0a33aebf0aee8ff56f06c726910357d
          if (!mesh) {
              clearDebugStage(this.debugStages[stage]);
              return;
-@@ -617,32 +634,9 @@ function findPropertyFrameIndex(frames, frame) {
+@@ -617,32 +640,9 @@ function findPropertyFrameIndex(frames, frame) {
      }
      return Math.max(0, high);
  }
@@ -406,6 +456,65 @@ index abe9f161ac754ef03e832e83c2d9d2a03aefd27a..1392645f449e1b978299c328e4ced859
  function composeWorldMatrices(bones, translations, rotations, matrices, local, states) {
      if (isParentBeforeChildOrdered(bones)) {
          for (let index = 0; index < bones.length; index += 1) {
+diff --git a/dist/runtime/ik-bridge.js b/dist/runtime/ik-bridge.js
+index b3ab27eadf5d220e7a5d5817202fd3a7e77de14c..37bf5ff7ce9ab43379036db10edf4cc55ce299ad 100644
+--- a/dist/runtime/ik-bridge.js
++++ b/dist/runtime/ik-bridge.js
+@@ -5,11 +5,29 @@ function readIkChains(mesh) {
+     return Array.isArray(chains) ? chains.filter(isRuntimeIkChain) : [];
+ }
+ function createCcdIkStaticBones(mesh) {
++    const indices = indexBones(mesh.skeleton.bones);
+     return mesh.skeleton.bones.map((bone) => ({
+-        parentIndex: bone.parent instanceof THREE.Bone ? mesh.skeleton.bones.indexOf(bone.parent) : -1,
++        parentIndex: bone.parent instanceof THREE.Bone ? (indices.get(bone.parent) ?? -1) : -1,
+         translation: [0, 0, 0]
+     }));
+ }
++// Preserve indexOf's first-match semantics. Rigs can reparent bones or edit
++// the same bones array in place; validate its ordering, read parent live.
++function indexBones(bones) {
++    const indices = new Map();
++    for (let i = 0; i < bones.length; ++i) if (!indices.has(bones[i])) indices.set(bones[i], i);
++    return indices;
++}
++function currentIndices(scratch, bones) {
++    const cached = scratch.ikBoneOrder;
++    if (cached && cached.length === bones.length) {
++        let i = 0;
++        while (i < bones.length && cached[i] === bones[i]) ++i;
++        if (i === bones.length) return scratch.ikBoneIndices;
++    }
++    scratch.ikBoneOrder = bones.slice();
++    return scratch.ikBoneIndices = indexBones(bones);
++}
+ function collectIkSourceBoneIndices(chains) {
+     const indices = new Set();
+     collectIkSourceBoneIndicesInto(chains, indices);
+@@ -36,19 +54,20 @@ function isRuntimeIkChain(value) {
+         Number.isFinite(chain.iterationCount) &&
+         Array.isArray(chain.links));
+ }
+-export function solvePreparedIk(mesh, solver, chains, scratch) {
++export function solvePreparedIk(mesh, solver, chains, scratch, propagate = true) {
+     if (!mesh || chains.length === 0) {
+         scratch.sourceBoneIndices.clear();
+         return scratch.sourceBoneIndices;
+     }
+-    mesh.updateWorldMatrix(false, true);
++    if (propagate) mesh.updateWorldMatrix(false, true);
+     const skeletonBones = mesh.skeleton.bones;
++    const indices = currentIndices(scratch, skeletonBones);
+     ensureIkScratchLength(scratch, skeletonBones.length);
+     for (let index = 0; index < skeletonBones.length; index += 1) {
+         const bone = skeletonBones[index];
+         const scratchBone = scratch.bones[index];
+         scratchBone.parentIndex =
+-            bone.parent instanceof THREE.Bone ? skeletonBones.indexOf(bone.parent) : -1;
++            bone.parent instanceof THREE.Bone ? (indices.get(bone.parent) ?? -1) : -1;
+         scratchBone.translation[0] = bone.position.x;
+         scratchBone.translation[1] = bone.position.y;
+         scratchBone.translation[2] = -bone.position.z;
 diff --git a/dist/runtime/mmdAnimRuntime.js b/dist/runtime/mmdAnimRuntime.js
 index 039ebe229a2510463c857f342b72665cdc7128d6..451ed1ca206cb0ffae2fc631e80b83b147164015 100644
 --- a/dist/runtime/mmdAnimRuntime.js
@@ -480,24 +589,50 @@ index 0000000000000000000000000000000000000000..6cdc3a335dbbdf10574246d29dd95b9b
 +    visit(root);
 +}
 diff --git a/dist/runtime/types.d.ts b/dist/runtime/types.d.ts
-index d82f2a20c7e422f1186db8914cfc1b713e2529e2..a31cffd6a6d1a2999509fd75d5e2aac9e6447a95 100644
+index d82f2a20c7e422f1186db8914cfc1b713e2529e2..99e42c1aeaa132abc939f2cefcad2d6ebc79998a 100644
 --- a/dist/runtime/types.d.ts
 +++ b/dist/runtime/types.d.ts
-@@ -100,6 +100,10 @@ export interface MmdRuntimeAsyncTickOptions extends MmdRuntimeTickOptions {
+@@ -100,6 +100,12 @@ export interface MmdRuntimeAsyncTickOptions extends MmdRuntimeTickOptions {
      readonly signal?: AbortSignal;
  }
  export interface DefaultMmdRuntimeOptions {
 +    /** JS runtime only: false leaves intermediate debugState arrays empty; matrix synchronization is retained. */
 +    readonly captureStageSnapshots?: boolean;
++    /** Stage-owned rigs: defer intermediate matrix propagation until the external physics input barrier. */
++    readonly coalescePhysicsWorldUpdates?: boolean;
 +    /** Completed external-physics evaluations only. Non-overlapping wall times (ms), one call per model. */
 +    readonly onPhysicsPoseWork?: (animationIkMs: number, prepareMs: number, backendMs: number, writeBackMs: number) => void;
      /** MMD timeline frame rate. Defaults to 30. */
      readonly frameRate?: number;
      /** Initial runtime time in seconds. Defaults to 0. */
+diff --git a/dist/three/index.d.ts b/dist/three/index.d.ts
+index 32cdfea65cd251cc123ca58c826aa81da2e4112b..bca3c968a240aafd66027d53e2454e329b1bf292 100644
+--- a/dist/three/index.d.ts
++++ b/dist/three/index.d.ts
+@@ -129,6 +129,7 @@ export interface ThreeMmdModel {
+     readonly renderOrderMeshes: readonly THREE.SkinnedMesh[];
+     /** Runtime bound to this model. */
+     readonly runtime: MmdRuntime;
++    exchangeRuntime(next: MmdRuntime): MmdRuntime;
+     readonly source: ThreeMmdModelSourceDescriptor;
+     /** Structured diagnostics grouped by subsystem. */
+     readonly diagnostics: {
+@@ -184,6 +185,7 @@ export declare class ThreeMmdLoader {
+     private implicitMmdAnimWasmReady;
+     constructor(options?: ThreeMmdLoaderOptions);
+     loadModel(source: ModelSource, options?: ThreeMmdLoadModelOptions): Promise<ThreeMmdModel>;
++    createDetachedRuntime(context: ThreeMmdRuntimeFactoryContext): Promise<MmdRuntime>;
+     private createRuntime;
+     private canCreateImplicitMmdAnimRuntime;
+     private getCore;
 diff --git a/dist/three/index.js b/dist/three/index.js
+index e1ceb537212187d6277e7782ee7b1dfbd8aa0d70..d9191d8fb175d6d216fce8164abeb9638f5efcb4 100644
 --- a/dist/three/index.js
 +++ b/dist/three/index.js
-@@ -150,3 +150,7 @@
+@@ -147,6 +147,10 @@ export class ThreeMmdLoader {
+             profile?.clear();
+         }
+     }
 +    async createDetachedRuntime(context) {
 +        await this.getCore();
 +        return this.createRuntime(context);
@@ -505,7 +640,10 @@ diff --git a/dist/three/index.js b/dist/three/index.js
      createRuntime(context) {
          const explicitRuntime = this.options.runtimeFactory?.(context);
          if (explicitRuntime) {
-@@ -379,3 +383,10 @@
+@@ -376,7 +380,14 @@ function createThreeMmdModel(options) {
+         mesh: options.mesh,
+         outlineMeshes,
+         renderOrderMeshes,
 -        runtime: options.runtime,
 +        get runtime() {
 +            return options.runtime;
@@ -517,19 +655,7 @@ diff --git a/dist/three/index.js b/dist/three/index.js
 +        },
          source: options.source,
          diagnostics: {
-diff --git a/dist/three/index.d.ts b/dist/three/index.d.ts
---- a/dist/three/index.d.ts
-+++ b/dist/three/index.d.ts
-@@ -131,3 +131,4 @@
-     readonly runtime: MmdRuntime;
-+    exchangeRuntime(next: MmdRuntime): MmdRuntime;
-     readonly source: ThreeMmdModelSourceDescriptor;
-     /** Structured diagnostics grouped by subsystem. */
-@@ -186,3 +187,4 @@
-     loadModel(source: ModelSource, options?: ThreeMmdLoadModelOptions): Promise<ThreeMmdModel>;
-+    createDetachedRuntime(context: ThreeMmdRuntimeFactoryContext): Promise<MmdRuntime>;
-     private createRuntime;
-     private canCreateImplicitMmdAnimRuntime;
+             core: options.coreDiagnostic,
 diff --git a/dist/three/material/material-texture-set.js b/dist/three/material/material-texture-set.js
 index 968b2d05d6f3f9fe8d803a5bee42ededd11dfe11..b9fae91d12c4a10ef6364f29f1010bbbaba74420 100644
 --- a/dist/three/material/material-texture-set.js

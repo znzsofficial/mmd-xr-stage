@@ -14,6 +14,8 @@
 
 ## 查记录或跑对照
 
+最新[桌面配对结果](./xr-runtime-performance.md#逐帧骨架更新与回场-vmd-复用)：播放已合并物理输入前的多余骨架更新，回场已复用 VMD 解析结果。后续本机优先区分新模型解析、贴图透明判断与 GPU 上传，验证只读数据能否安全复用；整次头显回场仍按 `roomRestores[]` 看。
+
 - [历次真机报告的条件、样本与结论](./viewing-and-diagnostics.md#已有测量) · [如何复测并导出](./viewing-and-diagnostics.md)。
 - [桌面基准、等价性和真实 Bullet 回归](./xr-runtime-performance.md) · [loader 补丁与升级注意事项](../three-mmd-loader-maintenance.md)。
 - [播放基准](../../scripts/physics-playback-probe.html) · [材质加载基准](../../scripts/material-load-probe.html) · [暂停拨衣](../../scripts/paused-cloth-smoke.html) · [物理缓冲对照](../../scripts/physics-smoke.html)。这些开发页随本地开发服务器运行，私有模型不进仓库。

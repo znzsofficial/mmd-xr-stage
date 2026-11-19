@@ -222,11 +222,14 @@ export function isMmdRuntimeRebuildError(error: unknown): error is MmdRuntimeReb
 }
 
 export type MmdRuntimeOptions = {
+  motionCache?: import('./roomMotionCache').RoomMotionCache;
   actorPalmCloth?:boolean;
   /** Cold reload reference path for parity checks and troubleshooting. */
   reusePhysicsModels?: boolean;
   /** For diagnostic consumers and the parity benchmark. The stage never reads loader.debugState(). */
   capturePhysicsStageSnapshots?:boolean;
+  /** Legacy matrix schedule for equivalence probes. */
+  coalescePhysicsWorldUpdates?:boolean;
   /** Per completed external-physics pose, not a GPU or pure Bullet solver timer. */
   onPhysicsPoseWork?: (animationIkMs:number, prepareMs:number, backendMs:number, writeBackMs:number)=>void;
   onBulletStepWork?: (feedMs:number,worldStepMs:number,outputsMs:number,seedOnly:boolean)=>void;
@@ -280,6 +283,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
   const externalRuntimeOptions = (physicsBackend: MmdPhysicsBackend) => ({
     physics: 'external' as const, physicsBackend,
     captureStageSnapshots: options.capturePhysicsStageSnapshots ?? false,
+    coalescePhysicsWorldUpdates: options.coalescePhysicsWorldUpdates ?? true,
     onPhysicsPoseWork: options.onPhysicsPoseWork,
   });
 
@@ -784,8 +788,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       if (!id) throw new Error("No model selected");
       const entry = entries.get(id);
       if (!entry) throw new Error("Model not found");
-      const loader = new ThreeMmdLoader();
-      const animation = await loader.loadAnimation(file);
+      const animation = await (options.motionCache?.load(file) ?? new ThreeMmdLoader().loadAnimation(file));
       assertActive();
       if (entries.get(id) !== entry || isStale?.()) throw new DOMException("MMD model changed", "AbortError");
       // Validate/merge on a candidate. A malformed VMD (or failed bind) must
