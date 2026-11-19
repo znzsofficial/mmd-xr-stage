@@ -1,6 +1,6 @@
 # 下次 Quest 导出：一名角色、一次往返、一份 JSON
 
-[线上舞台](https://mmd-xr-stage.pages.dev) · [固定版 `f28edaa`](https://79779c1a.mmd-xr-stage.pages.dev)。下次有空戴头显时顺手做即可。优先看新版播动作时有多卡，以及回教室等角色的时间花在哪里。
+[线上舞台](https://mmd-xr-stage.pages.dev) · [固定版 `ad58264`](https://ada02f65.mmd-xr-stage.pages.dev)。下次有空戴头显时顺手做即可。优先看新版播动作时有多卡，以及回教室等角色的时间花在哪里。历史原始 JSON 保存在本机即可，仓库保留测量摘要。
 
 ## 最小一趟
 

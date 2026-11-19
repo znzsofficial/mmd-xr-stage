@@ -1,8 +1,8 @@
 # 会话交接｜2026-11-19
 
-[线上舞台](https://mmd-xr-stage.pages.dev) · [固定功能版 `f28edaa`](https://79779c1a.mmd-xr-stage.pages.dev) · [分类文档索引](./README.md)
+[线上舞台](https://mmd-xr-stage.pages.dev) · [固定功能版 `ad58264`](https://ada02f65.mmd-xr-stage.pages.dev) · [分类文档索引](./README.md)
 
-**线上基线**：「胸部受压形变」在 VR 角色设置与屏幕播放条，默认开。保留原手臂、手腕和手指轨迹，只形变可识别的胸骨及关联蒙皮；旧掌面试验独立，接触细调已移入场内。实模开关物理各 1800 帧，497 根非胸部骨骼世界矩阵差为零。295 项测试通过，模拟 XR、生产构建及主域名 44 项资源哈希已核对。[本地测量](./performance/xr-runtime-performance.md) · [操作](./gameplay/vr-controls.md)。
+**线上基线**：VR 角色页拆明玩家手部碰撞、角色托裙摆和独立的胸部受压；可在细调页原地关物理、调参、再开。此次只改菜单；胸部受压仍默认开，保留原手臂轨迹。295 项测试通过，模拟 XR 完成细调页开关与拨衣设置，构建和主域名 44 项资源哈希通过。[本地形变对照](./performance/xr-runtime-performance.md) · [物理和准备页选项](./gameplay/vr-controls.md#角色物理与接触)。
 
 ## 下次从这里开始
 
