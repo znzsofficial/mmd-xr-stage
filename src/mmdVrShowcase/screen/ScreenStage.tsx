@@ -19,6 +19,7 @@ import './screen-stage.css';
 function timecode(t:number){return `${Math.floor(t/60)}:${String(Math.floor(t)%60).padStart(2,'0')}`;}
 function Transport({locked}:{locked:boolean}) {
   const physics=useMmdVrStore(s=>s.physicsEnabled),count=useMmdVrStore(s=>s.modelCount);
+  const chest=useMmdVrStore(s=>s.prefs.chestCompression);
   const t=useLanguageStore(s=>s.t),duration=useMmdVrStore(s=>s.duration),playing=useMmdVrStore(s=>s.playing),loop=useMmdVrStore(s=>s.loop);
   const [time,setTime]=useState(0);
   useEffect(()=>{const read=()=>setTime(getMmdVrClock().time);read();if(duration>0){const timer=window.setInterval(read,125);return ()=>clearInterval(timer);}},[duration]);
@@ -28,6 +29,7 @@ function Transport({locked}:{locked:boolean}) {
     <output>{timecode(time)}</output><input aria-label={t('screenSeek')} type="range" min={0} max={duration||1} step={.01} value={Math.min(time,duration)} disabled={locked||duration<=0} onChange={e=>{const n=e.target.valueAsNumber;stage.requestSeek(n);setTime(n);}}/><output>{timecode(duration)}</output>
     <label><input type="checkbox" checked={loop} onChange={e=>stage.setLoop(e.target.checked)}/>{t('screenLoop')}</label>
     {count>0&&<label><input type="checkbox" checked={physics} disabled={locked} onChange={e=>stage.setPhysicsEnabled(e.target.checked)}/>{t('hudPhysics')}</label>}
+    {count>0&&<label><input type="checkbox" checked={chest} disabled={locked} onChange={e=>stage.setPrefs({chestCompression:e.target.checked})}/>{t('chestPressure')}</label>}
   </footer>;
 }
 

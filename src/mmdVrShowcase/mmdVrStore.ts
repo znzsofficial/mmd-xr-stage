@@ -108,6 +108,7 @@ export type MmdVrPrefs = {
   physicsColliderRestitution: MmdVrColliderRestitution;
   physicsHapticLevel: MmdVrHapticLevel;
   actorPalmCloth: boolean;
+  chestCompression:boolean;
 };
 
 export const MMD_VR_PREFS_KEY = "neko-virt-os.mmd-vr-showcase.v2";
@@ -311,6 +312,7 @@ export function normalizeMmdVrPrefs(parsed: Partial<MmdVrPrefs> & { liveHouseEna
     physicsColliderRestitution: normalizeColliderRestitution(parsed.physicsColliderRestitution),
     physicsHapticLevel: normalizeHapticLevel(parsed.physicsHapticLevel),
     actorPalmCloth: parsed.actorPalmCloth===true,
+    chestCompression: parsed.chestCompression!==false,
   };
 }
 
@@ -350,6 +352,7 @@ const prefsStorage = createLocalPrefsStorage<MmdVrPrefs>({
     physicsColliderRestitution: "none" as MmdVrColliderRestitution,
     physicsHapticLevel: "low" as MmdVrHapticLevel,
     actorPalmCloth: false,
+    chestCompression: true,
   }),
   normalize: normalizeMmdVrPrefs,
 });

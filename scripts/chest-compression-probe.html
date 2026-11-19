@@ -1,0 +1,22 @@
+<!doctype html><meta charset="utf-8"><title>Arm trajectory / chest deformation A-B</title>
+<p>Select a local PMX, its textures and a body VMD. Compares independent instances for 30 seconds at 60 Hz. Optional ?view renders the peak frame locally.</p><input type="file" multiple><button>Compare</button><pre></pre>
+<script type="module">
+import * as T from 'three';
+import {createMmdRuntimeHandle} from '../src/mmdVrShowcase/mmdRuntime/mmdRuntime.ts';
+import {fitChestCompression} from '../src/mmdVrShowcase/mmdRuntime/chestCompression.ts';
+window.compare=async()=>{const files=[...document.querySelector('input').files],model=files.find(f=>/\.pmx$/i.test(f.name)),vmd=files.find(f=>/\.vmd$/i.test(f.name)),rows=[];
+ for(const physics of [false,true]){const variants=[],camera=new T.PerspectiveCamera();let enabled=true;
+ try{for(const on of [false,true]){const scene=new T.Scene(),rt=createMmdRuntimeHandle(scene,{chestCompression:()=>on&&enabled});variants.push({rt,scene});const {modelId}=await rt.addModel(model,files,{physics,transform:{scale:.1,rotationY:42}});await rt.loadMotion(vmd,'body',modelId);let mesh;rt.getModelRoot(modelId).traverse(n=>{if(!mesh&&n.isSkinnedMesh)mesh=n});Object.assign(variants.at(-1),{mesh});}
+ const [a,b]=variants.map(v=>v.mesh),fit=fitChestCompression(a);if(!fit)throw Error('Model has no supported chest skeleton');const bones=a.skeleton.bones,soft=new Set(fit.affectedBones),affected=bones.map(b=>{for(let p=b;p;p=p.parent)if(soft.has(p))return true;return false});
+ const start=a.geometry.getAttribute('skinIndex'),weights=a.geometry.getAttribute('skinWeight'),verts=[];for(let i=0;i<start.count;i++)if([0,1,2,3].some(j=>affected[start.getComponent(i,j)]&&weights.getComponent(i,j)>.2))verts.push(i);if(!verts.length)throw Error('No weighted chest vertices');
+ const v1=new T.Vector3(),v2=new T.Vector3(),n=Math.min(1800,Math.floor(variants[0].rt.duration*60)),sample=verts.filter((_,i)=>i%Math.max(1,Math.ceil(verts.length/48))===0),cost=[0,0];let peak=0,peakAt=0,maxRigidDiff=0,framesDeformed=0;
+ for(let i=0;i<n;i++){for(const j of i%2?[1,0]:[0,1]){const t=performance.now();variants[j].rt.update(i/60,physics,camera,1,false,1/60);cost[j]+=performance.now()-t;}
+   for(let k=0;k<bones.length;k++)if(!affected[k]){const aa=bones[k].matrixWorld.elements,bb=b.skeleton.bones[k].matrixWorld.elements;for(let ix=0;ix<16;ix++)maxRigidDiff=Math.max(maxRigidDiff,Math.abs(aa[ix]-bb[ix]));}
+   let shift=0;for(const vertex of sample){a.getVertexPosition(vertex,v1);b.getVertexPosition(vertex,v2);shift=Math.max(shift,v1.applyMatrix4(a.matrixWorld).distanceTo(v2.applyMatrix4(b.matrixWorld)));}if(shift>1e-5)framesDeformed++;if(shift>peak){peak=shift;peakAt=i;}
+ }
+ if(!physics&&new URLSearchParams(location.search).has('view'))for(const m of variants){m.rt.update(peakAt/60,false,camera,1,false,0,true);const light=new T.DirectionalLight(0xffffff,2);light.position.set(1,3,3);m.scene.add(light,new T.AmbientLight(0xffffff,1));const focus=m.mesh.skeleton.bones.find(b=>b.userData.mmdBoneName==='上半身2')??m.mesh.skeleton.bones[0],pos=focus.getWorldPosition(new T.Vector3());camera.fov=30;camera.aspect=1;camera.position.copy(pos).add(new T.Vector3(.85,.26,1.65));camera.lookAt(pos);camera.updateProjectionMatrix();const renderer=new T.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});renderer.setSize(420,420);renderer.setClearColor(0xa2acae);document.body.append(renderer.domElement);renderer.render(m.scene,camera);renderer.dispose();}
+ enabled=false;for(const m of variants)m.rt.update(.5,physics,camera,1,false,0,true);let offDiff=0;for(let j=0;j<bones.length;j++)for(const [k,v] of bones[j].matrixWorld.elements.entries())offDiff=Math.max(offDiff,Math.abs(v-b.skeleton.bones[j].matrixWorld.elements[k]));
+ const result={physics,n,pads:soft.size,unaffected:affected.filter(v=>!v).length,maxRigidDiff,framesDeformed,weightedVertices:verts.length,sample:sample.length,peakMeters:peak,offDiff,meanMs:cost.map(v=>v/n)};rows.push(result);if(!(maxRigidDiff===0&&offDiff===0&&peak>.0001))throw Error(JSON.stringify(result));
+ }finally{for(const m of variants)m.rt.dispose();}}
+ return rows;};document.querySelector('button').onclick=async()=>document.querySelector('pre').textContent=JSON.stringify(await window.compare(),null,2);
+</script>

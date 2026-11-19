@@ -5,6 +5,7 @@ export const en: Record<keyof ZhMessages, string> = {
   importBindResource: "Choose a file for this reference",
   hudBack: "Back to viewing",
   hudScenery: "Scenery",
+  dancePose:'Motion & contact',chestPressure:'Chest compression',chestPressureOn:'Chest compression: on',chestPressureOff:'Chest compression: off',actorPalmShort:'Skirt lift (trial)',contactDetails:'Contact tuning',contactDisableFirst:'Turn character physics off before adjusting contact.',contactNextPhysics:'Applies when character physics is enabled.',contactNormalFriction:'Friction: normal',
   settingsPlayer:'Player',settingsCharacter:'Character',settingsEnvironment:'Environment',settingsEyeOffset:'Eye offset',settingsFineHeight:'Use fine range',settingsWideHeight:'Use lift range',settingsResetHeight:'Zero eye offset',
   settingsHandModelOn:'Hand models: on',settingsHandModelOff:'Hand models: off',settingsFaceMeOn:'Face me: on',settingsFaceMeOff:'Face me: off',settingsPlaceFirst:'Place a character from the backpack to enable physics.',settingsCharacterHint:'Select a character to change motion, position or materials.',
   settingsContactLab:'Player contact tuning · applies on next entry',settingsRequestHint:'Canvas pixel ratio and antialiasing apply on entry. Refresh rate, projection scale and peripheral detail are VR-only. The device chooses scale and detail unless overrides are enabled.',settingsPanelFps:'Show FPS on the settings panel',

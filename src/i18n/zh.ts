@@ -3,6 +3,7 @@ export const zh = {
   importBindResource: "为此引用选择资源文件",
   hudBack: "返回观看",
   hudScenery: "场景",
+  dancePose:'动作与碰撞',chestPressure:'胸部受压形变',chestPressureOn:'胸部受压形变：开',chestPressureOff:'胸部受压形变：关',actorPalmShort:'角色托裙摆（试验）',contactDetails:'接触细调',contactDisableFirst:'先关闭角色物理，再调整接触参数。',contactNextPhysics:'下次开启角色物理时应用。',contactNormalFriction:'摩擦：标准',
   settingsPlayer:'玩家',settingsCharacter:'角色',settingsEnvironment:'环境',settingsEyeOffset:'眼高偏移',settingsFineHeight:'切到眼高微调',settingsWideHeight:'切到大范围升降',settingsResetHeight:'眼高归零',
   settingsHandModelOn:'显示手模型：开',settingsHandModelOff:'显示手模型：关',settingsFaceMeOn:'面板朝向我：开',settingsFaceMeOff:'面板朝向我：关',settingsPlaceFirst:'先从背包放置角色，再开启物理。',settingsCharacterHint:'点场上的角色可以换动作、摆位置或调整材质。',
   settingsContactLab:'玩家碰撞体调校 · 下次进场生效',settingsRequestHint:'画布像素比和抗锯齿在下次进场时应用。刷新率、投影倍率和周边细节仅用于 VR；未开启覆盖时由设备决定后两项。',settingsPanelFps:'在设置面板显示帧率',

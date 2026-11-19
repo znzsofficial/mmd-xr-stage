@@ -3,6 +3,12 @@ import { Euler, Matrix4, Vector3, type Bone, type SkinnedMesh } from 'three';
 
 const prefix='stage:actor-palm:';
 export const isActorPalm=(name?:string)=>name===prefix+'left'||name===prefix+'right';
+const authoredPhysics=new WeakMap<SkinnedMesh,unknown>();
+/** Reconfigure only before binding a fresh evaluator (never mid-step). */
+export function configureActorPalms(mesh:SkinnedMesh,on:boolean){
+  if(authoredPhysics.has(mesh)){mesh.userData.mmdPhysics=authoredPhysics.get(mesh);authoredPhysics.delete(mesh);}
+  if(on){const original=mesh.userData.mmdPhysics;if(installActorPalms(mesh))authoredPhysics.set(mesh,original);}
+}
 type Body=ReturnType<MmdModel['rigidBodies']>[number];
 const names=(bone:Bone)=>[bone.name,bone.userData.mmdBoneName,bone.userData.mmdEnglishBoneName].filter((v):v is string=>typeof v==='string').map(v=>v.normalize('NFKC').toLowerCase().replace(/[ _.\-]/g,''));
 function rest(b:Bone){const p=b.userData.mmdRestPosition;return Array.isArray(p)&&p.length===3&&p.every(Number.isFinite)?new Vector3().fromArray(p):null;}

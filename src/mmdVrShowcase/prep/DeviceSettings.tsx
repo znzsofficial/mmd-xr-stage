@@ -169,18 +169,6 @@ export function DeviceSettings(){
                     />
                   </div>
 
-                  <div className="stage-form-row">
-                    <span className="stage-row-label">{t("settingsMmdVrShadows")}</span>
-                    <OptionGroup
-                      value={prefs.shadowsPref}
-                      options={[
-                        { id: "auto", label: t("settingsVrDesktopQualityAuto") },
-                        { id: "on", label: t("settingsVrDesktopAaOn") },
-                        { id: "off", label: t("settingsVrDesktopAaOff") },
-                      ]}
-                      onChange={(shadowsPref) => setPrefs({ shadowsPref })}
-                    />
-                  </div>
 
                   <div className="stage-form-row">
                     <span className="stage-row-label">{t("settingsMmdVrShadowResolution")}</span>
@@ -196,36 +184,6 @@ export function DeviceSettings(){
                     />
                   </div>
 
-                  <div className="stage-form-row">
-                    <span className="stage-row-label">{t("settingsMmdVrGrid")}</span>
-                    <OptionGroup
-                      value={prefs.gridPref}
-                      options={[
-                        { id: "auto", label: t("settingsVrDesktopQualityAuto") },
-                        { id: "on", label: t("settingsVrDesktopAaOn") },
-                        { id: "off", label: t("settingsVrDesktopAaOff") },
-                      ]}
-                      onChange={(gridPref) => setPrefs({ gridPref })}
-                    />
-                  </div>
-
-                  <label className="stage-toggle-row">
-                     <span>{t("settingsPanelFps")}</span>
-                    <input
-                      type="checkbox"
-                      checked={prefs.showFps}
-                      onChange={(e) => setPrefs({ showFps: e.target.checked })}
-                    />
-                  </label>
-
-                  <label className="stage-toggle-row">
-                    <span>{t("settingsMmdVrDetailedPhysicsDiagnostics")}</span>
-                    <input
-                      type="checkbox"
-                      checked={prefs.detailedPhysicsDiagnostics}
-                      onChange={(e) => setPrefs({ detailedPhysicsDiagnostics: e.target.checked })}
-                    />
-                  </label>
 
                   {highLoadConfig && (
                     <div className="stage-alert stage-alert-warning">
@@ -235,15 +193,6 @@ export function DeviceSettings(){
                   )}
                   <p className="stage-hint-text">{t("settingsVrDesktopQualityHint")}</p>
                 </div>
-               </details>
-               <details className="stage-sub-details"><summary className="stage-sub-summary"><span>{t('watchExperiments')}</span><PrepIcon name="down" size={14} className="stage-sub-arrow"/></summary>
-                 <div className="stage-sub-content"><label className="stage-toggle-row"><span>{t('actorPalmCloth')}</span>
-                    <input type="checkbox" checked={prefs.actorPalmCloth} onChange={e=>setPrefs({actorPalmCloth:e.target.checked})}/></label>
-                    <p>{t('settingsContactLab')}</p>
-                    <label className="stage-field">{t('settingsMmdVrPhysicsRadius')}<select className="stage-select" value={prefs.physicsColliderRadius} onChange={e=>setPrefs({physicsColliderRadius:Number(e.target.value)})}>{[.04,.08,.12,.16].map(r=><option key={r} value={r}>{r*100} cm</option>)}</select></label>
-                    <div className="stage-form-row" role="group" aria-label={t('settingsMmdVrPhysicsColliderFriction')}><span className="stage-row-label">{t('settingsMmdVrPhysicsColliderFriction')}</span><OptionGroup value={prefs.physicsColliderFriction} options={[{id:'low',label:t('settingsMmdVrPhysicsColliderFrictionLow')},{id:'medium',label:t('settingsMmdVrPhysicsColliderFrictionMedium')},{id:'high',label:t('settingsMmdVrPhysicsColliderFrictionHigh')}]} onChange={physicsColliderFriction=>setPrefs({physicsColliderFriction})}/></div>
-                    <div className="stage-form-row" role="group" aria-label={t('settingsMmdVrPhysicsColliderRestitution')}><span className="stage-row-label">{t('settingsMmdVrPhysicsColliderRestitution')}</span><OptionGroup value={prefs.physicsColliderRestitution} options={[{id:'none',label:t('settingsMmdVrPhysicsColliderRestitutionNone')},{id:'low',label:t('settingsMmdVrPhysicsColliderRestitutionLow')},{id:'high',label:t('settingsMmdVrPhysicsColliderRestitutionHigh')}]} onChange={physicsColliderRestitution=>setPrefs({physicsColliderRestitution})}/></div>
-                  </div>
                </details>
              </div>
            </details>

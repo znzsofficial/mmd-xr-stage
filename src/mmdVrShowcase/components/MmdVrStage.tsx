@@ -325,6 +325,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache }: { scenery
 
   const runtimeRef = useRef<MmdRuntimeHandle | null>(null);
   const lastEvaluatedTimeRef = useRef(-Infinity);
+  useLayoutEffect(()=>{lastEvaluatedTimeRef.current=-Infinity;},[mmdPrefs.chestCompression]);
   const timeRef = useRef(0);
   const staticSettleElapsed = useRef(0);
   const pendingSeekSeed = useRef(false);
@@ -413,7 +414,8 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache }: { scenery
   const runtime = useMemo(() => {
     const handle = createMmdRuntimeHandle(scene, {
       motionCache,
-      actorPalmCloth: useMmdVrStore.getState().prefs.actorPalmCloth,
+      actorPalmCloth: ()=>useMmdVrStore.getState().prefs.actorPalmCloth,
+      chestCompression: ()=>useMmdVrStore.getState().prefs.chestCompression,
       onPhysicsPoseWork: useMmdVrStore.getState().presentation==='xr' ? runtimeTiming.recordPose : undefined,
       onBulletStepWork: useMmdVrStore.getState().presentation==='xr' ? runtimeTiming.recordBullet : undefined,
       controllerColliders: getMmdVrControllerColliderMatrices,

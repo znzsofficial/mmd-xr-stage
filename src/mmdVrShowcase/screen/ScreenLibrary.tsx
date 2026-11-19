@@ -5,6 +5,8 @@ import { useMmdVrStore } from '../mmdVrStore';
 import { useLayoutEffect, useRef, useState } from 'react';
 import { isStoryRoom, shelfToys, STORIES, TOYS, TOY_GUIDES, toyHomeLabel, toyWorksHere, useStagePlay, type Hand, type Toy, type StoryRoom } from '../play/stagePlay';
 import type { SceneryId } from '../scenery/catalog';
+import {showSceneryGrid} from '../scenery/catalog';
+import {getMmdVrRenderProfile} from '../mmdVrQuality';
 import { cueStory, resetEncore } from '../play/storyActions';
 
 function giveScreenToy(id:string,toy:Toy,hand:Hand,room:SceneryId){
@@ -30,6 +32,8 @@ export function ScreenLibrary({locked,close,frame,storyView}:{locked:boolean;clo
   const assets=b.entries.filter(e=>e.kind!=='motion');
   const [guide,setGuide]=useState<Toy|null>(null),actor=selected?.kind==='model'?b.live[selected.id]:null;
   const [choice,choose]=useState<{id:string;toy:Toy}|null>(null);
+  const palm=useMmdVrStore(s=>s.prefs.actorPalmCloth),physics=useMmdVrStore(s=>s.physicsEnabled);
+  const prefs=useMmdVrStore(s=>s.prefs),profile=getMmdVrRenderProfile(prefs),grid=showSceneryGrid(room,profile.showGrid,prefs.gridPref==='on',false);
   const start=(entry:BackpackEntry)=>{b.beginPlace(entry.id);if(useBackpack.getState().draft)close();};
   return <aside className="screen-library" aria-label={t('hudBackpack')}>
     <div className="screen-library-head"><h2>{t('hudBackpack')}</h2><button onClick={close}>{t('screenHide')}</button></div>
@@ -40,6 +44,13 @@ export function ScreenLibrary({locked,close,frame,storyView}:{locked:boolean;clo
         <div>{actor&&selected&&(['left','right'] as const).map(hand=><button key={hand} disabled={locked||!actor.visible||!actor.wrists?.[hand]} onClick={()=>{choose({id:selected.id,toy});giveScreenToy(selected.id,toy,hand,room);}}>{t(hand==='left'?'propLeft':'propRight')}</button>)} <button onClick={()=>setGuide(toy)}>{t('toyGuide')}</button></div>
       </li>;})}</ul></details>
     {guide&&<ScreenToyGuide toy={guide} room={room} locked={locked} close={()=>setGuide(null)}/>}
+    <details className="screen-stage-options"><summary>{t('settingsEnvironment')}</summary>
+      <label><input type="checkbox" checked={profile.shadows} onChange={e=>useMmdVrStore.getState().setPrefs({shadowsPref:e.target.checked?'on':'off'})}/>{t('settingsMmdVrShadows')}</label>
+      <label><input type="checkbox" checked={grid} onChange={e=>useMmdVrStore.getState().setPrefs({gridPref:e.target.checked?'on':'off'})}/>{t('settingsMmdVrGrid')}</label>
+    </details>
+    <details className="screen-stage-options"><summary>{t('contactDetails')}</summary>
+      <p>{t(physics?'contactDisableFirst':'contactNextPhysics')}</p><label><input type="checkbox" checked={palm} disabled={locked||physics} onChange={e=>useMmdVrStore.getState().setPrefs({actorPalmCloth:e.target.checked})}/>{t('actorPalmShort')}</label>
+    </details>
     {!assets.length&&<p>{t('screenEmpty')}</p>}
     {(['model','object'] as const).map(kind=>{const list=assets.filter(e=>e.kind===kind);return list.length>0&&<section key={kind}>
       <h3>{t(kind==='model'?'hudCharacters':'hudObjects')} <small>{list.filter(e=>b.live[e.id]).length} / 3</small></h3>

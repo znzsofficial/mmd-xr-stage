@@ -131,7 +131,7 @@ function DiagnosticsPanel({ onClose, onExit }: { onClose: () => void; onExit: ()
   const counts=useMmdVrStore(s=>s.physicsDebugEnabled?`R: ${s.physicsRigidBodyCount} · D: ${s.physicsDynamicBodyCount} · C: ${s.physicsContactCount} · S: ${s.physicsStepCount}`:'');
   return <><TextPanel title={t("hudDiagnostics")} text={[...diagnosticLines(data,t,language),counts,t('diagHint')].filter(Boolean).join('\n')} onClose={onClose} onExit={onExit} />
     <HudButton position={[-.6,-.76,.03]} size={[1.1,.15]} label={t('settingsPanelFps')} active={fps} onPress={()=>useMmdVrStore.getState().setPrefs({showFps:!fps})}/>
-    <HudButton position={[.6,-.76,.03]} size={[1.1,.15]} label={t(debug?'settingsMmdVrPhysicsDebugOn':'settingsMmdVrPhysicsDebugOff')} active={debug} onPress={()=>useMmdVrStore.getState().setPhysicsDebugEnabled(!debug)}/></>;
+    <HudButton position={[.6,-.76,.03]} size={[1.1,.15]} label={t(debug?'settingsMmdVrPhysicsDebugOn':'settingsMmdVrPhysicsDebugOff')} active={debug} onPress={()=>{const s=useMmdVrStore.getState();s.setPrefs({detailedPhysicsDiagnostics:!debug});s.setPhysicsDebugEnabled(!debug);}}/></>;
 }
 
 export function CriticalNotice({ onDetails }: { onDetails: () => void }) {

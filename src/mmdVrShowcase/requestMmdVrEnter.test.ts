@@ -88,6 +88,7 @@ describe("requestMmdVrEnter", () => {
         physicsColliderRestitution: "none",
         physicsHapticLevel: "low",
         actorPalmCloth: false,
+        chestCompression:true,
       },
       phase: "idle",
       errorMessage: null,

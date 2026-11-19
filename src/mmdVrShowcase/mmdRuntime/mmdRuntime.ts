@@ -11,7 +11,8 @@ import * as THREE from "three";
 import { placementLoaderProfile } from '../placementWork';
 import { PhysicsPoseDisplay } from "./physicsPoseDisplay";
 import { PARK_Y } from "./colliderReentry";
-import { installActorPalms } from './actorPalms';
+import { configureActorPalms } from './actorPalms';
+import {fitChestCompression} from './chestCompression';
 import { createLocalTextureResolver } from "./localTextureResolver";
 export { createLocalTextureResolver } from "./localTextureResolver";
 import { createBulletPhysicsBackend, type ColliderShapeFactory, type MmdPhysicsQuality } from "./mmdPhysics";
@@ -124,6 +125,7 @@ export type MmdRuntimeHandle = {
 };
 
 type RuntimeEntryWithPhysics = RuntimeEntry & {
+  chest?:ReturnType<typeof fitChestCompression>;
   bindPose: Float64Array;
   createWorld: (display: PhysicsPoseDisplay) => Promise<MmdPhysicsBackend>;
   physicsDisplay?: PhysicsPoseDisplay;
@@ -223,7 +225,8 @@ export function isMmdRuntimeRebuildError(error: unknown): error is MmdRuntimeReb
 
 export type MmdRuntimeOptions = {
   motionCache?: import('./roomMotionCache').RoomMotionCache;
-  actorPalmCloth?:boolean;
+  actorPalmCloth?:boolean|(()=>boolean);
+  chestCompression?:()=>boolean;
   /** Cold reload reference path for parity checks and troubleshooting. */
   reusePhysicsModels?: boolean;
   /** For diagnostic consumers and the parity benchmark. The stage never reads loader.debugState(). */
@@ -249,6 +252,7 @@ export type MmdRuntimeOptions = {
 };
 
 export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOptions = {}): MmdRuntimeHandle {
+  const palmsRequested=()=>typeof options.actorPalmCloth==='function'?options.actorPalmCloth():options.actorPalmCloth===true;
   let disposed = false;
   let membershipGeneration = 0;
   const assertActive = () => {
@@ -447,7 +451,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       if (work) work.loaderWallMs = performance.now()-started;
       assertCurrent();
       bindPose = captureBindPose(model.mesh);
-      if(options.actorPalmCloth)installActorPalms(model.mesh);
+      configureActorPalms(model.mesh,palmsRequested());
       if (withPhysics) bindStaticMmdPhysicsRuntime(model);
       colliderRoot = model.root;
       prepareModel?.(model.root);
@@ -623,8 +627,10 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
           touchedModels = true;
           for (const item of batch) {
             const {entry, runtime, backend, display} = item;
+            entry.chest?.restore();entry.chest?.reset();
             entry.physicsDisplay?.restore(true);
             restoreBindPose(entry);
+            configureActorPalms(entry.model.mesh,palmsRequested());
             const animation = entry.appliedAnimation?.animation ?? (backend ? STATIC_PHYSICS_BINDING_ANIMATION : null);
             if (animation) runtime.setAnimation(animation, entry.model.mesh);
             const old = entry.model.exchangeRuntime(runtime);
@@ -797,6 +803,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       candidate[`${slot}Animation`] = animation;
       candidate[`${slot}MotionName`] = file.name;
       candidate[`${slot}MotionFile`] = file;
+      entry.chest?.restore();entry.chest?.reset();
       entry.physicsDisplay?.restore(true);
       try {
         recomputeEntryAnimation(candidate);
@@ -871,6 +878,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
         if (modelId && entry.id !== modelId) continue;
         if (!entry.visible || !entry.physicsBackend || entry.physicsBackend.disposed) continue;
         try {
+          entry.chest?.restore();entry.chest?.reset();
           entry.physicsDisplay?.restore(true);
           syncEntryWorldMatrix(entry, true);
           entry.physicsBackend.reset?.();
@@ -939,6 +947,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
         const jumpedBack = prev !== undefined && seconds + 1e-4 < prev;
         const jumpedFar = prev !== undefined && seconds - prev > 0.25;
         const reset = jumpedBack || jumpedFar || prev === undefined;
+        entry.chest?.restore();
         entry.physicsDisplay?.restore(!physicsOn || reset);
         syncEntryWorldMatrix(entry, physicsOn);
         if (physicsOn && reset) {
@@ -963,6 +972,10 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
           lastPhysicsSeconds.delete(entry.id);
         }
 
+        if(hasBodyMotion && options.chestCompression?.()){
+          if(entry.chest===undefined)entry.chest=fitChestCompression(entry.model.mesh);
+          if(entry.chest?.apply(seconds,physicsDelta,reseed||(physicsOn&&reset)))entry.model.mesh.skeleton.update();
+        }else entry.chest?.reset();
         // Face / manual morphs after skeleton + physics.
         applyMorphOverrides(entry);
         const materials = getMeshMaterials(entry.model.mesh);
