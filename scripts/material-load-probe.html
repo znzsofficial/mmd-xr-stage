@@ -1,0 +1,23 @@
+<!doctype html><meta charset="utf-8"><title>MMD material load probe</title>
+<p>Local development probe. Select one PMX/PMD and its companion textures. Rebuilds fresh models without drawing or uploading. Output contains counts and a hash of material decisions only.</p>
+<input type="file" multiple><button>Run</button><pre></pre>
+<script type="module">
+import { ThreeMmdLoader } from '@yohawing/three-mmd-loader';
+import { createLocalTextureResolver } from '/src/mmdVrShowcase/mmdRuntime/localTextureResolver.ts';
+import { disposeLoadedModelObject } from '/src/mmdVrShowcase/mmdRuntime/mmdRuntimeEntry.ts';
+
+window.measure=async()=>{
+ const files=[...document.querySelector('input').files],file=files.find(f=>/\.(pmx|pmd)$/i.test(f.name));if(!file)throw Error('Choose a model first');
+ const proto=CanvasRenderingContext2D.prototype,original=proto.getImageData;
+ const rows=[];let reads=0,bytes=0;
+ proto.getImageData=function(...args){const data=original.apply(this,args);reads++;bytes+=data.data.byteLength;return data;};
+ try{for(let i=0;i<5;i++){
+   reads=bytes=0;let stageMs=0;const loader=new ThreeMmdLoader({textureResolver:createLocalTextureResolver(file,files),performance:{enabled:false,onMeasure:m=>{if(m.name==='load-textures')stageMs=m.durationMs;}}});
+   const start=performance.now(),model=await loader.loadModel(file);const wallMs=performance.now()-start;
+   try{const materials=Array.isArray(model.mesh.material)?model.mesh.material:[model.mesh.material];const decisions=materials.map(m=>[m.userData.mmdMaterial.transparencyMode,m.userData.mmdMaterial.textureTransparencyMode,m.transparent,m.depthWrite,m.alphaTest,m.map?.image?.width,m.map?.image?.height]);
+     const signature=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(decisions)))),v=>v.toString(16).padStart(2,'0')).join('');
+     rows.push({stageMs,wallMs,reads,bytes,materials:decisions.length,textureWarnings:model.diagnostics.textures.length,signature});
+   }finally{disposeLoadedModelObject(model);}
+ }}finally{proto.getImageData=original;}return rows;
+};document.querySelector('button').onclick=async e=>{const b=e.currentTarget;b.disabled=true;try{document.querySelector('pre').textContent=JSON.stringify(await window.measure(),null,2);}finally{b.disabled=false;}};
+</script>

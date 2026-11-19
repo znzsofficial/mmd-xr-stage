@@ -327,6 +327,59 @@ index d82f2a20c7e422f1186db8914cfc1b713e2529e2..a31cffd6a6d1a2999509fd75d5e2aac9
      /** MMD timeline frame rate. Defaults to 30. */
      readonly frameRate?: number;
      /** Initial runtime time in seconds. Defaults to 0. */
+diff --git a/dist/three/material/material-texture-set.js b/dist/three/material/material-texture-set.js
+index 968b2d05d6f3f9fe8d803a5bee42ededd11dfe11..b9fae91d12c4a10ef6364f29f1010bbbaba74420 100644
+--- a/dist/three/material/material-texture-set.js
++++ b/dist/three/material/material-texture-set.js
+@@ -37,7 +37,7 @@ export function evaluateMmdDefaultMaterialTransparency(material, morphs, geometr
+     const rawTextureTransparencyMode = (shouldUseTextureMetadata ? textureMetadataTransparencyMode : undefined) ??
+         (texture && needsTextureTransparencyScan
+             ? (options.geometryAwareAlpha
+-                ? evaluateCachedMmdTextureAlphaGeometry(texture, geometry, materialIndex)
++                ? evaluateCachedMmdTextureAlphaGeometry(texture, geometry, materialIndex, options.alphaTiles)
+                 : textureAlpha.evaluateMmdTextureAlphaTexture(texture))
+             : undefined);
+     const textureTransparencyMode = rawTextureTransparencyMode === "alphaTest" && isLikelyMmdSoftAlphaOverlayMaterial(material)
+@@ -112,7 +112,7 @@ function isLikelyMmdSoftAlphaOverlayMaterial(material) {
+     const materialName = `${material.name} ${material.englishName}`.toLowerCase();
+     return /(hair\s*shadow|hairshadow|shadow|shade|cheek|blush|髪影|髪の影|影|頬|ほほ|チーク)/u.test(materialName);
+ }
+-function evaluateCachedMmdTextureAlphaGeometry(texture, geometry, materialIndex) {
++function evaluateCachedMmdTextureAlphaGeometry(texture, geometry, materialIndex, alphaTiles) {
+     let geometryCache = geometryAlphaCache.get(texture);
+     if (!geometryCache) {
+         geometryCache = new WeakMap();
+@@ -126,7 +126,7 @@ function evaluateCachedMmdTextureAlphaGeometry(texture, geometry, materialIndex)
+     if (materialCache.has(materialIndex)) {
+         return materialCache.get(materialIndex);
+     }
+-    const alphaMode = textureAlpha.evaluateMmdTextureAlphaGeometry(texture, geometry, materialIndex);
++    const alphaMode = textureAlpha.evaluateMmdTextureAlphaGeometry(texture, geometry, materialIndex, undefined, alphaTiles);
+     materialCache.set(materialIndex, alphaMode);
+     return alphaMode;
+ }
+diff --git a/dist/three/materials.js b/dist/three/materials.js
+index 20234e3ad8f90753b13ee787b80223fcd722e095..83ea4b6af81bccc733fe1f3901cdbaac4f19423b 100644
+--- a/dist/three/materials.js
++++ b/dist/three/materials.js
+@@ -33,6 +33,8 @@ export async function applyThreeMmdMaterialTextures(threeMaterials, mmdMaterials
+     const materialDiagnostics = options.materialDiagnostics;
+     const resolver = createTextureResolver(options.textureResolver, options.textureMap ?? (options.modelUrl ? {} : undefined));
+     const textureLoader = options.textureLoader ?? new THREE.TextureLoader();
++    // One material pass only. Custom loaders may supply mutable or animated sources.
++    const alphaTiles = options.geometryAwareAlpha && !options.textureLoader ? new Map() : undefined;
+     await Promise.all(mmdMaterials.map(async (mmdMaterial, materialIndex) => {
+         const material = threeMaterials[materialIndex];
+         if (!material) {
+@@ -46,7 +48,7 @@ export async function applyThreeMmdMaterialTextures(threeMaterials, mmdMaterials
+             material.gradientMap = gradientMap;
+         }
+         if (options.geometry) {
+-            const { transparencyMode, textureTransparencyMode, morphAlphaTransparent, diagnostic } = evaluateMmdDefaultMaterialTransparency(mmdMaterial, options.morphs ?? [], options.geometry, materialIndex, texture, { geometryAwareAlpha: options.geometryAwareAlpha });
++            const { transparencyMode, textureTransparencyMode, morphAlphaTransparent, diagnostic } = evaluateMmdDefaultMaterialTransparency(mmdMaterial, options.morphs ?? [], options.geometry, materialIndex, texture, { geometryAwareAlpha: options.geometryAwareAlpha, alphaTiles });
+             material.transparent = transparencyMode === "alphaBlend";
+             material.depthWrite = mmdMaterialDepthWrite(transparencyMode);
+             const suppressesColor = mmdMaterialSuppressesColorAtAlpha(mmdMaterial.diffuse[3], mmdMaterial.flags);
 diff --git a/dist/three/performance.js b/dist/three/performance.js
 index 21175b4597aa46d6034db165c1b73d714cffb070..b7565c690bbb502705f925654f891e8fc7a01d22 100644
 --- a/dist/three/performance.js
@@ -355,6 +408,102 @@ index 21175b4597aa46d6034db165c1b73d714cffb070..b7565c690bbb502705f925654f891e8f
 +    }
      if (!isLoaderPerformanceEnabled(options)) {
          return undefined;
+     }
+diff --git a/dist/three/textures.js b/dist/three/textures.js
+index 51925a6c86df40611a48f309fe11670ef9e01a88..e2a575f59c296099098af91c6d7c465df901f2c0 100644
+--- a/dist/three/textures.js
++++ b/dist/three/textures.js
+@@ -224,16 +224,12 @@ export function evaluateMmdTextureAlphaTexture(texture, options = {}) {
+     }
+     return evaluateMmdTextureAlphaRgba(data, options);
+ }
+-export function evaluateMmdTextureAlphaGeometry(texture, geometry, materialIndex, options = {}) {
++export function evaluateMmdTextureAlphaGeometry(texture, geometry, materialIndex, options = {}, alphaTiles) {
+     const metadataAlphaMode = texture.userData.mmdTextureAlphaMode;
+     if (metadataAlphaMode) {
+         return metadataAlphaMode;
+     }
+     const image = texture.image;
+-    const rgba = readableRgbaTextureData(image);
+-    if (!rgba || !hasAnyReadableAlpha(rgba.data, rgba.width, rgba.height)) {
+-        return undefined;
+-    }
+     const uvAttribute = geometry.getAttribute("uv");
+     if (!uvAttribute) {
+         return undefined;
+@@ -245,12 +241,30 @@ export function evaluateMmdTextureAlphaGeometry(texture, geometry, materialIndex
+     const indexArray = geometry.index?.array;
+     const stats = createAlphaStats();
+     const resolution = 512;
++    // Rasterization below only ever queries (x+.5, y+.5) on this lattice.
++    // Gather those EXACT original texels, not a resized or filtered image.
++    // Retain <= 8 * 256 KiB of alpha per load, never full-resolution RGBA.
++    const share = alphaTiles && typeof HTMLImageElement !== 'undefined' && image instanceof HTMLImageElement && image.complete;
++    let grid = share ? alphaTiles.get(image) : undefined;
++    let rgba, width = 0, height = 0;
++    if (grid === undefined) {
++        const pixels = readableRgbaTextureData(image);
++        if (!pixels) return undefined; // A later readable source must be retried.
++        ({data: rgba, width, height} = pixels);
++        const hasAlpha = hasAnyReadableAlpha(rgba, width, height);
++        if (share) {
++            grid = hasAlpha ? gatherAlphaTile(rgba, width, height, resolution) : null;
++            if (alphaTiles.size >= 8) alphaTiles.delete(alphaTiles.keys().next().value);
++            alphaTiles.set(image, grid);
++        }
++        if (!hasAlpha) return undefined;
++    } else if (grid === null) return undefined;
+     for (const group of groups) {
+         for (let offset = group.start; offset < group.start + group.count; offset += 3) {
+             const a = Number(indexArray?.[offset] ?? offset);
+             const b = Number(indexArray?.[offset + 1] ?? offset + 1);
+             const c = Number(indexArray?.[offset + 2] ?? offset + 2);
+-            recordRasterizedUvTriangleAlpha(stats, rgba.data, rgba.width, rgba.height, uvAttribute.getX(a), uvAttribute.getY(a), uvAttribute.getX(b), uvAttribute.getY(b), uvAttribute.getX(c), uvAttribute.getY(c), resolution);
++            recordRasterizedUvTriangleAlpha(stats, rgba, width, height, uvAttribute.getX(a), uvAttribute.getY(a), uvAttribute.getX(b), uvAttribute.getY(b), uvAttribute.getX(c), uvAttribute.getY(c), resolution, grid);
+         }
+     }
+     return stats.sampleCount > 0 ? evaluateAlphaStats(stats, options) : undefined;
+@@ -946,7 +960,17 @@ function sampleRgbaAlphaByUv(rgba, width, height, uvX, uvY) {
+     const y = wrap(uvY, height);
+     return rgba[(y * width + x) * 4 + 3] ?? 255;
+ }
+-function recordRasterizedUvTriangleAlpha(stats, rgba, width, height, uvAX, uvAY, uvBX, uvBY, uvCX, uvCY, resolution) {
++function gatherAlphaTile(rgba, width, height, resolution) {
++    const tile = new Uint8Array(resolution * resolution);
++    const xOffsets = new Uint32Array(resolution);
++    for (let x = 0; x < resolution; x++) xOffsets[x] = (Math.round((x + .5) / resolution * width) % width) * 4 + 3;
++    for (let y = 0; y < resolution; y++) {
++        const row = (Math.round((y + .5) / resolution * height) % height) * width * 4;
++        for (let x = 0; x < resolution; x++) tile[y * resolution + x] = rgba[row + xOffsets[x]];
++    }
++    return tile;
++}
++function recordRasterizedUvTriangleAlpha(stats, rgba, width, height, uvAX, uvAY, uvBX, uvBY, uvCX, uvCY, resolution, grid) {
+     const minU = Math.min(uvAX, uvBX, uvCX);
+     const maxU = Math.max(uvAX, uvBX, uvCX);
+     const minV = Math.min(uvAY, uvBY, uvCY);
+@@ -957,11 +981,11 @@ function recordRasterizedUvTriangleAlpha(stats, rgba, width, height, uvAX, uvAY,
+     const shiftMaxV = Math.floor(1 - minV);
+     for (let shiftU = shiftMinU; shiftU <= shiftMaxU; shiftU += 1) {
+         for (let shiftV = shiftMinV; shiftV <= shiftMaxV; shiftV += 1) {
+-            recordRasterizedUvTriangleAlphaTile(stats, rgba, width, height, uvAX + shiftU, uvAY + shiftV, uvBX + shiftU, uvBY + shiftV, uvCX + shiftU, uvCY + shiftV, resolution);
++            recordRasterizedUvTriangleAlphaTile(stats, rgba, width, height, uvAX + shiftU, uvAY + shiftV, uvBX + shiftU, uvBY + shiftV, uvCX + shiftU, uvCY + shiftV, resolution, grid);
+         }
+     }
+ }
+-function recordRasterizedUvTriangleAlphaTile(stats, rgba, width, height, uvAX, uvAY, uvBX, uvBY, uvCX, uvCY, resolution) {
++function recordRasterizedUvTriangleAlphaTile(stats, rgba, width, height, uvAX, uvAY, uvBX, uvBY, uvCX, uvCY, resolution, grid) {
+     const ax = uvAX * resolution;
+     const ay = uvAY * resolution;
+     const bx = uvBX * resolution;
+@@ -987,7 +1011,7 @@ function recordRasterizedUvTriangleAlphaTile(stats, rgba, width, height, uvAX, u
+             const wB = ((cy - ay) * (px - cx) + (ax - cx) * (py - cy)) / denominator;
+             const wC = 1 - wA - wB;
+             if (wA >= 0 && wB >= 0 && wC >= 0) {
+-                recordAlphaSample(stats, sampleRgbaAlphaByUv(rgba, width, height, px / resolution, py / resolution));
++                recordAlphaSample(stats, grid ? grid[y * resolution + x] : sampleRgbaAlphaByUv(rgba, width, height, px / resolution, py / resolution));
+             }
+         }
      }
 diff --git a/dist/webgpu/self-shadow-pass.js b/dist/webgpu/self-shadow-pass.js
 index 06cd5adcb070478ddec40f76a55da9b64ce88abd..51c07d5426b47db762a240915dc7f187e6b78f28 100644

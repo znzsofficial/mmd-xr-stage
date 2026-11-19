@@ -20,6 +20,8 @@
 
 ## 放置耗时：从松开扳机开始算
 
+**材质贴图读回对照（桌面 Chromium）**：在 `scripts/material-load-probe.html` 选择一个本地原版 PMX 和配套图片，改前、改后各新建 5 次 loader。21 个材质的测试角色每次整图 `getImageData` 从 19 次 / 304 MiB 降至 3 次 / 48 MiB（累计返回字节，不是显存峰值）。`load-textures` 中位数从 626.3 ms 降到 239.7 ms；21 项材质的透明模式、alphaTest、depthWrite 和贴图尺寸签名一致，零贴图告警。计时不含 GPU 上传和等待 XR 帧，不能据此外推遗庭报告的 1.395 秒会缩短多少。
+
 报告的 `startup.firstVisibleXrFrameMs` 从打开本次 XR 覆盖层开始，到首个可见 XR 回调。`firstFrameAfterAssetsReadyMs` 是模型/物件列表已就绪且队列不再运行时的首个可见帧回调；都不是 GPU 完成提交的时间。约一秒的 `windows` 记录实际 `scenery` 选择。
 
 从空场进入时，第二个启动字段会包含人在场内挑选位置的时间；不放任何模型／物件时保持 `null`。单独看 `placements[].confirmToReadyFrameMs`：从确认落点到命令完成后观察到的首个可见 XR 回调。`selectToPointMs` 还包括瞄准地面所花的时间；`moved` 区分移动已有实例和首次／再次取出。保留最近 120 条已观察到的成功记录，不含模型名、坐标或文件路径。
