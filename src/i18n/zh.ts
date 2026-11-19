@@ -3,6 +3,7 @@ export const zh = {
   importBindResource: "为此引用选择资源文件",
   hudBack: "返回观看",
   hudScenery: "场景",
+  actorPalmCloth:'角色手掌托裙摆（试验，需开物理）',
   campusWindow:'从窗边望花架',campusHall:'走到连廊',campusGoLawn:'穿过连廊去草坪',campusSchool:'回望教学楼',campusArbor:'花架小径',campusGoClass:'沿连廊回教室',
   chapelWindow:'百合彩窗',chapelDoor:'从正门看花园',chapelGarden:'薰衣草水庭',chapelFacade:'池畔回望教堂',
   courtTour:'游览机位',courtOverview:'俯看星桥',courtNorth:'北侧观星台',courtWest:'西侧星图库',courtEast:'东侧测星台',courtReturn:'桥上回望圆庭',

@@ -1,6 +1,6 @@
 # 性能：下一轮先修什么
 
-**切换停顿已做资源复用，持续播放优先看新版头显分段。** 晨光礼拜堂的旧 Quest 3S 记录测到一次开启物理忙了 **3.534 秒**。本地屏幕对照已消除重复读图；新版本在头显上能快多少待测。
+**教室真机首次开物理 540 ms，再开 67 ms。** 持续播放仍未达标：最新头显报告单角色开物理约 49 FPS，已测后端主要耗在原生步进。下一步分测原生求解的接触／约束负担，并给跨区角色恢复补直接计时。[本次条件和统计](./viewing-and-diagnostics.md#已有测量)
 
 | 优先级 | 状态与下一步 | 怎么知道有用 |
 |---|---|---|
@@ -12,6 +12,6 @@
 
 ## 查记录或跑对照
 
-- [三次真机报告的条件、样本与结论](./viewing-and-diagnostics.md#已有测量) · [如何复测并导出](./viewing-and-diagnostics.md)。
+- [历次真机报告的条件、样本与结论](./viewing-and-diagnostics.md#已有测量) · [如何复测并导出](./viewing-and-diagnostics.md)。
 - [桌面基准、等价性和真实 Bullet 回归](./xr-runtime-performance.md) · [loader 补丁与升级注意事项](../three-mmd-loader-maintenance.md)。
 - [播放基准](../../scripts/physics-playback-probe.html) · [材质加载基准](../../scripts/material-load-probe.html) · [暂停拨衣](../../scripts/paused-cloth-smoke.html) · [物理缓冲对照](../../scripts/physics-smoke.html)。这些开发页随本地开发服务器运行，私有模型不进仓库。

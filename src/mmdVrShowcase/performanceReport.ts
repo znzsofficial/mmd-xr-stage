@@ -3,7 +3,7 @@ import type { RenderDiagnostics, RenderRequest } from "./renderDiagnostics";
 import type { BackpackPlacementTiming } from "./backpack";
 import type { SceneryId } from './scenery/catalog';
 
-type SceneSample = { models: number; objects: number; physics: boolean; scenery?: string; liveHouse: boolean; shadows: boolean; playing: boolean; heldToy?: import('./play/stagePlay').Toy | null };
+type SceneSample = { models: number; objects: number; physics: boolean; scenery?: string; liveHouse: boolean; shadows: boolean; playing: boolean; actorPalmClothRequested?:boolean; heldToy?: import('./play/stagePlay').Toy | null };
 type Window = Omit<RenderDiagnostics, "requested" | "active"> & SceneSample & { elapsedMs: number };
 const MAX_WINDOWS = 1800;
 

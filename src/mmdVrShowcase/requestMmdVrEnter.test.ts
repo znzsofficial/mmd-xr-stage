@@ -90,6 +90,7 @@ describe("requestMmdVrEnter", () => {
         physicsColliderRestitution: "none",
         physicsHapticLevel: "low",
         physicsDynamicSelfCollision: false,
+        actorPalmCloth: false,
       },
       phase: "idle",
       errorMessage: null,

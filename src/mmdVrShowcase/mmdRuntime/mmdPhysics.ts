@@ -8,6 +8,7 @@ import type {
 } from "@yohawing/three-mmd-loader/physics";
 import type { MmdPhysicsQuality } from "../mmdPhysicsQuality";
 import { ColliderReentry, syntheticColliderBody } from "./colliderReentry";
+import {isActorPalm} from './actorPalms';
 
 export type { MmdPhysicsQuality };
 export type MmdControllerColliderMatrix = MmdPhysicsMatrix4ColumnMajorTuple | Float32Array;
@@ -340,7 +341,7 @@ export function createControllerColliderPhysicsBackend(
           ],
         };
         augmentedRigidBodies = [
-          ...context.rigidBodies.map((body) => controllerGroupMask === 0 || syntheticColliderBody in body ? body : ({
+          ...context.rigidBodies.map((body) => controllerGroupMask === 0 || syntheticColliderBody in body || isActorPalm(body.name) ? body : ({
             ...body,
             collisionMask: (body.collisionMask ?? 0xffff) | controllerGroupMask,
           })),

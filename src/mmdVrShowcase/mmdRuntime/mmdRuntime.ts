@@ -11,6 +11,7 @@ import * as THREE from "three";
 import { placementLoaderProfile } from '../placementWork';
 import { PhysicsPoseDisplay } from "./physicsPoseDisplay";
 import { PARK_Y } from "./colliderReentry";
+import { installActorPalms } from './actorPalms';
 import { createLocalTextureResolver } from "./localTextureResolver";
 export { createLocalTextureResolver } from "./localTextureResolver";
 import { createBulletPhysicsBackend, type ColliderShapeFactory, type MmdPhysicsQuality } from "./mmdPhysics";
@@ -221,6 +222,7 @@ export function isMmdRuntimeRebuildError(error: unknown): error is MmdRuntimeReb
 }
 
 export type MmdRuntimeOptions = {
+  actorPalmCloth?:boolean;
   /** Cold reload reference path for parity checks and troubleshooting. */
   reusePhysicsModels?: boolean;
   /** For diagnostic consumers and the parity benchmark. The stage never reads loader.debugState(). */
@@ -443,6 +445,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       if (work) work.loaderWallMs = performance.now()-started;
       assertCurrent();
       bindPose = captureBindPose(model.mesh);
+      if(options.actorPalmCloth)installActorPalms(model.mesh);
       if (withPhysics) bindStaticMmdPhysicsRuntime(model);
       colliderRoot = model.root;
       prepareModel?.(model.root);

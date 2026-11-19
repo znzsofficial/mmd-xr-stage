@@ -18,10 +18,12 @@ async function compare(files) {
   for(const offset of [54,165]){bytes.fill(0,offset,offset+15);bytes.set(name,offset);}new DataView(bytes.buffer).setFloat32(165+19,1.5,true);
   const vmd=new File([bytes],'probe.vmd');const results=[];
   const backendOnly=new URLSearchParams(location.search).has('backend');
-  for(const snapshots of backendOnly?[false,false]:[true,false,false,true]) {
+  const palmsAB=new URLSearchParams(location.search).has('palms');
+  for(const snapshots of palmsAB?[false,false,false,false]:backendOnly?[false,false]:[true,false,false,true]) {
+    const palms=palmsAB&&[1,2].includes(results.length);
     let sampling=false,count=0,animation=0,prepare=0,backend=0,writeBack=0;
     let steps=0,seeds=0,feed=0,worldStep=0,outputs=0;
-    const rt=createMmdRuntimeHandle(scene,{prepareModel:prepareMmdVrModel,capturePhysicsStageSnapshots:snapshots,
+    const rt=createMmdRuntimeHandle(scene,{actorPalmCloth:palms,prepareModel:prepareMmdVrModel,capturePhysicsStageSnapshots:snapshots,
       onBulletStepWork(f,s,o,seedOnly){if(sampling){steps++;seeds+=Number(seedOnly);feed+=f;worldStep+=s;outputs+=o;}},
       controllerColliders:()=>controllers,handColliders:()=>hands,handShape:handContactShape,handColliderRadius:()=>handReferenceRadius(.08),
       onPhysicsPoseWork(a,p,b,w){if(sampling){count++;animation+=a;prepare+=p;backend+=b;writeBack+=w;}}});
@@ -37,8 +39,8 @@ async function compare(files) {
       }
       if(count!==n)throw Error('Unexpected number of completed poses: '+count);
       const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',signature)),v=>v.toString(16).padStart(2,'0')).join('');
-      if(results.length&&results[0].hash!==hash)throw Error('Pose parity failed');
-      const mean=times.reduce((s,v)=>s+v,0)/n;times.sort((a,b)=>a-b);results.push({snapshots,bones:bones.length,dynamic:rt.getDynamicRigidBodyCount(),n,mean,p95:times[Math.ceil(.95*n)-1],hash,
+       const same=results.find(r=>r.palms===palms);if(same&&same.hash!==hash)throw Error('Pose parity failed');
+       const mean=times.reduce((s,v)=>s+v,0)/n;times.sort((a,b)=>a-b);results.push({palms,bodies:rt.getRigidBodyCount(),snapshots,bones:bones.length,dynamic:rt.getDynamicRigidBodyCount(),n,mean,p95:times[Math.ceil(.95*n)-1],hash,
         phases:[animation,prepare,backend,writeBack].map(v=>v/count),bullet:{steps,seeds,feed:feed/steps,worldStep:worldStep/steps,outputs:outputs/steps},palettes:{skins,unique:shared.size,callsPerUpdate:paletteCalls/n,msPerUpdate:paletteMs/n}});
     }finally{rt.dispose();}
   }return results;

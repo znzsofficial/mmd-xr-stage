@@ -62,7 +62,7 @@ export function MmdVrDiagnostics({ requested }: { requested: RenderRequest }) {
       const s = useMmdVrStore.getState();
       recording.current?.sample(data, { models: s.models.length, objects: s.objects.length, playing: s.playing,
         physics: s.physicsEnabled, scenery: s.prefs.scenery, liveHouse: s.prefs.scenery === "liveHouse", shadows: gl.shadowMap.enabled,
-        heldToy: useStagePlay.getState().held?.toy ?? null });
+        actorPalmClothRequested:s.prefs.actorPalmCloth, heldToy: useStagePlay.getState().held?.toy ?? null });
     }
   });
   return null;

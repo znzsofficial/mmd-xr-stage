@@ -1,0 +1,15 @@
+<!doctype html><meta charset="utf-8"><title>Actor palm lift / A-B</title><pre>Running paired native Bullet lift</pre><script type="module">
+import * as THREE from 'three';
+import {createMmdRuntimeHandle} from '/src/mmdVrShowcase/mmdRuntime/mmdRuntime.ts';
+import {clothSmokeFixture} from './cloth-smoke-fixture.js';
+const {pmx,vmd}=clothSmokeFixture(true),camera=new THREE.PerspectiveCamera(),results=[];
+try{for(const enabled of [false,true]){
+  const rt=createMmdRuntimeHandle(new THREE.Scene(),{actorPalmCloth:enabled});try{const {modelId}=await rt.addModel(pmx,[],{physics:false});await rt.loadMotion(vmd,'body',modelId);await rt.setPhysicsEnabled(true);
+    const root=rt.getModelRoot(modelId),hem=root.getObjectByName('hem'),hand=root.getObjectByName('RightHand'),v=new THREE.Vector3();let base,held,end;
+    for(let i=0;i<=300;i++){rt.update(Math.min(i/60,4),true,camera,1,false,1/60);const y=hem.getWorldPosition(v).y;if(i===59)base=y;if(i===149)held=y;if(i===299)end=y;}
+    results.push({enabled,bodies:rt.getRigidBodyCount(),base,held,end,handX:hand.getWorldPosition(v).x});
+  }finally{rt.dispose()}}
+  const [off,on]=results;if(on.bodies!==off.bodies+1||!(on.held-off.held>.09&&Math.abs(on.base-off.base)<.006&&Math.abs(on.end-off.end)<.012&&Math.abs(on.handX-off.handX)<1e-6))throw Error(JSON.stringify(results));
+  document.querySelector('pre').textContent='PASS '+JSON.stringify(results);
+}catch(e){document.querySelector('pre').textContent='FAIL '+e.stack;console.error(e)}
+</script>

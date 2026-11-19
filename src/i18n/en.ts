@@ -5,6 +5,7 @@ export const en: Record<keyof ZhMessages, string> = {
   importBindResource: "Choose a file for this reference",
   hudBack: "Back to viewing",
   hudScenery: "Scenery",
+  actorPalmCloth:'Character palms can lift skirts (experimental; requires physics)',
   campusWindow:'Arbor from the windows',campusHall:'School breezeway',campusGoLawn:'Cross to the meadow',campusSchool:'Look back at school',campusArbor:'Wisteria path',campusGoClass:'Cross back to class',
   courtTour:'Tour viewpoints',courtOverview:'Bridge junction from above',courtNorth:'North observatory',courtWest:'West chart gallery',courtEast:'East meridian scope',courtReturn:'Look back at the gate',
   chapelWindow:'Lily window',chapelDoor:'Through the open doors',chapelGarden:'Lavender court',chapelFacade:'Chapel from the basin',

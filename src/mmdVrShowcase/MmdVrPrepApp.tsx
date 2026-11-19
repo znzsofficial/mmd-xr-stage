@@ -803,6 +803,10 @@ export function MmdVrPrepApp() {
                   </label>
 
                   <label className="stage-toggle-row">
+                    <span>{t('actorPalmCloth')}</span>
+                    <input type="checkbox" checked={prefs.actorPalmCloth} onChange={e=>setPrefs({actorPalmCloth:e.target.checked})}/>
+                  </label>
+                  <label className="stage-toggle-row">
                     <span>{t("settingsMmdVrDetailedPhysicsDiagnostics")}</span>
                     <input
                       type="checkbox"

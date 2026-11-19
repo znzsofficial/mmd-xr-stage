@@ -409,6 +409,7 @@ export function MmdVrStageRoom({ scenery, saved, slots }: { scenery: SceneryId; 
 
   const runtime = useMemo(() => {
     const handle = createMmdRuntimeHandle(scene, {
+      actorPalmCloth: useMmdVrStore.getState().prefs.actorPalmCloth,
       onPhysicsPoseWork: useMmdVrStore.getState().presentation==='xr' ? runtimeTiming.recordPose : undefined,
       onBulletStepWork: useMmdVrStore.getState().presentation==='xr' ? runtimeTiming.recordBullet : undefined,
       controllerColliders: getMmdVrControllerColliderMatrices,
