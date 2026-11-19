@@ -2,6 +2,9 @@ import { useFrame } from "@react-three/fiber";
 import { useXRControllerLocomotion, useXRInputSourceState, XROrigin } from "@react-three/xr";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type * as THREE from "three";
+import { Vector3 } from 'three';
+import {campusRoom,CAMPUS_OFFSET,CampusGate,nearCampusDoor} from '../scenery/CampusLayout';
+import {hintLawnPrints,walkBetweenZones} from '../scenery/campusTransit';
 import {
   MMD_VR_HEIGHT_OFFSET_MAX,
   MMD_VR_HEIGHT_OFFSET_MIN,
@@ -183,6 +186,10 @@ export function MmdVrPlayerRig({
   }, []);
   const rightController = useXRInputSourceState("controller", "right");
   const stickHeightRef = useRef({ value: heightOffset, elapsed: 0, active: false });
+  const [eye]=useState(()=>new Vector3());
+  const [gate]=useState(()=>new CampusGate());
+  const releaseHints=useRef<(()=>void)|null>(null);
+  useEffect(()=>()=>{releaseHints.current?.();releaseHints.current=null;},[mmdPrefs.scenery]);
 
   useXRControllerLocomotion(
     originRef,
@@ -209,7 +216,16 @@ export function MmdVrPlayerRig({
     useMmdVrStore.getState().setPrefs({ heightOffset: stickHeightRef.current.value });
   }, []);
 
-  useFrame((_, delta) => {
+  useFrame(({gl}, delta) => {
+    const room=mmdPrefs.scenery,origin=originRef.current;
+    if(origin&&gl.xr.isPresenting&&campusRoom(room)&&!panelDragging){
+      gl.xr.getCamera().getWorldPosition(eye);
+      if(room==='classroom'&&!releaseHints.current&&nearCampusDoor(eye.x,eye.z))releaseHints.current=hintLawnPrints();
+      if(gate.next(room,eye.x,eye.z)&&walkBetweenZones(room)){
+        const sign=room==='classroom'?1:-1;
+        origin.position.x+=sign*CAMPUS_OFFSET.x;origin.position.z+=sign*CAMPUS_OFFSET.z;origin.updateMatrixWorld(true);
+      }
+    }else gate.reset();
     const stick = rightController?.gamepad["xr-standard-thumbstick"];
     if (!panelDragging && !snapTurnReady && Math.abs(stick?.xAxis ?? 0) < 0.65) {
       setSnapTurnReady(true);

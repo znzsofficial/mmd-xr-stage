@@ -1,0 +1,7 @@
+<!doctype html><meta charset="utf-8"><title>Bake the classroom prints</title>
+<p>Run in the local Vite development server. Save the five original prints beside Classroom.tsx.</p>
+<script type="module">
+import {parquet,globeChart,lessonAtlas,veneerGrain} from '/src/mmdVrShowcase/scenery/ClassroomPrints.ts';
+const prints={'class-floor-day':()=>parquet(false),'class-floor-shadow':()=>parquet(true),'class-lesson':lessonAtlas,'class-globe':globeChart,'class-veneer':veneerGrain};
+for(const [name,make] of Object.entries(prints)){const a=document.createElement('a');const texture=make();a.download=name+'.webp';a.textContent='Save '+a.download;a.href=texture.image.toDataURL('image/webp',.95);document.body.append(a,document.createElement('br'));texture.dispose();}
+</script>

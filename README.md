@@ -17,6 +17,8 @@ Import PMX/PMD characters, VMD motions and GLB/glTF props on the prep page. Choo
 
 ## Stage gallery
 
+**Campus passage (pilot).** Walk out of the classroom's rear door and turn left along the covered passage to enter the wisteria meadow. On screen, open **Tour viewpoints → Cross to the meadow**. Only the current zone's actors are live; the classroom resumes its own arrangement and motion when you return. [Window view](./docs/screenshots/campus-window.webp) · [Breezeway](./docs/screenshots/campus-hall.webp) · [School from the meadow](./docs/screenshots/campus-school.webp).
+
 ![Afternoon light through the classroom windows falls across the desks and parquet floor.](./src/mmdVrShowcase/prep/classroom-window.webp)
 
 | Summer pool | Wisteria meadow |

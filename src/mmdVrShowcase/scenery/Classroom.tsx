@@ -3,7 +3,12 @@ import { BufferGeometry, DoubleSide, Float32BufferAttribute } from 'three';
 import { Batch } from './SceneryBatch';
 import { canopyCluster, chairBack, chairFrame, classroomCurtains, deskFrame, woodSlab } from './ClassroomGeometry';
 import { classroomProps } from './ClassroomProps';
-import { globeChart, lessonAtlas, parquet, veneerGrain } from './ClassroomPrints';
+import { useBakedSurface } from './useBakedSurface';
+import floorDay from './class-floor-day.webp';
+import floorShadow from './class-floor-shadow.webp';
+import lesson from './class-lesson.webp';
+import veneer from './class-veneer.webp';
+import globe from './class-globe.webp';
 import { DOOR_CENTERS, LECTERN, ROOM } from './ClassroomLayout';
 import { classroomBounce, classroomSunlight } from './ClassroomLight';
 
@@ -34,14 +39,13 @@ export function Classroom({ shadows }: { shadows: boolean }) {
   const p = useMemo(classroomProps, []);
   const geometry = useMemo(() => ({ slab: woodSlab(), desk: deskFrame(), chair: chairFrame(),
     back: chairBack(), cloth: classroomCurtains(), foliage: canopyCluster(), paper: printedMatter() }), []);
-  const atlas = useMemo(lessonAtlas, []), grain = useMemo(veneerGrain, []), earth = useMemo(globeChart, []);
-  const floor = useMemo(() => parquet(shadows), [shadows]);
+  const atlas=useBakedSurface(lesson),grain=useBakedSurface(veneer),earth=useBakedSurface(globe);
+  const floor=useBakedSurface(shadows?floorShadow:floorDay);
   const daylight = shadows ? classroomBounce : classroomSunlight;
-  useEffect(() => () => { for (const g of Object.values(geometry)) g.dispose(); atlas.dispose(); grain.dispose(); earth.dispose(); }, [geometry, atlas, grain, earth]);
-  useEffect(() => () => floor.dispose(), [floor]);
+  useEffect(() => () => { for (const g of Object.values(geometry)) g.dispose(); }, [geometry]);
   return <group name="scenery:classroom">
     <mesh name="basketweave-parquet" rotation={[-Math.PI/2,0,0]} receiveShadow={shadows} raycast={()=>null}>
-      <planeGeometry args={[ROOM.w, ROOM.d]} /><meshStandardMaterial map={floor} roughness={.88} onBeforeCompile={classroomBounce} />
+      <planeGeometry args={[ROOM.w, ROOM.d]} /><meshStandardMaterial key={floor?'wood':'plain'} map={floor} color={floor?'white':'#bd9a77'} roughness={.88} onBeforeCompile={classroomBounce} />
     </mesh>
     <Batch name="room-shell-and-sashes" parts={p.shell} casts={shadows} shade={daylight} />
     <Batch name="joinery-and-campus" parts={p.trim} shade={daylight} />
@@ -49,7 +53,7 @@ export function Classroom({ shadows }: { shadows: boolean }) {
     <Batch name="quadrangle-foliage" parts={p.leaves} geometry={geometry.foliage} shade={classroomBounce} />
     <Batch name="ceiling-practicals" parts={p.luminous} lit />
     <Batch name="radiused-wood-and-stationery" parts={p.slabs} geometry={geometry.slab} casts={shadows} shade={daylight} />
-    <Batch name="birch-veneers" parts={p.veneers} geometry={geometry.slab} casts={shadows} shade={daylight} map={grain} />
+    <Batch name="birch-veneers" parts={p.veneers} geometry={geometry.slab} casts={shadows} shade={daylight} map={grain??undefined} />
     <Batch name="tubular-desk-frames" parts={p.deskFrames} geometry={geometry.desk} shade={daylight} />
     <Batch name="tubular-chair-frames" parts={p.chairFrames} geometry={geometry.chair} shade={daylight} />
     <Batch name="molded-chair-backs" parts={p.backs} geometry={geometry.back} casts={shadows} shade={daylight} />
@@ -57,10 +61,10 @@ export function Classroom({ shadows }: { shadows: boolean }) {
       <primitive object={geometry.cloth} attach="geometry" /><meshStandardMaterial vertexColors side={DoubleSide} roughness={1} onBeforeCompile={classroomBounce} />
     </mesh>
     <mesh name="lunar-lesson-and-prints" raycast={()=>null}>
-      <primitive object={geometry.paper} attach="geometry" /><meshStandardMaterial map={atlas} roughness={1} onBeforeCompile={daylight} />
+      <primitive object={geometry.paper} attach="geometry" /><meshStandardMaterial key={atlas?'printed':'plain'} map={atlas} color={atlas?'white':'#819985'} roughness={1} onBeforeCompile={daylight} />
     </mesh>
     <mesh name="lectern-globe" position={[LECTERN.x-.45,1.172,LECTERN.z]} rotation={[0,-1.34,-.32]} raycast={()=>null}>
-      <sphereGeometry args={[.168,24,16]} /><meshStandardMaterial map={earth} roughness={.73} onBeforeCompile={daylight} />
+      <sphereGeometry args={[.168,24,16]} /><meshStandardMaterial key={earth?'printed':'plain'} map={earth} roughness={.73} onBeforeCompile={daylight} />
     </mesh>
   </group>;
 }

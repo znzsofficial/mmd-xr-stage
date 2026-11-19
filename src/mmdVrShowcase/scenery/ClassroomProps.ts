@@ -1,4 +1,5 @@
 import type { Part } from './SceneryBatch';
+import { CAMPUS_DOOR, campusPassageParts, classroomDistantArbor } from './CampusLayout';
 import { BOOKCASE, CHALK_TRAY, DOOR_CENTERS, LECTERN, REAR_CASE, ROOM, STUDENTS, WINDOWS, seededRandom, type Footprint } from './ClassroomLayout';
 
 type V = Part['p'];
@@ -17,10 +18,10 @@ export function classroomProps() {
 
   wall([0,h+.08,0],[w+.24,.16,d+.24],'#f1e9d5');
   for (const s of [-1,1]) {
-    wall([0,h/2,s*(Z+.08)],[w+.32,h,.16],plaster);
-    box([0,.47,s*(Z-.012)],[w,.94,.05],sage);
-    box([0,.95,s*(Z-.05)],[w,.06,.095],molding);
-    box([0,.072,s*(Z-.035)],[w,.144,.085],dark);
+    const spans=s===-1?[[-X-.16,X+.16]]:[[-X-.16,CAMPUS_DOOR-.93],[CAMPUS_DOOR+.93,X+.16]];
+    for(const [a,b] of spans){const x=(a+b)/2;wall([x,h/2,s*(Z+.08)],[b-a,h,.16],plaster);
+      box([x,.47,s*(Z-.012)],[b-a,.94,.05],sage);box([x,.95,s*(Z-.05)],[b-a,.06,.095],molding);box([x,.072,s*(Z-.035)],[b-a,.144,.085],dark);}
+    if(s===1){wall([CAMPUS_DOOR,(h+2.4)/2,Z+.08],[1.86,h-2.4,.16],plaster);for(const k of [-1,1])box([CAMPUS_DOOR+k*.91,1.21,Z],[.09,2.42,.25],dark);box([CAMPUS_DOOR,2.41,Z],[1.93,.12,.25],dark);}
   }
   wall([X+.08,h/2,0],[.16,h,d],plaster);
   box([X-.01,.47,0],[.05,.94,d],sage);
@@ -168,19 +169,22 @@ export function classroomProps() {
       }
     }
   }
-  wing(-18,-2,22);wing(-15.4,13,6);
+  wing(-29,-2,22);wing(-15.4,13,6);
+  trim.push(...campusPassageParts('classroom'),...classroomDistantArbor());
+  box([-17.5,-.17,2.1],[19.0,.32,19.9],'#9ba978');
+  box([-18.2,-.012,1.66],[1.64,.013,16.4],'#c7b99a',-.08);
   const tx=-13.15,tz=-12.7;
   box([tx,-.28,tz],[4.3,4.98,4.9],'#cfa588');box([tx,2.18,tz],[4.52,.22,5.14],'#e4d5b8');
   cyl([tx,3.12,tz],[3.13,1.9,3.13],'#d7b99a');cyl([tx,4.13,tz],[3.42,.21,3.42],'#8eab9c');
   add(leaves,[tx,4.12,tz],[3.29,2.85,3.29],'#829e9b');cyl([tx,5.58,tz],[.12,.59,.12],'#8e8b78');
   for(let i=0;i<8;i++){const a=i*Math.PI/4;box([tx+1.53*Math.sin(a),3.35,tz+1.53*Math.cos(a)],[.36,.62,.07],'#718f92',a);}
-  for(const [x,z,H] of [[-9,-7.3,3.65],[-12.3,1.35,4.8],[-8,10.4,4.7],[-16,-16.5,5.8],[-10,16,5.5]]) {
+  for(const [x,z,H] of [[-9,-7.3,3.65],[-13.4,-4.85,4.8],[-12,11.5,4.7],[-16,-16.5,5.8],[-10,16,5.5]]) {
     cyl([x,-2.78+H*.38,z],[.23,H*.76,.23],'#95856b');
     for(const side of [-1,1])cyl([x,-2.78+H*.60,z+side*.33],[.12,H*.38,.12],'#95856b',0,0,side*.43);
     for(let n=0;n<19;n++){const a=n*2.399, r=n===0?0:H*(.13+rand()*.18);
       add(leaves,[x+r*Math.cos(a),-2.78+H*(n===0?1.08:.78+rand()*.26),z+r*Math.sin(a)],
         [H*(.28+rand()*.16),H*(.30+.13*rand()),H*.34],['#a2b57b','#bdc17c','#829e72','#a3ba7c'][n%4],a);}
   }
-  for(let i=0;i<9;i++) add(leaves,[-22-i%2*3,-1,-25+i*6],[11,7+rand()*4,13],i%2?'#94aca5':'#a8bcae',i);
+  for(let i=0;i<9;i++) add(leaves,[-34-i%2*3,-1,-25+i*6],[11,7+rand()*4,13],i%2?'#94aca5':'#a8bcae',i);
   return {shell,trim,round,leaves,luminous,slabs,veneers,deskFrames,chairFrames,backs};
 }

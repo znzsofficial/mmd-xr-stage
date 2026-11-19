@@ -2,6 +2,7 @@ import { CLASS_OBSTACLES, ROOM, seededRandom, type Footprint } from './Classroom
 import type { SceneryId } from './catalog';
 import { chapelFloor, CHAPEL_OBSTACLES } from './ChapelLayout';
 import { OLD_COURT_RADIUS, onObservatoryFloor, ROUTE_FEET } from './ObservatoryLayout';
+import { classPassageFloor, lawnSchoolFoot, passagePost } from './CampusLayout';
 
 // A placement is a point on a supported y=0 surface with a little shoe room;
 // it doesn't pretend to know a particular imported object's swept bounds.
@@ -79,13 +80,12 @@ export function canPlaceInScenery(id: SceneryId, x: number, z: number): boolean 
     case 'astralCourt': return shoeOffsets.every(([dx,dz])=>onObservatoryFloor(x+dx,z+dz)) && !COURT_PIERS.some(p=>hits(p,x,z)) && !ROUTE_FEET.some(p=>hits(p,x,z));
     case 'liveHouse': return Math.max(Math.abs(x), Math.abs(z)) <= LIVE_DECK_SIZE / 2 - CLEAR &&
       z > -5.515 + CLEAR && !hits(cyc, x, z) && !wings.some(r => hits(r, x, z));
-    case 'classroom': return Math.abs(x) < ROOM.w / 2 - CLEAR && Math.abs(z) < ROOM.d / 2 - CLEAR &&
-      !CLASS_OBSTACLES.some(r => hits(r, x, z));
+    case 'classroom': return shoeOffsets.every(([dx,dz])=>Math.abs(x+dx)<ROOM.w/2&&Math.abs(z+dz)<ROOM.d/2||classPassageFloor(x+dx,z+dz)) && !passagePost(id,x,z)&&!CLASS_OBSTACLES.some(r=>hits(r,x,z));
     case 'pool': return !poolObstacles.some(r => hits(r, x, z)) &&
       // Connected deck pieces overlap: test the union, not four separately inset rectangles.
       shoeOffsets.every(([dx, dz]) =>
         poolDeck.some(r => hits(r, x + dx, z + dz, 0)));
-    case 'lawn': return Math.max(Math.abs(x), Math.abs(z)) <= LAWN_SIZE / 2 - CLEAR &&
+    case 'lawn': return !lawnSchoolFoot(x,z)&&!passagePost(id,x,z) && Math.max(Math.abs(x), Math.abs(z)) <= LAWN_SIZE / 2 - CLEAR &&
       !hits(MEADOW_SEAT,x,z) && !hits(meadowRail,x,z) && !ARBOR_POSTS.some(p=>hits(p,x,z)) &&
       !LAWN_TREES.some(t => Math.hypot(x - t.x, z - t.z) < CLEAR + t.h * .07) &&
       !LAWN_KNOLLS.some(k => {

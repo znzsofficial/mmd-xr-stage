@@ -18,6 +18,6 @@ export function Batch({ parts, round, lit, name, casts = false, foliage = false,
   }, [parts]);
   return <instancedMesh ref={ref} args={[geometry, undefined, parts.length]} name={name} receiveShadow={!lit} castShadow={casts} raycast={() => null}>
     {geometry ? null : foliage ? <icosahedronGeometry args={[0.5, 1]} /> : round ? <cylinderGeometry args={[0.5, 0.5, 1, 16]} /> : <boxGeometry />}
-    {lit ? <meshBasicMaterial /> : <meshStandardMaterial key={shade?.name} roughness={0.88} vertexColors={!!geometry?.hasAttribute('color')} {...(shade && {onBeforeCompile: shade})} map={map ?? null} />}
+    {lit ? <meshBasicMaterial /> : <meshStandardMaterial key={`${shade?.name??''}:${!!map}`} roughness={0.88} vertexColors={!!geometry?.hasAttribute('color')} {...(shade && {onBeforeCompile: shade})} map={map ?? null} />}
   </instancedMesh>;
 }
