@@ -33,6 +33,8 @@ Import PMX/PMD characters, VMD motions and GLB/glTF props on the prep page. Choo
 
 ![A clear limestone aisle between oak pews, leading to the altar and its eight-petal stained-glass rose.](./docs/screenshots/dawn-chapel.webp)
 
+Close views from the same camera, before (left) and after (right): [wisteria under the timber arbor](./docs/screenshots/wisteria-detail.webp) · [the meridian standard and enamel hour scale](./docs/screenshots/meridian-detail.webp).
+
 The four-set gallery and chapel are captured in screen mode. The classroom is the prep-page render; Astral Court is a desktop XR simulator capture. All show built-in scenery without imported characters. See [how the scenery is made](./docs/scenery/README.md) for the modelling and texture workflow.
 
 ## Features

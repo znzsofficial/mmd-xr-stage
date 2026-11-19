@@ -6,6 +6,8 @@ import { seededRandom } from './ClassroomLayout';
 import { COURT_PIERS, COURT_RADIUS } from './placementAreas';
 import { noPick, paintedSurface } from './sceneryPaint';
 import duskUrl from './astral-dusk.webp';
+import workshopUrl from './meridian-workshop.webp';
+import { useBakedSurface } from './useBakedSurface';
 
 const TAU = Math.PI * 2;
 const stone = ['#747b8d','#9596a2','#858796','#666e84','#8e91a0'];
@@ -13,38 +15,40 @@ const brass = '#b69a73';
 
 // A weathered wayfinding pennon hung on the *outside* of each pier. Paint on
 // folded, not camera-facing, cloth so its silhouette reads from both eyes.
-function pennons(){
-  const p:number[]=[],t:number[]=[],c=new Color();
+function meridianFaces(){
+  const p:number[]=[],uv:number[]=[];
+  const quad=(v:number[][],t:number[][])=>{for(const i of [0,1,2,0,2,3]){p.push(...v[i]);uv.push(t[i][0]/1024,1-t[i][1]/1024);}};
   for(const side of [-1,1]){
-    const at=(u:number,v:number)=>[side*(2.86+u),2.34-v,-4.31+.09*Math.sin(u*7)-.06*v];
-    const tri=(a:number[],b:number[],d:number[],color:string)=>{c.set(color);for(const pt of [a,b,d]){p.push(...pt);t.push(c.r,c.g,c.b);}};
-    const width=.89;
-    for(let i=0;i<10;i++){
-      const u=i*width/10,b=(i+1)*width/10;
-      const hem=(x:number)=>1.05+.31*(1-Math.abs(2*x/width-1));
-      const bands=(x:number)=>[0,.07,.11,hem(x)-.14,hem(x)-.108,hem(x)-.068,hem(x)];
-      for(let k=0;k<6;k++){
-        const y=bands(u),z=bands(b),color=['#b28e58','#426577','#397674','#d6b784','#528181','#c7ac7c'][k];
-        tri(at(u,y[k]),at(b,z[k]),at(u,y[k+1]),color);tri(at(b,z[k]),at(b,z[k+1]),at(u,y[k+1]),color);
-      }
-    }
-    const badge=(u:number,v:number)=>{const a=at(u,v);a[2]+=.017;return a;};
-    for(let i=0;i<8;i++){
-      const a=i*Math.PI/4,b=(i+1)*Math.PI/4,ra=i%2?.056:.19,rb=i%2?.19:.056;
-      tri(badge(.445,.52),badge(.445+ra*Math.cos(a),.52+ra*Math.sin(a)),badge(.445+rb*Math.cos(b),.52+rb*Math.sin(b)),'#e8d3a2');
-    }
+    const at=(u:number,v:number)=>[side*(2.86+u*.89),2.36-v*(1.13+.19*Math.sin(Math.PI*u)), -4.31+.072*Math.sin(u*10+v*.54)-.07*v];
+    for(let j=0;j<4;j++)for(let i=0;i<16;i++){const pts=[[i/16,j/4],[(i+1)/16,j/4],[(i+1)/16,(j+1)/4],[i/16,(j+1)/4]];
+      quad(pts.map(([u,v])=>at(u,v)),pts.map(([u,v])=>[2+507*u,2+773*v]));}
   }
-  const g=new BufferGeometry();g.setAttribute('position',new Float32BufferAttribute(p,3));g.setAttribute('color',new Float32BufferAttribute(t,3));g.computeVertexNormals();return g;
+  // Flush enamel/stone facing fits between the existing external flutes. The
+  // main shafts are still solid while the room's one atlas is being decoded.
+  for(const [i,{x,z,w,d}] of COURT_PIERS.entries()){
+    const h=i<2?2.55:[1.32,1.84,1.16,1.52][i-2];
+    const at=(a:number,y:number)=>[x+Math.sin(a)*w*.348,y,z+Math.cos(a)*d*.348];
+    for(let j=0;j<32;j++){const a=TAU*j/32,b=TAU*(j+1)/32,lo=.385,hi=h-.20,u=514+507*j/32,v=514+507*(j+1)/32;
+      quad([at(a,lo),at(b,lo),at(b,hi),at(a,hi)],[[u,773],[v,773],[v,4],[u,4]]);}
+  }
+  for(let i=0;i<19;i++)if(i!==6&&i!==7){const a=i*Math.PI/19+.012,b=(i+1)*Math.PI/19-.012,z=-4.3+(i===9?.443:.353);
+    const radial=(ang:number,r:number)=>[r*Math.cos(ang),2.55+r*Math.sin(ang),z];
+    quad([radial(a,2.632),radial(b,2.632),radial(b,3.045),radial(a,3.045)],[[3,1020],[1020,1020],[1020,787],[3,787]]);}
+  const g=new BufferGeometry();g.setAttribute('position',new Float32BufferAttribute(p,3));g.setAttribute('uv',new Float32BufferAttribute(uv,2));g.computeVertexNormals();return g;
 }
 
 function cliff(){
   const p:number[]=[],colors:number[]=[],t=new Color(),n=9,rnd=seededRandom(434);
   const top=Array.from({length:n},(_,i)=>{const a=i*TAU/n,r=.78+rnd()*.22;return [r*Math.cos(a),.40+rnd()*.09,r*Math.sin(a)];});
+  const lip=top.map(([x,y,z])=>[x*1.015,y-.095,z*1.015]);
+  const shale=lip.map(([x,y,z])=>[x*.93,y-.07,z*.93]);
   const mid=top.map(([x,,z])=>[x*(.80+rnd()*.16),-.10-rnd()*.24,z*(.80+rnd()*.16)]);
+  const toe=mid.map(([x,y,z])=>[x*(.56+rnd()*.22)+.07,y-.24-rnd()*.14,z*.63]);
   const tri=(a:number[],b:number[],c:number[],color:string)=>{t.set(color);for(const v of [a,b,c]){p.push(...v);colors.push(t.r,t.g,t.b);}};
   for(let i=0;i<n;i++) {const j=(i+1)%n;
-    tri([0,.50,0],top[j],top[i],'#92a19c');tri(top[i],top[j],mid[j],'#9aa0a5');tri(top[i],mid[j],mid[i],'#88909d');
-    tri(mid[i],mid[j],[.17,-1.12,.21],i%3?'#768094':'#858fa0');}
+    tri([0,.50,0],top[j],top[i],'#9caa9f');
+    for(const [u,v,base] of [[top,lip,'#b3b5a9'],[lip,shale,'#777d82'],[shale,mid,'#9196a1'],[mid,toe,'#808493']] as const){tri(u[i],u[j],v[j],base);tri(u[i],v[j],v[i],base);}
+    tri(toe[i],toe[j],[.17,-.94,.21],i%3?'#73798e':'#858fa0');}
   const geo=new BufferGeometry();geo.setAttribute('position',new Float32BufferAttribute(p,3));geo.setAttribute('color',new Float32BufferAttribute(colors,3));geo.computeVertexNormals();return geo;
 }
 
@@ -158,14 +162,14 @@ export function CourtSky(){
 
 export function AstralCourt({shadows}:{shadows:boolean}){
   const p=useMemo(masonry,[]),arch=useMemo(ruinedArch,[]),floor=useMemo(starChart,[]),facet=useMemo(()=>new OctahedronGeometry(1),[]);
-  const cliffGeo=useMemo(cliff,[]),fabric=useMemo(pennons,[]);
+  const cliffGeo=useMemo(cliff,[]),fabric=useMemo(meridianFaces,[]),workshop=useBakedSurface(workshopUrl);
   useEffect(()=>()=>{arch.dispose();floor.dispose();facet.dispose();cliffGeo.dispose();fabric.dispose();},[arch,floor,facet,cliffGeo,fabric]);
   return <group name="scenery:astralCourt" pointerEvents="none">
     <mesh position-y={-.24} raycast={noPick}><cylinderGeometry args={[COURT_RADIUS,COURT_RADIUS-.26,.476,96]}/><meshStandardMaterial color="#626979"/></mesh>
     <mesh rotation-x={-Math.PI/2} receiveShadow={shadows} raycast={noPick}><circleGeometry args={[COURT_RADIUS,96]}/><meshStandardMaterial map={floor} roughness={.89}/></mesh>
     <mesh position-y={-.95} raycast={noPick}><cylinderGeometry args={[COURT_RADIUS-.27,3.7,1,16]}/><meshStandardMaterial color="#545b6b" flatShading/></mesh>
     <mesh geometry={arch} castShadow={shadows} receiveShadow={shadows} raycast={noPick}><meshStandardMaterial vertexColors side={DoubleSide} roughness={.9}/></mesh>
-    <mesh geometry={fabric} raycast={noPick}><meshStandardMaterial vertexColors side={DoubleSide} roughness={1}/></mesh>
+    {workshop&&<mesh name="court:meridian-atlas" geometry={fabric} raycast={noPick}><meshStandardMaterial map={workshop} side={DoubleSide} roughness={.84}/></mesh>}
     <Batch parts={p.blocks} name="court:bases" casts={shadows}/><Batch parts={p.columns} name="court:columns" round casts={shadows}/>
     <Batch parts={p.islets} name="court:sky-islands" geometry={cliffGeo}/><Batch parts={p.jewels} name="court:waystones" geometry={facet}/>
     <Orrery/>

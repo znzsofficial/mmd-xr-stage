@@ -1,9 +1,10 @@
 import { useEffect, useMemo } from 'react';
-import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, IcosahedronGeometry, Vector3 } from 'three';
+import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute } from 'three';
 import { ARBOR, ARBOR_POSTS, LAWN_KNOLLS, LAWN_SIZE, LAWN_TREES, MEADOW_POSTS, MEADOW_SEAT, MEADOW_SUN, meadowPathX as pathX } from './placementAreas';
 import { span } from './detailParts';
 import groundUrl from './meadow-walk.webp';
 import benchURL from './garden-joinery.webp';
+import botanicalURL from './garden-botanicals.webp';
 import { useBakedSurface } from './useBakedSurface';
 import { seededRandom } from './ClassroomLayout';
 import { Batch, type Part } from './SceneryBatch';
@@ -23,23 +24,6 @@ function flowers() {
       tri([xx-.017,0,zz],[xx+.017,0,zz],[xx+ox,h,zz+oz],j%2?'#788e44':'#a1ad56');
       if(j<4){const rad=.035+random()*.02;const color=patch%6===0?'#ba85ac':patch%4?'#fff1cb':'#e2b55c';
         for(let k=0;k<5;k++){const a=k*1.256;tri([xx+ox,h,zz+oz],[xx+ox+rad*Math.cos(a-.38),h+.026,zz+oz+rad*Math.sin(a-.38)],[xx+ox+rad*Math.cos(a+.38),h+.032,zz+oz+rad*Math.sin(a+.38)],color);}}
-    }
-  }
-  // Compound leaves and tapering racemes of a wisteria trained along the arbor.
-  // Grow mostly over one side; gaps let sky and the far bend of the path show through.
-  for(let i=0;i<230;i++){
-    const side=i%4===0?-1:1, x=ARBOR.x+side*(.48+random()*1.22),z=ARBOR.z+(random()-.5)*3.16;
-    const y=2.77+.09*Math.sin(z*7)+random()*.13, a=random()*6.28;
-    for(let j=-2;j<=2;j++)for(const k of [-1,1]){
-      const xx=x+j*.063*Math.cos(a),zz=z+j*.063*Math.sin(a),dx=k*.107*Math.sin(a)+.064*Math.cos(a),dz=-k*.107*Math.cos(a)+.064*Math.sin(a);
-      const root:V=[xx,y,zz],tip:V=[xx+dx,y-.06,zz+dz],l:V=[xx+dx*.48-dz*.31,y+.014,zz+dz*.48+dx*.31],r:V=[xx+dx*.48+dz*.31,y,zz+dz*.48-dx*.31];
-      tri(root,l,tip,i%3?'#859953':'#a3ac63');tri(root,tip,r,'#647f48');
-    }
-    if(i%2===0){const length=.25+random()*.38;
-      for(let j=0;j<15;j++){
-        const t=j/15,theta=j*2.4+a,r=(1-t*.86)*.069,xx=x+r*Math.cos(theta),zz=z+r*Math.sin(theta),yy=y-t*length;
-        tri([xx-r*.88,yy,zz],[xx+r*.98,yy+.017,zz+.026],[xx,yy-.068,zz+.02],['#c6a4dd','#9c78b5','#e7cde8'][j%3]);
-      }
     }
   }
   // Taller lupine spires bordering the path: individual tiers of folded petals
@@ -91,21 +75,27 @@ function SeatFaces(){
   },[]);useEffect(()=>()=>geo.dispose(),[geo]);return map&&<mesh name="garden-bench-grain" position={[MEADOW_SEAT.x,0,MEADOW_SEAT.z]} rotation-y={MEADOW_SEAT.yaw} geometry={geo} raycast={noPick}><meshStandardMaterial map={map} roughness={.81} polygonOffset polygonOffsetFactor={-1}/></mesh>;
 }
 
-// Irregular sprays of leaves instead of a smooth green sphere. A small solid
-// core shades the interior; the perimeter breaks into individual leaf tips.
-function crownSpray() {
-  const pos:number[]=[],rgb:number[]=[],norm:number[]=[],rng=seededRandom(8189),core=new IcosahedronGeometry(.32,0),v=new Vector3();
-  const face=(a:Vector3,b:Vector3,c:Vector3,tint:number)=>{for(const p of [a,b,c]){pos.push(...p.toArray());norm.push(...p.clone().normalize().toArray());rgb.push(tint*.94,tint,tint*.84);}};
-  const verts=core.getAttribute('position');for(let i=0;i<verts.count;i+=3)face(new Vector3().fromBufferAttribute(verts,i),new Vector3().fromBufferAttribute(verts,i+1),new Vector3().fromBufferAttribute(verts,i+2),.64);core.dispose();
-  for(let i=0;i<62;i++){
-    const az=i*2.4,y=2*(i+.5)/62-1,r=Math.sqrt(1-y*y);v.set(Math.cos(az)*r,y,Math.sin(az)*r);
-    const center=v.clone().multiplyScalar(.30+rng()*.075),side=new Vector3(-Math.sin(az),0,Math.cos(az)), up=v.clone().cross(side).normalize();
-    const tip=center.clone().addScaledVector(v,.055+rng()*.07).addScaledVector(up,.035);
-    const left=center.clone().addScaledVector(side,-.132),right=center.clone().addScaledVector(side,.132),bottom=center.clone().addScaledVector(up,-.14);
-    const high=center.clone().addScaledVector(up,.14),tint=.68+rng()*.34+Math.max(0,y)*.24;
-    face(left,tip,high,tint);face(high,tip,right,tint*1.06);face(right,tip,bottom,tint*.83);face(bottom,tip,left,tint*.79);
+// Fold each spray in world space: the two eyes see the same branches. Crop the
+// texture to the printed silhouette to avoid large empty quads around flowers.
+function botanicalSprays(crowns:Part[]) {
+  const p:number[]=[],uv:number[]=[],rgb:number[]=[],rng=seededRandom(7615);
+  function sprig(x:number,y:number,z:number,w:number,h:number,a:number,lean:number,tone:number,flower=false){
+    const c=Math.cos(a),s=Math.sin(a),points:V[]=[],tex:number[][]=[];
+    const [u0,u1,v0,v1]=flower?[299,459,8,380]:[0,252,83,354];
+    for(const v of [0,1])for(const u of [0,.48,1]){const across=(u-.5)*w,bow=(u===.48?.11:0)*w+v*lean;
+      points.push([x+c*across-s*bow,y+h*v,z+s*across+c*bow]);tex.push([(u0+(u1-u0)*u)/512,1-(v0+(v1-v0)*(flower?v:1-v))/384]);}
+    for(const i of [0,3,4,0,4,1,1,4,5,1,5,2]){p.push(...points[i]);uv.push(...tex[i]);const t=tone*(i>=3?(flower?.93:1.13):1);rgb.push(t,t,t);}
   }
-  const g=new BufferGeometry();g.setAttribute('position',new Float32BufferAttribute(pos,3));g.setAttribute('color',new Float32BufferAttribute(rgb,3));g.setAttribute('normal',new Float32BufferAttribute(norm,3));return g;
+  for(const crown of crowns){const [x,y,z]=crown.p,[w,h,d]=crown.s;
+    for(let i=0;i<25;i++){const a=2.399*i+(crown.ry??0),t=(i+.5)/25,rad=Math.sin(t*Math.PI)*.25,sw=w*(.45+rng()*.16);
+      sprig(x+Math.sin(a)*w*rad,y+(t-.61)*h*.68,z+Math.cos(a)*d*rad,sw,h*(.23+.18*rng()),-a,(.21+rng()*.2)*w,.25+t*.54+rng()*.08);}}
+  for(let i=0;i<98;i++){
+    const side=i%4?-1:1,z=ARBOR.z+(rng()-.5)*3.11,x=ARBOR.x+side*(.32+rng()*1.36),a=rng()*6.28,y=2.81+.08*Math.sin(z*5);
+    sprig(x,y-.10,z,.34+rng()*.29,.22+rng()*.13,a,.28,.62+rng()*.32);
+    if(i%5!==0){const len=.26+rng()*.40,w=len*.42,tone=.74+rng()*.37;
+      for(const off of [0,1.52])sprig(x,y-.013,z,w,-len,a+off,.026,tone,true);}
+  }
+  const g=new BufferGeometry();g.setAttribute('position',new Float32BufferAttribute(p,3));g.setAttribute('uv',new Float32BufferAttribute(uv,2));g.setAttribute('color',new Float32BufferAttribute(rgb,3));g.computeVertexNormals();return g;
 }
 
 function grove() {
@@ -118,9 +108,9 @@ function grove() {
   // Distant ridges hide the board edge and give parallax as the viewer walks.
   for(let i=0;i<30;i++){const a=i*2*Math.PI/30;hills.push({p:[Math.sin(a)*39,-1.5,Math.cos(a)*39],s:[17+rng()*6,6+rng()*8,15+rng()*7],ry:a,color:i%3?'#819a83':'#91a591'});}
   for(let i=0;i<LAWN_TREES.length;i++){const tree=LAWN_TREES[i],{x,z,h}=tree,birch=i%3===1;const bark=birch?'#c4c1a9':'#806d53';
-    const fork:V=[x+.12,h*.44,z-.10];beam([x,0,z],fork,h*(birch?.064:.11),bark);
+    const fork:V=[x+.12,h*.44,z-.10],knee:V=[x-.037,h*.18,z+.05];beam([x,-.08,z],knee,h*(birch?.062:.086),bark);beam(knee,fork,h*(birch?.052:.069),bark);
     for(let j=0;j<6;j++) {const a=j*2.4+i*.61,r=j===0?0:h*(.19+rng()*.09),end:V=[x+Math.sin(a)*r,h*(j===0?.96:.66+rng()*.17),z+Math.cos(a)*r];
-      beam(fork,end,h*.041,bark);
+      const elbow:V=[fork[0]+(end[0]-fork[0])*.61,fork[1]+(end[1]-fork[1])*.39,fork[2]+(end[2]-fork[2])*.61];beam(fork,elbow,h*.037,bark);beam(elbow,end,h*.022,bark);
       leaves.push({p:end,s:[h*(birch?.49:.64),h*(birch?.58:.47),h*.55],ry:a,color:['#a5c672','#88ab5a','#bdd286','#7c9f60'][(i+j)%4]});
     }
   }
@@ -142,23 +132,28 @@ function grove() {
   put(0,.23,.03,[1.4,.055,.05],'#657367');
   for(const post of ARBOR_POSTS){const {x,z}=post,side=Math.sign(x-ARBOR.x);
     box([x,.14,z],[.37,.28,.37],'#b2ac90');box([x,1.45,z],[.17,2.46,.17],'#967c54');
+    box([x,.29,z],[.22,.05,.22],'#697465');box([x,2.50,z],[.20,.082,.20],'#777a65');
     wood.push(span([x,2.05,z],[x-side*.54,2.66,z],.092,'#ae9369'));
     for(let j=0;j<6;j++){const a=j*1.37;branches.push(span([x+.104*Math.cos(a),.27+j*.38,z+.104*Math.sin(a)],
       [x+.104*Math.cos(a+1.37),.65+j*.38,z+.104*Math.sin(a+1.37)],.052,'#807353'));}
   }
-  for(const side of [-1,1])box([ARBOR.x+side*1.53,2.65,ARBOR.z],[.16,.23,3.22],'#b3926a');
-  for(let j=0;j<9;j++)box([ARBOR.x,2.81,ARBOR.z+(j-4)*.37],[3.74,.16,.09],'#ba9e71');
+  for(const side of [-1,1]){box([ARBOR.x+side*1.53,2.65,ARBOR.z],[.16,.23,3.22],'#b3926a');
+    for(const end of [-1,1])box([ARBOR.x+side*1.53,2.70,ARBOR.z+end*1.51],[.19,.18,.13],'#7e826e');}
+  for(let j=0;j<9;j++){const z=ARBOR.z+(j-4)*.37;box([ARBOR.x,2.81,z],[3.74,.16,.09],'#ba9e71');
+    // A trained runner weaves beneath each rafter; from below the bunches now
+    // grow along actual branches rather than terminating in empty sky.
+    let p0:V=[ARBOR.x-1.72,2.76,z];for(let k=1;k<=7;k++){const p1:V=[ARBOR.x-1.72+k*.49,2.79+.033*Math.sin(k*1.8+j),z+.083*Math.sin(k*1.9+j)];branches.push(span(p0,p1,.039,'#72694b'));p0=p1;}}
   return {wood,branches,leaves,hills};
 }
 
 export function Meadow({shadows}:{shadows:boolean}) {
   const map=useBakedSurface(groundUrl);
-  const grass=useMemo(flowers,[]),foliage=useMemo(crownSpray,[]),p=useMemo(grove,[]);
+  const botanicals=useBakedSurface(botanicalURL),grass=useMemo(flowers,[]),p=useMemo(grove,[]),foliage=useMemo(()=>botanicalSprays(p.leaves),[p]);
   useEffect(()=>()=>{grass.dispose();foliage.dispose();},[grass,foliage]);
   return <group name="scenery:lawn"><mesh rotation-x={-Math.PI/2} receiveShadow={shadows} raycast={noPick}><planeGeometry args={[LAWN_SIZE,LAWN_SIZE]} /><meshStandardMaterial key={map?'painted':'loading'} map={map} color={map?'white':'#98ae6c'} roughness={1} /></mesh>
     {!shadows&&<LatticeShade/>}
     <SeatFaces/>
     <Batch name="meadow-seat-and-split-rail" parts={p.wood} casts={shadows} /><Batch name="oak-and-birch-branches" parts={p.branches} round casts={shadows} />
-    <Batch name="grove-canopies" parts={p.leaves} geometry={foliage} /><Batch name="distant-ridges" parts={p.hills} foliage />
+    {botanicals&&<mesh name="grove-canopies" geometry={foliage} raycast={noPick}><meshBasicMaterial map={botanicals} alphaTest={.36} vertexColors side={DoubleSide}/></mesh>}<Batch name="distant-ridges" parts={p.hills} foliage />
     <mesh geometry={grass} raycast={noPick}><meshStandardMaterial vertexColors roughness={1} side={DoubleSide} /></mesh></group>;
 }
