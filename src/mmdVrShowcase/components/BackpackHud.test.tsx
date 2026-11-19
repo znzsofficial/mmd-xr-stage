@@ -33,7 +33,7 @@ const click = async (label: string) => { const el = button(label); expect(el, la
 const labels = () => [...host.querySelectorAll("mesh")].map(el => el.getAttribute("name")).filter(n => n?.startsWith("hud-label")).join("\n");
 const recall=()=>act(async()=>harness.b('pressed'));
 const render = async () => {
-  const props = { busy: false, onDragChange: vi.fn(), onExit: vi.fn(), panelDragLabel: "Drag", placeOffLabel: "Move selected asset" } as unknown as Parameters<typeof MmdVrControlBar>[0];
+  const props = { busy: false, onDragChange: vi.fn(), onExit: vi.fn(), panelDragLabel: "Drag", placeOffLabel: "Move selected asset", walkLabels:['Slow','Normal','Fast'] } as unknown as Parameters<typeof MmdVrControlBar>[0];
   await act(async () => root.render(<><MmdVrControlBar {...props} /><BackpackWorldTools /></>));
 };
 beforeEach(() => {
@@ -141,14 +141,14 @@ it("uses the same draft and scene locks from advanced controls, and never allows
     expect(useHudWorldInput.getState().blocked).toBe(false); expect(store().placeMode).toBe(false);
     await click(t("hudCancelPlace")); expect(bag().command).toBeNull();
   }
-  await recall();await click(t("hudMore")); await click(t("hudVisual"));
+  await recall();await click(t("hudMore")); await click(t("hudGraphics"));
   await click(t(SCENERY[store().prefs.scenery].label));
   expect(useHudWorldInput.getState().blocked).toBe(true);
   await act(async () => useBackpack.setState({ busy: true }));
   await click(t("hudPool")); expect(store().prefs.scenery).not.toBe("pool");
   await act(async () => useBackpack.setState({ busy: false }));
   await click(t("hudPool")); expect(store().prefs.scenery).toBe("pool");
-  expect(button(t("hudComfort"))).toBeDefined();
+  expect(button(t("hudSelf"))).toBeDefined();
 });
 
 it("blocks stage edits during physics work, gives load recovery priority over a world selection, and exposes failed backpack commands", async () => {

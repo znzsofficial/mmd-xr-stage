@@ -163,7 +163,7 @@ Expanded panels have one-pixel texture separators inset by the panel-rule-inset-
 ## Components
 
 - **Buttons:** white ordinary actions; porcelain quiet/header actions; tinted active toggles; semantic danger actions. Disabled fill/text take priority, while an active disabled button retains active font weight. Hover tint is suppressed when disabled. Trigger release activates once; the following click is suppressed.
-- **Navigation:** four tabs (models/objects, visual, physics, comfort). Selected tabs combine tint, heavier text and the cobalt indicator. Material details replace the task area; they do not create a distant second menu.
+- **Settings navigation:** B → More opens **Self / Gravity / Graphics** on a left rail, Self first. Keep the controls to its right at their original hit-target scale; mount only the chosen page. Movement and tracking belong to Self; character and cloth interaction to Gravity; view distance, FPS and diagnostics to Graphics. Solver details expand in place. Model/material details open from the selected asset rather than adding a fourth rail item. Return to viewing hides the entire rail.
 - **Value labels and sliders:** labels and values remain distinct; dragging uses the larger invisible target. Disabled slider opacity is 0.45. There are no editable text fields in this HUD.
 - **Panel and transport:** header recall/drag/back, task area and footer share one surface. Watch mode presents play/pause, menu and exit with drag and recall guidance; seek appears only with a model and positive duration.
 - **Recovery and diagnostics:** paged text and explicit actions remain reachable; critical notices use danger styling. Diagnostics describe measured data without equating emulator FPS to headset GPU performance.

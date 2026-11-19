@@ -13,7 +13,7 @@ vi.mock("@react-three/xr", () => ({ useXRInputSourceState: () => undefined, useX
 vi.mock("../mmdVrTheme", () => ({ useMmdVrTheme: () => ({ accent: { border: "#333333", ink: "#ffffff", marker: "#eeeeee", primary: "#ffffff", soft: "#111111" } }) }));
 vi.mock("../../shared/panelTexture", () => ({ createPanelTexture: () => ({ dispose: vi.fn() }), roundRectPath: vi.fn() }));
 
-it("keeps one asset panel mounted and switches settings without losing playback or exit", async () => {
+it("opens on personal adjustments, keeps physics details contextual, and retains graphics settings and recovery navigation", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.spyOn(console, "error").mockImplementation(() => {});
   vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -34,6 +34,10 @@ it("keeps one asset panel mounted and switches settings without losing playback 
     await act(async()=>harness.buttonEvent?.('pressed'));await click(t('settingsMmdVrPlay'));expect(state.setPlaying).toBeDefined();expect(buttons(t('hudMore'))).toHaveLength(0);
     await act(async()=>harness.buttonEvent?.('pressed'));await click(t("hudMore"));
     expect(buttons("Hide asset")).toHaveLength(0);
+    const startHeight=useMmdVrStore.getState().prefs.heightOffset;
+    await click('+');expect(useMmdVrStore.getState().prefs.heightOffset).toBeGreaterThan(startHeight);
+    expect(buttons(t('hudDiagnostics'))).toHaveLength(0);
+    await click(t('hudGraphics'));expect(buttons('+')).toHaveLength(0);expect(buttons(t('hudDiagnostics'))).toHaveLength(1);
     await click(t("hudSimpleStage"));
     await click(t("hudLiveHouse"));
     expect(useMmdVrStore.getState().prefs.scenery).toBe("liveHouse");
@@ -42,9 +46,10 @@ it("keeps one asset panel mounted and switches settings without losing playback 
     await click(t("hudLiveHouse"));
     await click(t("hudClassroom"));
     expect(useMmdVrStore.getState().prefs.scenery).toBe("classroom");
-    await click(t("hudPhysics"));
+    await click(t("hudGravity"));expect(buttons('Medium')).toHaveLength(0);
+    await click(t('hudSolverDetails'));expect(buttons(t('hudSolverLess'))).toHaveLength(1);
     expect(buttons("Physics off")).toHaveLength(1);
-    await click(t("hudComfort"));
+    await click(t("hudSelf"));expect(buttons('+')).toHaveLength(1);expect(buttons(t('hudSolverLess'))).toHaveLength(0);
     expect(buttons("Physics off")).toHaveLength(0);
     await click(t("hudBack"));
     expect(buttons(t("hudModels"))).toHaveLength(0);
