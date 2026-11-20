@@ -4,7 +4,7 @@ import {fileURLToPath} from 'node:url';
 import {cp} from 'node:fs/promises';
 import path from 'node:path';
 const root=fileURLToPath(new URL('./',import.meta.url)), outDir=path.join(root,'dist');
-const config={root,configFile:false,publicDir:false,logLevel:'warn',build:{outDir,chunkSizeWarningLimit:5000}};
+const config={root,configFile:false,publicDir:false,logLevel:'warn',build:{outDir,chunkSizeWarningLimit:5000,rollupOptions:{input:{compare:path.join(root,'index.html'),classroom:path.join(root,'classroom.html')}}}};
 await build(config);
 await cp(new URL('../../public/mmd/0.8.6',import.meta.url),path.join(outDir,'mmd/0.8.6'),{recursive:true});
 if(!process.argv.includes('--build-only')){

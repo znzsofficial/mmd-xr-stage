@@ -1,5 +1,5 @@
 <!doctype html><html lang="zh"><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="connect-src 'self' blob: data:; img-src 'self' blob: data:;"><title>本地 MMD 引擎 A/B</title>
 <style>body{font:16px/1.5 system-ui;margin:1rem}figure{display:inline-block;margin:.5rem}canvas{width:min(44vw,400px);height:auto;background:#404650}pre{white-space:pre-wrap}label{display:block}</style>
-<h1>本地 MMD 引擎 A/B</h1><p>选模型与贴图目录，再选一支至少 8 秒的身体 VMD。文件只在本机读取。固定 72 步/秒，比较角色更新和单眼空场绘制；不是头显 FPS。</p>
+<h1>本地 MMD 引擎 A/B</h1><p><a href="./classroom.html">进入 Babylon 教室：Quest 双眼、手柄暂停拨衣</a></p><p>选模型与贴图目录，再选一支至少 8 秒的身体 VMD。文件只在本机读取。固定 72 步/秒，比较角色更新和单眼空场绘制；不是头显 FPS。</p>
 <label>模型与贴图目录 <input id="model" type="file" webkitdirectory multiple></label><label>PMX <select id="pmx"></select></label><label>身体动作 <input id="motion" type="file" accept=".vmd"></label><button id="run" disabled>开始</button><output id="status"></output><div id="views"></div><pre id="result"></pre>
 <script type="module" src="./compare.js"></script></html>

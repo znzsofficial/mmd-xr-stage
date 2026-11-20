@@ -10,7 +10,7 @@ import 'babylon-mmd/esm/Loader/pmxLoader';
 import 'babylon-mmd/esm/Loader/mmdOutlineRenderer';
 import {VmdLoader} from 'babylon-mmd/esm/Loader/vmdLoader';
 import {SdefInjector} from 'babylon-mmd/esm/Loader/sdefInjector';
-import {MmdStandardMaterialBuilder} from 'babylon-mmd/esm/Loader/mmdStandardMaterialBuilder';
+import {LocalMaterials} from './local-materials';
 import {GetMmdWasmInstance} from 'babylon-mmd/esm/Runtime/Optimized/mmdWasmInstance';
 import {MmdWasmInstanceTypeSPR} from 'babylon-mmd/esm/Runtime/Optimized/InstanceType/singlePhysicsRelease';
 import {MmdWasmRuntime} from 'babylon-mmd/esm/Runtime/Optimized/mmdWasmRuntime';
@@ -30,8 +30,9 @@ export async function candidate(canvas,pmx,files,vmd,on){
     const wasm=await GetMmdWasmInstance(new MmdWasmInstanceTypeSPR());
     const rt=new MmdWasmRuntime(wasm,scene,on?new MmdWasmPhysics(scene):null);
     const rootUrl=pmx.webkitRelativePath.slice(0,pmx.webkitRelativePath.lastIndexOf('/')+1);
-    const container=await LoadAssetContainerAsync(pmx,scene,{rootUrl,pluginOptions:{mmdmodel:{referenceFiles:files,materialBuilder:new MmdStandardMaterialBuilder(),loggingEnabled:true}}});
+    const materials=new LocalMaterials();const container=await LoadAssetContainerAsync(pmx,scene,{rootUrl,pluginOptions:{mmdmodel:{referenceFiles:files,materialBuilder:materials,loggingEnabled:true}}});
     container.addAllToScene();const mesh=container.meshes[0],meta=mesh.metadata;
+    if(materials.missing)throw Error('对照模型缺少本地纹理，请选择包含所有贴图的目录');
     const dynamicBones=[...new Set(meta.rigidBodies.filter(b=>b.physicsMode!==0&&meta.bones[b.boneIndex]).map(b=>meta.bones[b.boneIndex].name))];
     const diffuseMaps=meta.materials.filter(m=>m.diffuseTexture?.isReady()).length;
     const model=rt.createMmdModel(mesh,{buildPhysics:on,materialProxyConstructor:MmdStandardMaterialProxy});
@@ -41,7 +42,8 @@ export async function candidate(canvas,pmx,files,vmd,on){
     // No scene registration: render must not step physics or advance the VMD a second time.
     scene.render();await scene.whenReadyAsync();await rt.playAnimation();
     return {boneCount:model.runtimeBones.length,duration:anim.endFrame/30,dynamicBones,diffuseMaps,
-      update(){rt.beforePhysics(1000/72);rt.afterPhysics();meta.skeleton.prepare()},draw:()=>scene.render(),
+      // Timed updates run without scene.render(); its per-draw id must not skip skinning palette updates.
+      update(){rt.beforePhysics(1000/72);rt.afterPhysics();meta.skeleton.prepare(true)},draw:()=>scene.render(),
       xyz(name){const i=indices.get(name);return i===undefined?null:Array.from(model.worldTransformMatrices.subarray(i*16+12,i*16+15))},
       dispose(){scene.dispose();engine.dispose()}};
   }catch(e){scene.dispose();engine.dispose();throw e;}
