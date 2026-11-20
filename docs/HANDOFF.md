@@ -6,10 +6,9 @@
 
 ## 下次从这里开始
 
-**Babylon 迁移暂缓，正式舞台继续用 Three。** [现成库取舍](./three-tooling.md) · [同姿态色彩对比页](https://babylon-classroom.mmd-xr-stage.pages.dev/) · [Babylon 接触记录](../experiments/mmd-engine-ab/quest-classroom.md)。下次戴头显时，可在观星台先看角色白衣纹理，再在常速下走过赤道，检查地平线转动舒适度；和稳态看舞分开验。
+**下次优先拿一份 `37a0ef3` 的 Quest 3S 教室 JSON。** 按[真机短测](./performance/next-quest-export.md)做关／开物理各 20 秒、暂停拨衣、恢复播放关物理、泳池往返回教室，再退出导出。小行星舒适度留到下载后另测。收到报告后按短测页末尾的字段分开读；旧版 60／41 FPS 不是本版成绩。
 
-1. **下一份 Quest 3S JSON 优先。** 新页教室放同一角色、绑同一动作，阴影关，空手同机位先关后开物理；再关，去泳池、回教室，正常退出后导出。[短测和字段](./performance/next-quest-export.md)。桌面已走通这趟，不能把旧版 60／41 FPS 当成本版成绩。
-2. **另外游玩时看路线与手感**：普通模式试三个门的反向视线，疾行、低顶、拨衣、细纹和双人远端站位仍要真机判断。[行走碰撞配对](./performance/player-collision-work.md)的 1789 点输出一致；[PMX 骨骼遍历候选](./performance/pmx-root-propagation.md)未测出可靠的整模提速，没有采用。
+**引擎决定：Three 继续做正式版，Babylon 只保留实验。** Ecctrl/Rapier 已用于星球玩家，MMD 衣物仍由 Bullet 驱动。桌面 A/B 和暂停拨衣不必重跑；何时值得重开迁移见[选型结论](./three-tooling.md#什么时候再考虑迁移)。
 
 **继续开发的边界**：[舞台架构](./architecture.md)区分页面背包、观看会话和当前房间；玩家移动、资产放置和手部拨衣分别判断。用户优先与自选角色互动，[Blender 角色包](./gameplay/blender-characters.md)已走通，恋活卡暂缓。医院「场景人物」只切换[原有静态护士](./scenery/clinic-teaching.md)；喜院和教室的[首轮材质样板](./scenery/art-direction.md)已完成，其他美术候选未排期。公开 README 保留 badge 和技术章节，私有素材和真机原始 JSON 留在本机。
 

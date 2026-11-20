@@ -13,7 +13,7 @@
 | 哪一段长 | 含义与下一步 |
 |---|---|
 | `waitForSlotMs` | 切换在串行队列中等候；先查前一次任务和触发顺序。 |
-| `bulletModuleMs` | 等动态模块及 Bullet JS/WASM 就绪，包含下载、初始化或等待已有请求。若首次远大于再开且主导总等待，才试角色放置后的低优先级预取；同时复测空场首帧和首次放置。 |
+| `bulletModuleMs` | 等动态模块及 Bullet JS/WASM 就绪。放置后的空闲预热已上线；若首次仍慢，先查 `moduleAtFirstRequest` 判断没启动、正在预热还是已就绪，并核对空场首帧及首次放置是否新增长帧。 |
 | `createBackendMs`、`evaluatorMs`、`bindAndSwapMs` | 分别查建后端、建求值器、还原绑定姿态／绑动作／换求值器。只优化占主导的阶段，验证动作不跳、缩放正确、失败可回滚。 |
 | `publishUiMs` 或其余墙钟 | 查模型／材质列表刷新和未覆盖的等待。关闭时另有 `readModelMs`，失败可能有 `rollbackMs`。不要把未解释部分归给 Bullet。 |
 
