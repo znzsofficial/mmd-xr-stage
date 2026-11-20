@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { afterEach, expect, it, vi } from "vitest";
 import { MmdVrStageContent } from "./MmdVrStage";
 import { MmdVrStageRoom } from '../stage/StageRoom';
-import { createMmdRuntimeHandle } from "../mmdRuntime/mmdRuntime";
+import { createMmdRuntimeHandle, MmdRuntimeRebuildError } from "../mmdRuntime/mmdRuntime";
 import { beginMmdVrAssetSession, endMmdVrAssetSession } from "../mmdVrAssets";
 import { useMmdVrStore } from "../mmdVrStore";
 import { getMmdVrClock } from "../mmdVrClock";
@@ -24,7 +24,9 @@ vi.mock("@react-three/fiber", () => ({
   useFrame: (callback: typeof harness.frame) => { harness.frame = callback; },
 }));
 vi.mock("../mmdVrGltf", () => ({ createMmdVrGltfLoader: vi.fn() }));
-vi.mock("../mmdRuntime/mmdRuntime", () => ({ createMmdRuntimeHandle: vi.fn(), isMmdRuntimeRebuildError: () => false }));
+vi.mock("../mmdRuntime/mmdRuntime", async importOriginal => ({
+  ...await importOriginal<typeof import('../mmdRuntime/mmdRuntime')>(), createMmdRuntimeHandle: vi.fn(),
+}));
 
 function RoomHarness(props: Parameters<typeof MmdVrStageRoom>[0]) {
   MmdVrStageRoom(props);
@@ -118,9 +120,9 @@ function loadedCharacter() {
     outlineMeshes: [], renderOrderMeshes: [] } as unknown as ThreeMmdModel & { runtime: { dispose: () => void } };
 }
 function deferred<T>() {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>(done => { resolve = done; });
-  return { promise, resolve };
+  let resolve!: (value: T) => void, reject!: (error: Error) => void;
+  const promise = new Promise<T>((done, fail) => { resolve = done; reject = fail; });
+  return { promise, resolve, reject };
 }
 
 async function setupBag(files: File[], useMotionCache = false) {
@@ -139,11 +141,104 @@ async function setupBag(files: File[], useMotionCache = false) {
   const root = createRoot(document.createElement("div"));
   await act(async () => root.render(<StrictMode><LifecycleHarness /></StrictMode>));
   const id = (f: File) => bag().entries.find(e => e.file === f)!.id;
-  const place = (f: File, x = 1, yaw = 0) => act(async () => { bag().beginPlace(id(f)); bag().confirmPlace(id(f), x, -2, yaw); });
-  const exit = async () => { await act(async () => { store().closeOverlay(); root.unmount(); }); };
+  const place = (f: File, x = 1, yaw = 0, z = -2) => act(async () => { bag().beginPlace(id(f)); bag().confirmPlace(id(f), x, z, yaw); });
+  const exit = async () => { await act(async () => { if (store().overlayOpen) store().closeOverlay(); root.unmount(); }); };
   return { scene, root, load, motion, id, place, exit, store, bag };
 }
 const file = (name: string) => new File([name], name);
+
+function runtimeWith(actor: File) {
+  return vi.mocked(createMmdRuntimeHandle).mock.results.map(r => r.value as ReturnType<typeof createMmdRuntimeHandle>)
+    .reverse().find(rt => rt.exportProjectModels().some(m => m.modelFile === actor))!;
+}
+
+for (const initial of [false, true]) {
+  it.each(['pending', 'success', 'rollback', 'fatal'] as const)(`saves a complete layout on exit when physics ${initial} → ${!initial} is %s`, async outcome => {
+    const actor = file('dancer.pmx'), dance = file('dance.vmd');
+    const { id, place, exit, store, bag } = await setupBag([actor, dance]);
+    const pending = deferred<void>();
+    try {
+      await place(actor, 2, 45);
+      await act(async () => bag().applyMotion(id(actor), dance, 'body'));
+      const runtime = runtimeWith(actor);
+      const time = runtime.duration / 2;
+      const rebuild = vi.spyOn(runtime, 'setPhysicsEnabled').mockResolvedValue(undefined);
+      if (initial) await act(async () => store().setPhysicsEnabled(true));
+      await act(async () => {
+        store().setMaterialParam(bag().live[id(actor)].runtimeId, 'hair', 'opacity', .35);
+        store().setLoop(false); store().setPlaying(false); store().requestSeek(time);
+      });
+      rebuild.mockReturnValueOnce(pending.promise);
+      await act(async () => store().setPhysicsEnabled(!initial));
+      expect(store()).toMatchObject({ physicsEnabled: !initial, physicsBusy: true });
+      expect(rebuild).toHaveBeenLastCalledWith(!initial, expect.anything());
+      const before = bag().layouts.floor!;
+      expect(before).toMatchObject({ physicsEnabled: initial, time, loop: false, playing: false,
+        models: [{ transform: { positionX: 2, rotationY: 45 }, materialOverrides: { hair: { opacity: .35 } } }] });
+      expect(before.models[0].file).toBe(actor);
+      expect(before.assets[0].kind === 'model' && before.assets[0].bodyMotionFile).toBe(dance);
+
+      if (outcome === 'success') await act(async () => pending.resolve());
+      if (outcome === 'rollback' || outcome === 'fatal') {
+        vi.spyOn(console, 'error').mockImplementation(() => {});
+        if (outcome === 'fatal') runtime.removeModel(bag().live[id(actor)].runtimeId); // Failed cold recovery leaves no usable model.
+        await act(async () => pending.reject(outcome === 'fatal' ? new MmdRuntimeRebuildError(Error('rebuild'), Error('restore')) : Error('rolled back')));
+        expect(store().physicsError).toBeTruthy();
+        expect(store().physicsFatal).toBe(outcome === 'fatal');
+      }
+      if (outcome !== 'pending') expect(store().physicsBusy).toBe(false);
+      await act(async () => store().closeOverlay());
+      const saved = store().savedStage;
+      expect(saved).toEqual({ ...before, physicsEnabled: outcome === 'success' ? !initial : initial });
+      if (outcome === 'pending') {
+        await act(async () => pending.resolve()); // Closed room, still mounted until the host unmounts.
+        expect(store().savedStage).toBe(saved); expect(bag().layouts.floor).toBe(before);
+        expect(bag().live).toEqual({});
+      }
+      await act(async () => store().prepareStage(true));
+      expect(store().resumeStage).toBe(saved); expect(store().physicsEnabled).toBe(saved!.physicsEnabled);
+    } finally { await exit(); }
+  });
+}
+
+it('saves the completed first switch if its queued reverse is still rebuilding at exit', async () => {
+  const a = file('actor.pmx'), {place, exit, store, bag} = await setupBag([a]);
+  try {
+    await place(a);
+    const enable = deferred<void>(), disable = deferred<void>();
+    const rebuild = vi.spyOn(runtimeWith(a),'setPhysicsEnabled').mockReturnValueOnce(enable.promise).mockReturnValueOnce(disable.promise);
+    await act(async () => store().setPhysicsEnabled(true));
+    await act(async () => store().setPhysicsEnabled(false));
+    expect(rebuild.mock.calls.map(([on]) => on)).toEqual([true]);
+    await act(async () => enable.resolve());
+    expect(rebuild.mock.calls.map(([on]) => on)).toEqual([true,false]);
+    expect(store()).toMatchObject({physicsBusy:true,physicsEnabled:false});
+    await act(async () => store().closeOverlay());
+    await act(async () => disable.resolve());
+    expect(store().savedStage?.physicsEnabled).toBe(true);
+    expect(bag().layouts.floor?.models[0].file).toBe(a);
+  } finally { await exit(); }
+});
+
+it('does not let a retired rebuild unlock a newer rebuild after a batched A→B→A', async () => {
+  const a=file('actor.pmx'), {place,exit,store,bag}=await setupBag([a]);
+  try {
+    await place(a,2,45);
+    const old = deferred<void>(), current = deferred<void>();
+    vi.spyOn(runtimeWith(a),'setPhysicsEnabled').mockReturnValueOnce(old.promise);
+    await act(async () => store().setPhysicsEnabled(true));
+    await act(async () => { store().setPrefs({scenery:'pool'}); store().setPrefs({scenery:'floor'}); });
+    expect(store()).toMatchObject({physicsEnabled:false,physicsBusy:false});
+    vi.spyOn(runtimeWith(a),'setPhysicsEnabled').mockReturnValueOnce(current.promise);
+    await act(async () => store().setPhysicsEnabled(true));
+    const layout = bag().layouts.floor;
+    await act(async () => old.reject(new MmdRuntimeRebuildError(Error('late'), Error('late restore'))));
+    expect(store()).toMatchObject({physicsEnabled:true,physicsBusy:true,physicsFatal:false,physicsError:null});
+    expect(bag().layouts.floor).toBe(layout);
+    await act(async () => current.resolve());
+    expect(store().captureStage!()).toMatchObject({physicsEnabled:true,models:[{transform:{positionX:2,rotationY:45}}]});
+  } finally { await exit(); }
+});
 
 it('reports parsed cache hits and rebind work from an actual room-return task without exporting asset identities', async () => {
   const a=file('private-actor.pmx'), vmd=file('private-dance.vmd');
@@ -188,6 +283,15 @@ it("keeps neighbors mounted, restores the actor's binding and material after put
     await act(async () => store().setMaterialParam(oldId, "hair", "opacity", .4));
     await act(async () => bag().applyMotion(id(a), vmd, "body"));
     await act(async () => bag().applyMotion(id(a), face, "face"));
+    const runtime = runtimeWith(a), reseed = vi.spyOn(runtime,'resetPhysics');
+    vi.spyOn(runtime,'setPhysicsEnabled').mockResolvedValue(undefined);
+    await act(async () => store().setPhysicsEnabled(true));
+    await place(a, 2, 135);
+    expect(reseed.mock.calls).toEqual([[0, oldId]]);
+    expect(bag().live[id(b)].runtimeId).toBe(neighbor);
+    expect(runtime.exportProjectModels().find(m => m.id === oldId)).toMatchObject({bodyMotionFile:vmd, faceMotionFile:face,
+      materialOverrides:{hair:{opacity:.4}},transform:{positionX:2,rotationY:135}});
+    await act(async () => store().setPhysicsEnabled(false));
     motion.mockRejectedValueOnce(new Error("corrupt vmd"));
     await act(async () => bag().applyMotion(id(a), face, "body"));
     expect(bag().error).toBe("corrupt vmd");
@@ -285,9 +389,12 @@ it("owns GLB resources through failure, move, put-away, and completion after a s
     expect(bag().error).toBe("invalid GLB");
     expect(bag().live[id(prop)]).toBeUndefined();
     expect(revoke).toHaveBeenCalledTimes(1);
-    await place(prop); await place(prop, -1.5, 90);
-    expect(loadAsync).toHaveBeenCalledTimes(2);
+    await place(prop);
     const runtimeId = bag().live[id(prop)].runtimeId;
+    await place(prop, -1.5, 90);
+    expect(loadAsync).toHaveBeenCalledTimes(2);
+    expect(bag().live[id(prop)].runtimeId).toBe(runtimeId);
+    expect(store().objects[0].rotationY).toBeCloseTo(90);
     await act(async () => { store().requestModelScale(runtimeId, .5); harness.frame?.({},1 / 90); });
     expect(store().captureStage!()?.objects[0]).toMatchObject({ position:[-1.5,0,-2], scale:[.5,.5,.5] });
     await act(async () => bag().putAway(id(prop)));
@@ -304,35 +411,55 @@ it("owns GLB resources through failure, move, put-away, and completion after a s
   } finally { await exit(); }
 });
 
-it("rejects unsupported ground through both the legacy and backpack command paths", async () => {
+it("rejects water and fixtures on a move, and uses the actual floor rather than a square near the origin", async () => {
   const a = file("a.pmx"), { id, place, exit, store, bag, load } = await setupBag([a]);
   try {
     await act(async () => store().setPrefs({scenery:"pool"}));
     await place(a);
     const before = bag().live[id(a)];
-    await act(async () => {
-      store().setPlaceMode(true); store().requestGroundPlace(-4.34,-5.47); harness.frame?.({},1 / 90);
-      bag().beginPlace(id(a)); bag().confirmPlace(id(a), 0,-12,0);
-    });
-    expect(bag().error).toBeTruthy();
-    expect(bag().live[id(a)]).toEqual(before);
+    for (const [x,z] of [[-4.34,-5.47],[0,-12]]) {
+      await place(a, x, 10, z);
+      expect(bag().error).toBeTruthy(); expect(bag().live[id(a)]).toEqual(before);
+    }
     expect(load).toHaveBeenCalledOnce();
-    await act(async () => { store().requestGroundPlace(1, -3); harness.frame?.({},1 / 90); });
+    await place(a, 1, 90, -3);
     expect(bag().live[id(a)].position).toEqual([1,0,-3]);
+    await act(async () => store().setPrefs({scenery:'floor'}));
+    await place(a); await place(a, 7, 90, 0);
+    expect(bag().live[id(a)].position).toEqual([7,0,0]);
   } finally { await exit(); }
 });
 
-it('persists a gallery performance at its actual height and moves it to the low stage via either placement path',async()=>{
-  const a=file('singer.pmx'),{id,exit,store,bag}=await setupBag([a]);
+it('persists a gallery performance at its actual height and moves the restored instance down to the low stage',async()=>{
+  const a=file('singer.pmx'),{id,place,exit,store,bag}=await setupBag([a]);
   try{
     await act(async()=>store().setPrefs({scenery:'qinhuai'}));
-    await act(async()=>{bag().beginPlace(id(a));bag().confirmPlace(id(a),-6.76,-1.8,90);});
+    await place(a,-6.76,90,-1.8);
     expect(bag().live[id(a)].position).toEqual([-6.76,2.72,-1.8]);
     await act(async()=>store().setPrefs({scenery:'lawn'}));await act(async()=>store().setPrefs({scenery:'qinhuai'}));
     expect(bag().live[id(a)].position).toEqual([-6.76,2.72,-1.8]);
-    await act(async()=>{store().setPlaceMode(true);store().requestGroundPlace(0,-5);harness.frame?.({},1/90);});
-    expect(bag().live[id(a)].position).toEqual([0,.42,-5]);
+    const restoredId = bag().live[id(a)].runtimeId;
+    await place(a,0,90,-5);
+    expect(bag().live[id(a)]).toMatchObject({runtimeId:restoredId,position:[0,.42,-5]});
+    expect(store().models[0].rotationY).toBe(90);
   }finally{await exit();}
+});
+
+it('never re-spawns a removed actor from a draft or an already confirmed move', async () => {
+  const a=file('actor.pmx'), {id,place,exit,store,bag,load}=await setupBag([a]);
+  try {
+    for (const confirmed of [false,true]) {
+      await place(a);
+      await act(async () => {
+        bag().beginPlace(id(a));
+        if (confirmed) bag().confirmPlace(id(a),3,-1,45);
+        store().enqueueModelRemoval(bag().live[id(a)].runtimeId); harness.frame?.({},1/90);
+        if (!confirmed) bag().confirmPlace(id(a),3,-1,45);
+      });
+      expect(bag().draft).toBeNull(); expect(bag().command).toBeNull(); expect(bag().live[id(a)]).toBeUndefined();
+    }
+    expect(load).toHaveBeenCalledTimes(2);
+  } finally { await exit(); }
 });
 
 it("repairs a dynamic actor with texture warnings without replacing either the last clean layout or its neighbor on failure", async () => {

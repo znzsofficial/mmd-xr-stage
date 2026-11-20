@@ -14,9 +14,11 @@ describe('page backpack and stage ownership', () => {
     get().beginPlace(ids[3]);
     expect(get().error).toBeTruthy(); expect(get().draft).toBe(null);
     get().beginPlace(ids[1]); get().cancelPlace();
+    get().confirmPlace(ids[1], 1, 2, 45);
     expect(get().command).toBeNull(); expect(Object.keys(get().live)).toHaveLength(3);
-    get().beginPlace(ids[1]); get().confirmPlace(ids[1], 1, 2, 45);
-    expect(get().command).toMatchObject({ type: 'place', x: 1, z: 2, yaw: 45, id: ids[1] });
+    get().beginPlace(ids[1]); get().confirmPlace(ids[0], 1, 2, 45); expect(get().command).toBeNull();
+    get().confirmPlace(ids[1], 1, 2, 45);
+    expect(get().command).toMatchObject({ type: 'place', x: 1, z: 2, yaw: 45, id: ids[1], moveRuntimeId: 'live'+ids[1] });
     expect(get().placement?.wasMove).toBe(true);
     syncBackpackFiles([...files, new File([], 'tex.png')]);
     expect(get().entries.map(e => e.id)).toEqual(ids);

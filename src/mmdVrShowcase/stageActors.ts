@@ -151,6 +151,7 @@ export function createStageActors(scene: THREE.Scene, runtime: MmdRuntimeHandle,
     const saved = m ? savedModel(m) : snapshotObject(obj!.slot.objectFile, obj!.group);
     const id = useBackpack.getState().entries.find(e => e.file === saved.file)?.id;
     if (id && useStagePlay.getState().character?.assetId === id) useStagePlay.getState().stow();
+    if (id && useBackpack.getState().draft === id) useBackpack.getState().cancelPlace();
     if (id) useBackpack.setState(s => ({ stored: { ...s.stored, [id]: saved }, bindings: m ? { ...s.bindings, [id]: modelBindings(m) } : s.bindings }));
     forgotten.add(saved.file);
     repairs.delete(saved.file);
@@ -246,10 +247,13 @@ export function createStageActors(scene: THREE.Scene, runtime: MmdRuntimeHandle,
       return;
     }
     const {x, z, yaw} = command;
+    // A move confirmed just before a removal cannot turn into a fresh drop.
+    if (command.moveRuntimeId !== runtimeId) throw abort();
     const transform = { positionX:x, positionY:y, positionZ:z, rotationY:yaw };
     if (model) {
       runtime.setModelTransform(model.id, transform);
       runtime.setModelVisible(model.id, true);
+      if (physicsEnabled()) runtime.resetPhysics(currentTime(), model.id);
       return;
     }
     if (object) {

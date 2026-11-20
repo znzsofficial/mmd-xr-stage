@@ -7,7 +7,7 @@ import { createPanelTexture, roundRectPath } from "../../shared/panelTexture";
 import { getMmdVrClock } from "../mmdVrClock";
 import {PlayerSettings, CharacterSettings, EnvironmentSettings, settingsSections, type SettingsSection} from "../settings/objectSettings";
 import {ValueLabel,HudSlider} from "./HudValues";
-import { useMmdVrStore } from "../mmdVrStore";
+import { useMmdVrStore, type MmdVrModelEntry, type MmdVrObjectEntry } from "../mmdVrStore";
 import { HUD_COLORS } from "../hudAppearance";
 import { HudButton, HudLine, HudSheet } from "./PorcelainControls";
 import { BackpackPanel, SceneryPanel } from "./BackpackPanels";
@@ -476,183 +476,55 @@ function ProgressBar({ onInteractionChange }: { onInteractionChange: (active: bo
   );
 }
 
-function AdvancedMoveButton({ runtimeId, label, disabled }: { runtimeId: string; label: string; disabled: boolean }) {
-  const assetId = useBackpack(s => Object.keys(s.live).find(id => s.live[id].runtimeId === runtimeId));
-  return <HudButton position={[0.25, 0.19, 0]} size={[0.42, 0.13]} label={label} disabled={disabled || !assetId}
-    onPress={() => { if (assetId) useBackpack.getState().beginPlace(assetId); }} />;
-}
-
-function ModelPanel({
-  modelId,
-  editsLocked,
-  position,
-  hideLabel,
-  showLabel,
-  placeOnLabel,
-  placeOffLabel,
-  scaleLabel,
-  resetValueLabel,
-  rotateLeftLabel,
-  rotateRightLabel,
-  removeLabel,
-  materialsLabel,
-  onInteractionChange,
-}: {
-  modelId: string;
+function AssetEditPanel({ asset, kind, editsLocked, onInteractionChange }: {
+  asset: MmdVrModelEntry | MmdVrObjectEntry;
+  kind: "model" | "object";
   editsLocked: boolean;
-  position: [number, number, number];
-  hideLabel: string;
-  showLabel: string;
-  placeOnLabel: string;
-  placeOffLabel: string;
-  scaleLabel: string;
-  resetValueLabel: string;
-  rotateLeftLabel: string;
-  rotateRightLabel: string;
-  removeLabel: string;
-  materialsLabel: string;
   onInteractionChange: (active: boolean) => void;
 }) {
-  const model = useMmdVrStore((s) => s.models.find((entry) => entry.id === modelId));
+  const t = useLanguageStore((s) => s.t);
+  const runtimeId = asset.id;
+  const assetId = useBackpack(s => Object.keys(s.live).find(id => s.live[id].runtimeId === runtimeId));
   const enqueueVisibilityToggle = useMmdVrStore((s) => s.enqueueVisibilityToggle);
   const requestModelScale = useMmdVrStore((s) => s.requestModelScale);
   const requestModelRotation = useMmdVrStore((s) => s.requestModelRotation);
   const requestModelReset = useMmdVrStore((s) => s.requestModelReset);
   const enqueueModelRemoval = useMmdVrStore((s) => s.enqueueModelRemoval);
   const setMaterialPanelModelId = useMmdVrStore((s) => s.setMaterialPanelModelId);
-  const hasMaterials = useMmdVrStore((s) => (s.materialModels[modelId]?.length ?? 0) > 0);
-
-  if (!model) return null;
-  const setScale = (scale: number) => requestModelScale(model.id, scale);
+  const hasMaterials = useMmdVrStore((s) => (s.materialModels[runtimeId]?.length ?? 0) > 0);
+  const actionY = kind === "model" ? -0.27 : -0.31;
 
   return (
-    <group position={position}>
-      <ValueLabel position={[0, 0.34, 0]} label={shortName(model.name, 14)} value={model.visible ? "●" : "○"} />
+    <group position={[0, -0.23, 0.02]} scale={1.2}>
+      <ValueLabel position={[0, 0.34, 0]} label={shortName(asset.name, 14)} value={asset.visible ? "●" : "○"} />
       <HudButton
         position={[-0.25, 0.19, 0]}
-        label={model.visible ? hideLabel : showLabel}
+        label={t(asset.visible ? "settingsMmdVrHideModel" : "settingsMmdVrShowModel")}
         disabled={editsLocked}
         size={[0.42, 0.11]}
-        onPress={() => enqueueVisibilityToggle(model.id)}
+        onPress={() => enqueueVisibilityToggle(runtimeId)}
       />
-      <AdvancedMoveButton runtimeId={model.id} label={placeOffLabel} disabled={editsLocked} />
-      <ValueLabel position={[0, 0.02, 0]} label={scaleLabel} value={formatMmdVrModelScale(model.scale)} />
+      <HudButton position={[0.25, 0.19, 0]} size={[0.42, 0.13]} label={t("settingsMmdVrPlaceOff")} disabled={editsLocked || !assetId}
+        onPress={() => { if (assetId) useBackpack.getState().beginPlace(assetId); }} />
+      <ValueLabel position={[0, 0.02, 0]} label={t("settingsMmdVrModelScale")} value={formatMmdVrModelScale(asset.scale)} />
       <HudSlider
         position={[0, -0.12, 0]}
-        value={mmdVrModelScaleToSlider(model.scale)}
+        value={mmdVrModelScaleToSlider(asset.scale)}
         disabled={editsLocked}
-        onChange={(value) => setScale(mmdVrSliderToModelScale(value))}
+        onChange={(value) => requestModelScale(runtimeId, mmdVrSliderToModelScale(value))}
         onInteractionChange={onInteractionChange}
       />
-      <HudButton position={[-0.36, -0.27, 0]} label={rotateLeftLabel} size={[0.22, 0.1]} disabled={editsLocked} onPress={() => requestModelRotation(model.id, model.rotationY - 15)} />
-      <HudButton position={[-0.12, -0.27, 0]} label={resetValueLabel} size={[0.22, 0.1]} disabled={editsLocked} onPress={() => requestModelReset(model.id)} />
-      <HudButton position={[0.12, -0.27, 0]} label={rotateRightLabel} size={[0.22, 0.1]} disabled={editsLocked} onPress={() => requestModelRotation(model.id, model.rotationY + 15)} />
-      <HudButton position={[0.36, -0.27, 0]} label={removeLabel} size={[0.22, 0.1]} disabled={editsLocked} danger onPress={() => enqueueModelRemoval(model.id)} />
-      <HudButton
+      <HudButton position={[-0.36, actionY, 0]} label={t("settingsMmdVrRotateLeft")} size={[0.22, 0.1]} disabled={editsLocked} onPress={() => requestModelRotation(runtimeId, asset.rotationY - 15)} />
+      <HudButton position={[-0.12, actionY, 0]} label={t("settingsMmdVrValueReset")} size={[0.22, 0.1]} disabled={editsLocked} onPress={() => requestModelReset(runtimeId)} />
+      <HudButton position={[0.12, actionY, 0]} label={t("settingsMmdVrRotateRight")} size={[0.22, 0.1]} disabled={editsLocked} onPress={() => requestModelRotation(runtimeId, asset.rotationY + 15)} />
+      <HudButton position={[0.36, actionY, 0]} label={t("settingsMmdVrRemoveModel")} size={[0.22, 0.1]} disabled={editsLocked} danger onPress={() => enqueueModelRemoval(runtimeId)} />
+      {kind === "model" && <HudButton
         position={[0, -0.46, 0]}
-        label={materialsLabel}
+        label={t("settingsMmdVrMaterials")}
         size={[0.42, 0.08]}
         disabled={!hasMaterials}
-        onPress={() => setMaterialPanelModelId(model.id)}
-      />
-    </group>
-  );
-}
-
-function ModelPanels({ selectedIndex, ...props }: Omit<Parameters<typeof ModelPanel>[0], "modelId" | "position"> & { selectedIndex: number }) {
-  const models = useMmdVrStore((s) => s.models);
-  return (
-    <group position={[0, -0.23, 0.02]} scale={1.2}>
-      {models.slice(selectedIndex, selectedIndex + 1).map((model) => (
-        <ModelPanel
-          key={model.id}
-          {...props}
-          modelId={model.id}
-          position={[0, 0, 0]}
-        />
-      ))}
-    </group>
-  );
-}
-
-function ObjectPanel({
-  objectId,
-  editsLocked,
-  position,
-  hideLabel,
-  showLabel,
-  placeOnLabel,
-  placeOffLabel,
-  scaleLabel,
-  resetValueLabel,
-  rotateLeftLabel,
-  rotateRightLabel,
-  removeLabel,
-  onInteractionChange,
-}: {
-  objectId: string;
-  editsLocked: boolean;
-  position: [number, number, number];
-  hideLabel: string;
-  showLabel: string;
-  placeOnLabel: string;
-  placeOffLabel: string;
-  scaleLabel: string;
-  resetValueLabel: string;
-  rotateLeftLabel: string;
-  rotateRightLabel: string;
-  removeLabel: string;
-  onInteractionChange: (active: boolean) => void;
-}) {
-  const object = useMmdVrStore((s) => s.objects.find((entry) => entry.id === objectId));
-  const enqueueVisibilityToggle = useMmdVrStore((s) => s.enqueueVisibilityToggle);
-  const requestModelScale = useMmdVrStore((s) => s.requestModelScale);
-  const requestModelRotation = useMmdVrStore((s) => s.requestModelRotation);
-  const requestModelReset = useMmdVrStore((s) => s.requestModelReset);
-  const enqueueModelRemoval = useMmdVrStore((s) => s.enqueueModelRemoval);
-
-  if (!object) return null;
-  const setScale = (scale: number) => requestModelScale(object.id, scale);
-
-  return (
-    <group position={position}>
-      <ValueLabel position={[0, 0.34, 0]} label={shortName(object.name, 14)} value={object.visible ? "●" : "○"} />
-      <HudButton
-        position={[-0.25, 0.19, 0]}
-        label={object.visible ? hideLabel : showLabel}
-        disabled={editsLocked}
-        size={[0.42, 0.11]}
-        onPress={() => enqueueVisibilityToggle(object.id)}
-      />
-      <AdvancedMoveButton runtimeId={object.id} label={placeOffLabel} disabled={editsLocked} />
-      <ValueLabel position={[0, 0.02, 0]} label={scaleLabel} value={formatMmdVrModelScale(object.scale)} />
-      <HudSlider
-        position={[0, -0.12, 0]}
-        value={mmdVrModelScaleToSlider(object.scale)}
-        disabled={editsLocked}
-        onChange={(value) => setScale(mmdVrSliderToModelScale(value))}
-        onInteractionChange={onInteractionChange}
-      />
-      <HudButton position={[-0.36, -0.31, 0]} label={rotateLeftLabel} size={[0.22, 0.1]} disabled={editsLocked} onPress={() => requestModelRotation(object.id, object.rotationY - 15)} />
-      <HudButton position={[-0.12, -0.31, 0]} label={resetValueLabel} size={[0.22, 0.1]} disabled={editsLocked} onPress={() => requestModelReset(object.id)} />
-      <HudButton position={[0.12, -0.31, 0]} label={rotateRightLabel} size={[0.22, 0.1]} disabled={editsLocked} onPress={() => requestModelRotation(object.id, object.rotationY + 15)} />
-      <HudButton position={[0.36, -0.31, 0]} label={removeLabel} size={[0.22, 0.1]} disabled={editsLocked} danger onPress={() => enqueueModelRemoval(object.id)} />
-    </group>
-  );
-}
-
-function ObjectPanels({ selectedIndex, ...props }: Omit<Parameters<typeof ObjectPanel>[0], "objectId" | "position"> & { selectedIndex: number }) {
-  const objects = useMmdVrStore((s) => s.objects);
-  return (
-    <group position={[0, -0.23, 0.02]} scale={1.2}>
-      {objects.slice(selectedIndex, selectedIndex + 1).map((object) => (
-        <ObjectPanel
-          key={object.id}
-          {...props}
-          objectId={object.id}
-          position={[0, 0, 0]}
-        />
-      ))}
+        onPress={() => setMaterialPanelModelId(runtimeId)}
+      />}
     </group>
   );
 }
@@ -812,10 +684,8 @@ export function MmdVrControlBar({onExit,busy,onDragChange:reportInteraction}:{on
   const retryEpoch = useMmdVrStore((s) => s.assetRetryEpoch);
   const [dismissedLoadEpoch, setDismissedLoadEpoch] = useState(-1);
   const physicsError = useMmdVrStore((s) => s.physicsError);
-  const placeMode = useMmdVrStore((s) => s.placeMode);
   const prefs = useMmdVrStore((s) => s.prefs);
   const setLoop = useMmdVrStore((s) => s.setLoop);
-  const setPlaceMode = useMmdVrStore((s) => s.setPlaceMode);
   const physicsBusy = useMmdVrStore((s) => s.physicsBusy);
   const materialPanelOpen = useMmdVrStore((s) => s.materialPanelModelId != null);
   const [page, setPage] = useState<"watch" | "bag" | "scenery" | "advanced">("watch");
@@ -836,6 +706,7 @@ export function MmdVrControlBar({onExit,busy,onDragChange:reportInteraction}:{on
   const models = useMmdVrStore((s) => s.models);
   const objects = useMmdVrStore((s) => s.objects);
   const currentAsset = Math.min(assetIndex, Math.max(0, models.length + objects.length - 1));
+  const editedAsset = models[currentAsset] ?? objects[currentAsset - models.length];
   const camera = useThree((s) => s.camera);
   const gl = useThree((s) => s.gl);
   const rightController = useXRInputSourceState("controller", "right");
@@ -882,7 +753,6 @@ export function MmdVrControlBar({onExit,busy,onDragChange:reportInteraction}:{on
       const bag = useBackpack.getState();
       bag.cancelPlace();
       if (bag.busy) setRecallingBusy(true); else if (bag.selected && !bag.error) bag.select(null);
-      useMmdVrStore.getState().setPlaceMode(false);
       setPhysicsDetails(false); setDiagnosticsOpen(false);
       summon();
     });
@@ -909,12 +779,12 @@ export function MmdVrControlBar({onExit,busy,onDragChange:reportInteraction}:{on
   });
   const status =
     physicsError ?? statusLine ??
-    (modelCount === 0 && objectCount === 0 ? t("settingsMmdVrEmptyNoAssets") : placeMode ? t("settingsMmdVrPlaceHint") : null);
+    (modelCount === 0 && objectCount === 0 ? t("settingsMmdVrEmptyNoAssets") : null);
   const surface = resolveHudSurface({ watching: page !== "advanced", loading: assetLoad.running,
     pendingFailures: assetLoad.failures.length > 0 && dismissedLoadEpoch !== retryEpoch,
     physicsDetails: physicsDetails && Boolean(physicsError), diagnostics: diagnosticsOpen });
   const notice = <CriticalNotice onDetails={() => setPhysicsDetails(true)} />;
-  const worldBlocked = busy || inputHeld || Boolean(bagError) || surface !== "watch" || page !== "watch" || recallingBusy || ((dock||intro)&&!draft&&!placeMode);
+  const worldBlocked = busy || inputHeld || Boolean(bagError) || surface !== "watch" || page !== "watch" || recallingBusy || ((dock||intro)&&!draft);
   const editsLocked = busy || physicsBusy || physicsFatal || bagBusy || assetLoad.running;
   useLayoutEffect(() => {
     useHudWorldInput.setState({ blocked: worldBlocked });
@@ -947,11 +817,11 @@ export function MmdVrControlBar({onExit,busy,onDragChange:reportInteraction}:{on
       {notice}{page === "bag" ? <BackpackPanel locked={locked} onClose={quiet} /> : <SceneryPanel locked={locked}
         onClose={quiet} onSelected={() => summon()} />}
     </group>;
-    if (draft || placeMode) return <group position={panelPosition} ref={panelGroupRef} pointerEventsOrder={2}>
+    if (draft) return <group position={panelPosition} ref={panelGroupRef} pointerEventsOrder={2}>
       {notice}<HudSheet size={[1.98, 0.36]} />
       <HudLine text={draftName || t("hudMove")} position={[-0.27, 0.068, 0]} width={1.28} />
       <HudLine text={t("hudAimGround")} position={[-0.27, -0.055, 0]} width={1.28} role="muted" />
-      <HudButton position={[0.67, 0, 0]} label={t("hudCancelPlace")} size={[0.5, 0.15]} onPress={() => { useBackpack.getState().cancelPlace(); setPlaceMode(false); }} />
+      <HudButton position={[0.67, 0, 0]} label={t("hudCancelPlace")} size={[0.5, 0.15]} onPress={() => useBackpack.getState().cancelPlace()} />
     </group>;
     if (selected && selectedLive && !worldBlocked && !physicsFatal)
       return <group position={panelPosition} ref={panelGroupRef}>{notice}</group>;
@@ -999,32 +869,11 @@ export function MmdVrControlBar({onExit,busy,onDragChange:reportInteraction}:{on
           <HudButton position={[-0.85, 0.3, 0]} label={t("loadPrevious")} size={[0.55, 0.14]} disabled={currentAsset === 0} onPress={() => setAssetIndex(currentAsset - 1)} />
           <ValueLabel position={[0, 0.3, 0]} label={models.length + objects.length ? `${currentAsset + 1} / ${models.length + objects.length}` : t("settingsMmdVrEmptyNoAssets")} value="" size={[0.95, 0.14]} centered />
           <HudButton position={[0.85, 0.3, 0]} label={t("loadNext")} size={[0.55, 0.14]} disabled={currentAsset >= models.length + objects.length - 1} onPress={() => setAssetIndex(currentAsset + 1)} />
-          {currentAsset < models.length ? <ModelPanels
+          {editedAsset && <AssetEditPanel
+            key={editedAsset.id}
+            asset={editedAsset}
+            kind={currentAsset < models.length ? "model" : "object"}
             editsLocked={editsLocked}
-            selectedIndex={currentAsset}
-            hideLabel={t("settingsMmdVrHideModel")}
-            showLabel={t("settingsMmdVrShowModel")}
-            placeOnLabel={t("settingsMmdVrPlaceOn")}
-            placeOffLabel={t("settingsMmdVrPlaceOff")}
-            scaleLabel={t("settingsMmdVrModelScale")}
-            rotateLeftLabel={t("settingsMmdVrRotateLeft")}
-            rotateRightLabel={t("settingsMmdVrRotateRight")}
-            resetValueLabel={t("settingsMmdVrValueReset")}
-            removeLabel={t("settingsMmdVrRemoveModel")}
-            materialsLabel={t("settingsMmdVrMaterials")}
-            onInteractionChange={onDragChange}
-           /> : <ObjectPanels
-            editsLocked={editsLocked}
-            selectedIndex={currentAsset - models.length}
-            hideLabel={t("settingsMmdVrHideModel")}
-            showLabel={t("settingsMmdVrShowModel")}
-            placeOnLabel={t("settingsMmdVrPlaceOn")}
-            placeOffLabel={t("settingsMmdVrPlaceOff")}
-            scaleLabel={t("settingsMmdVrModelScale")}
-            rotateLeftLabel={t("settingsMmdVrRotateLeft")}
-            rotateRightLabel={t("settingsMmdVrRotateRight")}
-            resetValueLabel={t("settingsMmdVrValueReset")}
-            removeLabel={t("settingsMmdVrRemoveModel")}
             onInteractionChange={onDragChange}
           />}
         </>
@@ -1037,7 +886,7 @@ export function MmdVrControlBar({onExit,busy,onDragChange:reportInteraction}:{on
           opacityLabel={t("settingsMmdVrMaterialOpacity")}
           emissionLabel={t("settingsMmdVrMaterialEmission")}
           closeLabel={t("hudModels")}
-          disabled={busy || physicsBusy}
+          disabled={editsLocked}
           onInteractionChange={onDragChange}
         />
       ) : null}

@@ -3,6 +3,8 @@ import { BufferGeometry, DoubleSide, Float32BufferAttribute, RepeatWrapping } fr
 import { Batch } from './SceneryBatch';
 import { canopyCluster, chairBack, chairFrame, classroomCurtains, deskFrame, woodSlab } from './ClassroomGeometry';
 import { classroomProps } from './ClassroomProps';
+import {SchoolBrickWalk} from './SchoolBrickWalk';
+import {BorrowedMeadow} from './BorrowedMeadow';
 import { useBakedSurface } from './useBakedSurface';
 import floorDay from './class-floor-day.webp';
 import floorShadow from './class-floor-shadow.webp';
@@ -46,6 +48,7 @@ export function Classroom({ shadows }: { shadows: boolean }) {
   const daylight = shadows ? classroomBounce : classroomSunlight;
   useEffect(() => () => { for (const g of Object.values(geometry)) g.dispose(); }, [geometry]);
   return <group name="scenery:classroom">
+    <BorrowedMeadow room="classroom"/><SchoolBrickWalk shadows={shadows}/>
     <mesh name="basketweave-parquet" rotation={[-Math.PI/2,0,0]} receiveShadow={shadows} raycast={()=>null}>
       <planeGeometry args={[ROOM.w, ROOM.d]} /><meshStandardMaterial key={floor?'wood':'plain'} map={floor} color={floor?'white':'#bd9a77'} roughness={.88} onBeforeCompile={parquetContact} />
     </mesh>

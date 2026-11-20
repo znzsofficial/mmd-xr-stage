@@ -48,7 +48,6 @@ describe("MMD VR adjustments", () => {
     useMmdVrStore.setState({
       models: [{ id: "model-1", name: "Miku.pmx", visible: true, scale: 1, rotationY: 0 }],
       modelCount: 1,
-      placeModelId: "model-1",
       pendingModelTransforms: [],
       pendingModelRemovals: [],
     });
@@ -192,7 +191,7 @@ describe("MMD VR adjustments", () => {
     ]);
   });
 
-  it("queues objects for removal and picks objects for placement", () => {
+  it("queues objects for removal without a character on stage", () => {
     useMmdVrStore.setState({
       objects: [{ id: "object:table.glb", name: "table", visible: true, scale: 1, rotationY: 0 }],
       models: [],
@@ -201,10 +200,6 @@ describe("MMD VR adjustments", () => {
     const store = useMmdVrStore.getState();
     store.enqueueModelRemoval("object:table.glb");
     expect(useMmdVrStore.getState().takeModelRemovals()).toEqual(["object:table.glb"]);
-
-    useMmdVrStore.getState().setPlaceMode(true);
-    expect(useMmdVrStore.getState().placeModelId).toBe("object:table.glb");
-    useMmdVrStore.getState().setPlaceMode(false);
   });
 
   it("cycles through all six lighting modes", () => {
@@ -218,29 +213,6 @@ describe("MMD VR adjustments", () => {
     expect(seen).toEqual(["stage", "contrast", "soft", "daylight", "warm", "rim"]);
     useMmdVrStore.getState().cycleLightPreset();
     expect(useMmdVrStore.getState().prefs.lightPreset).toBe("stage");
-  });
-
-  it("binds a valid floor hit to its target; never replays it after a target change, cancel, removal or exit", () => {
-    const s = useMmdVrStore.getState();
-    s.setObjects([{ id: "prop", name: "prop", visible: true, rotationY: 0, scale: 1 }]);
-    s.setPlaceMode(true);
-    s.requestGroundPlace(7, 0);
-    expect(s.takeGroundPlace()).toBeNull();
-    s.requestGroundPlace(5.5, -5.5);
-    expect(s.takeGroundPlace()).toEqual({ id: "model-1", x: 5.5, z: -5.5 });
-    s.requestGroundPlace(1, 2);
-    s.setPlaceModelId("prop");
-    expect(s.takeGroundPlace()).toBeNull();
-    s.requestGroundPlace(1, 2);
-    s.setPlaceMode(false);
-    s.setPlaceMode(true);
-    expect(s.takeGroundPlace()).toBeNull();
-    s.requestGroundPlace(1, 2);
-    s.setObjects([]);
-    expect(s.takeGroundPlace()).toBeNull();
-    s.requestGroundPlace(1, 2);
-    s.closeOverlay();
-    expect(s.takeGroundPlace()).toBeNull();
   });
 
   it("keeps experimental physics session-only and off after exit", () => {

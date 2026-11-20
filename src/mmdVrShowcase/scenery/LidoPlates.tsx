@@ -2,8 +2,7 @@ import {useEffect,useMemo} from 'react';
 import {BufferGeometry,Float32BufferAttribute} from 'three';
 import url from './lido-signs.webp';
 import {useBakedSurface} from './useBakedSurface';
-import {GUARD_CHAIR,PACE_CLOCK,POOL_ORIGIN_Z} from './LidoLayout';
-import {POOL} from './placementAreas';
+import {GUARD_CHAIR,PACE_CLOCK,POOL_ORIGIN,POOL,LIDO_ENTRY} from './LidoLayout';
 import {noPick} from './sceneryPaint';
 
 export function LidoPlates({pool}:{pool:boolean}){
@@ -15,8 +14,8 @@ export function LidoPlates({pool}:{pool:boolean}){
         verts.push(x+s*(front?1:-1)*w*.5,y+t*h*.5,z);uv.push((s<0?u:a)/1024,1-(t<0?b:v)/512);
       }
     }
-    const gate=8.75+(pool?0:POOL_ORIGIN_Z);
-    face(0,2.43,gate+.054,3.11,.385,[1,1,765,110]);face(0,2.43,gate-.054,3.11,.385,[1,115,765,224],false);
+    const gate=8.34+(pool?0:POOL_ORIGIN.z),x=LIDO_ENTRY.x+(pool?0:POOL_ORIGIN.x);
+    face(x,2.46,gate+.074,3.11,.38,[1,1,765,110]);face(x,2.46,gate-.074,3.11,.38,[1,115,765,224],false);
     if(pool){
       for(let i=0;i<48;i++)for(const a of [null,i*Math.PI/24,(i+1)*Math.PI/24]){
         const dx=a===null?0:Math.cos(a),dy=a===null?0:Math.sin(a);

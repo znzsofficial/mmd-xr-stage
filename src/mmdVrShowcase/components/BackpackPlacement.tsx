@@ -112,7 +112,7 @@ export function BackpackPlacement({onScreenPick}:{onScreenPick?:()=>void}={}) {
   const scenery = useMmdVrStore(s => s.prefs.scenery);
   const panelOpen = useHudWorldInput(s => s.blocked);
   const xr = useMmdVrStore(s=>s.presentation==='xr');
-  const blocked = useMmdVrStore(s => s.assetLoad.running || s.physicsBusy || s.physicsFatal || s.placeMode);
+  const blocked = useMmdVrStore(s => s.assetLoad.running || s.physicsBusy || s.physicsFatal);
   if (blocked || busy || (xr && panelOpen)) return null;
   return draft ? <DropSurface key={`${scenery}:${draft}`} id={draft} scenery={scenery} /> :
     <>{Object.entries(live).map(([id,entry]) => entry.visible && <PickTarget key={id} id={id} live={entry} onScreenPick={onScreenPick} />)}</>;

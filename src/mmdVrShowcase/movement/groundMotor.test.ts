@@ -44,7 +44,7 @@ it('has room INSIDE a single imported mesh, including under an overhead triangle
 
 it('keeps all ten entries supported and the normal/free preference independent of speed and old eye offsets',()=>{
   for(const room of sceneryIds){const p=roomEntry(room);expect(roomGround(room,p.x,p.z),room).toBe(0);}
-  expect(roomGround('classroom',-8.9,7.22)).toBe(0);
+  expect(roomGround('classroom',-4.03,5.94)).toBe(0);
   expect(normalizeMmdVrPrefs(JSON.parse('{"heightOffset":24,"walkSpeedPref":"fast"}'))).toMatchObject({movementMode:'normal',walkSpeedPref:'fast'});
   expect(normalizeMmdVrPrefs({movementMode:'free',walkSpeedPref:'sprint'})).toMatchObject({movementMode:'free',walkSpeedPref:'sprint'});
   expect(WALK_SPEED.sprint).toBe(8);

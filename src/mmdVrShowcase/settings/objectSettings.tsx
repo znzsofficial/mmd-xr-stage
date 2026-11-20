@@ -62,7 +62,7 @@ export function CharacterSettings({locked}:{locked:boolean}) {
 const lightNames={stage:'settingsMmdVrLightStage',soft:'settingsMmdVrLightSoft',contrast:'settingsMmdVrLightContrast',daylight:'settingsMmdVrLightDaylight',warm:'settingsMmdVrLightWarm',rim:'settingsMmdVrLightRim'} as const;
 export function EnvironmentSettings({onDrag,diagnostics}:Drag&{diagnostics:()=>void}) {
   const t=useLanguageStore(s=>s.t),p=useMmdVrStore(s=>s.prefs),set=useMmdVrStore(s=>s.setPrefs),profile=getMmdVrRenderProfile(p);
-  const grid=showSceneryGrid(p.scenery,profile.showGrid,p.gridPref==='on',false);
+  const grid=showSceneryGrid(p.scenery,profile.showGrid,p.gridPref==='on');
   return <group name="settings:environment">
     <HudLine position={[0,.55,0]} width={1.85} role="title" text={t('hudGraphicsTitle')}/>
     <HudButton position={[-.63,.30,0]} size={[.58,.16]} label={t('settingsMmdVrShadows')} active={profile.shadows} onPress={()=>set({shadowsPref:profile.shadows?'off':'on'})}/>

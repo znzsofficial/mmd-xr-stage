@@ -33,4 +33,8 @@
 
 ## 查记录或跑对照
 
+[玩家碰撞查询的桌面配对与报告导出预演](./player-collision-work.md)：普通行走的网格查询、站定时的角色物理和过门恢复分别取证。
+
+[实模物理前骨架遍历对照](./pmx-root-propagation.md)：改成只更新根节点没有稳定的整模更新收益，本轮不采用。两处新景的[接地阴影合批和资源回访](../scenery/private-retreats.md)另有实测。
+
 [Quest 报告字段和历次测量](./viewing-and-diagnostics.md) · [物理切换与姿态验证](./physics-toggle.md) · [模型加载对照](../../scripts/room-load-probe.html) · [真实 Bullet 暂停拨衣](../../scripts/paused-cloth-smoke.html)。开发探针只使用本地素材。

@@ -4,6 +4,7 @@ import { canUseGrip, giveScreenToy, gripLatch, handleGripStart, useStagePlay } f
 import { shelfToys, STORIES, TOYS, toyLabel } from './propCatalog';
 import { markAt, POST_MARKS, stamp, useLunarCard } from './lunarCard';
 import { saberLit } from './saberLight';
+import { useWandMotor } from './wandMotor';
 import { advanceFerry, GATE_X, GATE_Y } from './ferry/voyage';
 import { BADGE_X, BADGE_Y, useEncorePrint } from './encore/encoreRound';
 import { useKiteStore } from './kite/kiteStore';
@@ -14,7 +15,7 @@ beforeEach(()=>get().reset());
 
 describe('shared prop catalog and ownership',()=>{
   it('can assign every shelf entry to either wrist without also holding a second copy',()=>{
-    expect(shelfToys).toEqual(expect.arrayContaining(['bubbles','post','saber','kite','encore','dildo']));
+    expect(shelfToys).toEqual(expect.arrayContaining(['bubbles','post','saber','kite','encore','dildo','wand','feather']));
     for(const toy of shelfToys){
       get().equip(toy,'left');get().give('actor','right');get().give('other','left');
       expect(get().character).toMatchObject({toy,assetId:'actor',hand:'right'});
@@ -37,6 +38,21 @@ describe('shared prop catalog and ownership',()=>{
     get().reset();giveScreenToy('actor','saber','left','astralCourt');expect(saberLit()).toBe(true);
     giveScreenToy('actor','saber','right','astralCourt');expect(saberLit()).toBe(true);
     get().stow();expect(saberLit()).toBe(false);
+  });
+  it('cycles the wand once per new usable squeeze; transfers keep speed but a shelf swap, return or new room cuts power',()=>{
+    const speed=()=>useWandMotor.getState().speed,latch=gripLatch();
+    const sample=(pressed:boolean,blocked=false)=>{
+      if(latch(!blocked&&canUseGrip(get(),'wand','left','floor'),pressed)==='start')handleGripStart('wand','floor',new Vector3(),forward);
+      return speed();
+    };
+    get().equip('wand','left');
+    expect([sample(false),sample(true),sample(true),sample(false),sample(true),sample(false),sample(true)]).toEqual([0,1,1,1,2,2,0]);
+    expect([sample(true,true),sample(true),sample(false),sample(true)]).toEqual([0,0,0,1]);
+    get().give('actor','right');get().give('actor','left');expect(sample(true)).toBe(1);
+    get().equip('feather','right');expect(speed()).toBe(0);
+    giveScreenToy('actor','wand','right','chapel');giveScreenToy('actor','wand','left','chapel');expect(speed()).toBe(1);
+    get().stow();expect(speed()).toBe(0);
+    giveScreenToy('actor','wand','right','floor');get().reset();expect(speed()).toBe(0);expect(get().character).toBeNull();
   });
   it('keeps the in-flight ferry on handoff, ends it on replacement, and leaves no kite after a zone switch',()=>{
     get().equip('bubbles','left');expect(canUseGrip(get(),'bubbles','left','clinic')).toBe(true);

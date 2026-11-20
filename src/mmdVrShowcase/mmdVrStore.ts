@@ -5,7 +5,7 @@ import { LIGHT_ORDER, normalizeMmdVrPrefs, prefsStorage, type MmdVrPrefs } from 
 import { endMmdVrAssetSession } from "./mmdVrAssets";
 import { invalidateBackpackCommands, useBackpack } from "./backpack";
 import { resetMmdVrClock } from "./mmdVrClock";
-import { movePlaneHalfWidth, resetViewOnMenuSwitch } from "./scenery/catalog";
+import { resetViewOnMenuSwitch } from "./scenery/catalog";
 import { normalizeMmdVrModelScale } from "./mmdVrAdjustments";
 
 export { normalizeMmdVrHeightOffset, normalizeMmdVrModelScale } from "./mmdVrAdjustments";
@@ -128,14 +128,6 @@ type MmdVrStore = {
   pendingModelRemovals: string[];
   enqueueModelRemoval: (id: string) => void;
   takeModelRemovals: () => string[];
-  /** Ray-point ground place (M13). */
-  placeMode: boolean;
-  setPlaceMode: (on: boolean) => void;
-  placeModelId: string | null;
-  setPlaceModelId: (id: string | null) => void;
-  pendingGroundPlace: { id: string; x: number; z: number } | null;
-  requestGroundPlace: (x: number, z: number) => void;
-  takeGroundPlace: () => { id: string; x: number; z: number } | null;
   pendingModelTransforms: { id: string; scale?: number; rotationY?: number; reset?: boolean }[];
   requestModelScale: (id: string, scale: number) => void;
   requestModelRotation: (id: string, rotationY: number) => void;
@@ -177,9 +169,6 @@ function sessionReset() {
     objects: [] as MmdVrObjectEntry[],
     pendingVisibilityToggles: [] as string[],
     pendingModelRemovals: [] as string[],
-    placeMode: false,
-    placeModelId: null as string | null,
-    pendingGroundPlace: null as { id: string; x: number; z: number } | null,
     pendingModelTransforms: [] as { id: string; scale?: number; rotationY?: number; reset?: boolean }[],
     duration: 0,
     seekEpoch: 0,
@@ -337,16 +326,7 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
   materialModels: {},
   runtimeRef: null,
   materialPanelModelId: null,
-  setModels: (models) =>
-    set((s) => ({
-      models,
-      modelCount: models.length,
-      pendingGroundPlace: s.pendingGroundPlace && (models.some(m => m.id === s.pendingGroundPlace?.id) || s.objects.some(o => o.id === s.pendingGroundPlace?.id)) ? s.pendingGroundPlace : null,
-      placeModelId:
-        s.placeModelId && (models.some((m) => m.id === s.placeModelId) || s.objects.some((o) => o.id === s.placeModelId))
-          ? s.placeModelId
-          : models[0]?.id ?? null,
-    })),
+  setModels: (models) => set({ models, modelCount: models.length }),
   setMaterialModels: (materialModels) => set((state) => ({
     materialModels,
     materialPanelModelId: state.materialPanelModelId && materialModels[state.materialPanelModelId]
@@ -384,15 +364,7 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
     });
   },
   objects: [],
-  setObjects: (objects) =>
-    set((s) => ({
-      objects,
-      pendingGroundPlace: s.pendingGroundPlace && (s.models.some(m => m.id === s.pendingGroundPlace?.id) || objects.some(o => o.id === s.pendingGroundPlace?.id)) ? s.pendingGroundPlace : null,
-      placeModelId:
-        s.placeModelId && (s.models.some((m) => m.id === s.placeModelId) || objects.some((o) => o.id === s.placeModelId))
-          ? s.placeModelId
-          : s.models[0]?.id ?? objects[0]?.id ?? null,
-    })),
+  setObjects: (objects) => set({ objects }),
   pendingVisibilityToggles: [],
   enqueueVisibilityToggle: (id) =>
     set((s) => ({
@@ -415,31 +387,6 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
     if (!list.length) return EMPTY_STRING_ARRAY as string[];
     set({ pendingModelRemovals: [] });
     return list;
-  },
-  placeMode: false,
-  setPlaceMode: (placeMode) => {
-    const models = get().models;
-    const objects = get().objects;
-    const currentId = get().placeModelId;
-    const currentValid = !!currentId && (models.some((m) => m.id === currentId) || objects.some((o) => o.id === currentId));
-    const nextId = currentValid ? currentId : models[0]?.id ?? objects[0]?.id ?? null;
-    set({ placeMode, pendingGroundPlace: null, placeModelId: placeMode ? nextId : get().placeModelId });
-  },
-  placeModelId: null,
-  setPlaceModelId: (placeModelId) => set({ placeModelId, pendingGroundPlace: null }),
-  pendingGroundPlace: null,
-  requestGroundPlace: (x, z) => {
-    const { placeMode, placeModelId: id } = get();
-    const halfWidth=movePlaneHalfWidth(get().prefs.scenery);
-    if (!placeMode || !id || !Number.isFinite(x) || !Number.isFinite(z) || Math.abs(x) > halfWidth || Math.abs(z) > halfWidth) return;
-    set({ pendingGroundPlace: { id, x, z } });
-  },
-  takeGroundPlace: () => {
-    const p = get().pendingGroundPlace;
-    if (!p) return null;
-    set({ pendingGroundPlace: null });
-    const { placeMode, placeModelId, models, objects } = get();
-    return placeMode && placeModelId === p.id && (models.some(m => m.id === p.id) || objects.some(o => o.id === p.id)) ? p : null;
   },
   pendingModelTransforms: [],
   requestModelScale: (id, scale) => {

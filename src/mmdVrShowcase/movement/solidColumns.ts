@@ -19,8 +19,9 @@ function geometryBlocks(g:BufferGeometry){
 
 export type Column={floor:number;ceiling:number;blocked:boolean};
 export const BODY_RADIUS=.16, STEP=.19;
-type Triangle={v:number[];x0:number;x1:number;z0:number;z1:number;y0:number;y1:number};
-type Instance={g:BufferGeometry;world:Matrix4;bounds:Box3};
+type Triangle={v:Float64Array;x0:number;x1:number;z0:number;z1:number;y0:number;y1:number};
+type Instance={g:BufferGeometry;world:Matrix4;bounds:Box3;identity:boolean};
+const identityMatrix=new Matrix4();
 // Clip a triangle against the four sides of the player's column in XZ. A
 // hollow GLB room stays hollow; the bounding box of its shell is not a wall.
 const pa=new Float64Array(27),pb=new Float64Array(27);
@@ -39,10 +40,11 @@ export function createSolidColumns(){
   let lastX=NaN,lastZ=NaN,lastFoot=NaN,lastBase=NaN;
   const last:Column={floor:0,ceiling:Infinity,blocked:false};
   const instances:Instance[]=[],triangles:Triangle[]=[],box=new Box3(),v=new Vector3();
+  let activeTriangles=0;
   let dirty=true;
   const watched:Object3D[]=[];
   function changed(){dirty=true;tileX=tileZ=Infinity;lastX=NaN;}
-  function release(){for(const o of watched){o.removeEventListener('childadded',changed);o.removeEventListener('childremoved',changed);}watched.length=0;instances.length=triangles.length=0;changed();}
+  function release(){for(const o of watched){o.removeEventListener('childadded',changed);o.removeEventListener('childremoved',changed);}watched.length=0;instances.length=triangles.length=activeTriangles=0;changed();}
   function indexRoot(root:Object3D){
     root.updateWorldMatrix(true,true);
     root.traverseVisible(o=>{
@@ -57,23 +59,30 @@ export function createSolidColumns(){
       if(!g.boundingBox)g.computeBoundingBox();
       for(let k=0;k<(im.isInstancedMesh?im.count:1);k++){
         const world=new Matrix4();if(im.isInstancedMesh){im.getMatrixAt(k,world);world.premultiply(mesh.matrixWorld);}else world.copy(mesh.matrixWorld);
-        instances.push({g,world,bounds:g.boundingBox!.clone().applyMatrix4(world)});
+        instances.push({g,world,bounds:g.boundingBox!.clone().applyMatrix4(world),identity:world.equals(identityMatrix)});
       }
     });
   }
   function collect(x0:number,x1:number,z0:number,z1:number){
-    for(const {g,world,bounds} of instances){
-        if(!overlaps(bounds,x0,x1,z0,z1))continue;
-        const idx=g.index,p=g.attributes.position;
-        for(const block of geometryBlocks(g)){
-          if(!overlaps(box.copy(block.bounds).applyMatrix4(world),x0,x1,z0,z1))continue;
-          for(let i=block.start;i+2<block.end;i+=3){box.makeEmpty();
-            for(let j=0;j<3;j++){v.fromBufferAttribute(p,idx?idx.getX(i+j):i+j).applyMatrix4(world);box.expandByPoint(v);v.toArray(pa,3*j);}
-            if(!overlaps(box,x0,x1,z0,z1))continue;
-            triangles.push({v:Array.from(pa.subarray(0,9)),x0:box.min.x,x1:box.max.x,z0:box.min.z,z1:box.max.z,y0:box.min.y,y1:box.max.y});
-          }
+    activeTriangles=0;
+    for(const {g,world,bounds,identity} of instances){
+      if(!overlaps(bounds,x0,x1,z0,z1))continue;
+      const idx=g.index,p=g.attributes.position;
+      for(const block of geometryBlocks(g)){
+        if(!overlaps(identity?block.bounds:box.copy(block.bounds).applyMatrix4(world),x0,x1,z0,z1))continue;
+        for(let i=block.start;i+2<block.end;i+=3){box.makeEmpty();
+          for(let j=0;j<3;j++){v.fromBufferAttribute(p,idx?idx.getX(i+j):i+j);if(!identity)v.applyMatrix4(world);box.expandByPoint(v);v.toArray(pa,3*j);}
+          if(!overlaps(box,x0,x1,z0,z1))continue;
+          // Refill the current neighbourhood in place instead of allocating
+          // a triangle and vertex array for every metre travelled.
+          const k=activeTriangles++,t=triangles[k]??(triangles[k]={v:new Float64Array(9),x0:0,x1:0,z0:0,z1:0,y0:0,y1:0});
+          for(let j=0;j<9;j++)t.v[j]=pa[j];
+          t.x0=box.min.x;t.x1=box.max.x;t.z0=box.min.z;t.z1=box.max.z;t.y0=box.min.y;t.y1=box.max.y;
         }
+      }
     }
+    // Walking away from an unusually dense imported mesh releases its peak.
+    triangles.length=Math.min(triangles.length,activeTriangles+2048);
   }
   return {
     invalidate:release,
@@ -84,10 +93,10 @@ export function createSolidColumns(){
       lastX=x;lastZ=z;lastFoot=foot;lastBase=out.floor;
       // Centre the cache on the query, rather than thrashing across a grid
       // cell boundary while sliding against a wall on that boundary.
-      if(Math.abs(x-tileX)>.85||Math.abs(z-tileZ)>.85){tileX=x;tileZ=z;triangles.length=0;
+      if(Math.abs(x-tileX)>.85||Math.abs(z-tileZ)>.85){tileX=x;tileZ=z;
         collect(x-.85-r,x+.85+r,z-.85-r,z+.85+r);
       }
-      for(const t of triangles){
+      for(let i=0;i<activeTriangles;i++){const t=triangles[i];
         if(t.x1<x-r||t.x0>x+r||t.z1<z-r||t.z0>z+r||t.y1<out.floor-.002||t.y0>out.ceiling)continue;
         pa.set(t.v);let n=clip(pa,3,pb,0,x-r,1);n=clip(pb,n,pa,0,x+r,-1);n=clip(pa,n,pb,2,z-r,1);n=clip(pb,n,pa,2,z+r,-1);if(!n)continue;
         let lo=Infinity,hi=-Infinity;for(let i=1;i<3*n;i+=3){lo=Math.min(lo,pa[i]);hi=Math.max(hi,pa[i]);}

@@ -9,6 +9,8 @@ export const SCENERY = {
   clinic: { label: 'hudClinic', daylight:true },
   qinhuai: { label: 'hudQinhuai', daylight:false },
   weddingCourt: { label: 'hudWeddingCourt', daylight:true },
+  lanternSuite: { label: 'hudLanternSuite', daylight:false },
+  moonSpa: { label: 'hudMoonSpa', daylight:false },
 } as const;
 export type SceneryId = keyof typeof SCENERY;
 export const sceneryIds = Object.keys(SCENERY) as SceneryId[];
@@ -17,7 +19,7 @@ export const hasSceneryPeople=(room:SceneryId)=>room==='clinic';
 /** A manual room jump must not strand the viewer on a distant terrace.
  * Walked crossings own their translation instead and bypass this policy. */
 export function resetViewOnMenuSwitch(from: SceneryId, to: SceneryId) {
-  const hasEntryPose = (id: SceneryId) => id === 'clinic' || id === 'qinhuai' || id === 'weddingCourt';
+  const hasEntryPose = (id: SceneryId) => id === 'clinic' || id === 'qinhuai' || id === 'weddingCourt' || id === 'lanternSuite' || id === 'moonSpa';
   return from !== to && (from === 'astralCourt' || from === 'chapel' || hasEntryPose(from) || hasEntryPose(to));
 }
 export function resolveScenery(value: unknown, legacyLiveHouse?: boolean): SceneryId {
@@ -25,13 +27,6 @@ export function resolveScenery(value: unknown, legacyLiveHouse?: boolean): Scene
 }
 export function nextScenery(id: SceneryId) { return sceneryIds[(sceneryIds.indexOf(id) + 1) % sceneryIds.length]; }
 
-// The legacy move tool uses this same bound for its visible plane and command
-// validation; it still has to pass the room's real floor and obstacle checks.
-export function movePlaneHalfWidth(id:SceneryId) {
-  if (id==='lawn') return 30;
-  if (id==='clinic'||id==='qinhuai'||id==='weddingCourt') return 16;
-  return 5.5;
-}
-export function showSceneryGrid(id: SceneryId, grid: boolean, explicit: boolean, placing: boolean) {
-  return grid && (id === "floor" || explicit || placing);
+export function showSceneryGrid(id: SceneryId, grid: boolean, explicit: boolean) {
+  return grid && (id === "floor" || explicit);
 }

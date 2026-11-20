@@ -9,6 +9,7 @@ import { useMmdVrStore } from "../mmdVrStore";
 import { SCENERY, sceneryIds } from "../scenery/catalog";
 import { BackpackWorldTools, positionWorldTools } from "./BackpackWorldTools";
 import { MmdVrControlBar } from "./MmdVrHud";
+import * as hudValues from "./HudValues";
 import { useHudWorldInput } from "./hudWorldInput";
 import { useStagePlay } from '../play/stagePlay';
 import { shelfToys, TOYS } from '../play/propCatalog';
@@ -92,6 +93,18 @@ it('browses every guide in the chapel, returns to its page and travels without e
   await click(t('toyGuide'));await click(t('visitKite'));expect(store().prefs.scenery).toBe('lawn');expect(useStagePlay.getState().held).toBeNull();
 });
 
+it('can stow a character prop from the partially filled final shelf page',async()=>{
+  useBackpack.setState({live:{a0:{...instance('m42'),wrists:{left:true,right:true}}}});
+  const play=useStagePlay.getState(); play.reset();play.equip('wand','left');play.give('a0','right');
+  await render();await recall();await click(t('hudBackpack'));await click(t('hudToys'));
+  const pages=Math.ceil(shelfToys.length/3);
+  for(let i=1;i<pages;i++)await click(t('loadNext'));
+  expect(labels()).toContain(`${pages} / ${pages}`);
+  expect(host.querySelectorAll('[name^="play:shelf:"]')).toHaveLength(shelfToys.length%3||3);
+  await click(t('loadNext'));expect(labels()).toContain(`${pages} / ${pages}`);
+  await click(t('toyStow'));expect(useStagePlay.getState().character).toBeNull();expect(bag().command).toBeNull();
+});
+
 it("browses a larger backpack without consuming stage slots, labels duplicate filenames by source, and can select hidden items at capacity", async () => {
   useBackpack.setState({ live: { a0: instance("runtime:0", false), a1: instance("runtime:1"), a2: instance("runtime:2") } });
   await render(); await recall();await click(t("hudBackpack"));
@@ -147,7 +160,7 @@ it("uses the same draft and scene locks from advanced controls, and never allows
     await click(t('settingsMmdVrPlaceOff')); expect(bag().draft).toBeNull();
     await act(async () => useMmdVrStore.setState({ physicsBusy: false }));
     await click(t('settingsMmdVrPlaceOff')); expect(bag().draft).toBe(id);
-    expect(useHudWorldInput.getState().blocked).toBe(false); expect(store().placeMode).toBe(false);
+    expect(useHudWorldInput.getState().blocked).toBe(false); expect(bag().command).toBeNull();
     await click(t("hudCancelPlace")); expect(bag().command).toBeNull();
   }
   await recall();await click(t("hudScenery"));
@@ -157,6 +170,48 @@ it("uses the same draft and scene locks from advanced controls, and never allows
   await act(async () => useBackpack.setState({ busy: false }));
   await click(t("hudPool")); expect(store().prefs.scenery).toBe("pool");
   expect(button(t("hudBackpack"))).toBeDefined();
+});
+
+it("keeps the advanced rows tied to the displayed PMX or GLB, including after paging", async () => {
+  // DOM pointers have no mesh-hit UV. Supply one slider value at its boundary;
+  // buttons below use the actual release and follow-up click handlers.
+  vi.spyOn(hudValues, "HudSlider").mockImplementation(({disabled, onChange}) =>
+    <button disabled={disabled} onClick={() => onChange(1)}>scale</button>);
+  const model = transform("live:character"), object = { ...transform("live:object"), visible: false };
+  const mat = { name: "cloth", opacity: 1, emission: 0, visible: true, roughness: 1, metallic: 0 };
+  useBackpack.setState({ selected: "a0", live: { a0: instance(model.id), obj: instance(object.id, false) } });
+  useMmdVrStore.setState({ models: [model], modelCount: 1, objects: [object], materialModels: { [model.id]: [mat] } });
+  await render(); await click(t("watchArrange")); await click(t("watchDetails"));
+  const scale = () => act(async () => host.querySelector('button')!.click());
+  for (const asset of [model, object]) {
+    const visibility = t(asset.visible ? "settingsMmdVrHideModel" : "settingsMmdVrShowModel");
+    const rotate = t("settingsMmdVrRotateLeft"), remove = t("settingsMmdVrRemoveModel");
+    expect(button(rotate)?.getAttribute("position")).toBe(`-0.36,${asset === model ? -0.27 : -0.31},0`);
+
+    await act(async () => useBackpack.setState({busy: true}));
+    await click(visibility); await click(rotate); await scale(); await click(remove);
+    expect(store().takeVisibilityToggles()).toEqual([]); expect(store().takeModelRemovals()).toEqual([]);
+    expect(store().takeModelTransformRequests()).toEqual([]);
+    if (asset === model) {
+      await click(t("settingsMmdVrMaterials")); expect(store().materialPanelModelId).toBe(model.id);
+      await click(visibility); expect(store().materialModels[model.id][0].visible).toBe(true);
+      await click(t("hudModels"));
+    } else expect(button(t("settingsMmdVrMaterials"))).toBeUndefined();
+
+    await act(async () => useBackpack.setState({busy: false}));
+    const target = button(visibility)!;
+    for (const type of ["pointerdown", "pointerup"]) {
+      await act(async () => target.dispatchEvent(new PointerEvent(type, {bubbles: true, pointerId: 2})));
+    }
+    await act(async () => target.click());
+    expect(store().takeVisibilityToggles()).toEqual([asset.id]);
+    await click(rotate); await scale();
+    expect(store().takeModelTransformRequests()).toEqual([{id: asset.id, rotationY: 15, scale: 10}]);
+    await click(t("settingsMmdVrValueReset"));
+    expect(store().takeModelTransformRequests()).toEqual([{id: asset.id, reset: true}]);
+    await click(remove); expect(store().takeModelRemovals()).toEqual([asset.id]);
+    if (asset === model) await click(t("loadNext"));
+  }
 });
 
 it("blocks stage edits during physics work, gives load recovery priority over a world selection, and exposes failed backpack commands", async () => {

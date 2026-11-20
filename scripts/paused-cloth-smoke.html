@@ -9,7 +9,8 @@ const rt=createMmdRuntimeHandle(new THREE.Scene(),{controllerColliders:()=>[coll
 try {
   const {pmx,vmd}=clothSmokeFixture();
   const {modelId}=await rt.addModel(pmx,[pmx],{physics:true,transform:{scale:1}}); await rt.loadMotion(vmd,'body',modelId);
-  const staticModel=await rt.addModel(pmx,[pmx],{physics:true,transform:{scale:1,positionX:1.5}});
+  const armFixture=clothSmokeFixture(true);
+  const staticModel=await rt.addModel(armFixture.pmx,[],{physics:true,transform:{scale:1,positionX:1.5}});
   const staticHem=rt.getModelRoot(staticModel.modelId).getObjectByName('hem');
   const root=rt.getModelRoot(modelId); const waist=root.getObjectByName('waist'),hem=root.getObjectByName('hem');
   if(!waist?.isBone||!hem?.isBone||rt.duration<1.9)throw Error('skinned fixture or motion missing');
@@ -34,7 +35,23 @@ try {
   for(let i=0;i<60;i++)step(0);const onlyBefore=pos(staticHem);
   for(let i=1;i<=30;i++){second.setPosition(1.5,.45+.005*i,0);step(0);}
   const onlyLift=pos(staticHem).y-onlyBefore.y;
-  const metrics={lift,staticLift,contacts,drift,resumeShift,resumedWaist,seeks,scaledSeed,scaledShift,onlyStatic,onlyLift};
+  // Bind motion onto the previously static, contacted rig. Compare the animated
+  // wrist matrix and the two hem-weighted vertices to the first seed at each pose.
+  await rt.loadMotion(armFixture.vmd,'body',staticModel.modelId);
+  const actor=rt.getModelRoot(staticModel.modelId),wrist=actor.getObjectByName('RightHand');
+  let mesh;actor.traverse(o=>{if(!mesh&&o.isSkinnedMesh)mesh=o});
+  const sample=()=>({arm:wrist.matrixWorld.clone(),hem:[2,3].map(i=>mesh.getVertexPosition(i,new THREE.Vector3()).applyMatrix4(mesh.matrixWorld))});
+  const armDiff=(a,b)=>Math.max(...a.arm.elements.map((v,i)=>Math.abs(v-b.arm.elements[i])));
+  const hemDiff=(a,b)=>Math.max(...a.hem.map((v,i)=>v.distanceTo(b.hem[i])));
+  second.setPosition(1.5,.45,0);step(0,dt,true);const start=sample();
+  step(2,dt,true);const sought=sample();for(let i=0;i<60;i++)step(2);
+  const held=sample();for(let i=1;i<=30;i++){second.setPosition(1.5,.45+.005*i,0);step(2);}
+  const dragged=sample();rt.resetPhysics(2,staticModel.modelId);const reset=sample();
+  step(rt.duration,0,true);step(0,dt,true);const loop=sample();
+  const poses={armTravel:armDiff(start,sought),pausedArmDrift:armDiff(sought,dragged),pausedHemLift:dragged.hem[0].y-held.hem[0].y,
+    resetArmDiff:armDiff(sought,reset),resetHemDiff:hemDiff(sought,reset),loopArmDiff:armDiff(start,loop),loopHemDiff:hemDiff(start,loop)};
+  if(!(poses.armTravel>.3 && poses.pausedArmDrift<1e-6 && poses.pausedHemLift>.06 && poses.resetArmDiff<1e-6 && poses.resetHemDiff<1e-6 && poses.loopArmDiff<1e-6 && poses.loopHemDiff<1e-6))throw Error(JSON.stringify(poses));
+  const metrics={lift,staticLift,contacts,drift,resumeShift,resumedWaist,seeks,scaledSeed,scaledShift,onlyStatic,onlyLift,poses};
   if(!(contacts>0 && lift>.06 && staticLift>.06 && drift<1e-5 && resumeShift<.05 && resumedWaist>0 && resumedWaist<.01 && seeks.every(s=>Math.abs(s.seedY-.65)<.005 && s.nextShift<.06) && Math.abs(scaledSeed-.325)<.005 && scaledShift<.06 && onlyStatic && onlyLift>.06))throw Error(JSON.stringify(metrics));
   status.textContent='PASS '+JSON.stringify(metrics);
 }catch(e){status.textContent='FAIL '+e.stack;console.error(e)}finally{rt.dispose()}

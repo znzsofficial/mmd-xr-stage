@@ -1,5 +1,7 @@
 import type { Part } from './SceneryBatch';
-import { CAMPUS_DOOR, campusPassageParts, classroomDistantArbor } from './CampusLayout';
+import { CAMPUS_DOOR, CAMPUS_OFFSET, campusPassageParts, classroomDistantArbor } from './CampusLayout';
+import {MEADOW_POSTS,MEADOW_SEAT} from './meadowLandmarks';
+import {span} from './detailParts';
 import { BOOKCASE, CHALK_TRAY, DOOR_CENTERS, LECTERN, REAR_CASE, ROOM, STUDENTS, WINDOWS, seededRandom, type Footprint } from './ClassroomLayout';
 
 type V = Part['p'];
@@ -169,8 +171,16 @@ export function classroomProps() {
       }
     }
   }
-  wing(-29,-2,22);wing(-15.4,13,6);
+  wing(-29,-2,17);
   trim.push(...campusPassageParts('classroom'),...classroomDistantArbor());
+  // The old low quadrangle sits nearly three metres below the classroom. The
+  // garden door opens onto a separate, level bank; it must extend past the path.
+  box([-1,-.20,19.65],[24,.36,28],'#98a876');
+  const {x:ox,z:oz}=CAMPUS_OFFSET,seat=MEADOW_SEAT;
+  for(let i=0;i<4;i++){const z=-.23+i*.133;box([seat.x-ox+z*Math.sin(seat.yaw),.431,seat.z-oz+z*Math.cos(seat.yaw)],[1.82,.051,.112],'#b79872',seat.yaw);}
+  for(const y of [.66,.82])box([seat.x-ox+.25*Math.sin(seat.yaw),y,seat.z-oz+.25*Math.cos(seat.yaw)],[1.85,.136,.048],'#be9c76',seat.yaw);
+  for(const dx of [-.67,.67])box([seat.x-ox+dx*Math.cos(seat.yaw),.21,seat.z-oz-dx*Math.sin(seat.yaw)],[.076,.42,.38],'#555d50',seat.yaw);
+  MEADOW_POSTS.slice(0,8).forEach((p,i)=>{box([p.x-ox,.51,p.z-oz],[.14,1.02,.14],'#aa976f');if(i){const prev=MEADOW_POSTS[i-1];for(const y of [.38,.76])trim.push(span([prev.x-ox,y,prev.z-oz],[p.x-ox,y,p.z-oz],.077,'#c4ae85'));}});
   box([-17.5,-.17,2.1],[19.0,.32,19.9],'#9ba978');
   box([-18.2,-.012,1.66],[1.64,.013,16.4],'#c7b99a',-.08);
   const tx=-13.15,tz=-12.7;
@@ -178,7 +188,7 @@ export function classroomProps() {
   cyl([tx,3.12,tz],[3.13,1.9,3.13],'#d7b99a');cyl([tx,4.13,tz],[3.42,.21,3.42],'#8eab9c');
   add(leaves,[tx,4.12,tz],[3.29,2.85,3.29],'#829e9b');cyl([tx,5.58,tz],[.12,.59,.12],'#8e8b78');
   for(let i=0;i<8;i++){const a=i*Math.PI/4;box([tx+1.53*Math.sin(a),3.35,tz+1.53*Math.cos(a)],[.36,.62,.07],'#718f92',a);}
-  for(const [x,z,H] of [[-9,-7.3,3.65],[-13.4,-4.85,4.8],[-12,11.5,4.7],[-16,-16.5,5.8],[-10,16,5.5]]) {
+  for(const [x,z,H] of [[-9,-7.3,3.65],[-13.4,-4.85,4.8],[-16,-16.5,5.8]]) {
     cyl([x,-2.78+H*.38,z],[.23,H*.76,.23],'#95856b');
     for(const side of [-1,1])cyl([x,-2.78+H*.60,z+side*.33],[.12,H*.38,.12],'#95856b',0,0,side*.43);
     for(let n=0;n<19;n++){const a=n*2.399, r=n===0?0:H*(.13+rand()*.18);

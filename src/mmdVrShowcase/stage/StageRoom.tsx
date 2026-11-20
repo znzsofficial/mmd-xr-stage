@@ -89,7 +89,6 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
   const lastSeekEpochRef = useRef(0);
   const lightingKeyRef = useRef("");
   const lifecycleGenerationRef = useRef(0);
-  const physicsOperationCountRef = useRef(0);
   const appliedPhysicsEnabledRef = useRef(saved?.physicsEnabled ?? useMmdVrStore.getState().physicsEnabled);
   const labelsRef = useRef({
     loading: "Loading…",
@@ -98,12 +97,11 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
     physicsRestored: "Physics failed; previous state restored",
     physicsFatal: "Physics recovery failed; exit and enter again",
   });
-  const placeMode = useMmdVrStore((s) => s.placeMode);
   const physicsEnabled = useMmdVrStore((s) => s.physicsEnabled);
   const physicsBusy = useMmdVrStore(s => s.physicsBusy);
   const assetLoading = useMmdVrStore(s => s.assetLoad.running);
   const command = useBackpack(s => s.command);
-  const waitForLoad = !physicsBusy && (assetLoading || !!command);
+  const waitForPhysicsSwitch = physicsBusy || assetLoading || !!command;
   const setPhysicsBusy = useMmdVrStore((s) => s.setPhysicsBusy);
 
   // Keep labels current without re-running the load effect on language change.
@@ -131,9 +129,9 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
 
   function saveRoom(): StageSnapshot | null {
     const s = useMmdVrStore.getState();
-    if (!readyToSaveRef.current || s.physicsBusy || s.physicsFatal || s.assetLoad.running || s.assetLoad.failures.length) return null;
+    if (retired.current || !readyToSaveRef.current || s.physicsBusy || s.physicsFatal || s.assetLoad.running || s.assetLoad.failures.length) return null;
     const snapshot = { ...actors.capture(), scenery, time: timeRef.current, playing: s.playing, loop: s.loop,
-      physicsEnabled: s.physicsEnabled };
+      physicsEnabled: appliedPhysicsEnabledRef.current };
     saveBackpackLayout(snapshot);
     return snapshot;
   }
@@ -144,7 +142,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
   // Lifetime is tied to the room and renderer, not view/camera changes in XR.
   const runtime = useMemo(() => createRoomRuntime(scene, gl, camera, motionCache, alphaTiles),
     [scene, gl, motionCache, alphaTiles]);
-  const actors = useMemo(() => createStageActors(scene, runtime, () => useMmdVrStore.getState().physicsEnabled, () => timeRef.current), [scene, runtime]);
+  const actors = useMemo(() => createStageActors(scene, runtime, () => appliedPhysicsEnabledRef.current, () => timeRef.current), [scene, runtime]);
   const wristGroup = useRef<THREE.Group>(null);
   const characterToy = useStagePlay(s => s.character?.toy);
   const isRoomStale = () => retired.current || !useMmdVrStore.getState().overlayOpen || useMmdVrStore.getState().prefs.scenery !== scenery || runtimeRef.current !== runtime;
@@ -157,7 +155,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
       ...(saved ? { loop: saved.loop } : {}),
       physicsBusy: false, physicsError: null, physicsFatal: false, playing: false,
       models: [], modelCount: 0, objects: [], materialModels: {}, materialPanelModelId: null,
-      placeMode: false, placeModelId: null, pendingGroundPlace: null, pendingModelTransforms: [],
+      pendingModelTransforms: [],
       pendingVisibilityToggles: [], pendingModelRemovals: [], duration: 0, assetLoad: emptyAssetLoadProgress(),
     });
     resetMmdVrClock();
@@ -202,15 +200,16 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
   }, [runtime, setRuntimeRef]);
 
   useEffect(() => {
-    if (waitForLoad || physicsEnabled !== useMmdVrStore.getState().physicsEnabled || physicsEnabled === appliedPhysicsEnabledRef.current) return;
-    let cancelled = false;
+    const state = useMmdVrStore.getState();
+    if (waitForPhysicsSwitch || isRoomStale() || state.physicsBusy || state.physicsFatal || physicsEnabled !== state.physicsEnabled || physicsEnabled === appliedPhysicsEnabledRef.current) return;
     captureStage(); // Last complete copy while a rebuild temporarily owns the models.
     const work:PhysicsSwitchWork|undefined=useMmdVrStore.getState().presentation==='xr'?{}:undefined;
     setPhysicsBusy(true,work);
     useMmdVrStore.getState().setPhysicsError(null);
-    physicsOperationCountRef.current += 1;
+    // A newer request waits for this result. Even an immediately reversed switch
+    // becomes the room's applied value if the runtime successfully completes it.
     void runtime.setPhysicsEnabled(physicsEnabled,work).then(() => {
-      if (!cancelled && !isRoomStale()) {
+      if (!isRoomStale()) {
         const at=work?performance.now():0;
         appliedPhysicsEnabledRef.current = physicsEnabled;
         syncModelList();
@@ -219,7 +218,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
         elapsed(work,'publishUiMs',at);
       }
     }).catch((error) => {
-      if (!cancelled && !isRoomStale()) {
+      if (!isRoomStale()) {
         console.error("[mmdVr] physics toggle failed", error);
         const fatal = isMmdRuntimeRebuildError(error);
         if (fatal) readyToSaveRef.current = false;
@@ -227,19 +226,14 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
         syncMaterialModels();
         lastEvaluatedTimeRef.current = -Infinity;
         const store = useMmdVrStore.getState();
-        if (fatal) appliedPhysicsEnabledRef.current = false;
         store.setPhysicsEnabled(fatal ? false : appliedPhysicsEnabledRef.current);
         store.setPhysicsError(fatal ? labelsRef.current.physicsFatal : labelsRef.current.physicsRestored, fatal);
         if (fatal) store.setPlaying(false);
       }
     }).finally(() => {
-      physicsOperationCountRef.current = Math.max(0, physicsOperationCountRef.current - 1);
-      if (!isRoomStale() && physicsOperationCountRef.current === 0) setPhysicsBusy(false);
+      if (!isRoomStale()) setPhysicsBusy(false);
     });
-    return () => {
-      cancelled = true;
-    };
-  }, [physicsEnabled, runtime, setPhysicsBusy, waitForLoad]);
+  }, [physicsEnabled, runtime, setPhysicsBusy, waitForPhysicsSwitch]);
 
 
   useEffect(() => {
@@ -451,7 +445,6 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
     if (!command || physicsBusy || assetLoading || executing.current === command.token || isRoomStale()) return;
     if (initialLoad.current || useMmdVrStore.getState().physicsBusy || useMmdVrStore.getState().assetLoad.running) return;
     const stale = () => isRoomStale() || useBackpack.getState().command?.token !== command.token;
-    const priorId = useBackpack.getState().live[command.id]?.runtimeId;
     executing.current = command.token;
     void (async () => {
       try {
@@ -459,11 +452,10 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
           useLanguageStore.getState().language === "zh" ? "请指向可摆放的地面。" : "Choose an open spot on the ground.");
         // Includes recent material edits / scrubs. Closing during this command uses the last healthy room.
         saveRoom();
-        const freshModel = command.type === 'place' && !priorId && useBackpack.getState().placement?.kind === 'model';
+        const freshModel = command.type === 'place' && !command.moveRuntimeId && useBackpack.getState().placement?.kind === 'model';
         const work = freshModel ? createPlacementWork() : undefined;
         const warning = await actors.execute(command, stale, work,command.type==='place'?placementHeight(scenery,command.x,command.z):0);
         if (stale()) return;
-        if (command.type === "place" && priorId && !actors.objects.has(priorId) && physicsEnabled) runtime.resetPhysics(timeRef.current, priorId);
         staticSettleElapsed.current = 0;
         lastEvaluatedTimeRef.current = -Infinity;
         timeRef.current = restoreStageTime(timeRef.current, runtime.duration);
@@ -522,18 +514,6 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
       }
       syncModelList();
       syncObjects();
-    }
-
-    const place = store.physicsBusy ? null : store.takeGroundPlace();
-    if (place && canPlaceInScenery(scenery, place.x, place.z)) {
-      const objectEntry = actors.objects.get(place.id);
-      if (objectEntry) {
-        objectEntry.group.position.set(place.x, placementHeight(scenery,place.x,place.z), place.z);
-      } else if (runtime.listModels().some(m => m.id === place.id)) {
-        runtime.setModelTransform(place.id, { positionX: place.x, positionY: placementHeight(scenery,place.x,place.z), positionZ: place.z });
-        physicsReseedNeeded = true;
-      }
-      actors.publishLive();
     }
 
     const transformRequests = store.physicsBusy ? [] : store.takeModelTransformRequests();
@@ -689,7 +669,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
     <>
       {characterToy && <group ref={wristGroup} name="play:character" pointerEvents="none" visible={false}><PlayPiece toy={characterToy}/></group>}
       <StageEnvironment scenery={scenery} prefs={mmdPrefs} profile={profile} lighting={lightCfg}
-        sunRef={sunRef} placing={placeMode} onPlace={useMmdVrStore.getState().requestGroundPlace}/>
+        sunRef={sunRef}/>
     </>
   );
 }

@@ -1,8 +1,9 @@
 import { useMemo, useRef, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { BufferGeometry, Color, CylinderGeometry, DoubleSide, Float32BufferAttribute, TorusGeometry, Vector3, type Mesh,type ShaderMaterial } from 'three';
-import { POOL } from './placementAreas';
-import {arcadeParts,judgeStand,PACE_CLOCK,TIME_DECK,POOL_ORIGIN_Z,PAVILION_POSTS} from './LidoLayout';
+import {ARBOR} from './meadowLandmarks';
+import {BorrowedMeadow} from './BorrowedMeadow';
+import {arcadeParts,judgeStand,PACE_CLOCK,POOL,POOL_SUPPORT,POOL_ORIGIN,PAVILION_POSTS} from './LidoLayout';
 import {LidoPlates} from './LidoPlates';
 import { span } from './detailParts';
 import { useBakedSurface } from './useBakedSurface';
@@ -36,13 +37,14 @@ function furnishings() {
   // The surrounding lawn is below the basin rather than crossing the water.
   for(const side of [-1,1])box([side*22,-.315,-7],[29.8,.25,65],'#98b283');
   box([0,-.315,18],[14.3,.25,30],'#98b283');box([0,-.315,-30],[14.3,.25,21.0],'#98b283');
-  for(const r of [POOL.deck,...POOL.walks,POOL.farWalk,TIME_DECK]) box([r.x,r===TIME_DECK?-.122:-.125,r.z],[r.w,.25,r.d],'#e7dbc4');
+  for(const [i,r] of POOL_SUPPORT.entries())box([r.x,-.125+i*.001,r.z],[r.w,.25,r.d],'#e7dbc4');
   blocks.push(...arcadeParts('pool'),...judgeStand());
   // See the meadow arbor through the return portal without retaining its trees or actors.
-  for(const x of [-5.7,-2.65])for(const z of [-7.5,-5.25])box([x,1.33,z-POOL_ORIGIN_Z],[.16,2.66,.16],'#988168');
-  for(let j=0;j<8;j++)box([-4.16,2.73,12.3+j*.36],[3.62,.16,.12],j%2?'#b09b7c':'#ac9e9b');
-  for(let j=0;j<15;j++)crowns.push({p:[-4.16+1.32*Math.sin(j*2.1),2.66-.15*(j%3),12.35+j*.21],s:[.93,.45+(j%3)*.14,.65],color:j%3?'#95a378':'#a59bb4'});
-  for(const [x,z,h] of [[5.75,14.8,5.6],[-6.2,10.6,4.4],[9,24,5],[-8,23,6]]){tube([x,h*.43,z],[.24,h*.86,.24],'#81735d');for(let j=0;j<6;j++)crowns.push({p:[x+.94*Math.cos(j*2.4),h-.58*j/6,z+.94*Math.sin(j*2.4)],s:[2.7,1.8,2.65],color:j%2?'#87a978':'#719264'});}
+  const ax=ARBOR.x-POOL_ORIGIN.x,az=ARBOR.z-POOL_ORIGIN.z;
+  for(const s of [-1,1])for(const t of [-1,1])box([ax+s*1.53,1.33,az+t*1.16],[.16,2.66,.16],'#988168');
+  for(let j=-4;j<=4;j++){box([ax,2.73,az+j*.37],[3.74,.16,.12],'#ac9472');
+    for(const s of [-1,1])crowns.push({p:[ax+s*1.23,2.58,az+j*.37],s:[.62,.44,.47],color:j%3?'#99a27b':'#ad9db5'});}
+  for(const [x,z,h] of [[13,16,5.4],[3.0,17.1,4.4],[9,24,5],[-8,23,6]]){tube([x,h*.43,z],[.24,h*.86,.24],'#81735d');for(let j=0;j<6;j++)crowns.push({p:[x+.94*Math.cos(j*2.4),h-.58*j/6,z+.94*Math.sin(j*2.4)],s:[2.7,1.8,2.65],color:j%2?'#87a978':'#719264'});}
   for(let j=0;j<8;j++){const a=.49+j*.27;crowns.push({p:[28*Math.cos(a),-.6,19+16*Math.sin(a)],s:[14,4+j%3,8],color:j%2?'#98ae8e':'#a2b69a'});}
   const clock=PACE_CLOCK;
   tube([clock.x,.70,clock.z],[.084,1.40,.084],'#63867f');tube([clock.x,.055,clock.z],[.43,.11,.43],'#8c9990');
@@ -131,12 +133,12 @@ function Water() {
   const uniforms=useMemo(()=>({time:{value:0},sun:{value:new Vector3(...POOL_SUN).normalize()}}),[]);
   const w=POOL.water;const ref=useRef<ShaderMaterial>(null);
   useFrame((_,dt)=>{if(ref.current)uniforms.time.value=(uniforms.time.value+Math.min(.05,dt))%1000;});
-  return <mesh position={[0,-.16,w.z]} rotation-x={-Math.PI/2} raycast={noPick} name="pool-water"><planeGeometry args={[w.w,w.d]} /><shaderMaterial ref={ref} uniforms={uniforms}
+  return <mesh position={[w.x,-.16,w.z]} rotation-x={-Math.PI/2} raycast={noPick} name="pool-water"><planeGeometry args={[w.w,w.d]} /><shaderMaterial ref={ref} uniforms={uniforms}
     vertexShader={`varying vec3 wp; void main(){wp=(modelMatrix*vec4(position,1.)).xyz;gl_Position=projectionMatrix*viewMatrix*vec4(wp,1.);}`}
     fragmentShader={`varying vec3 wp;uniform float time;uniform vec3 sun;
     void main(){vec2 p=wp.xz; vec3 eye=normalize(cameraPosition-wp);float t=time*.68;
       vec3 n=normalize(vec3(.026*sin(3.4*p.x+2.5*p.y+t)+.017*cos(7.*p.y-t),1.,.034*cos(3.35*p.y-1.55*p.x+t)));
-      vec3 r=refract(-eye,n,1./1.333);vec2 q=p-vec2(0.,${w.z.toFixed(2)});vec2 ext=vec2(${(w.w/2).toFixed(3)},${(w.d/2).toFixed(3)});
+      vec3 r=refract(-eye,n,1./1.333);vec2 q=p-vec2(${w.x.toFixed(2)},${w.z.toFixed(2)});vec2 ext=vec2(${(w.w/2).toFixed(3)},${(w.d/2).toFixed(3)});
       vec2 wall=(ext-sign(r.xz)*q)/max(abs(r.xz),vec2(.0001));float depth=mix(1.12,2.1,clamp(.5-q.y/(2.*ext.y),0.,1.));float bed=depth/max(.02,-r.y);
       float dist=max(0.,min(bed,min(wall.x,wall.y)));vec3 hit=wp+dist*r;
       vec2 uv=bed<=min(wall.x,wall.y)?hit.xz:(wall.x<wall.y?hit.zy:hit.xy);
@@ -172,6 +174,7 @@ export function PoolTerrace({shadows}:{shadows:boolean}) {
   const sign=useMemo(()=>paintedSurface(512,96,g=>{g.fillStyle='#216b74';g.fillRect(0,0,512,96);g.fillStyle='#faf2d7';g.textAlign='center';g.font='600 44px system-ui';g.fillText('AQUATICS CLUB',256,63);}),[]);
   useEffect(()=>()=>{top.dispose();sign.dispose();flags.dispose();ring.dispose();},[top,sign,flags,ring]);
   return <group name="scenery:pool"><Batch name="lido-terrace-and-pavilion" parts={p.blocks} casts={shadows} /><Batch name="pool-metalwork" parts={p.drums} geometry={metal} /><Batch name="pool-gardens" parts={p.crowns} foliage />
+    <BorrowedMeadow room="pool"/>
     {POOL.parasols.map(r=><mesh key={r.x} position={[r.x,2.51,r.z]} geometry={top} castShadow={shadows} raycast={noPick}><meshStandardMaterial side={DoubleSide} vertexColors roughness={1}/></mesh>)}
     <mesh position={[0,2.93,-20.69]} raycast={noPick}><planeGeometry args={[3.35,.62]} /><meshStandardMaterial map={sign} /></mesh>
     <mesh geometry={flags} raycast={noPick}><meshStandardMaterial vertexColors roughness={1} side={DoubleSide}/></mesh>

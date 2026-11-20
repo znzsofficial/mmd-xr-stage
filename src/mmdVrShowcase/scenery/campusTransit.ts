@@ -9,7 +9,7 @@ import timber from './garden-joinery.webp';
 // tears down actors and Bullet. Do not walk out of a half-restored room.
 export function canWalkBetweenZones(room:RoomLink['from']){
   const s=useMmdVrStore.getState(),b=useBackpack.getState();
-  return s.overlayOpen&&s.prefs.scenery===room&&!s.physicsBusy&&!s.physicsFatal&&!s.assetLoad.running&&!s.assetLoad.failures.length&&!s.placeMode&&!b.busy&&!b.command&&!b.draft;
+  return s.overlayOpen&&s.prefs.scenery===room&&!s.physicsBusy&&!s.physicsFatal&&!s.assetLoad.running&&!s.assetLoad.failures.length&&!b.busy&&!b.command&&!b.draft;
 }
 export function walkBetweenZones(link:RoomLink){
   if(!canWalkBetweenZones(link.from))return false;

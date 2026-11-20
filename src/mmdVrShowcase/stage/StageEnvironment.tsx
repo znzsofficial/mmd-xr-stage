@@ -3,8 +3,7 @@ import * as THREE from 'three';
 import { CourtSky } from '../scenery/AstralCourt';
 import { DaySky } from '../scenery/DaylightSets';
 import { StudioPlinth } from '../scenery/StudioPlinth';
-import { movePlaneHalfWidth, showSceneryGrid, type SceneryId } from '../scenery/catalog';
-import { elevatedPickDecks, visiblePick } from '../scenery/pickDecks';
+import { showSceneryGrid, type SceneryId } from '../scenery/catalog';
 import { RiverSky } from '../scenery/qinhuai/Songhouse';
 import { RoomSet, roomSets } from '../scenery/roomSets';
 import { hasStageLamps } from '../settings/stageLamps';
@@ -62,24 +61,13 @@ function LightPool({color, opacity}: {color: string; opacity: number}) {
   </mesh>;
 }
 
-type GroundPlace = (x: number, z: number) => void;
-function MoveSurfaces({scenery, onPlace}: {scenery: SceneryId; onPlace: GroundPlace}) {
-  const width = 2 * movePlaneHalfWidth(scenery);
-  return <>{[{x:0,y:0,z:0,w:width,d:width}, ...elevatedPickDecks(scenery)].map(r =>
-    <mesh key={r.y} name="placement-surface" rotation={[-Math.PI/2,0,0]} position={[r.x,r.y+.021,r.z]}
-      onPointerDown={e => { e.stopPropagation(); if (visiblePick(scenery,e.ray.origin,e.point.x,r.y,e.point.z)) onPlace(e.point.x,e.point.z); }}>
-      <planeGeometry args={[r.w,r.d]}/><meshBasicMaterial color="#79baff" transparent opacity={.1} depthWrite={false}/>
-    </mesh>)}</>;
-}
-
 type Props = {
   scenery: SceneryId; lighting: StageLighting; prefs: MmdVrPrefs; profile: MmdVrRenderProfile;
-  sunRef: RefObject<THREE.DirectionalLight | null>; placing: boolean; onPlace: GroundPlace;
+  sunRef: RefObject<THREE.DirectionalLight | null>;
 };
 
-/** Presentation shared by screen and XR. The room runtime owns actors and
- * command execution; this component only renders the set and reports picks. */
-export function StageEnvironment({scenery, lighting, prefs, profile, sunRef, placing, onPlace}: Props) {
+/** Render-only scenery shared by screen and XR. BackpackPlacement owns placement picks. */
+export function StageEnvironment({scenery, lighting, prefs, profile, sunRef}: Props) {
   const { viewDistance, lightPreset } = prefs;
   const extent = profile.quality === 'high' ? 6 : profile.quality === 'balanced' ? 5 : 4;
   const far = profile.quality === 'high' ? 24 : profile.quality === 'balanced' ? 20 : 16;
@@ -101,8 +89,7 @@ export function StageEnvironment({scenery, lighting, prefs, profile, sunRef, pla
       {scenery==='floor' && <StudioPlinth segments={profile.floorSegments} shadows={profile.shadows} color={lighting.floorColor}/>}
       <RoomSet id={scenery} shadows={profile.shadows} concert={lightPreset==='contrast'}/>
     </group>
-    {placing && <MoveSurfaces scenery={scenery} onPlace={onPlace}/>}
     {lamps && prefs.stageLightPoolEnabled && <LightPool color={lighting.poolColor} opacity={Math.min(.14, rim*.08)}/>}
-    {showSceneryGrid(scenery, profile.showGrid, prefs.gridPref==='on', placing) && <gridHelper args={[12,12,'#d8dce0','#a5aaae']} position={[0,.01,0]}/>}
+    {showSceneryGrid(scenery, profile.showGrid, prefs.gridPref==='on') && <gridHelper args={[12,12,'#d8dce0','#a5aaae']} position={[0,.01,0]}/>}
   </>;
 }

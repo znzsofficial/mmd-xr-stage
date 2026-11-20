@@ -36,7 +36,7 @@ export function BackpackWorldTools() {
   const entry = useBackpack(s => s.entries.find(e => e.id === id));
   const instance = useBackpack(s => id ? s.live[id] : null);
   const blocked = useHudWorldInput(s => s.blocked);
-  const recovery = useMmdVrStore(s => s.assetLoad.running || s.physicsFatal || s.placeMode);
+  const recovery = useMmdVrStore(s => s.assetLoad.running || s.physicsFatal);
   if (!entry || !instance || draft || blocked || recovery) return null;
   return <SelectedTools key={entry.id} entry={entry} instance={instance} />;
 }

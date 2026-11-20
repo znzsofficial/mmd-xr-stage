@@ -1,6 +1,6 @@
-"""Repaint the south entrance: enamel, two paving modules and garden limestone.
+"""Repaint the east garden entrance: enamel, two paving modules and garden limestone.
 Offline, Pillow + numpy. Set CLINIC_FONT / CLINIC_FONT_BOLD for local CJK fonts.
-The 8px extruded gutters and UV crops correspond to SouthEntrance.tsx.
+The 8px extruded gutters and UV crops correspond to GardenEntrance.tsx.
 """
 import math, os, random
 from pathlib import Path
@@ -22,7 +22,7 @@ def enamel(i,cn,en,arrow=None):
     im=Image.new('RGB',(496,240),'#204e50' if i!=2 else '#527159');d=ImageDraw.Draw(im)
     d.rounded_rectangle((3,3,492,236),radius=11,outline='#acc1af',width=2)
     d.line((23,49,468,49),fill='#94aba0',width=2)
-    lettering(d,23,17,'S O U T H    /    0 1' if i in (0,1) else 'G A R D E N    /    0 2',20,color='#d9d2ac')
+    lettering(d,23,17,'E A S T    /    0 1' if i in (0,1) else 'G A R D E N    /    0 2',20,color='#d9d2ac')
     if arrow:
         # The stem and head form one continuous enamel silhouette.
         p=[(60,88),(85,115),(78,122),(66,110),(66,155),(54,155),(54,110),(42,122),(35,115)]

@@ -1,4 +1,6 @@
-# 花径到门诊南门
+# 花径到门诊南门（旧版记录）
+
+当前门诊从**东侧候诊区**进入，[新路线、门线与验收](./campus-garden-routes.md)。以下坐标、截图和性能数据只对应当时的南门版本。
 
 [花径岔口](../screenshots/clinic-garden-fork.webp) · [雨棚旁的全身站位](../screenshots/clinic-south-canopy.webp) · [从候诊厅回望花园](../screenshots/clinic-garden-lookback.webp)。图中 1.72 米的木偶是验证用原创 PMX，不是场景自带角色。
 
@@ -7,7 +9,7 @@
 ## 布局与绘制
 
 - [入口布局](../../src/mmdVrShowcase/scenery/clinic/clinicApproach.ts)全用医院局部米制坐标。医院原点是草坪 `(-20.6, 4.4)`，两地朝向相同。南墙 `z=4.8`，净门宽 2.58 米、净高 2.40 米，进出门线分别在 `z=4.53`、`5.09`。穿过门线时只平移 XR 原点。[连接表](../../src/mmdVrShowcase/scenery/connections.ts)也给出屏幕导览的目标机位。
-- 雨棚、园艺床、路牌和铺地由[同一个组件](../../src/mmdVrShowcase/scenery/clinic/SouthEntrance.tsx)绘制。草坪侧只借候诊廊的建筑轮廓；医院侧只借南向可见的草地、树丘与远山，不挂载另一套角色或物理世界。
+- 雨棚、园艺床、路牌和铺地当时由 `SouthEntrance.tsx` 绘制，后续替换为[东门花园](../../src/mmdVrShowcase/scenery/clinic/GardenEntrance.tsx)。旧草坪侧只借候诊廊的建筑轮廓；医院侧只借南向可见的草地、树丘与远山，不挂载另一套角色或物理世界。
 - [入口图集](../../src/mmdVrShowcase/scenery/clinic/clinic-garden.webp)为 1024 × 1024、67,806 字节；含双语标牌、玻璃腰线、窗片和带雨痕的两种铺砖。运行 `python src/mmdVrShowcase/scenery/clinic/bakeApproach.py` 可重画。室内地坪的墙脚阴影仍由相邻的 `bakeClinic.py` 按实际墙段重画。
 
 ## 验收记录

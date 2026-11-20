@@ -6,6 +6,7 @@ import { aimFerry, launchFerry, resetFerry } from './ferry/voyage';
 import { aimEncore, dyeEncore, resetEncore } from './encore/encoreRound';
 import { clearCard } from './lunarCard';
 import { retractBlade, toggleBlade } from './saberLight';
+import { cycleWand, stopWand } from './wandMotor';
 
 export type Hand = 'left' | 'right';
 type Story = { name:Key; help:Key; left:Key; right:Key; cue:(side:Hand)=>void };
@@ -55,6 +56,15 @@ const catalog = {
   dildo: {
     label:'toyDildo', portable:true, home:null, homeLabel:'allSets', visit:null, view:'silicone',grip:{point:[0,.001,-.031],pitch:.32},
     guide:{vr:'guideDildoVr', screen:'guideDildoScreen', end:'guideDildoEnd'},
+  },
+  wand: {
+    label:'toyWand', portable:true, home:null, homeLabel:'allSets', visit:null, view:'cordless',grip:{point:[0,-.034,-.041],pitch:.48},
+    guide:{vr:'guideWandVr',screen:'guideWandScreen',end:'guideWandEnd'},
+    onGrip:cycleWand, onEquip:stopWand, onScreenEquip:cycleWand, onStow:stopWand,
+  },
+  feather: {
+    label:'toyFeather', home:null, homeLabel:'allSets', visit:null, view:'plumeBrush',grip:{point:[0,-.032,-.04],pitch:.40},
+    guide:{vr:'guideFeatherVr',screen:'guideFeatherScreen',end:'guideFeatherEnd'},
   },
 } as const satisfies Record<string,Definition>;
 

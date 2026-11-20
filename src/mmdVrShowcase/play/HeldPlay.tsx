@@ -34,7 +34,7 @@ function InHand({toy,hand}:{toy:Toy;hand:Hand}) {
     prop.visible=!!grip&&!!ray;
     if(s.source!==(source??null)){s.latch(false,false);s.source=source??null;}
     const bag=useBackpack.getState(),stage=useMmdVrStore.getState();
-    f.usable=prop.visible&&canUseGrip(useStagePlay.getState(),toy,hand,stage.prefs.scenery)&&!useHudWorldInput.getState().blocked&&!bag.busy&&!bag.draft&&!bag.selected&&!stage.placeMode&&!stage.assetLoad.running&&!stage.physicsBusy&&!stage.physicsFatal;
+    f.usable=prop.visible&&canUseGrip(useStagePlay.getState(),toy,hand,stage.prefs.scenery)&&!useHudWorldInput.getState().blocked&&!bag.busy&&!bag.draft&&!bag.selected&&!stage.assetLoad.running&&!stage.physicsBusy&&!stage.physicsFatal;
     f.action=s.latch(f.usable,!!source?.gamepad?.buttons[1]?.pressed);
     f.dt=Math.min(.05,Math.max(0,delta));
     if(grip&&ray){

@@ -3,39 +3,68 @@ import {span} from './detailParts';
 
 // Pool origin in meadow metres. Both rooms draw the actual arcade, so walking
 // through the gate changes only the active district, not the user's heading.
-export const POOL_ORIGIN_Z=-20;
-export const LIDO_ENTRY={x:0,z:11.15,w:3.64,d:9};
-export const LIDO_PIERS=[8.75,11.55,14.35].flatMap(z=>[-1.66,1.66].map(x=>({x,z,w:.39,d:.43})));
+export const POOL_ORIGIN={x:-11.4,z:-20.3};
+export const LIDO_ENTRY={x:6.15,z:9.26,w:3.22,d:5.52};
+export const LIDO_GATE={in:7.65,out:8.35,half:1.48};
+export const LIDO_PIERS=[{x:4.37,z:8.88,w:.75,d:2.95},{x:7.94,z:8.34,w:.54,d:1.72}];
 export const TIME_DECK={x:5.72,z:-20.55,w:5.05,d:2.72};
 export const GUARD_CHAIR={x:7.05,z:-20.65,w:1.4,d:1.70};
 export const PACE_CLOCK={x:4.77,z:-20.94,w:.50,d:.43};
 export const PAVILION_POSTS=[-8,-4,0,4,8].map(x=>({x,z:-20.89,w:.12,d:.12}));
+// The rendered slabs, activity floor and backpack foot probes read the same geometry.
+// Do not move clearance, furniture or traversal policy into this inventory.
+export const POOL={
+  deck:{x:0,z:1,w:23,d:13.5},water:{x:0,z:-12.4,w:10.1,d:13.35},
+  walks:[-6.2,6.2].map(x=>({x,z:-12.4,w:2.35,d:13.4})),farWalk:{x:0,z:-19.48,w:14.7,d:1.1},
+  ladder:{x:-4.34,z:-5.75,w:.57,d:.43},blocks:[-3.34,0,3.34].map(lane=>({x:lane-1.65,z:-19.42,w:.65,d:.7})),
+  benches:[-8,8].map(x=>({x,z:-12.6,w:1.8,d:.51})),loungers:[-1,1].flatMap(side=>[0,1].map(i=>({x:side*(7.4+i*1.35),z:-2.95,w:.75,d:1.98,yaw:side*.16}))),
+  parasols:[-1,1].map(side=>({x:side*8.35,z:-1.35,w:.60,d:.60})),rescue:{x:-5.68,z:-8.95,w:.91,d:.41},
+  flagPosts:[-9.5,-16.8].flatMap(z=>[-5.45,5.45].map(x=>({x,z,w:.14,d:.14}))),
+};
+export const POOL_SUPPORT=[POOL.deck,...POOL.walks,POOL.farWalk,TIME_DECK,LIDO_ENTRY];
+// Meadow only borrows the forecourt up to the door; the basin is in the active pool set.
+export function borrowedLido(x:number,z:number){return Math.abs(x-POOL_ORIGIN.x)<POOL.deck.w/2+.2&&z<POOL_ORIGIN.z+LIDO_GATE.in-.36;}
 export const LIDO_ROUTE_SHOTS={
-  gate:{key:'lidoGate',eye:[.75,1.61,-4.1],aim:[0,1.78,-12.1]},
+  gate:{key:'lidoGate',eye:[-4.43,1.61,-7.52],aim:[-5.62,1.55,-13.65]},
   clock:{key:'lidoClock',eye:[6.14,1.58,-16.49],aim:[5.85,1.30,-20.91]},
-  return:{key:'lidoLookBack',eye:[.92,1.63,3.68],aim:[0,1.38,13.52]},
+  return:{key:'lidoLookBack',eye:[6.85,1.63,3.36],aim:[5.96,1.60,10.05]},
 } as const;
-export function inLidoApproach(x:number,z:number,margin=0){return Math.abs(x)<2.04+margin&&z< -3.8+margin&&z> -14.1-margin;}
+export function inLidoApproach(x:number,z:number,margin=0){return Math.abs(x-POOL_ORIGIN.x-LIDO_ENTRY.x)<2.45+margin&&z< -7.9+margin&&z>POOL_ORIGIN.z+6-margin||borrowedLido(x,z);}
 
 // Append to an existing instance batch: no second pool/station running behind a gate.
 export function arcadeParts(room:'pool'|'lawn'):Part[]{
-  const dz=room==='pool'?0:POOL_ORIGIN_Z,out:Part[]=[];
-  const box=(x:number,y:number,z:number,w:number,h:number,d:number,color:string)=>out.push({p:[x,y,z+dz],s:[w,h,d],color});
-  box(0,-.064,LIDO_ENTRY.z,LIDO_ENTRY.w,.144,LIDO_ENTRY.d,'#ded1b9');
-  for(const x of [-1.47,1.47])box(x,.010,LIDO_ENTRY.z,.067,.002,LIDO_ENTRY.d,'#547f80');
-  for(let i=0;i<14;i++)box(0,.010,6.92+i*.65,3.52,.002,.015,'#a8a697');
-  for(const {x,z,w,d} of LIDO_PIERS){box(x,.30,z,w,.6,d,'#509499');box(x,.625,z,w+.04,.056,d+.04,'#ece1c3');box(x,1.64,z,.14,2.04,.15,'#678884');}
-  for(const x of [-1.66,1.66])box(x,2.71,11.55,.16,.18,6.10,'#669494');
-  for(let i=0;i<12;i++)box(0,2.86,8.56+i*.54,3.68,.12,.14,'#cba87a');
-  box(0,2.43,8.75,3.19,.40,.105,'#356c74');
-  for(const s of [-1,1])for(let i=0;i<3;i++)box(s*1.66,1.03+i*.28,10.15,.054,.06,2.64,'#879c94');
+  const {x:dx,z:dz}=room==='pool'?{x:0,z:0}:POOL_ORIGIN,out:Part[]=[];
+  const box=(x:number,y:number,z:number,w:number,h:number,d:number,color:string)=>out.push({p:[x+dx,y,z+dz],s:[w,h,d],color});
+  const {x,z,w,d}=LIDO_ENTRY,blue='#35777e',cream='#eadcc0',coral='#ce8066';
+  if(room==='lawn')box(x,-.112,z,w,.25,d,cream);
+  for(let j=0;j<9;j++){const zz=z-d/2+(j+.5)*d/9;
+    for(const s of [-1,1])box(x+s*(w/2-.21),.016,zz,.13,.006,d/9-.013,j%3?blue:coral);
+    box(x,.016,zz,2.79,.006,.016,'#b3ae9a');}
+  // Follow the same ceramic stripe past the entry into the east promenade.
+  // The opposite side stays open for the sun beds and the water-play station.
+  const start=z-d/2,end=POOL.water.z+POOL.water.d/2;
+  for(let i=0;i<20;i++){const zz=start+(i+.5)*(end-start)/20;
+    box(x-.72,.019,zz,.105,.006,(start-end)/20-.012,i%5?'#799f99':blue);
+    if(i%5===0)box(x-.56,.019,zz,.18,.006,.064,coral);}
+  for(const [i,r] of LIDO_PIERS.entries()){
+    const h=i?2.60:3.48;box(r.x,h/2,r.z,r.w,h,r.d,cream);box(r.x,.31,r.z,r.w+.05,.62,r.d+.04,blue);
+    for(let j=0;j<5;j++)box(r.x,.12+j*.12,r.z,r.w+.056,.013,r.d+.046,'#679a95');
+    for(let j=0;j<3;j++)box(r.x,h-.23+j*.11,r.z,r.w+.11,.045,r.d+.09,i?blue:coral);
+  }
+  // An asymmetric ticket pier carries the projecting blade; a single concrete visor shades its hatch.
+  box(4.76,1.48,8.94,.036,.87,1.53,'#486f70');box(4.82,1.02,8.95,.16,.084,1.64,'#b89973');
+  for(let j=0;j<7;j++)box(4.79,1.14+j*.10,8.94,.032,.023,1.46,'#8ca99f');
+  box(6.10,2.78,8.34,4.43,.19,2.14,cream);box(6.10,2.88,8.34,4.5,.048,2.20,blue);
+  box(6.15,2.46,8.34,3.12,.39,.145,blue);
+  for(const s of [-1,1])box(6.15+s*.98,2.658,8.34,.48,.033,.22,'#fff1cf');
   return out;
 }
-export function distantLido():Part[]{return [
-  {p:[.8,1.44,-23.15+POOL_ORIGIN_Z],s:[18.5,2.86,1.42],color:'#f2dfb9'}, {p:[.8,3,-22.5+POOL_ORIGIN_Z],s:[19.2,.30,3.8],color:'#649592'},
-  {p:[0,-.035,-12.4+POOL_ORIGIN_Z],s:[10.1,.1,13.35],color:'#76b8bd'},
-  ...[-5.45,5.45].map(x=>({p:[x,1.5,-9.5+POOL_ORIGIN_Z] as Part['p'],s:[.07,3,.07] as Part['s'],color:'#87a4a1'})),
-  ...Array.from({length:17},(_,i)=>({p:[(i-8)*.59,2.66+((i-8)/8)**2*.24,-9.5+POOL_ORIGIN_Z] as Part['p'],s:[.34,.20,.05] as Part['s'],color:i%2?'#dd805d':'#639a9c'})),
+export function distantLido():Part[]{const {x,z}=POOL_ORIGIN,water=POOL.water;return [
+  {p:[x+.8,1.44,-23.15+z],s:[18.5,2.86,1.42],color:'#f2dfb9'}, {p:[x+.8,3,-22.5+z],s:[19.2,.30,3.8],color:'#649592'},
+  {p:[x+water.x,-.035,z+water.z],s:[water.w,.1,water.d],color:'#76b8bd'},
+  ...POOL_SUPPORT.filter(r=>r!==LIDO_ENTRY).map(r=>({p:[x+r.x,-.105,z+r.z] as Part['p'],s:[r.w,.23,r.d] as Part['s'],color:'#e0d5bf'})),
+  ...[-5.45,5.45].map(u=>({p:[x+u,1.5,-9.5+z] as Part['p'],s:[.07,3,.07] as Part['s'],color:'#87a4a1'})),
+  ...Array.from({length:17},(_,i)=>({p:[x+(i-8)*.59,2.66+((i-8)/8)**2*.24,-9.5+z] as Part['p'],s:[.34,.20,.05] as Part['s'],color:i%2?'#dd805d':'#639a9c'})),
 ];}
 export function judgeStand(){
   const out:Part[]=[],{x,z}=GUARD_CHAIR,frame='#d2d8c8',wood='#c4855d';

@@ -1,8 +1,8 @@
 import type {TranslationKey} from '../../languageStore';
 import type {SceneryId} from './catalog';
-import {CAMPUS_OFFSET} from './CampusLayout';
-import {POOL_ORIGIN_Z} from './LidoLayout';
-import {CLINIC_ORIGIN,SOUTH_DOOR} from './clinic/clinicApproach';
+import {CAMPUS_DOOR,CAMPUS_OFFSET,SCHOOL_GATE} from './CampusLayout';
+import {LIDO_ENTRY,LIDO_GATE,POOL_ORIGIN} from './LidoLayout';
+import {CLINIC_ORIGIN,GARDEN_DOOR} from './clinic/clinicApproach';
 
 type Point=readonly [number,number,number];
 export type RoomLink = {
@@ -13,20 +13,21 @@ export type RoomLink = {
   offset:readonly [number,number]; arrival:{key:TranslationKey;eye:Point;aim:Point};
 };
 const {x:dx,z:dz}=CAMPUS_OFFSET;
-const {x:cx,z:cz}=CLINIC_ORIGIN,halfDoor=SOUTH_DOOR.clear/2;
+const {x:cx,z:cz}=CLINIC_ORIGIN,{x:px,z:pz}=POOL_ORIGIN;
+const band=(mid:number,r:number):[number,number]=>[mid-r,mid+r];
 export const roomLinks:readonly RoomLink[]=[
-  {from:'classroom',to:'lawn',axis:'x',direction:-1,gate:-8.75,band:[6.24,8.20],offset:[dx,dz],
-    arrival:{key:'campusGoLawn',eye:[2.73,1.61,.42],aim:[-4.2,1.42,-6.4]}},
-  {from:'lawn',to:'classroom',axis:'x',direction:1,gate:dx-7.8,band:[dz+6.24,dz+8.20],offset:[-dx,-dz],
-    arrival:{key:'campusGoClass',eye:[-8.04,1.61,7.25],aim:[-3.35,1.34,6.21]}},
-  {from:'lawn',to:'pool',axis:'z',direction:-1,gate:POOL_ORIGIN_Z+8.85,band:[-1.35,1.35],offset:[0,-POOL_ORIGIN_Z],
-    arrival:{key:'lidoGoPool',eye:[.35,1.62,8.12],aim:[-.4,1.17,-9.50]}},
-  {from:'pool',to:'lawn',axis:'z',direction:1,gate:9.85,band:[-1.35,1.35],offset:[0,POOL_ORIGIN_Z],
-    arrival:{key:'lidoGoLawn',eye:[.42,1.62,-9.86],aim:[-3.8,1.42,-5.0]}},
-  {from:'lawn',to:'clinic',axis:'z',direction:-1,gate:cz+SOUTH_DOOR.inGate,band:[cx-halfDoor,cx+halfDoor],offset:[-cx,-cz],
-    arrival:{key:'lawnGoClinic',eye:[-.38,1.59,3.88],aim:[.27,1.45,-6.30]}},
-  {from:'clinic',to:'lawn',axis:'z',direction:1,gate:SOUTH_DOOR.outGate,band:[-halfDoor,halfDoor],offset:[cx,cz],
-    arrival:{key:'clinicGoLawn',eye:[cx-.65,1.60,cz+5.31],aim:[cx+2.42,1.04,cz+12.83]}},
+  {from:'classroom',to:'lawn',axis:'z',direction:1,gate:SCHOOL_GATE.out,band:band(CAMPUS_DOOR,SCHOOL_GATE.half),offset:[dx,dz],
+    arrival:{key:'campusGoLawn',eye:[dx+CAMPUS_DOOR,1.60,dz+6.66],aim:[-1.42,1.02,-3.01]}},
+  {from:'lawn',to:'classroom',axis:'z',direction:-1,gate:dz+SCHOOL_GATE.in,band:band(dx+CAMPUS_DOOR,SCHOOL_GATE.half),offset:[-dx,-dz],
+    arrival:{key:'campusGoClass',eye:[CAMPUS_DOOR,1.59,5.32],aim:[-.83,1.19,-4.05]}},
+  {from:'lawn',to:'pool',axis:'z',direction:-1,gate:pz+LIDO_GATE.in,band:band(px+LIDO_ENTRY.x,LIDO_GATE.half),offset:[-px,-pz],
+    arrival:{key:'lidoGoPool',eye:[6.18,1.60,7.08],aim:[4.16,1.04,-9.60]}},
+  {from:'pool',to:'lawn',axis:'z',direction:1,gate:LIDO_GATE.out,band:band(LIDO_ENTRY.x,LIDO_GATE.half),offset:[px,pz],
+    arrival:{key:'lidoGoLawn',eye:[px+6.14,1.58,pz+9.91],aim:[-3.88,.96,-5.42]}},
+  {from:'lawn',to:'clinic',axis:'x',direction:-1,gate:cx+GARDEN_DOOR.inGate,band:band(cz+GARDEN_DOOR.z,GARDEN_DOOR.clear/2),offset:[-cx,-cz],
+    arrival:{key:'lawnGoClinic',eye:[7.99,1.59,2.94],aim:[2.63,1.22,1.69]}},
+  {from:'clinic',to:'lawn',axis:'x',direction:1,gate:GARDEN_DOOR.outGate,band:band(GARDEN_DOOR.z,GARDEN_DOOR.clear/2),offset:[cx,cz],
+    arrival:{key:'clinicGoLawn',eye:[cx+9.67,1.60,cz+2.97],aim:[cx+17.22,.97,cz+2.05]}},
 ];
 export class RoomGate {
   private last:SceneryId|null=null;

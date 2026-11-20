@@ -1,33 +1,42 @@
 import {it,expect} from 'vitest';
 import {CAMPUS_DOOR,CAMPUS_OFFSET} from './CampusLayout';
-import {RoomGate} from './connections';
-import {POOL_ORIGIN_Z,GUARD_CHAIR,PACE_CLOCK,LIDO_PIERS} from './LidoLayout';
+import {roomLinks,RoomGate} from './connections';
+import {POOL_ORIGIN,GUARD_CHAIR,PACE_CLOCK,LIDO_PIERS,POOL} from './LidoLayout';
 import {canPlaceInScenery} from './placementAreas';
+import {roomGround} from '../movement/roomGround';
+import type {SceneryId} from './catalog';
 
-it('keeps a continuous floor out the rear door while rejecting the rear wall, columns and distant facade',()=>{
-  for(let z=4;z<7.3;z+=.1)expect(canPlaceInScenery('classroom',CAMPUS_DOOR,z)).toBe(true);
-  for(let x=CAMPUS_DOOR;x>=-8.4;x-=.11)expect(canPlaceInScenery('classroom',x,7.16)).toBe(true);
-  for(const [x,z] of [[-4.88,5.62],[-2.45,6.02],[-7.22,8.42]])expect(canPlaceInScenery('classroom',x,z)).toBe(false);
-  expect(canPlaceInScenery('lawn',14,-6.8)).toBe(false);
+function trace(room:SceneryId,path:number[][]){
+  for(let i=1;i<path.length;i++){
+    const [x,z]=path[i-1],[u,v]=path[i],n=Math.ceil(Math.hypot(u-x,v-z)/.09);
+    for(let j=0;j<=n;j++){
+      const a=x+(u-x)*j/n,b=z+(v-z)*j/n;
+      expect(roomGround(room,a,b),`${room} support ${a}, ${b}`).toBe(0);
+      expect(canPlaceInScenery(room,a,b),`${room} footprint ${a}, ${b}`).toBe(true);
+    }
+  }
+}
+it('uses the window aisle, garden door, then brick fork clear of the bench and rear case',()=>{
+  trace('classroom',[[0,4.48],[CAMPUS_DOOR,4.48],[CAMPUS_DOOR,6.64]]);
+  trace('lawn',[[4.97,-7.68],[4.97,-6.66],[3.78,-5.76],[1.80,-5.01],[.25,-3.62],[-1.28,-1.79]]);
+  for(const [x,z] of [[-2.45,5.70],[-2.65,6.77],[-8.75,7.22]])expect(canPlaceInScenery('classroom',x,z)).toBe(false);
+  expect(roomGround('lawn',CAMPUS_OFFSET.x,CAMPUS_OFFSET.z)).toBe(-Infinity);
 });
-it('only crosses a sign in the correct direction and cannot rebound on the arrival frame',()=>{
-  const gate=new RoomGate();expect(gate.next('classroom',-9,7.2)).toBeNull();
-  gate.next('classroom',-8.5,7.2);expect(gate.next('classroom',-9,7.2)?.to).toBe('lawn');
-  expect(gate.next('lawn',-9+CAMPUS_OFFSET.x,7.2+CAMPUS_OFFSET.z)).toBeNull();expect(gate.next('lawn',6.5,.4)?.to).toBe('classroom');
-  gate.reset();gate.next('classroom',-8.4,5.3);expect(gate.next('classroom',-9,5.3)).toBeNull();
+it.each(roomLinks)('crosses $from → $to only through the opening; translated feet and return runway stay supported',link=>{
+  const gate=new RoomGate(),along=(link.band[0]+link.band[1])/2;
+  const p=(step:number,s=along):[number,number]=>link.axis==='x'?[link.gate+step*link.direction,s]:[s,link.gate+step*link.direction];
+  for(const side of [link.band[0]-.15,link.band[1]+.15]){gate.reset();gate.next(link.from,...p(-.2,side));expect(gate.next(link.from,...p(.2,side))).toBeNull();}
+  gate.reset();gate.next(link.from,...p(-4));expect(gate.next(link.from,...p(.1))).toBeNull(); // teleport
+  gate.next(link.from,...p(-.13));expect(gate.next(link.from,...p(.09))).toBe(link);
+  const [a,b]=p(.09),x=a+link.offset[0],z=b+link.offset[1];
+  expect(roomGround(link.to,x,z)).toBe(0);expect(gate.next(link.to,x,z)).toBeNull();expect(gate.next(link.to,x,z)).toBeNull();
+  const [u,,v]=link.arrival.eye;expect(canPlaceInScenery(link.to,u,v)).toBe(true);
 });
-it('selects the right exit when a zone has two and ignores a teleport',()=>{
-  const gate=new RoomGate();gate.next('lawn',0,3);expect(gate.next('lawn',0,-12)).toBeNull();
-  gate.next('lawn',0,-10.96);const pool=gate.next('lawn',0,-11.42)!;
-  expect(pool.to).toBe('pool');expect(gate.next('pool',0,-11.42+pool.offset[1])).toBeNull();
-  expect(gate.next('pool',0,10.01)?.to).toBe('lawn');
-  gate.next('lawn',5.8,.40);expect(gate.next('lawn',6.5,.40)?.to).toBe('classroom');
-});
-it('has a placeable route from the meadow to the pool clock without treating furniture or water as floor',()=>{
-  for(let z=0;z>=-11.3;z-=.12)expect(canPlaceInScenery('lawn',0,z)).toBe(true);
-  for(let z=-11.3-POOL_ORIGIN_Z;z>=0;z-=.12)expect(canPlaceInScenery('pool',0,z)).toBe(true);
-  for(let z=0;z>=-20.35;z-=.12)expect(canPlaceInScenery('pool',6.05,z),`east walk z=${z}`).toBe(true);
-  for(const r of [GUARD_CHAIR,PACE_CLOCK,...LIDO_PIERS])expect(canPlaceInScenery('pool',r.x,r.z)).toBe(false);
-  for(const r of LIDO_PIERS)expect(canPlaceInScenery('lawn',r.x,r.z+POOL_ORIGIN_Z)).toBe(false);
-  expect(canPlaceInScenery('lawn',0,-25)).toBe(false);
+it('connects the wisteria centreline directly to the timing deck on land, not across the basin',()=>{
+  trace('lawn',[[-3.2,-4.30],[-4.17,-6.4],[-5.0,-9.5],[-5.25,-12.68]]);
+  trace('pool',[[6.15,8.77],[6.15,-19.08],[5.58,-20.3]]);
+  for(const r of [GUARD_CHAIR,PACE_CLOCK,...LIDO_PIERS,POOL.water])expect(canPlaceInScenery('pool',r.x,r.z)).toBe(false);
+  for(const r of LIDO_PIERS)expect(canPlaceInScenery('lawn',r.x+POOL_ORIGIN.x,r.z+POOL_ORIGIN.z)).toBe(false);
+  expect(roomGround('pool',POOL.water.x,POOL.water.z)).toBe(-Infinity);
+  expect(roomGround('pool',PACE_CLOCK.x,PACE_CLOCK.z)).toBe(0); // column collision, not a hole in the deck
 });

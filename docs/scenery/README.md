@@ -1,6 +1,6 @@
 # 建模与布景
 
-舞台有十景：[双喜堂](./wedding-court.md)从巷口花轿通到喜堂和侧室；[秦淮歌楼](./qinhuai.md)从埠头通戏台和二楼听曲廊。晴空草坪[连通门诊候诊厅](./clinic-garden.md)，也能去窗边教室和夏日泳池。另有 Live House、简易地台、星环遗庭和晨光礼拜堂。角色由用户导入。[实景截图](../../README.md#stage-gallery) · [各景站位](../gameplay/vr-controls.md#在布景中给角色选位置) · [接入新区域和通道](./adding-a-set.md)
+舞台有十二景：[暮灯情侣套房、月庭双人私汤](./private-retreats.md)是独立选景，各有两处双人站位。[双喜堂](./wedding-court.md)从巷口花轿通到喜堂和侧室；[秦淮歌楼](./qinhuai.md)从埠头通戏台和二楼听曲廊。晴空草坪连通门诊、窗边教室和夏日泳池。另有 Live House、简易地台、星环遗庭和晨光礼拜堂。角色由用户导入。[实景截图](../../README.md#stage-gallery) · [各景站位](../gameplay/vr-controls.md#在布景中给角色选位置) · [接入新区域和通道](./adding-a-set.md)
 
 ## 布景怎么做
 
@@ -18,7 +18,9 @@
 
 [入口走廊](../screenshots/clinic-entrance.webp) · [诊室](../screenshots/clinic-exam.webp) · [手术室](../screenshots/clinic-or.webp) · [女卫生间](../screenshots/clinic-wc.webp)。八幅原创图包括妊娠三阶段、产检流程、超声、盆腔解剖、胎盘与脐带、手卫生、骨盆矢状面和产后照护。可选「解剖教具台」对着墙上的图观察立体模型，「妇产科器械盘」看四件器械，「卫生用品架」看用品和产后宣教。工作台的护士是静态环境模型。[教学陈列、实景与图文依据](./clinic-teaching.md)
 
-### 校园连廊试点：连通两景，只运行一边
+### 现在走哪条路，以及旧试点记录
+
+现在从教室后门沿砖径接草坪、从藤径进泳场东岸门楼、从门诊东侧进候诊厅。门线、返程视角和实际摆放看[三条校园路线](./campus-garden-routes.md)。下面两段和截图记录最初的试点，不再用作当前门线坐标或识路图。
 
 教室后门接有顶步道。窗外花架与草坪教学楼外立面复用各区原有实例批次；既有教室和草坪仍分别作为布局、玩法与报告的身份。`CampusLayout.ts` 描述同一段走廊的两套坐标；在门牌处定向跨界，再平移 XR 原点，不主动旋转头显。两向门线相距 0.95 米，避免刚到就反向触发。复用正常切景生命周期，先保存再卸载角色和 Bullet 世界。教室的地板、黑板和木纹改为[离线烘焙](../../scripts/bake-classroom-prints.html)，近门才提示浏览器取草坪图片。截图：[窗边](../screenshots/campus-window.webp) · [连廊](../screenshots/campus-hall.webp) · [回望](../screenshots/campus-school.webp)。[性能与验收](../performance/campus-passage.md)
 

@@ -11,7 +11,8 @@ import {arcadeParts,distantLido,inLidoApproach} from './LidoLayout';
 import {LidoPlates} from './LidoPlates';
 import { seededRandom } from './ClassroomLayout';
 import { Batch, type Part } from './SceneryBatch';
-import {SouthEntrance} from './clinic/SouthEntrance';
+import {GardenEntrance} from './clinic/GardenEntrance';
+import {SchoolBrickWalk} from './SchoolBrickWalk';
 import {reserveLawnClinic} from './clinic/clinicApproach';
 import { noPick, paintedSurface } from './sceneryPaint';
 
@@ -112,7 +113,10 @@ function grove() {
     branches.push({p:[(a[0]+b[0])/2,(a[1]+b[1])/2,(a[2]+b[2])/2],s:[r,l,r],rx:Math.atan2(dz,dy),rz:-Math.asin(dx/l),color});};
   for(const k of LAWN_KNOLLS)hills.push({p:[k.x,-.24,k.z],s:[k.w,k.h,k.d],ry:k.yaw,color:'#91a767'});
   // Distant ridges hide the board edge and give parallax as the viewer walks.
-  for(let i=0;i<30;i++){const a=i*2*Math.PI/30;hills.push({p:[Math.sin(a)*39,-1.5,Math.cos(a)*39],s:[17+rng()*6,6+rng()*8,15+rng()*7],ry:a,color:i%3?'#819a83':'#91a591'});}
+  for(let i=0;i<30;i++){const a=i*2*Math.PI/30,x=Math.sin(a)*39,z=Math.cos(a)*39;
+    // The borrowed lido pavilion extends beyond the original circular horizon.
+    // Carry the north ridge behind its roof instead of through the lane flags.
+    hills.push({p:[x,-1.5,z< -24&&x> -34&&x<12?z-25:z],s:[17+rng()*6,6+rng()*8,15+rng()*7],ry:a,color:i%3?'#819a83':'#91a591'});}
   for(let i=0;i<LAWN_TREES.length;i++){const tree=LAWN_TREES[i],{x,z,h}=tree,birch=i%3===1;const bark=birch?'#c4c1a9':'#806d53';
     const fork:V=[x+.12,h*.44,z-.10],knee:V=[x-.037,h*.18,z+.05];beam([x,-.08,z],knee,h*(birch?.062:.086),bark);beam(knee,fork,h*(birch?.052:.069),bark);
     for(let j=0;j<6;j++) {const a=j*2.4+i*.61,r=j===0?0:h*(.19+rng()*.09),end:V=[x+Math.sin(a)*r,h*(j===0?.96:.66+rng()*.17),z+Math.cos(a)*r];
@@ -160,7 +164,7 @@ export function Meadow({shadows}:{shadows:boolean}) {
     {!shadows&&<LatticeShade/>}
     <SeatFaces/>
     <LidoPlates pool={false}/>
-    <SouthEntrance lawn shadows={shadows}/>
+    <GardenEntrance lawn shadows={shadows}/><SchoolBrickWalk lawn shadows={shadows}/>
     <Batch name="meadow-seat-and-split-rail" parts={p.wood} casts={shadows} /><Batch name="oak-and-birch-branches" parts={p.branches} round casts={shadows} />
     {botanicals&&<mesh name="grove-canopies" geometry={foliage} raycast={noPick}><meshBasicMaterial map={botanicals} alphaTest={.36} vertexColors side={DoubleSide}/></mesh>}<Batch name="distant-ridges" parts={p.hills} foliage />
     <mesh geometry={grass} raycast={noPick} userData={{playerCollision:false}}><meshStandardMaterial vertexColors roughness={1} side={DoubleSide} /></mesh></group>;

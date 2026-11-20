@@ -52,7 +52,7 @@ export function clinicShell(p:ClinicParts){
   // Cover the butt ends where two protective panels meet at the waiting bay.
   p.box(WARD.right,.506,WARD.orSouth,.223,1.012,.223,'#9fae9e');
   windowStrip(p,WARD.west+.094,.12,4.14,pi/2,3);
-  windowStrip(p,WARD.east-.094,2.02,4.30,-pi/2,4);
+  windowStrip(p,WARD.east-.094,.16,1.54,-pi/2,2);
   windowStrip(p,5.85,WARD.north+.093,3.15,0,3);
   for(const [key,{x,z,width}] of Object.entries(DOORS)){
     const side=x>0?-1:1,panel=key==='wc'?'#b3989f':key==='or'?'#88b8b4':'#b5c7ac';

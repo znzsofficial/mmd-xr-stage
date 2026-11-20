@@ -167,6 +167,43 @@ describe("runtime asynchronous lifecycle", () => {
     expect(model.setAnimation).not.toHaveBeenCalled();
   });
 
+  it("rolls back a failed motion bind on the raw solver pose, not the displayed hem", async () => {
+    const model = modelFixture(), hem = new THREE.Bone();
+    hem.position.y = 1; model.mesh.add(hem); model.mesh.bind(new THREE.Skeleton([hem]));
+    vi.spyOn(ThreeMmdLoader.prototype, "loadModel").mockResolvedValue(model);
+    const factory = vi.mocked(createBulletPhysicsBackend);
+    factory.mockResolvedValueOnce({name: "solver", disabled: false, disposed: false, step: () => ({simulated: true})});
+    const rt = createMmdRuntimeHandle(new THREE.Scene());
+    try {
+      const {modelId} = await rt.addModel(new File([], "actor.pmx"), [], {physics: true});
+      const [animation] = vi.mocked(model.setAnimation).mock.calls[0]; // initial static binding
+      if (!("kind" in animation)) throw Error("Expected a raw VMD");
+      const original = new File([], "first.vmd"), replacement = new File([], "second.vmd");
+      const first = {source: original, animation}, second = {source: replacement, animation};
+      vi.spyOn(ThreeMmdLoader.prototype, "loadAnimation").mockResolvedValueOnce(first).mockResolvedValueOnce(second);
+      await rt.loadMotion(original, "body", modelId);
+
+      const record = factory.mock.lastCall![0]!.onPhysicsBones!;
+      const bodies = [{index: 0, boneIndex: 0, motionType: "dynamic", shape: {type: "sphere", size: [1,0,0]}}] as const;
+      let rawY = 1;
+      Object.assign(model.runtime, {seek: vi.fn()});
+      Object.assign(model, {update() { hem.position.y = rawY; model.root.updateMatrixWorld(true); record([0], 1, bodies); }});
+      const camera = new THREE.PerspectiveCamera();
+      const pausedFrame = () => rt.update(0, true, camera, 1, false, 1/60);
+      pausedFrame(); rawY = .99; pausedFrame();
+      expect(hem.position.y).toBeGreaterThan(rawY);
+
+      const bind = vi.mocked(model.setAnimation).mockClear().mockImplementation(clip => {
+        expect(hem.position.y).toBe(rawY);
+        if (clip === second) throw Error("rejected motion");
+      });
+      await expect(rt.loadMotion(replacement, "body", modelId)).rejects.toThrow("rejected motion");
+      expect(bind.mock.calls.map(([clip]) => clip)).toEqual([second, first]);
+      expect(rt.exportProjectModels()[0].bodyMotionFile).toBe(original);
+      rawY = .98; pausedFrame(); expect(hem.position.y).toBe(rawY); // no pre-bind filter history
+    } finally { rt.dispose(); }
+  });
+
   it.each(['dispose','clearAll'] as const)('releases an arriving world after %s without resurrecting its actor', async end => {
     const model = modelFixture(), load = vi.spyOn(ThreeMmdLoader.prototype,'loadModel').mockResolvedValue(model);
     const release = vi.spyOn(model.mesh.geometry,'dispose'), factory = vi.mocked(createBulletPhysicsBackend);

@@ -1,0 +1,78 @@
+<!doctype html><meta charset="utf-8"><title>PMX pre-physics root propagation</title>
+<p>Select a local PMX, its textures and a body VMD. Compare full and root-only pre-physics propagation; fixed simulation time, no rendering.</p>
+<input type="file" multiple><button>Compare</button><pre></pre>
+<script type="module">
+import * as T from 'three';
+import {createMmdRuntimeHandle} from '../src/mmdVrShowcase/mmdRuntime/mmdRuntime.ts';
+import {prepareMmdVrModel} from '../src/mmdVrShowcase/prepareMmdVrModel.ts';
+import {handContactShape,handReferenceRadius} from '../src/mmdVrShowcase/handContactProfile.ts';
+
+const mean=xs=>xs.reduce((a,b)=>a+b,0)/xs.length;
+const median=xs=>{const s=xs.toSorted((a,b)=>a-b),i=s.length>>1;return s.length%2?s[i]:(s[i-1]+s[i])/2};
+window.compare=async(files=[...document.querySelector('input').files])=>{
+  const pmx=files.find(f=>/\.pmx$/i.test(f.name)),vmd=files.find(f=>/\.vmd$/i.test(f.name));
+  if(!pmx||!vmd)throw Error('Select a PMX and a body VMD');
+  const camera=new T.PerspectiveCamera(),park=new T.Matrix4().makeTranslation(0,-1000,0);
+  const controllers=[park,park],hands=Array(12).fill(park),rigs=[];
+  // Compare the entry barrier only. Other explicit resets, loader passes and
+  // the complete post-display propagation run on their normal schedules.
+  const dt=1/72,frames=40,warmBlocks=6,blocks=32,rows=[];
+  let matrices=0,vertices=0,morphs=0,armTravel=0;
+  try{
+    for(let j=0;j<2;j++){
+      const scene=new T.Scene(),light=new T.DirectionalLight();light.position.set(-3,4.2,4.8);scene.add(light);
+      const rt=createMmdRuntimeHandle(scene,{prepareModel:prepareMmdVrModel,chestCompression:()=>true,controllerColliders:()=>controllers,handColliders:()=>hands,handShape:handContactShape,handColliderRadius:()=>handReferenceRadius(.08)});
+      const rig={rt,pending:false,rootOnly:false,hits:0};rigs.push(rig);
+      const {modelId}=await rt.addModel(pmx,files,{physics:true,transform:{scale:.1,rotationY:29,positionX:.34}});
+      rt.setLighting({directionalLight:light,envIntensity:0,ambientIntensity:.52});await rt.loadMotion(vmd,'body',modelId);
+      const root=rt.getModelRoot(modelId);root.traverse(o=>{if(!rig.mesh&&o.isSkinnedMesh)rig.mesh=o});
+      if(rig.mesh.parent!==root)throw Error('Probe requires the loader’s direct body mesh');
+      const full=root.updateMatrixWorld,shallow=root.updateWorldMatrix;
+      function pre(){if(!rig.pending)return false;rig.pending=false;rig.hits++;if(root.scale.x!==1)throw Error('Not the pre-physics barrier');return true}
+      root.updateMatrixWorld=function(force){return pre()&&rig.rootOnly?shallow.call(this,false,false,true):full.call(this,force)};
+      root.updateWorldMatrix=function(parents,children,force){return pre()&&!rig.rootOnly?full.call(this,true):shallow.call(this,parents,children,force)};
+      rig.wrist=rig.mesh.skeleton.bones.find(b=>['右手首','rightwrist','righthand'].includes((b.userData.mmdBoneName||b.name).toLowerCase()));
+      if(!rig.wrist)throw Error('Probe requires an animated wrist');
+    }
+    const v=new T.Vector3(),w=new T.Vector3();let firstWrist;
+    for(let block=-warmBlocks;block<blocks;block++){
+      const round=block+warmBlocks,ms=[];
+      // Cross-over both independent worlds; alternate which schedule goes first.
+      for(let slot=0;slot<2;slot++){
+        const trial=(block&1)^slot,rig=rigs[trial^((round>>1)&1)];rig.rootOnly=Boolean(trial);
+        const start=performance.now();
+        for(let i=0;i<frames;i++){
+          const pose=((round*frames+i)*dt)%rig.rt.duration;
+          rig.pending=true;rig.rt.update(pose,true,camera,1,false,dt);
+          if(rig.pending)throw Error('Missing pre-physics sync');
+        }
+        ms[trial]=(performance.now()-start)/frames;
+      }
+      // Read the delivered pose as-is. No extra matrix propagation or skinning
+      // palette refresh before comparing: either could conceal a stale output.
+      const [a,b]=rigs.map(r=>r.mesh);
+      for(let i=0;i<a.skeleton.bones.length;i++){
+        const aa=a.skeleton.bones[i].matrixWorld.elements,bb=b.skeleton.bones[i].matrixWorld.elements;
+        for(let k=0;k<16;k++){if(!Number.isFinite(aa[k])||aa[k]!==bb[k])throw Error('Bone matrix differs');matrices++}
+      }
+      const wrist=rigs[0].wrist.matrixWorld.elements;
+      firstWrist??=[...wrist];armTravel=Math.max(armTravel,...wrist.map((x,i)=>Math.abs(x-firstWrist[i])));
+      for(let i=0;i<(a.morphTargetInfluences?.length??0);i++){
+        if(!Number.isFinite(a.morphTargetInfluences[i])||a.morphTargetInfluences[i]!==b.morphTargetInfluences[i])throw Error('Morph differs');morphs++;
+      }
+      const n=a.geometry.getAttribute('position').count;
+      for(let i=0;i<Math.min(64,n);i++){
+        const index=Math.floor((i+(round%8)/8)*n/Math.min(64,n));
+        a.getVertexPosition(index,v).applyMatrix4(a.matrixWorld);b.getVertexPosition(index,w).applyMatrix4(b.matrixWorld);
+        if(!Number.isFinite(v.lengthSq())||!v.equals(w))throw Error('Skinned vertex differs');vertices++;
+      }
+      if(block>=0)rows.push(ms);
+    }
+    if(!armTravel||rigs.some(r=>r.hits!==(warmBlocks+blocks)*frames))throw Error('Missing animated pose or barrier');
+    const diff=rows.map(([a,b])=>a-b);
+    return {bones:rigs[0].mesh.skeleton.bones.length,bodies:rigs[0].rt.getRigidBodyCount(),dynamic:rigs[0].rt.getDynamicRigidBodyCount(),warmup:warmBlocks*frames,blocks,frames,
+      fullMs:mean(rows.map(r=>r[0])),rootOnlyMs:mean(rows.map(r=>r[1])),medianPairedSavingMs:median(diff),wins:diff.filter(x=>x>0).length,matrices,morphs,vertices,armTravel,pairedMs:rows};
+  }finally{for(const r of rigs)r.rt.dispose()}
+};
+document.querySelector('button').onclick=async e=>{const b=e.currentTarget;b.disabled=true;try{document.querySelector('pre').textContent=JSON.stringify(await window.compare(),null,2)}catch(e){document.querySelector('pre').textContent=String(e)}finally{b.disabled=false}};
+</script>

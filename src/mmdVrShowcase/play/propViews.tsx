@@ -1,6 +1,7 @@
 // Rendering entry points only. The catalog checks these export names at compile
 // time; importing a store, HUD label or guide must never load a station renderer.
 import { AstralSaber } from './AstralSaber';
+import { CordlessWand, FeatherBrush } from './BoutiquePieces';
 import { MoonPost } from './MoonPost';
 import { EncoreMic } from './encore/EncoreMic';
 import { EncoreStation } from './encore/EncoreStation';
@@ -17,3 +18,5 @@ export const shellBlower:PropView = {Piece:BubblePiece, HeldEffect:BubbleStream,
 export const lunarPunch:PropView = {Piece:StampPiece, HeldEffect:StampAim, Station:MoonPost};
 export const astralHilt:PropView = {Piece:AstralSaber};
 export const silicone:PropView = {Piece:SiliconePiece,HeldEffect:LiquidSpray,outlet:siliconeOutlet};
+export const cordless:PropView = {Piece:CordlessWand};
+export const plumeBrush:PropView = {Piece:FeatherBrush};

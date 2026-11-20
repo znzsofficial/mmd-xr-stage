@@ -1,23 +1,23 @@
-// Clinic metres, north = -Z. The garden forks off the existing flower walk
-// south of the last fence post. No rotation when the XR origin changes room.
-export const CLINIC_ORIGIN={x:-20.6,z:4.4};
-export const SOUTH_DOOR={z:4.8,wallGap:4.90,clear:2.58,head:2.40,inGate:4.53,outGate:5.09};
+// Clinic metres. The east garden door addresses the waiting bay between the two seat rows.
+export const CLINIC_ORIGIN={x:-23.8,z:5.3};
+export const GARDEN_DOOR={x:8.6,z:2.80,wallGap:3.20,clear:2.04,head:2.42,inGate:8.36,outGate:8.94};
 export type Area={x:number;z:number;w:number;d:number};
 type Solid=Area&{bottom:number;top:number};
 const box=(x:number,z:number,w:number,d:number,top:number,bottom=0):Solid=>({x,z,w,d,top,bottom});
-export const APRON=box(0,7.48,7.30,5.40,0);
-export const CANOPY_POSTS=[-2.83,2.83].map(x=>box(x,8.53,.36,.39,2.85));
-export const GLAZING=[-1,1].map(s=>box(s*(SOUTH_DOOR.clear+SOUTH_DOOR.wallGap)/4,SOUTH_DOOR.z,(SOUTH_DOOR.wallGap-SOUTH_DOOR.clear)/2,.18,SOUTH_DOOR.head));
-export const BEDS=[box(-3.33,11.59,4.27,1.56,.49),box(3.37,13.63,5.41,1.29,.43),box(7.42,10.12,3.55,1.25,.41)];
-export const GUIDE=box(16.71,1.05,.56,.56,1.78);
-export const TREES=[{x:-4.19,z:11.64,h:3.48},{x:4.60,z:13.69,h:3.04}];
-export const WALK_POINTS:readonly (readonly [number,number])[]=[[19.18,1.36],[16.48,2.10],[13.30,3.58],[10.30,5.10],[7.69,6.68],[5.19,8.68],[3.30,9.74],[1.82,10.08],[.66,9.73],[0,8.90]];
-export const WALK_WIDTH=1.85;
-export const SOUTH_FACE=[-1,1].map(s=>box(s*(8.6+SOUTH_DOOR.wallGap/2)/2,SOUTH_DOOR.z,8.6-SOUTH_DOOR.wallGap/2,.25,3.12));
+const {x:face,z:mid,wallGap,clear,head}=GARDEN_DOOR;
+export const APRON=box(10.25,mid,3.55,4.87,0);
+export const CANOPY_POSTS=[box(11.53,.78,.40,.33,2.96)];
+export const GLAZING=[-1,1].map(s=>box(face,mid+s*(clear+wallGap)/4,.15,(wallGap-clear)/2,head));
+export const BEDS=[box(11.0,-.24,4.28,1.34,.47),box(13.84,4.90,3.79,1.40,.43)];
+export const GUIDE=box(19.25,2.01,.44,.40,1.43);
+export const TREES=[{x:10.05,z:-.20,h:3.43},{x:14.80,z:4.91,h:3.17}];
+export const WALK_POINTS:readonly (readonly [number,number])[]=[[22.25,-.64],[20.25,.03],[18.10,1.36],[16.47,2.24],[14.72,2.72],[12.80,2.80],[11.72,2.80]];
+export const WALK_WIDTH=2.04;
+export const EAST_FACE=[[-9,mid-wallGap/2],[mid+wallGap/2,4.8]].map(([a,b])=>box(face,(a+b)/2,.16,b-a,3.12));
 export const approachSolids:Solid[]=[...GLAZING,...CANOPY_POSTS,...BEDS,GUIDE,
-  ...TREES.map(t=>box(t.x,t.z,.26,.26,t.h)), box(0,SOUTH_DOOR.z,SOUTH_DOOR.wallGap,.24,3.12,SOUTH_DOOR.head),box(0,6.72,6.75,4.47,3.13,2.82)];
+  ...TREES.map(t=>box(t.x,t.z,.26,.26,t.h)),box(face,mid,.20,wallGap,3.12,head),box(10.2,mid,3.62,4.96,3.06,2.75)];
 const footprint=box(0,-2.1,17.40,13.80,3.2);
-const preview=[box(0,-2.52,17.40,13.08,3.2),...SOUTH_FACE]; // lawn proxy interior ends just behind entry seam
+const preview=[box(-.42,-2.1,16.5,13.80,3.2),...EAST_FACE]; // stop beyond the seam, not at the drawn wall
 export function touches(x:number,z:number,r:Area,margin=0){
   return Math.hypot(Math.max(0,Math.abs(x-r.x)-r.w/2),Math.max(0,Math.abs(z-r.z)-r.d/2))<=margin;
 }

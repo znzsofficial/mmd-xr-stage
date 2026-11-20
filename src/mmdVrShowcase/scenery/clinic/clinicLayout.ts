@@ -1,10 +1,10 @@
 // Metres; the hall runs north (-Z), with a daylit waiting bay to its east.
 // These rectangles feed the walls, furniture builders, floor print and navigation.
-import {APRON, SOUTH_DOOR, approachFootClear, approachSolids, groundVisible} from './clinicApproach';
+import {APRON,GARDEN_DOOR,approachFootClear,approachSolids,groundVisible} from './clinicApproach';
 type Point3 = [number, number, number];
 export interface ClinicRect { x: number; z: number; w: number; d: number }
 const rect = (x: number, z: number, w: number, d: number): ClinicRect => ({ x, z, w, d });
-export const WARD = { west:-8.6, east:8.6, north:-9, south:SOUTH_DOOR.z, left:-2.16, right:2.16, wcSouth:-3.25, orSouth:-.60, h:3.12, t:.16 };
+export const WARD = { west:-8.6, east:GARDEN_DOOR.x, north:-9, south:4.8, left:-2.16, right:2.16, wcSouth:-3.25, orSouth:-.60, h:3.12, t:.16 };
 export const DOORS = {
   exam: { x:WARD.left, z:.90, width:1.56 },
   wc: { x:WARD.left, z:-6.30, width:1.45 },
@@ -15,7 +15,7 @@ const across = (a:number,b:number,z:number) => rect((a+b)/2,z,b-a,t);
 const along = (x:number,a:number,b:number) => rect(x,(a+b)/2,t,b-a);
 const {exam,wc,or} = DOORS;
 export const WALLS = [
-  across(west,east,north),across(west,-SOUTH_DOOR.wallGap/2,south),across(SOUTH_DOOR.wallGap/2,east,south),along(west,north,south),along(east,north,south),
+  across(west,east,north),across(west,east,south),along(west,north,south),along(east,north,GARDEN_DOOR.z-GARDEN_DOOR.wallGap/2),along(east,GARDEN_DOOR.z+GARDEN_DOOR.wallGap/2,south),
   across(west,left,wcSouth),across(right,east,orSouth),
   along(left,north,wc.z-wc.width/2), along(left,wc.z+wc.width/2,exam.z-exam.width/2),along(left,exam.z+exam.width/2,south),
   along(right,north,or.z-or.width/2),along(right,or.z+or.width/2,orSouth),
@@ -77,7 +77,7 @@ const nurseLegs=rect(seat.x,seat.z+.36,.38,.43);
 const cubicles=STALLS.map(({x,z,width})=>rect(x,z,2.14,width));
 function clearAt(x:number,z:number,r:number,showPeople:boolean) {
   const floor=(x>west+r&&x<east-r&&z>north+r&&z<south-r)||
-    (Math.abs(x)<APRON.w/2-r&&z>=south-r&&z<APRON.z+APRON.d/2-r);
+    (Math.abs(z-APRON.z)<APRON.d/2-r&&x>=east-r&&x<APRON.x+APRON.w/2-r);
   return floor&&approachFootClear(x,z,r)&&!obstacles.some(o=>hits(x,z,o,r))&&!(showPeople&&hits(x,z,nurseLegs,r));
 }
 export function canWalkInClinic(x:number,z:number,showPeople=true) { return clearAt(x,z,.22,showPeople); }

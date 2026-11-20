@@ -4,10 +4,10 @@ import {Batch,type Part} from '../SceneryBatch';
 import {span} from '../detailParts';
 import {seededRandom} from '../ClassroomLayout';
 import {useBakedSurface} from '../useBakedSurface';
-import {APRON,BEDS,CANOPY_POSTS,CLINIC_ORIGIN,GLAZING,GUIDE,SOUTH_DOOR,SOUTH_FACE,TREES,WALK_POINTS,WALK_WIDTH} from './clinicApproach';
+import {APRON,BEDS,CANOPY_POSTS,CLINIC_ORIGIN,GLAZING,GUIDE,GARDEN_DOOR,EAST_FACE,TREES,WALK_POINTS,WALK_WIDTH} from './clinicApproach';
 import atlasUrl from './clinic-garden.webp';
 import turfUrl from '../meadow-walk.webp';
-import {LAWN_KNOLLS,LAWN_SIZE} from '../placementAreas';
+import {LAWN_KNOLLS,LAWN_SIZE,MEADOW_POSTS} from '../placementAreas';
 
 type V=Part['p'];
 const noPick=()=>null;
@@ -42,72 +42,40 @@ function entrance(lawn:boolean){
     prints.face(x+dx,y,z+dz,w,h,rot,front);
     if(back!==undefined)prints.face(x-dx,y,z-dz,w,h,rot+Math.PI,back);
   };
-  // Shared gutters project 36 cm beyond the return. Wash from the thin lip
-  // and a shoe at the drain base distinguish the wet edge from the dry bay.
-  const leaderX=-2.83,leaderZ=8.665;
-  limbs.push(span([leaderX,2.83,8.991],[leaderX,2.64,leaderZ],.082,trim),span([leaderX,2.66,leaderZ],[leaderX,.16,leaderZ],.074,trim),span([leaderX,.17,leaderZ],[leaderX,.082,8.77],.083,trim));
-  for(const y of [.50,1.57,2.54])box(leaderX,y,leaderZ,.092,.033,.089,pine);
-  const fz=SOUTH_DOOR.z;
-  // A narrow borrowed view of the lit hall, not a second hospital/actor scene.
+  const {x:fx,z:fz,head,wallGap}=GARDEN_DOOR;
+  // Waiting bay and seats behind a true hole, seen before the scene swaps.
   if(lawn){
-    for(const r of SOUTH_FACE){box(r.x,1.56,r.z,r.w,3.12,.16,chalk);box(r.x,.46,r.z,r.w,.92,.19,'#a5b9ac');}
-    for(const s of [-1,1]){
-      box(s*8.60,1.56,-2.10,.16,3.12,13.90,chalk);box(s*8.69,1.71,-2.10,.05,1.31,12.89,'#90adaa');
-      box(s*8.70,.985,-2.10,.28,.098,13.34,stone);box(s*8.69,2.44,-2.10,.49,.12,13.41,'#d0c8ad');
-      for(let j=0;j<10;j++){const z=-7.95+j*1.29;box(s*8.745,1.71,z,.045,1.21,1.18,j%3?'#9cb4b0':'#a3b8b1');
-        prints.face(s*8.772,1.71,z,1.17,1.21,s*Math.PI/2,6);
-        box(s*8.78,1.71,z-.60,.060,1.43,.073,trim);box(s*8.77,1.46,z,.043,.036,1.20,chalk);}
-      box(s*2.17,1.57,.25,.16,3.14,9.0,'#d1d8cb');box(s*2.17,.53,.25,.20,1.06,9.0,'#a5b7a9');
-    }
-    box(0,1.56,-9.0,17.39,3.12,.16,chalk);box(0,3.19,-2.10,17.39,.14,14.03,'#ced0c2');
-    box(0,3.33,-2.1,17.77,.20,14.31,'#899b90');box(0,3.438,-2.1,17.93,.045,14.44,stone);
-    box(0,-.034,.24,4.28,.069,9.12,'#cbcbbc');box(0,1.57,-4.13,4.22,3.13,.12,'#b29d82');
-    box(0,1.66,-4.055,1.49,.71,.041,pine);box(0,2.99,-.20,.51,.14,2.15,'#eee5cd');
-    for(let i=0;i<4;i++)box(-.45,1.82-i*.095,-4.03,.37+(i%2)*.22,.022,.015,'#bed1be');
+    for(const r of EAST_FACE){box(r.x,1.56,r.z,r.w,3.12,r.d,chalk);box(r.x,.47,r.z,.20,.94,r.d,'#a5b9ac');}
+    for(const z of [-9,4.8])box(0,1.56,z,17.32,3.12,.16,chalk);
+    box(-8.6,1.56,-2.1,.16,3.12,13.8,chalk);box(-2.16,1.56,3.1,.16,3.12,3.3,'#c8d4c7');
+    box(5.4,1.56,-.60,6.4,3.12,.16,'#d1d9ca');box(0,3.24,-2.10,17.62,.24,14.13,'#93a297');
+    box(0,-.020,-2.10,17.3,.067,13.9,'#c7c7b8');
+    for(const [x,z] of [[6.99,1.19],[4.48,4.3]])for(let j=0;j<4;j++){
+      box(x-.96+j*.64,.44,z,.56,.08,.48,'#7da298');box(x-.96+j*.64,.65,z+(z>3?.23:-.23),.55,.40,.08,'#98b4a6');}
+    for(const z of [-7.7,-5.6,-3.5,-1.4]){prints.face(fx+.103,1.73,z,1.81,1.21,Math.PI/2,6);box(fx+.11,1.09,z,.24,.08,1.88,stone);}
   }
-  for(const side of [-1,1]){
-    const x=side*5.78;
-    box(x,1.72,fz+.104,4.92,1.37,.058,trim);
-    for(let j=0;j<4;j++){
-      const xx=x+(j-1.5)*1.19;
-      box(xx,1.73,fz+.146,1.13,1.25,.039,'#8ea7a4');
-      prints.face(xx,1.73,fz+.168,1.125,1.243,0,6);
-      box(xx,1.58,fz+.177,1.14,.032,.029,'#c1c9ba');
-      box(xx,2.41,fz+.15,1.19,.066,.32,'#ded7bd');
-    }
-    box(x,.995,fz+.15,4.99,.093,.27,stone);
-  }
-  box(0,(3.13+SOUTH_DOOR.head)/2,fz,SOUTH_DOOR.wallGap,3.13-SOUTH_DOOR.head,.21,chalk);
-  box(0,2.43,fz,SOUTH_DOOR.wallGap+.12,.14,.30,trim);
+  box(fx,(3.13+head)/2,fz,.21,3.13-head,wallGap,chalk);box(fx,head,fz,.30,.12,wallGap+.09,trim);
   for(const g of GLAZING){
-    for(const s of [-1,1])box(g.x+s*g.w/2,1.21,fz,.054,2.41,.17,pine);
-    box(g.x,.079,fz,g.w,.14,.16,trim);box(g.x,1.125,fz,g.w,.101,.1,'#81a39a');
-    for(const s of [-1,1])prints.face(g.x,1.15,fz+s*.085,g.w-.04,.156,s>0?0:Math.PI,3);
+    for(const s of [-1,1])box(fx,1.21,g.z+s*g.d/2,.17,2.41,.05,pine);
+    box(fx,.079,g.z,.16,.14,g.d,trim);for(const s of [-1,1])prints.face(fx+s*.081,1.15,g.z,g.d-.04,.17,s*Math.PI/2,3);
   }
-  for(const p of CANOPY_POSTS){
-    const {x,z}=p;box(x,.087,z,p.w,.174,p.d,stone);box(x,1.43,z,.173,2.56,.205,pine);
-    box(x,.245,z,.211,.15,.241,trim);box(x,2.72,z,.235,.21,.26,trim);
-    for(const k of [-1,1])blocks.push(span([x,2.38,z],[x+k*.43,2.80,z],.064,trim,.11));
+  // A fan of three timber ribs rises out of one garden-side column. No sign or
+  // column on the walking axis: the quiet garden opens to the returning patient.
+  for(const p of CANOPY_POSTS){box(p.x,.15,p.z,p.w,.30,p.d,stone);box(p.x,1.30,p.z,.21,2.48,.19,pine);
+    for(const end of [[10.05,.80],[11.56,2.69],[11.58,4.37]])blocks.push(span([p.x,2.04,p.z],[end[0],2.83,end[1]],.13,'#af956f',.095));
   }
-  // Standing seams, an actual fascia return and a drain to the planting side.
-  box(0,2.90,6.72,6.75,.16,4.47,'#c9cfba');box(0,3.025,6.72,6.78,.099,4.5,'#63847f');
-  for(let x=-3.09;x<3.36;x+=.458){box(x,3.093,6.72,.032,.046,4.50,'#93a99c');box(x,2.812,6.72,.039,.029,4.36,'#b0ac93');}
-  for(const z of [5.26,8.53])box(0,2.775,z,6.61,.17,.12,'#79938a');
-  box(0,2.918,8.995,6.81,.228,.12,pine);box(0,2.846,9.064,6.82,.035,.037,bronze);
-  for(const x of [-1.69,1.69]){box(x,2.805,6.31,.087,.023,1.35,'#f8edca');box(x,2.788,7.84,.104,.036,.60,chalk);}
-  for(const x of [-.83,.83])box(x,2.70,8.51,.024,.37,.028,bronze);
-  sign(0,2.42,8.53,1.76,.69,0,0,2);
-  // The interior plate greets the returning patient on the garden side. A
-  // flush safety stripe on both parked glass leaves leaves the opening clear.
-  sign(2.95,1.63,fz-.169,.83,.39,Math.PI,2);
-  const gr=-.96;box(GUIDE.x,.088,GUIDE.z,.44,.176,.44,stone);box(GUIDE.x,.714,GUIDE.z,.096,1.12,.096,pine,gr);
-  sign(GUIDE.x,1.51,GUIDE.z,1.08,.49,gr+Math.PI,1,2);
+  box(10.22,2.95,fz,3.78,.20,4.93,'#b9c7b9');box(10.22,3.065,fz,3.84,.045,4.99,pine);
+  for(let j=0;j<17;j++)box(10.22,2.829,.52+j*.285,3.7,.052,.095,'#bca583');
+  for(const z of [1.54,4.16])box(10.23,2.792,z,2.48,.024,.078,'#fff0c3');
+  box(12.10,2.923,fz,.068,.19,4.97,bronze);
+  sign(fx+.155,1.57,.30,1.29,.59,Math.PI/2,0);sign(fx-.16,1.62,4.54,.45,.30,-Math.PI/2,2);
+  box(GUIDE.x,.53,GUIDE.z,.17,1.06,.16,pine);sign(GUIDE.x,1.22,GUIDE.z,.79,.39,2.13,1,2);
   // Stone paving modules use individual UV islands, not a stretched ribbon.
   for(let j=0;j<4;j++)for(let i=0;i<4;i++){
-    const x=-APRON.w/2+i*APRON.w/4,z=APRON.z-APRON.d/2+j*APRON.d/4,w=APRON.w/4,d=APRON.d/4,y=.012;
+    const x=APRON.x-APRON.w/2+i*APRON.w/4,z=APRON.z-APRON.d/2+j*APRON.d/4,w=APRON.w/4,d=APRON.d/4,y=.012;
     paving.quad([x,y,z+d],[x+w,y,z+d],[x+w,y,z],[x,y,z],4);
   }
-  box(0,-.059,APRON.z,APRON.w+.13,.122,APRON.d+.13,'#b4ac98');
+  box(APRON.x,-.059,APRON.z,APRON.w+.13,.122,APRON.d+.13,'#b4ac98');
   const edges=WALK_POINTS.map(([x,z],i)=>{
     const prev=WALK_POINTS[Math.max(0,i-1)],next=WALK_POINTS[Math.min(i+1,WALK_POINTS.length-1)],
       dx=next[0]-prev[0],dz=next[1]-prev[1],s=(WALK_WIDTH/2)/Math.hypot(dx,dz);
@@ -163,13 +131,15 @@ function entrance(lawn:boolean){
       }
     }
   }
-  // Only borrow the southern lawn landforms for the window view. The inactive
-  // meadow's actors, grove, equipment and GPU scene are never mounted here.
+  // The east-facing return looks across the split rail to the meadow. Borrow
+  // that edge of the garden only, without mounting the meadow scene or actors.
   if(!lawn){
     const rng=seededRandom(419);
-    for(const k of LAWN_KNOLLS.filter(k=>k.z>10))foliage.push({p:[k.x-CLINIC_ORIGIN.x,-.24,k.z-CLINIC_ORIGIN.z],s:[k.w,k.h,k.d],ry:k.yaw,color:'#91a767'});
+    MEADOW_POSTS.forEach((f,i)=>{const x=f.x-CLINIC_ORIGIN.x,z=f.z-CLINIC_ORIGIN.z;box(x,.51,z,.14,1.02,.14,'#aa976f');
+      if(i){const last=MEADOW_POSTS[i-1];for(const h of [.38,.76])blocks.push(span([last.x-CLINIC_ORIGIN.x,h,last.z-CLINIC_ORIGIN.z],[x,h,z],.073,'#c4ae85'));}});
+    for(const k of LAWN_KNOLLS.filter(k=>k.x>-12&&k.z>0))foliage.push({p:[k.x-CLINIC_ORIGIN.x,-.24,k.z-CLINIC_ORIGIN.z],s:[k.w,k.h,k.d],ry:k.yaw,color:'#91a767'});
     for(let i=0;i<30;i++){const a=i*2*Math.PI/30,z=Math.cos(a)*39,s:V=[17+rng()*6,6+rng()*8,15+rng()*7];
-      if(z>8)foliage.push({p:[Math.sin(a)*39-CLINIC_ORIGIN.x,-1.5,z-CLINIC_ORIGIN.z],s,ry:a,color:i%3?'#819a83':'#91a591'});}
+      if(Math.sin(a)>0)foliage.push({p:[Math.sin(a)*39-CLINIC_ORIGIN.x,-1.5,z-CLINIC_ORIGIN.z],s,ry:a,color:i%3?'#819a83':'#91a591'});}
   }
   const herbs=new BufferGeometry();herbs.setAttribute('position',new Float32BufferAttribute(points,3));herbs.setAttribute('color',new Float32BufferAttribute(colors,3));herbs.computeVertexNormals();
   return {blocks,limbs,foliage,herbs,signs:prints.geometry(),pavers:paving.geometry()};
@@ -177,17 +147,17 @@ function entrance(lawn:boolean){
 
 function BorrowedLawn(){const turf=useBakedSurface(turfUrl);return <mesh name="clinic:exterior-turf" position={[-CLINIC_ORIGIN.x,-.025,-CLINIC_ORIGIN.z]} rotation-x={-Math.PI/2} raycast={noPick}><planeGeometry args={[LAWN_SIZE,LAWN_SIZE]}/><meshStandardMaterial key={turf?'lawn':'plain'} map={turf} color={turf?'white':'#97ab75'} roughness={1}/></mesh>;}
 
-export function SouthEntrance({lawn=false,shadows}:{lawn?:boolean;shadows:boolean}){
+export function GardenEntrance({lawn=false,shadows}:{lawn?:boolean;shadows:boolean}){
   const p=useMemo(()=>entrance(lawn),[lawn]),atlas=useBakedSurface(atlasUrl);
   useEffect(()=>()=>{p.herbs.dispose();p.signs.dispose();p.pavers.dispose();},[p]);
-  return <group name="clinic:south-entrance" position={lawn?[CLINIC_ORIGIN.x,0,CLINIC_ORIGIN.z]:[0,0,0]}>
+  return <group name="clinic:east-garden-entrance" position={lawn?[CLINIC_ORIGIN.x,0,CLINIC_ORIGIN.z]:[0,0,0]}>
     <Batch name="clinic:shared-canopy-and-garden-stone" parts={p.blocks} shade={skyBounce} casts={shadows}/>
     <Batch name="clinic:serviceberry-branches" parts={p.limbs} shade={skyBounce} round/>
     {!lawn&&<Batch name="clinic:borrowed-lawn-hills" parts={p.foliage} foliage/>}
     <mesh name="clinic:raised-planting" geometry={p.herbs} raycast={noPick}><meshStandardMaterial vertexColors side={DoubleSide} roughness={1} onBeforeCompile={skyBounce}/></mesh>
     <mesh name="clinic:rain-marked-paving" geometry={p.pavers} raycast={noPick} receiveShadow={shadows}><meshStandardMaterial map={atlas} key={atlas?'stone':'loading'} color={atlas?'white':stone} roughness={.91} side={DoubleSide} onBeforeCompile={skyBounce}/></mesh>
     <mesh name="clinic:wayfinding-enamel" geometry={p.signs} raycast={noPick}><meshBasicMaterial map={atlas} key={atlas?'enamel':'loading'} color={atlas?'white':pine}/></mesh>
-    {GLAZING.map(r=><mesh key={r.x} name="clinic:parked-glass" position={[r.x,1.20,r.z]} raycast={noPick}><boxGeometry args={[r.w,2.30,.036]}/><meshStandardMaterial color="#80b6ac" transparent opacity={.22} depthWrite={false} roughness={.29}/></mesh>)}
+    {GLAZING.map(r=><mesh key={r.z} name="clinic:parked-glass" position={[r.x,1.20,r.z]} raycast={noPick}><boxGeometry args={[.036,2.30,r.d]}/><meshStandardMaterial color="#80b6ac" transparent opacity={.22} depthWrite={false} roughness={.29}/></mesh>)}
     {!lawn&&<BorrowedLawn/>}
   </group>;
 }

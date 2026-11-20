@@ -11,7 +11,7 @@ export type BackpackLive = { runtimeId: string; position: [number, number, numbe
   wrists?: { left: boolean; right: boolean };
   bounds?: { center: [number,number,number]; size: [number,number,number] } };
 export type BackpackCommand =
-  | { token: number; type: "place"; id: string; x: number; z: number; yaw: number }
+  | { token: number; type: "place"; id: string; moveRuntimeId?: string; x: number; z: number; yaw: number }
   | { token: number; type: "remove"; id: string }
   | { token: number; type: "motion"; id: string; file: File; kind: "body" | "face" };
 export type BackpackPlacementTiming = { token: number; kind: "model" | "object"; confirmedAt: number; wasMove: boolean; previewDelayMs: number | null; work?: import('./placementWork').PlacementWork };
@@ -59,9 +59,10 @@ export const useBackpack = create<State>((set, get) => ({
     if (s.busy || s.draft !== id || !entry || entry.kind === "motion" || ![x,z,yaw].every(Number.isFinite)) return;
     const error = capacityError(s, entry);
     if (error) { set({ error, draft: null }); return; }
-    const command = { type: "place", token: ++token, id, x, z, yaw } as const;
+    const moveRuntimeId = s.live[id]?.runtimeId;
+    const command = { type: "place", token: ++token, id, moveRuntimeId, x, z, yaw } as const;
     set({ busy: true, command, draft: null, error: null,
-      placement: { token, kind: entry.kind, confirmedAt: performance.now(), wasMove: Boolean(s.live[id]), previewDelayMs: s.previewDelayMs } });
+      placement: { token, kind: entry.kind, confirmedAt: performance.now(), wasMove: moveRuntimeId !== undefined, previewDelayMs: s.previewDelayMs } });
   },
   putAway: id => {
     if (get().busy || !get().live[id]) return;

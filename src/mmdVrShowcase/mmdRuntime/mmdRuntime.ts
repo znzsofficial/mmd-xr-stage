@@ -162,6 +162,14 @@ function restoreBindPose(entry: RuntimeEntryWithPhysics) {
   root.updateMatrixWorld(true);
 }
 
+// Rebinding or reseeding discards display history; ordinary frames keep it.
+function clearPoseForRebind(entry: RuntimeEntryWithPhysics) {
+  entry.chest?.restore();
+  entry.chest?.reset();
+  entry.fingertip?.reset();
+  entry.physicsDisplay?.restore(true);
+}
+
 function releaseEvaluator(evaluator: ThreeMmdModel['runtime']) {
   // The bundled WASM animation adapter owns native handles; the JS one does not.
   (evaluator as typeof evaluator & {dispose?:()=>void}).dispose?.();
@@ -647,8 +655,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
           try {
             for (const item of batch) {
               const {entry, runtime, backend, display} = item;
-              entry.chest?.restore();entry.chest?.reset();entry.fingertip?.reset();
-              entry.physicsDisplay?.restore(true);
+              clearPoseForRebind(entry);
               restoreBindPose(entry);
               configureActorPalms(entry.model.mesh,palmsRequested());
               const animation = entry.appliedAnimation?.animation ?? (backend ? STATIC_PHYSICS_BINDING_ANIMATION : null);
@@ -834,8 +841,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       candidate[`${slot}Animation`] = animation;
       candidate[`${slot}MotionName`] = file.name;
       candidate[`${slot}MotionFile`] = file;
-      entry.chest?.restore();entry.chest?.reset();entry.fingertip?.reset();
-      entry.physicsDisplay?.restore(true);
+      clearPoseForRebind(entry);
       try {
         recomputeEntryAnimation(candidate, work);
       } catch (error) {
@@ -911,8 +917,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
         if (modelId && entry.id !== modelId) continue;
         if (!entry.visible || !entry.physicsBackend || entry.physicsBackend.disposed) continue;
         try {
-          entry.chest?.restore();entry.chest?.reset();entry.fingertip?.reset();
-          entry.physicsDisplay?.restore(true);
+          clearPoseForRebind(entry);
           syncEntryWorldMatrix(entry, true);
           entry.physicsBackend.reset?.();
           entry.model.runtime.seek(t);
