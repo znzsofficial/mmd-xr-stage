@@ -4,6 +4,7 @@
 
 | 功能提交 | 已发布内容与验证范围 |
 |---|---|
+| `7acb202` | 喜房与团扇、月蘅馆二楼、黑绒私摄棚、石堡刑讯片场；球面输入和物理加载分开、普通模式眼高校准、有界大动作复用与放置后模块预热。395 项测试通过；主域名入口及 85 份文件哈希一致，主域名屏幕实放 PMX、团扇换腕、四处机位与角色回场、模拟双眼 XR 扳机选景/持扇/收回通过。Quest 真机待复测。[固定版](https://bfa9499d.mmd-xr-stage.pages.dev) |
 | `37a0ef3` | [琉璃小行星](./scenery/opal-planet.md)的球面低重力玩家、[角色亮部与饱和度修正](./scenery/model-highlight-color.md)，保留旧颜色。374 项通过，主域名入口及 72 份文件核对；线上模拟 Quest 验证球背跳跃、面板、转回水平布景。[固定版](https://561c3380.mmd-xr-stage.pages.dev) |
 | `b7273ba` | [三条校园门线重选](./scenery/campus-garden-routes.md)、[情侣套房与双人私汤](./scenery/private-retreats.md)、两件手持新品、[五项审查修复](./structure-review-2026-11-20.md)。[普通行走查询](./performance/player-collision-work.md)及接地阴影合批有配对验证。372 项通过，主域名入口和 70 份文件核对，线上模拟 XR 与屏幕输入通过。[固定版](https://b9e62e8a.mmd-xr-stage.pages.dev) |
 | `34beed9` | [屏幕键盘机位](./gameplay/screen-viewing.md)：WASD 平移，Q/E 原地转头，F/C 升降，R 重置。350 项测试通过；线上浏览器验证键盘操作后仍可滚轮拉近、拉远和鼠标拖动环绕。[固定版](https://fcf6a56a.mmd-xr-stage.pages.dev) |
