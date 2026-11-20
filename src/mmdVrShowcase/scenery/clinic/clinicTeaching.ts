@@ -59,9 +59,8 @@ function disposalBin(p:ClinicParts,f:ClinicRect,small=false){
 
 export function hygieneStation(p:ClinicParts){
   const {x,z,w,d}=F.supplyShelf,front=z-d/2,yaw=Math.PI;
-  p.pad(x,.099,z,w-.073,.153,d-.06,C.iron);p.box(x,.79,z+.192,w,1.36,.054,'#b9c9bd');
-  for(const k of [-1,1])p.box(x+k*(w/2-.020),.79,z,.04,1.36,d,C.milk);
-  for(const y of [.21,.63,1.02,1.46])p.pad(x,y,z,w,.040,d,C.oak);
+  // The cheeks, back and shelves are joined and surfaced in SupplyCasework.
+  p.pad(x,.099,z,w-.073,.153,d-.06,C.iron);
   for(const k of [-1,1])p.box(x+k*.223,1.235,z,.018,.41,d-.055,C.milk);
   p.box(x,1.548,z+.143,w-.03,.185,.046,C.pine);p.label(x,1.548,z+.118,w-.044,.17,yaw,'supplyHeader');
   const packs=[['testPack','#adced2',.315,.169],['padPack','#deb4bd',.245,.22],['briefPack','#bdc8d9',.256,.217]] as const;

@@ -3,7 +3,7 @@ import { NoColorSpace, RepeatWrapping, SRGBColorSpace, TextureLoader, type Textu
 
 /** Only the mounted room requests its print. A late decoder must not attach
  * a texture to the next room, including on StrictMode's second mount. */
-export function useBakedSurface(url:string,kind:'print'|'mask'='print') {
+export function useBakedSurface(url:string,kind:'print'|'mask'|'data'='print') {
   const [map,setMap]=useState<Texture|null>(null);
   useEffect(()=>{
     let live=true;
