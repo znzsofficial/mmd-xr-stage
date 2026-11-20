@@ -1,6 +1,6 @@
 # 下次 Quest 导出：一名角色、一次往返、一份 JSON
 
-[线上舞台](https://mmd-xr-stage.pages.dev) · [固定版 `0e6e123`](https://272a5104.mmd-xr-stage.pages.dev)。上次[14:36Z 基线](./viewing-and-diagnostics.md#已有测量)已收到。有机会在同 PMX、同贴图和同条件下复测时，单独看成功回教室的 `modelWork.loaderStagesMs['load-textures']` 及整次回场时间。原始 JSON 保存在本机即可。
+[线上舞台](https://mmd-xr-stage.pages.dev) · [固定版 `1abb982`](https://e30a429d.mmd-xr-stage.pages.dev)。上次[教室和礼拜堂基线](./viewing-and-diagnostics.md#已有测量)已收到。本轮优先首次开物理，观察三分区恢复是另一项对照；原始 JSON 保存在本机即可。
 
 ## 优先：礼拜堂首次开物理
 
