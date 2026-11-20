@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Vector3 } from 'three';
-import { canUseGrip, giveScreenToy, gripLatch, useStagePlay } from './stagePlay';
+import { canUseGrip, giveScreenToy, gripLatch, handleGripStart, useStagePlay } from './stagePlay';
 import { shelfToys, STORIES, TOYS, toyLabel } from './propCatalog';
 import { markAt, POST_MARKS, stamp, useLunarCard } from './lunarCard';
 import { saberLit } from './saberLight';
@@ -25,22 +25,25 @@ describe('shared prop catalog and ownership',()=>{
   });
   it('uses the actual controller, room and current owner; a wrist transfer cannot fire an old grip',()=>{
     get().equip('saber','right');expect(canUseGrip(get(),'saber','left','astralCourt')).toBe(false);
-    expect(canUseGrip(get(),'saber','right','chapel')).toBe(false);
+    expect(canUseGrip(get(),'saber','right','chapel')).toBe(true);
     expect(canUseGrip(get(),'saber','right','astralCourt')).toBe(true);
     TOYS.saber.onGrip!(new Vector3(),forward);get().give('actor','left');get().give('actor','right');
     expect(canUseGrip(get(),'saber','right','astralCourt')).toBe(false);expect(saberLit()).toBe(true);
     get().equip('saber','right');expect(saberLit()).toBe(false);
     TOYS.saber.onGrip!(new Vector3(),forward);get().equip('post','right');expect(saberLit()).toBe(false);
   });
-  it('lights only a freshly equipped screen saber at home; switching wrists preserves the blade',()=>{
-    giveScreenToy('actor','saber','left','chapel');expect(saberLit()).toBe(false);
+  it('lights a freshly equipped screen saber in any set; switching wrists preserves the blade',()=>{
+    giveScreenToy('actor','saber','left','chapel');expect(saberLit()).toBe(true);
     get().reset();giveScreenToy('actor','saber','left','astralCourt');expect(saberLit()).toBe(true);
     giveScreenToy('actor','saber','right','astralCourt');expect(saberLit()).toBe(true);
     get().stow();expect(saberLit()).toBe(false);
   });
   it('keeps the in-flight ferry on handoff, ends it on replacement, and leaves no kite after a zone switch',()=>{
-    get().equip('bubbles','left');TOYS.bubbles.onGrip!(new Vector3(0,1,2),forward);expect(advanceFerry(0)).toBeNull();
-    TOYS.bubbles.onGrip!(new Vector3(-GATE_X,GATE_Y,2),forward);expect(advanceFerry(.5)?.side).toBe('left');
+    get().equip('bubbles','left');expect(canUseGrip(get(),'bubbles','left','clinic')).toBe(true);
+    const aimed=new Vector3(-GATE_X,GATE_Y,2);
+    handleGripStart('bubbles','clinic',aimed,forward);expect(advanceFerry(0)).toBeNull();
+    handleGripStart('bubbles','pool',new Vector3(0,1,2),forward);expect(advanceFerry(0)).toBeNull();
+    handleGripStart('bubbles','pool',aimed,forward);expect(advanceFerry(.5)?.side).toBe('left');
     get().give('actor','right');expect(advanceFerry(0)?.elapsed).toBe(.5);
     get().equip('kite','right');expect(advanceFerry(0)).toBeNull();
     STORIES.lawn.cue('right');TOYS.kite.onGrip!(new Vector3(),forward);get().give('actor','left');

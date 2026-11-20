@@ -1,10 +1,11 @@
 import { useEffect, useMemo } from 'react';
 import { useMmdVrStore } from '../mmdVrStore';
 import { makeBlower, makePunch, makeSilicone } from './workshopModels';
+import {siliconeMount,siliconeTilt} from './siliconeProfile';
 
 export function SiliconePiece(){
   const geometry=useMemo(makeSilicone,[]);useEffect(()=>()=>geometry.dispose(),[geometry]);
-  return <mesh name="play:piece:dildo" geometry={geometry} rotation-x={-.38} position={[0,.01,-.035]}><meshStandardMaterial vertexColors roughness={.52}/></mesh>;
+  return <mesh name="play:piece:dildo" geometry={geometry} rotation-x={siliconeTilt} position={siliconeMount}><meshStandardMaterial vertexColors roughness={.42}/></mesh>;
 }
 export function StampPiece(){
   const geometry=useMemo(makePunch,[]);useEffect(()=>()=>geometry.dispose(),[geometry]);

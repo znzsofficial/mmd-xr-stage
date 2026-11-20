@@ -1,4 +1,5 @@
-import { CatmullRomCurve3, ExtrudeGeometry, Shape, Vector3 } from 'three';
+import { CatmullRomCurve3, Color, ExtrudeGeometry, Float32BufferAttribute, Shape, Vector3 } from 'three';
+import {centerZ} from './siliconeProfile';
 import { ball, box, coil, PaintedParts, ring, rod, turn } from './modelParts';
 
 export function makeBlower(pool:boolean) {
@@ -52,12 +53,26 @@ export function makePunch() {
 
 export function makeSilicone() {
   // Millimetre profile including a recessed underside and a broad rolled lip.
-  const sections=[[0,-40],[10,-40],[20,-42],[25,-44],[29,-45.6],[32,-45],[34,-42.8],[33.8,-40],[31,-37.8],[25,-36.8],[20,-32],[17.8,-23],[17,-9],[17.2,12],[18.3,38],[19,56],[18.6,73],[17.6,87],[17.9,93],[19.1,97],[19.3,101],[17.6,106.5],[13.7,112.2],[8.7,116.5],[4,118.6],[0,119]];
+  const sections=[[0,-40],[10,-40],[20,-42],[25,-44],[29,-45.6],[32,-45],[34,-42.8],[33.8,-40],[31,-37.8],[25,-36.8],[20,-32],[17.8,-23],[17,-9],[17.2,12],[18.3,38],[19,56],[18.6,73],[17.1,85],[16.8,89],[17.5,91],[19.7,93],[20.2,96],[19.4,102],[17.6,107],[13.7,112.2],[8.7,116.5],[4,118.6],[2.2,119],[1.35,118.4],[1.25,114],[0,113.8]];
   const spline=new CatmullRomCurve3(sections.map(([r,y])=>new Vector3(r/1000,y/1000,0)));
-  const p=new PaintedParts();p.add(turn(spline.getPoints(56).map(v=>[Math.max(0,v.x),v.y]),32),'#aa87b5');
+  const p=new PaintedParts(),g=turn(spline.getPoints(84).map(v=>[Math.max(0,v.x),v.y]),40);
+  const pos=g.getAttribute('position'),colors=new Float32Array(pos.count*3),tint=new Color(),body=new Color('#c596a3'),tip=new Color('#b87e90'),bore=new Color('#734853');
+  for(let i=0;i<pos.count;i++){
+    const x=pos.getX(i),y=pos.getY(i),z=pos.getZ(i),angle=Math.atan2(x,z),a=Math.min(1,Math.max(0,(y-.072)/.027));
+    // Oval section and a sloping moulded collar; gentle surface relief stays
+    // under a millimetre and converges before the rounded outlet lip.
+    const ridge=Math.max(0,1-Math.abs(y-.092)/.012),relief=.00065*Math.sin(3*angle+32*y)*Math.max(0,1-Math.abs(y-.042)/.054);
+    pos.setXYZ(i,x*.94+relief*Math.sin(angle),y+.0035*ridge*Math.cos(angle),z+centerZ(y)+relief*Math.cos(angle));
+    tint.copy(body).lerp(tip,a);if(y>.112&&Math.hypot(x,z)<.0017)tint.lerp(bore,.8);
+    tint.toArray(colors,3*i);
+  }
+  g.computeVertexNormals(); // Smooth the duplicate seam vertices of the lathe.
+  const normals=g.getAttribute('normal'),v=new Vector3(),w=new Vector3(),rows=85;
+  for(let i=0;i<rows;i++){const j=40*rows+i;v.fromBufferAttribute(normals,i).add(w.fromBufferAttribute(normals,j)).normalize();normals.setXYZ(i,v.x,v.y,v.z);normals.setXYZ(j,v.x,v.y,v.z);}
+  g.setAttribute('color',new Float32BufferAttribute(colors,3));p.add(g);
   // Two underside tread rings and a raised circumferential thumb grip; same
   // elastomer, a slightly darker moulding rather than hard metallic trim.
-  for(const [r,y,w] of [[.03,-.0453,.0011],[.025,-.044,.0011],[.0328,-.0395,.0013]])p.add(ring(r,w,40).rotateX(Math.PI/2).translate(0,y,0),'#926f9e');
+  for(const [r,y,w] of [[.03,-.0453,.0011],[.025,-.044,.0011],[.0328,-.0395,.0013]])p.add(ring(r,w,40).rotateX(Math.PI/2).translate(0,y,0),'#ae818e');
   return p.finish();
 }
 

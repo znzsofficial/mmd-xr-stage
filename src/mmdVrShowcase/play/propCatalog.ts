@@ -11,11 +11,13 @@ export type Hand = 'left' | 'right';
 type Story = { name:Key; help:Key; left:Key; right:Key; cue:(side:Hand)=>void };
 type Definition = {
   label:Key; homeLabel:Key; homeName?:Key;
+  /** The handheld effect can travel even when a station stays in its own set. */
+  portable?:boolean;
   guide:{vr:Key; screen:Key; end:Key};
   // Type-only link. Import the actual components only on the rendering side.
   view:keyof typeof import('./propViews');
   onGrip?:(at:Vector3, dir:Vector3)=>void;
-  onEquip?:()=>void; onScreenEquipAtHome?:()=>void; onStow?:()=>void; onLeave?:()=>void;
+  onEquip?:()=>void; onScreenEquip?:()=>void; onStow?:()=>void; onLeave?:()=>void;
   story?:Story;
 } & ({home:SceneryId; visit:Key} | {home:null; visit:null});
 
@@ -33,7 +35,7 @@ const catalog = {
     onGrip:(at,dir)=>{const side=aimEncore(at,dir); if(side)dyeEncore(side);}, onLeave:resetEncore,
   },
   bubbles: {
-    label:'toyBubbles', home:'pool', homeLabel:'hudPool', homeName:'toyShell', visit:'visitFerry', view:'shellBlower',
+    label:'toyBubbles', portable:true, home:'pool', homeLabel:'allSets', homeName:'toyShell', visit:'visitFerry', view:'shellBlower',
     guide:{vr:'guideBubblesVr', screen:'guideBubblesScreen', end:'guideBubblesEnd'},
     story:{name:'storyFerry', help:'storyFerryHelp', left:'storyFerryLeft', right:'storyFerryRight', cue:launchFerry},
     onGrip:(at,dir)=>{const side=aimFerry(at,dir); if(side)launchFerry(side,at);}, onStow:resetFerry,
@@ -43,12 +45,12 @@ const catalog = {
     guide:{vr:'guidePostVr', screen:'guidePostScreen', end:'guidePostEnd'}, onLeave:clearCard,
   },
   saber: {
-    label:'toySaber', home:'astralCourt', homeLabel:'hudAstralCourt', visit:'visitSaber', view:'astralHilt',
+    label:'toySaber', portable:true, home:null, homeLabel:'allSets', visit:null, view:'astralHilt',
     guide:{vr:'guideSaberVr', screen:'guideSaberScreen', end:'guideSaberEnd'},
-    onGrip:toggleBlade, onEquip:retractBlade, onScreenEquipAtHome:toggleBlade, onStow:retractBlade,
+    onGrip:toggleBlade, onEquip:retractBlade, onScreenEquip:toggleBlade, onStow:retractBlade,
   },
   dildo: {
-    label:'toyDildo', home:null, homeLabel:'allSets', visit:null, view:'silicone',
+    label:'toyDildo', portable:true, home:null, homeLabel:'allSets', visit:null, view:'silicone',
     guide:{vr:'guideDildoVr', screen:'guideDildoScreen', end:'guideDildoEnd'},
   },
 } as const satisfies Record<string,Definition>;

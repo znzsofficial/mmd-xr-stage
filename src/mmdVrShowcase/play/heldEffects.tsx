@@ -1,5 +1,5 @@
 import { useImperativeHandle, useMemo, useRef } from 'react';
-import { DynamicDrawUsage, InstancedMesh, Mesh, Object3D } from 'three';
+import { DynamicDrawUsage, InstancedMesh, Mesh, Object3D, Vector3 } from 'three';
 import { markAt, POST_MARKS, POST_Z, stamp, useLunarCard } from './lunarCard';
 import type { FrameEffectProps, GripFrame } from './propView';
 
@@ -20,6 +20,34 @@ export function StampAim({ref}:FrameEffectProps) {
 }
 
 const CAP=24;
+/** A metered pump: one short pulse per squeeze, in world space. Positions,
+ * velocity and scratch are reused. Drops in flight never follow the hand. */
+export function LiquidSpray({ref}:FrameEffectProps){
+  const mesh=useRef<InstancedMesh>(null);
+  const s=useMemo(()=>({age:new Float32Array(CAP).fill(-1),path:new Float32Array(CAP*6),next:0,left:0,until:0,
+    dot:new Object3D(),v:new Vector3(),up:new Vector3(0,1,0)}),[]);
+  useImperativeHandle(ref,()=>({at,dir,usable,action,dt}:GripFrame)=>{
+    const batch=mesh.current!;if(action==='start'){s.left=10;s.until=0;}if(!usable)s.left=0;
+    s.until-=dt;
+    while(s.left>0&&s.until<=0){
+      const i=s.next++%CAP,k=i*6,phase=10-s.left;const speed=1.5+.65*Math.sin(Math.PI*(phase+.5)/10);
+      s.age[i]=0;s.path[k]=at.x;s.path[k+1]=at.y;s.path[k+2]=at.z;
+      s.path[k+3]=dir.x*speed+.024*Math.sin(i*4);s.path[k+4]=dir.y*speed;s.path[k+5]=dir.z*speed+.019*Math.cos(i*3);
+      s.left--;s.until+=.024;
+    }
+    let count=0;for(let i=0;i<CAP;i++){if(s.age[i]<0)continue;
+      const k=6*i,t=s.age[i],vy=s.path[k+4],y=s.path[k+1]+vy*t-3.5*t*t;
+      if(t>.76||y<.01){s.age[i]=-1;continue;}
+      s.dot.position.set(s.path[k]+s.path[k+3]*t,y,s.path[k+2]+s.path[k+5]*t);
+      s.dot.quaternion.setFromUnitVectors(s.up,s.v.set(s.path[k+3],vy-7*t,s.path[k+5]).normalize());
+      const radius=.0031*(1-.35*t);s.dot.scale.set(radius,.017*(1-.85*t),radius);s.dot.updateMatrix();batch.setMatrixAt(count++,s.dot.matrix);s.age[i]+=dt;
+    }
+    if(count||batch.count){batch.count=count;batch.instanceMatrix.needsUpdate=true;}
+  },[s]);
+  return <instancedMesh name="play:liquid-spray" ref={mesh} args={[undefined,undefined,CAP]} count={0} frustumCulled={false} onUpdate={m=>m.instanceMatrix.setUsage(DynamicDrawUsage)}>
+    <sphereGeometry args={[1,8,6]}/><meshStandardMaterial color="#e3f3fa" roughness={.21} transparent opacity={.83} depthWrite={false}/>
+  </instancedMesh>;
+}
 export function BubbleStream({ref}:FrameEffectProps) {
   const mesh=useRef<InstancedMesh>(null);
   const s=useMemo(()=>({dot:new Object3D(), age:new Float32Array(CAP).fill(-1),paths:new Float32Array(CAP*6),next:0,cooldown:0}),[]);

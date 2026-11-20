@@ -5,7 +5,7 @@ import { useBackpack } from '../backpack';
 import { useHudWorldInput } from '../components/hudWorldInput';
 import { useMmdVrStore } from '../mmdVrStore';
 import { TOYS, type Toy, type Hand } from './propCatalog';
-import { canUseGrip, gripLatch, useStagePlay } from './stagePlay';
+import { canUseGrip, gripLatch, handleGripStart, useStagePlay } from './stagePlay';
 import type { GripFrame } from './propView';
 import * as views from './propViews';
 import { StoryStations } from './StoryStations';
@@ -16,7 +16,7 @@ export function PlayPiece({toy}:{toy:Toy}) {
 }
 
 function InHand({toy,hand}:{toy:Toy;hand:Hand}) {
-  const item=TOYS[toy], {HeldEffect}=views[item.view];
+  const item=TOYS[toy], {HeldEffect,outlet}=views[item.view];
   const body=useRef<Group>(null), effect=useRef<((frame:GripFrame)=>void)|null>(null);
   const scratch=useMemo(()=>({latch:gripLatch(),pose:new Matrix4(),ray:new Matrix4(),source:null as XRInputSource|null,
     frame:{at:new Vector3(),dir:new Vector3(),action:'off',dt:0,usable:false} as GripFrame}),[]);
@@ -41,8 +41,9 @@ function InHand({toy,hand}:{toy:Toy;hand:Hand}) {
       s.pose.fromArray(grip.transform.matrix);s.ray.fromArray(ray.transform.matrix);
       const origin=gl.xr.getCamera().parent;if(origin){origin.updateWorldMatrix(true,false);s.pose.premultiply(origin.matrixWorld);s.ray.premultiply(origin.matrixWorld);}
       prop.position.setFromMatrixPosition(s.pose);prop.quaternion.setFromRotationMatrix(s.ray);
-      f.dir.set(0,0,-1).applyQuaternion(prop.quaternion);f.at.set(0,.025,-.177).applyQuaternion(prop.quaternion).add(prop.position);
-      if(f.action==='start')item.onGrip?.(f.at,f.dir);
+      if(outlet){f.dir.fromArray(outlet.direction);f.at.fromArray(outlet.position);}else{f.dir.set(0,0,-1);f.at.set(0,.025,-.177);}
+      f.dir.applyQuaternion(prop.quaternion);f.at.applyQuaternion(prop.quaternion).add(prop.position);
+      if(f.action==='start')handleGripStart(toy,stage.prefs.scenery,f.at,f.dir);
     }
     effect.current?.(f);
   });

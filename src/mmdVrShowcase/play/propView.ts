@@ -6,6 +6,7 @@ export type GripFrame = { at:Vector3; dir:Vector3; usable:boolean; action:'off'|
 export type FrameEffectProps = { ref:Ref<(frame:GripFrame)=>void> };
 export type PropView = {
   Piece:ComponentType;
+  outlet?:{position:readonly [number,number,number]; direction:readonly [number,number,number]};
   HeldEffect?:ComponentType<FrameEffectProps>;
   Station?:ComponentType;
 };
