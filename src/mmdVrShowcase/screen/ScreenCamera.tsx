@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, type RefObject } from 'react';
-import { useThree } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { PerspectiveCamera, Vector3 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { useBackpack } from '../backpack';
@@ -8,6 +8,7 @@ import type { SceneryId } from '../scenery/catalog';
 import { isStoryRoom, type StoryRoom } from '../play/stagePlay';
 import {roomViews,tourShots} from '../scenery/roomViews';
 import {walkBetweenZones,hintLawnPrints} from '../scenery/campusTransit';
+import { bindScreenCameraKeyboard } from './screenCameraKeyboard';
 
 type Point = [number,number,number];
 const storyViews:Record<StoryRoom,[Point,Point]>={
@@ -15,11 +16,13 @@ const storyViews:Record<StoryRoom,[Point,Point]>={
 };
 export type CameraActions = { reset():void; frame():void; center():void; story():void; tour(index:number):void };
 
-export function ScreenCamera({actions,onReady}:{actions:RefObject<CameraActions|null>;onReady:(ready:boolean)=>void}) {
+export function ScreenCamera({actions,onReady,viewport}:{actions:RefObject<CameraActions|null>;onReady:(ready:boolean)=>void;viewport:RefObject<HTMLDivElement|null>}) {
   const {camera,gl}=useThree(); const scenery=useMmdVrStore(s=>s.prefs.scenery);
   const arrival=useRef<{room:SceneryId;eye:readonly number[];aim:readonly number[]}|null>(null);
+  const keyboard=useRef<ReturnType<typeof bindScreenCameraKeyboard>|null>(null);
+  useFrame((_,delta)=>keyboard.current?.step(delta));
   useLayoutEffect(()=>{
-    if(!(camera instanceof PerspectiveCamera))return;
+    if(!(camera instanceof PerspectiveCamera)||!viewport.current)return;
     const orbit=new OrbitControls(camera,gl.domElement);
     orbit.minDistance=.18;orbit.maxDistance=scenery==='astralCourt'?52:22;orbit.maxPolarAngle=Math.PI*(scenery==='qinhuai'?.64:.49);orbit.rotateSpeed=.70;
     const setLens=(fov:number)=>{camera.fov=fov;camera.updateProjectionMatrix();};
@@ -41,8 +44,9 @@ export function ScreenCamera({actions,onReady}:{actions:RefObject<CameraActions|
       b.confirmPlace(b.draft,0,0,transform?.rotationY??Math.atan2(camera.position.x,camera.position.z)*180/Math.PI);
     }};
     reset();const a=arrival.current;arrival.current=null;if(a?.room===scenery){camera.position.fromArray(a.eye);orbit.target.fromArray(a.aim);orbit.update();}orbit.enabled=!useBackpack.getState().draft;
-    onReady(true);const off=useBackpack.subscribe((b,old)=>{if(old.draft!==b.draft)orbit.enabled=!b.draft;});
-    return ()=>{off();releaseHints?.();actions.current=null;onReady(false);orbit.dispose();};
-  },[camera,gl,scenery,actions,onReady]);
+    const keys=bindScreenCameraKeyboard(viewport.current,orbit,reset);keyboard.current=keys;
+    onReady(true);const off=useBackpack.subscribe((b,old)=>{if(old.draft!==b.draft){keys.clear();orbit.enabled=!b.draft;}});
+    return ()=>{keys.dispose();keyboard.current=null;off();releaseHints?.();actions.current=null;onReady(false);orbit.dispose();};
+  },[camera,gl,scenery,actions,onReady,viewport]);
   return null;
 }

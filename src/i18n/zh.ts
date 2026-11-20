@@ -1,5 +1,6 @@
 /** Chinese (zh) UI strings — source of truth for TranslationKey keys. */
 export const zh = {
+  screenCameraKeys:'WASD 移动 · Q 顺时针 / E 逆时针 · F 升 / C 降 · R 重置',
   importBindResource: "为此引用选择资源文件",
   hudBack: "返回观看",
   hudScenery: "场景",

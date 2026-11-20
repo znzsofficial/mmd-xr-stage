@@ -18,6 +18,9 @@
 .screen-workspace{min-height:0;display:flex;position:relative}
 .screen-picture{position:relative;min-width:0;flex:1;background:#1a2331;isolation:isolate}
 .screen-picture canvas{touch-action:none}
+.screen-picture:focus-visible{outline:3px solid #278164;outline-offset:-3px}
+.screen-key-hint{display:block}
+@media (hover:none) and (pointer:coarse){.screen-key-hint{display:none}}
 .screen-picture>div:first-child{position:absolute!important;inset:0}
 .screen-corner{position:absolute;z-index:1;top:.85rem;left:clamp(.7rem,3vw,2.3rem);display:flex;gap:.45rem}
 .screen-corner:has(select){max-width:calc(100% - 1.2rem);flex-wrap:wrap}.screen-corner select{max-width:9rem}

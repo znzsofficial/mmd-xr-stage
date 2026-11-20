@@ -39,8 +39,9 @@ export function ScreenStage(){
   const stage=useMmdVrStore.getState(),load=useMmdVrStore(s=>s.assetLoad),physicsBusy=useMmdVrStore(s=>s.physicsBusy),fatal=useMmdVrStore(s=>s.physicsFatal),physicsError=useMmdVrStore(s=>s.physicsError);
   const busy=useBackpack(s=>s.busy),draft=useBackpack(s=>s.draft),err=useBackpack(s=>s.error),selected=useBackpack(s=>s.selected);
   const [library,setLibrary]=useState(false),dialog=useRef<HTMLDialogElement>(null),actions=useRef<CameraActions|null>(null),life=useRef(0);
+  const viewport=useRef<HTMLDivElement>(null);
   const [cameraReady,setCameraReady]=useState(false),locked=!cameraReady||busy||load.running||physicsBusy||fatal;
-  useLayoutEffect(()=>{const el=dialog.current!;el.showModal();return ()=>el.close();},[]);
+  useLayoutEffect(()=>{const el=dialog.current!;el.showModal();viewport.current?.focus({preventScroll:true});return ()=>el.close();},[]);
   useEffect(()=>{const generation=++life.current,epoch=useMmdVrStore.getState().entryEpoch;
     return ()=>queueMicrotask(()=>{const s=useMmdVrStore.getState();if(generation===life.current&&s.entryEpoch===epoch&&s.overlayOpen)s.closeOverlay();});},[]);
   useEffect(()=>{if(selected)setLibrary(true);},[selected]);
@@ -51,14 +52,15 @@ export function ScreenStage(){
       <select aria-label={t('sceneryPicker')} value={prefs.scenery} disabled={locked} onChange={e=>stage.setPrefs({scenery:resolveScenery(e.target.value)})}>
         {sceneryIds.map(id=><option key={id} value={id}>{t(SCENERY[id].label)}</option>)}
       </select><button className="screen-back" onClick={close}>{t('loadBack')}</button></header>
-    <div className="screen-workspace"><div className="screen-picture">
+    <div className="screen-workspace"><div className="screen-picture" ref={viewport} tabIndex={0} role="region" aria-label={t('screenWatch')} aria-describedby="screen-camera-hint"
+      onPointerDownCapture={e=>{if(e.target instanceof HTMLCanvasElement)e.currentTarget.focus({preventScroll:true});}}>
       <Canvas gl={{antialias:prefs.antialiasPref!=='off',powerPreference:'high-performance'}} shadows={profile.shadows} dpr={prefs.dprPref==='auto'?[1,1.6]:profile.dpr} camera={{position:[0,1.65,4],near:.03,far:prefs.viewDistance,fov:50}} fallback={<p role="alert">{t('screenWebgl')}</p>}>
-        <MmdVrStageContent/><StoryStations/><BackpackPlacement onScreenPick={()=>setLibrary(true)}/><ScreenCamera actions={actions} onReady={setCameraReady}/>
+        <MmdVrStageContent/><StoryStations/><BackpackPlacement onScreenPick={()=>setLibrary(true)}/><ScreenCamera actions={actions} onReady={setCameraReady} viewport={viewport}/>
       </Canvas>
       <div className="screen-corner"><button aria-expanded={library&&!draft} onClick={()=>{if(draft){useBackpack.getState().cancelPlace();setLibrary(true);}else setLibrary(v=>!v);}}><PrepIcon name="bag"/>{t('hudBackpack')}</button><button onClick={()=>actions.current?.reset()}>{t('settingsMmdVrResetView')}</button>
         {tourShots(prefs.scenery).length>0&&<select aria-label={t('courtTour')} value="" onChange={e=>actions.current?.tour(Number(e.target.value))}><option value="" disabled>{t('courtTour')}</option>{tourShots(prefs.scenery).map((s,i)=><option key={s.key} disabled={!!s.link&&(locked||!!draft||load.failures.length>0)} value={i}>{t(s.key)}</option>)}</select>}
       </div>
-      <div className="screen-caption" role="status">{message?<><span>{message}</span>{load.failures.length>0&&<button disabled={locked} onClick={stage.retryFailedAssets}>{t('loadRetry')}</button>}{err&&<button onClick={()=>useBackpack.getState().dismissError()}>{t('hudDone')}</button>}</>:locked?t('hudWorking'):draft?<><span>{t('screenAim')}</span><button onClick={()=>actions.current?.center()}>{t('screenCenter')}</button><button onClick={()=>useBackpack.getState().cancelPlace()}>{t('hudCancelPlace')}</button></>:t('screenOrbit')}</div>
+      <div id="screen-camera-hint" className="screen-caption" role="status">{message?<><span>{message}</span>{load.failures.length>0&&<button disabled={locked} onClick={stage.retryFailedAssets}>{t('loadRetry')}</button>}{err&&<button onClick={()=>useBackpack.getState().dismissError()}>{t('hudDone')}</button>}</>:locked?t('hudWorking'):draft?<><span>{t('screenAim')}</span><button onClick={()=>actions.current?.center()}>{t('screenCenter')}</button><button onClick={()=>useBackpack.getState().cancelPlace()}>{t('hudCancelPlace')}</button></>:<>{t('screenOrbit')}<span className="screen-key-hint">{t('screenCameraKeys')}</span></>}</div>
     </div>{library&&!draft&&<ScreenLibrary locked={locked} frame={()=>actions.current?.frame()} storyView={isStoryRoom(prefs.scenery)?()=>actions.current?.story():undefined} close={()=>setLibrary(false)}/>}</div>
     <div><ScreenMusic/><Transport locked={locked}/></div>
   </dialog>;

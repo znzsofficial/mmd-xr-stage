@@ -2,6 +2,7 @@ import type { ZhMessages } from "./zh";
 
 /** English UI strings — must cover every key in zh. */
 export const en: Record<keyof ZhMessages, string> = {
+  screenCameraKeys:'WASD move · Q clockwise / E counterclockwise · F up / C down · R reset',
   importBindResource: "Choose a file for this reference",
   hudBack: "Back to viewing",
   hudScenery: "Scenery",

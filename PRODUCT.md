@@ -22,7 +22,7 @@ For future character features, the user's reference is Koikatsu's Free H mode: d
 
 MMD XR Stage loads local model, animation and environment assets into an immersive WebXR stage. Success means dependable entry and playback, unobstructed viewing, and settings that are easy to reach and dismiss.
 
-When a headset is not in use, the same stage can be watched with a mouse or touch. Screen viewing and VR share the current tab's local files and set layouts.
+When a headset is not in use, the same stage can be watched with a keyboard, mouse or touch. Screen viewing and VR share the current tab's local files and set layouts.
 
 ## Operating Context
 

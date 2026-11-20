@@ -21,6 +21,7 @@
 - XR startup follows requesting/created/bound/presenting in the session slot; active means the current renderer delivered an XRFrame, not just requestSession success. Scope cleanup to its generation. R3F owns the renderer created by Canvas's gl props; do not add another gl.dispose. See `docs/xr-session-lifecycle.md`.
 - Do not write runtimeRef or publish store state inside useMemo. StrictMode can retain one computed runtime while the ref points at the discarded one, making model loads look stale. Publish the committed handle in a layout effect.
 - `screen/` presents the same stage through a regular WebGL Canvas and DOM controls. It owns no XR session, controller input or XR performance recording. The shared room and page backpack alone own actors and layouts. This viewer is not the separate window-manager/desktop product.
+- Keep mouse-wheel zoom in screen viewing. Keyboard translation moves both eye and orbit target; keyboard yaw turns around the eye. After camera changes, test turning and moving with the keys, then zooming in and out with the actual wheel and dragging to orbit before resetting the current room.
 
 ## Commands
 

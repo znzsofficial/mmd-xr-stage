@@ -15,6 +15,8 @@
 
 [舞台代码架构：文件、观看会话、当前房间分别归谁管理](./architecture.md)。包含一次放置的走读，以及设置、布景、灯光、角色运行时的修改入口。
 
+[维护审查：五处值得优先复核或收束的代码](./structure-review-2026-11-20.md)，首项是物理重建中退出时保存的开关值。
+
 [产品约束](../PRODUCT.md) · [视觉约定](../DESIGN.md) · [代理维护指南](../AGENTS.md) · [XR 会话生命周期](./xr-session-lifecycle.md) · [loader 补丁与升级](./three-mmd-loader-maintenance.md) · [WebGPU XR 调查](./webgpu-xr-status.md) · [部署](./deployment.md) · [第三方声明](./THIRD_PARTY_NOTICES.md)
 
 追溯功能看[发布里程碑](./release-history.md)；[拆分前路线图](./mmd-vr-showcase-roadmap.md)是历史资料。新增资料按主题放入 `gameplay/`、`scenery/` 或 `performance/`；交接页只更新线上基线、下一步和验证入口。
