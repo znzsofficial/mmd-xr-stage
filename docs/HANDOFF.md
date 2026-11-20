@@ -1,8 +1,8 @@
 # 会话交接｜2026-11-20
 
-[线上舞台](https://mmd-xr-stage.pages.dev) · [上一固定版 `1abb982`](https://e30a429d.mmd-xr-stage.pages.dev) · [分类文档索引](./README.md)
+[线上舞台](https://mmd-xr-stage.pages.dev) · [固定版 `1f89678`](https://25624e01.mmd-xr-stage.pages.dev) · [分类文档索引](./README.md)
 
-**本轮功能**：九景六件道具。新增可上二楼的[秦淮歌楼](./scenery/qinhuai.md)、[医院教学与用品](./scenery/clinic-teaching.md)、指腹浅压痕、放置后物理模块预热和回场动作分段。327 项测试、生产构建、双语屏幕导览、模拟 XR 上楼放置和回场、真实 Bullet 暂停拨衣通过；头显舒适度与新版真机性能另验。
+**线上基线**：九景六件道具。新增可上二楼的[秦淮歌楼](./scenery/qinhuai.md)、[医院教学与用品](./scenery/clinic-teaching.md)、指腹浅压痕、物理模块预热和回场动作分段；修复[泳池水面](./screenshots/pool-water-compile-fix.webp)。327 项测试、生产构建、双语导览、模拟 XR 上楼放置和回场、真实 Bullet 暂停拨衣、主域名入口及 51 份资源哈希通过；头显舒适度与新版真机性能另验。
 
 ## 下次从这里开始
 
