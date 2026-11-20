@@ -6,7 +6,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { isStoryRoom, shelfToys, STORIES, TOYS, toyLabel, type Hand, type Toy, type StoryRoom } from '../play/propCatalog';
 import { canGiveTo, giveScreenToy, ownerOf, useStagePlay } from '../play/stagePlay';
 import type { SceneryId } from '../scenery/catalog';
-import {showSceneryGrid} from '../scenery/catalog';
+import {hasSceneryPeople,showSceneryGrid} from '../scenery/catalog';
 import {getMmdVrRenderProfile} from '../mmdVrQuality';
 import { resetEncore } from '../play/encore/encoreRound';
 
@@ -43,6 +43,7 @@ export function ScreenLibrary({locked,close,frame,storyView}:{locked:boolean;clo
       </li>;})}</ul></details>
     {guide&&<ScreenToyGuide toy={guide} room={room} locked={locked} close={()=>setGuide(null)}/>}
     <details className="screen-stage-options"><summary>{t('settingsEnvironment')}</summary>
+      {hasSceneryPeople(room)&&<label><input type="checkbox" checked={prefs.showSceneryPeople} onChange={e=>useMmdVrStore.getState().setPrefs({showSceneryPeople:e.target.checked})}/>{t('sceneryPeople')}</label>}
       <label><input type="checkbox" checked={profile.shadows} onChange={e=>useMmdVrStore.getState().setPrefs({shadowsPref:e.target.checked?'on':'off'})}/>{t('settingsMmdVrShadows')}</label>
       <label><input type="checkbox" checked={grid} onChange={e=>useMmdVrStore.getState().setPrefs({gridPref:e.target.checked?'on':'off'})}/>{t('settingsMmdVrGrid')}</label>
     </details>

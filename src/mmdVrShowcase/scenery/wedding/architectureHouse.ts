@@ -8,6 +8,26 @@ const gate=WEDDING_DOORS.gate,room=WEDDING_FLOORS.dressing,court=WEDDING_FLOORS.
 const north=court.z-court.d/2, south=court.z+court.d/2, hallMid=(north+front)/2;
 type Solid=typeof WEDDING_WALLS[number];
 const clamp=(n:number)=>Math.max(0,Math.min(1,n));
+const smooth=(n:number)=>{const t=clamp(n);return t*t*(3-2*t);};
+// Sky loss is symmetric about a recess: no sun direction or projected shadow.
+const gateTop=WEDDING_HEADERS.find(r=>r.id==='gateHead')!.top;
+function gateReveal([x,y,z]:V,slot:number):[number,number]{
+  const dx=Math.abs(x-gate.x),dz=Math.abs(z-gate.z);
+  const inBay=1-smooth((dx-gate.width/2-.27)/.34);
+  const soffit=(1-smooth((dz-.19)/.68))*inBay;
+  const upper=smooth((y-gate.head+.46)/.71)*(1-smooth((y-gateTop-.16)/.21));
+  const jamb=(1-smooth((Math.abs(dx-gate.width/2)-.10)/.28))*(1-smooth(dz/1.58));
+  const coping=(1-inBay)*(1-smooth(dz/.35))*smooth((y-2.31)/.28)*(1-smooth((y-2.61)/.12));
+  const collar=(1-smooth(Math.abs(y-.619)/.16))*(1-inBay)*(1-smooth(dz/.3));
+  const shade=Math.max(.57*soffit*upper,.39*jamb*(.39+.61*upper),.47*coping,.20*collar);
+  return [1,1-shade*(slot===A.gate?.4:1)];
+}
+function gateFloorReveal([x,,z]:V,_slot:number,k:number):[number,number]{
+  const dx=Math.abs(x-gate.x),dz=Math.abs(z-gate.z);
+  const span=(1-smooth((dx-gate.width/2-.3)/.52))*(1-smooth((dz-.55)/1.05));
+  // Transfer the existing vertex contact OUT of base colour around the jambs.
+  return [k+(1-k)*span,1-span*(1-k+.25*(1-smooth(dz/1.05)))];
+}
 const vanityBack=WEDDING_WALLS.find(r=>r.id==='dressingBack')!;
 const vanityLight={u:-1.05,w:1.00,b:1.25,h:1.08};
 /** Centre of the dressing-room paper, 1.5 mm in front of its +Z surface.
@@ -91,9 +111,20 @@ function openings(gateSkin:Skin,dressingSkin:Skin){
   for(const r of WEDDING_LEAVES){
     const side=r.d>r.w, f=new Frame(side?gateSkin:dressingSkin,r.x,r.z,side),w=Math.max(r.w,r.d),d=Math.min(r.w,r.d),isGate=side;
     const y=r.bottom+.025,h=r.top-y;
-    f.box(0,y+h/2,0,w,h,d,A.wood,isGate?'#976f5b':'#bba285');
+    f.box(0,y+h/2,0,w,h,isGate?d-.017:d,A.wood,isGate?'#976f5b':'#bba285');
     for(const s of [-1,1]){
-      if(isGate){f.panel(0,y,s*(d/2+.0015),w,h,s,A.lacquer);}
+      if(isGate){
+        // Three profiles turn the red film over a real rounded arris. Keep
+        // the fitted front at its witness plane beside the ring and hinges.
+        const ring=(inset:number,depth:number)=>([[0,0],[1,0],[1,1],[0,1]] as const).map(([u,v])=>f.at(s*(2*u-1)*(w/2-inset),y+inset+v*(h-2*inset),s*depth));
+        const profiles=[[0,d/2-.0085],[.0035,d/2-.002],[.009,d/2+.0015]];
+        for(let k=1;k<profiles.length;k++){
+          const a=ring(profiles[k-1][0],profiles[k-1][1]),b=ring(profiles[k][0],profiles[k][1]);
+          const uv=(p:V):[number,number]=>[.5-s*(p[2]-r.z)/w,(p[1]-y)/h];
+          for(let i=0;i<4;i++){const j=(i+1)%4;f.g.face([a[i],a[j],b[j],b[i]],A.lacquer,'#ffffff',[uv(a[i]),uv(a[j]),uv(b[j]),uv(b[i])]);}
+        }
+        f.panel(0,y+.009,s*(d/2+.0015),w-.018,h-.018,s,A.lacquer);
+      }
       else{
         f.panel(0,y+.064,s*(d/2+.002),w-.10,h*.38,s,A.wood,'#c5a382');
         f.panel(0,y+h*.43,s*(d/2+.002),w-.10,h*.53,s,A.paper,'#e2d0ae');
@@ -169,7 +200,13 @@ function gateTower(g:Skin){
   for(const [y,ww,dd,hh] of [[top+.027,w+.98,.51,.074],[top+.086,w+1.14,.62,.065],[top+.15,w+1.27,.73,.082]]){
     f.box(0,y,0,ww,hh,dd,A.granite,'#c2c5b9');
   }
-  tiledRoof(g,{x:cx,z:cz,hw:w/2+.83,hd:.85,eave:top+.25,rise:.68,hip:.62,lift:.23});
+  tiledRoof(g,{x:cx,z:cz,hw:w/2+.83,hd:.85,eave:top+.25,rise:.68,hip:.62,lift:.23,gateEnds:true});
+  // Projecting rafter tails carry the soffit back to the wall plate. Their
+  // cut ends sit behind the drip tiles, with daylight between the timbers.
+  for(const dir of [-1,1])for(let i=-7;i<=7;i++){
+    const u=i*.292,up=.23*(Math.abs(u)/(w/2+.83))**5.5;
+    g.beam(f.at(u,top+.17+up,dir*.814),f.at(u,top+.298+up*.25,dir*.363),.077,.092,A.wood,'#bdab95');
+  }
   // Paired looped silks flank (rather than cover) the inscribed stone tablet.
   for(const k of [-1,1])for(const side of [-1,1]){
     const silk=(t:number,v:number):V=>f.at(side*(.99+t*.94),top+.16-.19*Math.sin(t*Math.PI)+v*.102,k*(.341+.026*Math.cos(t*17+v*3)));
@@ -278,7 +315,7 @@ function pavilions(hall:Skin,galleryWest:Skin,galleryEast:Skin,dressing:Skin){
 }
 
 export function makeWeddingArchitecture(){
-  const groups={ground:new Skin(),hall:new Skin(),gate:new Skin(),west:new Skin(),east:new Skin(),dressing:new Skin(),
+  const groups={ground:new Skin(false,gateFloorReveal),hall:new Skin(),gate:new Skin(false,gateReveal,[.74,2.30,2.46]),west:new Skin(),east:new Skin(),dressing:new Skin(),
     horizon:new Skin(),laneSouth:new Skin(),laneWest:new Skin(),laneEast:new Skin(),laneNorth:new Skin(),leafWest:new Skin(true),leafSouth:new Skin(true)};
   const {ground,hall,gate,west,east,dressing}=groups;
   floors(ground);for(const r of WEDDING_WALLS){

@@ -22,7 +22,6 @@ vi.mock("@react-three/fiber", () => ({
   useThree: () => harness.three,
   useFrame: (callback: typeof harness.frame) => { harness.frame = callback; },
 }));
-vi.mock("../mmdVrTheme", () => ({ useMmdVrTheme: () => ({ accent: {} }) }));
 vi.mock("../mmdVrGltf", () => ({ createMmdVrGltfLoader: vi.fn() }));
 vi.mock("../mmdRuntime/mmdRuntime", () => ({ createMmdRuntimeHandle: vi.fn(), isMmdRuntimeRebuildError: () => false }));
 

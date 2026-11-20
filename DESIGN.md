@@ -119,7 +119,7 @@ The frontmatter preserves the actual Canvas hex values from `HUD_COLORS`, rather
 
 **The HUD Boundary Rule.** HUD tokens never become global preparation-page or stage colors.
 
-The optional FPS badge retains a diagnostic exception: green text (`#9fe870`) over translucent black (`rgba(0,0,0,0.55)`). It is not a general success or selection style. Compatibility fields such as `accent.stageBg` are not HUD palette authority.
+The optional FPS badge retains a diagnostic exception: green text (`#9fe870`) over translucent black (`rgba(0,0,0,0.55)`). It is not a general success or selection style. Prep controls use their studio palette; the neutral stage background, grid and placement aid have their own colours. A legacy OS accent must not tint any of these surfaces.
 
 Hand and controller rays share a `#79baff` beam and a hollow hit marker with a white inner band and ink outer rim. Both bands use the existing cursor quad, independent of scene exposure. The 39 mm cursor quad and 7 mm beam are visuals; neither enlarges the interaction target. Live House scenery colors are intentionally separate from the HUD palette.
 

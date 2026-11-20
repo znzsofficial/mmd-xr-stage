@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HUD_COLORS, useVrHudTheme } from "./hudAppearance";
+import { HUD_COLORS } from "./hudAppearance";
 
 function luminance(hex: string) {
   const rgb = [1, 3, 5].map((offset) => {
@@ -20,11 +20,5 @@ describe("porcelain HUD appearance", () => {
       const a = luminance(foreground), b = luminance(background);
       expect((Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)).toBeGreaterThanOrEqual(4.5);
     }
-  });
-  it("uses stable HUD tokens rather than deriving them from scene or preparation preferences", () => {
-    const first = useVrHudTheme().accent;
-    expect(useVrHudTheme().accent).toBe(first);
-    expect(first.soft).toBe(HUD_COLORS.surface);
-    expect(first.primary).toBe(HUD_COLORS.primary);
   });
 });

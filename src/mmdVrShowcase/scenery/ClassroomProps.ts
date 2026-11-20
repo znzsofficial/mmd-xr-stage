@@ -98,7 +98,7 @@ export function classroomProps() {
   for (const { desk, chair, i } of STUDENTS) {
     const { x,z,w,d }=desk, a=chair.yaw??0;
     const veneer=['#d6ab76','#ca9e6d','#d7b383','#ce9e70'][i%4];
-    slab([x,.708,z],[w,.033,d], '#927151'); add(veneers,[x,.729,z],[w,.022,d],veneer);
+    add(veneers,[x,.725,z],[w,.030,d],veneer);
     box([x,.633,z-.195],[.63,.115,.045],'#8f9181'); box([x,.588,z+.004],[.64,.026,.36],'#7e887d');
     for(const side of [-1,1]) box([x+side*.313,.637,z],[.024,.10,.35],'#a9b5a2');
     if (i%4===1 || i%4===2) box([x+.045,.623,z+.075],[.245,.04,.22],bindings[i%6],.034);

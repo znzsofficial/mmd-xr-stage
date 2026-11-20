@@ -13,6 +13,7 @@ import teachingUrl from './clinic-teaching.webp';
 import { instrumentGeometry, teachingModelGeometry } from './teachingSolids';
 import {SouthEntrance} from './SouthEntrance';
 import {SupplyCasework} from './SupplyCasework';
+import {ClinicNurse} from './ClinicNurse';
 
 const noPick=()=>null;
 // A soft ceiling bounce, not a bank of point lights per fixture. Its broad
@@ -66,6 +67,7 @@ export function ClinicWard({ shadows }: {shadows:boolean}) {
   const teaching=useBakedSurface(teachingUrl);
   useEffect(()=>()=>{for(const g of Object.values(geo))g.dispose();},[geo]);
   return <group name="scenery:clinic">
+    <ClinicNurse shadows={shadows} shade={bounce}/>
     <SouthEntrance shadows={shadows}/>
     <SupplyCasework shadows={shadows}/>
     <mesh name="clinic:terrazzo-and-furniture-contact" position={[0,0,(WARD.south+WARD.north)/2]} rotation-x={-Math.PI/2} receiveShadow={shadows} raycast={noPick}>

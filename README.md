@@ -29,6 +29,8 @@ Import budgets apply to files, including textures and ZIP contents: **4,096 entr
 
 **Double Happiness Courtyard · 双喜堂.** Walk past the [embroidered bridal sedan](./docs/screenshots/wedding-bridal-sedan.webp) into the banquet courtyard. Place two characters side by side in front of the wedding altar, then take the guest’s view from the table or step into the dressing room for a portrait by the bronze mirror.
 
+Choose **Lacquer and roof tiles** in the courtyard or **Window-side desk** in the classroom to see how the surfaces catch the light. [Gate close-up](./docs/screenshots/wedding-materials/near.webp) · [Desk close-up](./docs/screenshots/classroom-window-desk.webp).
+
 ![A red bridal sedan beside a tiled gate, with the banquet table visible through the open doors.](./docs/screenshots/wedding-court-entry.webp)
 
 **Campus walk.** Leave the classroom through its rear door and follow the covered passage into the meadow. The blue-tiled gate leads to the pool; a separate garden path takes you under the clinic canopy into the waiting hall. Each set keeps its own layout, so you can leave a character in the classroom and find it there when you return.
@@ -65,6 +67,7 @@ Fly the kite from a character's wrist, send the ferry across the pool, or change
 - **On screen:** drag to orbit, use the wheel or pinch to zoom, and select **Tour viewpoints** to visit a spot in the set.
 - **In VR:** press **B** on the right controller to recall the viewing menu. With hand tracking, raise your left wrist and point at **Menu** with the other hand. Playback, the backpack and scenery selection are available inside the stage.
 - **Local music:** optionally choose one audio file on the prep page. Play, pause and adjust its volume from the screen controls or the VR menu. Music continues across sets and stops when you exit; it has its own clock, independent of character motions.
+- **Scene people:** where a set has built-in people, toggle them in **Backpack → Environment** on screen or **B → More → Environment** in VR. Your imported characters stay on stage.
 - **Physics:** controller and tracked-hand colliders interact with cloth during playback and while paused. Controller contact can trigger haptics. Hiding the hand models leaves the menu rays available.
 - **Diagnostics:** after exiting VR, export the JSON session report from the prep page. It records the requested settings, the refresh rate and layer dimensions reported by the session, XR frame intervals, model-update CPU time and renderer draw counts. Placement, physics switching and room restoration are timed separately. XR callback intervals are not GPU timings.
 

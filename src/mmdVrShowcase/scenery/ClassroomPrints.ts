@@ -71,6 +71,26 @@ export function parquet(shadows: boolean) {
       ao.addColorStop(0, '#463a3160'); ao.addColorStop(.53, '#54463839'); ao.addColorStop(1, '#725e4600');
       g.fillStyle = ao; g.fillRect(-1, -1, 2, 2); g.restore();
     }
+    // Alpha is an independent indirect-light mask. Keep the baked window
+    // projection and floor pigment in RGB: the A/B needs no alternate albedo.
+    const pixels=g.getImageData(0,0,size,size),data=pixels.data;
+    function glide(x:number,z:number){
+      const cx=px(x),cy=py(z),r=.18;
+      for(let j=Math.max(0,Math.floor(cy-r*size/d));j<=Math.min(size-1,Math.ceil(cy+r*size/d));j++)
+        for(let i=Math.max(0,Math.floor(cx-r*size/w));i<=Math.min(size-1,Math.ceil(cx+r*size/w));i++){
+          const d2=((i+.5-cx)*w/size)**2+((j+.5-cy)*d/size)**2, off=(j*size+i)*4+3;
+          const visibility=1.-.55*Math.exp(-d2/.0012)-.32*Math.exp(-d2/.006);
+          data[off]=Math.round(data[off]*visibility);
+        }
+    }
+    for(const {desk,chair} of STUDENTS){
+      const yaw=chair.yaw??0,c=Math.cos(yaw),s=Math.sin(yaw);
+      for(const a of [-1,1]){
+        glide(desk.x+a*.366,desk.z-.224);glide(desk.x+a*.367,desk.z+.219);
+        for(const [x,z] of [[a*.20,-.207],[a*.21,.224]])glide(chair.x+x*c+z*s,chair.z-x*s+z*c);
+      }
+    }
+    g.putImageData(pixels,0,0);
   });
 }
 

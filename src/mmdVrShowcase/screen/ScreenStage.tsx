@@ -7,7 +7,6 @@ import { MmdVrStageContent } from '../components/MmdVrStage';
 import { getMmdVrClock } from '../mmdVrClock';
 import { getMmdVrRenderProfile } from '../mmdVrQuality';
 import { useMmdVrStore } from '../mmdVrStore';
-import { MmdVrThemeProvider } from '../mmdVrTheme';
 import { isStoryRoom } from '../play/stagePlay';
 import { StoryStations } from '../play/StoryStations';
 import { PrepIcon } from '../prep/PrepIcon';
@@ -53,9 +52,9 @@ export function ScreenStage(){
         {sceneryIds.map(id=><option key={id} value={id}>{t(SCENERY[id].label)}</option>)}
       </select><button className="screen-back" onClick={close}>{t('loadBack')}</button></header>
     <div className="screen-workspace"><div className="screen-picture">
-      <MmdVrThemeProvider><Canvas gl={{antialias:prefs.antialiasPref!=='off',powerPreference:'high-performance'}} shadows={profile.shadows} dpr={prefs.dprPref==='auto'?[1,1.6]:profile.dpr} camera={{position:[0,1.65,4],near:.03,far:prefs.viewDistance,fov:50}} fallback={<p role="alert">{t('screenWebgl')}</p>}>
+      <Canvas gl={{antialias:prefs.antialiasPref!=='off',powerPreference:'high-performance'}} shadows={profile.shadows} dpr={prefs.dprPref==='auto'?[1,1.6]:profile.dpr} camera={{position:[0,1.65,4],near:.03,far:prefs.viewDistance,fov:50}} fallback={<p role="alert">{t('screenWebgl')}</p>}>
         <MmdVrStageContent/><StoryStations/><BackpackPlacement onScreenPick={()=>setLibrary(true)}/><ScreenCamera actions={actions} onReady={setCameraReady}/>
-      </Canvas></MmdVrThemeProvider>
+      </Canvas>
       <div className="screen-corner"><button aria-expanded={library&&!draft} onClick={()=>{if(draft){useBackpack.getState().cancelPlace();setLibrary(true);}else setLibrary(v=>!v);}}><PrepIcon name="bag"/>{t('hudBackpack')}</button><button onClick={()=>actions.current?.reset()}>{t('settingsMmdVrResetView')}</button>
         {tourShots(prefs.scenery).length>0&&<select aria-label={t('courtTour')} value="" onChange={e=>actions.current?.tour(Number(e.target.value))}><option value="" disabled>{t('courtTour')}</option>{tourShots(prefs.scenery).map((s,i)=><option key={s.key} disabled={!!s.link&&(locked||!!draft||load.failures.length>0)} value={i}>{t(s.key)}</option>)}</select>}
       </div>

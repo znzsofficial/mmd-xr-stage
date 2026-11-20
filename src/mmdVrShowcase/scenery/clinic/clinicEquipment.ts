@@ -1,6 +1,6 @@
 import { C, ClinicParts, type V } from './clinicParts';
 import { FIXTURES as F, STALLS, STALL_PANELS, TOILETS, type ClinicRect } from './clinicLayout';
-import { hygieneStation, instrumentTray, modelBench, seatedNurse } from './clinicTeaching';
+import { hygieneStation, instrumentTray, modelBench } from './clinicTeaching';
 
 const pi=Math.PI;
 function wheel(p:ClinicParts,x:number,z:number,r=.058){
@@ -84,7 +84,7 @@ export function examRoom(p:ClinicParts){
   p.box(desk.x+.014,.894,desk.z+.074,.11,.235,.10,C.iron);monitor(p,desk.x+.015,1.175,desk.z+.081,.612,.367,13,pi);
   p.pad(desk.x+.02,.81,desk.z-.17,.41,.022,.13,C.graphite);
   ({x,z}=F.deskSeat);p.pad(x,.465,z,.46,.076,.427,C.teal);p.pad(x,.708,z-.18,.428,.332,.071,C.green);p.cylinder(x,.25,z,.064,.348,.064,C.chrome);p.cylinder(x,.07,z,.41,.063,.41,C.iron);
-  seatedNurse(p);p.frame(-7.99,1.79,4.69,.80,.80,pi,5,C.oak);
+  p.frame(-7.99,1.79,4.69,.80,.80,pi,5,C.oak);
 }
 
 function shadowlessLamp(p:ClinicParts,x:number,z:number){

@@ -3,6 +3,8 @@ import {DataTexture,DoubleSide,SRGBColorSpace} from 'three';
 import {noPick} from '../sceneryPaint';
 import {useBakedSurface} from '../useBakedSurface';
 import {makeWeddingArchitecture} from './architectureHouse';
+import {ambientReveal,gateFinish} from './architectureFinish';
+import finishUrl from './architecture-gate-finish.webp';
 import {ArchitectureHorizon} from './architectureHorizon';
 import {WeddingFurnishings} from './furnishings';
 import atlasUrl from './architecture-jiangnan.webp';
@@ -21,6 +23,7 @@ function materialProof(){
 
 export function WeddingCourt({shadows}:{shadows:boolean}){
   const house=useMemo(makeWeddingArchitecture,[]),map=useBakedSurface(atlasUrl),spray=useBakedSurface(sprayUrl),proof=useMemo(materialProof,[]);
+  const finish=useBakedSurface(finishUrl,'data');
   useEffect(()=>()=>{for(const {geometry} of house)geometry.dispose();},[house]);
   useEffect(()=>{if(map)proof.dispose();return ()=>proof.dispose();},[map,proof]);
   return <group name="wedding:jiangnan-courtyard" pointerEvents="none">
@@ -28,6 +31,8 @@ export function WeddingCourt({shadows}:{shadows:boolean}){
     {house.map(({name,geometry,casts,foliage})=>(!foliage||spray)&&<mesh key={name} name={`wedding:architecture:${name}`} geometry={geometry}
       receiveShadow={shadows&&(casts||name==='ground')} castShadow={shadows&&casts} raycast={noPick}>
       {foliage?<meshStandardMaterial key={spray!.uuid} vertexColors map={spray} alphaTest={.48} side={DoubleSide} roughness={.96}/>:
+        name==='gate'&&finish?<meshStandardMaterial name="gate-fired-clay-lime-lacquer" key={finish.uuid} vertexColors map={map??proof} normalMap={finish} onBeforeCompile={gateFinish}/>:
+        name==='ground'||name==='gate'?<meshStandardMaterial key="ambient-reveal" vertexColors map={map??proof} roughness={.91} onBeforeCompile={ambientReveal}/>:
         <meshStandardMaterial key={map?.uuid??'architecture-flat'} vertexColors map={map??proof} roughness={.91}/>}
     </mesh>)}
     {/* Local soft face lights spill from the sky court and the paper window.

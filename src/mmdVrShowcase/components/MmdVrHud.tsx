@@ -8,7 +8,7 @@ import { getMmdVrClock } from "../mmdVrClock";
 import {PlayerSettings, CharacterSettings, EnvironmentSettings, settingsSections, type SettingsSection} from "../settings/objectSettings";
 import {ValueLabel,HudSlider} from "./HudValues";
 import { useMmdVrStore } from "../mmdVrStore";
-import { useVrHudTheme as useMmdVrTheme, HUD_COLORS } from "../hudAppearance";
+import { HUD_COLORS } from "../hudAppearance";
 import { HudButton, HudLine, HudSheet } from "./PorcelainControls";
 import { BackpackPanel, SceneryPanel } from "./BackpackPanels";
 import { useBackpack } from "../backpack";
@@ -71,17 +71,16 @@ function LoadRecoveryPanel({ onExit, onContinue }: { onExit: () => void; onConti
   const pages = useMemo(() => paginateLoadDetails(details), [details]);
   const current = Math.min(page, pages.length - 1);
   const title = formatAssetProgress(progress, t);
-  const { accent } = useMmdVrTheme();
   const texture = useMemo(() => createPanelTexture(1280, 420, ({ ctx, width }) => {
-    ctx.fillStyle = accent.soft;
+    ctx.fillStyle = HUD_COLORS.surface;
     ctx.fillRect(0, 0, width, 420);
-    ctx.fillStyle = accent.ink;
+    ctx.fillStyle = HUD_COLORS.ink;
     ctx.font = "600 34px system-ui, sans-serif";
     ctx.fillText(title, 32, 50);
     ctx.font = "28px system-ui, sans-serif";
     pages[current].forEach((line, index) => ctx.fillText(line, 32, 112 + index * 48));
     ctx.fillText(`${current + 1}/${pages.length}`, width - 120, 392);
-  }, "en"), [accent.soft, accent.ink, title, pages, current]);
+  }, "en"), [title, pages, current]);
   useEffect(() => () => texture.dispose(), [texture]);
   return <group>
     <mesh position={[0, 0.13, 0.02]} renderOrder={35}>
@@ -98,20 +97,19 @@ function LoadRecoveryPanel({ onExit, onContinue }: { onExit: () => void; onConti
 
 function TextPanel({ title, text, onClose, onExit }: { title: string; text: string; onClose: () => void; onExit: () => void }) {
   const t = useLanguageStore((s) => s.t);
-  const { accent } = useMmdVrTheme();
   const [page, setPage] = useState(0);
   const pages = useMemo(() => paginateLoadDetails(text), [text]);
   const current = Math.min(page, pages.length - 1);
   const texture = useMemo(() => createPanelTexture(1280, 420, ({ ctx }) => {
-    ctx.fillStyle = accent.soft;
+    ctx.fillStyle = HUD_COLORS.surface;
     ctx.fillRect(0, 0, 1280, 420);
-    ctx.fillStyle = accent.ink;
+    ctx.fillStyle = HUD_COLORS.ink;
     ctx.font = "600 34px system-ui, sans-serif";
     ctx.fillText(title, 32, 50);
     ctx.font = "28px system-ui, sans-serif";
     pages[current].forEach((line, index) => ctx.fillText(line, 32, 112 + index * 48));
     ctx.fillText(`${current + 1}/${pages.length}`, 1140, 392);
-  }, "en"), [accent.soft, accent.ink, title, pages, current]);
+  }, "en"), [title, pages, current]);
   useEffect(() => () => texture.dispose(), [texture]);
   return <group>
     <mesh position={[0, 0.13, 0.02]} renderOrder={35}>
@@ -164,13 +162,12 @@ export function CompactPlaybackControls({ onExpand, onExit, onTransport, busy, p
 }
 
 function PanelBackdrop({ sidebar }: { sidebar: boolean }) {
-  const { accent } = useMmdVrTheme();
   const texture = useMemo(
     () => createPanelTexture(1320, 1120, ({ ctx, width, height }) => {
       roundRectPath(ctx, 0, 0, width, height, 32);
-      ctx.fillStyle = accent.soft;
+      ctx.fillStyle = HUD_COLORS.surface;
       ctx.fill();
-      ctx.strokeStyle = accent.border;
+      ctx.strokeStyle = HUD_COLORS.border;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(40, 155); ctx.lineTo(width - 40, 155);
@@ -178,7 +175,7 @@ function PanelBackdrop({ sidebar }: { sidebar: boolean }) {
       if (sidebar) { ctx.moveTo(283, 184); ctx.lineTo(283, height - 195); }
       ctx.stroke();
     }, "en"),
-    [accent.border, accent.primary, accent.soft, sidebar],
+    [sidebar],
   );
   useEffect(() => () => texture.dispose(), [texture]);
   return (
@@ -207,23 +204,22 @@ function DragHandle({
   const groupRef = useRef<THREE.Group>(null);
   const dragRef = useRef<HudDragState | null>(null);
   const [dragging, setDragging] = useState(false);
-  const { accent } = useMmdVrTheme();
   const texture = useMemo(
     () => createPanelTexture(720, 72, ({ ctx, width, height }) => {
       ctx.clearRect(0, 0, width, height);
       roundRectPath(ctx, 1, 1, width - 2, height - 2, 18);
-      ctx.fillStyle = dragging ? HUD_COLORS.selected : accent.soft;
+      ctx.fillStyle = dragging ? HUD_COLORS.selected : HUD_COLORS.surface;
       ctx.fill();
-      ctx.fillStyle = accent.ink;
+      ctx.fillStyle = HUD_COLORS.ink;
       ctx.font = "500 26px system-ui, sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(label, width / 2, height / 2);
-      ctx.fillStyle = accent.muted;
+      ctx.fillStyle = HUD_COLORS.muted;
       roundRectPath(ctx, width / 2 - 35, height - 9, 70, 3, 1.5);
       ctx.fill();
     }, "en"),
-    [accent.ink, accent.primary, accent.soft, dragging, label],
+    [dragging, label],
   );
 
   useEffect(() => () => texture.dispose(), [texture]);
@@ -301,7 +297,6 @@ function DragHandle({
 }
 
 function StatusPlane({ text }: { text: string }) {
-  const { accent } = useMmdVrTheme();
   const texture = useMemo(
     () =>
       createPanelTexture(
@@ -310,13 +305,13 @@ function StatusPlane({ text }: { text: string }) {
         ({ ctx, width, height }) => {
           ctx.clearRect(0, 0, width, height);
           roundRectPath(ctx, 2, 2, width - 4, height - 4, 18);
-          ctx.fillStyle = accent.soft;
+          ctx.fillStyle = HUD_COLORS.surface;
           ctx.fill();
-          ctx.fillStyle = accent.marker;
+          ctx.fillStyle = HUD_COLORS.primary;
           ctx.beginPath();
           ctx.arc(34, height / 2, 8, 0, Math.PI * 2);
           ctx.fill();
-          ctx.fillStyle = accent.ink;
+          ctx.fillStyle = HUD_COLORS.ink;
           ctx.font = "600 26px system-ui, sans-serif";
           ctx.textAlign = "left";
           ctx.textBaseline = "middle";
@@ -324,7 +319,7 @@ function StatusPlane({ text }: { text: string }) {
         },
         "en",
       ),
-    [accent.ink, accent.marker, accent.soft, text],
+    [text],
   );
 
   useEffect(
@@ -346,7 +341,6 @@ function ProgressBar({ onInteractionChange }: { onInteractionChange: (active: bo
   const duration = useMmdVrStore((s) => s.duration);
   const modelCount = useMmdVrStore((s) => s.modelCount);
   const requestSeek = useMmdVrStore((s) => s.requestSeek);
-  const { accent } = useMmdVrTheme();
 
   const texture = useMemo(
     () =>
@@ -356,11 +350,11 @@ function ProgressBar({ onInteractionChange }: { onInteractionChange: (active: bo
         ({ ctx, width, height }) => {
           ctx.clearRect(0, 0, width, height);
           roundRectPath(ctx, 0, 0, width, height, 16);
-          ctx.fillStyle = accent.soft;
+          ctx.fillStyle = HUD_COLORS.surface;
           ctx.fill();
-          ctx.fillStyle = accent.track;
+          ctx.fillStyle = HUD_COLORS.track;
           ctx.fillRect(PROGRESS_PAD, height - 16, width - PROGRESS_PAD * 2, 6);
-          ctx.fillStyle = accent.muted;
+          ctx.fillStyle = HUD_COLORS.muted;
           ctx.font = "600 22px system-ui, sans-serif";
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
@@ -368,7 +362,7 @@ function ProgressBar({ onInteractionChange }: { onInteractionChange: (active: bo
         },
         "en",
       ),
-    [accent.muted, accent.primary, accent.soft, accent.track],
+    [],
   );
 
   const lastPaintVersionRef = useRef(-1);
@@ -450,13 +444,13 @@ function ProgressBar({ onInteractionChange }: { onInteractionChange: (active: bo
     const ratio = Math.min(1, Math.max(0, clock.time / clock.duration));
     ctx.clearRect(0, 0, w, h);
     roundRectPath(ctx, 0, 0, w, h, 16);
-    ctx.fillStyle = accent.soft;
+    ctx.fillStyle = HUD_COLORS.surface;
     ctx.fill();
-    ctx.fillStyle = accent.track;
+    ctx.fillStyle = HUD_COLORS.track;
     ctx.fillRect(PROGRESS_PAD, h - 16, trackW, 6);
-    ctx.fillStyle = accent.primary;
+    ctx.fillStyle = HUD_COLORS.primary;
     ctx.fillRect(PROGRESS_PAD, h - 16, trackW * ratio, 6);
-    ctx.fillStyle = accent.muted;
+    ctx.fillStyle = HUD_COLORS.muted;
     ctx.font = "600 22px system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";

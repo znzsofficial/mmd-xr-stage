@@ -26,7 +26,7 @@ export const FIXTURES = {
   footControl:rect(-5.30,.58,.305,.243),
   stool:rect(-5.6,1.76,.53,.53), examCabinet:rect(-6.48,-2.77,3.15,.71),
   curtain:rect(-4.32,-.96,.18,1.21), consultDesk:rect(-6.46,4.26,2.3,.78),
-  deskSeat:rect(-6.43,3.41,.62,.57), nurseLegs:rect(-6.43,3.77,.38,.43),
+  deskSeat:rect(-6.43,3.41,.62,.57),
   table:rect(5.83,-4.85,1.1,2.27), anaesthesia:rect(7.20,-6.58,1.05,.86),
   steelCart:rect(4.26,-6.53,.88,.58), orCabinet:rect(5.19,-8.53,3.85,.72),
   scrub:rect(7.25,-1.04,1.65,.61), iv:rect(7.06,-4.32,.50,.50),
@@ -72,42 +72,45 @@ function hits(x:number,z:number,r:ClinicRect,clear:number) {
 }
 // Include door trim, crash rails, slider faces and the lobby handrail.
 const obstacles=[...WALLS.map(r=>({...r,w:r.w+.24,d:r.d+.24})), ...Object.values(FIXTURES), ...STALL_PANELS, ...TOILETS, ...STALL_BINS];
+const seat=FIXTURES.deskSeat;
+const nurseLegs=rect(seat.x,seat.z+.36,.38,.43);
 const cubicles=STALLS.map(({x,z,width})=>rect(x,z,2.14,width));
-function clearAt(x:number,z:number,r:number) {
+function clearAt(x:number,z:number,r:number,showPeople:boolean) {
   const floor=(x>west+r&&x<east-r&&z>north+r&&z<south-r)||
     (Math.abs(x)<APRON.w/2-r&&z>=south-r&&z<APRON.z+APRON.d/2-r);
-  return floor&&approachFootClear(x,z,r)&&!obstacles.some(o=>hits(x,z,o,r));
+  return floor&&approachFootClear(x,z,r)&&!obstacles.some(o=>hits(x,z,o,r))&&!(showPeople&&hits(x,z,nurseLegs,r));
 }
-export function canWalkInClinic(x:number,z:number) { return clearAt(x,z,.22); }
-export function canPlaceInClinic(x:number,z:number) { return clearAt(x,z,.26)&&!cubicles.some(o=>hits(x,z,o,.22)); }
+export function canWalkInClinic(x:number,z:number,showPeople=true) { return clearAt(x,z,.22,showPeople); }
+export function canPlaceInClinic(x:number,z:number,showPeople=true) { return clearAt(x,z,.26,showPeople)&&!cubicles.some(o=>hits(x,z,o,.22)); }
 
 // The shared invisible pointing plane also exists behind opaque walls. Test
 // the eye/controller segment in 3D: seeing over a low bench is legitimate;
 // aiming at a clear patch of floor through a cubicle door is not.
 type Occluder=ClinicRect&{top:number;bottom:number};
-const tops:Record<keyof typeof FIXTURES,number>={examChair:.83,footControl:.081,ultrasound:1.01,stool:.51,examCabinet:.90,curtain:2.45,consultDesk:.78,deskSeat:.81,nurseLegs:.61,table:.91,anaesthesia:1.03,steelCart:TRAY_TOP,orCabinet:.90,scrub:.94,iv:.12,seatsA:.47,seatsB:.47,seatsC:.47,kiosk:1.46,planter:.46,sinks:1.01,supplyShelf:1.64,disposal:.62};
+const tops:Record<keyof typeof FIXTURES,number>={examChair:.83,footControl:.081,ultrasound:1.01,stool:.51,examCabinet:.90,curtain:2.45,consultDesk:.78,deskSeat:.81,table:.91,anaesthesia:1.03,steelCart:TRAY_TOP,orCabinet:.90,scrub:.94,iv:.12,seatsA:.47,seatsB:.47,seatsC:.47,kiosk:1.46,planter:.46,sinks:1.01,supplyShelf:1.64,disposal:.62};
 const occluders:Occluder[]=[...approachSolids,...WALLS.map(r=>({...r,bottom:0,top:WARD.h})),...Object.values(DOORS).map(({x,z,width})=>({...rect(x,z,t,width),bottom:2.25,top:WARD.h})),...STALL_PANELS.map(r=>({...r,bottom:.22,top:2.06})),...TOILETS.map(r=>({...r,bottom:0,top:.46})),...STALL_BINS.map(r=>({...r,bottom:0,top:.52})),...EXHIBITS.map(r=>({...r,bottom:.90})),
-  {...rect(FIXTURES.deskSeat.x,FIXTURES.deskSeat.z+.04,.38,.29),bottom:.55,top:1.31},
-  ...[-1,1].map(k=>({...rect(FIXTURES.deskSeat.x+k*.16,FIXTURES.deskSeat.z+.39,.16,.59),bottom:.735,top:.88})),
   {...rect(FIXTURES.steelCart.x,FIXTURES.steelCart.z-.227,.38,.035),bottom:.84,top:1.09},
   ...(Object.keys(FIXTURES) as (keyof typeof FIXTURES)[]).map(k=>({...FIXTURES[k],bottom:k==='curtain'?.50:0,top:tops[k]}))];
-export function clinicPlacementVisible(from:{x:number;y:number;z:number},x:number,z:number){
-  return groundVisible(from,x,z,occluders);
+const occupiedOccluders=[...occluders,{...nurseLegs,bottom:0,top:.61},
+  {...rect(seat.x,seat.z+.04,.38,.29),bottom:.55,top:1.31},
+  ...[-1,1].map(k=>({...rect(seat.x+k*.16,seat.z+.39,.16,.59),bottom:.735,top:.88}))];
+export function clinicPlacementVisible(from:{x:number;y:number;z:number},x:number,z:number,showPeople=true){
+  return groundVisible(from,x,z,showPeople?occupiedOccluders:occluders);
 }
 
 // Sweep short steps and slide on one axis when blocked. A missed input frame
 // cannot step through a wall even when its intended destination is clear.
-export function moveInClinic(x:number,z:number,dx:number,dz:number) {
-  if (!canWalkInClinic(x,z)) return {...CLINIC_DEFAULT};
+export function moveInClinic(x:number,z:number,dx:number,dz:number,showPeople=true) {
+  if (!canWalkInClinic(x,z,showPeople)) return {...CLINIC_DEFAULT};
   if (!Number.isFinite(dx)||!Number.isFinite(dz)) return {x,z};
   const length=Math.hypot(dx,dz);
   if (length>32 || length===0) return {x,z};
   const steps=Math.ceil(length/.105);
   for (let i=0;i<steps;i++) {
     const nx=x+dx/steps,nz=z+dz/steps;
-    if(canWalkInClinic(nx,nz)) { x=nx;z=nz; }
-    else if(dx!==0&&canWalkInClinic(nx,z)) x=nx;
-    else if(dz!==0&&canWalkInClinic(x,nz)) z=nz;
+    if(canWalkInClinic(nx,nz,showPeople)) { x=nx;z=nz; }
+    else if(dx!==0&&canWalkInClinic(nx,z,showPeople)) x=nx;
+    else if(dz!==0&&canWalkInClinic(x,nz,showPeople)) z=nz;
     else break;
   }
   return {x,z};

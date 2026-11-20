@@ -1,4 +1,3 @@
-import type { XrAccentTokens } from "../xr/themeColor";
 import { roundRectPath, type PanelPaintContext } from "../shared/panelTexture";
 
 export const HUD_COLORS = Object.freeze({
@@ -14,14 +13,6 @@ export const HUD_COLORS = Object.freeze({
   dangerSurface: "#fbe7eb",
   disabled: "#5d6b7f",
 });
-
-const accent: XrAccentTokens = Object.freeze({
-  primary: HUD_COLORS.primary, soft: HUD_COLORS.surface, border: HUD_COLORS.border,
-  marker: HUD_COLORS.primary, ink: HUD_COLORS.ink, muted: HUD_COLORS.muted,
-  track: HUD_COLORS.track, stageBg: "#101820", gridMajor: "#52627a", gridMinor: "#ccd5e2",
-});
-
-export function useVrHudTheme() { return { accent }; }
 
 export function paintHudButton(
   { ctx, width, height }: Pick<PanelPaintContext, "ctx" | "width" | "height">,

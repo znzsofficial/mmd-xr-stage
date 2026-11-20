@@ -1,9 +1,9 @@
-/* Theme-aware scrollbars for the preparation page. */
+/* Studio ink on the light preparation surface. */
 :root {
   --os-scrollbar-size: 8px;
-  --os-scrollbar-thumb: color-mix(in oklch, var(--os-ink) 20%, transparent);
-  --os-scrollbar-thumb-hover: color-mix(in oklch, var(--os-ink) 34%, transparent);
-  --os-scrollbar-thumb-active: color-mix(in oklch, var(--os-ink) 46%, transparent);
+  --os-scrollbar-thumb: color-mix(in oklch, var(--os-ink) 52%, transparent);
+  --os-scrollbar-thumb-hover: color-mix(in oklch, var(--os-ink) 65%, transparent);
+  --os-scrollbar-thumb-active: color-mix(in oklch, var(--os-ink) 78%, transparent);
 }
 @supports (-moz-appearance: none) {
   * { scrollbar-width: thin; scrollbar-color: var(--os-scrollbar-thumb) transparent; }

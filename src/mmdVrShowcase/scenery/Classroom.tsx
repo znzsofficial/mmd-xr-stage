@@ -1,5 +1,5 @@
-import { useEffect, useMemo } from 'react';
-import { BufferGeometry, DoubleSide, Float32BufferAttribute } from 'three';
+import { useEffect, useLayoutEffect, useMemo } from 'react';
+import { BufferGeometry, DoubleSide, Float32BufferAttribute, RepeatWrapping } from 'three';
 import { Batch } from './SceneryBatch';
 import { canopyCluster, chairBack, chairFrame, classroomCurtains, deskFrame, woodSlab } from './ClassroomGeometry';
 import { classroomProps } from './ClassroomProps';
@@ -7,10 +7,11 @@ import { useBakedSurface } from './useBakedSurface';
 import floorDay from './class-floor-day.webp';
 import floorShadow from './class-floor-shadow.webp';
 import lesson from './class-lesson.webp';
-import veneer from './class-veneer.webp';
+import veneer from './class-birch-stock.webp';
 import globe from './class-globe.webp';
 import { DOOR_CENTERS, LECTERN, ROOM } from './ClassroomLayout';
 import { classroomBounce, classroomSunlight } from './ClassroomLight';
+import { backDay,backShadow,boardDay,boardShadow,parquetContact,steelDay,steelShadow } from './ClassroomFinish';
 
 // One atlas draw for all the illustrated sheets, signs and the board. Paper
 // quads sit in the physical trim and don't need extra alpha or polygon offsets.
@@ -39,13 +40,14 @@ export function Classroom({ shadows }: { shadows: boolean }) {
   const p = useMemo(classroomProps, []);
   const geometry = useMemo(() => ({ slab: woodSlab(), desk: deskFrame(), chair: chairFrame(),
     back: chairBack(), cloth: classroomCurtains(), foliage: canopyCluster(), paper: printedMatter() }), []);
-  const atlas=useBakedSurface(lesson),grain=useBakedSurface(veneer),earth=useBakedSurface(globe);
+  const atlas=useBakedSurface(lesson),grain=useBakedSurface(veneer,'data'),earth=useBakedSurface(globe);
+  useLayoutEffect(()=>{if(grain){grain.wrapS=grain.wrapT=RepeatWrapping;grain.needsUpdate=true;}},[grain]);
   const floor=useBakedSurface(shadows?floorShadow:floorDay);
   const daylight = shadows ? classroomBounce : classroomSunlight;
   useEffect(() => () => { for (const g of Object.values(geometry)) g.dispose(); }, [geometry]);
   return <group name="scenery:classroom">
     <mesh name="basketweave-parquet" rotation={[-Math.PI/2,0,0]} receiveShadow={shadows} raycast={()=>null}>
-      <planeGeometry args={[ROOM.w, ROOM.d]} /><meshStandardMaterial key={floor?'wood':'plain'} map={floor} color={floor?'white':'#bd9a77'} roughness={.88} onBeforeCompile={classroomBounce} />
+      <planeGeometry args={[ROOM.w, ROOM.d]} /><meshStandardMaterial key={floor?'wood':'plain'} map={floor} color={floor?'white':'#bd9a77'} roughness={.88} onBeforeCompile={parquetContact} />
     </mesh>
     <Batch name="room-shell-and-sashes" parts={p.shell} casts={shadows} shade={daylight} />
     <Batch name="joinery-and-campus" parts={p.trim} shade={daylight} />
@@ -53,10 +55,10 @@ export function Classroom({ shadows }: { shadows: boolean }) {
     <Batch name="quadrangle-foliage" parts={p.leaves} geometry={geometry.foliage} shade={classroomBounce} />
     <Batch name="ceiling-practicals" parts={p.luminous} lit />
     <Batch name="radiused-wood-and-stationery" parts={p.slabs} geometry={geometry.slab} casts={shadows} shade={daylight} />
-    <Batch name="birch-veneers" parts={p.veneers} geometry={geometry.slab} casts={shadows} shade={daylight} map={grain??undefined} />
-    <Batch name="tubular-desk-frames" parts={p.deskFrames} geometry={geometry.desk} shade={daylight} />
-    <Batch name="tubular-chair-frames" parts={p.chairFrames} geometry={geometry.chair} shade={daylight} />
-    <Batch name="molded-chair-backs" parts={p.backs} geometry={geometry.back} casts={shadows} shade={daylight} />
+    <Batch name="birch-veneers" parts={p.veneers} geometry={geometry.slab} casts={shadows} shade={shadows?boardShadow:boardDay} map={grain??undefined} />
+    <Batch name="tubular-desk-frames" parts={p.deskFrames} geometry={geometry.desk} shade={shadows?steelShadow:steelDay} />
+    <Batch name="tubular-chair-frames" parts={p.chairFrames} geometry={geometry.chair} shade={shadows?steelShadow:steelDay} />
+    <Batch name="molded-chair-backs" parts={p.backs} geometry={geometry.back} casts={shadows} shade={shadows?backShadow:backDay} map={grain??undefined} />
     <mesh name="gathered-linen" castShadow={shadows} receiveShadow={shadows} raycast={()=>null}>
       <primitive object={geometry.cloth} attach="geometry" /><meshStandardMaterial vertexColors side={DoubleSide} roughness={1} onBeforeCompile={classroomBounce} />
     </mesh>

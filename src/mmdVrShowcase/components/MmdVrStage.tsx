@@ -36,7 +36,6 @@ import { showSceneryGrid, type SceneryId } from "../scenery/catalog";
 import { canPlaceInScenery,placementHeight } from "../scenery/placementAreas";
 import {elevatedPickDecks,visiblePick} from '../scenery/pickDecks';
 import {RiverSky} from '../scenery/qinhuai/Songhouse';
-import { useMmdVrTheme } from "../mmdVrTheme";
 import { prepareMmdVrModel } from "../prepareMmdVrModel";
 import { getMmdVrControllerColliderMatrices } from "../mmdVrControllerColliders";
 import { getMmdVrHandColliderMatrices } from "../mmdVrHandColliders";
@@ -236,7 +235,6 @@ function StageFloor({
   deck: boolean;
   scenery:SceneryId;
 }) {
-  const { accent } = useMmdVrTheme();
   return (
     <group>
       {!deck && <StudioPlinth segments={segments} shadows={shadows} color={floorColor} />}
@@ -244,7 +242,7 @@ function StageFloor({
         <mesh key={r.y} name="placement-surface" rotation={[-Math.PI / 2, 0, 0]} position={[r.x,r.y+.021,r.z]}
           onPointerDown={e => { e.stopPropagation(); if(visiblePick(scenery,e.ray.origin,e.point.x,r.y,e.point.z))useMmdVrStore.getState().requestGroundPlace(e.point.x, e.point.z); }}>
           <planeGeometry args={[r.w,r.d]} />
-          <meshBasicMaterial color={accent.marker} transparent opacity={0.1} depthWrite={false} />
+          <meshBasicMaterial color="#79baff" transparent opacity={0.1} depthWrite={false} />
         </mesh>
       ))}
     </group>
@@ -305,7 +303,6 @@ export function MmdVrStageContent() {
 /** A single room owns a runtime: late restores and physics rebuilds can never target a new room's actors. */
 export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles }: { scenery: SceneryId; saved: StageSnapshot | null; slots: readonly MmdVrAssetSlot[]; motionCache?:RoomMotionCache; alphaTiles?:RoomAlphaTiles }) {
   const { scene, camera, size, gl } = useThree();
-  const { accent } = useMmdVrTheme();
   const mmdPrefs = useMmdVrStore((s) => s.prefs);
   const profile = getMmdVrRenderProfile(mmdPrefs);
   const lightPreset = mmdPrefs.lightPreset;
@@ -991,7 +988,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
 
   return (
     <>
-      <color attach="background" args={[accent.stageBg]} />
+      <color attach="background" args={["#171a1d"]} />
       {characterToy && <group ref={wristGroup} name="play:character" pointerEvents="none" visible={false}><PlayPiece toy={characterToy}/></group>}
       {mmdPrefs.stageFogEnabled ? (
         <fog attach="fog" args={[lightCfg.fogColor, Math.min(10, viewDistance * 0.45), viewDistance]} />
@@ -1039,7 +1036,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
       ) : null}
       {showSceneryGrid(scenery, profile.showGrid, mmdPrefs.gridPref === "on", placeMode) ? (
         <gridHelper
-          args={[12, 12, accent.gridMajor, accent.gridMinor]}
+          args={[12, 12, "#d8dce0", "#a5aaae"]}
           position={[0, 0.01, 0]}
         />
       ) : null}

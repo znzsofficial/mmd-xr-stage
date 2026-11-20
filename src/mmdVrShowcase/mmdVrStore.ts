@@ -92,6 +92,7 @@ export type MmdVrPrefs = {
   snapTurnDegrees: MmdVrSnapTurnDegrees;
   exposure: number;
   stageSkyEnabled: boolean;
+  showSceneryPeople: boolean;
   scenery: SceneryId;
   softHighlights: boolean;
   stageFogEnabled: boolean;
@@ -292,6 +293,7 @@ export function normalizeMmdVrPrefs(parsed: Partial<MmdVrPrefs> & { liveHouseEna
     snapTurnDegrees: normalizeMmdVrSnapTurnDegrees(parsed.snapTurnDegrees),
     exposure: normalizeMmdVrExposure(parsed.exposure),
     stageSkyEnabled: parsed.stageSkyEnabled !== false,
+    showSceneryPeople: parsed.showSceneryPeople !== false,
     scenery: resolveScenery(parsed.scenery, parsed.liveHouseEnabled),
     softHighlights: parsed.softHighlights === true,
     stageFogEnabled: parsed.stageFogEnabled !== false,
@@ -336,6 +338,7 @@ const prefsStorage = createLocalPrefsStorage<MmdVrPrefs>({
     snapTurnDegrees: 30,
     exposure: 1,
     stageSkyEnabled: true,
+    showSceneryPeople: true,
     scenery: "floor",
     softHighlights: false,
     stageFogEnabled: true,
@@ -430,6 +433,7 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
     if (patch.snapTurnDegrees != null) prefs.snapTurnDegrees = normalizeMmdVrSnapTurnDegrees(patch.snapTurnDegrees);
     if (patch.exposure != null) prefs.exposure = normalizeMmdVrExposure(patch.exposure);
     if (patch.stageSkyEnabled != null) prefs.stageSkyEnabled = Boolean(patch.stageSkyEnabled);
+    if (patch.showSceneryPeople != null) prefs.showSceneryPeople = Boolean(patch.showSceneryPeople);
     if (patch.scenery != null) prefs.scenery = resolveScenery(patch.scenery);
     if (patch.softHighlights != null) prefs.softHighlights = Boolean(patch.softHighlights);
     if (patch.stageFogEnabled != null) prefs.stageFogEnabled = Boolean(patch.stageFogEnabled);

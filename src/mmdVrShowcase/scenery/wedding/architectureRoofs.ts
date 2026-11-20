@@ -1,6 +1,6 @@
 import {A, Skin, type V} from './architectureMesh';
 
-type Roof = {x:number; z:number; hw:number; hd:number; eave:number; rise:number; hip?:number; lift?:number; turn?:boolean; detail?:boolean; soffit?:boolean};
+type Roof = {x:number; z:number; hw:number; hd:number; eave:number; rise:number; hip?:number; lift?:number; turn?:boolean; detail?:boolean; soffit?:boolean; gateEnds?:boolean};
 type Corners=[V,V,V,V];
 
 /** Both pitches are curved in section. The gate has four pitched faces; the
@@ -35,12 +35,21 @@ export function tiledRoof(g:Skin,p:Roof){
       for(let i=0;i<=n;i++){
         const c=center(-1+2*i/n),arc=(a:number,inset:number):V=>[c[0]+rad*Math.cos(a)*lateral[0]*sign+outward[0]*inset,
           c[1]+rad*Math.sin(a)-inset*.12,c[2]+rad*Math.cos(a)*lateral[2]*sign+outward[2]*inset];
-        const steps=6, uv=(a:number):[number,number]=>[.50+.49*Math.cos(a),.50+.49*Math.sin(a)];
+        const steps=p.gateEnds?12:6, uv=(a:number):[number,number]=>[.50+.49*Math.cos(a),.50+.49*Math.sin(a)];
         for(let k=0;k<steps;k++){
           const a=k*Math.PI*2/steps+Math.PI/6,b=(k+1)*Math.PI*2/steps+Math.PI/6;
           const l=arc(a,.095),r=arc(b,.095),mid:V=[c[0]+outward[0]*.095,c[1]-.0114,c[2]+outward[2]*.095];
           g.face([mid,l,r,mid],A.lotus,'#ffffff',[[.5,.5],uv(a),uv(b),[.5,.5]]);
-          g.face([r,l,arc(a,-.075),arc(b,-.075)],A.plain,'#5d6667');
+          if(p.gateEnds){
+            // The stamped tile END has a thin clay rim. Behind it sits a
+            // curved half barrel bedded into the pitch, not a floating tube.
+            const rim=.069,run=-.115;
+            g.face([r,l,arc(a,rim),arc(b,rim)],A.plain,'#66706e');
+            if(Math.sin((a+b)/2)>0){
+              const tail=(t:number):V=>{const v=arc(t,run);v[1]+=.021;return v;};
+              g.face([arc(b,rim),arc(a,rim),tail(a),tail(b)],A.plain,'#606a6e');
+            }
+          }else g.face([r,l,arc(a,-.075),arc(b,-.075)],A.plain,'#5d6667');
         }
       }
     }
@@ -50,6 +59,35 @@ export function tiledRoof(g:Skin,p:Roof){
     if(!end&&!hip)for(const s of [-1,1])for(let j=0;j<nz;j++){
       const a=at(s,j/nz),b=at(s,(j+1)/nz);g.beam(a,b,.15,.14,A.granite,'#8d908d');
     }
+  }
+  if(p.gateEnds){
+    // Short saddle-shaped crest tiles lap over a narrow lime bed. A few
+    // millimetres at each lip interrupt the silhouette against the bright sky.
+    const end=ridge+.25,low=eave+rise+.028,n=Math.ceil(2*end/.28),steps=8;
+    const base=(u:number)=>low+.17*Math.max(0,(Math.abs(u)-ridge+.12)/.37)**1.6;
+    const arch=(u:number,j:number,r:number)=>{
+      const a=j/steps*Math.PI;return world(u,base(u)+r*Math.sin(a),r*Math.cos(a));
+    };
+    g.beam(world(-ridge,low-.006,0),world(ridge,low-.006,0),.214,.069,A.granite,'#adb4a7');
+    for(let i=0;i<n;i++){
+      const a=-end+2*end*i/n,b=-end+2*end*(i+1)/n;
+      const profile=[[a,.112],[a+.011,.126],[a+.031,.126],[a+.045,.116],[b,.112]];
+      for(let k=1;k<profile.length;k++)for(let j=0;j<steps;j++){
+        const [u,r]=profile[k-1],[v,s]=profile[k];
+        g.face([arch(u,j,r),arch(v,j,s),arch(v,j+1,s),arch(u,j+1,r)],A.plain,['#616e75','#636f75','#667177'][i%3]);
+      }
+    }
+    for(const sign of [-1,1])for(let j=0;j<steps;j++){
+      const at=sign*end,c=world(at,base(at),0),a=arch(at,j,.112),b=arch(at,j+1,.112);
+      g.face(sign<0?[c,a,b,c]:[c,b,a,c],A.plain,'#566169');
+    }
+    // The rising ends project above the ridge bed. Close their underside as
+    // seen from the lane; otherwise the lip reads as a paper-thin flag.
+    for(let i=0;i<n;i++){
+      const a=-end+2*end*i/n,b=-end+2*end*(i+1)/n;
+      g.face([arch(a,steps,.112),arch(b,steps,.112),arch(b,0,.112),arch(a,0,.112)],A.plain,'#546067');
+    }
+    return;
   }
   g.beam(world(-ridge-.06,eave+rise+.07,0),world(ridge+.06,eave+rise+.07,0),.19,.17,A.granite,'#8a8e88');
   if(detail)for(const s of [-1,1]){

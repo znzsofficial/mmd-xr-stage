@@ -11,7 +11,7 @@ function mesh(pos: number[], idx: number[], rgb?: number[]) {
 // Cross sections only where the tube bends: straight furniture legs take
 // two rings, while the return under a seat gets a real rounded outside edge.
 function tubeFrame(paths: V[][], radius: number) {
-  const pos: number[] = [], idx: number[] = [], sides = 7;
+  const pos: number[] = [], idx: number[] = [], rgb: number[] = [], sides = 7;
   for (const path of paths) {
     const pts = path.map(v => new Vector3(...v)), nodes = [pts[0]];
     for (let i = 1; i < pts.length - 1; i++) {
@@ -21,6 +21,15 @@ function tubeFrame(paths: V[][], radius: number) {
       nodes.push(...new QuadraticBezierCurve3(a, p, b).getPoints(3));
     }
     nodes.push(pts[pts.length - 1]);
+    // Ferrules and dark vinyl glides are rings of the existing tube, not 128
+    // separately drawn caps. The contact stamp is centred on the same foot.
+    for (const end of [0,1]) {
+      const n=end ? nodes.length-1 : 0, foot=nodes[n];
+      if(foot.y!==.012) continue;
+      const next=nodes[end?n-1:1], dir=next.clone().sub(foot);
+      const rings=[.0015,.031,.033].map(y=>foot.clone().addScaledVector(dir,(y-foot.y)/dir.y));
+      nodes.splice(n,1,...(end?rings.reverse():rings));
+    }
     const offset = pos.length / 3;
     let transverse = new Vector3(1, 0, 0);
     nodes.forEach((p, i) => {
@@ -29,19 +38,21 @@ function tubeFrame(paths: V[][], radius: number) {
       const b = axis.clone().cross(transverse).normalize(); transverse = b.clone().cross(axis).normalize();
       for (let k = 0; k < sides; k++) {
         const a = k * 2 * Math.PI / sides;
-        pos.push(...p.clone().addScaledVector(transverse, radius * Math.cos(a)).addScaledVector(b, radius * Math.sin(a)).toArray());
+        const boot=p.y<.0325, r=radius*(boot?1.20:1);
+        pos.push(...p.clone().addScaledVector(transverse,r*Math.cos(a)).addScaledVector(b,r*Math.sin(a)).toArray());
+        rgb.push(...(boot?[.19,.20,.205]:[1,1,1]));
         if (!i) continue;
         const v = offset + i * sides + k, u = offset + i * sides + (k + 1) % sides;
         idx.push(v - sides, u - sides, v, v, u - sides, u);
       }
     });
   }
-  return mesh(pos, idx);
+  return mesh(pos, idx,rgb);
 }
 export function deskFrame() {
   const paths: V[][] = [];
-  for (const s of [-1, 1]) paths.push([[s * .366, .012, -.224], [s * .342, .689, -.20],
-    [s * .342, .689, .19], [s * .367, .012, .219]]);
+  for (const s of [-1, 1]) paths.push([[s * .366, .012, -.224], [s * .342, .696, -.20],
+    [s * .342, .696, .19], [s * .367, .012, .219]]);
   for (const z of [-.18, .17]) paths.push([[-.34, .678, z], [.34, .678, z]]);
   paths.push([[-.348, .32, -.207], [.348, .32, -.207]]);
   return tubeFrame(paths, .015);
@@ -65,20 +76,30 @@ function rounded(path: Shape | Path, l: number, b: number, r: number, t: number,
 export function woodSlab() {
   const shape = new Shape(); rounded(shape, -.493, -.492, .493, .492, .071);
   const geo = new ExtrudeGeometry(shape, {depth: .015, curveSegments: 2, bevelEnabled: true, bevelThickness: .004, bevelSize: .007, bevelSegments: 1});
-  const uv=geo.attributes.uv,pos=geo.attributes.position;
-  for(let i=0;i<pos.count;i++) uv.setXY(i,pos.getX(i)+.5,pos.getY(i)+.5);
+  const uv=geo.attributes.uv,pos=geo.attributes.position,n=geo.attributes.normal,cut=[];
+  for(let i=0;i<pos.count;i++) {
+    uv.setXY(i,pos.getX(i)+.5,pos.getY(i)+.5);
+    // Classify before scaling the prototype to stock thickness. Only the flat
+    // cap carries the face veneer; the roundover belongs to the edge tape.
+    cut.push(Math.abs(n.getZ(i))>.995?0:Math.abs(n.getX(i))>Math.abs(n.getY(i))?2:1);
+  }
+  geo.setAttribute('classCut',new Float32BufferAttribute(cut,1));
   geo.translate(0, 0, -.0075); geo.scale(1, 1, 1 / .023); return geo.rotateX(-Math.PI / 2);
 }
 export function chairBack() {
   const panel = new Shape(); rounded(panel, -.22, -.096, .22, .096, .034);
   const grip = new Path(); rounded(grip, -.071, .031, .071, .064, .015); panel.holes.push(grip);
   const geo = new ExtrudeGeometry(panel, { depth: .012, curveSegments: 3, bevelEnabled: true, bevelSize: .0025, bevelThickness: .003, bevelSegments: 1 });
-  const pos = geo.attributes.position;
+  const pos = geo.attributes.position, normals=geo.attributes.normal, uv=geo.attributes.uv, cut=[], normal=new Vector3();
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i), y = pos.getY(i);
+    normal.fromBufferAttribute(normals,i);
+    cut.push(Math.abs(normal.z)>.995?0:1);uv.setXY(i,x/.44+.5,y/.192+.5);
+    normal.set(normal.x+1.10*x*normal.z,normal.y-.17*normal.z,normal.z).normalize();
+    normals.setXYZ(i,normal.x,normal.y,normal.z);
     pos.setXYZ(i, x, y + .72, .191 + pos.getZ(i) + y * .17 - x * x * .55);
   }
-  geo.computeVertexNormals(); return geo;
+  geo.setAttribute('classCut',new Float32BufferAttribute(cut,1));return geo;
 }
 
 export function classroomCurtains() {

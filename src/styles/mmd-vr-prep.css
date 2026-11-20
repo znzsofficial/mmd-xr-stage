@@ -3,18 +3,13 @@
    ========================================================================== */
 
 .stage-app {
-  --os-bg: #faf9f5;
   --os-surface: #fffefa;
   --os-panel: #e9eee7;
-  --os-ink: #192f28;
   --os-muted: #45594e;
   --os-subtle: #54655a;
   --os-border: #d3dacf;
   --os-border-strong: #a5b3a8;
-  --os-primary: oklch(.44 min(.13, var(--os-primary-chroma)) var(--os-primary-color));
   --os-primary-soft: color-mix(in oklch, var(--os-primary) 10%, var(--os-surface));
-  --studio-green: #175948;
-  --os-focus: #14624f;
   --os-success: #326b48;
   --os-warning: #855916;
   --os-danger: #953929;
@@ -31,6 +26,7 @@
   background: var(--os-bg);
   color: var(--os-ink);
   color-scheme: light;
+  accent-color: var(--os-primary);
   font-family: var(--font-ui);
 }
 
@@ -63,7 +59,7 @@
   display: grid;
   place-items: center;
   border-radius: 10px;
-  background: var(--studio-green);
+  background: var(--os-primary);
   color: var(--os-surface);
 }
 
@@ -247,7 +243,7 @@
   display: grid;
   place-items: center;
   border-radius: 10px;
-  color: var(--studio-green);
+  color: var(--os-primary);
   background: #dce8dc;
 }
 
@@ -612,7 +608,6 @@
 .stage-btn-icon:focus-visible,
 .stage-catalog-summary:focus-visible,
 .stage-seg-control button:focus-visible,
-.stage-swatch-btn:focus-visible,
 .stage-sub-summary:focus-visible,
 .stage-report-summary:focus-visible,
 .stage-drop-zone:focus-visible {
@@ -728,33 +723,7 @@
 .stage-seg-control button.is-active {
   color: var(--os-ink);
   background: var(--os-primary-soft);
-  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--os-primary) 42%, transparent);
-}
-
-/* --------------------------------------------------------------- swatches */
-
-.stage-swatch-list {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.stage-swatch-btn {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: none;
-  cursor: pointer;
-  transition: transform 140ms ease, box-shadow 140ms ease;
-}
-
-.stage-swatch-btn:hover {
-  transform: scale(1.12);
-}
-
-.stage-swatch-btn.is-active {
-  box-shadow: 0 0 0 2px var(--os-bg), 0 0 0 4px var(--os-ink);
+  box-shadow: inset 0 0 0 1px var(--os-primary);
 }
 
 /* ------------------------------------------------------- advanced details */
@@ -815,7 +784,6 @@
 .stage-toggle-row input {
   width: 17px;
   height: 17px;
-  accent-color: var(--os-primary);
   cursor: pointer;
 }
 
@@ -841,7 +809,7 @@
 }
 
 .stage-btn-primary {
-  background: var(--studio-green);
+  background: var(--os-primary);
   color: white;
 }
 
@@ -920,7 +888,7 @@
 .stage-library-heading .stage-count-badge { margin-left:auto; font-size:.88rem; }
 .stage-library-heading + .stage-section-sub { margin:10px 0 0; font-size:.86rem; line-height:1.55; }
 .stage-select, .stage-drop-actions .stage-btn { min-height:44px; }
-.stage-library-heading svg, .stage-first-room svg { color: var(--studio-green); }
+.stage-library-heading svg, .stage-first-room svg { color: var(--os-primary); }
 .stage-music-picker h2 { margin:0; }
 .stage-music-picker .stage-drop-actions { margin-top:.75rem; }
 .stage-music-name, .stage-music-error { margin:.45rem 0 0; font-size:.86rem; color:var(--os-muted); overflow-wrap:anywhere; }
@@ -1006,7 +974,7 @@
 
   .stage-launch-row .stage-btn { flex: 1 1 auto; }
 }
-.stage-app :is(button,select,summary):focus-visible { outline: 3px solid var(--studio-green); outline-offset:3px; }
+.stage-app :is(button,select,summary):focus-visible { outline: 3px solid var(--os-focus); outline-offset:3px; }
 .stage-app .stage-btn, .stage-window-pick { transition: transform 140ms ease, color 140ms ease, background-color 140ms ease; }
 @media (hover:hover) { .stage-app .stage-btn:not(:disabled):hover,.stage-window-pick:not(:disabled):hover { transform:translateY(-1px); } }
 .stage-app .stage-btn:not(:disabled):active,.stage-window-pick:not(:disabled):active { transform:translateY(1px); }

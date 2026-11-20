@@ -3,7 +3,7 @@ import type { SceneryId } from './catalog';
 import { chapelFloor, CHAPEL_OBSTACLES } from './ChapelLayout';
 import { OLD_COURT_RADIUS, onObservatoryFloor, ROUTE_FEET } from './ObservatoryLayout';
 import { classPassageFloor, lawnSchoolFoot, passagePost } from './CampusLayout';
-import {canPlaceInClinic} from './clinic/clinicLayout';
+import {clinicNavigation} from './clinic/clinicNavigation';
 import {canPlaceByLawnClinic,reserveLawnClinic} from './clinic/clinicApproach';
 import {songhouseClear,songhouseHeight} from './qinhuai/songhouseLayout';
 import {weddingClear} from './wedding/weddingLayout';
@@ -83,7 +83,7 @@ export function canPlaceInScenery(id: SceneryId, x: number, z: number): boolean 
   switch (id) {
     case 'weddingCourt': return weddingClear(x,z,true);
     case 'qinhuai': return songhouseClear(x,z,true);
-    case 'clinic': return canPlaceInClinic(x,z);
+    case 'clinic': return clinicNavigation.place(x,z);
     case 'chapel': return shoeOffsets.every(([dx,dz])=>chapelFloor(x+dx,z+dz)) && !CHAPEL_OBSTACLES.some(r=>hits(r,x,z));
     case 'floor': return Math.hypot(x, z) <= SIMPLE_FLOOR_RADIUS - CLEAR;
     case 'astralCourt': return shoeOffsets.every(([dx,dz])=>onObservatoryFloor(x+dx,z+dz)) && !COURT_PIERS.some(p=>hits(p,x,z)) && !ROUTE_FEET.some(p=>hits(p,x,z));

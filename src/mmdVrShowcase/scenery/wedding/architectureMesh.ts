@@ -1,4 +1,4 @@
-import {BufferGeometry, Color, Float32BufferAttribute} from 'three';
+import {BufferGeometry, Color, Float32BufferAttribute, Uint8BufferAttribute} from 'three';
 
 export type V = [number,number,number];
 type Uv = [number,number];
@@ -18,12 +18,30 @@ const dist=(a:V,b:V)=>Math.hypot(a[0]-b[0],a[1]-b[1],a[2]-b[2]);
  * mesh so mip derivatives stay continuous without fract() or a custom shader. */
 export class Skin {
   private pos:number[]=[]; private uv:number[]=[]; private col:number[]=[]; private idx:number[]=[];
-  constructor(private readonly wholePrint=false){}
+  private sky:number[]=[];
+  constructor(private readonly wholePrint=false,private readonly reveal?:(point:V,slot:number,shade:number)=>[tint:number,sky:number],private readonly wallCourses:readonly number[]=[]){}
   face(q:Corners,slot:number,color=white,uv:Square=full,shade?:(p:V)=>number){
+    if(slot===A.lime&&q[0][1]===q[1][1]&&q[2][1]===q[3][1]){
+      // Narrow reveal bands under the coping and at the stone base. Preserve
+      // the uninterrupted atlas island across these light-interpolation cuts.
+      const bottom=q[0][1],top=q[3][1];
+      const stops=this.wallCourses.filter(y=>y>bottom+.001&&y<top-.001);
+      if(stops.length){
+        const at=(a:Uv,b:Uv,t:number):Uv=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t];
+        let l=0;for(const y of [...stops,top]){const h=(y-bottom)/(top-bottom);
+          this.quad([mix(q[0],q[3],l),mix(q[1],q[2],l),mix(q[1],q[2],h),mix(q[0],q[3],h)],slot,color,
+            [at(uv[0],uv[3],l),at(uv[1],uv[2],l),at(uv[1],uv[2],h),at(uv[0],uv[3],h)],shade);l=h;
+        }return;
+      }
+    }
+    this.quad(q,slot,color,uv,shade);
+  }
+  private quad(q:Corners,slot:number,color:string,uv:Square,shade?: (point:V)=>number){
     const i=this.pos.length/3,c=tint(color);
     const triangle=q[3]===q[0];
     for(let j=0;j<(triangle?3:4);j++){
-      this.pos.push(...q[j]); const k=shade?.(q[j])??1;
+      this.pos.push(...q[j]); let k=shade?.(q[j])??1;
+      if(this.reveal){const [paint,sky]=this.reveal(q[j],slot,k);k=paint;this.sky.push(Math.round(sky*255));}
       this.col.push(c.r*k,c.g*k,c.b*k);
       if(this.wholePrint)this.uv.push(...uv[j]);
       else{
@@ -77,6 +95,7 @@ export class Skin {
   }
   finish(){
     const g=new BufferGeometry();g.setAttribute('position',new Float32BufferAttribute(this.pos,3));g.setAttribute('uv',new Float32BufferAttribute(this.uv,2));
+    if(this.sky.length)g.setAttribute('skyVisibility',new Uint8BufferAttribute(this.sky,1,true));
     g.setAttribute('color',new Float32BufferAttribute(this.col,3));g.setIndex(this.idx);g.computeVertexNormals();g.computeBoundingSphere();return g;
   }
 }

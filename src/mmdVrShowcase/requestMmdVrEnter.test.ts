@@ -74,6 +74,7 @@ describe("requestMmdVrEnter", () => {
         snapTurnDegrees: 30,
         exposure: 1,
         stageSkyEnabled: true,
+        showSceneryPeople: true,
         scenery: "floor",
         softHighlights: false,
         stageFogEnabled: true,

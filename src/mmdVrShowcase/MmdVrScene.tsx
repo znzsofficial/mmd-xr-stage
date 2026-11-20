@@ -8,7 +8,6 @@ import {
 } from "./components/MmdVrSessionBridge";
 import { MmdVrPlayerRig } from "./components/MmdVrPlayerRig";
 import { MmdVrStageContent } from "./components/MmdVrStage";
-import { MmdVrThemeProvider } from "./mmdVrTheme";
 import { endMmdVrSession, getMmdVrSessionSnapshot, mmdVrXrStore } from "./mmdVrSession";
 import { getMmdVrRenderProfile } from "./mmdVrQuality";
 import { useMmdVrStore } from "./mmdVrStore";
@@ -39,46 +38,44 @@ export function MmdVrScene() {
   }
 
   return (
-    <MmdVrThemeProvider>
-      <div
-        className="xr-stage-overlay"
-        role="dialog"
-        aria-modal="true"
-        aria-label={t("settingsMmdVrShowcase")}
+    <div
+      className="xr-stage-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label={t("settingsMmdVrShowcase")}
+    >
+      <Canvas
+        className="xr-stage-canvas"
+        gl={{
+          antialias: profile.antialias,
+          powerPreference: "high-performance",
+        }}
+        shadows={profile.shadows}
+        camera={{ position: [0, 1.5, 2.8], fov: 70, near: 0.05, far: mmdPrefs.viewDistance }}
+        dpr={profile.dpr}
+        frameloop="always"
       >
-        <Canvas
-          className="xr-stage-canvas"
-          gl={{
-            antialias: profile.antialias,
-            powerPreference: "high-performance",
-          }}
-          shadows={profile.shadows}
-          camera={{ position: [0, 1.5, 2.8], fov: 70, near: 0.05, far: mmdPrefs.viewDistance }}
-          dpr={profile.dpr}
-          frameloop="always"
-        >
-          <XR store={mmdVrXrStore}>
-            <MmdVrDiagnostics requested={requested} />
-            <AttachPendingMmdVrSession />
-            <MmdVrHeadsetHudGate onHideHud={setHideExitHud} />
-            <MmdVrPlayerRig
-              onExit={exitVr}
-              busy={exiting}
-            />
-            <MmdVrStageContent />
-            <BackpackPlacement />
-            <BackpackWorldTools />
-            <StagePlay />
-          </XR>
-        </Canvas>
-        {!hideExitHud ? (
-          <div className="xr-stage-hud">
-            <button type="button" className="xr-stage-exit" onClick={exitVr} disabled={exiting}>
-              {t("settingsVrDesktopExit")}
-            </button>
-          </div>
-        ) : null}
-      </div>
-    </MmdVrThemeProvider>
+        <XR store={mmdVrXrStore}>
+          <MmdVrDiagnostics requested={requested} />
+          <AttachPendingMmdVrSession />
+          <MmdVrHeadsetHudGate onHideHud={setHideExitHud} />
+          <MmdVrPlayerRig
+            onExit={exitVr}
+            busy={exiting}
+          />
+          <MmdVrStageContent />
+          <BackpackPlacement />
+          <BackpackWorldTools />
+          <StagePlay />
+        </XR>
+      </Canvas>
+      {!hideExitHud ? (
+        <div className="xr-stage-hud">
+          <button type="button" className="xr-stage-exit" onClick={exitVr} disabled={exiting}>
+            {t("settingsVrDesktopExit")}
+          </button>
+        </div>
+      ) : null}
+    </div>
   );
 }

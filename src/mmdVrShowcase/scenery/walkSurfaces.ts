@@ -1,5 +1,5 @@
 import type {SceneryId} from './catalog';
-import {canWalkInClinic,moveInClinic} from './clinic/clinicLayout';
+import {clinicNavigation} from './clinic/clinicNavigation';
 import {canWalkByLawnClinic,moveByLawnClinic} from './clinic/clinicApproach';
 import {XR_ENTRY,moveInSonghouse,songhouseClear,songhouseHeight} from './qinhuai/songhouseLayout';
 import {WEDDING_ENTRY,moveInWedding,weddingClear} from './wedding/weddingLayout';
@@ -10,7 +10,7 @@ type WalkSurface={entry:Foot;clear:(x:number,z:number)=>boolean;move:(x:number,z
 // An entry is used on menu selection or view reset. Walking across a shared
 // doorway keeps the tracked pose and uses the link's translation instead.
 export const walkSurfaces:Partial<Record<SceneryId,WalkSurface>>={
-  clinic:{entry:{x:0,z:2.8},clear:canWalkInClinic,move:moveInClinic},
+  clinic:{entry:{x:0,z:2.8},clear:clinicNavigation.clear,move:clinicNavigation.move},
   lawn:{entry:{x:0,z:0},clear:canWalkByLawnClinic,move:moveByLawnClinic},
   qinhuai:{entry:XR_ENTRY,clear:songhouseClear,move:moveInSonghouse,height:songhouseHeight},
   weddingCourt:{entry:WEDDING_ENTRY,clear:weddingClear,move:moveInWedding},

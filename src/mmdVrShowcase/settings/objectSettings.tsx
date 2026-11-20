@@ -5,7 +5,7 @@ import { HudSlider, ValueLabel } from '../components/HudValues';
 import { useMmdVrStore, normalizeMmdVrExposure } from '../mmdVrStore';
 import { getMmdVrRenderProfile } from '../mmdVrQuality';
 import { mmdVrViewDistanceToSlider, mmdVrSliderToViewDistance, mmdVrHeightOffsetToSlider, mmdVrSliderToHeightOffset } from '../mmdVrAdjustments';
-import { showSceneryGrid } from '../scenery/catalog';
+import { hasSceneryPeople, showSceneryGrid } from '../scenery/catalog';
 import {hasStageLamps} from './stageLamps';
 
 export const settingsSections = [['player','settingsPlayer'],['character','settingsCharacter'],['environment','settingsEnvironment']] as const;
@@ -81,6 +81,7 @@ export function EnvironmentSettings({onDrag,diagnostics}:Drag&{diagnostics:()=>v
     <ValueLabel position={[-.65,-.54,0]} label={t('settingsMmdVrViewDistance')} value={`${p.viewDistance} m`}/>
     <HudSlider position={[.07,-.54,0]} width={.72} value={mmdVrViewDistanceToSlider(p.viewDistance)} onInteractionChange={onDrag} onChange={v=>set({viewDistance:mmdVrSliderToViewDistance(v)})}/>
     <HudButton position={[.73,-.54,0]} size={[.4,.14]} label={t('settingsMmdVrValueReset')} onPress={()=>set({viewDistance:40})}/>
-    <HudButton position={[0,-.75,0]} size={[.88,.14]} variant="quiet" label={t('hudDiagnostics')} onPress={diagnostics}/>
+    {hasSceneryPeople(p.scenery)&&<HudButton position={[-.49,-.75,0]} size={[.88,.16]} active={p.showSceneryPeople} label={t(p.showSceneryPeople?'sceneryPeopleOn':'sceneryPeopleOff')} onPress={()=>set({showSceneryPeople:!p.showSceneryPeople})}/>}
+    <HudButton position={[hasSceneryPeople(p.scenery)?.49:0,-.75,0]} size={[.88,.16]} variant="quiet" label={t('hudDiagnostics')} onPress={diagnostics}/>
   </group>;
 }

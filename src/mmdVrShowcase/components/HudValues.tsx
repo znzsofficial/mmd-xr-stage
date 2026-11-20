@@ -1,7 +1,7 @@
 import {useMemo,useRef,useEffect} from "react";
 import type {ThreeEvent} from "@react-three/fiber";
 import {createPanelTexture} from "../../shared/panelTexture";
-import {useVrHudTheme as useMmdVrTheme} from "../hudAppearance";
+import {HUD_COLORS} from "../hudAppearance";
 export function ValueLabel({
   position,
   label,
@@ -15,24 +15,23 @@ export function ValueLabel({
   size?: [number, number];
   centered?: boolean;
 }) {
-  const { accent } = useMmdVrTheme();
   const textureWidth = Math.max(256, Math.round(88 * size[0] / size[1]));
   const texture = useMemo(
     () => createPanelTexture(textureWidth, 88, ({ ctx, width, height }) => {
       ctx.clearRect(0, 0, width, height);
-      ctx.fillStyle = accent.muted;
+      ctx.fillStyle = HUD_COLORS.muted;
       ctx.font = centered ? "600 30px system-ui, sans-serif" : "500 28px system-ui, sans-serif";
       ctx.textAlign = centered ? "center" : "left";
       ctx.textBaseline = "middle";
       ctx.fillText(label, centered ? width / 2 : 12, height / 2, centered ? width - 24 : width - 105);
       if (!centered) {
-        ctx.fillStyle = accent.ink;
+        ctx.fillStyle = HUD_COLORS.ink;
         ctx.font = "650 30px system-ui, sans-serif";
         ctx.textAlign = "right";
         ctx.fillText(value, width - 20, height / 2);
       }
     }, "en"),
-    [accent.border, accent.ink, accent.muted, accent.soft, centered, label, textureWidth, value],
+    [centered, label, textureWidth, value],
   );
   useEffect(() => () => texture.dispose(), [texture]);
   return (
@@ -60,7 +59,6 @@ export function HudSlider({
 }) {
   const pointerRef = useRef<number | null>(null);
   const pointerTargetRef = useRef<{ releasePointerCapture?: (id: number) => void } | null>(null);
-  const { accent } = useMmdVrTheme();
   const ratio = Math.min(1, Math.max(0, value));
 
   function update(event: ThreeEvent<PointerEvent>) {
@@ -118,17 +116,17 @@ export function HudSlider({
     <group position={position}>
       <mesh position={[0, 0, -0.004]} renderOrder={30} raycast={() => null}>
         <planeGeometry args={[width, 0.012]} />
-        <meshBasicMaterial color={accent.track} transparent opacity={disabled ? 0.45 : 1} toneMapped={false} depthWrite={false} depthTest={false} />
+        <meshBasicMaterial color={HUD_COLORS.track} transparent opacity={disabled ? 0.45 : 1} toneMapped={false} depthWrite={false} depthTest={false} />
       </mesh>
       {ratio > 0 ? (
         <mesh position={[-width / 2 + (width * ratio) / 2, 0, 0]} renderOrder={31} raycast={() => null}>
           <planeGeometry args={[width * ratio, 0.012]} />
-          <meshBasicMaterial color={accent.primary} transparent opacity={disabled ? 0.45 : 1} toneMapped={false} depthWrite={false} depthTest={false} />
+          <meshBasicMaterial color={HUD_COLORS.primary} transparent opacity={disabled ? 0.45 : 1} toneMapped={false} depthWrite={false} depthTest={false} />
         </mesh>
       ) : null}
       <mesh position={[-width / 2 + width * ratio, 0, 0.006]} renderOrder={32} raycast={() => null}>
         <circleGeometry args={[0.036, 24]} />
-        <meshBasicMaterial color={accent.marker} transparent opacity={disabled ? 0.45 : 1} toneMapped={false} depthWrite={false} depthTest={false} />
+        <meshBasicMaterial color={HUD_COLORS.primary} transparent opacity={disabled ? 0.45 : 1} toneMapped={false} depthWrite={false} depthTest={false} />
       </mesh>
       <mesh
         position={[0, 0, 0.012]}

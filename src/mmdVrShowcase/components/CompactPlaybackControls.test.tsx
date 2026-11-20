@@ -6,7 +6,6 @@ import { CompactPlaybackControls, CriticalNotice } from "./MmdVrHud";
 import { useMmdVrStore } from "../mmdVrStore";
 import { useLanguageStore } from "../../languageStore";
 
-vi.mock("../mmdVrTheme", () => ({ useMmdVrTheme: () => ({ accent: { border: "#333333", ink: "#ffffff", marker: "#eeeeee", primary: "#ffffff", soft: "#111111" } }) }));
 vi.mock("../../shared/panelTexture", () => ({ createPanelTexture: () => ({ dispose: vi.fn() }), roundRectPath: vi.fn() }));
 
 let root: Root;
