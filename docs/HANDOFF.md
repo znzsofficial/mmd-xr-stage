@@ -1,8 +1,8 @@
 # 会话交接｜2026-11-20
 
-[线上舞台](https://mmd-xr-stage.pages.dev) · [固定版 `b492753`](https://4226c7f3.mmd-xr-stage.pages.dev) · [分类文档索引](./README.md)
+[线上舞台](https://mmd-xr-stage.pages.dev) · [固定版 `75ebdfb`](https://c602451e.mmd-xr-stage.pages.dev) · [分类文档索引](./README.md)
 
-**线上基线**：十景六件道具。[喜院门楼](./scenery/wedding-materials.md)、[窗边课桌](./scenery/classroom-materials.md)和[诊室护士近景](./scenery/clinic-teaching.md)已上线。「工作台侧面」可近看重新建模的静态护士，「场景人物」只切这位原有人员。339 项测试、生产构建、屏幕和模拟 XR 通过；主域名入口及 62 份文件 SHA-256 已核对。
+**线上基线**：十景六件道具，含[喜院门楼](./scenery/wedding-materials.md)、[窗边课桌](./scenery/classroom-materials.md)和[诊室护士近景](./scenery/clinic-teaching.md)。维护入口见[舞台架构](./architecture.md)：观看会话、当前房间运行时、公共布景渲染和偏好归一化已拆开。340 项测试、生产构建、屏幕与模拟 XR 回归通过；主域名入口及 62 份文件 SHA-256 已核对。
 
 ## 下次从这里开始
 
