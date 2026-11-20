@@ -66,11 +66,13 @@ export function mergeMotionAnimations(
     0,
   );
   const primary = body ?? face ?? camera!;
-  const heaviest = layers.reduce((a, b) => (a.bytes.byteLength >= b.bytes.byteLength ? a : b));
 
   return {
     kind: "vmd",
-    bytes: heaviest.bytes,
+    // No input VMD contains the composite. Passing even one valid VMD header
+    // makes the WASM adapter reparse that single file and drop the other
+    // layers (e.g. the saved expression while an arm pose is active).
+    bytes: new Uint8Array(0),
     metadata: {
       modelName: primary.metadata.modelName || layers.map((l) => l.metadata.modelName).find(Boolean) || "",
       counts: {

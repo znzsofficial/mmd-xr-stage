@@ -396,3 +396,6 @@ PR 合并且 NekoVirtOS 已升级到包含修复的正式版本后，才考虑�
 ## 追踪恢复补丁
 
 `readRigidBodyCenters(indices, out)` 用版本内已有的 WASM getter 读取指定刚体中心。输出缓冲区由调用方持有，不分配逐刚体对象；应用只在手部/手柄重获追踪或发生大幅跳位时查询，同一物理步共用一次。升级 loader 时与 contact-range、TSL 降级一起核验。`handContactProfile.test.ts` 用实际 Bullet 验证两种缩放下的重叠恢复与正常快速推动。
+## Blender 角色的组合动作回归
+
+同一 actor 可以同时绑定身体姿势和独立表情。单个 VMD 继续使用它自己的字节；多层合成时不要把任意一路的原文件当成合成结果传入，否则关物理的 WASM 适配器会重新解析那一份 VMD，忽略另一层。传入合成后的轨道、空的原始字节，由 loader 的 parsed-track 路径求值。[实模复核](./gameplay/blender-characters.md)

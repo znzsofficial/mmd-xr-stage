@@ -96,6 +96,11 @@ function* prepareSurface(source:SkinnedMesh, pads:readonly Bone[], shoulderWidth
   const world=new Matrix4(),blend=new Matrix4(),linear=new Matrix3();
   const p=vector(),n=vector(),delta=vector(),tilt=vector(),tmp=vector();
   let active=false,restored=true;
+  // A Blender rig may weight chest skin well beyond the nearest dynamic
+  // proxy. After a tracking gap, native clearance need not mean surface
+  // clearance. Reuse the posed cell boxes; don't add a second skinning pass.
+  let previousTips=0, recovering=0;
+  const clearTime=new Float32Array(12);
 
   function dirty(attr:BufferAttribute,first:number,last:number){
     if(last<first)return;
@@ -113,7 +118,7 @@ function* prepareSurface(source:SkinnedMesh, pads:readonly Bone[], shoulderWidth
     }
     restored=true;
   }
-  function reset(){restore();tipBroadGain.fill(1);if(!active)return;
+  function reset(){restore();previousTips=recovering=0;clearTime.fill(0);tipBroadGain.fill(1);if(!active)return;
     for(const l of layers){for(const v of l.active){v.depth=0;v.tilt.set(0,0,0);} l.active.length=0;for(const c of l.cells)c.active=false;}
     active=false;
   }
@@ -121,7 +126,13 @@ function* prepareSurface(source:SkinnedMesh, pads:readonly Bone[], shoulderWidth
   function apply(hands:TrackedPressure|undefined,dt:number){
     restore();
     tips.length=0;tipBroadGain.fill(1);
-    if(!active && !(hands && (hands.mask&FINGERTIP_MASK)))return;
+    const mask=(hands?.mask??0)&FINGERTIP_MASK;
+    recovering|=previousTips&~mask;previousTips=mask;
+    let nearRecovered=0;
+    if(recovering)for(let i=0;i<12;i++)if(recovering&(1<<i)){
+      tipBroadGain[i]=0;if(!(mask&(1<<i)))clearTime[i]=0;
+    }
+    if(!active && !mask)return;
     if(hands)for(let i=0;i<12;i++){
       const t=slots[i];t.r=hands.readFinger(i,t.start,t.end);if(!t.r)continue;t.distSq=Infinity;
       t.axis.subVectors(t.end,t.start);t.invLengthSq=1/Math.max(1e-12,t.axis.lengthSq());
@@ -148,7 +159,9 @@ function* prepareSurface(source:SkinnedMesh, pads:readonly Bone[], shoulderWidth
           // Include active morph travel so a sliding hand follows the drawn pose.
           box.makeEmpty();for(const b of c.bones){mid.copy(c.center).applyMatrix4(b.matrix);
             box.expandByPoint(lo.copy(mid).sub(b.extent));box.expandByPoint(hi.copy(mid).add(b.extent));}
-          for(const t of tips)if(box.intersectsBox(t.bounds))near.push(t);
+           for(const t of tips)if(box.intersectsBox(t.bounds)){
+             const bit=1<<t.slot;if(recovering&bit)nearRecovered|=bit;else near.push(t);
+           }
         }
         if(!near.length&&!c.active)continue;
         c.active=false;
@@ -187,6 +200,10 @@ function* prepareSurface(source:SkinnedMesh, pads:readonly Bone[], shoulderWidth
         }
       }
       dirty(l.position,first,last);dirty(l.normal,first,last);
+    }
+    if(recovering)for(const t of tips){const bit=1<<t.slot;if(!(recovering&bit))continue;
+      if(nearRecovered&bit)clearTime[t.slot]=0;
+      else if((clearTime[t.slot]+=seconds)>=2/60){recovering&=~bit;clearTime[t.slot]=0;tipBroadGain[t.slot]=1;}
     }
     restored=!active;
     return tipBroadGain;

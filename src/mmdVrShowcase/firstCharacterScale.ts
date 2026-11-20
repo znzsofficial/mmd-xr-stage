@@ -20,6 +20,9 @@ export function firstCharacterScale(root: Object3D | null): number | undefined {
   root.traverse(child => {
     const mesh = child as SkinnedMesh;
     if (scale != null || !mesh.isSkinnedMesh || !mesh.skeleton || seen.has(mesh.skeleton)) return;
+    // The offline bridge explicitly writes ten model units per source metre.
+    // Do not normalize shorter/taller Blender actors to the same eye height.
+    if (mesh.userData.mmdModel?.comment === 'MMDXR:blender-stage/v1;metres-per-unit=0.1') { scale = .1; return; }
     seen.add(mesh.skeleton);
     const samples = { eyes: [] as number[], head: [] as number[], feet: [] as number[] };
     for (const bone of mesh.skeleton.bones) {

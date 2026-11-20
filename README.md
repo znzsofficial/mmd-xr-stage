@@ -15,6 +15,8 @@
 
 Import PMX/PMD characters, VMD motions and GLB/glTF props on the prep page. Choose **Watch on screen** in a WebGL 2 browser or enter immersive VR on Quest. BGM playback is not implemented.
 
+For a skinned Blender character, the [offline Windows converter](./docs/gameplay/blender-characters.md) can produce a stage-ready ZIP with a PMX actor, textures, facial shapes and supported saved rigid-body constraints. Import the ZIP directly on Quest or desktop.
+
 ## Stage gallery
 
 **Qinhuai Songhouse · 泊月楼**

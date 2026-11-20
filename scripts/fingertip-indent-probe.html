@@ -62,7 +62,7 @@ window.compare=async()=>{
     for(let i=0;i<12;i++){aim(B,.004);tick();}const regain=moves();
     aim(A,.65);for(let i=0;i<12;i++)tick();for(let i=1;i<=80;i++){aim(A,.65+(.004-.65)*i/80);tick();}const beforeOff=moves();tick(false);const off=moves();
     const result={candidates:local.candidates,fitMs,maxFitSliceMs,fitSlices,farMs,nearMs,contactA,unpressedB,first,pixels,releasedA,contactB,second,releaseFirst,end,regain,beforeOff,off};
-    if(!(contactA>.0005 && unpressedB===0 && contactB>.0005 && first.count<local.candidates && releasedA<.00005 && releaseFirst>0 && releaseFirst<contactB && end.peak===0 && beforeOff.peak>.0005 && off.peak===0 && (pixels===null||pixels>0)))throw Error(JSON.stringify(result));
+     if(!(contactA>.0005 && unpressedB===0 && contactB>.0005 && first.count<local.candidates && releasedA<.00005 && releaseFirst>0 && releaseFirst<contactB && end.peak===0 && regain.peak===0 && beforeOff.peak>.0005 && off.peak===0 && (pixels===null||pixels>0)))throw Error(JSON.stringify(result));
     return result;
   }finally{renderer?.dispose();rt.dispose();}
 };document.querySelector('button').onclick=async()=>{const pre=document.querySelector('pre');try{pre.textContent=JSON.stringify(await window.compare(),null,2);}catch(e){pre.textContent=String(e);}};

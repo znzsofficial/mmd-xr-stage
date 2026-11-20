@@ -37,6 +37,16 @@ it('indents only the nearby front-weighted surface; slides, releases and restore
   touch(new Vector3(1,1,1));pass.apply(hands,1/60);expect(pos.version).toBe(version);
 });
 
+it('does not start a new dent when a tracked tip reappears inside skin outside the Bullet bounds',()=>{
+  const {mesh,chest,pos,hands,touch}=rig(),pass=fitFingertipIndent(mesh,[chest],.45)!;
+  const on=new Vector3(0,0,.004),away=new Vector3(0,0,.4);
+  touch(on);pass.apply(hands,1/60);expect(pos.getZ(0)).toBeLessThan(0);
+  touch(on,0);for(let i=0;i<90;i++)pass.apply(hands,1/60);
+  touch(on);for(let i=0;i<12;i++)pass.apply(hands,1/60);expect(pos.getZ(0)).toBe(0);
+  touch(away);pass.apply(hands,1/60);touch(on);pass.apply(hands,1/60);expect(pos.getZ(0)).toBe(0);
+  touch(away);for(let i=0;i<3;i++)pass.apply(hands,1/60);touch(on);pass.apply(hands,1/60);expect(pos.getZ(0)).toBeLessThan(0);
+});
+
 it('uses the posed, morphed split body under a rotated / scaled root; excluded buffers and shader hooks stay inert',()=>{
   const {mesh,root,chest,g,pos,hands,poses,touch}=rig(),body=new SkinnedMesh(g.clone(),mesh.material),other=new SkinnedMesh(g.clone(),mesh.material);
   root.add(body,other);body.bind(mesh.skeleton,mesh.bindMatrix);other.bind(mesh.skeleton,mesh.bindMatrix);

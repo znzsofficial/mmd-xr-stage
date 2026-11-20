@@ -1,0 +1,40 @@
+<!doctype html><meta charset="utf-8"><title>Converted character: pose, cloth and release</title>
+<p>Local development only. Select the extracted files (including arm-check.vmd). Uses two independent actors and the shipped Bullet; no uploads.</p>
+<input type="file" multiple><button>Verify</button><pre></pre>
+<script type="module">
+import * as T from 'three';
+import {createMmdRuntimeHandle} from '../../src/mmdVrShowcase/mmdRuntime/mmdRuntime.ts';
+window.verify=async()=>{
+ const files=[...document.querySelector('input').files],pmx=files.find(f=>f.name.endsWith('.pmx')),vmd=files.find(f=>f.name==='arm-check.vmd');
+ if(!pmx||!vmd)throw Error('Select the extracted actor package and arm-check.vmd');
+ const dt=1/60,cam=new T.PerspectiveCamera(),cases=[],v=()=>new T.Vector3(),pos=b=>b.getWorldPosition(v());
+ try{
+  for(let i=0;i<2;i++){
+   const ctl=[new T.Matrix4().makeTranslation(0,-1000,0),new T.Matrix4().makeTranslation(0,-1000,0)];
+   const rt=createMmdRuntimeHandle(new T.Scene(),{controllerColliders:()=>ctl,controllerColliderRadius:()=>.035});const row={rt,ctl};cases.push(row);
+   const {modelId,warnings}=await rt.addModel(pmx,files,{physics:false,transform:{scale:.1}});if(warnings?.length)throw Error('Missing resources');const root=rt.getModelRoot(modelId);let mesh;root.traverse(n=>{if(n.isSkinnedMesh&&!mesh)mesh=n});
+   const bones=mesh.skeleton.bones,find=n=>bones.find(b=>b.userData.mmdBoneName===n||b.name===n);const wrist=find('左手首');if(!wrist)throw Error('No left wrist');
+   const expression=files.find(f=>f.name==='saved-face.vmd');if(expression)await rt.loadMotion(expression,'face',modelId);
+   await rt.loadMotion(vmd,'body',modelId);rt.update(0,false,cam,1,false);const initial=pos(wrist);rt.update(1,false,cam,1,false);row.wrist=initial.distanceTo(pos(wrist));
+   if(expression){const j=mesh.morphTargetDictionary['保存表情'];row.savedExpression=mesh.morphTargetInfluences[j];if(!(row.savedExpression>.99))throw Error('Saved facial preset not applied');}
+   const hemi=bones.map((b,i)=>/skirt/i.test(b.userData.mmdEnglishBoneName??b.name)?i:-1).filter(i=>i>=0);if(!hemi.length)throw Error('No named skirt bones to test');
+   const g=mesh.geometry,a=g.attributes,ids=[];for(let i=0;i<a.position.count;i++)for(let j=0;j<4;j++)if(hemi.includes(a.skinIndex.getComponent(i,j))&&a.skinWeight.getComponent(i,j)>.7){ids.push(i);break;}
+   if(!ids.length)throw Error('No skirt vertices');const vert=i=>mesh.getVertexPosition(i,v()).applyMatrix4(mesh.matrixWorld);
+   const sample=ids.filter((_,j)=>j%Math.max(1,Math.floor(ids.length/200))===0);
+   Object.assign(row,{vert,sample,skirt:hemi.map(i=>bones[i]),wristBone:wrist});
+   await rt.setPhysicsEnabled(true);row.step=()=>rt.update(1,true,cam,1,false,dt);
+   for(let j=0;j<180;j++)row.step();
+  }
+  const [a,b]=cases;const difference=()=>Math.max(...a.sample.map(i=>a.vert(i).distanceTo(b.vert(i))));const idle=difference();
+  const sorted=[...a.skirt].sort((x,y)=>pos(x).y-pos(y).y);const at=pos(sorted[0]);
+  const from=at.clone().add(new T.Vector3(0,-.24,.52)),to=at.clone().add(new T.Vector3(0,.06,-.045));let peak=0,contacts=0;
+  a.ctl[0].setPosition(from);for(let i=0;i<12;i++){a.step();b.step();}
+  for(let i=0;i<100;i++){a.ctl[0].setPosition(v().lerpVectors(from,to,Math.min(1,i/72)));a.step();b.step();contacts+=a.rt.getControllerContactCount(0);peak=Math.max(peak,difference());}
+  for(let i=0;i<=72;i++){a.ctl[0].setPosition(v().lerpVectors(to,from,i/72));a.step();b.step();}
+  a.ctl[0].makeTranslation(0,-1000,0);for(let i=0;i<240;i++){a.step();b.step();}
+  const after=difference(),handDrift=pos(a.wristBone).distanceTo(pos(b.wristBone));
+  const result={wristPoseDeltaM:a.wrist,savedExpression:a.savedExpression,skirtSamples:a.sample.length,dynamic:a.rt.getDynamicRigidBodyCount(),idle,contacts,peakM:peak,afterM:after,handDrift};
+  if(!(a.wrist>.02&&result.dynamic>0&&idle<.0001&&contacts>0&&peak>.002&&peak<.5&&after<peak&&handDrift<.0001))throw Error(JSON.stringify(result));return result;
+ }finally{for(const {rt} of cases)rt.dispose()}
+};document.querySelector('button').onclick=async()=>{let out=document.querySelector('pre');try{out.textContent=JSON.stringify(await window.verify(),null,2)}catch(e){out.textContent=String(e)}};
+</script>

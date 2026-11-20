@@ -24,3 +24,10 @@ it("keeps authored metre-sized humanoids and tall FX without a matching anatomic
 it("can use the original Japanese head and ankle names when mesh geometry and English labels are unhelpful", () => {
   expect(firstCharacterScale(rig([["bone1",18,"頭"],["bone2",2,"左足首"]]))).toBe(.1);
 });
+it('keeps different authored Blender heights instead of fitting both exports to 1.6 metres',()=>{
+  for(const y of [12,20]){
+    const root=rig([['Head',y],['leftFoot',0]]);
+    root.children[0].userData.mmdModel={comment:'MMDXR:blender-stage/v1;metres-per-unit=0.1'};
+    expect(firstCharacterScale(root)).toBe(.1);
+  }
+});
