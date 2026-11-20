@@ -5,6 +5,7 @@ import { CHAPEL_SHOTS } from './ChapelLayout';
 import { CLINIC_SHOTS,CLINIC_VIEW } from './clinic/clinicLayout';
 import {roomLinks,type RoomLink} from './connections';
 import {LIDO_ROUTE_SHOTS} from './LidoLayout';
+import {SCREEN_ENTRY,SHOTS} from './qinhuai/songhouseLayout';
 
 type Point=readonly [number,number,number];
 type Shot={key:TranslationKey;eye:Point;aim:Point;link?:RoomLink;preloadLawn?:boolean;overview?:boolean};
@@ -20,6 +21,7 @@ export const roomViews:Record<SceneryId,RoomView>={
     {key:'campusArbor',eye:[-.73,1.58,.6],aim:[-4.2,1.40,-6.4]},LIDO_ROUTE_SHOTS.gate]},
   astralCourt:{entry:[[.85,1.65,4.4],[0,1.47,-1.25]],shots:COURT_SHOTS.map(s=>({...s,overview:s.key==='courtOverview'}))},
   chapel:{entry:[[.25,1.63,4.7],[0,1.68,-3.8]],shots:CHAPEL_SHOTS}, clinic:{entry:CLINIC_VIEW,shots:CLINIC_SHOTS},
+  qinhuai:{entry:SCREEN_ENTRY,shots:SHOTS},
 };
 const tours=new Map<SceneryId,readonly Shot[]>();
 export function tourShots(room:SceneryId):readonly Shot[]{

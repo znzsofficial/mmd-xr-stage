@@ -9,12 +9,13 @@ import {CLASS_SUN} from './ClassroomLayout';
 import {CHAPEL_SUN} from './ChapelLayout';
 import {MEADOW_SUN} from './placementAreas';
 import { ClinicWard } from './clinic/ClinicWard';
+import { Songhouse } from './qinhuai/Songhouse';
 import type {SceneryId} from './catalog';
 
 // Deliberately separate from the prep-page catalog. The registry holds
 // component types, never mounted meshes, textures or inactive room worlds.
 type RoomSetDefinition={view:ComponentType<{shadows:boolean;concert:boolean}>;
-  sky?:'day'|'court';sun?:[number,number,number];warm?:boolean; hemi?:number;ambient?:number;
+  sky?:'day'|'court'|'river';sun?:[number,number,number];warm?:boolean; hemi?:number;ambient?:number;
   hemiSky?:string;hemiGround?:string;fog?:string;warmFog?:string};
 const day={sky:'day',hemi:.32,hemiSky:'#d4e5ee',hemiGround:'#a79d8d',fog:'#c5dfe6',warmFog:'#e7c8a7'} as const;
 export const roomSets:Record<SceneryId,RoomSetDefinition>={
@@ -24,6 +25,7 @@ export const roomSets:Record<SceneryId,RoomSetDefinition>={
   astralCourt:{view:AstralCourt,sky:'court',hemiSky:'#dadcf5',hemiGround:'#797883',hemi:.42,fog:'#555572'},
   chapel:{view:DawnChapel,sky:'day',sun:CHAPEL_SUN,warm:true,hemiSky:'#f5ede0',hemiGround:'#bcada1',hemi:.56,fog:'#d9d1c7'},
   clinic:{view:ClinicWard,ambient:.2,hemiSky:'#f2f7f8',hemiGround:'#bbc6c1',hemi:.56,fog:'#e1e7e5'},
+  qinhuai:{view:Songhouse,sky:'river',sun:[-3,5.8,5.2],ambient:.11,hemiSky:'#f7d9b0',hemiGround:'#a68d7c',hemi:.48,fog:'#a59b98'},
 };
 export function RoomSet({id,shadows,concert}:{id:SceneryId;shadows:boolean;concert:boolean}){
   const Set=roomSets[id].view;return <Set shadows={shadows} concert={concert}/>;

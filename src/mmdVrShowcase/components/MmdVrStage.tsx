@@ -26,12 +26,15 @@ import { CourtSky } from '../scenery/AstralCourt';
 import {xrRoomRestoreTiming} from '../roomRestoreTiming';
 import {hasStageLamps} from '../settings/stageLamps';
 import {createRoomMotionCache,type RoomMotionCache} from '../mmdRuntime/roomMotionCache';
+import {scheduleBulletModuleWarm} from '../mmdRuntime/bulletModule';
 import {createRoomAlphaTiles,type RoomAlphaTiles} from '../mmdRuntime/roomAlphaTiles';
 import { prepareModelGpu } from "../prepareModelGpu";
 import { createPlacementWork } from '../placementWork';
 import { DaySky } from "../scenery/DaylightSets";
 import { showSceneryGrid, type SceneryId } from "../scenery/catalog";
-import { canPlaceInScenery } from "../scenery/placementAreas";
+import { canPlaceInScenery,placementHeight } from "../scenery/placementAreas";
+import {elevatedPickDecks,visiblePick} from '../scenery/pickDecks';
+import {RiverSky} from '../scenery/qinhuai/Songhouse';
 import { useMmdVrTheme } from "../mmdVrTheme";
 import { prepareMmdVrModel } from "../prepareMmdVrModel";
 import { getMmdVrControllerColliderMatrices } from "../mmdVrControllerColliders";
@@ -223,24 +226,26 @@ function StageFloor({
   placeMode,
   floorColor,
   deck,
+  scenery,
 }: {
   segments: number;
   shadows: boolean;
   placeMode: boolean;
   floorColor: string;
   deck: boolean;
+  scenery:SceneryId;
 }) {
   const { accent } = useMmdVrTheme();
   return (
     <group>
       {!deck && <StudioPlinth segments={segments} shadows={shadows} color={floorColor} />}
-      {placeMode ? (
-        <mesh name="placement-surface" rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.021, 0]}
-          onPointerDown={e => { e.stopPropagation(); useMmdVrStore.getState().requestGroundPlace(e.point.x, e.point.z); }}>
-          <planeGeometry args={[2 * PLACE_HALF_WIDTH, 2 * PLACE_HALF_WIDTH]} />
+      {placeMode && [{x:0,y:0,z:0,w:scenery==='qinhuai'?32:2*PLACE_HALF_WIDTH,d:scenery==='qinhuai'?32:2*PLACE_HALF_WIDTH},...elevatedPickDecks(scenery)].map(r=>(
+        <mesh key={r.y} name="placement-surface" rotation={[-Math.PI / 2, 0, 0]} position={[r.x,r.y+.021,r.z]}
+          onPointerDown={e => { e.stopPropagation(); if(visiblePick(scenery,e.ray.origin,e.point.x,r.y,e.point.z))useMmdVrStore.getState().requestGroundPlace(e.point.x, e.point.z); }}>
+          <planeGeometry args={[r.w,r.d]} />
           <meshBasicMaterial color={accent.marker} transparent opacity={0.1} depthWrite={false} />
         </mesh>
-      ) : null}
+      ))}
     </group>
   );
 }
@@ -325,6 +330,8 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
   const language = useLanguageStore((s) => s.language);
 
   const runtimeRef = useRef<MmdRuntimeHandle | null>(null);
+  const warmAfterPlacement = useRef(false);
+  const cancelWarm = useRef<(() => void) | undefined>(undefined);
   const lastEvaluatedTimeRef = useRef(-Infinity);
   useLayoutEffect(()=>{lastEvaluatedTimeRef.current=-Infinity;},[mmdPrefs.chestCompression]);
   const timeRef = useRef(0);
@@ -457,7 +464,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
       pendingVisibilityToggles: [], pendingModelRemovals: [], duration: 0, assetLoad: emptyAssetLoadProgress(),
     });
     resetMmdVrClock();
-    return () => { runtimeRef.current = null; };
+    return () => { runtimeRef.current = null; warmAfterPlacement.current = false; cancelWarm.current?.(); };
   }, [runtime]);
 
   useLayoutEffect(() => {
@@ -688,7 +695,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
     const isStale = () => cancelled || gen !== loadGenRef.current || isRoomStale();
     const trace=initialLoad.current&&saved&&useMmdVrStore.getState().presentation==='xr'?xrRoomRestoreTiming.bind(scenery):undefined;
     if (!loadQueueRef.current) {
-      const tasks=actors.restoreTasks(slots,saved,isRoomStale,trace?.modelWork);
+      const tasks=actors.restoreTasks(slots,saved,isRoomStale,trace);
       loadQueueRef.current = createAssetLoadQueue(trace?.wrap(tasks)??tasks);
     }
     setStatusLine(labelsRef.current.loading);
@@ -755,8 +762,9 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
           useLanguageStore.getState().language === "zh" ? "请指向可摆放的地面。" : "Choose an open spot on the ground.");
         // Includes recent material edits / scrubs. Closing during this command uses the last healthy room.
         saveRoom();
-        const work = command.type === 'place' && !priorId && useBackpack.getState().placement?.kind === 'model' ? createPlacementWork() : undefined;
-        const warning = await actors.execute(command, stale, work);
+        const freshModel = command.type === 'place' && !priorId && useBackpack.getState().placement?.kind === 'model';
+        const work = freshModel ? createPlacementWork() : undefined;
+        const warning = await actors.execute(command, stale, work,command.type==='place'?placementHeight(scenery,command.x,command.z):0);
         if (stale()) return;
         if (command.type === "place" && priorId && !actors.objects.has(priorId) && physicsEnabled) runtime.resetPhysics(timeRef.current, priorId);
         staticSettleElapsed.current = 0;
@@ -770,6 +778,8 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
         saveRoom();
         useBackpack.getState().finishCommand(command, undefined, work);
         if (warning) useBackpack.setState({ error: warning });
+        // Only a completed fresh manual model drop (not a move/restore/import).
+        if (freshModel && !warning && !useMmdVrStore.getState().physicsEnabled) warmAfterPlacement.current = true;
       } catch (error) {
         if (!stale()) useBackpack.getState().finishCommand(command, error instanceof Error ? error.message : String(error));
       }
@@ -778,6 +788,17 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
 
   useFrame((_, delta) => {
     applyLighting();
+
+    // Let the placement-ready frame run first. An idle callback can outlive
+    // a put-away, another command or an A→B→A room change: recheck live state.
+    if (warmAfterPlacement.current) {
+      warmAfterPlacement.current = false;
+      cancelWarm.current?.();
+      cancelWarm.current = scheduleBulletModuleWarm(() => {
+        const s = useMmdVrStore.getState();
+        return !isRoomStale() && s.models.length > 0 && !s.physicsEnabled && !s.physicsBusy && !s.assetLoad.running && !useBackpack.getState().busy;
+      });
+    }
 
     const store = useMmdVrStore.getState();
     let physicsReseedNeeded = false;
@@ -810,9 +831,9 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
     if (place && canPlaceInScenery(scenery, place.x, place.z)) {
       const objectEntry = actors.objects.get(place.id);
       if (objectEntry) {
-        objectEntry.group.position.set(place.x, 0, place.z);
+        objectEntry.group.position.set(place.x, placementHeight(scenery,place.x,place.z), place.z);
       } else if (runtime.listModels().some(m => m.id === place.id)) {
-        runtime.setModelTransform(place.id, { positionX: place.x, positionY: 0, positionZ: place.z });
+        runtime.setModelTransform(place.id, { positionX: place.x, positionY: placementHeight(scenery,place.x,place.z), positionZ: place.z });
         physicsReseedNeeded = true;
       }
       actors.publishLive();
@@ -974,7 +995,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
       {mmdPrefs.stageFogEnabled ? (
         <fog attach="fog" args={[lightCfg.fogColor, Math.min(10, viewDistance * 0.45), viewDistance]} />
       ) : null}
-      {mmdPrefs.stageSkyEnabled && room.sky==='court' ? <CourtSky/> : mmdPrefs.stageSkyEnabled && room.sky==='day' ? <DaySky sun={lightCfg.sunPos} warm={lightPreset === 'warm'||!!room.warm} /> : mmdPrefs.stageSkyEnabled ? (
+      {mmdPrefs.stageSkyEnabled && room.sky==='river' ? <RiverSky/> : mmdPrefs.stageSkyEnabled && room.sky==='court' ? <CourtSky/> : mmdPrefs.stageSkyEnabled && room.sky==='day' ? <DaySky sun={lightCfg.sunPos} warm={lightPreset === 'warm'||!!room.warm} /> : mmdPrefs.stageSkyEnabled ? (
         <StageSky zenith={lightCfg.skyZenith} horizon={lightCfg.skyHorizon} bottom={lightCfg.fogColor} />
       ) : null}
       <ambientLight color={lightCfg.ambientColor} intensity={lightCfg.ambient} />
@@ -1004,6 +1025,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
         />
       ) : null}
       <StageFloor
+        scenery={scenery}
         segments={profile.floorSegments}
         shadows={profile.shadows}
         placeMode={placeMode}

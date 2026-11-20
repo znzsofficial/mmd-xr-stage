@@ -9,6 +9,8 @@ import { examRoom, operatingRoom, washroom, MIRROR_Y } from './clinicEquipment';
 import atlasUrl from './clinic-plates.webp';
 import floorUrl from './clinic-floor.webp';
 import educationUrl from './clinic-education.webp';
+import teachingUrl from './clinic-teaching.webp';
+import { instrumentGeometry, teachingModelGeometry } from './teachingSolids';
 
 const noPick=()=>null;
 // A soft ceiling bounce, not a bank of point lights per fixture. Its broad
@@ -57,8 +59,9 @@ void main(){
 
 export function ClinicWard({ shadows }: {shadows:boolean}) {
   const p=useMemo(()=>{const p=new ClinicParts();clinicShell(p);examRoom(p);operatingRoom(p);washroom(p);return p;},[]);
-  const geo=useMemo(()=>({pad:padGeometry(),bowl:bowlGeometry(),egg:new SphereGeometry(.5,12,8),plates:p.platesGeometry(),education:p.platesGeometry(true),cloth:curtainGeometry(FIXTURES.curtain.x,FIXTURES.curtain.z)}),[p]);
+  const geo=useMemo(()=>({pad:padGeometry(),bowl:bowlGeometry(),egg:new SphereGeometry(.5,12,8),plates:p.platesGeometry(),education:p.platesGeometry('education'),teaching:p.platesGeometry('teaching'),models:teachingModelGeometry(),instruments:instrumentGeometry(),cloth:curtainGeometry(FIXTURES.curtain.x,FIXTURES.curtain.z)}),[p]);
   const atlas=useBakedSurface(atlasUrl),floor=useBakedSurface(floorUrl),education=useBakedSurface(educationUrl);
+  const teaching=useBakedSurface(teachingUrl);
   useEffect(()=>()=>{for(const g of Object.values(geo))g.dispose();},[geo]);
   return <group name="scenery:clinic">
     <mesh name="clinic:terrazzo-and-furniture-contact" position={[0,0,(WARD.south+WARD.north)/2]} rotation-x={-Math.PI/2} receiveShadow={shadows} raycast={noPick}>
@@ -79,6 +82,15 @@ export function ClinicWard({ shadows }: {shadows:boolean}) {
     </mesh>
     <mesh name="clinic:six-authored-obstetric-education-plates" raycast={noPick}>
       <primitive object={geo.education} attach="geometry"/><meshBasicMaterial key={education?'education':'paper'} map={education} color={education?'white':'#e9e5ce'}/>
+    </mesh>
+    <mesh name="clinic:anatomical-castings" raycast={noPick}>
+      <primitive object={geo.models} attach="geometry"/><meshStandardMaterial vertexColors roughness={.60} onBeforeCompile={bounce}/>
+    </mesh>
+    <mesh name="clinic:stainless-instrument-set" raycast={noPick}>
+      <primitive object={geo.instruments} attach="geometry"/><meshStandardMaterial vertexColors metalness={.22} roughness={.38} side={DoubleSide} onBeforeCompile={bounce}/>
+    </mesh>
+    <mesh name="clinic:teaching-and-supply-prints" raycast={noPick}>
+      <primitive object={geo.teaching} attach="geometry"/><meshBasicMaterial key={teaching?'teaching':'paper'} map={teaching} color={teaching?'white':'#efe8d8'}/>
     </mesh>
     <mesh name="clinic:twin-vanity-mirrors" position={[FIXTURES.sinks.x,MIRROR_Y,-8.853]} raycast={noPick}>
       <planeGeometry args={[2.394,.77]}/><shaderMaterial vertexShader={mirrorV} fragmentShader={mirrorF}/>

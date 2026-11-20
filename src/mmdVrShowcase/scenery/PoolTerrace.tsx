@@ -141,7 +141,7 @@ function Water() {
       float dist=max(0.,min(bed,min(wall.x,wall.y)));vec3 hit=wp+dist*r;
       vec2 uv=bed<=min(wall.x,wall.y)?hit.xz:(wall.x<wall.y?hit.zy:hit.xy);
       vec2 tile=uv*3.;vec2 gap=abs(fract(tile+.5)-.5)/max(fwidth(tile),vec2(.001));float grout=1.-smoothstep(.2,1.2,min(gap.x,gap.y));
-      float laneX=abs(mod(hit.x+3.34,3.34)-1.67),endDist=ext.y-abs(hit.z-${w.z.toFixed(2)});
+      float laneX=abs(mod(hit.x+3.34,3.34)-1.67),endDist=ext.y-abs(hit.z-(${w.z.toFixed(2)}));
       float stripe=max((1.-smoothstep(.075,.13,laneX))*smoothstep(.78,.83,endDist),(1.-smoothstep(.060,.11,abs(endDist-.87)))*(1.-smoothstep(.46,.51,laneX)))*step(bed,min(wall.x,wall.y));
       vec3 c=mix(vec3(.32,.73,.72),vec3(.035,.24,.31),stripe);c=mix(c,vec3(.2,.48,.53),grout*.42);
       // A glazed ribbon just below the coping. Pattern lives on the refracted

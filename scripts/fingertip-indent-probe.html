@@ -1,0 +1,69 @@
+<!doctype html><meta charset="utf-8"><title>Local fingertip surface check</title>
+<p>Select one local PMX and its textures. Paused pose zero, real Bullet, synthetic tracked index finger. Add ?pixels to render a same-pose A/B locally.</p>
+<input type="file" multiple><button>Compare</button><pre></pre>
+<script type="module">
+import * as T from 'three';
+import {createMmdRuntimeHandle} from '../src/mmdVrShowcase/mmdRuntime/mmdRuntime.ts';
+import {fitChestCompression} from '../src/mmdVrShowcase/mmdRuntime/chestCompression.ts';
+import {beginFingertipFit} from '../src/mmdVrShowcase/mmdRuntime/fingertipIndent.ts';
+import {TrackedPressure} from '../src/mmdVrShowcase/mmdRuntime/trackedPressure.ts';
+import {handContactShape} from '../src/mmdVrShowcase/handContactProfile.ts';
+window.compare=async()=>{
+  const files=[...document.querySelector('input').files],file=files.find(f=>/\.pmx$/i.test(f.name));
+  const scene=new T.Scene(),cam=new T.PerspectiveCamera(28,1,.01,20),v=()=>new T.Vector3();
+  const park=()=>new T.Matrix4().makeTranslation(0,-1000,0),hands=Array.from({length:12},park);
+  const rt=createMmdRuntimeHandle(scene,{chestCompression:()=>false,handColliders:()=>hands,handShape:handContactShape,handColliderRadius:()=>.033});
+  let renderer;
+  try {
+    const scale=.10,{modelId}=await rt.addModel(file,files,{physics:true,transform:{scale,rotationY:32,positionX:.35}});
+    let mesh;rt.getModelRoot(modelId).traverse(n=>{if(!mesh&&n.isSkinnedMesh)mesh=n;});
+    const tick=(physics=true)=>rt.update(0,physics,cam,1,false,1/60),fit=fitChestCompression(mesh);
+    if(!fit)throw Error('No dedicated supported chest bones');
+    for(let i=0;i<60;i++)tick();
+    const weighted=new Set(fit.affectedBones.map(b=>mesh.skeleton.bones.indexOf(b)));
+    const layers=(mesh.userData.mmdMorphSplitBodyMeshes??[mesh]).map(b=>{const {position,normal,skinWeight,skinIndex}=b.geometry.attributes;
+      return {b,p:position,n:normal,raw:position.array.slice(),rawN:normal.array.slice(),skinWeight,skinIndex};});
+    const picks=[];
+    for(const l of layers)for(let i=0;i<l.p.count;i++){
+      let w=0;for(let k=0;k<4;k++)if(weighted.has(l.skinIndex.getComponent(i,k)))w+=l.skinWeight.getComponent(i,k);
+      if(w>.65&&l.n.getZ(i)>.6&&l.p.getX(i)>0)picks.push({l,i});
+    }
+    const sample=({l,i})=>{const pos=v().fromArray(l.raw,3*i),normal=v().fromArray(l.rawN,3*i);
+      const world=q=>l.b.applyBoneTransform(i,q).applyMatrix4(l.b.matrixWorld),n=world(pos.clone().add(normal));world(pos);n.sub(pos).normalize();return {pos,n};};
+    const A=picks.sort((a,b)=>b.l.p.getZ(b.i)-a.l.p.getZ(a.i))[0];if(!A)throw Error('No front-weighted test vertex');
+    const B=picks.find(p=>{const d=sample(p).pos.distanceTo(sample(A).pos);return d>.045&&d<.07;});if(!B)throw Error('No adjacent sliding target');
+    const aim=(target,height)=>{const {pos,n}=sample(target);hands[1].makeRotationFromQuaternion(new T.Quaternion().setFromUnitVectors(new T.Vector3(0,1,0),n.clone().negate()));
+      // The distal capsule end nearest the surface sits at the requested height.
+      hands[1].setPosition(pos.addScaledVector(n,height+.019/2));};
+    const delta=({l,i})=>v().fromBufferAttribute(l.p,i).distanceTo(v().fromArray(l.raw,3*i))*scale;
+    const moves=()=>{let count=0,peak=0;for(const l of layers)for(let i=0;i<l.p.count;i++){const d=delta({l,i});if(d>1e-7)count++;peak=Math.max(peak,d);}return {count,peak};};
+    const fitSlice=beginFingertipFit(mesh,fit.affectedBones,fit.width);let fitMs=0,maxFitSliceMs=0,fitSlices=0,local;
+    do{const at=performance.now();local=fitSlice();const ms=performance.now()-at;fitMs+=ms;maxFitSliceMs=Math.max(maxFitSliceMs,ms);fitSlices++;}while(local===undefined);
+    if(!local)throw Error('Surface uses fallback');const pressure=new TrackedPressure();
+    const measure=(target,height)=>{aim(target,height);pressure.prepare(hands,2,.033);for(let f=0;f<60;f++)local.apply(pressure,1/60);
+      const start=performance.now();for(let f=0;f<300;f++)local.apply(pressure,1/60);const mean=(performance.now()-start)/300;local.reset();return mean;};
+    const farMs=measure(A,1),nearMs=measure(A,.004);
+    // Genuine recovery gate: arm the new slot well clear, then approach without jumping.
+    aim(A,.65);for(let i=0;i<12;i++)tick();for(let i=1;i<=80;i++){aim(A,.65+(.004-.65)*i/80);tick();}
+    for(let j=0;j<12;j++){aim(A,.004);tick();}const contactA=delta(A),unpressedB=delta(B),first=moves();
+    let pixels=null;
+    if(new URLSearchParams(location.search).has('pixels')){
+      renderer=new T.WebGLRenderer({preserveDrawingBuffer:true});renderer.setSize(384,384);const light=new T.DirectionalLight(0xffffff,2);light.position.set(1,2,3);scene.add(light,new T.AmbientLight(0xffffff,1));
+      const {pos,n}=sample(A);cam.position.copy(pos).addScaledVector(n,.24).add(new T.Vector3(.035,.015,0));cam.lookAt(pos);cam.updateProjectionMatrix();
+      const image=()=>{renderer.render(scene,cam);const gl=renderer.getContext(),buf=new Uint8Array(384*384*4);gl.readPixels(0,0,384,384,gl.RGBA,gl.UNSIGNED_BYTE,buf);return buf;};
+      const indented=image();const buffers=layers.map(l=>[l.p.array.slice(),l.n.array.slice()]);
+      const set=(l,p,n)=>{l.p.array.set(p);l.n.array.set(n);l.p.clearUpdateRanges();l.n.clearUpdateRanges();l.p.needsUpdate=l.n.needsUpdate=true;};
+      layers.forEach(l=>set(l,l.raw,l.rawN));const flat=image();layers.forEach((l,i)=>set(l,...buffers[i]));
+      pixels=0;for(let i=0;i<flat.length;i+=4)if(Math.max(...[0,1,2].map(j=>Math.abs(flat[i+j]-indented[i+j])))>2)pixels++;
+    }
+    const start=hands[1].clone();for(let i=1;i<=24;i++){aim(B,.004);const target=v().setFromMatrixPosition(hands[1]);hands[1].setPosition(v().setFromMatrixPosition(start).lerp(target,i/24));tick();}
+    for(let j=0;j<48;j++){aim(B,.004);tick();}const releasedA=delta(A),contactB=delta(B),second=moves();
+    hands[1].copy(park());tick();const releaseFirst=delta(B);for(let i=0;i<90;i++)tick();const end=moves();
+    for(let i=0;i<12;i++){aim(B,.004);tick();}const regain=moves();
+    aim(A,.65);for(let i=0;i<12;i++)tick();for(let i=1;i<=80;i++){aim(A,.65+(.004-.65)*i/80);tick();}const beforeOff=moves();tick(false);const off=moves();
+    const result={candidates:local.candidates,fitMs,maxFitSliceMs,fitSlices,farMs,nearMs,contactA,unpressedB,first,pixels,releasedA,contactB,second,releaseFirst,end,regain,beforeOff,off};
+    if(!(contactA>.0005 && unpressedB===0 && contactB>.0005 && first.count<local.candidates && releasedA<.00005 && releaseFirst>0 && releaseFirst<contactB && end.peak===0 && beforeOff.peak>.0005 && off.peak===0 && (pixels===null||pixels>0)))throw Error(JSON.stringify(result));
+    return result;
+  }finally{renderer?.dispose();rt.dispose();}
+};document.querySelector('button').onclick=async()=>{const pre=document.querySelector('pre');try{pre.textContent=JSON.stringify(await window.compare(),null,2);}catch(e){pre.textContent=String(e);}};
+</script>

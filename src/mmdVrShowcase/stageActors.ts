@@ -10,6 +10,7 @@ import { setObjectHeadingDegrees } from "./objectHeading";
 import { prepareStageObject } from "./prepareStageObject";
 import { firstCharacterScale } from "./firstCharacterScale";
 import {createPlacementWork,type PlacementWork} from './placementWork';
+import type {RestoreMotionWork} from './roomRestoreTiming';
 import { wristSockets } from './play/wristSocket';
 import { useStagePlay } from './play/stagePlay';
 import { applySavedObject, snapshotModel, snapshotObject, type SavedObject, type StageSnapshot } from "./stageSnapshot";
@@ -81,18 +82,18 @@ export function createStageActors(scene: THREE.Scene, runtime: MmdRuntimeHandle,
     obj.revoke();
   }
 
-  async function loadObject(slot: MmdVrObjectSlot, x: number, stale: () => boolean, saved?: SavedObject, place?: Extract<BackpackCommand, {type:"place"}>) {
+  async function loadObject(slot: MmdVrObjectSlot, x: number, stale: () => boolean, saved?: SavedObject, place?: Extract<BackpackCommand, {type:"place"}>, y=0) {
     const { loader, url, revoke } = createMmdVrGltfLoader(slot.objectFile, slot.companionFiles);
     let group: THREE.Group | undefined;
     try {
       group = (await loader.loadAsync(url)).scene;
       if (stale()) throw abort();
       prepareStageObject(group);
-      const defaultPosition: [number, number, number] = [x, 0, place?.z ?? -2.2];
+      const defaultPosition: [number, number, number] = [x, y, place?.z ?? -2.2];
       group.position.set(...defaultPosition);
       if (saved) applySavedObject(group, saved);
       if (place) {
-        group.position.set(place.x, 0, place.z);
+        group.position.set(place.x, y, place.z);
         setObjectHeadingDegrees(group, place.yaw);
         group.visible = true;
       }
@@ -193,11 +194,11 @@ export function createStageActors(scene: THREE.Scene, runtime: MmdRuntimeHandle,
     } }));
   }
 
-  function restoreTasks(slots: readonly MmdVrAssetSlot[], saved: StageSnapshot | null, stale: () => boolean, works?:PlacementWork[]): AssetLoadTask[] {
+  function restoreTasks(slots: readonly MmdVrAssetSlot[], saved: StageSnapshot | null, stale: () => boolean, trace?:{modelWork:PlacementWork[];motionWork:RestoreMotionWork[]}): AssetLoadTask[] {
     const tasks: AssetLoadTask[] = [], chars = slots.filter(s => s.kind === "model"), props = slots.filter(s => s.kind === "object");
     chars.forEach((slot, i) => {
       const id = `model:${i}`, skip = () => forgotten.has(slot.modelFile);
-      const work=works?createPlacementWork():undefined;if(work)works!.push(work);
+      const work=trace?createPlacementWork():undefined;if(work)trace?.modelWork.push(work);
       const task = createModelLoadTask(runtime, slot, { work,physicsEnabled, isStale: () => stale() || skip(),
         companions: () => companions(slot.modelFile, slot.companionFiles),
         transform: { positionX: (i - (chars.length - 1) / 2) * 1.1 }, saved: saved?.models.find(m => m.file === slot.modelFile) });
@@ -215,7 +216,9 @@ export function createStageActors(scene: THREE.Scene, runtime: MmdRuntimeHandle,
             if (skip()) return;
             const target = models().find(m => m.modelFile === slot.modelFile);
             if (!target) throw new Error("Model not loaded");
-            await runtime.loadMotion(file, phase, target.id, stale);
+            const motionWork = trace ? { slot: phase } : undefined;
+            if (motionWork) trace?.motionWork.push(motionWork);
+            await runtime.loadMotion(file, phase, target.id, stale, motionWork);
           } });
       }
     });
@@ -225,7 +228,7 @@ export function createStageActors(scene: THREE.Scene, runtime: MmdRuntimeHandle,
     return tasks;
   }
 
-  async function execute(command: BackpackCommand, stale: () => boolean, work?: import('./placementWork').PlacementWork) {
+  async function execute(command: BackpackCommand, stale: () => boolean, work?: import('./placementWork').PlacementWork, y=0) {
     const s = useBackpack.getState(), entry = s.entries.find(e => e.id === command.id);
     if (!entry || entry.kind === "motion" || stale()) throw abort();
     const active = models(), model = active.find(m => m.modelFile === entry.file);
@@ -242,14 +245,14 @@ export function createStageActors(scene: THREE.Scene, runtime: MmdRuntimeHandle,
       return;
     }
     const {x, z, yaw} = command;
-    const transform = { positionX:x, positionY:0, positionZ:z, rotationY:yaw };
+    const transform = { positionX:x, positionY:y, positionZ:z, rotationY:yaw };
     if (model) {
       runtime.setModelTransform(model.id, transform);
       runtime.setModelVisible(model.id, true);
       return;
     }
     if (object) {
-      object[1].group.position.set(x, 0, z);
+      object[1].group.position.set(x, y, z);
       setObjectHeadingDegrees(object[1].group, yaw);
       object[1].group.visible = true;
       return;
@@ -257,7 +260,7 @@ export function createStageActors(scene: THREE.Scene, runtime: MmdRuntimeHandle,
     const companionFiles = s.files.length ? [...s.files] : [entry.file], saved = s.stored[entry.id];
     if (entry.kind === "object") {
       if (objects.size >= MMD_VR_MAX_OBJECTS) throw new Error("Stage is full");
-      await loadObject({ kind:"object", objectFile:entry.file, companionFiles }, x, stale, saved && "quaternion" in saved ? saved : undefined, command);
+      await loadObject({ kind:"object", objectFile:entry.file, companionFiles }, x, stale, saved && "quaternion" in saved ? saved : undefined, command,y);
       return;
     }
     if (active.length >= MMD_VR_MAX_MODELS) throw new Error("Stage is full");

@@ -17,6 +17,12 @@ Import PMX/PMD characters, VMD motions and GLB/glTF props on the prep page. Choo
 
 ## Stage gallery
 
+**Qinhuai Songhouse · 泊月楼**
+
+![The lantern-lit entrance from the river landing; the stairs on the left lead to the upper listening gallery.](./docs/screenshots/qinhuai-entry.webp)
+
+Follow the [river quay](./docs/screenshots/qinhuai-river.webp) into the tea hall, place a character beside the [zither table](./docs/screenshots/qinhuai-music.webp), then watch from the [upper gallery](./docs/screenshots/qinhuai-gallery.webp). The stage, stairs and gallery share one continuous set and one cast. [Route and standing spots](./docs/scenery/qinhuai.md).
+
 **Campus passage (pilot).** Walk out of the classroom's rear door and turn left along the covered passage to enter the wisteria meadow. On screen, open **Tour viewpoints → Cross to the meadow**. Only the current zone's actors are live; the classroom resumes its own arrangement and motion when you return. [Window view](./docs/screenshots/campus-window.webp) · [Breezeway](./docs/screenshots/campus-hall.webp) · [School from the meadow](./docs/screenshots/campus-school.webp).
 
 ![Afternoon light through the classroom windows falls across the desks and parquet floor.](./src/mmdVrShowcase/prep/classroom-window.webp)
@@ -51,7 +57,7 @@ Close views from the same camera, before (left) and after (right): [wisteria und
 | :---: | :---: |
 | ![Examination chair with leg rests, ultrasound console and privacy curtain.](./docs/screenshots/clinic-exam.webp) | ![Padded operating table under an articulated cluster of surgical lamps.](./docs/screenshots/clinic-or.webp) |
 
-From the [waiting hall](./docs/screenshots/clinic-entrance.webp), walk into either clinical room or the [women’s restroom](./docs/screenshots/clinic-wc.webp). Six original bilingual education plates are mounted across the ward. Choose **Tour viewpoints → Patient education wall** to see the [three waiting-room prints](./docs/screenshots/clinic-education.webp) or [look closer](./docs/screenshots/clinic-education-detail.webp).
+Walk from the [waiting hall](./docs/screenshots/clinic-entrance.webp) to the [anatomy models](./docs/screenshots/clinic-models.webp), the [four-instrument tray](./docs/screenshots/clinic-instruments.webp), or the restroom's hygiene shelf. The ward has eight original education posters, including the sagittal pelvis and [postpartum care](./docs/screenshots/clinic-postpartum.webp), and a [seated nurse at the workstation](./docs/screenshots/clinic-nurse.webp). The three new close-ups are available under **Tour viewpoints**. [Teaching exhibits and references](./docs/scenery/clinic-teaching.md).
 
 The gallery shows the built-in sets in screen mode, except for the classroom prep-page render. All show scenery without imported characters. See [how the scenery is made](./docs/scenery/README.md) for the modelling and texture workflow.
 
@@ -85,7 +91,7 @@ For desktop and touch controls instead, see [Watching without a headset](./docs/
 - After exiting VR, [export the last session's performance report](./docs/performance/viewing-and-diagnostics.md) from the prep page before entering VR again or refreshing. It separates character placement and loader timings from frame intervals during viewing.
 - In-headset HUD with quality controls, model transform, height adjustment, snap turning, and exposure/lighting looks.
 - Meta Quest hand tracking with articulated hands, pinch-based HUD interaction, and hand-to-model physics collision.
-- Optional controller collision, contact haptics, physics quality controls, and session-safe model disposal.
+- Character physics enables controller and hand contact even while paused. Tracked fingertips can leave a [shallow local dent](./docs/performance/fingertip-indent.md) in compatible skinned surfaces; moving the whole palm or lifting a skirt keeps the broader response.
 - WebXR MSAA on WebGL2 projection layers (Three.js r187, supported since r186) via the antialias quality axis.
 
 ## Stack

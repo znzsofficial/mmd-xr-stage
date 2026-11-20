@@ -1,0 +1,10 @@
+{
+  "size": [1536, 1024],
+  "regions": {
+    "pelvisPlate": [0,0,512,704], "postpartumPlate": [512,0,512,704],
+    "pelvisBase": [1024,0,512,90], "uterusBase": [1024,94,512,90], "pregnancyBase": [1024,188,512,90],
+    "supplyHeader": [1024,282,512,100], "binLabel": [1024,388,448,180], "instrumentLabel": [1024,574,512,126],
+    "testPack": [0,708,360,208], "padPack": [364,708,288,252], "briefPack": [656,708,288,252],
+    "inventory": [948,708,584,312]
+  }
+}

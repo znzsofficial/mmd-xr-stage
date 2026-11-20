@@ -1,5 +1,5 @@
 import { expect,it } from 'vitest';
-import { canPlaceInClinic as place, canWalkInClinic as walk, clinicPlacementVisible as visible, moveInClinic, CLINIC_SHOTS, CLINIC_VIEW, FIXTURES, DOORS } from './clinicLayout';
+import { canPlaceInClinic as place, canWalkInClinic as walk, clinicPlacementVisible as visible, moveInClinic, CLINIC_SHOTS, CLINIC_VIEW, FIXTURES, DOORS, STALL_BINS } from './clinicLayout';
 
 it('reaches each named shot and a placeable actor mark from the waiting hall via the actual opening',()=>{
   const routes = [
@@ -36,4 +36,25 @@ it('blocks aiming through the side wall while accepting the same open room throu
   expect(visible({x:0,y:1.6,z:.7},mark.x,mark.z)).toBe(false);
   expect(visible({x:0,y:1.6,z:-3.45},mark.x,mark.z)).toBe(true);
   expect(visible({x:5.83,y:1.55,z:-3.26},5.83,-7.25)).toBe(false);
+});
+it('respects raised exhibits, the seated nurse and disposal fixtures without closing the approaches',()=>{
+  // Same ray height and counter top: blocked through the cutaway, visible
+  // between the two plinths. A tracked hand may extend over the counter.
+  for(const [x,clear] of [[-7.48,false],[-6.98,true]] as const){
+    expect(place(x,-1.29)).toBe(true);
+    expect(visible({x,y:1.6,z:-2.92},x,-1.29)).toBe(clear);
+  }
+  expect(place(-4.60,3.46)).toBe(true);
+  expect(visible({x:-6.76,y:1.38,z:3.46},-4.60,3.46)).toBe(false);
+  expect(visible({x:-6.76,y:1.38,z:2.85},-4.60,2.85)).toBe(true);
+  for(const {x,z} of [FIXTURES.supplyShelf,FIXTURES.disposal,...STALL_BINS]){
+    expect(walk(x,z)).toBe(false);expect(place(x,z)).toBe(false);
+  }
+  // Travel down the actual side passage to the shelf and aim into the
+  // remaining actor space. The same mark is occluded from the other room.
+  let q={x:0,z:-6.30};
+  for(const [x,z] of [[-4.98,-6.30],[-4.98,-5.44]]){q=moveInClinic(q.x,q.z,x-q.x,z-q.z);expect(q).toEqual({x:expect.closeTo(x),z:expect.closeTo(z)});}
+  expect(place(-4.8,-4.47)).toBe(true);
+  expect(visible({...q,y:1.5},-4.8,-4.47)).toBe(true);
+  expect(visible({x:-4.8,y:1.5,z:-2.45},-4.8,-4.47)).toBe(false);
 });

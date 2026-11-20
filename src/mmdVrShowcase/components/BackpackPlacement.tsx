@@ -5,7 +5,7 @@ import { useBackpack, type BackpackLive } from "../backpack";
 import { HUD_COLORS } from "../hudAppearance";
 import { useMmdVrStore } from "../mmdVrStore";
 import { canPlaceInScenery } from "../scenery/placementAreas";
-import {clinicPlacementVisible} from '../scenery/clinic/clinicLayout';
+import {elevatedPickDecks,visiblePick} from '../scenery/pickDecks';
 import type { SceneryId } from "../scenery/catalog";
 import { useLanguageStore } from "../../languageStore";
 import { useHudWorldInput } from "./hudWorldInput";
@@ -50,8 +50,8 @@ function DropSurface({ id, scenery }: { id: string; scenery: SceneryId }) {
   function target(e: ThreeEvent<PointerEvent>) {
     if (pressed.current != null && e.pointerId !== pressed.current) return;
     e.stopPropagation();
-    const { x, z } = e.point;
-    const allowed = canPlaceInScenery(scenery, x, z) && (scenery!=='clinic'||clinicPlacementVisible(e.ray.origin,x,z));
+    const { x, y, z } = e.point;
+    const allowed = canPlaceInScenery(scenery, x, z) && visiblePick(scenery,e.ray.origin,x,y-.012,z);
     (gl.xr.isPresenting ? gl.xr.getCamera() : camera).getWorldPosition(head);
     const s = useMmdVrStore.getState(), live = useBackpack.getState().live[id];
     const existing = live ? s.models.find(e => e.id === live.runtimeId) ?? s.objects.find(e => e.id === live.runtimeId) : undefined;
@@ -62,7 +62,7 @@ function DropSurface({ id, scenery }: { id: string; scenery: SceneryId }) {
       useBackpack.setState({ previewDelayMs: Math.round(performance.now() - bag.draftStartedAt) });
     }
     if (marker.current && valid.current && invalid.current) {
-      marker.current.position.set(x, .021, z); marker.current.rotation.y = yaw * Math.PI / 180;
+      marker.current.position.set(x, y+.009, z); marker.current.rotation.y = yaw * Math.PI / 180;
       marker.current.visible = true; valid.current.visible = allowed; invalid.current.visible = !allowed;
     }
     return { allowed, x, z, yaw };
@@ -72,7 +72,7 @@ function DropSurface({ id, scenery }: { id: string; scenery: SceneryId }) {
     if (hovering.current === e.pointerId && marker.current) marker.current.visible = false;
   };
   return <>
-    <mesh name="backpack:ground" position-y={.012} rotation-x={-Math.PI/2} pointerEventsType={rayOnly} pointerEventsOrder={-1}
+    {[{x:0,y:0,z:0,w:scenery==='astralCourt'?108:72,d:scenery==='astralCourt'?108:72},...elevatedPickDecks(scenery)].map(r=><mesh key={r.y} name={r.y?'backpack:deck':'backpack:ground'} position={[r.x,r.y+.012,r.z]} rotation-x={-Math.PI/2} pointerEventsType={rayOnly} pointerEventsOrder={-1}
       onPointerMove={target} onPointerLeave={leave} onPointerCancel={leave}
       onPointerDown={e => { if (target(e)?.allowed) pressed.current = e.pointerId; }}
       onPointerUp={e => {
@@ -82,8 +82,8 @@ function DropSurface({ id, scenery }: { id: string; scenery: SceneryId }) {
         const s = useMmdVrStore.getState();
         if (hit?.allowed && !s.physicsBusy && !s.assetLoad.running && s.prefs.scenery === scenery) useBackpack.getState().confirmPlace(id, hit.x, hit.z, hit.yaw);
       }}>
-      <planeGeometry args={scenery==='astralCourt'?[108,108]:[72,72]} /><meshBasicMaterial visible={false} />
-    </mesh>
+      <planeGeometry args={[r.w,r.d]} /><meshBasicMaterial visible={false} />
+    </mesh>)}
     <group ref={marker} visible={false} pointerEvents="none">
       {[valid, invalid].map((ref, i) => <group ref={ref} key={i}><mesh rotation-x={-Math.PI/2} raycast={noRaycast} renderOrder={2}>
         <planeGeometry args={[.48,.48]} /><meshBasicMaterial map={stamps[i]} transparent depthWrite={false} toneMapped={false} />

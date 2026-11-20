@@ -21,7 +21,7 @@ export function ScreenCamera({actions,onReady}:{actions:RefObject<CameraActions|
   useLayoutEffect(()=>{
     if(!(camera instanceof PerspectiveCamera))return;
     const orbit=new OrbitControls(camera,gl.domElement);
-    orbit.minDistance=.18;orbit.maxDistance=scenery==='astralCourt'?52:22;orbit.maxPolarAngle=Math.PI*.49;orbit.rotateSpeed=.70;
+    orbit.minDistance=.18;orbit.maxDistance=scenery==='astralCourt'?52:22;orbit.maxPolarAngle=Math.PI*(scenery==='qinhuai'?.64:.49);orbit.rotateSpeed=.70;
     const setLens=(fov:number)=>{camera.fov=fov;camera.updateProjectionMatrix();};
     const reset=()=>{const [eye,look]=roomViews[scenery].entry;setLens(50);camera.position.set(...eye);orbit.target.set(...look);orbit.update();};
     const frame=()=>{

@@ -22,6 +22,8 @@ export const en: Record<keyof ZhMessages, string> = {
   guideSaberVr:'In any set, squeeze to extend. Squeeze again to retract.',guideSaberScreen:'Give the saber to a character in any set to light it.',guideSaberEnd:'Changing hands keeps the blade state; stowing retracts it.',
   actorPalmCloth:'Character palms can lift skirts (experimental; requires physics)',
   hudClinic:'Women’s hospital',clinicHall:'Waiting hall',clinicExam:'Gynecology exam room',clinicSurgery:'Operating room',clinicRestroom:'Women’s restroom',clinicEducation:'Patient education wall',
+  hudQinhuai:'Qinhuai songhouse',qinQuay:'Painted boat at the quay',qinSeats:'Tea seats by the stage',qinGallery:'Upper listening gallery',qinMusic:'The zither table',qinLanding:'Songhouse from the landing',
+  clinicModels:'Anatomy models',clinicInstruments:'Instrument tray',clinicSupplies:'Hygiene supplies',
   propTurn:'Turn grip',
   lidoGate:'Meadow pool gate',lidoClock:'Poolside timing deck',lidoLookBack:'Look back to the meadow',lidoGoPool:'Walk through to the pool',lidoGoLawn:'Return through the meadow gate',
   campusWindow:'Arbor from the windows',campusHall:'School breezeway',campusGoLawn:'Cross to the meadow',campusSchool:'Look back at school',campusArbor:'Wisteria path',campusGoClass:'Cross back to class',

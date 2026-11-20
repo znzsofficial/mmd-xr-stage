@@ -11,6 +11,8 @@ import { getMmdVrClock } from "../mmdVrClock";
 import { clearBackpack, prepareBackpackEntry, syncBackpackFiles, useBackpack } from "../backpack";
 import { ThreeMmdLoader, type ThreeMmdModel } from "@yohawing/three-mmd-loader";
 import { createMmdVrGltfLoader } from "../mmdVrGltf";
+import * as bullet from '../mmdRuntime/bulletModule';
+import {xrRoomRestoreTiming} from '../roomRestoreTiming';
 
 const harness = vi.hoisted(() => ({
   three: {} as Record<string, unknown>,
@@ -121,12 +123,12 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-async function setupBag(files: File[]) {
+async function setupBag(files: File[], useMotionCache = false) {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   const scene = new THREE.Scene();
   harness.three = { scene, camera: new THREE.PerspectiveCamera(), size: { width: 640, height: 480 }, gl:{} };
   const real = await vi.importActual<typeof import("../mmdRuntime/mmdRuntime")>("../mmdRuntime/mmdRuntime");
-  vi.mocked(createMmdRuntimeHandle).mockImplementation(scene => real.createMmdRuntimeHandle(scene));
+  vi.mocked(createMmdRuntimeHandle).mockImplementation((scene, opts) => real.createMmdRuntimeHandle(scene, {motionCache: useMotionCache ? opts?.motionCache : undefined}));
   const load = vi.spyOn(ThreeMmdLoader.prototype, "loadModel").mockImplementation(async () => loadedCharacter());
   const motion = vi.spyOn(ThreeMmdLoader.prototype, "loadAnimation").mockResolvedValue({ animation: {
     bytes: new Uint8Array(0), metadata:{ modelName:"", maxFrame:30 }, boneTracks:{}, morphTracks:{}, cameraFrames:[], lightFrames:[], selfShadowFrames:[], propertyFrames:[],
@@ -142,6 +144,35 @@ async function setupBag(files: File[]) {
   return { scene, root, load, motion, id, place, exit, store, bag };
 }
 const file = (name: string) => new File([name], name);
+
+it('reports parsed cache hits and rebind work from an actual room-return task without exporting asset identities', async () => {
+  const a=file('private-actor.pmx'), vmd=file('private-dance.vmd');
+  const {motion,place,exit,store,bag,id}=await setupBag([a,vmd],true);
+  try {
+    await place(a);await act(async()=>bag().applyMotion(id(a),vmd,'body'));
+    await act(async()=>store().setPrefs({scenery:'lawn'}));
+    xrRoomRestoreTiming.begin('lawn','floor',true);await act(async()=>store().setPrefs({scenery:'floor'}));
+    const e=xrRoomRestoreTiming.frame('floor');expect(e?.success).toBe(true);expect(e?.taskWallMs.body).toBeTypeOf('number');
+    expect(e?.motionWork).toEqual([{slot:'body',cache:'hit',evaluator:'other',loadWallMs:expect.any(Number),setAnimationMs:expect.any(Number)}]);
+    expect(motion).toHaveBeenCalledOnce();expect(JSON.stringify(e)).not.toContain('private-');
+  } finally {xrRoomRestoreTiming.cancel();await exit();}
+});
+
+it('arms idle Bullet only after the next frame of a successful fresh manual character placement', async () => {
+  const cancel=vi.fn(), arm=vi.spyOn(bullet,'scheduleBulletModuleWarm').mockImplementation(()=>cancel);
+  const a=file('actor.pmx'),{place,exit,load,store,bag,id}=await setupBag([a]);
+  const frame=()=>act(async()=>harness.frame?.({},1/90));
+  try {
+    await frame();load.mockRejectedValueOnce(Error('bad model'));await place(a);await frame();
+    expect(arm).not.toHaveBeenCalled();await place(a);expect(arm).not.toHaveBeenCalled();
+    await frame();expect(arm).toHaveBeenCalledOnce();const eligible=arm.mock.calls[0][0];expect(eligible()).toBe(true);
+    await place(a,2);await frame();expect(arm).toHaveBeenCalledOnce();
+    await act(async()=>store().setPrefs({scenery:'lawn'}));expect(cancel).toHaveBeenCalled();expect(eligible()).toBe(false);
+    await act(async()=>store().setPrefs({scenery:'floor'}));await frame();expect(bag().live[id(a)]).toBeDefined();expect(arm).toHaveBeenCalledOnce();
+    await act(async()=>bag().putAway(id(a)));await place(a);await frame();const second=arm.mock.calls[1][0];
+    await act(async()=>bag().putAway(id(a)));expect(second()).toBe(false);
+  } finally {await exit();}
+});
 
 it("keeps neighbors mounted, restores the actor's binding and material after put-away, and continues the actual room", async () => {
   const a = file("a.pmx"), b = file("b.pmx"), vmd = file("dance.vmd"), face = file("smile.vmd");
@@ -289,6 +320,19 @@ it("rejects unsupported ground through both the legacy and backpack command path
     await act(async () => { store().requestGroundPlace(1, -3); harness.frame?.({},1 / 90); });
     expect(bag().live[id(a)].position).toEqual([1,0,-3]);
   } finally { await exit(); }
+});
+
+it('persists a gallery performance at its actual height and moves it to the low stage via either placement path',async()=>{
+  const a=file('singer.pmx'),{id,exit,store,bag}=await setupBag([a]);
+  try{
+    await act(async()=>store().setPrefs({scenery:'qinhuai'}));
+    await act(async()=>{bag().beginPlace(id(a));bag().confirmPlace(id(a),-6.76,-1.8,90);});
+    expect(bag().live[id(a)].position).toEqual([-6.76,2.72,-1.8]);
+    await act(async()=>store().setPrefs({scenery:'lawn'}));await act(async()=>store().setPrefs({scenery:'qinhuai'}));
+    expect(bag().live[id(a)].position).toEqual([-6.76,2.72,-1.8]);
+    await act(async()=>{store().setPlaceMode(true);store().requestGroundPlace(0,-5);harness.frame?.({},1/90);});
+    expect(bag().live[id(a)].position).toEqual([0,.42,-5]);
+  }finally{await exit();}
 });
 
 it("repairs a dynamic actor with texture warnings without replacing either the last clean layout or its neighbor on failure", async () => {

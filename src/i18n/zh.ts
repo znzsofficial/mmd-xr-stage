@@ -20,6 +20,8 @@ export const zh = {
   guideSaberVr:'在任何布景轻握侧键开刃，松开再握收起。',guideSaberScreen:'在任意布景递给角色，光刃点亮并随腕骨移动。',guideSaberEnd:'递给角色或换手保留亮灭，收回道具后熄灭。',
   actorPalmCloth:'角色手掌托裙摆（试验，需开物理）',
   hudClinic:'妇科医院',clinicHall:'门诊候诊廊',clinicExam:'妇科诊室',clinicSurgery:'手术室',clinicRestroom:'女卫生间',clinicEducation:'候诊宣教墙',
+  hudQinhuai:'秦淮歌楼',qinQuay:'临水看画舫',qinSeats:'堂前茶席',qinGallery:'二楼听曲廊',qinMusic:'戏台琴案',qinLanding:'埠头望歌楼',
+  clinicModels:'解剖教具台',clinicInstruments:'妇产科器械盘',clinicSupplies:'卫生用品架',
   propTurn:'转握柄',
   lidoGate:'草坪泳池入口',lidoClock:'池畔计时台',lidoLookBack:'回望草坪入口',lidoGoPool:'穿过廊架去泳池',lidoGoLawn:'沿泳池廊架回草坪',
   campusWindow:'从窗边望花架',campusHall:'走到连廊',campusGoLawn:'穿过连廊去草坪',campusSchool:'回望教学楼',campusArbor:'花架小径',campusGoClass:'沿连廊回教室',

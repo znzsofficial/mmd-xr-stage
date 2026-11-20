@@ -10,6 +10,7 @@ import type { MmdPhysicsQuality } from "../mmdPhysicsQuality";
 import { ColliderReentry, syntheticColliderBody } from "./colliderReentry";
 import {isActorPalm} from './actorPalms';
 import {elapsed,type PhysicsSwitchWork} from '../physicsSwitchWork';
+import {getBulletModule} from './bulletModule';
 
 export type { MmdPhysicsQuality };
 export type MmdControllerColliderMatrix = MmdPhysicsMatrix4ColumnMajorTuple | Float32Array;
@@ -38,25 +39,6 @@ export type MmdControllerColliderPhysicsBackend = MmdPhysicsBackend & Partial<Mm
   debugStepCount: () => number;
 };
 
-let modulePromise: Promise<unknown> | null = null;
-
-async function loadBulletModule() {
-  if (!modulePromise) {
-    modulePromise = (async () => {
-      const { loadCustomBulletMmdModule } = await import("@yohawing/three-mmd-loader/physics");
-      const base = import.meta.env.BASE_URL || "/";
-      // Keep the ABI-coupled JS and WASM in the same versioned directory. The
-      // Emscripten factory resolves mmd_bullet.wasm relative to this script URL.
-      const scriptUrl = new URL("mmd/0.8.6/mmd_bullet.js", window.location.origin + base);
-      return loadCustomBulletMmdModule({ scriptUrl: scriptUrl.href, timeoutMs: 30_000 });
-    })().catch((error) => {
-      modulePromise = null;
-      throw error;
-    });
-  }
-  return modulePromise;
-}
-
 /**
  * One Bullet world per call. Prefer one backend per model — a single world only
  * keeps the last uploaded rigid-body set (identity swap on each step).
@@ -82,7 +64,7 @@ export async function createBulletPhysicsBackend(options: {
   dynamicSelfCollision?: boolean;
 } = {}): Promise<MmdPhysicsBackend> {
   const work=options.switchWork,started=work?performance.now():0;
-  const [{createCustomBulletMmdPhysicsBackend},module]=await Promise.all([import('@yohawing/three-mmd-loader/physics'),loadBulletModule()]).finally(()=>elapsed(work,'bulletModuleMs',started));
+  const {createCustomBulletMmdPhysicsBackend,module}=await getBulletModule(work).finally(()=>elapsed(work,'bulletModuleMs',started));
   const backendStart=work?performance.now():0;
   const backendOptions = {
     onStepWork: options.onBulletStepWork,
@@ -90,7 +72,7 @@ export async function createBulletPhysicsBackend(options: {
     maxSubSteps: MAX_SUBSTEPS[options.quality?.() ?? 'medium'],
   };
   const bulletBackend = createCustomBulletMmdPhysicsBackend(
-    module as Parameters<typeof createCustomBulletMmdPhysicsBackend>[0],
+    module,
     backendOptions,
   );
   const diagnosticBackend = createPhysicsDiagnosticsBackend(bulletBackend, options.simulationDelta, options.onPhysicsBones, options.modelScale, options.onEligibleColliders);

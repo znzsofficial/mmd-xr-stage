@@ -1,12 +1,15 @@
 import { BufferGeometry, Color, Float32BufferAttribute, LatheGeometry, Vector2 } from 'three';
 import type { Part } from '../SceneryBatch';
 import { span } from '../detailParts';
+import teachingAtlas from './teachingPrints.json';
 
 export type V = [number,number,number];
 export const C = {chalk:'#e7e6d9',white:'#ebece6',porcelain:'#e8ede9',milk:'#d4dbd4',green:'#4f9285',teal:'#39796f',pine:'#285d5b',mint:'#b7d4c7',iron:'#6e8284',chrome:'#aebcba',graphite:'#354c4e',wood:'#bd9b76',oak:'#c9ad8b',rose:'#af7b80',slate:'#638487'};
 type Mount = {p:V,w:number,h:number,yaw:number,cell:number};
+type TeachingMount = Omit<Mount,'cell'>&{key:keyof typeof teachingAtlas.regions};
 export class ClinicParts {
   blocks:Part[]=[]; soft:Part[]=[]; poles:Part[]=[]; bowls:Part[]=[]; ovals:Part[]=[]; bulbs:Part[]=[]; glow:Part[]=[]; plates:Mount[]=[]; education:Mount[]=[];
+  teaching:TeachingMount[]=[];
   add(list:Part[],p:V,s:V,color:string,rx=0,ry=0,rz=0){list.push({p,s,color,rx,ry,rz});}
   box(x:number,y:number,z:number,w:number,h:number,d:number,c:string,rx=0,ry=0,rz=0){this.add(this.blocks,[x,y,z],[w,h,d],c,rx,ry,rz);}
   pad(x:number,y:number,z:number,w:number,h:number,d:number,c:string,rx=0,ry=0,rz=0){this.add(this.soft,[x,y,z],[w,h,d],c,rx,ry,rz);}
@@ -15,6 +18,12 @@ export class ClinicParts {
   rod(a:V,b:V,d:number,c:string){this.poles.push(span(a,b,d,c));}
   lit(x:number,y:number,z:number,w:number,h:number,d:number,c:string){this.add(this.glow,[x,y,z],[w,h,d],c);}
   print(x:number,y:number,z:number,w:number,h:number,yaw:number,cell:number){this.plates.push({p:[x,y,z],w,h,yaw,cell});}
+  label(x:number,y:number,z:number,w:number,h:number,yaw:number,key:TeachingMount['key']){this.teaching.push({p:[x,y,z],w,h,yaw,key});}
+  teachingPoster(x:number,y:number,z:number,w:number,yaw:number,key:'pelvisPlate'|'postpartumPlate'){
+    const h=w*704/512,nx=Math.sin(yaw),nz=Math.cos(yaw);
+    this.box(x,y,z,w+.06,h+.06,.036,C.oak,0,yaw);
+    this.label(x+.020*nx,y,z+.020*nz,w,h,yaw,key);
+  }
   // The plate face is advanced along its own normal, not the world Z axis.
   frame(x:number,y:number,z:number,w:number,h:number,yaw:number,cell:number,edge=C.graphite){
     this.box(x,y,z,w+.045,h+.045,.032,edge,0,yaw);
@@ -27,15 +36,20 @@ export class ClinicParts {
     this.box(x+.019*nx,y,z+.019*nz,width+.044,h+.044,.008,C.white,0,yaw);
     this.education.push({p:[x+.025*nx,y,z+.025*nz],w:width,h,yaw,cell});
   }
-  platesGeometry(education=false){
+  platesGeometry(sheet:'signs'|'education'|'teaching'='signs'){
     const pos:number[]=[],uv:number[]=[],idx:number[]=[];
-    const columns=education?3:4,rows=education?2:4;
-    for(const {p:[x,y,z],w,h,yaw,cell} of education?this.education:this.plates){
-      const start=pos.length/3, col=cell%columns,row=Math.floor(cell/columns);
+    const columns=sheet==='education'?3:4,rows=sheet==='education'?2:4;
+    for(const mount of sheet==='teaching'?this.teaching:sheet==='education'?this.education:this.plates){
+      const {p:[x,y,z],w,h,yaw}=mount,start=pos.length/3;
       for(const [a,b] of [[-1,-1],[1,-1],[1,1],[-1,1]]){
         pos.push(x+a*w*.5*Math.cos(yaw), y+b*h*.5, z-a*w*.5*Math.sin(yaw));
-        const v=cell===14?(b>0?.275:.702):(b>0?.003:.997);
-        uv.push((col+(a<0?.002:.998))/columns,1-(row+v)/rows);
+        if('key' in mount){
+          const [u,v,pw,ph]=teachingAtlas.regions[mount.key];
+          uv.push((u+(a<0?1:pw-1))/teachingAtlas.size[0],1-(v+(b>0?1:ph-1))/teachingAtlas.size[1]);
+        }else{
+          const {cell}=mount,v=cell===14?(b>0?.275:.702):(b>0?.003:.997);
+          uv.push((cell%columns+(a<0?.002:.998))/columns,1-(Math.floor(cell/columns)+v)/rows);
+        }
       }
       idx.push(start,start+1,start+2,start,start+2,start+3);
     }

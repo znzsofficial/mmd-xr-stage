@@ -223,7 +223,7 @@ function wrapMergedAnimation(animation: MmdAnimation): ThreeMmdAnimation {
   };
 }
 
-export function recomputeEntryAnimation(entry: RuntimeEntry) {
+export function recomputeEntryAnimation(entry: RuntimeEntry, work?: import('../roomRestoreTiming').RestoreMotionWork) {
   const body = entry.bodyAnimation?.animation ?? null;
   const face = entry.faceAnimation?.animation ?? null;
   const camera = entry.cameraAnimation?.animation ?? null;
@@ -248,7 +248,11 @@ export function recomputeEntryAnimation(entry: RuntimeEntry) {
   entry.duration = entry.appliedAnimation
     ? getMmdAnimationDurationSeconds(entry.appliedAnimation.animation)
     : 0;
-  if (entry.appliedAnimation) entry.model.setAnimation(entry.appliedAnimation);
+  if (entry.appliedAnimation) {
+    const at = work ? performance.now() : 0;
+    try { entry.model.setAnimation(entry.appliedAnimation); }
+    finally { if (work) work.setAnimationMs = performance.now() - at; }
+  }
 }
 
 export function toSnapshot(entry: RuntimeEntry): RuntimeModelSnapshot {

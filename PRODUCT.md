@@ -12,6 +12,8 @@ The confirmed primary user watches MMD scenes on Quest 3S, mainly using controll
 
 The viewer imports game characters. Built-in modelling means places for those characters: a sunlit classroom, pool terrace, meadow and sky. Prioritize environmental detail, convincing sunlight and responsive local asset loading over bundled characters.
 
+For future character features, the user's reference is Koikatsu's Free H mode: direct, player-controlled intimate interaction with chosen adult characters matters more than playing dance clips. Keep dance playback available. Treat the exact interaction controls, partner setup and supported import formats as design choices still to be validated.
+
 ## Product Purpose
 
 MMD XR Stage loads local model, animation and environment assets into an immersive WebXR stage. Success means dependable entry and playback, unobstructed viewing, and settings that are easy to reach and dismiss.

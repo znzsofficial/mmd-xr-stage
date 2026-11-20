@@ -44,7 +44,7 @@ export function fitChestCompression(mesh:SkinnedMesh){
   return {
     restore(){for(const p of pads)if(p.changed){p.bone.position.copy(p.raw);p.bone.scale.copy(p.rawScale);p.bone.updateWorldMatrix(false,true);p.changed=false;}},
     reset(){previous=NaN;for(const p of pads){p.offset.set(0,0,0);p.squeeze=0;}},
-    apply(seconds:number,physicsDt=0,reseed=false,armContact=true,hands?:TrackedPressure){
+    apply(seconds:number,physicsDt=0,reseed=false,armContact=true,hands?:TrackedPressure,tipBroadGain?:ArrayLike<number>){
       const jump=reseed||!Number.isFinite(previous)||seconds<previous||seconds-previous>.25;
       const dt=jump?0:Math.min(.05,Math.max(0,physicsDt,seconds-previous));previous=seconds;
       inverse.copy(torso.matrixWorld).invert();
@@ -63,7 +63,7 @@ export function fitChestCompression(mesh:SkinnedMesh){
         }
         if(hands?.mask && visualScale>0){
           worldCenter.copy(center).applyMatrix4(torso.matrixWorld);
-          const depth=hands.overlap(worldCenter,p.radius*visualScale,handDir)/visualScale;
+          const depth=hands.overlap(worldCenter,p.radius*visualScale,handDir,tipBroadGain)/visualScale;
           if(depth>penetration){penetration=depth;dir.copy(handDir).transformDirection(inverse);}
         }
         const push=Math.min(p.radius*.50,penetration*.90),squash=Math.min(.22,penetration/p.radius*.38);
@@ -79,6 +79,6 @@ export function fitChestCompression(mesh:SkinnedMesh){
         p.changed=true;p.bone.updateWorldMatrix(false,true);changed=true;
       }return changed;
     },
-    affectedBones:pads.map(p=>p.bone),
+    affectedBones:pads.map(p=>p.bone),width,
   };
 }

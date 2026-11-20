@@ -1,11 +1,34 @@
 <!doctype html><meta charset="utf-8"><title>Physics toggle parity</title>
-<p>Local development only. Pick a PMX and its textures. Compares full reload and in-place switching with the shipped Bullet and a fixed motion clock.</p>
+<p>Local development only. Pick a PMX and its textures. Compares full reload and in-place switching with the shipped Bullet and a fixed motion clock. For startup, open a fresh page with ?startup=cold or ?startup=warm and optionally select a body VMD. Run once per page.</p>
 <input type="file" multiple><button>Compare</button><pre></pre>
 <script type="module">
 import * as THREE from 'three';
 import {createMmdRuntimeHandle} from '/src/mmdVrShowcase/mmdRuntime/mmdRuntime.ts';
 import {clothSmokeFixture} from './cloth-smoke-fixture.js';
 import {prepareMmdVrModel} from '/src/mmdVrShowcase/prepareMmdVrModel.ts';
+import {scheduleBulletModuleWarm} from '/src/mmdVrShowcase/mmdRuntime/bulletModule.ts';
+
+async function startup(files, warm) {
+  const fixture=clothSmokeFixture(), pmx=files.find(f=>/\.pmx$/i.test(f.name))??fixture.pmx, vmd=files.find(f=>/\.vmd$/i.test(f.name))??fixture.vmd;
+  const rt=createMmdRuntimeHandle(new THREE.Scene(),{prepareModel:prepareMmdVrModel}), camera=new THREE.PerspectiveCamera(), rows=[];
+  let cancel;
+  try {
+    const {modelId}=await rt.addModel(pmx,files,{transform:{scale:.1}});
+    await rt.loadMotion(vmd,'body',modelId);
+    await new Promise(requestAnimationFrame);rt.update(.49,false,camera,1,false,1/72);
+    if(warm) cancel=scheduleBulletModuleWarm(()=>true);
+    await new Promise(resolve=>setTimeout(resolve,2000)); // same player thinking time in both arms
+    const before={bodies:rt.getRigidBodyCount(),steps:rt.getPhysicsStepCount()}, root=rt.getModelRoot(modelId);
+    for(const [i,enabled] of [true,false,true].entries()) {
+      const at=performance.now(),work={}; await rt.setPhysicsEnabled(enabled,work);
+      rows.push({enabled,wallMs:performance.now()-at,work});
+      rt.update(.5+i/72,enabled,camera,1,false,1/72);
+      if(rt.getModelRoot(modelId)!==root || (enabled && !rt.getPhysicsStepCount()))throw Error('No committed rig/physics step');
+    }
+    if(before.bodies||before.steps)throw Error('Physics ran before explicit enable');
+    return {before,rows};
+  } finally { cancel?.();rt.dispose(); }
+}
 
 async function compare(files){
   const fixture=clothSmokeFixture(),pmx=files.find(f=>/\.pmx$/i.test(f.name))??fixture.pmx;
@@ -35,5 +58,6 @@ async function compare(files){
   if(poses[0].length!==poses[1].length)throw Error('Rig mismatch');let max=0,idx=0;for(let i=0;i<poses[0].length;i++){const d=Math.abs(poses[0][i]-poses[1][i]);if(!Number.isFinite(d))throw Error('Non-finite pose');if(d>max){max=d;idx=i}}
   if(max>1e-6)throw Error(`Pose mismatch ${max} at ${idx}/${poses[0].length}`);return {max,values:poses[0].length,rows};
 }
-window.compare=()=>compare([...document.querySelector('input').files]);document.querySelector('button').onclick=async()=>{try{document.querySelector('pre').textContent=JSON.stringify(await window.compare(),null,2)}catch(e){document.querySelector('pre').textContent=String(e)}};
+const mode=new URLSearchParams(location.search).get('startup');
+window.compare=()=>{const files=[...document.querySelector('input').files];return mode?startup(files,mode==='warm'):compare(files)};document.querySelector('button').onclick=async()=>{try{document.querySelector('pre').textContent=JSON.stringify(await window.compare(),null,2)}catch(e){document.querySelector('pre').textContent=String(e)}};
 </script>

@@ -4,6 +4,7 @@ import { chapelFloor, CHAPEL_OBSTACLES } from './ChapelLayout';
 import { OLD_COURT_RADIUS, onObservatoryFloor, ROUTE_FEET } from './ObservatoryLayout';
 import { classPassageFloor, lawnSchoolFoot, passagePost } from './CampusLayout';
 import {canPlaceInClinic} from './clinic/clinicLayout';
+import {songhouseClear,songhouseHeight} from './qinhuai/songhouseLayout';
 import {GUARD_CHAIR,PACE_CLOCK,TIME_DECK,LIDO_ENTRY,LIDO_PIERS,PAVILION_POSTS,POOL_ORIGIN_Z,inLidoApproach} from './LidoLayout';
 
 // A placement is a point on a supported y=0 surface with a little shoe room;
@@ -74,9 +75,11 @@ export const LAWN_TREES = Array.from({ length: 19 }, (_, i) => {
   return { x: Math.cos(a) * r, z: Math.sin(a) * r, h: 3.3 + 2.2 * landscapeRandom() };
 }).concat([{x:5.75,z:-5.2,h:5.6},{x:-6.2,z:-9.4,h:4.4}]).filter(t=>!inLidoApproach(t.x,t.z,1.5));
 
+export const placementHeight=(id:SceneryId,x:number,z:number)=>id==='qinhuai'?songhouseHeight(x,z):0;
 export function canPlaceInScenery(id: SceneryId, x: number, z: number): boolean {
   if (!Number.isFinite(x) || !Number.isFinite(z)) return false;
   switch (id) {
+    case 'qinhuai': return songhouseClear(x,z,true);
     case 'clinic': return canPlaceInClinic(x,z);
     case 'chapel': return shoeOffsets.every(([dx,dz])=>chapelFloor(x+dx,z+dz)) && !CHAPEL_OBSTACLES.some(r=>hits(r,x,z));
     case 'floor': return Math.hypot(x, z) <= SIMPLE_FLOOR_RADIUS - CLEAR;

@@ -372,7 +372,7 @@ git push fork main
 1. 确认 release/npm 包是否包含 rigid-body range contact 查询。
 2. 在独立分支更新 `@yohawing/three-mmd-loader` 版本。
 3. 仅当发布包已覆盖 range query 时，删除 `patchedDependencies` 条目和 patch 文件。
-4. 同步版本化 Bullet 资产目录，更新 `mmdPhysics.ts` 脚本路径。
+4. 同步版本化 Bullet 资产目录，更新 `mmdRuntime/bulletModule.ts` 脚本路径（预热和显式开物理共用）。
 5. 运行 `pnpm install` 更新 lockfile，确认旧 patch hash 消失。
 6. 重跑 TypeScript、指定物理/触觉测试、完整测试和 build。
 7. 再次进行真机回归：模型缩放、衣服物理、面板存续、左右控制器碰撞和震动。

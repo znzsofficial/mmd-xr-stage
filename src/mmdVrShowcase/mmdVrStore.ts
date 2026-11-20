@@ -447,7 +447,7 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
     prefsStorage.write(prefs);
     // Leaving a distant terrace should not start the next set 39m from its door.
     const previousRoom=get().prefs.scenery;
-    const leaveDistrict = (previousRoom==='astralCourt'||previousRoom==='chapel'||previousRoom==='clinic'||prefs.scenery==='clinic')&&prefs.scenery!==previousRoom;
+    const leaveDistrict = (previousRoom==='astralCourt'||previousRoom==='chapel'||previousRoom==='clinic'||prefs.scenery==='clinic'||previousRoom==='qinhuai'||prefs.scenery==='qinhuai')&&prefs.scenery!==previousRoom;
     set({ prefs, loop: prefs.loop, ...(leaveDistrict ? {viewEpoch:get().viewEpoch+1} : {}) });
   },
   cyclePhysicsColliderRadius: () => {
@@ -673,7 +673,8 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
   pendingGroundPlace: null,
   requestGroundPlace: (x, z) => {
     const { placeMode, placeModelId: id } = get();
-    if (!placeMode || !id || !Number.isFinite(x) || !Number.isFinite(z) || Math.abs(x) > PLACE_HALF_WIDTH || Math.abs(z) > PLACE_HALF_WIDTH) return;
+    const halfWidth=get().prefs.scenery==='qinhuai'?16:PLACE_HALF_WIDTH;
+    if (!placeMode || !id || !Number.isFinite(x) || !Number.isFinite(z) || Math.abs(x) > halfWidth || Math.abs(z) > halfWidth) return;
     set({ pendingGroundPlace: { id, x, z } });
   },
   takeGroundPlace: () => {

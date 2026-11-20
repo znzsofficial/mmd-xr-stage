@@ -6,6 +6,7 @@ import { Vector3 } from 'three';
 import {nearCampusDoor} from '../scenery/CampusLayout';
 import {RoomGate} from '../scenery/connections';
 import {canWalkInClinic,moveInClinic} from '../scenery/clinic/clinicLayout';
+import {XR_ENTRY,moveInSonghouse,songhouseClear,songhouseHeight} from '../scenery/qinhuai/songhouseLayout';
 import {hintLawnPrints,walkBetweenZones} from '../scenery/campusTransit';
 import {
   MMD_VR_HEIGHT_OFFSET_MAX,
@@ -37,7 +38,9 @@ export function MmdVrPlayerRig({onExit,busy}:{onExit:()=>void;busy:boolean}) {
   const stickHeightRef = useRef({ value: heightOffset, elapsed: 0, active: false });
   const [eye]=useState(()=>new Vector3());
   const [gate]=useState(()=>new RoomGate());
-  const clinicOrigin=useRef<{x:number;z:number}|null>(null);
+  const walkingOrigin=useRef<{x:number;z:number}|null>(null);
+  const lastFoot=useRef({x:XR_ENTRY.x,z:XR_ENTRY.z});
+  const floorHeight=useRef(0);
   const releaseHints=useRef<(()=>void)|null>(null);
   useEffect(()=>()=>{releaseHints.current?.();releaseHints.current=null;},[mmdPrefs.scenery]);
 
@@ -52,15 +55,17 @@ export function MmdVrPlayerRig({onExit,busy}:{onExit:()=>void;busy:boolean}) {
   useEffect(() => {
     const g = originRef.current;
     if (!g) return;
-    const clinic=useMmdVrStore.getState().prefs.scenery==='clinic';
-    g.position.set(0, heightOffset, clinic?2.8:0);
+    const room=useMmdVrStore.getState().prefs.scenery;
+    floorHeight.current=0;
+    lastFoot.current={...XR_ENTRY};
+    g.position.set(room==='qinhuai'?XR_ENTRY.x:0, heightOffset, room==='qinhuai'?XR_ENTRY.z:room==='clinic'?2.8:0);
     g.rotation.set(0, 0, 0);
-    clinicOrigin.current=clinic?{x:g.position.x,z:g.position.z}:null;gate.reset();
+    walkingOrigin.current=room==='clinic'||room==='qinhuai'?{x:g.position.x,z:g.position.z}:null;gate.reset();
   }, [viewEpoch]);
 
   useEffect(() => {
     const g = originRef.current;
-    if (g && !stickHeightRef.current.active) g.position.y = heightOffset;
+    if (g && !stickHeightRef.current.active) g.position.y = floorHeight.current+heightOffset;
   }, [heightOffset]);
 
   useEffect(() => () => {
@@ -70,19 +75,38 @@ export function MmdVrPlayerRig({onExit,busy}:{onExit:()=>void;busy:boolean}) {
 
   useFrame(({gl}, delta) => {
     const room=mmdPrefs.scenery,origin=originRef.current;
-    if(origin&&gl.xr.isPresenting&&!panelDragging&&(room==='clinic'||gate.hasExits(room))){
+    if(origin&&gl.xr.isPresenting&&!panelDragging&&(room==='clinic'||room==='qinhuai'||gate.hasExits(room))){
       gl.xr.getCamera().getWorldPosition(eye);
-      if(room==='clinic'){
+      if(room==='clinic'||room==='qinhuai'){
         // Constrain thumbstick translation only. A real step or head turn must
         // never itself move the XR origin or snap the user back to an entrance.
-        const prev=clinicOrigin.current;
+        const prev=walkingOrigin.current;
         if(prev){const dx=origin.position.x-prev.x,dz=origin.position.z-prev.z;
-          if((dx||dz)&&canWalkInClinic(eye.x-dx,eye.z-dz)){
-            const target=moveInClinic(eye.x-dx,eye.z-dz,dx,dz);
+          const clear=room==='clinic'?canWalkInClinic:songhouseClear;
+          const startX=eye.x-dx,startZ=eye.z-dz;
+          if((dx||dz)&&clear(startX,startZ)&&(room==='clinic'||Math.abs(songhouseHeight(startX,startZ)-floorHeight.current)<.23)){
+            const move=room==='clinic'?moveInClinic:moveInSonghouse;
+            const target=move(startX,startZ,dx,dz);
             origin.position.x+=target.x-eye.x;origin.position.z+=target.z-eye.z;origin.updateMatrixWorld(true);
+            eye.x=target.x;eye.z=target.z;
+            if(room==='qinhuai')floorHeight.current=songhouseHeight(target.x,target.z);
+          }else if((dx||dz)&&room==='qinhuai'){
+            // Leaning over a rail does not turn a head pose into a new floor.
+            // While off support, allow stick travel only back toward safe feet.
+            const f=lastFoot.current;
+            if(Math.hypot(eye.x-f.x,eye.z-f.z)>=Math.hypot(startX-f.x,startZ-f.z)){
+              origin.position.x-=dx;origin.position.z-=dz;origin.updateMatrixWorld(true);eye.x=startX;eye.z=startZ;
+            }
           }
           prev.x=origin.position.x;prev.z=origin.position.z;
-        }else clinicOrigin.current={x:origin.position.x,z:origin.position.z};
+        }else walkingOrigin.current={x:origin.position.x,z:origin.position.z};
+        if(room==='qinhuai'&&songhouseClear(eye.x,eye.z)){
+          // Floor travel is local to this rig, never persisted as the user's
+          // manual height preference. Keep their tracked head pose untouched.
+          const h=songhouseHeight(eye.x,eye.z);
+          if(Math.abs(h-floorHeight.current)<.23){floorHeight.current=h;lastFoot.current.x=eye.x;lastFoot.current.z=eye.z;
+            const y=h+(stickHeightRef.current.active?stickHeightRef.current.value:heightOffset);if(origin.position.y!==y){origin.position.y=y;origin.updateMatrixWorld(true);}}
+        }
       }
       if(room==='classroom'&&!releaseHints.current&&nearCampusDoor(eye.x,eye.z))releaseHints.current=hintLawnPrints();
       const link=gate.next(room,eye.x,eye.z);
@@ -112,7 +136,7 @@ export function MmdVrPlayerRig({onExit,busy}:{onExit:()=>void;busy:boolean}) {
       MMD_VR_HEIGHT_OFFSET_MAX,
       Math.max(MMD_VR_HEIGHT_OFFSET_MIN, stickHeightRef.current.value - shaped * delta * speed),
     );
-    if (originRef.current) originRef.current.position.y = stickHeightRef.current.value;
+    if (originRef.current) originRef.current.position.y = floorHeight.current+stickHeightRef.current.value;
     stickHeightRef.current.elapsed += delta;
     if (stickHeightRef.current.elapsed < 0.1) return;
     stickHeightRef.current.elapsed = 0;

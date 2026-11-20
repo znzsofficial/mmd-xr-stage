@@ -1,6 +1,6 @@
 # 建模与布景
 
-舞台已有八景：[实景截图](../../README.md#stage-gallery) · [各景的角色站位](../gameplay/vr-controls.md#在布景中给角色选位置) · [接入新区域和通道](./adding-a-set.md)。妇科医院是一层可自由走访的室内布景，另有窗边教室、夏日泳池、晴空草坪、Live House、简易地台、星环遗庭和晨光礼拜堂。角色由用户导入。
+舞台已有九景：[实景截图](../../README.md#stage-gallery) · [各景的角色站位](../gameplay/vr-controls.md#在布景中给角色选位置) · [接入新区域和通道](./adding-a-set.md)。[秦淮歌楼](./qinhuai.md)可从埠头走到戏台，再上二楼听曲廊。妇科医院是一层可自由走访的室内布景，另有窗边教室、夏日泳池、晴空草坪、Live House、简易地台、星环遗庭和晨光礼拜堂。角色由用户导入。
 
 ## 布景怎么做
 
@@ -10,7 +10,7 @@
 
 从候诊走廊走进诊室、手术室或女卫生间，不切场景，也不重新加载角色。建模、脚下可站立区域、摇杆行走边界和射线遮挡共用 `clinic/clinicLayout.ts`：通过门洞瞄准空地可以摆角色，墙后和隔间内部不能隔空摆放。屏幕的「游览机位」可将镜头放进每个房间。
 
-[入口走廊](../screenshots/clinic-entrance.webp) · [诊室](../screenshots/clinic-exam.webp) · [手术室](../screenshots/clinic-or.webp) · [女卫生间](../screenshots/clinic-wc.webp)。六幅原创图分布在不同室内表面：妊娠三阶段、产检就诊流程、超声成像、盆腔解剖、胎盘与脐带、手卫生设施。前三幅并排在[候诊宣教墙](../screenshots/clinic-education.webp)，可从第五个机位[近看中文图文](../screenshots/clinic-education-detail.webp)。它们合用一张[离线生成的图集](../../src/mmdVrShowcase/scenery/clinic/bakeEducation.py)和一次绘制；诊察椅脚踏与联线、超声探头座和灯臂铰链则为立体部件。
+[入口走廊](../screenshots/clinic-entrance.webp) · [诊室](../screenshots/clinic-exam.webp) · [手术室](../screenshots/clinic-or.webp) · [女卫生间](../screenshots/clinic-wc.webp)。八幅原创图包括妊娠三阶段、产检流程、超声、盆腔解剖、胎盘与脐带、手卫生、骨盆矢状面和产后照护。可选「解剖教具台」对着墙上的图观察立体模型，「妇产科器械盘」看四件器械，「卫生用品架」看用品和产后宣教。工作台的护士是静态环境模型。[教学陈列、实景与图文依据](./clinic-teaching.md)
 
 ### 校园连廊试点：连通两景，只运行一边
 

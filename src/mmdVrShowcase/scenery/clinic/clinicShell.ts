@@ -94,7 +94,7 @@ export function clinicShell(p:ClinicParts){
   waitingSeats(p,F.seatsA,0,-1);waitingSeats(p,F.seatsB,0,1);waitingSeats(p,F.seatsC,-1,0);
   p.frame(3.09,1.92,-.492,.88,.55,0,7);
   for(const [i,px] of [4.40,5.42,6.44].entries())p.poster(px,1.71,-.492,.79,0,i);
-  p.frame(7.79,1.77,-.492,.78,.91,0,5,C.oak);
+  p.teachingPoster(7.69,1.71,-.492,.79,0,'postpartumPlate');
   p.frame(4.29,1.63,4.69,1.25,.77,pi,3,C.oak);
   for(const [px,pz] of [[WARD.left,-2.32],[WARD.right,-5.13]]){
     const side=px<0?1:-1;

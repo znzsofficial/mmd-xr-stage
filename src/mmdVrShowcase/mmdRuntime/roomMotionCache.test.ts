@@ -6,10 +6,10 @@ const parsed=()=>({} as ThreeMmdAnimation);
 it('shares only the same File, caps retained source volume, and clears across sessions',async()=>{
   const parse=vi.fn(async(_f:File)=>parsed()),cache=createRoomMotionCache(parse);
   const a=new File(['a'],'dance.vmd'),b=new File(['b'],'dance.vmd');
-  const first=cache.load(a);expect(cache.load(a)).toBe(first);expect(await cache.load(b)).not.toBe(await first);
+  expect(cache.status(a)).toBe('miss');const first=cache.load(a);expect(cache.status(a)).toBe('pending');expect(cache.load(a)).toBe(first);expect(await cache.load(b)).not.toBe(await first);expect(cache.status(a)).toBe('hit');
   const full=new File([new Uint8Array(4*1024*1024)],'full.vmd');await cache.load(full);
   expect(await cache.load(a)).not.toBe(await first);cache.clear();await cache.load(a);expect(parse).toHaveBeenCalledTimes(5);
-  const huge=new File([full,'x'],'large.vmd');expect(await cache.load(huge)).not.toBe(await cache.load(huge));
+  const huge=new File([full,'x'],'large.vmd');expect(cache.status(huge)).toBe('oversize');expect(await cache.load(huge)).not.toBe(await cache.load(huge));
 });
 it('retries failures and ignores obsolete rejection after clear or eviction',async()=>{
   let reject!:(e:Error)=>void;const f=new File(['x'],'f.vmd');const parse=vi.fn(async(_f:File)=>parsed())

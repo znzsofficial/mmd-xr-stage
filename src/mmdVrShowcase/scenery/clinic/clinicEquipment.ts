@@ -1,5 +1,6 @@
 import { C, ClinicParts, type V } from './clinicParts';
 import { FIXTURES as F, STALLS, STALL_PANELS, TOILETS, type ClinicRect } from './clinicLayout';
+import { hygieneStation, instrumentTray, modelBench, seatedNurse } from './clinicTeaching';
 
 const pi=Math.PI;
 function wheel(p:ClinicParts,x:number,z:number,r=.058){
@@ -70,9 +71,7 @@ export function examRoom(p:ClinicParts){
   p.rod([x+.377,1.02,z],[x+.35,.45,z+.066],.012,C.graphite);p.rod([x+.35,.45,z+.066],[x+.249,.37,z+.12],.012,C.graphite);p.rod([x+.249,.37,z+.12],[x+.23,.41,z+.14],.012,C.graphite);
   ({x,z}=F.stool);p.cylinder(x,.48,z,.40,.091,.40,C.rose);p.cylinder(x,.302,z,.062,.29,.062,C.chrome);
   for(let i=0;i<5;i++){const a=i*2*pi/5,dx=.212*Math.cos(a),dz=.212*Math.sin(a);p.rod([x,.175,z],[x+dx,.096,z+dz],.031,C.chrome);wheel(p,x+dx,z+dz,.034);}
-  cabinet(p,F.examCabinet,4);bottle(p,-7.66,.90,-2.72,C.mint);bottle(p,-7.49,.90,-2.71,C.white,.75);
-  p.pad(-5.49,.923,-2.72,.4,.037,.24,C.chrome);p.egg(-5.48,.967,-2.71,.097,.08,.097,C.milk);
-  p.poster(-6.87,1.73,-3.142,.77,0,3);p.poster(-5.70,1.73,-3.142,.77,0,4);
+  cabinet(p,F.examCabinet,4);modelBench(p);
   // Gathered curtain, not a solid screen across the entrance. Its track wraps
   // above the chair; the occupied floor rectangle is only the gathered length.
   const f=F.curtain;p.rod([f.x,2.66,-2.73],[f.x,2.66,.86],.028,C.chrome);
@@ -85,7 +84,7 @@ export function examRoom(p:ClinicParts){
   p.box(desk.x+.014,.894,desk.z+.074,.11,.235,.10,C.iron);monitor(p,desk.x+.015,1.175,desk.z+.081,.612,.367,13,pi);
   p.pad(desk.x+.02,.81,desk.z-.17,.41,.022,.13,C.graphite);
   ({x,z}=F.deskSeat);p.pad(x,.465,z,.46,.076,.427,C.teal);p.pad(x,.708,z-.18,.428,.332,.071,C.green);p.cylinder(x,.25,z,.064,.348,.064,C.chrome);p.cylinder(x,.07,z,.41,.063,.41,C.iron);
-  p.frame(-7.99,1.79,4.69,.80,.80,pi,5,C.oak);
+  seatedNurse(p);p.frame(-7.99,1.79,4.69,.80,.80,pi,5,C.oak);
 }
 
 function shadowlessLamp(p:ClinicParts,x:number,z:number){
@@ -133,7 +132,7 @@ export function operatingRoom(p:ClinicParts){
   ({x,z}=F.steelCart);wheels(p,x,z,.75,.46);
   for(let i of [-1,1])for(let j of [-1,1])p.rod([x+i*.372,.126,z+j*.219],[x+i*.372,.91,z+j*.219],.028,C.chrome);
   for(const y of [.33,.81]){p.pad(x,y,z,.84,.046,.53,C.chrome);p.box(x,y+.044,z-.235,.80,.062,.022,C.iron);}
-  for(let i=0;i<3;i++)p.pad(x-.19,.855+i*.024,z,.289,.021,.209,C.mint);bottle(p,x+.20,.842,z-.06,C.milk,.66);
+  instrumentTray(p);bottle(p,x+.20,.353,z-.06,C.milk,.66);
   cabinet(p,F.orCabinet,5);
   // Auxiliary supply rail with connectors, suction jar and theatre clock on
   // the visible service wall. Slim wall mounts stay outside the walking inset.
@@ -181,4 +180,5 @@ export function washroom(p:ClinicParts){
   p.box(-4.49,1.034,-8.914,3.72,2.06,.030,'#c7d7ce');
   for(let i=0;i<7;i++)p.box(-6.21+i*.55,1.03,-8.896,.010,2.05,.006,'#adbfb6');
   for(let i=1;i<6;i++)p.box(-4.49,i*.37,-8.895,3.72,.009,.006,'#adbfb6');
+  hygieneStation(p);
 }

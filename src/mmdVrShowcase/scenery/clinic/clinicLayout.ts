@@ -25,11 +25,12 @@ export const FIXTURES = {
   footControl:rect(-5.30,.58,.305,.243),
   stool:rect(-5.6,1.76,.53,.53), examCabinet:rect(-6.48,-2.77,3.15,.71),
   curtain:rect(-4.32,-.96,.18,1.21), consultDesk:rect(-6.46,4.26,2.3,.78),
-  deskSeat:rect(-5.94,3.36,.62,.57),
+  deskSeat:rect(-6.43,3.41,.62,.57), nurseLegs:rect(-6.43,3.77,.38,.43),
   table:rect(5.83,-4.85,1.1,2.27), anaesthesia:rect(7.20,-6.58,1.05,.86),
   steelCart:rect(4.26,-6.53,.88,.58), orCabinet:rect(5.19,-8.53,3.85,.72),
   scrub:rect(7.25,-1.04,1.65,.61), iv:rect(7.06,-4.32,.50,.50),
   sinks:rect(-4.44,-8.52,2.69,.73),
+  supplyShelf:rect(-4.76,-3.59,1.42,.45), disposal:rect(-5.88,-3.64,.33,.37),
   seatsA:rect(4.48,4.30,2.59,.72), seatsB:rect(6.99,1.19,2.59,.72),
   seatsC:rect(1.63,-6.70,.67,2.56), kiosk:rect(3.02,.13,.69,.58),
   planter:rect(.99,-8.55,.64,.64),
@@ -42,6 +43,15 @@ export const STALL_PANELS = [rect(-7.45,-8.785,2.10,.054),rect(-7.45,-6.595,2.10
     closed?rect(front,z,.055,1.015):rect(front-.51,z+.497,1.02,.055)]),
 ];
 export const TOILETS = STALLS.map(({z})=>rect(-8.02,z,.77,.48));
+export const STALL_BINS = STALLS.map(({z})=>rect(-8.05,z-.70,.24,.26));
+// Physical exhibit plinths share the existing counter. Their ray blockers
+// occupy only their own height/width; rays can pass in the gaps above the counter.
+export const EXHIBITS = [
+  {...rect(-7.48,-2.69,.70,.32),top:1.55},
+  {...rect(-6.49,-2.69,.68,.32),top:1.49},
+  {...rect(-5.51,-2.69,.59,.32),top:1.56},
+] as const;
+export const TRAY_TOP=.95;
 export const CLINIC_DEFAULT = {x:0,z:0};
 export const CLINIC_VIEW: [Point3,Point3] = [[.24,1.58,3.80],[-.60,1.39,-5.25]];
 export const CLINIC_SHOTS = [
@@ -50,6 +60,9 @@ export const CLINIC_SHOTS = [
   {key:'clinicSurgery', eye:[3.24,1.58,-1.78], aim:[5.97,1.25,-5.43]},
   {key:'clinicRestroom', eye:[-2.83,1.51,-6.50], aim:[-6.99,1.08,-7.76]},
   {key:'clinicEducation', eye:[5.31,1.74,1.48], aim:[5.42,1.71,-.48]},
+  {key:'clinicModels', eye:[-7.14,1.70,-.45], aim:[-6.53,1.69,-2.78]},
+  {key:'clinicInstruments', eye:[4.26,1.47,-5.92], aim:[4.26,.885,-6.53]},
+  {key:'clinicSupplies', eye:[-4.82,1.50,-6.11], aim:[-4.77,1.16,-3.61]},
 ] as const;
 
 function hits(x:number,z:number,r:ClinicRect,clear:number) {
@@ -57,7 +70,7 @@ function hits(x:number,z:number,r:ClinicRect,clear:number) {
   return u*u+v*v<=clear*clear;
 }
 // Include door trim, crash rails, slider faces and the lobby handrail.
-const obstacles=[...WALLS.map(r=>({...r,w:r.w+.24,d:r.d+.24})), ...Object.values(FIXTURES), ...STALL_PANELS, ...TOILETS];
+const obstacles=[...WALLS.map(r=>({...r,w:r.w+.24,d:r.d+.24})), ...Object.values(FIXTURES), ...STALL_PANELS, ...TOILETS, ...STALL_BINS];
 const cubicles=STALLS.map(({x,z,width})=>rect(x,z,2.14,width));
 function clearAt(x:number,z:number,r:number) {
   return Number.isFinite(x)&&Number.isFinite(z)&&x>west+r&&x<east-r&&z>north+r&&z<south-r&&!obstacles.some(o=>hits(x,z,o,r));
@@ -69,8 +82,12 @@ export function canPlaceInClinic(x:number,z:number) { return clearAt(x,z,.26)&&!
 // the eye/controller segment in 3D: seeing over a low bench is legitimate;
 // aiming at a clear patch of floor through a cubicle door is not.
 type Occluder=ClinicRect&{top:number;bottom:number};
-const tops:Record<keyof typeof FIXTURES,number>={examChair:.83,footControl:.081,ultrasound:1.01,stool:.51,examCabinet:.90,curtain:2.45,consultDesk:.78,deskSeat:.47,table:.91,anaesthesia:1.03,steelCart:.85,orCabinet:.90,scrub:.94,iv:.12,seatsA:.47,seatsB:.47,seatsC:.47,kiosk:1.46,planter:.46,sinks:1.01};
-const occluders:Occluder[]=[...WALLS.map(r=>({...r,bottom:0,top:WARD.h})),...Object.values(DOORS).map(({x,z,width})=>({...rect(x,z,t,width),bottom:2.25,top:WARD.h})),...STALL_PANELS.map(r=>({...r,bottom:.22,top:2.06})),...TOILETS.map(r=>({...r,bottom:0,top:.46})),...(Object.keys(FIXTURES) as (keyof typeof FIXTURES)[]).map(k=>({...FIXTURES[k],bottom:k==='curtain'?.50:0,top:tops[k]}))];
+const tops:Record<keyof typeof FIXTURES,number>={examChair:.83,footControl:.081,ultrasound:1.01,stool:.51,examCabinet:.90,curtain:2.45,consultDesk:.78,deskSeat:.81,nurseLegs:.61,table:.91,anaesthesia:1.03,steelCart:TRAY_TOP,orCabinet:.90,scrub:.94,iv:.12,seatsA:.47,seatsB:.47,seatsC:.47,kiosk:1.46,planter:.46,sinks:1.01,supplyShelf:1.64,disposal:.62};
+const occluders:Occluder[]=[...WALLS.map(r=>({...r,bottom:0,top:WARD.h})),...Object.values(DOORS).map(({x,z,width})=>({...rect(x,z,t,width),bottom:2.25,top:WARD.h})),...STALL_PANELS.map(r=>({...r,bottom:.22,top:2.06})),...TOILETS.map(r=>({...r,bottom:0,top:.46})),...STALL_BINS.map(r=>({...r,bottom:0,top:.52})),...EXHIBITS.map(r=>({...r,bottom:.90})),
+  {...rect(FIXTURES.deskSeat.x,FIXTURES.deskSeat.z+.04,.38,.29),bottom:.55,top:1.31},
+  ...[-1,1].map(k=>({...rect(FIXTURES.deskSeat.x+k*.16,FIXTURES.deskSeat.z+.39,.16,.59),bottom:.735,top:.88})),
+  {...rect(FIXTURES.steelCart.x,FIXTURES.steelCart.z-.227,.38,.035),bottom:.84,top:1.09},
+  ...(Object.keys(FIXTURES) as (keyof typeof FIXTURES)[]).map(k=>({...FIXTURES[k],bottom:k==='curtain'?.50:0,top:tops[k]}))];
 export function clinicPlacementVisible(from:{x:number;y:number;z:number},x:number,z:number){
   if(!Number.isFinite(from.x)||!Number.isFinite(from.y)||!Number.isFinite(from.z)||!Number.isFinite(x)||!Number.isFinite(z))return false;
   const dx=x-from.x,dy=.012-from.y,dz=z-from.z;
