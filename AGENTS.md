@@ -71,7 +71,7 @@ pnpm deploy
 
 ## Verification And Files
 
-- Keep the public README focused on import, viewing, controls and general-audience scenery. Choose neutral screenshots and examples; leave private asset details, sensitive feature demonstrations and internal handoff notes off the front page.
+- When filtering sensitive material from the public README, edit only the affected examples, screenshots and links. Preserve the project badges and technical sections (stack, XR and physics, diagnostics, development and deployment). Keep private asset details and internal handoff notes off the front page.
 
 - For completed product changes, finish the release for the user: after verification, merge, push normally, deploy the tested build to the existing production Pages project per `docs/deployment.md`, and verify the main domain. Report the live link instead of handing the user a release command. If a check or deployment fails, report the blocker. This routine does not authorize force pushes.
 
