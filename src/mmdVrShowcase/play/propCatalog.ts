@@ -16,6 +16,9 @@ type Definition = {
   guide:{vr:Key; screen:Key; end:Key};
   // Type-only link. Import the actual components only on the rendering side.
   view:keyof typeof import('./propViews');
+  /** Point in the rendered Piece under the character's fingers, in metres;
+   * pitch cancels a controller-specific handle rake when fitted to a palm. */
+  grip:{point:readonly [number,number,number];pitch:number};
   onGrip?:(at:Vector3, dir:Vector3)=>void;
   onEquip?:()=>void; onScreenEquip?:()=>void; onStow?:()=>void; onLeave?:()=>void;
   story?:Story;
@@ -23,34 +26,34 @@ type Definition = {
 
 const catalog = {
   kite: {
-    label:'toyKite', home:'lawn', homeLabel:'hudLawn', visit:'visitKite', view:'meadowReel',
+    label:'toyKite', home:'lawn', homeLabel:'hudLawn', visit:'visitKite', view:'meadowReel',grip:{point:[0,-.057,-.054],pitch:.10},
     guide:{vr:'guideKiteVr', screen:'guideKiteScreen', end:'guideKiteEnd'},
     story:{name:'storyKite', help:'storyKiteHelp', left:'storyWindLeft', right:'storyWindRight', cue:setKiteWind},
     onGrip:()=>setKiteWind(getKiteWind()==='left'?'right':'left'), onStow:resetKite,
   },
   encore: {
-    label:'toyEncore', home:'liveHouse', homeLabel:'toyClubName', visit:'visitEncore', view:'ribbonMic',
+    label:'toyEncore', home:'liveHouse', homeLabel:'toyClubName', visit:'visitEncore', view:'ribbonMic',grip:{point:[0,-.065,-.055],pitch:.12},
     guide:{vr:'guideEncoreVr', screen:'guideEncoreScreen', end:'guideEncoreEnd'},
     story:{name:'storyEncore', help:'storyEncoreHelp', left:'storyDyeLeft', right:'storyDyeRight', cue:dyeEncore},
     onGrip:(at,dir)=>{const side=aimEncore(at,dir); if(side)dyeEncore(side);}, onLeave:resetEncore,
   },
   bubbles: {
-    label:'toyBubbles', portable:true, home:'pool', homeLabel:'allSets', homeName:'toyShell', visit:'visitFerry', view:'shellBlower',
+    label:'toyBubbles', portable:true, home:'pool', homeLabel:'allSets', homeName:'toyShell', visit:'visitFerry', view:'shellBlower',grip:{point:[0,-.054,-.057],pitch:0},
     guide:{vr:'guideBubblesVr', screen:'guideBubblesScreen', end:'guideBubblesEnd'},
     story:{name:'storyFerry', help:'storyFerryHelp', left:'storyFerryLeft', right:'storyFerryRight', cue:launchFerry},
     onGrip:(at,dir)=>{const side=aimFerry(at,dir); if(side)launchFerry(side,at);}, onStow:resetFerry,
   },
   post: {
-    label:'toyPost', home:'floor', homeLabel:'toyStudioName', visit:'visitPost', view:'lunarPunch',
+    label:'toyPost', home:'floor', homeLabel:'toyStudioName', visit:'visitPost', view:'lunarPunch',grip:{point:[0,-.054,-.059],pitch:0},
     guide:{vr:'guidePostVr', screen:'guidePostScreen', end:'guidePostEnd'}, onLeave:clearCard,
   },
   saber: {
-    label:'toySaber', portable:true, home:null, homeLabel:'allSets', visit:null, view:'astralHilt',
+    label:'toySaber', portable:true, home:null, homeLabel:'allSets', visit:null, view:'astralHilt',grip:{point:[0,-.056,-.046],pitch:.69},
     guide:{vr:'guideSaberVr', screen:'guideSaberScreen', end:'guideSaberEnd'},
     onGrip:toggleBlade, onEquip:retractBlade, onScreenEquip:toggleBlade, onStow:retractBlade,
   },
   dildo: {
-    label:'toyDildo', portable:true, home:null, homeLabel:'allSets', visit:null, view:'silicone',
+    label:'toyDildo', portable:true, home:null, homeLabel:'allSets', visit:null, view:'silicone',grip:{point:[0,.001,-.031],pitch:.32},
     guide:{vr:'guideDildoVr', screen:'guideDildoScreen', end:'guideDildoEnd'},
   },
 } as const satisfies Record<string,Definition>;

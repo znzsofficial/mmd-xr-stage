@@ -1,6 +1,7 @@
 import type {TranslationKey} from '../../languageStore';
 import type {SceneryId} from './catalog';
 import {CAMPUS_OFFSET} from './CampusLayout';
+import {POOL_ORIGIN_Z} from './LidoLayout';
 
 type Point=readonly [number,number,number];
 export type RoomLink = {
@@ -16,6 +17,10 @@ export const roomLinks:readonly RoomLink[]=[
     arrival:{key:'campusGoLawn',eye:[2.73,1.61,.42],aim:[-4.2,1.42,-6.4]}},
   {from:'lawn',to:'classroom',axis:'x',direction:1,gate:dx-7.8,band:[dz+6.24,dz+8.20],offset:[-dx,-dz],
     arrival:{key:'campusGoClass',eye:[-8.04,1.61,7.25],aim:[-3.35,1.34,6.21]}},
+  {from:'lawn',to:'pool',axis:'z',direction:-1,gate:POOL_ORIGIN_Z+8.85,band:[-1.35,1.35],offset:[0,-POOL_ORIGIN_Z],
+    arrival:{key:'lidoGoPool',eye:[.35,1.62,8.12],aim:[-.4,1.17,-9.50]}},
+  {from:'pool',to:'lawn',axis:'z',direction:1,gate:9.85,band:[-1.35,1.35],offset:[0,POOL_ORIGIN_Z],
+    arrival:{key:'lidoGoLawn',eye:[.42,1.62,-9.86],aim:[-3.8,1.42,-5.0]}},
 ];
 export class RoomGate {
   private last:SceneryId|null=null;

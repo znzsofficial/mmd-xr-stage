@@ -1,6 +1,7 @@
 import {it,expect} from 'vitest';
 import {CAMPUS_DOOR,CAMPUS_OFFSET} from './CampusLayout';
-import {RoomGate,roomLinks,type RoomLink} from './connections';
+import {RoomGate} from './connections';
+import {POOL_ORIGIN_Z,GUARD_CHAIR,PACE_CLOCK,LIDO_PIERS} from './LidoLayout';
 import {canPlaceInScenery} from './placementAreas';
 
 it('keeps a continuous floor out the rear door while rejecting the rear wall, columns and distant facade',()=>{
@@ -16,8 +17,17 @@ it('only crosses a sign in the correct direction and cannot rebound on the arriv
   gate.reset();gate.next('classroom',-8.4,5.3);expect(gate.next('classroom',-9,5.3)).toBeNull();
 });
 it('selects the right exit when a zone has two and ignores a teleport',()=>{
-  const second:RoomLink={...roomLinks[1],to:'pool',axis:'z',direction:-1,gate:-6,band:[1,4]};
-  const gate=new RoomGate([...roomLinks,second]);gate.next('lawn',2,3);
-  expect(gate.next('lawn',2,-7)).toBeNull();gate.next('lawn',2,-5.75);
-  expect(gate.next('lawn',2,-6.1)).toBe(second);
+  const gate=new RoomGate();gate.next('lawn',0,3);expect(gate.next('lawn',0,-12)).toBeNull();
+  gate.next('lawn',0,-10.96);const pool=gate.next('lawn',0,-11.42)!;
+  expect(pool.to).toBe('pool');expect(gate.next('pool',0,-11.42+pool.offset[1])).toBeNull();
+  expect(gate.next('pool',0,10.01)?.to).toBe('lawn');
+  gate.next('lawn',5.8,.40);expect(gate.next('lawn',6.5,.40)?.to).toBe('classroom');
+});
+it('has a placeable route from the meadow to the pool clock without treating furniture or water as floor',()=>{
+  for(let z=0;z>=-11.3;z-=.12)expect(canPlaceInScenery('lawn',0,z)).toBe(true);
+  for(let z=-11.3-POOL_ORIGIN_Z;z>=0;z-=.12)expect(canPlaceInScenery('pool',0,z)).toBe(true);
+  for(let z=0;z>=-20.35;z-=.12)expect(canPlaceInScenery('pool',6.05,z),`east walk z=${z}`).toBe(true);
+  for(const r of [GUARD_CHAIR,PACE_CLOCK,...LIDO_PIERS])expect(canPlaceInScenery('pool',r.x,r.z)).toBe(false);
+  for(const r of LIDO_PIERS)expect(canPlaceInScenery('lawn',r.x,r.z+POOL_ORIGIN_Z)).toBe(false);
+  expect(canPlaceInScenery('lawn',0,-25)).toBe(false);
 });

@@ -27,6 +27,10 @@ Import PMX/PMD characters, VMD motions and GLB/glTF props on the prep page. Choo
 | **Live House** | **Studio plinth** |
 | ![Drums and an electric piano flank the wood stage of the Listening Room.](./docs/screenshots/live-house.webp) | ![A softbox and colour proof sheets frame the graduated studio arch.](./docs/screenshots/studio-plinth.webp) |
 
+**Campus walk · classroom → meadow → pool**
+
+Follow the [blue-tiled pool gate](./docs/screenshots/lido-garden-gate.webp) between the meadow bench and wisteria arbor. Take the east pool walk to the [timing deck](./docs/screenshots/lido-timing-deck.webp), or [look back at the path](./docs/screenshots/lido-return.webp). Only the district you are visiting runs its characters and physics.
+
 **Astral Court · the observatory district**
 
 ![Looking back toward the original orrery from the north causeway, with both gallery bridges opening to the sides.](./docs/screenshots/observatory-return.webp)

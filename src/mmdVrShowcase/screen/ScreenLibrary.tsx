@@ -89,6 +89,8 @@ function SelectedItem({entry,locked,frame,move,choice,setChoice}:{entry:Backpack
     {(live.wrists?.left||live.wrists?.right)&&<fieldset className="screen-props"><legend>{t('storyProp')}</legend>
       <select disabled={locked} aria-label={t('storyProp')} value={toy} onChange={e=>{const item=shelfToys.find(v=>v===e.target.value);if(item)setChoice(item);}}>{shelfToys.map(v=><option value={v} key={v}>{t(toyLabel(v,room))}</option>)}</select>
       {(['left','right'] as const).map(hand=><button key={hand} disabled={locked||!canGiveTo(live,hand)} aria-pressed={prop?.assetId===entry.id&&prop.toy===toy&&prop.hand===hand} onClick={()=>give(entry.id,toy,hand,room)}>{t(hand==='left'?'propLeft':'propRight')}</button>)}
+      {prop?.assetId===entry.id&&prop.toy===toy&&<><button disabled={locked} onClick={()=>useStagePlay.getState().adjust(0,0,30)}>{t('propTurn')} {prop.turn}°</button>
+        {([['propLower',-15,0],['propRaise',15,0],['propCloser',0,-1],['propFarther',0,1]] as const).map(([label,a,d])=><button key={label} disabled={locked||Math.abs(prop.tilt+a)>90||Math.abs(prop.inset+d)>5} onClick={()=>useStagePlay.getState().adjust(a,d)}>{t(label)}</button>)}</>}
       {prop?.assetId===entry.id&&prop.toy!==localToy&&<button disabled={locked} onClick={()=>useStagePlay.getState().stow()}>{t('toyStow')}</button>}
     </fieldset>}
     <button disabled={locked} onClick={()=>b.putAway(entry.id)}>{t('hudPutAway')}</button>

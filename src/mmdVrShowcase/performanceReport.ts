@@ -3,6 +3,7 @@ import type { RenderDiagnostics, RenderRequest } from "./renderDiagnostics";
 import type { BackpackPlacementTiming } from "./backpack";
 import type { SceneryId } from './scenery/catalog';
 import type { RoomRestoreEvent } from './roomRestoreTiming';
+import type {PhysicsSwitchWork} from './physicsSwitchWork';
 
 type SceneSample = { models: number; objects: number; physics: boolean; scenery?: string; liveHouse: boolean; shadows: boolean; playing: boolean; actorPalmClothRequested?:boolean; heldToy?: import('./play/stagePlay').Toy | null };
 type Window = Omit<RenderDiagnostics, "requested" | "active"> & SceneSample & { elapsedMs: number };
@@ -21,17 +22,17 @@ export function createPerformanceRecording(requested: RenderRequest, entryStarte
   let skipNext = true;
   let firstVisibleXrFrameMs: number | null = null, firstFrameAfterAssetsReadyMs: number | null = null;
   const wallStart=performance.now();
-  const physicsRebuilds:{scenery:SceneryId;requestedEnabled:boolean;startWallMs:number;durationWallMs:number;success:boolean}[]=[];
-  let rebuilding:{scenery:SceneryId;requestedEnabled:boolean;at:number}|null=null;
+  const physicsRebuilds:{scenery:SceneryId;requestedEnabled:boolean;startWallMs:number;durationWallMs:number;success:boolean;work?:PhysicsSwitchWork}[]=[];
+  let rebuilding:{scenery:SceneryId;requestedEnabled:boolean;at:number;work?:PhysicsSwitchWork}|null=null;
   return {
     restored(event:RoomRestoreEvent){if(roomRestores.length===64)roomRestores.shift();roomRestores.push(event);},
-    beginRebuild(scenery:SceneryId,requestedEnabled:boolean){rebuilding={scenery,requestedEnabled,at:performance.now()};},
+    beginRebuild(scenery:SceneryId,requestedEnabled:boolean,work?:PhysicsSwitchWork){rebuilding={scenery,requestedEnabled,at:performance.now(),work};},
     abandonRebuild(){rebuilding=null;},
     endRebuild(success:boolean){
       if(!rebuilding)return;
-      const {at,scenery,requestedEnabled}=rebuilding;rebuilding=null;
+      const {at,scenery,requestedEnabled,work}=rebuilding;rebuilding=null;
       if(physicsRebuilds.length===64)physicsRebuilds.shift();
-      physicsRebuilds.push({scenery,requestedEnabled,startWallMs:Math.round(at-wallStart),durationWallMs:Math.round(performance.now()-at),success});
+      physicsRebuilds.push({scenery,requestedEnabled,startWallMs:Math.round(at-wallStart),durationWallMs:Math.round(performance.now()-at),success,...(work&&{work:{...work}})});
     },
     placementFrame(event: BackpackPlacementTiming | null) {
       if (!event || event.token === lastPlacementToken) return;

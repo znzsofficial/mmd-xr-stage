@@ -14,6 +14,7 @@ import { PARK_Y } from "./colliderReentry";
 import { configureActorPalms } from './actorPalms';
 import {fitChestCompression} from './chestCompression';
 import {TrackedPressure} from './trackedPressure';
+import {elapsed,type PhysicsSwitchWork} from '../physicsSwitchWork';
 import { createLocalTextureResolver } from "./localTextureResolver";
 export { createLocalTextureResolver } from "./localTextureResolver";
 import { createBulletPhysicsBackend, type ColliderShapeFactory, type MmdPhysicsQuality } from "./mmdPhysics";
@@ -113,7 +114,7 @@ export type MmdRuntimeHandle = {
     /** PMREM CubeUV from sky (WebGL toon IBL). */
     envMap?: THREE.Texture | null;
   }) => void;
-  setPhysicsEnabled: (enabled: boolean) => Promise<void>;
+  setPhysicsEnabled: (enabled: boolean,work?:PhysicsSwitchWork) => Promise<void>;
   rebuildPhysics: () => Promise<void>;
   /** Re-seed soft-body pose from current animation (fix floating / stuck cloth). */
   resetPhysics: (seconds?: number, modelId?: string) => void;
@@ -130,7 +131,7 @@ type RuntimeEntryWithPhysics = RuntimeEntry & {
   handEligibility:{mask:number};
   trackedPressure?:TrackedPressure;
   bindPose: Float64Array;
-  createWorld: (display: PhysicsPoseDisplay) => Promise<MmdPhysicsBackend>;
+  createWorld: (display: PhysicsPoseDisplay,work?:PhysicsSwitchWork) => Promise<MmdPhysicsBackend>;
   physicsDisplay?: PhysicsPoseDisplay;
   /** Dedicated Bullet world — do not share across models. */
   physicsBackend: MmdPhysicsBackend | null;
@@ -413,7 +414,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
     // One Bullet world per model (library world holds a single uploaded model identity).
     const physicsDisplay = withPhysics ? new PhysicsPoseDisplay() : undefined;
     const handEligibility={mask:0};
-    const createWorld = (display: PhysicsPoseDisplay) => createBulletPhysicsBackend({
+    const createWorld = (display: PhysicsPoseDisplay,switchWork?:PhysicsSwitchWork) => createBulletPhysicsBackend({switchWork,
           controllerColliders: colliderProvider,
           controllerRadius: () => {
             const scale = Math.min(10, Math.max(0.01, Number(colliderRoot?.userData.mmdVisualScale) || transform.scale));
@@ -552,7 +553,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
     };
   }
 
-  async function rebuildAllModels(withPhysics: boolean, beforeRestore?: () => void) {
+  async function rebuildAllModels(withPhysics: boolean, beforeRestore?: () => void,work?:PhysicsSwitchWork) {
     const generation = membershipGeneration;
     const stale = () => disposed || generation !== membershipGeneration;
     const assertCurrent = () => { if (stale()) throw new DOMException('Stage changed', 'AbortError'); };
@@ -619,13 +620,17 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
             assertCurrent();
             if (withPhysics) {
               const display = new PhysicsPoseDisplay();
-              const backend = await entry.createWorld(display);
+              const backend = await entry.createWorld(display,work);
+              const at=work?performance.now():0;
               try { batch.push({entry, display, backend, runtime: new DefaultMmdRuntime(externalRuntimeOptions(backend))}); }
               catch (error) { backend.dispose?.(); throw error; }
+              finally {elapsed(work,'evaluatorMs',at);}
             } else {
-              const modelBytes = new Uint8Array(await entry.modelFile.arrayBuffer());
+              const read=work?performance.now():0;
+              const modelBytes = new Uint8Array(await entry.modelFile.arrayBuffer().finally(()=>elapsed(work,'readModelMs',read)));
               assertCurrent();
-              const runtime = await new ThreeMmdLoader({runtime:{physics:'none'}}).createDetachedRuntime({modelBytes,mesh:entry.model.mesh,source:entry.model.source});
+              const at=work?performance.now():0;
+              const runtime = await new ThreeMmdLoader({runtime:{physics:'none'}}).createDetachedRuntime({modelBytes,mesh:entry.model.mesh,source:entry.model.source}).finally(()=>elapsed(work,'evaluatorMs',at));
               batch.push({entry, backend:null, runtime});
             }
           }
@@ -633,20 +638,23 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
           // Synchronous commit: a renderer cannot see half of a batch. A bind
           // failure uses the known-good cold restore below, never a posed rig.
           touchedModels = true;
-          for (const item of batch) {
-            const {entry, runtime, backend, display} = item;
-            entry.chest?.restore();entry.chest?.reset();
-            entry.physicsDisplay?.restore(true);
-            restoreBindPose(entry);
-            configureActorPalms(entry.model.mesh,palmsRequested());
-            const animation = entry.appliedAnimation?.animation ?? (backend ? STATIC_PHYSICS_BINDING_ANIMATION : null);
-            if (animation) runtime.setAnimation(animation, entry.model.mesh);
-            const old = entry.model.exchangeRuntime(runtime);
-            disposeEntryPhysics(entry);
-            entry.physicsBackend = backend; entry.physicsDisplay = display;
-            item.installed = true;
-            releaseEvaluator(old);
-          }
+          const start=work?performance.now():0;
+          try {
+            for (const item of batch) {
+              const {entry, runtime, backend, display} = item;
+              entry.chest?.restore();entry.chest?.reset();
+              entry.physicsDisplay?.restore(true);
+              restoreBindPose(entry);
+              configureActorPalms(entry.model.mesh,palmsRequested());
+              const animation = entry.appliedAnimation?.animation ?? (backend ? STATIC_PHYSICS_BINDING_ANIMATION : null);
+              if (animation) runtime.setAnimation(animation, entry.model.mesh);
+              const old = entry.model.exchangeRuntime(runtime);
+              disposeEntryPhysics(entry);
+              entry.physicsBackend = backend; entry.physicsDisplay = display;
+              item.installed = true;
+              releaseEvaluator(old);
+            }
+          } finally { elapsed(work,'bindAndSwapMs',start); }
           lastPhysicsSeconds.clear();
           return;
         } finally {
@@ -663,7 +671,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       for (const id of [...entries.keys()]) removeEntry(id);
       lastPhysicsSeconds.clear();
       try {
-        await restoreSnapshots(previousPhysics);
+        const at=work?performance.now():0;await restoreSnapshots(previousPhysics).finally(()=>elapsed(work,'rollbackMs',at));
       } catch (restoreError) {
         if (stale()) throw restoreError;
         for (const id of [...entries.keys()]) removeEntry(id);
@@ -843,8 +851,10 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       entry.materialVisible[materialName] = visible;
       applyMaterialVisibility(entry);
     },
-    async setPhysicsEnabled(enabled) {
+    async setPhysicsEnabled(enabled,work) {
+      const queued=work?performance.now():0;
       const transition = physicsTransition.then(async () => {
+        elapsed(work,'waitForSlotMs',queued);
         if (physicsWanted === enabled && entries.size > 0) {
           const allOk = [...entries.values()].every((entry) =>
             enabled ? entry.physicsBackend != null && !entry.physicsBackend.disposed : entry.physicsBackend == null,
@@ -857,7 +867,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
         lastPhysicsSeconds.clear();
         if (!entries.size) return;
         try {
-          await rebuildAllModels(enabled);
+          await rebuildAllModels(enabled,undefined,work);
         } catch (error) {
           physicsWanted = previousPhysicsWanted;
           throw error;

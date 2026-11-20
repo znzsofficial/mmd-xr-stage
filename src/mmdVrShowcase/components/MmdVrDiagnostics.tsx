@@ -27,7 +27,8 @@ export function MmdVrDiagnostics({ requested }: { requested: RenderRequest }) {
     const r=recording.current;if(!r)return;
     if(!s.overlayOpen||s.entryEpoch!==p.entryEpoch){r.abandonRebuild();xrRoomRestoreTiming.cancel();return;}
     if(s.prefs.scenery!==p.prefs.scenery){r.abandonRebuild();xrRoomRestoreTiming.begin(p.prefs.scenery,s.prefs.scenery,!!useBackpack.getState().layouts[s.prefs.scenery]?.assets.length);return;}
-    if(s.physicsBusy&&!p.physicsBusy)r.beginRebuild(s.prefs.scenery,s.physicsEnabled);
+    if(s.physicsBusy&&!p.physicsBusy)r.beginRebuild(s.prefs.scenery,s.physicsEnabled,s.physicsSwitchWork);
+    else if(s.physicsBusy&&p.physicsBusy&&s.physicsSwitchWork!==p.physicsSwitchWork)r.abandonRebuild();
     else if(!s.physicsBusy&&p.physicsBusy)r.endRebuild(!s.physicsError&&!s.physicsFatal);
   }),[]);
   useFrame((_, delta, frame) => {

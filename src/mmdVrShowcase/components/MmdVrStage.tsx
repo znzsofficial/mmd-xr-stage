@@ -1,5 +1,6 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { runtimeTiming } from "../runtimeTiming";
+import {elapsed,type PhysicsSwitchWork} from '../physicsSwitchWork';
 import { useEffect, useLayoutEffect, useMemo, useReducer, useRef } from "react";
 import * as THREE from "three";
 import {
@@ -500,15 +501,18 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
     if (waitForLoad || physicsEnabled !== useMmdVrStore.getState().physicsEnabled || physicsEnabled === appliedPhysicsEnabledRef.current) return;
     let cancelled = false;
     captureStage(); // Last complete copy while a rebuild temporarily owns the models.
-    setPhysicsBusy(true);
+    const work:PhysicsSwitchWork|undefined=useMmdVrStore.getState().presentation==='xr'?{}:undefined;
+    setPhysicsBusy(true,work);
     useMmdVrStore.getState().setPhysicsError(null);
     physicsOperationCountRef.current += 1;
-    void runtime.setPhysicsEnabled(physicsEnabled).then(() => {
+    void runtime.setPhysicsEnabled(physicsEnabled,work).then(() => {
       if (!cancelled && !isRoomStale()) {
+        const at=work?performance.now():0;
         appliedPhysicsEnabledRef.current = physicsEnabled;
         syncModelList();
         syncMaterialModels();
         lastEvaluatedTimeRef.current = -Infinity;
+        elapsed(work,'publishUiMs',at);
       }
     }).catch((error) => {
       if (!cancelled && !isRoomStale()) {

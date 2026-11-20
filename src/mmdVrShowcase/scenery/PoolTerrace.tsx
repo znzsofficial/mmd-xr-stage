@@ -1,7 +1,9 @@
 import { useMemo, useRef, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, TorusGeometry, Vector3, type ShaderMaterial } from 'three';
+import { BufferGeometry, Color, CylinderGeometry, DoubleSide, Float32BufferAttribute, TorusGeometry, Vector3, type Mesh,type ShaderMaterial } from 'three';
 import { POOL } from './placementAreas';
+import {arcadeParts,judgeStand,PACE_CLOCK,TIME_DECK,POOL_ORIGIN_Z,PAVILION_POSTS} from './LidoLayout';
+import {LidoPlates} from './LidoPlates';
 import { span } from './detailParts';
 import { useBakedSurface } from './useBakedSurface';
 import pavementURL from './lido-pavement.webp';
@@ -34,14 +36,27 @@ function furnishings() {
   // The surrounding lawn is below the basin rather than crossing the water.
   for(const side of [-1,1])box([side*22,-.315,-7],[29.8,.25,65],'#98b283');
   box([0,-.315,18],[14.3,.25,30],'#98b283');box([0,-.315,-30],[14.3,.25,21.0],'#98b283');
-  for(const r of [POOL.deck,...POOL.walks,POOL.farWalk]) box([r.x,-.125,r.z],[r.w,.25,r.d],'#e7dbc4');
+  for(const r of [POOL.deck,...POOL.walks,POOL.farWalk,TIME_DECK]) box([r.x,r===TIME_DECK?-.122:-.125,r.z],[r.w,.25,r.d],'#e7dbc4');
+  blocks.push(...arcadeParts('pool'),...judgeStand());
+  // See the meadow arbor through the return portal without retaining its trees or actors.
+  for(const x of [-5.7,-2.65])for(const z of [-7.5,-5.25])box([x,1.33,z-POOL_ORIGIN_Z],[.16,2.66,.16],'#988168');
+  for(let j=0;j<8;j++)box([-4.16,2.73,12.3+j*.36],[3.62,.16,.12],j%2?'#b09b7c':'#ac9e9b');
+  for(let j=0;j<15;j++)crowns.push({p:[-4.16+1.32*Math.sin(j*2.1),2.66-.15*(j%3),12.35+j*.21],s:[.93,.45+(j%3)*.14,.65],color:j%3?'#95a378':'#a59bb4'});
+  for(const [x,z,h] of [[5.75,14.8,5.6],[-6.2,10.6,4.4],[9,24,5],[-8,23,6]]){tube([x,h*.43,z],[.24,h*.86,.24],'#81735d');for(let j=0;j<6;j++)crowns.push({p:[x+.94*Math.cos(j*2.4),h-.58*j/6,z+.94*Math.sin(j*2.4)],s:[2.7,1.8,2.65],color:j%2?'#87a978':'#719264'});}
+  for(let j=0;j<8;j++){const a=.49+j*.27;crowns.push({p:[28*Math.cos(a),-.6,19+16*Math.sin(a)],s:[14,4+j%3,8],color:j%2?'#98ae8e':'#a2b69a'});}
+  const clock=PACE_CLOCK;
+  tube([clock.x,.70,clock.z],[.084,1.40,.084],'#63867f');tube([clock.x,.055,clock.z],[.43,.11,.43],'#8c9990');
+  tube([clock.x,1.83,clock.z],[.76,.12,.76],'#416d6b',Math.PI/2);
+  box([clock.x,.98,clock.z],[.89,.26,.12],'#657f75');
+  tube([clock.x,1.83,clock.z+.089],[.046,.017,.046],'#805e43',Math.PI/2);
   for(const x of [-5.13,5.13]) {
     box([x,-.11,-12.4],[.28,.23,13.6],'#fcf5dd'); box([x+Math.sign(x)*.22,-.003,-12.4],[.15,.01,13.42],'#8b9c95');
-    for(let j=0;j<86;j++) box([x+Math.sign(x)*.22,.005,-5.83-j*.154],[.15,.01,.092],'#dfdfce');
   }
   for(const z of [-5.72,-19.08])box([0,-.11,z],[10.35,.23,.23],'#fbf1d9');
   for(const x of [-3.33,0,3.33]) for(let j=0;j<56;j++)tube([x,-.14,-5.94-j*.236],[.105,.21,.105],j<6||j>49?'#c94d42':j%4===0?'#f7edcf':'#397eaa',Math.PI/2);
-  for(const r of POOL.blocks){box([r.x,.26,r.z],[.36,.52,.43],'#d5ddd4');box([r.x,.55,r.z],[r.w,.08,r.d],'#367895',0,-.07);}
+  for(const r of POOL.blocks){box([r.x,.26,r.z],[.36,.52,.43],'#d5ddd4');box([r.x,.55,r.z],[r.w,.08,r.d],'#367895',0,-.07);
+    for(let k=0;k<6;k++)box([r.x,.593+k*.005,r.z-.20+k*.071],[.56,.015,.024],'#70999e',0,-.07);
+    for(const s of [-1,1])tube([r.x+s*.133,.30,r.z+.263],[.027,.18,.027],'#91a8a5');tube([r.x,.211,r.z+.263],[.027,.293,.027],'#91a8a5',0,Math.PI/2);}
   const steel='#8fa9a7', l=POOL.ladder;
   for(const x of [l.x-.26,l.x+.26]) {
     tube([x,.28,l.z+.19],[.052,.56,.052],steel);tube([x,-.18,l.z-.19],[.052,1.48,.052],steel);
@@ -67,10 +82,11 @@ function furnishings() {
     }
   }
   // A low pool pavilion and its changing-room doors anchor the far end.
-  box([.8,-.18,-22],[19,.65,4.5],'#dcceb6');box([.8,1.44,-23.15],[18.5,2.86,1.42],'#f2dfb9');
+  box([.8,-.33,-22],[19,.65,4.5],'#dcceb6');box([.8,1.44,-23.15],[18.5,2.86,1.42],'#f2dfb9');
   box([.8,2.98,-22.5],[19,.18,3.6],'#598c88');box([.8,3.12,-22.5],[19.2,.13,3.8],'#e8dfc5');
   for(let j=0;j<8;j++){const x=-7+j*2.14;box([x,1.17,-22.41],[1.35,2.06,.06],j%2?'#769e97':'#88aaa0');box([x+.44,1.14,-22.36],[.05,.16,.042],'#d4c5a5');for(let k=0;k<4;k++)box([x,1.85+k*.065,-22.36],[1.06,.023,.04],'#587a76');}
-  for(const x of [-8,-4,0,4,8])box([x,1.55,-20.89],[.12,2.84,.12],'#e6d6b7');
+  for(const {x,z,w,d} of PAVILION_POSTS){box([x,1.43,z],[w,2.86,d],'#e6d6b7');box([x,.17,z],[.21,.34,.21],'#849f93');}
+  for(let i=0;i<8;i++){const x=-7+i*2.14;box([x,.045,-22.22],[1.44,.082,.38],'#b3b6a8');box([x,1.04,-22.354],[.18,.31,.028],'#587871');box([x,1.09,-22.322],[.13,.024,.043],'#d1c9b0');}
   for(const x of [-10.5,10.5])for(let j=0;j<6;j++){
     const z=-7-j*3.1;box([x,.88,z],[.09,1.76,.09],steel);if(j<5){box([x,1.7,z-1.55],[.06,.06,3.1],steel);box([x,.5,z-1.55],[.035,.035,3.1],steel);}
   }
@@ -125,7 +141,8 @@ function Water() {
       float dist=max(0.,min(bed,min(wall.x,wall.y)));vec3 hit=wp+dist*r;
       vec2 uv=bed<=min(wall.x,wall.y)?hit.xz:(wall.x<wall.y?hit.zy:hit.xy);
       vec2 tile=uv*3.;vec2 gap=abs(fract(tile+.5)-.5)/max(fwidth(tile),vec2(.001));float grout=1.-smoothstep(.2,1.2,min(gap.x,gap.y));
-      float stripe=(1.-smoothstep(.075,.13,abs(mod(hit.x+3.34,3.34)-1.67)))*step(bed,min(wall.x,wall.y));
+      float laneX=abs(mod(hit.x+3.34,3.34)-1.67),endDist=ext.y-abs(hit.z-${w.z.toFixed(2)});
+      float stripe=max((1.-smoothstep(.075,.13,laneX))*smoothstep(.78,.83,endDist),(1.-smoothstep(.060,.11,abs(endDist-.87)))*(1.-smoothstep(.46,.51,laneX)))*step(bed,min(wall.x,wall.y));
       vec3 c=mix(vec3(.32,.73,.72),vec3(.035,.24,.31),stripe);c=mix(c,vec3(.2,.48,.53),grout*.42);
       // A glazed ribbon just below the coping. Pattern lives on the refracted
       // wall, not on the surface, so it moves correctly against the floating boat.
@@ -145,14 +162,20 @@ function Water() {
 }
 
 export function PoolTerrace({shadows}:{shadows:boolean}) {
+  const hand=useRef<Mesh>(null);useFrame(({clock})=>{if(hand.current)hand.current.rotation.z=-clock.elapsedTime*Math.PI/30;});
+  const metal=useMemo(()=>new CylinderGeometry(.5,.5,1,10),[]),needles=useMemo(()=>{
+    const g=new BufferGeometry(),p:number[]=[],c:number[]=[];
+    for(const [length,tint] of [[.319,'#bb4d36'],[-.286,'#407f83']] as const){const color=new Color(tint);for(const [x,y] of [[-.009,0],[.009,0],[.005,length],[-.009,0],[.005,length],[-.005,length]]){p.push(x,y,0);c.push(color.r,color.g,color.b);}}
+    g.setAttribute('position',new Float32BufferAttribute(p,3));g.setAttribute('color',new Float32BufferAttribute(c,3));return g;
+  },[]);useEffect(()=>()=>{metal.dispose();needles.dispose();},[metal,needles]);
   const p=useMemo(furnishings,[]), top=useMemo(canopy,[]),flags=useMemo(flagCloth,[]),ring=useMemo(lifeRing,[]),stone=useBakedSurface(pavementURL);
   const sign=useMemo(()=>paintedSurface(512,96,g=>{g.fillStyle='#216b74';g.fillRect(0,0,512,96);g.fillStyle='#faf2d7';g.textAlign='center';g.font='600 44px system-ui';g.fillText('AQUATICS CLUB',256,63);}),[]);
   useEffect(()=>()=>{top.dispose();sign.dispose();flags.dispose();ring.dispose();},[top,sign,flags,ring]);
-  return <group name="scenery:pool"><Batch name="lido-terrace-and-pavilion" parts={p.blocks} casts={shadows} /><Batch name="pool-metalwork" parts={p.drums} round /><Batch name="pool-gardens" parts={p.crowns} foliage />
+  return <group name="scenery:pool"><Batch name="lido-terrace-and-pavilion" parts={p.blocks} casts={shadows} /><Batch name="pool-metalwork" parts={p.drums} geometry={metal} /><Batch name="pool-gardens" parts={p.crowns} foliage />
     {POOL.parasols.map(r=><mesh key={r.x} position={[r.x,2.51,r.z]} geometry={top} castShadow={shadows} raycast={noPick}><meshStandardMaterial side={DoubleSide} vertexColors roughness={1}/></mesh>)}
     <mesh position={[0,2.93,-20.69]} raycast={noPick}><planeGeometry args={[3.35,.62]} /><meshStandardMaterial map={sign} /></mesh>
     <mesh geometry={flags} raycast={noPick}><meshStandardMaterial vertexColors roughness={1} side={DoubleSide}/></mesh>
     <mesh geometry={ring} position={[POOL.rescue.x,1.18,POOL.rescue.z+.11]} raycast={noPick}><meshStandardMaterial vertexColors roughness={.76}/></mesh>
     <mesh rotation-x={-Math.PI/2} position={[POOL.deck.x,.002,POOL.deck.z]} receiveShadow={shadows} raycast={noPick}><planeGeometry args={[POOL.deck.w,POOL.deck.d]}/><meshStandardMaterial key={stone?'tiles':'loading'} map={stone} color={stone?'white':'#e4d6bd'} roughness={.94} polygonOffset polygonOffsetFactor={-1}/></mesh>
-    <Water /></group>;
+    <mesh ref={hand} geometry={needles} position={[PACE_CLOCK.x,1.83,PACE_CLOCK.z+.081]} raycast={noPick}><meshBasicMaterial vertexColors side={DoubleSide}/></mesh><LidoPlates pool/><Water /></group>;
 }

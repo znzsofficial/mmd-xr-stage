@@ -16,6 +16,10 @@
 
 教室后门接有顶步道。窗外花架与草坪教学楼外立面复用各区原有实例批次；既有教室和草坪仍分别作为布局、玩法与报告的身份。`CampusLayout.ts` 描述同一段走廊的两套坐标；在门牌处定向跨界，再平移 XR 原点，不主动旋转头显。两向门线相距 0.95 米，避免刚到就反向触发。复用正常切景生命周期，先保存再卸载角色和 Bullet 世界。教室的地板、黑板和木纹改为[离线烘焙](../../scripts/bake-classroom-prints.html)，近门才提示浏览器取草坪图片。截图：[窗边](../screenshots/campus-window.webp) · [连廊](../screenshots/campus-hall.webp) · [回望](../screenshots/campus-school.webp)。[性能与验收](../performance/campus-passage.md)
 
+### 第三区：从紫藤花架步行到夏日泳池
+
+[泳池门廊](../screenshots/lido-garden-gate.webp)通向浅水端，沿右岸能走到远端[计时台与救生椅](../screenshots/lido-timing-deck.webp)。浅水端[回望草坪](../screenshots/lido-return.webp)时能看见回程门牌及花架轮廓。两区渲染同一段门廊，远区只有简模；只有进入泳池才挂载水面、渡船及计时秒针。看台、门柱、起跳台和水面占地与落点共用米制布局。溢水槽从 172 块小盒改为图集条，泳道号码、门牌、刻度盘、木板纹理和更衣室号码共用[原创图集](../../scripts/bake-lido-signs.py)。
+
 ### 晨光礼拜堂：从透光百合窗走到门外水庭
 
 两侧十二扇尖窗、祭坛玫瑰窗和正门都在墙体留了洞口。玻璃按彩片明度透出庭院，深色铅条接近不透光，波纹和斜视高光按每只眼睛的视角计算。侧窗透光落在石砖上的图案由 [`paint-chapel.py`](../../scripts/paint-chapel.py) 沿本景主光方向采样同一份百合图离线烘焙。它固定在地面，不会投射到角色衣物上。

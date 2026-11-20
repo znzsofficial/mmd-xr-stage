@@ -9,6 +9,7 @@ import type {
 import type { MmdPhysicsQuality } from "../mmdPhysicsQuality";
 import { ColliderReentry, syntheticColliderBody } from "./colliderReentry";
 import {isActorPalm} from './actorPalms';
+import {elapsed,type PhysicsSwitchWork} from '../physicsSwitchWork';
 
 export type { MmdPhysicsQuality };
 export type MmdControllerColliderMatrix = MmdPhysicsMatrix4ColumnMajorTuple | Float32Array;
@@ -64,6 +65,7 @@ async function loadBulletModule() {
  * collisionMargin (default -1); a positive margin can kill body↔cloth contact.
  */
 export async function createBulletPhysicsBackend(options: {
+  switchWork?:PhysicsSwitchWork;
   controllerColliders?: MmdControllerColliderProvider;
   controllerRadius?: number | (() => number);
   handColliders?: MmdControllerColliderProvider;
@@ -79,8 +81,9 @@ export async function createBulletPhysicsBackend(options: {
   controllerRestitution?: () => number;
   dynamicSelfCollision?: boolean;
 } = {}): Promise<MmdPhysicsBackend> {
-  const { createCustomBulletMmdPhysicsBackend } = await import("@yohawing/three-mmd-loader/physics");
-  const module = await loadBulletModule();
+  const work=options.switchWork,started=work?performance.now():0;
+  const [{createCustomBulletMmdPhysicsBackend},module]=await Promise.all([import('@yohawing/three-mmd-loader/physics'),loadBulletModule()]).finally(()=>elapsed(work,'bulletModuleMs',started));
+  const backendStart=work?performance.now():0;
   const backendOptions = {
     onStepWork: options.onBulletStepWork,
     fixedTimeStep: 1 / 60,
@@ -108,7 +111,7 @@ export async function createBulletPhysicsBackend(options: {
         options.handShape,
       )
     : backend;
-  return options.controllerColliders
+  const result=options.controllerColliders
     ? createControllerColliderPhysicsBackend(
         colliderBackend,
         options.controllerColliders,
@@ -118,6 +121,7 @@ export async function createBulletPhysicsBackend(options: {
         options.controllerRestitution,
       )
     : colliderBackend;
+  elapsed(work,'createBackendMs',backendStart);return result;
 }
 
 export function createPhysicsDiagnosticsBackend(backend: MmdPhysicsBackend, simulationDelta?: () => number | undefined, onPhysicsBones?: PhysicsBoneObserver, modelScale = () => 1, onEligibleColliders?:(mask:number)=>void): MmdPhysicsBackend & MmdRuntimePhysicsDiagnostics {

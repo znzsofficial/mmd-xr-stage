@@ -160,7 +160,8 @@ type MmdVrStore = {
   physicsResetEpoch: number;
   requestPhysicsReset: () => void;
   physicsBusy: boolean;
-  setPhysicsBusy: (busy: boolean) => void;
+  physicsSwitchWork?:import('./physicsSwitchWork').PhysicsSwitchWork;
+  setPhysicsBusy: (busy: boolean,work?:import('./physicsSwitchWork').PhysicsSwitchWork) => void;
   physicsContactCount: number;
   setPhysicsContactCount: (count: number) => void;
   physicsControllerContactCounts: [number, number];
@@ -564,7 +565,7 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
   physicsResetEpoch: 0,
   requestPhysicsReset: () => set((state) => ({ physicsResetEpoch: state.physicsResetEpoch + 1 })),
   physicsBusy: false,
-  setPhysicsBusy: (physicsBusy) => set({ physicsBusy }),
+  setPhysicsBusy: (physicsBusy,physicsSwitchWork) => set({ physicsBusy,physicsSwitchWork }),
   physicsContactCount: 0,
   setPhysicsContactCount: (physicsContactCount) => set({ physicsContactCount }),
   physicsControllerContactCounts: [0, 0],

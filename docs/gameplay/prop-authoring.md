@@ -4,13 +4,14 @@
 
 ## 只需摆姿的道具
 
-1. 在 `src/mmdVrShowcase/play/` 写一个无参数的外观组件。使用米制尺寸；现有道具的握点在组件局部坐标 `(0, -0.042, -0.06)`。用静态网格即可，不要为了持物而创建物理世界或修改演员的腕骨。若自行创建纹理、合并几何体，卸载时释放它们。
+1. 在 `src/mmdVrShowcase/play/` 写一个米制外观组件。登记 `grip.point`（在最终 `PlayPiece` 坐标系内，量取握柄中央而非模型原点）和 `grip.pitch`（弧度，抵消手柄视图的倾角）。角色面向用腕到指根的方向，握柄朝食指一侧；两只手各自拟合，校准不改角色骨骼。若自行创建纹理、合并几何体，卸载时释放它们。
 2. 在 [`propViews.tsx`](../../src/mmdVrShowcase/play/propViews.tsx) 导出一个 `PropView`，例如 `export const woodFan:PropView = {Piece:Fan};`。同一个 `Piece` 同时用于手柄和角色。外观名可以复用，不必和道具 ID 相同。
 3. 在 [`propCatalog.ts`](../../src/mmdVrShowcase/play/propCatalog.ts) 的 `catalog` 加一条。对象键就是唯一 ID；顺序就是货架顺序。下面是折扇的示意，先在中英语言包中提供相应的翻译键：
 
    ```ts
    fan: {
-     label:'toyFan', home:null, homeLabel:'allSets', visit:null, view:'woodFan',
+      label:'toyFan', home:null, homeLabel:'allSets', visit:null, view:'woodFan',
+      grip:{point:[0,-.042,-.06],pitch:0},
      guide:{vr:'guideFanVr', screen:'guideFanScreen', end:'guideFanEnd'},
    },
    ```

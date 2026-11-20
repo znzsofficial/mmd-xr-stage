@@ -96,7 +96,8 @@ function CharacterPropTools({id,instance,locked}:{id:string;instance:BackpackLiv
     {prop && <>
       {([['propLower',-15,0],['propRaise',15,0],['propCloser',0,-1],['propFarther',0,1]] as const).map(([label,a,d],i)=><HudButton key={label} position={[(i-1.5)*.315,-.15,0]} size={[.30,.14]} label={t(label)}
         disabled={locked||Math.abs(prop.tilt+a)>90||Math.abs(prop.inset+d)>5} onPress={()=>useStagePlay.getState().adjust(a,d)}/>)}
-      <HudButton position={[0,-.365,0]} size={[1.23,.14]} label={t('toyStow')} onPress={()=>useStagePlay.getState().stow()} disabled={locked}/>
+      <HudButton position={[-.315,-.365,0]} size={[.59,.14]} label={`${t('propTurn')} ${prop.turn}°`} onPress={()=>useStagePlay.getState().adjust(0,0,30)} disabled={locked}/>
+      <HudButton position={[.315,-.365,0]} size={[.59,.14]} label={t('toyStow')} onPress={()=>useStagePlay.getState().stow()} disabled={locked}/>
     </>}
   </>;
 }
