@@ -1,8 +1,8 @@
 # 会话交接｜2026-11-20
 
-[线上舞台](https://mmd-xr-stage.pages.dev) · [固定版 `77d561c`](https://fe18f3ea.mmd-xr-stage.pages.dev) · [分类文档索引](./README.md)
+[线上舞台](https://mmd-xr-stage.pages.dev) · [固定版 `daa1b8b`](https://5555be06.mmd-xr-stage.pages.dev) · [分类文档索引](./README.md)
 
-**线上基线**：十景六件道具。[双喜堂](./scenery/wedding-court.md)、[草坪通门诊](./scenery/clinic-garden.md)、[秦淮琴案和系舟处](./scenery/qinhuai.md)与[单曲本地音乐](./gameplay/README.md#上手与验收)已上线。349 项测试、生产构建、屏幕／模拟 XR 实放与回场通过；主域名选 PMX 进 XR 有双手柄和首帧，入口及 56 份文件与本地构建 SHA-256 一致。
+**线上基线**：十景六件道具。[双喜堂](./scenery/wedding-court.md)、[草坪通门诊](./scenery/clinic-garden.md)、[秦淮琴案和系舟处](./scenery/qinhuai.md)与[单曲本地音乐](./gameplay/README.md#上手与验收)已上线。最新修复[卫生用品架侧面闪烁](./scenery/clinic-teaching.md#卫生用品架侧板修复)，以木纹、漆膜和接触暗部作近景材质样例。349 项测试与构建通过，主域名入口及 59 份文件 SHA-256 已核对。
 
 ## 下次从这里开始
 
