@@ -33,6 +33,8 @@
 
 ## 查记录或跑对照
 
+[单角色 Three/Babylon 本机 A/B](../../experiments/mmd-engine-ab/README.md)：同一 PMX、动作和贴图，分别测开关物理的角色更新时间与静态姿态绘制；实验包与线上舞台隔离。
+
 [玩家碰撞查询的桌面配对与报告导出预演](./player-collision-work.md)：普通行走的网格查询、站定时的角色物理和过门恢复分别取证。
 
 [实模物理前骨架遍历对照](./pmx-root-propagation.md)：改成只更新根节点没有稳定的整模更新收益，本轮不采用。两处新景的[接地阴影合批和资源回访](../scenery/private-retreats.md)另有实测。

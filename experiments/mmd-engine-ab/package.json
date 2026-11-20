@@ -1,0 +1,11 @@
+{
+  "name": "mmd-engine-ab-local",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local comparison only; not part of the stage bundle",
+  "dependencies": {
+    "@babylonjs/core": "9.15.0",
+    "babylon-mmd": "1.3.0"
+  }
+}
