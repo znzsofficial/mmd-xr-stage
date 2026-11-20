@@ -4,7 +4,7 @@
 
 | 我想做什么 | 从这里开始 |
 |---|---|
-| 下次戴 Quest 怎么测、什么时候导出 | [教室放置后开物理，再回教室一次](./performance/next-quest-export.md) |
+| 下次戴 Quest 怎么试新移动、什么时候导出性能记录 | [普通／自由模式与四档走速](./gameplay/player-movement.md#下次戴头显时怎么试) · [教室放置后开物理，再回教室一次并导出](./performance/next-quest-export.md) |
 | 查手持道具在哪里生效、怎样递给角色 | [玩法与道具](./gameplay/README.md)：四幕玩法、逐件用法、屏幕／VR 操作 |
 | 放置角色、播放动作或恢复上次摆法 | [导入与续场](./gameplay/asset-workflow.md) · [屏幕观看](./gameplay/screen-viewing.md) · [VR 控制](./gameplay/vr-controls.md) |
 | 选布景、找机位、改模型或重做贴图 | [建模与布景](./scenery/README.md) · [新增房间与连接](./scenery/adding-a-set.md) · [实景截图](../README.md#stage-gallery) |

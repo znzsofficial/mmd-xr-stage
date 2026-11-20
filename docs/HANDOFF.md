@@ -2,13 +2,14 @@
 
 [线上舞台](https://mmd-xr-stage.pages.dev) · [固定版 `bb56fe1`](https://d919f2a9.mmd-xr-stage.pages.dev) · [分类文档索引](./README.md)
 
-**线上基线**：十景六件道具。[玩家移动](./gameplay/player-movement.md)分普通／自由两种，A 跳跃或右摇杆升降，最快 8 m/s。347 项测试通过，测试依赖改走 ESM 后不再出现 `THREE_CJS_DEPRECATED`；已验模拟 XR 十景起跳、导入物件碰撞、跨区和速度。主域名入口及 62 份文件 SHA-256 已核对。维护入口见[舞台架构](./architecture.md)。
+**已发布，无待合入或待部署的功能。** 当前是十景六件道具。`bb56fe1` 加入普通行走与自由飞行，347 项测试通过，主域名入口及 62 份文件已核对 SHA-256。测试依赖解析到 CommonJS 入口导致的 `THREE_CJS_DEPRECATED` 已修正，全测未再出现；若复发，按[依赖维护记录](./three-mmd-loader-maintenance.md)查调用栈。
 
 ## 下次从这里开始
 
-**下次自然戴 Quest 时**，沿门扇和窗边课桌横移半步，看漆面反光与细纹是否稳定；在医院「更多 → 环境」切一次护士。真机帧率与佩戴舒适度尚待实测。[其余场景材质方向](./scenery/art-direction.md) · [原建模分工与候选](./scenery/next-modeling-round.md)
+1. **下次自然戴 Quest 3S，先试移动手感。** 在教室按 B → 更多 → 玩家，普通模式试 A 跳跃和挡墙，自由模式试穿墙后切回；去草坪比较常速与疾行。模拟 XR 已验十景起跳、低顶、从台箱落地和跨区恢复；真机舒适度、细纹和帧率待反馈。[操作、已验证边界和最短真机路线](./gameplay/player-movement.md)
+2. **若有新性能 JSON，再定位等待。** 11 月 20 日旧教室报告关／开物理为 60／41 FPS，不是当前移动版本的测量，也未证明稳定 72 FPS。按[性能短测](./performance/next-quest-export.md)看 `moduleAtFirstRequest` 和 `motionWork[]`，不要把行走试速当作稳态播放对照。
 
-**并行工作不要覆盖的基线**：[Blender 本地角色包](./gameplay/blender-characters.md)已验源尺寸、组合表情、暂停拨衣和回场。用户优先与自选角色互动；恋活卡桥暂缓。11 月 20 日教室真机关／开物理 60／41 FPS，仍未稳定 72 FPS；首开模块预热、回场动作等待及[轻触手感](./performance/fingertip-indent.md)按[既有短测](./performance/next-quest-export.md)另验，不是开建喜院的前置条件。公开 README 保留四个 badge 和技术章节，只使用适合公开的示例与实景。
+**继续开发的边界**：[舞台架构](./architecture.md)区分页面背包、观看会话和当前房间；玩家移动、资产放置和手部拨衣分别判断。用户优先与自选角色互动，[Blender 角色包](./gameplay/blender-characters.md)已走通，恋活卡暂缓。医院「场景人物」只切换[原有静态护士](./scenery/clinic-teaching.md)；喜院和教室的[首轮材质样板](./scenery/art-direction.md)已完成，其他美术候选未排期。公开 README 保留 badge 和技术章节，私有素材和真机原始 JSON 留在本机。
 
 ## 已发布与证据
 
