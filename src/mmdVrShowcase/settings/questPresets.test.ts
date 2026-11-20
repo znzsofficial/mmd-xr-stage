@@ -1,5 +1,5 @@
 import {expect,it} from 'vitest';
-import {normalizeMmdVrPrefs} from '../mmdVrStore';
+import {normalizeMmdVrPrefs} from './preferences';
 import {getMmdVrRenderProfile} from '../mmdVrQuality';
 import {currentQuestPreset,questPresets} from './questPresets';
 

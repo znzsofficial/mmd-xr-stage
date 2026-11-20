@@ -28,12 +28,12 @@
 | 显示帧率／物理调试／详细物理诊断 | FPS 小牌只挂在展开的设置页，净场看动作时看不见。准备页的详细诊断是进 VR 的初值；VR 调试是本次会话开关，控制碰撞可视化和额外计数。正常性能报告另行记录。 | 标明 FPS 的显示位置；调试交给诊断页，不让用户为了导出报告误开。 |
 | 选景／返回观看／播放 | 公共菜单和画质页均可选景；展开设置的顶部和底部都有「返回观看」。VR 播放只检查有角色；屏幕播放还检查有动作，播完会从头开始。 | 选景和返回各留一个明确入口；两种模式统一无动作与播完状态。 |
 
-对照入口：[准备页](../../src/mmdVrShowcase/MmdVrPrepApp.tsx) · [VR HUD](../../src/mmdVrShowcase/components/MmdVrHud.tsx) · [画质及走速映射](../../src/mmdVrShowcase/mmdVrQuality.ts) · [XR 会话与手追](../../src/mmdVrShowcase/mmdVrSession.ts) · [舞台光照、视距与物理](../../src/mmdVrShowcase/components/MmdVrStage.tsx) · [屏幕观看](../../src/mmdVrShowcase/screen/ScreenStage.tsx)。
+对照入口：[准备页](../../src/mmdVrShowcase/MmdVrPrepApp.tsx) · [VR HUD](../../src/mmdVrShowcase/components/MmdVrHud.tsx) · [偏好](../../src/mmdVrShowcase/settings/preferences.ts) · [画质及走速映射](../../src/mmdVrShowcase/mmdVrQuality.ts) · [XR 会话与手追](../../src/mmdVrShowcase/mmdVrSession.ts) · [舞台光照](../../src/mmdVrShowcase/stage/StageEnvironment.tsx) · [房间运行时](../../src/mmdVrShowcase/stage/StageRoom.tsx) · [屏幕观看](../../src/mmdVrShowcase/screen/ScreenStage.tsx)。
 
 **当前入口。** 角色自己的掌面试验只补缺失掌面，默认关，现已移入场内「接触细调」。跳舞时手臂经过胸前用「角色 → 胸部受压形变」，默认开；不调整手臂。两者均独立于玩家手追拨衣。性能记录无需开启物理调试。[当前操作](./vr-controls.md)
 
 ### 强调色回归验收
 
-[入口](../../src/system/theme.ts)对旧共享记录只读 `theme`，供浏览器原生明暗模式使用。它不迁移或回写该记录，旧页仍可读取自己的壁纸和配色。准备页的选择、拖入、勾选与焦点取固定色；[HUD](../../src/mmdVrShowcase/hudAppearance.ts) 和[舞台](../../src/mmdVrShowcase/components/MmdVrStage.tsx)不订阅该记录。
+[入口](../../src/system/theme.ts)对旧共享记录只读 `theme`，供浏览器原生明暗模式使用。它不迁移或回写该记录，旧页仍可读取自己的壁纸和配色。准备页的选择、拖入、勾选与焦点取固定色；[HUD](../../src/mmdVrShowcase/hudAppearance.ts) 和[舞台](../../src/mmdVrShowcase/stage/StageEnvironment.tsx)不订阅该记录。
 
 桌面 Edge 分别以旧记录「紫色＋深色」和「琥珀＋浅色」冷启动，展开设备设置后，168 个 DOM 元素的文字、底色、边框、阴影及原生控件色相同。焦点描边对暖白底为 **6.90:1**，成功、警告、错误和信息色均至少 **5.80:1**。进入屏幕观看，关闭天空，打开网格和旧放置面，实测 WebGL 场景底色均为 `#171a1d`，网格为 `#d8dce0`／`#a5aaae`，放置面为 `#79baff`（10%）。两次均保留原共享记录和语言。HUD 的普通、选中、禁用和危险文字由[对比度测试](../../src/mmdVrShowcase/hudAppearance.test.ts)覆盖；桌面结果不代替 Quest 光学验收。

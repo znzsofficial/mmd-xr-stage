@@ -12,12 +12,12 @@ import { ClinicWard } from './clinic/ClinicWard';
 import { Songhouse } from './qinhuai/Songhouse';
 import { WeddingCourt } from './wedding/WeddingCourt';
 import type {SceneryId} from './catalog';
+import type {RoomLightingOverrides} from '../stage/lighting';
 
 // Deliberately separate from the prep-page catalog. The registry holds
 // component types, never mounted meshes, textures or inactive room worlds.
-type RoomSetDefinition={view:ComponentType<{shadows:boolean;concert:boolean}>;
-  sky?:'day'|'court'|'river';sun?:[number,number,number];warm?:boolean; hemi?:number;ambient?:number;
-  hemiSky?:string;hemiGround?:string;fog?:string;warmFog?:string};
+type RoomSetDefinition=RoomLightingOverrides & {view:ComponentType<{shadows:boolean;concert:boolean}>;
+  sky?:'day'|'court'|'river';warm?:boolean};
 const day={sky:'day',hemi:.32,hemiSky:'#d4e5ee',hemiGround:'#a79d8d',fog:'#c5dfe6',warmFog:'#e7c8a7'} as const;
 export const roomSets:Record<SceneryId,RoomSetDefinition>={
   floor:{view:()=>null}, // StudioPlinth belongs to the shared StageFloor.

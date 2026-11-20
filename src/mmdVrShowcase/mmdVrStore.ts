@@ -1,42 +1,21 @@
 import { create } from "zustand";
 import { emptyAssetLoadProgress, type AssetLoadProgress } from "./mmdAssetLoadQueue";
 import type { StageSnapshot } from "./stageSnapshot";
-import { createLocalPrefsStorage } from "../shared/localPrefs";
-import {
-  normalizeImmersiveAntialias,
-  normalizeImmersiveDpr,
-  normalizeImmersiveFramebufferScale,
-  normalizeImmersiveFoveation,
-  normalizeImmersiveQuality,
-  normalizeImmersiveToggle,
-  type ImmersiveAntialiasPref,
-  type ImmersiveDprPref,
-  type ImmersiveFramebufferScalePref,
-  type ImmersiveFoveationPref,
-  type ImmersiveRenderQuality,
-  type ImmersiveTogglePref,
-} from "../xr";
+import { LIGHT_ORDER, normalizeMmdVrPrefs, prefsStorage, type MmdVrPrefs } from './settings/preferences';
 import { endMmdVrAssetSession } from "./mmdVrAssets";
 import { invalidateBackpackCommands, useBackpack } from "./backpack";
 import { resetMmdVrClock } from "./mmdVrClock";
-import { movePlaneHalfWidth, resolveScenery, type SceneryId } from "./scenery/catalog";
-import type { MmdVrHapticLevel } from "./mmdVrHaptics";
-import { normalizeMmdVrHeightOffset, normalizeMmdVrModelScale, normalizeMmdVrViewDistance } from "./mmdVrAdjustments";
+import { movePlaneHalfWidth, resetViewOnMenuSwitch } from "./scenery/catalog";
+import { normalizeMmdVrHeightOffset, normalizeMmdVrModelScale } from "./mmdVrAdjustments";
 
 export { normalizeMmdVrHeightOffset, normalizeMmdVrModelScale } from "./mmdVrAdjustments";
 
-export type MmdVrRenderQuality = ImmersiveRenderQuality;
-export type MmdVrDprPref = ImmersiveDprPref;
-export type MmdVrFrameRatePref = "auto" | "72" | "80" | "90" | "120";
-export type MmdVrAntialiasPref = ImmersiveAntialiasPref;
-export type MmdVrTogglePref = ImmersiveTogglePref;
-export type MmdVrWalkSpeedPref = "auto" | "slow" | "normal" | "fast";
-export type MmdVrLightPreset = "stage" | "soft" | "contrast" | "daylight" | "warm" | "rim";
-export type MmdVrShadowResolutionPref = "auto" | "low" | "medium" | "high";
-export type MmdVrSnapTurnDegrees = 15 | 30 | 45;
-
-export type MmdVrColliderFriction = "low" | "medium" | "high";
-export type MmdVrColliderRestitution = "none" | "low" | "high";
+// Keep existing store imports working; the settings module owns the schema.
+export type { MmdVrPrefs, MmdVrRenderQuality, MmdVrDprPref, MmdVrFrameRatePref, MmdVrAntialiasPref,
+  MmdVrTogglePref, MmdVrWalkSpeedPref, MmdVrLightPreset, MmdVrShadowResolutionPref, MmdVrSnapTurnDegrees,
+  MmdVrColliderFriction, MmdVrColliderRestitution } from './settings/preferences';
+export { normalizeMmdVrExposure, normalizeMmdVrFrameRate, normalizeMmdVrPrefs, normalizeMmdVrSnapTurnDegrees,
+  MMD_VR_PREFS_KEY, MMD_VR_PREFS_LEGACY_KEY } from './settings/preferences';
 
 export type MmdVrSessionPhase = "idle" | "entering" | "active" | "error";
 
@@ -72,47 +51,6 @@ export type MmdVrObjectEntry = {
   scale: number;
   rotationY: number;
 };
-
-export type MmdVrPrefs = {
-  renderQuality: MmdVrRenderQuality;
-  showFps: boolean;
-  loop: boolean;
-  dprPref: MmdVrDprPref;
-  frameRatePref: MmdVrFrameRatePref;
-  antialiasPref: MmdVrAntialiasPref;
-  shadowsPref: MmdVrTogglePref;
-  gridPref: MmdVrTogglePref;
-  walkSpeedPref: MmdVrWalkSpeedPref;
-  lightPreset: MmdVrLightPreset;
-  framebufferScalePref: ImmersiveFramebufferScalePref;
-  foveationPref: ImmersiveFoveationPref;
-  shadowResolutionPref: MmdVrShadowResolutionPref;
-  heightOffset: number;
-  viewDistance: number;
-  snapTurnDegrees: MmdVrSnapTurnDegrees;
-  exposure: number;
-  stageSkyEnabled: boolean;
-  showSceneryPeople: boolean;
-  scenery: SceneryId;
-  softHighlights: boolean;
-  stageFogEnabled: boolean;
-  stageRimLightEnabled: boolean;
-  stageLightPoolEnabled: boolean;
-  /** Show tracked hand meshes. Menu rays and player contact have independent lifetimes. */
-  handTracking: boolean;
-  advancedRenderOverrides: boolean;
-  detailedPhysicsDiagnostics: boolean;
-  panelFollowUser: boolean;
-  physicsColliderRadius: number;
-  physicsColliderFriction: MmdVrColliderFriction;
-  physicsColliderRestitution: MmdVrColliderRestitution;
-  physicsHapticLevel: MmdVrHapticLevel;
-  actorPalmCloth: boolean;
-  chestCompression:boolean;
-};
-
-export const MMD_VR_PREFS_KEY = "neko-virt-os.mmd-vr-showcase.v2";
-export const MMD_VR_PREFS_LEGACY_KEY = "neko-virt-os.mmd-vr-showcase.v1";
 
 type MmdVrStore = {
   savedStage: StageSnapshot | null;
@@ -214,150 +152,6 @@ type MmdVrStore = {
   cycleLightPreset: () => void;
 };
 
-const LIGHT_ORDER: MmdVrLightPreset[] = ["stage", "contrast", "soft", "daylight", "warm", "rim"];
-
-function normalizeWalk(value: unknown): MmdVrWalkSpeedPref {
-  if (value === "auto" || value === "slow" || value === "normal" || value === "fast") return value;
-  return "auto";
-}
-
-function normalizeLight(value: unknown): MmdVrLightPreset {
-  if (value === "stage" || value === "soft" || value === "contrast"
-    || value === "daylight" || value === "warm" || value === "rim") return value;
-  return "stage";
-}
-
-function normalizeShadowResolution(value: unknown): MmdVrShadowResolutionPref {
-  if (value === "auto" || value === "low" || value === "medium" || value === "high") return value;
-  return "auto";
-}
-
-export function normalizeMmdVrFrameRate(value: unknown): MmdVrFrameRatePref {
-  if (value === "auto" || value === "72" || value === "80" || value === "90" || value === "120") return value;
-  if (value === "low") return "72";
-  if (value === "mid") return "90";
-  if (value === "high") return "120";
-  return "auto";
-}
-
-export function normalizeMmdVrSnapTurnDegrees(value: unknown): MmdVrSnapTurnDegrees {
-  return value === 15 || value === 45 ? value : 30;
-}
-
-export function normalizeMmdVrExposure(value: unknown): number {
-  const exposure = typeof value === "number" && Number.isFinite(value) ? value : 1;
-  return Math.round(Math.min(1.3, Math.max(0.7, exposure)) * 10) / 10;
-}
-
-
-function normalizePhysicsColliderRadius(value: unknown): number {
-  const radius = typeof value === "number" && Number.isFinite(value) ? value : 0.08;
-  return [0.04, 0.08, 0.12, 0.16].includes(radius) ? radius : 0.08;
-}
-
-
-function normalizeColliderFriction(value: unknown): MmdVrColliderFriction {
-  if (value === "low" || value === "medium" || value === "high") return value;
-  return "medium";
-}
-
-function normalizeColliderRestitution(value: unknown): MmdVrColliderRestitution {
-  if (value === "none" || value === "low" || value === "high") return value;
-  return "none";
-}
-
-function normalizeHapticLevel(value: unknown): MmdVrHapticLevel {
-  if (value === "off" || value === "low" || value === "normal") return value;
-  return "low";
-}
-
-export function normalizeMmdVrPrefs(parsed: Partial<MmdVrPrefs> & { liveHouseEnabled?: boolean } = {}): MmdVrPrefs {
-  const lightPreset = normalizeLight(parsed.lightPreset);
-  const legacyPresetEffectsEnabled = lightPreset !== "stage";
-  return {
-    renderQuality: normalizeImmersiveQuality(parsed.renderQuality),
-    showFps: Boolean(parsed.showFps),
-    loop: parsed.loop !== false,
-    dprPref: normalizeImmersiveDpr(parsed.dprPref),
-    frameRatePref: normalizeMmdVrFrameRate(parsed.frameRatePref),
-    antialiasPref: normalizeImmersiveAntialias(parsed.antialiasPref),
-    shadowsPref: normalizeImmersiveToggle(parsed.shadowsPref),
-    gridPref: normalizeImmersiveToggle(parsed.gridPref),
-    walkSpeedPref: normalizeWalk(parsed.walkSpeedPref),
-    lightPreset,
-    framebufferScalePref: normalizeImmersiveFramebufferScale(parsed.framebufferScalePref),
-    foveationPref: normalizeImmersiveFoveation(parsed.foveationPref),
-    shadowResolutionPref: normalizeShadowResolution(parsed.shadowResolutionPref),
-    heightOffset: normalizeMmdVrHeightOffset(parsed.heightOffset),
-    viewDistance: normalizeMmdVrViewDistance(parsed.viewDistance),
-    snapTurnDegrees: normalizeMmdVrSnapTurnDegrees(parsed.snapTurnDegrees),
-    exposure: normalizeMmdVrExposure(parsed.exposure),
-    stageSkyEnabled: parsed.stageSkyEnabled !== false,
-    showSceneryPeople: parsed.showSceneryPeople !== false,
-    scenery: resolveScenery(parsed.scenery, parsed.liveHouseEnabled),
-    softHighlights: parsed.softHighlights === true,
-    stageFogEnabled: parsed.stageFogEnabled !== false,
-    stageRimLightEnabled: typeof parsed.stageRimLightEnabled === "boolean"
-      ? parsed.stageRimLightEnabled
-      : legacyPresetEffectsEnabled,
-    stageLightPoolEnabled: typeof parsed.stageLightPoolEnabled === "boolean"
-      ? parsed.stageLightPoolEnabled
-      : legacyPresetEffectsEnabled,
-    handTracking: parsed.handTracking !== false,
-    advancedRenderOverrides: Boolean(parsed.advancedRenderOverrides),
-    detailedPhysicsDiagnostics: Boolean(parsed.detailedPhysicsDiagnostics),
-    panelFollowUser: parsed.panelFollowUser !== false,
-    physicsColliderRadius: normalizePhysicsColliderRadius(parsed.physicsColliderRadius),
-    physicsColliderFriction: normalizeColliderFriction(parsed.physicsColliderFriction),
-    physicsColliderRestitution: normalizeColliderRestitution(parsed.physicsColliderRestitution),
-    physicsHapticLevel: normalizeHapticLevel(parsed.physicsHapticLevel),
-    actorPalmCloth: parsed.actorPalmCloth===true,
-    chestCompression: parsed.chestCompression!==false,
-  };
-}
-
-const prefsStorage = createLocalPrefsStorage<MmdVrPrefs>({
-  key: MMD_VR_PREFS_KEY,
-  legacyKey: MMD_VR_PREFS_LEGACY_KEY,
-  defaults: () => ({
-    renderQuality: "balanced",
-    showFps: false,
-    loop: true,
-    dprPref: "auto",
-    frameRatePref: "auto",
-    antialiasPref: "auto",
-    shadowsPref: "auto",
-    gridPref: "auto",
-    walkSpeedPref: "auto",
-    lightPreset: "stage",
-    framebufferScalePref: "auto",
-    foveationPref: "auto",
-    shadowResolutionPref: "auto",
-    heightOffset: 0,
-    viewDistance: 40,
-    snapTurnDegrees: 30,
-    exposure: 1,
-    stageSkyEnabled: true,
-    showSceneryPeople: true,
-    scenery: "floor",
-    softHighlights: false,
-    stageFogEnabled: true,
-    stageRimLightEnabled: false,
-    stageLightPoolEnabled: false,
-    handTracking: true,
-    advancedRenderOverrides: false,
-    detailedPhysicsDiagnostics: false,
-    panelFollowUser: true,
-    physicsColliderRadius: 0.08,
-    physicsColliderFriction: "medium" as MmdVrColliderFriction,
-    physicsColliderRestitution: "none" as MmdVrColliderRestitution,
-    physicsHapticLevel: "low" as MmdVrHapticLevel,
-    actorPalmCloth: false,
-    chestCompression: true,
-  }),
-  normalize: normalizeMmdVrPrefs,
-});
-
 function sessionReset() {
   resetMmdVrClock();
   return {
@@ -416,42 +210,10 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
   },
   prefs: initialPrefs,
   setPrefs: (patch, options) => {
-    const prefs = { ...get().prefs, ...patch };
-    if (patch.renderQuality != null) prefs.renderQuality = normalizeImmersiveQuality(patch.renderQuality);
-    if (patch.dprPref != null) prefs.dprPref = normalizeImmersiveDpr(patch.dprPref);
-    if (patch.frameRatePref != null) prefs.frameRatePref = normalizeMmdVrFrameRate(patch.frameRatePref);
-    if (patch.antialiasPref != null) prefs.antialiasPref = normalizeImmersiveAntialias(patch.antialiasPref);
-    if (patch.shadowsPref != null) prefs.shadowsPref = normalizeImmersiveToggle(patch.shadowsPref);
-    if (patch.gridPref != null) prefs.gridPref = normalizeImmersiveToggle(patch.gridPref);
-    if (patch.walkSpeedPref != null) prefs.walkSpeedPref = normalizeWalk(patch.walkSpeedPref);
-    if (patch.lightPreset != null) prefs.lightPreset = normalizeLight(patch.lightPreset);
-    if (patch.framebufferScalePref != null) prefs.framebufferScalePref = normalizeImmersiveFramebufferScale(patch.framebufferScalePref);
-    if (patch.foveationPref != null) prefs.foveationPref = normalizeImmersiveFoveation(patch.foveationPref);
-    if (patch.shadowResolutionPref != null) prefs.shadowResolutionPref = normalizeShadowResolution(patch.shadowResolutionPref);
-    if (patch.heightOffset != null) prefs.heightOffset = normalizeMmdVrHeightOffset(patch.heightOffset);
-    if (patch.viewDistance != null) prefs.viewDistance = normalizeMmdVrViewDistance(patch.viewDistance);
-    if (patch.snapTurnDegrees != null) prefs.snapTurnDegrees = normalizeMmdVrSnapTurnDegrees(patch.snapTurnDegrees);
-    if (patch.exposure != null) prefs.exposure = normalizeMmdVrExposure(patch.exposure);
-    if (patch.stageSkyEnabled != null) prefs.stageSkyEnabled = Boolean(patch.stageSkyEnabled);
-    if (patch.showSceneryPeople != null) prefs.showSceneryPeople = Boolean(patch.showSceneryPeople);
-    if (patch.scenery != null) prefs.scenery = resolveScenery(patch.scenery);
-    if (patch.softHighlights != null) prefs.softHighlights = Boolean(patch.softHighlights);
-    if (patch.stageFogEnabled != null) prefs.stageFogEnabled = Boolean(patch.stageFogEnabled);
-    if (patch.stageRimLightEnabled != null) prefs.stageRimLightEnabled = Boolean(patch.stageRimLightEnabled);
-    if (patch.stageLightPoolEnabled != null) prefs.stageLightPoolEnabled = Boolean(patch.stageLightPoolEnabled);
-    if (patch.handTracking != null) prefs.handTracking = Boolean(patch.handTracking);
-    if (patch.advancedRenderOverrides != null) prefs.advancedRenderOverrides = Boolean(patch.advancedRenderOverrides);
-    if (patch.detailedPhysicsDiagnostics != null) prefs.detailedPhysicsDiagnostics = Boolean(patch.detailedPhysicsDiagnostics);
-    if (patch.panelFollowUser != null) prefs.panelFollowUser = Boolean(patch.panelFollowUser);
-    if (patch.physicsColliderRadius != null) prefs.physicsColliderRadius = normalizePhysicsColliderRadius(patch.physicsColliderRadius);
-    if (patch.physicsColliderFriction != null) prefs.physicsColliderFriction = normalizeColliderFriction(patch.physicsColliderFriction);
-    if (patch.physicsColliderRestitution != null) prefs.physicsColliderRestitution = normalizeColliderRestitution(patch.physicsColliderRestitution);
-    if (patch.physicsHapticLevel != null) prefs.physicsHapticLevel = normalizeHapticLevel(patch.physicsHapticLevel);
+    const previousRoom = get().prefs.scenery;
+    const prefs = normalizeMmdVrPrefs({ ...get().prefs, ...patch });
     prefsStorage.write(prefs);
-    // Leaving a distant terrace should not start the next set 39m from its door.
-    const previousRoom=get().prefs.scenery;
-    const leaveDistrict = !options?.preserveViewOnCrossing && prefs.scenery!==previousRoom &&
-      (previousRoom==='astralCourt'||previousRoom==='chapel'||previousRoom==='clinic'||prefs.scenery==='clinic'||previousRoom==='qinhuai'||prefs.scenery==='qinhuai'||previousRoom==='weddingCourt'||prefs.scenery==='weddingCourt');
+    const leaveDistrict = !options?.preserveViewOnCrossing && resetViewOnMenuSwitch(previousRoom, prefs.scenery);
     set({ prefs, loop: prefs.loop, ...(leaveDistrict ? {viewEpoch:get().viewEpoch+1} : {}) });
   },
   cyclePhysicsColliderRadius: () => {
@@ -533,11 +295,7 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
   playing: false,
   setPlaying: (playing) => set({ playing }),
   loop: initialPrefs.loop,
-  setLoop: (loop) => {
-    const prefs = { ...get().prefs, loop };
-    prefsStorage.write(prefs);
-    set({ loop, prefs });
-  },
+  setLoop: (loop) => get().setPrefs({ loop }),
   statusLine: null,
   setStatusLine: (statusLine) => set({ statusLine }),
   physicsError: null,

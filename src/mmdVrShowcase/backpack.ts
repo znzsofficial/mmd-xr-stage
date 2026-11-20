@@ -99,6 +99,23 @@ export function syncBackpackFiles(files: readonly File[], warnings?: ReadonlyMap
 export function invalidateBackpackCommands() {
   useBackpack.setState({ command: null, busy: false, draft: null, selected: null, error: null, placement: null });
 }
+
+/** Commit a complete room snapshot and its asset bindings in the same update. */
+export function saveBackpackLayout(snapshot: StageSnapshot & { scenery: SceneryId }) {
+  useBackpack.setState(b => {
+    const ids = new Map(b.entries.map(e => [e.file, e.id]));
+    const stored = { ...b.stored }, bindings = { ...b.bindings };
+    for (const item of [...snapshot.models, ...snapshot.objects]) {
+      const id = ids.get(item.file);
+      if (id) stored[id] = item;
+    }
+    for (const slot of snapshot.assets) if (slot.kind === 'model') {
+      const id = ids.get(slot.modelFile);
+      if (id) bindings[id] = { body: slot.bodyMotionFile ?? undefined, face: slot.faceMotionFile ?? undefined };
+    }
+    return { layouts: { ...b.layouts, [snapshot.scenery]: snapshot }, stored, bindings };
+  });
+}
 export function prepareBackpackEntry(resume: boolean) {
   useBackpack.setState(resume ? transient() : { ...transient(), layouts: {}, stored: {}, bindings: {} });
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { WebGLRenderer } from "three";
 import { createFrameCadence, describeRenderRequest, readRenderDiagnostics, type RenderRequest } from "./renderDiagnostics";
-import { normalizeMmdVrPrefs } from "./mmdVrStore";
+import { normalizeMmdVrPrefs } from './settings/preferences';
 import { diagnosticLines } from "./diagnosticText";
 import { en } from "../i18n/en";
 

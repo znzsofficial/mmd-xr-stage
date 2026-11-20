@@ -120,7 +120,7 @@
 | Contact / backend 回归测试 | `src/mmdVrShowcase/mmdRuntime/mmdPhysics.test.ts` | 本仓覆盖 direct buffers、控制器/手部包装顺序、contact 索引及 patched Bullet ABI |
 | VR 触觉状态 | `src/mmdVrShowcase/mmdVrHaptics.ts` | 管理左右手接触、震动强度和 gate |
 | 触觉执行 | `src/mmdVrShowcase/components/MmdVrControllerColliders.tsx` | 驱动 WebXR haptic actuator |
-| VR contact 采样 | `src/mmdVrShowcase/components/MmdVrStage.tsx` | 从物理 backend 采样 controller contact |
+| VR contact 采样 | `src/mmdVrShowcase/stage/StageRoom.tsx` | 从物理 backend 采样 controller contact |
 | Unit-scale physics step | `src/mmdVrShowcase/mmdRuntime/mmdRuntime.ts`、`mmdRuntimeEntry.ts` | 模型显示缩放与 PMX 原尺寸物理 world 的集成处理 |
 
 ### 受控的物理重建

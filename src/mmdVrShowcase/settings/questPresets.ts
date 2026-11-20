@@ -1,4 +1,4 @@
-import type {MmdVrPrefs} from '../mmdVrStore';
+import type {MmdVrPrefs} from './preferences';
 
 const common={dprPref:'auto',antialiasPref:'auto',shadowsPref:'off',advancedRenderOverrides:true} as const;
 export const questPresets={

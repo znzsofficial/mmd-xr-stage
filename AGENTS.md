@@ -2,6 +2,8 @@
 
 ## Project Shape
 
+- For shared stage changes start at `docs/architecture.md`. `components/MmdVrStage.tsx` owns the viewing-session caches and room generation; `stage/StageRoom.tsx` owns the mounted runtime and snapshot validity. Put shared render-only scenery in `stage/StageEnvironment.tsx` and preference normalization in `settings/preferences.ts`.
+
 - Built-in modelling is environment content for imported characters. Use `scenery/catalog.ts` as the set identity across prep, HUD, layouts and reports. Author placeable ground together with the layout: a point inside furniture or over pool water cannot be accepted just because the pointing plane intersects it.
 - When expanding scenery, build connected destinations at human scale, with room to place the user's actors at each one. Check the walk in XR, the screen camera, and the actual placement ray at the far end; decorating the starting spot or enlarging a skybox does not extend the playable space.
 - For procedural shader changes, exercise the actual material in WebGL and check `COMPILE_STATUS` or renderer shader errors, not just `pageerror`, HTTP or the build. Negative layout constants interpolated after a minus can become GLSL `--`; check the rendered surface from close range.

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { attachPendingMmdVrSessionToRenderer, beginMmdVrSessionFromClick, endMmdVrSession } from "./mmdVrSession";
-import { normalizeMmdVrPrefs } from "./mmdVrStore";
+import { normalizeMmdVrPrefs } from './settings/preferences';
 
 describe("MMD VR session", () => {
   afterEach(async () => {

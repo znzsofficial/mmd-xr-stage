@@ -9,7 +9,7 @@ import {
   type ImmersiveFoveationPref,
   type ImmersiveFrameRate,
 } from "../xr";
-import type { MmdVrFrameRatePref, MmdVrPrefs, MmdVrRenderQuality } from "./mmdVrStore";
+import type { MmdVrFrameRatePref, MmdVrPrefs, MmdVrRenderQuality } from './settings/preferences';
 
 export type { MmdVrRenderQuality };
 
