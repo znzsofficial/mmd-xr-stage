@@ -1,12 +1,12 @@
 # 会话交接｜2026-11-20
 
-[线上舞台](https://mmd-xr-stage.pages.dev) · [固定版 `b7273ba`](https://b9e62e8a.mmd-xr-stage.pages.dev) · [分类文档索引](./README.md)
+[线上舞台](https://mmd-xr-stage.pages.dev) · [固定版 `37a0ef3`](https://561c3380.mmd-xr-stage.pages.dev) · [分类文档索引](./README.md)
 
-**线上基线**：十二景八件道具。教室、泳池、门诊的[三条路线](./scenery/campus-garden-routes.md)已重新选址；新增[情侣套房与双人私汤](./scenery/private-retreats.md)以及[两件可交接的道具](./gameplay/README.md)。[结构审查五项](./structure-review-2026-11-20.md)已全部落实。372 项测试通过；主域名入口及 70 份文件哈希一致，模拟 Quest 两景换区、拿和收道具，屏幕键盘、滚轮、拖动和复位均通过。
+**线上基线**：十三景八件道具。新[琉璃小行星](./scenery/opal-planet.md)使用 Ecctrl/Rapier 球面行走；[MMD 角色色彩](./scenery/model-highlight-color.md)默认保留亮部，场内可切回原版。374 项测试通过；主域名入口及 72 份文件哈希一致。在主域名已模拟双眼 XR 走到球背、起跳、召回并点菜单、自由升降和返回水平教室。
 
 ## 下次从这里开始
 
-**Babylon 迁移暂缓，继续优先用 Three 的现成库。** [头显教室预览](https://babylon-classroom.mmd-xr-stage.pages.dev/classroom)及[接触对照](../experiments/mmd-engine-ab/quest-classroom.md)保留作参照；正式版仍是 `b7273ba`。[小星球轮子选型](../experiments/three-planet-wheel/README.md)：Ecctrl 2 + Rapier 已在独立桌面探针走过球底、低重力起跳落地并绕回；XR 原点接入、真机舒适度未验。
+**Babylon 迁移暂缓，正式舞台继续用 Three。** [现成库取舍](./three-tooling.md) · [同姿态色彩对比页](https://babylon-classroom.mmd-xr-stage.pages.dev/) · [Babylon 接触记录](../experiments/mmd-engine-ab/quest-classroom.md)。下次戴头显时，可在观星台先看角色白衣纹理，再在常速下走过赤道，检查地平线转动舒适度；和稳态看舞分开验。
 
 1. **下一份 Quest 3S JSON 优先。** 新页教室放同一角色、绑同一动作，阴影关，空手同机位先关后开物理；再关，去泳池、回教室，正常退出后导出。[短测和字段](./performance/next-quest-export.md)。桌面已走通这趟，不能把旧版 60／41 FPS 当成本版成绩。
 2. **另外游玩时看路线与手感**：普通模式试三个门的反向视线，疾行、低顶、拨衣、细纹和双人远端站位仍要真机判断。[行走碰撞配对](./performance/player-collision-work.md)的 1789 点输出一致；[PMX 骨骼遍历候选](./performance/pmx-root-propagation.md)未测出可靠的整模提速，没有采用。

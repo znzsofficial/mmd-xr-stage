@@ -4,6 +4,7 @@
 
 | 功能提交 | 已发布内容与验证范围 |
 |---|---|
+| `37a0ef3` | [琉璃小行星](./scenery/opal-planet.md)的球面低重力玩家、[角色亮部与饱和度修正](./scenery/model-highlight-color.md)，保留旧颜色。374 项通过，主域名入口及 72 份文件核对；线上模拟 Quest 验证球背跳跃、面板、转回水平布景。[固定版](https://561c3380.mmd-xr-stage.pages.dev) |
 | `b7273ba` | [三条校园门线重选](./scenery/campus-garden-routes.md)、[情侣套房与双人私汤](./scenery/private-retreats.md)、两件手持新品、[五项审查修复](./structure-review-2026-11-20.md)。[普通行走查询](./performance/player-collision-work.md)及接地阴影合批有配对验证。372 项通过，主域名入口和 70 份文件核对，线上模拟 XR 与屏幕输入通过。[固定版](https://b9e62e8a.mmd-xr-stage.pages.dev) |
 | `34beed9` | [屏幕键盘机位](./gameplay/screen-viewing.md)：WASD 平移，Q/E 原地转头，F/C 升降，R 重置。350 项测试通过；线上浏览器验证键盘操作后仍可滚轮拉近、拉远和鼠标拖动环绕。[固定版](https://fcf6a56a.mmd-xr-stage.pages.dev) |
 | `bb56fe1` | [普通行走与自由飞行](./gameplay/player-movement.md)，地面、重力、A 跳跃与顶板碰撞；四档 1.2–8 m/s。修复测试加载 XR 依赖 CJS 入口引起的 Three.js 弃用告警。347 项通过。[固定版](https://d919f2a9.mmd-xr-stage.pages.dev) |
