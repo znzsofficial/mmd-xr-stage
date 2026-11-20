@@ -21,6 +21,11 @@ export const zh = {
   actorPalmCloth:'角色手掌托裙摆（试验，需开物理）',
   hudClinic:'妇科医院',clinicHall:'门诊候诊廊',clinicExam:'妇科诊室',clinicSurgery:'手术室',clinicRestroom:'女卫生间',clinicEducation:'候诊宣教墙',
   hudQinhuai:'秦淮歌楼',qinQuay:'临水看画舫',qinSeats:'堂前茶席',qinGallery:'二楼听曲廊',qinMusic:'戏台琴案',qinLanding:'埠头望歌楼',
+  hudWeddingCourt:'双喜堂 · 江南喜院',weddingGate:'巷口迎亲',weddingFeast:'宾席望喜堂',weddingHall:'正堂礼案',weddingVanity:'侧室妆台',weddingReturn:'堂前回望花轿',
+  clinicGoLawn:'出门去草坪',lawnGoClinic:'步行进门诊',
+  clinicGardenPorch:'花径望门诊雨棚',
+  weddingFromRoom:'侧室回看喜堂',
+  qinLacquer:'近看琴弦与漆面',qinMooring:'埠头系舟处',
   clinicModels:'解剖教具台',clinicInstruments:'妇产科器械盘',clinicSupplies:'卫生用品架',
   propTurn:'转握柄',
   lidoGate:'草坪泳池入口',lidoClock:'池畔计时台',lidoLookBack:'回望草坪入口',lidoGoPool:'穿过廊架去泳池',lidoGoLawn:'沿泳池廊架回草坪',
@@ -339,6 +344,9 @@ export const zh = {
   wallpaperCategoryNature: "自然",
   wallpaperCategorySky: "天空",
   wallpaperCategoryCity: "城市",
+  musicTitle: '音乐', musicOptional: '音乐（可选）', musicChoose: '选择音频文件', musicReplace: '更换音乐', musicClear: '移除音乐',
+  musicPlay: '播放音乐', musicPause: '暂停音乐', musicVolume: '音量',
+  musicFormatError: '无法读取音频，请在准备页更换文件。', musicPlayError: '音乐未能播放，请再按一次「播放音乐」。',
 } as const;
 
 export type ZhMessages = typeof zh;

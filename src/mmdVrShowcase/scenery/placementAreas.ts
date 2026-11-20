@@ -4,7 +4,9 @@ import { chapelFloor, CHAPEL_OBSTACLES } from './ChapelLayout';
 import { OLD_COURT_RADIUS, onObservatoryFloor, ROUTE_FEET } from './ObservatoryLayout';
 import { classPassageFloor, lawnSchoolFoot, passagePost } from './CampusLayout';
 import {canPlaceInClinic} from './clinic/clinicLayout';
+import {canPlaceByLawnClinic,reserveLawnClinic} from './clinic/clinicApproach';
 import {songhouseClear,songhouseHeight} from './qinhuai/songhouseLayout';
+import {weddingClear} from './wedding/weddingLayout';
 import {GUARD_CHAIR,PACE_CLOCK,TIME_DECK,LIDO_ENTRY,LIDO_PIERS,PAVILION_POSTS,POOL_ORIGIN_Z,inLidoApproach} from './LidoLayout';
 
 // A placement is a point on a supported y=0 surface with a little shoe room;
@@ -69,16 +71,17 @@ export const LAWN_KNOLLS = Array.from({ length: 58 }, () => {
   if (Math.hypot(x, z) < 9) return [];
   return [{ x, z, w: 3 + landscapeRandom() * 6, h: .6 + landscapeRandom() * 1.4,
     d: 2 + landscapeRandom() * 4, yaw: landscapeRandom() * 3 }];
-}).flat().filter(k=>!inLidoApproach(k.x,k.z,Math.max(k.w,k.d)*.6));
+}).flat().filter(k=>!inLidoApproach(k.x,k.z,Math.max(k.w,k.d)*.6)&&!reserveLawnClinic(k.x,k.z,Math.max(k.w,k.d)*.6));
 export const LAWN_TREES = Array.from({ length: 19 }, (_, i) => {
   const a = i * 2.399, r = 11 + landscapeRandom() * 12;
   return { x: Math.cos(a) * r, z: Math.sin(a) * r, h: 3.3 + 2.2 * landscapeRandom() };
-}).concat([{x:5.75,z:-5.2,h:5.6},{x:-6.2,z:-9.4,h:4.4}]).filter(t=>!inLidoApproach(t.x,t.z,1.5));
+}).concat([{x:5.75,z:-5.2,h:5.6},{x:-6.2,z:-9.4,h:4.4}]).filter(t=>!inLidoApproach(t.x,t.z,1.5)&&!reserveLawnClinic(t.x,t.z,t.h*.42));
 
 export const placementHeight=(id:SceneryId,x:number,z:number)=>id==='qinhuai'?songhouseHeight(x,z):0;
 export function canPlaceInScenery(id: SceneryId, x: number, z: number): boolean {
   if (!Number.isFinite(x) || !Number.isFinite(z)) return false;
   switch (id) {
+    case 'weddingCourt': return weddingClear(x,z,true);
     case 'qinhuai': return songhouseClear(x,z,true);
     case 'clinic': return canPlaceInClinic(x,z);
     case 'chapel': return shoeOffsets.every(([dx,dz])=>chapelFloor(x+dx,z+dz)) && !CHAPEL_OBSTACLES.some(r=>hits(r,x,z));
@@ -91,7 +94,7 @@ export function canPlaceInScenery(id: SceneryId, x: number, z: number): boolean 
       // Connected deck pieces overlap: test the union, not four separately inset rectangles.
       shoeOffsets.every(([dx, dz]) =>
         poolDeck.some(r => hits(r, x + dx, z + dz, 0)));
-    case 'lawn': return !(z < -14.1 && Math.abs(x)<7.1) && !LIDO_PIERS.some(p=>hits(p,x,z-POOL_ORIGIN_Z)) && !lawnSchoolFoot(x,z)&&!passagePost(id,x,z) && Math.max(Math.abs(x), Math.abs(z)) <= LAWN_SIZE / 2 - CLEAR &&
+    case 'lawn': return canPlaceByLawnClinic(x,z) && !(z < -14.1 && Math.abs(x)<7.1) && !LIDO_PIERS.some(p=>hits(p,x,z-POOL_ORIGIN_Z)) && !lawnSchoolFoot(x,z)&&!passagePost(id,x,z) && Math.max(Math.abs(x), Math.abs(z)) <= LAWN_SIZE / 2 - CLEAR &&
       !hits(MEADOW_SEAT,x,z) && !hits(meadowRail,x,z) && !ARBOR_POSTS.some(p=>hits(p,x,z)) &&
       !LAWN_TREES.some(t => Math.hypot(x - t.x, z - t.z) < CLEAR + t.h * .07) &&
       !LAWN_KNOLLS.some(k => {

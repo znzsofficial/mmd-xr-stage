@@ -13,4 +13,20 @@
 
 [`songhouseLayout.ts`](../../src/mmdVrShowcase/scenery/qinhuai/songhouseLayout.ts) 管地面、墙、柱、梯段、机位与射线；[`songhouseGeometry.ts`](../../src/mmdVrShowcase/scenery/qinhuai/songhouseGeometry.ts) 共用这些坐标建模。屋面是收脊起翘的曲面，窗棂、木阶、茶具按实例批绘；舞台六扇屏借同一幅原创绢本山水，木匾、织锦同在一张[本地图集](../../src/mmdVrShowcase/scenery/qinhuai/songhouse-silk.webp)。[烘焙脚本](../../src/mmdVrShowcase/scenery/qinhuai/bakeSonghouse.py) 可从头生成图集。月色、水纹与灯影不用反射相机，也不为每盏灯建立光源。
 
-专项回归：`pnpm exec vitest run src/mmdVrShowcase/scenery/qinhuai/songhouseLayout.test.ts src/mmdVrShowcase/components/MmdVrStage.test.tsx`。模拟 Quest 3 实走埠头、戏台和二楼：1.65 米原始眼高在戏台为 2.07 米、楼廊为 4.37 米；扳机隔栏指向楼下被拒，指楼廊成功，切景往返后 PMX 仍在 2.72 米。屏幕鼠标实放 PMX 到戏台、GLB 到二楼，水面被拒。五个空景机位的一帧 WebGL 记录为 9–10 次 draw、57,608–59,528 个三角形；不是 Quest 帧率。真机上楼舒适度、双眼细纹稳定度和开角色物理后的帧率仍待验证。
+### 琴案和系舟处：固定机位对照
+
+| 机位（世界米，眼点 → 注视点） | 原版 | 新版 | 量尺验证 |
+|---|---|---|---|
+| 琴案 `(3.48,2.05,-5.70)` → `(4.03,1.41,-6.70)` | [方肩琴身、凸起的徽](../screenshots/qinhuai-detail-zither-before.webp) | [弧面、弦枕、螺钿徽与桌缘](../screenshots/qinhuai-detail-zither-after.webp) | [桌上 50 厘米水平尺](../screenshots/qinhuai-detail-zither-ruler.webp) |
+| 埠头 `(4.38,0.91,13.03)` → `(3.65,0.19,11.99)` | [光杆和分离的绳圈](../screenshots/qinhuai-detail-mooring-before.webp) | [缆绳绕桩、石岸水痕](../screenshots/qinhuai-detail-mooring-after.webp) | [桩旁 50 厘米竖尺](../screenshots/qinhuai-detail-mooring-ruler.webp) |
+
+琴身长 1.44 米，七弦在首尾弦枕折下；十三徽按有效弦长的泛音节点嵌入漆面，第七徽稍大。琴案保留 2.05 × 0.63 米占地，四角攒框、桌沿凹槽与下缘圆线有厚度。两条船缆从画舫前甲板系到栈桥临船的两个桩上；桩上留绳头与近三道缠绕，受力绳身略有垂度。缆绳约 3 厘米粗，弯处多分段，直处少分段。占地按缠绳后的 0.28 米核算，栈桥中路保持畅通。石岸保留实缝与倒角压顶；浅色旧水位线在现水面上方，潮湿带向下过渡为青苔。
+
+漆纹、螺钿、谱页、木口年轮、麻股及三块驳岸石面是同一张[原创 WebP](../../src/mmdVrShowcase/scenery/qinhuai/songhouse-close.webp)，**1024 × 1024，107,538 字节**。用 [Python 烘焙源](../../src/mmdVrShowcase/scenery/qinhuai/bakeCloseDetails.py) 重画，烘焙与[近景网格](../../src/mmdVrShowcase/scenery/qinhuai/songhouseClose.ts)共用[图块坐标](../../src/mmdVrShowcase/scenery/qinhuai/closeAtlas.json)。烘焙时核查每块 10 像素的外延不重叠，运行时采用 mipmap 和 4 倍各向异性过滤。
+
+### 实测预算与落点回归
+
+- 两处均在产品屏幕 Canvas 拍摄，基线 `4358375`；Edge/ANGLE SwiftShader，1250 × 686 像素、DPR 1、FOV 50°、抗锯齿开、阴影关，同一灯光，无角色，无量尺。**两个机位均为 10 → 11 次绘制、59,528 → 62,210 个三角形（+4.5%）、10 → 11 份几何、2 → 3 份纹理**。每个已挂接着色器的 `COMPILE_STATUS` 都为真。从歌楼切至地台再回来三轮，每次歌楼均回到 11 份几何、3 份纹理。
+- 横移 6.6 厘米，取 12 帧，在屏幕像素中重投影七弦及相邻弦隙：近景每帧的平均亮度差为 99.1–100.9（满量程 255），原「戏台琴案」导览机位为 9.3–10.9。近看能分辨弦与漆纹，退远后细节对比自然降低。桌面数据不推算 Quest 帧率或双眼稳定性。
+- 模拟 Quest 3 摇杆从埠头登台、折返、登二楼：原始眼高 1.65 米，戏台 2.07 米、楼廊 4.37 米。右扳机隔栏指楼下被拒，楼上实放 PMX 于 `(-7.10,2.72,-2.72)`；附加身高 0.20 米后，下楼眼高为 1.85 米，切去地台再回访，PMX 仍在楼上。屏幕实点戏台使 PMX 落在 0.42 米，实点二楼使 GLB 落在 2.72 米，点水面仍保留放置草稿。
+- 专项：`pnpm exec vitest run src/mmdVrShowcase/scenery/qinhuai/songhouseLayout.test.ts src/mmdVrShowcase/components/MmdVrStage.test.tsx`。覆盖登楼、隔栏遮挡及绕桩新增占地。真机上楼舒适度、双眼细纹稳定度和开启角色物理后的帧率仍待验证。

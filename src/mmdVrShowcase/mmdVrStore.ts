@@ -19,7 +19,7 @@ import {
 import { endMmdVrAssetSession } from "./mmdVrAssets";
 import { invalidateBackpackCommands, useBackpack } from "./backpack";
 import { resetMmdVrClock } from "./mmdVrClock";
-import { resolveScenery, type SceneryId } from "./scenery/catalog";
+import { movePlaneHalfWidth, resolveScenery, type SceneryId } from "./scenery/catalog";
 import type { MmdVrHapticLevel } from "./mmdVrHaptics";
 import { normalizeMmdVrHeightOffset, normalizeMmdVrModelScale, normalizeMmdVrViewDistance } from "./mmdVrAdjustments";
 
@@ -32,7 +32,6 @@ export type MmdVrAntialiasPref = ImmersiveAntialiasPref;
 export type MmdVrTogglePref = ImmersiveTogglePref;
 export type MmdVrWalkSpeedPref = "auto" | "slow" | "normal" | "fast";
 export type MmdVrLightPreset = "stage" | "soft" | "contrast" | "daylight" | "warm" | "rim";
-export const PLACE_HALF_WIDTH = 5.5;
 export type MmdVrShadowResolutionPref = "auto" | "low" | "medium" | "high";
 export type MmdVrSnapTurnDegrees = 15 | 30 | 45;
 
@@ -127,7 +126,7 @@ type MmdVrStore = {
   assetRetryEpoch: number;
   retryFailedAssets: () => void;
   prefs: MmdVrPrefs;
-  setPrefs: (patch: Partial<MmdVrPrefs>) => void;
+  setPrefs: (patch: Partial<MmdVrPrefs>, options?: { preserveViewOnCrossing: true }) => void;
   setHeightOffsetTransient: (heightOffset: number) => void;
   phase: MmdVrSessionPhase;
   errorMessage: string | null;
@@ -413,7 +412,7 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
     set((state) => ({ assetRetryEpoch: state.assetRetryEpoch + 1, assetLoad: { ...state.assetLoad, running: true } }));
   },
   prefs: initialPrefs,
-  setPrefs: (patch) => {
+  setPrefs: (patch, options) => {
     const prefs = { ...get().prefs, ...patch };
     if (patch.renderQuality != null) prefs.renderQuality = normalizeImmersiveQuality(patch.renderQuality);
     if (patch.dprPref != null) prefs.dprPref = normalizeImmersiveDpr(patch.dprPref);
@@ -447,7 +446,8 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
     prefsStorage.write(prefs);
     // Leaving a distant terrace should not start the next set 39m from its door.
     const previousRoom=get().prefs.scenery;
-    const leaveDistrict = (previousRoom==='astralCourt'||previousRoom==='chapel'||previousRoom==='clinic'||prefs.scenery==='clinic'||previousRoom==='qinhuai'||prefs.scenery==='qinhuai')&&prefs.scenery!==previousRoom;
+    const leaveDistrict = !options?.preserveViewOnCrossing && prefs.scenery!==previousRoom &&
+      (previousRoom==='astralCourt'||previousRoom==='chapel'||previousRoom==='clinic'||prefs.scenery==='clinic'||previousRoom==='qinhuai'||prefs.scenery==='qinhuai'||previousRoom==='weddingCourt'||prefs.scenery==='weddingCourt');
     set({ prefs, loop: prefs.loop, ...(leaveDistrict ? {viewEpoch:get().viewEpoch+1} : {}) });
   },
   cyclePhysicsColliderRadius: () => {
@@ -673,7 +673,7 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
   pendingGroundPlace: null,
   requestGroundPlace: (x, z) => {
     const { placeMode, placeModelId: id } = get();
-    const halfWidth=get().prefs.scenery==='qinhuai'?16:PLACE_HALF_WIDTH;
+    const halfWidth=movePlaneHalfWidth(get().prefs.scenery);
     if (!placeMode || !id || !Number.isFinite(x) || !Number.isFinite(z) || Math.abs(x) > halfWidth || Math.abs(z) > halfWidth) return;
     set({ pendingGroundPlace: { id, x, z } });
   },

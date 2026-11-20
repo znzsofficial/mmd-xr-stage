@@ -15,6 +15,7 @@ import { resolveScenery, SCENERY, sceneryIds } from '../scenery/catalog';
 import { ScreenCamera, type CameraActions } from './ScreenCamera';
 import {tourShots} from '../scenery/roomViews';
 import { ScreenLibrary } from './ScreenLibrary';
+import { ScreenMusic } from '../music/ScreenMusic';
 import './screen-stage.css';
 
 function timecode(t:number){return `${Math.floor(t/60)}:${String(Math.floor(t)%60).padStart(2,'0')}`;}
@@ -60,6 +61,6 @@ export function ScreenStage(){
       </div>
       <div className="screen-caption" role="status">{message?<><span>{message}</span>{load.failures.length>0&&<button disabled={locked} onClick={stage.retryFailedAssets}>{t('loadRetry')}</button>}{err&&<button onClick={()=>useBackpack.getState().dismissError()}>{t('hudDone')}</button>}</>:locked?t('hudWorking'):draft?<><span>{t('screenAim')}</span><button onClick={()=>actions.current?.center()}>{t('screenCenter')}</button><button onClick={()=>useBackpack.getState().cancelPlace()}>{t('hudCancelPlace')}</button></>:t('screenOrbit')}</div>
     </div>{library&&!draft&&<ScreenLibrary locked={locked} frame={()=>actions.current?.frame()} storyView={isStoryRoom(prefs.scenery)?()=>actions.current?.story():undefined} close={()=>setLibrary(false)}/>}</div>
-    <Transport locked={locked}/>
+    <div><ScreenMusic/><Transport locked={locked}/></div>
   </dialog>;
 }

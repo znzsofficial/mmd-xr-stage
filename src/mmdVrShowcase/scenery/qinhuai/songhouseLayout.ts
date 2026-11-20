@@ -27,7 +27,9 @@ export const WALLS=[solid(rect(0,-7.94,11.44,.15),-.1,5.53),solid(rect(5.64,-1.7
   ...[-4.43,4.43].map(x=>solid(rect(x,4.42,2.19,.15),0,3.05))];
 export const GALLERY_RAIL=solid(rect(-5.84,-2.6,.12,10.35),GALLERY_Y,GALLERY_Y+.93);
 export const RIVER_RAILS=[rect(-2.52,10.71,12.56,.13),rect(6.85,10.71,1.3,.13),rect(7.41,7.65,.13,6.16),rect(-8.71,9.41,.13,2.67)].map(r=>solid(r,0,.83));
-export const MOORING_POSTS=[3.85,6.06].flatMap(x=>[12.18,15.22].map(z=>rect(x,z,.18,.18)));
+// The ties leave the west edge for the boat. Include the standing turns,
+// tucked end and pile in the footprint, not just the inner timber core.
+export const MOORING_POSTS=[3.85,6.06].flatMap(x=>[12.18,15.22].map(z=>({...rect(x,z,x<5?.28:.19,x<5?.28:.19),tied:x<5})));
 export const stageDrapes=[-1,1].map(k=>solid(rect(k*4.04,-5.24,1.15,.22),.42,3.51));
 export const HEADER=solid(rect(0,4.42,11.45,.27),3.06,3.64);
 export const BACKDROP=solid(rect(0,-7.62,6.88,.18),STAGE_Y,3.9);

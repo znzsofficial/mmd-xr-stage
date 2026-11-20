@@ -11,6 +11,8 @@ import {arcadeParts,distantLido,inLidoApproach} from './LidoLayout';
 import {LidoPlates} from './LidoPlates';
 import { seededRandom } from './ClassroomLayout';
 import { Batch, type Part } from './SceneryBatch';
+import {SouthEntrance} from './clinic/SouthEntrance';
+import {reserveLawnClinic} from './clinic/clinicApproach';
 import { noPick, paintedSurface } from './sceneryPaint';
 
 type V = Part['p'];
@@ -24,7 +26,7 @@ function flowers() {
     const z=(random()-.5)*28,x=patch<90?pathX(z)+(patch%2?1:-1)*(.9+random()*.8):(random()-.5)*29;
     if(Math.abs(x-pathX(z))<.88||Math.hypot(x,z)<1.55)continue;
     for(let j=0;j<9;j++){const xx=x+(random()-.5)*.8,zz=z+(random()-.5)*.8,h=.1+random()*.22,ox=.11*(random()-.5),oz=.13*(random()-.5);
-      if(lawnPaving(xx,zz)||inLidoApproach(xx,zz)){if(j<4)random();continue;}
+      if(lawnPaving(xx,zz)||inLidoApproach(xx,zz)||reserveLawnClinic(xx,zz,.06)){if(j<4)random();continue;}
       tri([xx-.017,0,zz],[xx+.017,0,zz],[xx+ox,h,zz+oz],j%2?'#788e44':'#a1ad56');
       if(j<4){const rad=.035+random()*.02;const color=patch%6===0?'#ba85ac':patch%4?'#fff1cb':'#e2b55c';
         for(let k=0;k<5;k++){const a=k*1.256;tri([xx+ox,h,zz+oz],[xx+ox+rad*Math.cos(a-.38),h+.026,zz+oz+rad*Math.sin(a-.38)],[xx+ox+rad*Math.cos(a+.38),h+.032,zz+oz+rad*Math.sin(a+.38)],color);}}
@@ -158,6 +160,7 @@ export function Meadow({shadows}:{shadows:boolean}) {
     {!shadows&&<LatticeShade/>}
     <SeatFaces/>
     <LidoPlates pool={false}/>
+    <SouthEntrance lawn shadows={shadows}/>
     <Batch name="meadow-seat-and-split-rail" parts={p.wood} casts={shadows} /><Batch name="oak-and-birch-branches" parts={p.branches} round casts={shadows} />
     {botanicals&&<mesh name="grove-canopies" geometry={foliage} raycast={noPick}><meshBasicMaterial map={botanicals} alphaTest={.36} vertexColors side={DoubleSide}/></mesh>}<Batch name="distant-ridges" parts={p.hills} foliage />
     <mesh geometry={grass} raycast={noPick}><meshStandardMaterial vertexColors roughness={1} side={DoubleSide} /></mesh></group>;

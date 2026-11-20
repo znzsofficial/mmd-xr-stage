@@ -25,6 +25,8 @@ import { useRenderDiagnostics } from "../renderDiagnostics";
 import { diagnosticLines } from "../diagnosticText";
 import { resolveHudSurface } from "../hudMode";
 import { WatchRecall } from './WatchRecall';
+import { useStageMusic } from '../music/stageMusic';
+import { MusicSettings } from '../music/MusicSettings';
 
 let introducedWatch = false; // one first-empty-stage hint per document, never per room
 
@@ -834,7 +836,8 @@ export function MmdVrControlBar({onExit,busy,onDragChange:reportInteraction}:{on
   const [dock,setDock]=useState(false);
   const quiet=()=>{setIntro(false);setDock(false);setPage('watch');};
   useEffect(()=>{if(intro)introducedWatch=true;},[intro]);
-  const [tab, setTab] = useState<"models" | SettingsSection>("player");
+  const hasMusic = useStageMusic(s => s.name !== null);
+  const [tab, setTab] = useState<"models" | "music" | SettingsSection>("player");
   const [assetIndex, setAssetIndex] = useState(0);
   const models = useMmdVrStore((s) => s.models);
   const objects = useMmdVrStore((s) => s.objects);
@@ -988,11 +991,13 @@ export function MmdVrControlBar({onExit,busy,onDragChange:reportInteraction}:{on
       <HudButton position={[0.98, 0.83, 0.03]} label={t("hudBack")} size={[0.55, 0.14]} variant="quiet" onPress={() => setPage("watch")} />
       {tab!=='models'&&<group name="hud:settings-rail" position={[-1.07,.42,.025]}>
         {settingsSections.map(([value,label],i)=><HudButton key={value}
-          position={[0,-i*.25,0]} size={[.47,.18]} label={t(label)} variant="tab" active={tab===value} disabled={inputHeld} onPress={()=>setTab(value)}/>)}
+           position={[0,-i*.25,0]} size={[.47,.18]} label={t(label)} variant="tab" active={tab===value} disabled={inputHeld} onPress={()=>setTab(value)}/>)}
+        {hasMusic && <HudButton position={[0,-settingsSections.length*.25,0]} size={[.47,.18]} label={t('musicTitle')} variant="tab" active={tab==='music'} disabled={inputHeld} onPress={()=>setTab('music')}/>}
       </group>}
       <group position-x={tab==='models'?0:.30}>
       {status && !physicsError && tab==='models' ? <group position={[0,.60,0]}><StatusPlane text={status} /></group> : null}
       {tab==='player'&&<PlayerSettings onDrag={onDragChange}/>}
+      {tab==='music'&&<MusicSettings onDrag={onDragChange}/>}
       {tab==='character'&&<CharacterSettings locked={editsLocked}/>}
       {tab==='environment'&&<EnvironmentSettings onDrag={onDragChange} diagnostics={()=>setDiagnosticsOpen(true)}/>}
       {!materialPanelOpen && (tab === "models" ? (
@@ -1045,7 +1050,7 @@ export function MmdVrControlBar({onExit,busy,onDragChange:reportInteraction}:{on
       </group>
       <group position={[0, -0.95, 0]}>
         <HudButton position={[.55,0,0]} size={[.55,.15]} label={t("settingsVrDesktopExit")} variant="quiet" onPress={onExit} disabled={busy}/>
-        <HudButton position={[-.55, 0, 0]} label={loop ? t("settingsMmdVrLoopOn") : t("settingsMmdVrLoopOff")} active={loop} size={[0.46, 0.14]} onPress={() => setLoop(!loop)} />
+        {tab !== 'music' && <HudButton position={[-.55, 0, 0]} label={loop ? t("settingsMmdVrLoopOn") : t("settingsMmdVrLoopOff")} active={loop} size={[0.46, 0.14]} onPress={() => setLoop(!loop)} />}
       </group>
       {prefs.showFps ? <group position={[-.35,-1.10,0]}><FpsBadge /></group> : null}
     </group>

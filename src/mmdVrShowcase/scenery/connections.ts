@@ -2,6 +2,7 @@ import type {TranslationKey} from '../../languageStore';
 import type {SceneryId} from './catalog';
 import {CAMPUS_OFFSET} from './CampusLayout';
 import {POOL_ORIGIN_Z} from './LidoLayout';
+import {CLINIC_ORIGIN,SOUTH_DOOR} from './clinic/clinicApproach';
 
 type Point=readonly [number,number,number];
 export type RoomLink = {
@@ -12,6 +13,7 @@ export type RoomLink = {
   offset:readonly [number,number]; arrival:{key:TranslationKey;eye:Point;aim:Point};
 };
 const {x:dx,z:dz}=CAMPUS_OFFSET;
+const {x:cx,z:cz}=CLINIC_ORIGIN,halfDoor=SOUTH_DOOR.clear/2;
 export const roomLinks:readonly RoomLink[]=[
   {from:'classroom',to:'lawn',axis:'x',direction:-1,gate:-8.75,band:[6.24,8.20],offset:[dx,dz],
     arrival:{key:'campusGoLawn',eye:[2.73,1.61,.42],aim:[-4.2,1.42,-6.4]}},
@@ -21,6 +23,10 @@ export const roomLinks:readonly RoomLink[]=[
     arrival:{key:'lidoGoPool',eye:[.35,1.62,8.12],aim:[-.4,1.17,-9.50]}},
   {from:'pool',to:'lawn',axis:'z',direction:1,gate:9.85,band:[-1.35,1.35],offset:[0,POOL_ORIGIN_Z],
     arrival:{key:'lidoGoLawn',eye:[.42,1.62,-9.86],aim:[-3.8,1.42,-5.0]}},
+  {from:'lawn',to:'clinic',axis:'z',direction:-1,gate:cz+SOUTH_DOOR.inGate,band:[cx-halfDoor,cx+halfDoor],offset:[-cx,-cz],
+    arrival:{key:'lawnGoClinic',eye:[-.38,1.59,3.88],aim:[.27,1.45,-6.30]}},
+  {from:'clinic',to:'lawn',axis:'z',direction:1,gate:SOUTH_DOOR.outGate,band:[-halfDoor,halfDoor],offset:[cx,cz],
+    arrival:{key:'clinicGoLawn',eye:[cx-.65,1.60,cz+5.31],aim:[cx+2.42,1.04,cz+12.83]}},
 ];
 export class RoomGate {
   private last:SceneryId|null=null;
@@ -35,8 +41,11 @@ export class RoomGate {
     this.x=x;this.z=z;this.last=room;
     const exits=this.exits.get(room);
     if(continuous&&exits)for(const link of exits){
-      const across=link.axis==='x',before=across?px:pz,after=across?x:z,along=across?z:x;
-      if((before-link.gate)*link.direction<=0&&(after-link.gate)*link.direction>0&&along>link.band[0]&&along<link.band[1])return link;
+      const across=link.axis==='x',before=across?px:pz,after=across?x:z;
+      if((before-link.gate)*link.direction<=0&&(after-link.gate)*link.direction>0){
+        const t=(link.gate-before)/(after-before),along=across?pz+(z-pz)*t:px+(x-px)*t;
+        if(along>link.band[0]&&along<link.band[1])return link;
+      }
     }
     return null;
   }

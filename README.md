@@ -27,7 +27,11 @@ Import budgets apply to files, including textures and ZIP contents: **4,096 entr
 
 ## Stage gallery
 
-**Campus walk.** Leave the classroom through its rear door, follow the covered passage into the meadow, and walk under the blue-tiled gate to the pool. Each set keeps its own layout, so you can leave a character in the classroom and find it there when you return.
+**Double Happiness Courtyard · 双喜堂.** Walk past the [embroidered bridal sedan](./docs/screenshots/wedding-bridal-sedan.webp) into the banquet courtyard. Place two characters side by side in front of the wedding altar, then take the guest’s view from the table or step into the dressing room for a portrait by the bronze mirror.
+
+![A red bridal sedan beside a tiled gate, with the banquet table visible through the open doors.](./docs/screenshots/wedding-court-entry.webp)
+
+**Campus walk.** Leave the classroom through its rear door and follow the covered passage into the meadow. The blue-tiled gate leads to the pool; a separate garden path takes you under the clinic canopy into the waiting hall. Each set keeps its own layout, so you can leave a character in the classroom and find it there when you return.
 
 ![Afternoon light across the desks and parquet floor of the window-side classroom.](./src/mmdVrShowcase/prep/classroom-window.webp)
 
@@ -35,7 +39,7 @@ Import budgets apply to files, including textures and ZIP contents: **4,096 entr
 | :---: | :---: |
 | ![Flowers along the path beneath the arbor.](./docs/screenshots/wisteria-path.webp) | ![The pace clock and lifeguard chair beside the lanes.](./docs/screenshots/lido-timing-deck.webp) |
 
-**Qinhuai Songhouse · 泊月楼.** Place a character on the timber stage, then take the outside stairs to the [upper listening gallery](./docs/screenshots/qinhuai-gallery.webp) for a second view of the performance.
+**Qinhuai Songhouse · 泊月楼.** Place a character on the timber stage, then take the outside stairs to the [upper listening gallery](./docs/screenshots/qinhuai-gallery.webp) for a second view of the performance. Two close-up viewpoints take you to the [lacquered seven-string zither](./docs/screenshots/qinhuai-detail-zither-after.webp) and the [boat’s mooring line](./docs/screenshots/qinhuai-detail-mooring-after.webp).
 
 ![The songhouse entrance from the river landing, with lanterns over the doors and the stairs on the left.](./docs/screenshots/qinhuai-entry.webp)
 
@@ -60,6 +64,7 @@ Fly the kite from a character's wrist, send the ferry across the pool, or change
 
 - **On screen:** drag to orbit, use the wheel or pinch to zoom, and select **Tour viewpoints** to visit a spot in the set.
 - **In VR:** press **B** on the right controller to recall the viewing menu. With hand tracking, raise your left wrist and point at **Menu** with the other hand. Playback, the backpack and scenery selection are available inside the stage.
+- **Local music:** optionally choose one audio file on the prep page. Play, pause and adjust its volume from the screen controls or the VR menu. Music continues across sets and stops when you exit; it has its own clock, independent of character motions.
 - **Physics:** controller and tracked-hand colliders interact with cloth during playback and while paused. Controller contact can trigger haptics. Hiding the hand models leaves the menu rays available.
 - **Diagnostics:** after exiting VR, export the JSON session report from the prep page. It records the requested settings, the refresh rate and layer dimensions reported by the session, XR frame intervals, model-update CPU time and renderer draw counts. Placement, physics switching and room restoration are timed separately. XR callback intervals are not GPU timings.
 

@@ -7,6 +7,8 @@ import { collectFilesFromDataTransfer, relativePath } from "../mmdImport/folderF
 import { useNotificationStore } from "../notificationStore";
 import { getXrSystem } from "../xr";
 import { MmdVrOverlay } from "./MmdVrOverlay";
+import { MusicPicker } from './music/MusicPicker';
+import { useStageMusic } from './music/stageMusic';
 import { enterScreen } from './screen/enterScreen';
 import { clearBackpack, syncBackpackFiles, useBackpack } from "./backpack";
 import { requestMmdVrEnter } from "./requestMmdVrEnter";
@@ -218,6 +220,7 @@ export function MmdVrPrepApp() {
     importAbortRef.current?.abort();
     importGenerationRef.current += 1;
     clearBackpack();
+    useStageMusic.getState().select(null);
     repairTargetRef.current = null;
     setCheckingAssets(false);
     setReport(null);
@@ -525,6 +528,7 @@ export function MmdVrPrepApp() {
                {sceneryIds.map(id => <option key={id} value={id}>{t(SCENERY[id].label)}</option>)}
              </select>
            </label>
+           <MusicPicker disabled={phase === 'entering' || phase === 'active'} />
            <DeviceSettings/>
         </aside></div>
       </main>

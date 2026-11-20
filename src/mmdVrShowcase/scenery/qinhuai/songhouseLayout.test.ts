@@ -27,3 +27,9 @@ it('rejects pointing through the wrong floor, façade, tea table, gallery plinth
   expect(ray([0,8,-5.1],0,STAGE_Y,-5.1)).toBe(false);
   expect(ray([-6.8,4.05,-1],-5.10,0,-1)).toBe(false);
 });
+it('keeps the wrapped post out of the pier slot and out of a grazing placement ray',()=>{
+  expect(canPlaceInScenery('qinhuai',4.23,12.18)).toBe(false);
+  expect(canPlaceInScenery('qinhuai',4.8,12.18)).toBe(true);
+  expect(canPlaceInScenery('qinhuai',4.04,-6.70)).toBe(false);
+  expect(visiblePick('qinhuai',{x:3.97,y:.64,z:12.48},3.97,0,11.57)).toBe(false);
+});

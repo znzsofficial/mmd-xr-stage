@@ -1,7 +1,8 @@
 import {BufferGeometry,Float32BufferAttribute,Color} from 'three';
 import type {Part} from '../SceneryBatch';
 import {span} from '../detailParts';
-import {BACKDROP,CEILINGS,DAIS_TREADS,GALLERY,GALLERY_RAIL,GALLERY_Y,HALL,HEADER,MIRROR,MOORING_POSTS,MUSIC,PIER,POSTS,QUAY,RIVER_RAILS,STAGE,STAGE_Y,STAIR_TREADS,STOOLS,TABLES,UPPER_SEAT,VANITY,WALLS,stageDrapes,type Rect} from './songhouseLayout';
+import {BACKDROP,CEILINGS,DAIS_TREADS,GALLERY,GALLERY_RAIL,GALLERY_Y,HALL,HEADER,MIRROR,MUSIC,PIER,POSTS,QUAY,RIVER_RAILS,STAGE,STAGE_Y,STAIR_TREADS,STOOLS,TABLES,UPPER_SEAT,VANITY,WALLS,stageDrapes,type Rect} from './songhouseLayout';
+import {makeSonghouseClose} from './songhouseClose';
 
 type V=Part['p'];
 type UV=[number,number];
@@ -64,9 +65,8 @@ export function makeSonghouse(){
     let left=r.x-r.w/2;while(left<r.x+r.w/2-.004){const end=Math.min(r.x+r.w/2,left+(j%2&&left===r.x-r.w/2?1.16:2.6+rnd()*1.95));box((left+end)/2,y-.022,r.z-r.d/2+(j+.5)*r.d/n,end-left-.008,.044,r.d/n-.008,tints[Math.floor(rnd()*tints.length)]);left=end;}
   }}
   boards(HALL,0,['#9a735d','#a27a62','#a07a64','#94715d']);boards(STAGE,STAGE_Y,['#b98b68','#b58c6d','#bf9776']);boards(GALLERY,GALLERY_Y,['#957560','#9d7861','#a58065']);
-  slab(PIER,-.18,-.048,timber);boards(PIER,0,['#9c826d','#9e806b','#ae8e72']);for(const p of MOORING_POSTS){tube(p.x,-.10,p.z,.19,1.49,.19,'#715746');for(const y of [.31,.35,.39])tube(p.x,y,p.z,.22,.037,.22,'#c5ac85');}
+  slab(PIER,-.18,-.048,timber);boards(PIER,0,['#9c826d','#9e806b','#ae8e72']);
   for(let j=0;j<9;j++){let left=-8.8;const z=4.5+(j+.5)*.7;while(left<7.48){const next=Math.min(7.5,left+(left===-8.8&&j%2?.77:1.42+rnd()*.55));box((next+left)/2,-.05,z,next-left-.015,.10,.689,['#b1a597','#b5aa9c','#a99d90','#b4a899'][Math.floor(rnd()*4)]);left=next;}}
-  for(let i=0;i<13;i++){box(-8.2+i*1.25,-.41,10.82,1.22,.66,.23,'#898078');box(-8.2+i*1.25,-.046,10.82,1.23,.09,.32,'#bbac95');}
   for(const [i,r] of [...STAIR_TREADS,...DAIS_TREADS].entries()){slab(r,r.bottom,r.top,i%2?wood:'#905d45');box(r.x,r.top-.019,r.z+r.d/2-.036,r.w+.002,.044,.074,'#bb9874');}
   for(const x of [-8.73,-5.77]){line([x,.81,8.04],[x,GALLERY_Y+.81,2.6],.085,timber);line([x,.34,8.04],[x,GALLERY_Y+.34,2.6],.065,amber);for(let i=0;i<16;i+=2){const t=STAIR_TREADS[i];box(x,t.top+.4,t.z,.075,.80,.075,wood);}}
   for(const [i,w] of WALLS.entries())slab(w,w.bottom,w.top,i===2?'#856451':i>=5?timber:'#d2bfaa');
@@ -129,17 +129,7 @@ export function makeSonghouse(){
     for(let i=0;i<10;i++)line(drape(i/10,.46),drape((i+1)/10,.46),.028,brass);const knot=drape(side<0?1:0,.46);line(knot,[knot[0]-side*.06,knot[1]-.22,knot[2]],.025,brass);tube(knot[0]-side*.06,knot[1]-.29,knot[2],.042,.16,.042,'#bd9362');
   }
   box(0,3.74,-5.23,9.5,.46,.26,timber);panel(0,-5.084,3.53,9.4,.38,[0,920,1536,1023]);box(0,4.02,-5.08,2.16,.64,.17,wood);panel(0,-4.986,3.72,2.06,.61,[800,650,1534,908]);
-  for(const r of [MUSIC,VANITY]){box(r.x,1.24,r.z,r.w,.092,r.d,wood);for(const a of [-1,1])for(const b of [-1,1])box(r.x+a*(r.w*.44),.82,r.z+b*r.d*.38,.076,.81,.076,timber);}
-  // Qin soundboard, seven strings and thirteen hui markers; dressing mirror,
-  // folded silk, powder box and two brushes on the opposite side of the stage.
-  const q=MUSIC;
-  const qs=[[-.88,.065],[-.84,.12],[-.65,.129],[-.57,.102],[-.42,.109],[-.36,.136],[.51,.17],[.60,.143],[.72,.167],[.82,.165],[.86,.146]];
-  for(let i=0;i<qs.length-1;i++){const [a,wa]=qs[i],[b,wb]=qs[i+1];const p=(x:number,y:number,z:number):V=>[q.x+x,y,q.z+z];
-    for(const k of [-1,1]){hulls.quad(p(a,1.311,k*wa),p(b,1.311,k*wb),p(b,1.381,k*wb),p(a,1.381,k*wa),'#483537');hulls.quad(p(a,1.381,k*wa),p(b,1.381,k*wb),p(b,1.414,0),p(a,1.414,0),'#513c3d');}}
-  for(let j=0;j<7;j++)line([q.x-.80,1.419,q.z-.065+j*.021],[q.x+.79,1.435,q.z-.098+j*.028],.0055,'#ddc29a');
-  for(const [x,w] of [qs[0],qs.at(-1)!])box(q.x+x,1.352,q.z,.006,.082,2*w,'#483537');
-  for(const [i,x] of [-.67,-.56,-.44,-.30,-.18,-.055,.073,.18,.33,.44,.55,.64,.70].entries())tube(q.x+x,1.406,q.z+.095,.014+(i===6?.008:0),.009,.014,ivory);
-  box(q.x+.783,1.418,q.z,.039,.049,.27,'#baa080');
+  slab(VANITY,1.194,1.286,wood);for(const r of [MUSIC,VANITY])for(const a of [-1,1])for(const b of [-1,1])box(r.x+a*(r.w*.44),.82,r.z+b*r.d*.38,.076,.81,.076,timber);
   // Lute on a peg stand behind the qin. Build its pear outline in thin strips,
   // not a spherical guitar. A curved pegbox and frets sit above the shoulders.
   const px=4.53,pz=-7.00;box(px,1.53,pz,.10,.46,.085,timber);box(px,1.31,pz+.04,.37,.054,.16,amber);
@@ -147,9 +137,6 @@ export function makeSonghouse(){
     const l=widths[j],u=widths[j+1];hulls.quad([px-l,a,pz+.13],[px+l,a,pz+.13],[px+u,b,pz+.13],[px-u,b,pz+.13],'#c79d65');for(const k of [-1,1])hulls.quad([px+k*l,a,pz+.13],[px+k*u,b,pz+.13],[px+k*u*.83,b,pz+.05],[px+k*l*.83,a,pz+.05],wood);}
   box(px,2.14,pz+.10,.096,.55,.083,'#9d7756');box(px,2.45,pz+.07,.115,.16,.09,timber,0,-.3);box(px,1.50,pz+.146,.18,.032,.026,timber);
   for(let j=0;j<10;j++)box(px,1.88+j*.044,pz+.155,.097,.011,.022,ivory);for(let j=0;j<4;j++){const x=px-.024+j*.016;line([x,1.51,pz+.164],[x,2.41,pz+.168],.0038,'#e4cba9');box(px+(j%2?1:-1)*.094,2.34+j*.044,pz+.08,.11,.028,.031,brass);}
-  // Closed scorebooks and loose music slips rest on the qin table's front edge.
-  box(q.x-.60,1.303,q.z+.223,.36,.033,.139,'#5c736d',-.063);box(q.x-.62,1.324,q.z+.223,.29,.012,.12,ivory,-.063);
-  for(let j=0;j<7;j++)box(q.x-.72+j*.035,1.331,q.z+.22,.008,.002,.077,'#746b57',-.063);
   tube(MIRROR.x,1.72,MIRROR.z,.86,.10,.83,brass,Math.PI/2);tube(MIRROR.x,1.72,MIRROR.z+.065,.68,.04,.66,'#9aa59a',Math.PI/2);box(MIRROR.x,1.37,MIRROR.z,.16,.22,.14,amber);
   tube(VANITY.x+.56,1.34,VANITY.z+.07,.21,.11,.21,'#b35e51');for(const k of [-1,1])box(VANITY.x-.52,1.31,VANITY.z+k*.04,.33,.038,.026,'#e3c38b',.13);
 
@@ -185,12 +172,11 @@ export function makeSonghouse(){
     line(tr(1.86,.38,0),tr(3.94,1.19,.78),.06*size,amber);
   }
   boat(-1.9,13.1,1);boat(9.7,18.4,.83);
-  for(const k of [-1,1])line([-.9+k*2.8,.0,10.87],[-1.9+k*2.67,-.15,12.44],.029,'#82664c');
   // Two old willows soften the ends of the opposite quay. Small overlapping
   // leaf masses and pendent leaflets stand out against the layered dusk sky.
   function willow(x:number,z:number,h:number){const fork:V=[x+.26,h*.62,z];line([x,-.31,z],fork,.32,'#655b4d');for(let j=0;j<9;j++){
     const a=j*2.399,l=1+rnd()*1.55,tip:V=[x+Math.cos(a)*l,h*(.84+rnd()*.18),z+Math.sin(a)*l];line(fork,tip,.105,'#6e6654');bead(...tip,1.83,.75,1.42,['#72806f','#788676','#687d70'][j%3]);
     for(let i=0;i<6;i++){const u=tip[0]+(rnd()-.5)*1.65,v=tip[2]+(rnd()-.5)*1.18,low=tip[1]-.45-rnd()*1.5;line([u,tip[1],v],[u+.07,low,v+.11],.024,'#687967');for(let k=0;k<3;k++){const y=low+k*.26;hulls.quad([u+.07,y-.13,v+.11],[u+.13,y+.05,v+.13],[u+.08,y+.18,v+.09],[u+.03,y+.05,v+.08],'#7b8974');}}}
   }willow(-10.2,23.35,3.75);willow(7.76,23.49,4.05);
-  return {boxes,round,facets,glow,roofs:roofs.finish(),prints:prints.finish(),hulls:hulls.finish(),fabric:fabric.finish()};
+  return {boxes,round,facets,glow,roofs:roofs.finish(),prints:prints.finish(),hulls:hulls.finish(),fabric:fabric.finish(),close:makeSonghouseClose(boxes)};
 }

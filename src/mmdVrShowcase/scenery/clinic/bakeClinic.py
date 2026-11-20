@@ -83,7 +83,14 @@ im,d=card('#e4e4d8');txt(d,(26,33),'WELCOME  /  导诊',27,sea,True);txt(d,(26,1
 atlas.save(HERE/'clinic-plates.webp',quality=92,method=6)
 
 # The floor uses the same geometry coordinates as collision and furniture.
-data=json.loads(subprocess.check_output(['node','--input-type=module','-e',"import {WARD,WALLS,FIXTURES,TOILETS,STALL_PANELS} from './clinicLayout.ts';console.log(JSON.stringify({WARD,WALLS,FIXTURES,TOILETS,STALL_PANELS}))"],cwd=HERE))
+data=json.loads(subprocess.check_output(['node','--input-type=module','-e',"""
+import {registerHooks} from 'node:module';
+import {extname} from 'node:path';
+// The app uses bundler resolution; the native Node reader needs an extension.
+registerHooks({resolve(id,context,next){return next(id.startsWith('./')&&!extname(id)?id+'.ts':id,context);}});
+const {WARD,WALLS,FIXTURES,TOILETS,STALL_PANELS}=await import('./clinicLayout.ts');
+console.log(JSON.stringify({WARD,WALLS,FIXTURES,TOILETS,STALL_PANELS}));
+"""],cwd=HERE))
 ward=data['WARD'];res=94; w=round((ward['east']-ward['west'])*res);h=round((ward['south']-ward['north'])*res)
 xx,zz=np.meshgrid(ward['west']+(np.arange(w)+.5)/w*(ward['east']-ward['west']), ward['north']+(np.arange(h)+.5)/h*(ward['south']-ward['north']))
 colors=np.zeros((h,w,3),np.float32);colors[:]=[211,210,192]; hall=(xx>ward['left'])&(xx<ward['right']);wc=(xx<ward['left'])&(zz<ward['wcSouth']);theatre=(xx>ward['right'])&(zz<ward['orSouth']);colors[wc]=[192,201,194];colors[theatre]=[159,192,183];colors[(xx<ward['left'])&(~wc)]=[209,199,186]

@@ -1,5 +1,6 @@
 // Local line icons: file pickers and the XR entry affordance also work offline.
 const paths = {
+  music: 'M9 17V6l11-2v11 M9 9l11-2 M9 17a3 2.5 0 1 1-6 0 3 2.5 0 1 1 6 0 M20 15a3 2.5 0 1 1-6 0 3 2.5 0 1 1 6 0',
   screen:'M3 4.5h18v13H3z M12 17.5V21m-4 0h8', pause:'M8 5h2v14H8z M14 5h2v14h-2z',
   studio: 'M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z M3.5 7.8l8.5 4.3 8.5-4.3 M12 12v8.5 M7.3 5.3l9 4.5',
   folder: 'M3 17.5V6a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v1 M3 17.5l2.5-7h16l-2.3 8a2 2 0 0 1-1.9 1.5H5a2 2 0 0 1-2-2.5z',

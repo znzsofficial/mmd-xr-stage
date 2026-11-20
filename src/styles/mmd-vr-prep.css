@@ -921,6 +921,10 @@
 .stage-library-heading + .stage-section-sub { margin:10px 0 0; font-size:.86rem; line-height:1.55; }
 .stage-select, .stage-drop-actions .stage-btn { min-height:44px; }
 .stage-library-heading svg, .stage-first-room svg { color: var(--studio-green); }
+.stage-music-picker h2 { margin:0; }
+.stage-music-picker .stage-drop-actions { margin-top:.75rem; }
+.stage-music-name, .stage-music-error { margin:.45rem 0 0; font-size:.86rem; color:var(--os-muted); overflow-wrap:anywhere; }
+.stage-music-error { color:var(--os-danger); }
 .stage-config-card { margin-top: 20px; padding-top: 16px; }
 .stage-config-summary { min-height:48px; }
 .stage-config-icon { border:0; background:#e9ede5; }

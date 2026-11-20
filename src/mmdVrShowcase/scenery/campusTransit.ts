@@ -13,7 +13,9 @@ export function canWalkBetweenZones(room:RoomLink['from']){
 }
 export function walkBetweenZones(link:RoomLink){
   if(!canWalkBetweenZones(link.from))return false;
-  useMmdVrStore.getState().setPrefs({scenery:link.to});return true;
+  // The gate already translates the XR origin into destination coordinates.
+  // A fresh entrance pose here would undo that translation on the next frame.
+  useMmdVrStore.getState().setPrefs({scenery:link.to},{preserveViewOnCrossing:true});return true;
 }
 
 /** Start only when approaching the rear door. Same URL/credentials as the

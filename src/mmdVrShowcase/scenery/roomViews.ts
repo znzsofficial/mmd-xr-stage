@@ -3,9 +3,11 @@ import type { SceneryId } from './catalog';
 import { COURT_SHOTS } from './ObservatoryLayout';
 import { CHAPEL_SHOTS } from './ChapelLayout';
 import { CLINIC_SHOTS,CLINIC_VIEW } from './clinic/clinicLayout';
+import {CLINIC_ORIGIN} from './clinic/clinicApproach';
 import {roomLinks,type RoomLink} from './connections';
 import {LIDO_ROUTE_SHOTS} from './LidoLayout';
 import {SCREEN_ENTRY,SHOTS} from './qinhuai/songhouseLayout';
+import {WEDDING_SHOTS,WEDDING_VIEW} from './wedding/weddingLayout';
 
 type Point=readonly [number,number,number];
 type Shot={key:TranslationKey;eye:Point;aim:Point;link?:RoomLink;preloadLawn?:boolean;overview?:boolean};
@@ -18,10 +20,14 @@ export const roomViews:Record<SceneryId,RoomView>={
     {key:'campusHall',eye:[-3.31,1.61,7.31],aim:[-12.5,1.23,7.12],preloadLawn:true}]},
   lawn:{entry:[[.6,1.65,3.7],[0,1,-1.4]],shots:[
     {key:'campusSchool',eye:[-.9,1.62,2.4],aim:[10.8,1.53,-3.6]},
-    {key:'campusArbor',eye:[-.73,1.58,.6],aim:[-4.2,1.40,-6.4]},LIDO_ROUTE_SHOTS.gate]},
+    {key:'campusArbor',eye:[-.73,1.58,.6],aim:[-4.2,1.40,-6.4]},LIDO_ROUTE_SHOTS.gate,
+    {key:'clinicGardenPorch',eye:[CLINIC_ORIGIN.x+4.15,1.6,CLINIC_ORIGIN.z+11.25],aim:[CLINIC_ORIGIN.x,1.35,CLINIC_ORIGIN.z+7.0]}]},
   astralCourt:{entry:[[.85,1.65,4.4],[0,1.47,-1.25]],shots:COURT_SHOTS.map(s=>({...s,overview:s.key==='courtOverview'}))},
   chapel:{entry:[[.25,1.63,4.7],[0,1.68,-3.8]],shots:CHAPEL_SHOTS}, clinic:{entry:CLINIC_VIEW,shots:CLINIC_SHOTS},
-  qinhuai:{entry:SCREEN_ENTRY,shots:SHOTS},
+  qinhuai:{entry:SCREEN_ENTRY,shots:[...SHOTS,
+    {key:'qinLacquer',eye:[3.48,2.05,-5.70],aim:[4.03,1.41,-6.70]},
+    {key:'qinMooring',eye:[4.38,.91,13.03],aim:[3.65,.19,11.99]}]},
+  weddingCourt:{entry:WEDDING_VIEW,shots:WEDDING_SHOTS},
 };
 const tours=new Map<SceneryId,readonly Shot[]>();
 export function tourShots(room:SceneryId):readonly Shot[]{

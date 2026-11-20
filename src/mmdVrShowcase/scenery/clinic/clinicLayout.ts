@@ -1,9 +1,10 @@
 // Metres; the hall runs north (-Z), with a daylit waiting bay to its east.
 // These rectangles feed the walls, furniture builders, floor print and navigation.
+import {APRON, SOUTH_DOOR, approachFootClear, approachSolids, groundVisible} from './clinicApproach';
 type Point3 = [number, number, number];
 export interface ClinicRect { x: number; z: number; w: number; d: number }
 const rect = (x: number, z: number, w: number, d: number): ClinicRect => ({ x, z, w, d });
-export const WARD = { west:-8.6, east:8.6, north:-9, south:4.8, left:-2.16, right:2.16, wcSouth:-3.25, orSouth:-.60, h:3.12, t:.16 };
+export const WARD = { west:-8.6, east:8.6, north:-9, south:SOUTH_DOOR.z, left:-2.16, right:2.16, wcSouth:-3.25, orSouth:-.60, h:3.12, t:.16 };
 export const DOORS = {
   exam: { x:WARD.left, z:.90, width:1.56 },
   wc: { x:WARD.left, z:-6.30, width:1.45 },
@@ -14,7 +15,7 @@ const across = (a:number,b:number,z:number) => rect((a+b)/2,z,b-a,t);
 const along = (x:number,a:number,b:number) => rect(x,(a+b)/2,t,b-a);
 const {exam,wc,or} = DOORS;
 export const WALLS = [
-  across(west,east,north),across(west,east,south),along(west,north,south),along(east,north,south),
+  across(west,east,north),across(west,-SOUTH_DOOR.wallGap/2,south),across(SOUTH_DOOR.wallGap/2,east,south),along(west,north,south),along(east,north,south),
   across(west,left,wcSouth),across(right,east,orSouth),
   along(left,north,wc.z-wc.width/2), along(left,wc.z+wc.width/2,exam.z-exam.width/2),along(left,exam.z+exam.width/2,south),
   along(right,north,or.z-or.width/2),along(right,or.z+or.width/2,orSouth),
@@ -73,7 +74,9 @@ function hits(x:number,z:number,r:ClinicRect,clear:number) {
 const obstacles=[...WALLS.map(r=>({...r,w:r.w+.24,d:r.d+.24})), ...Object.values(FIXTURES), ...STALL_PANELS, ...TOILETS, ...STALL_BINS];
 const cubicles=STALLS.map(({x,z,width})=>rect(x,z,2.14,width));
 function clearAt(x:number,z:number,r:number) {
-  return Number.isFinite(x)&&Number.isFinite(z)&&x>west+r&&x<east-r&&z>north+r&&z<south-r&&!obstacles.some(o=>hits(x,z,o,r));
+  const floor=(x>west+r&&x<east-r&&z>north+r&&z<south-r)||
+    (Math.abs(x)<APRON.w/2-r&&z>=south-r&&z<APRON.z+APRON.d/2-r);
+  return floor&&approachFootClear(x,z,r)&&!obstacles.some(o=>hits(x,z,o,r));
 }
 export function canWalkInClinic(x:number,z:number) { return clearAt(x,z,.22); }
 export function canPlaceInClinic(x:number,z:number) { return clearAt(x,z,.26)&&!cubicles.some(o=>hits(x,z,o,.22)); }
@@ -83,22 +86,13 @@ export function canPlaceInClinic(x:number,z:number) { return clearAt(x,z,.26)&&!
 // aiming at a clear patch of floor through a cubicle door is not.
 type Occluder=ClinicRect&{top:number;bottom:number};
 const tops:Record<keyof typeof FIXTURES,number>={examChair:.83,footControl:.081,ultrasound:1.01,stool:.51,examCabinet:.90,curtain:2.45,consultDesk:.78,deskSeat:.81,nurseLegs:.61,table:.91,anaesthesia:1.03,steelCart:TRAY_TOP,orCabinet:.90,scrub:.94,iv:.12,seatsA:.47,seatsB:.47,seatsC:.47,kiosk:1.46,planter:.46,sinks:1.01,supplyShelf:1.64,disposal:.62};
-const occluders:Occluder[]=[...WALLS.map(r=>({...r,bottom:0,top:WARD.h})),...Object.values(DOORS).map(({x,z,width})=>({...rect(x,z,t,width),bottom:2.25,top:WARD.h})),...STALL_PANELS.map(r=>({...r,bottom:.22,top:2.06})),...TOILETS.map(r=>({...r,bottom:0,top:.46})),...STALL_BINS.map(r=>({...r,bottom:0,top:.52})),...EXHIBITS.map(r=>({...r,bottom:.90})),
+const occluders:Occluder[]=[...approachSolids,...WALLS.map(r=>({...r,bottom:0,top:WARD.h})),...Object.values(DOORS).map(({x,z,width})=>({...rect(x,z,t,width),bottom:2.25,top:WARD.h})),...STALL_PANELS.map(r=>({...r,bottom:.22,top:2.06})),...TOILETS.map(r=>({...r,bottom:0,top:.46})),...STALL_BINS.map(r=>({...r,bottom:0,top:.52})),...EXHIBITS.map(r=>({...r,bottom:.90})),
   {...rect(FIXTURES.deskSeat.x,FIXTURES.deskSeat.z+.04,.38,.29),bottom:.55,top:1.31},
   ...[-1,1].map(k=>({...rect(FIXTURES.deskSeat.x+k*.16,FIXTURES.deskSeat.z+.39,.16,.59),bottom:.735,top:.88})),
   {...rect(FIXTURES.steelCart.x,FIXTURES.steelCart.z-.227,.38,.035),bottom:.84,top:1.09},
   ...(Object.keys(FIXTURES) as (keyof typeof FIXTURES)[]).map(k=>({...FIXTURES[k],bottom:k==='curtain'?.50:0,top:tops[k]}))];
 export function clinicPlacementVisible(from:{x:number;y:number;z:number},x:number,z:number){
-  if(!Number.isFinite(from.x)||!Number.isFinite(from.y)||!Number.isFinite(from.z)||!Number.isFinite(x)||!Number.isFinite(z))return false;
-  const dx=x-from.x,dy=.012-from.y,dz=z-from.z;
-  return !occluders.some(r=>{
-    let lo=0,hi=1;
-    function slab(p:number,d:number,min:number,max:number){
-      if(Math.abs(d)<1e-8)return p>=min&&p<=max;
-      const a=(min-p)/d,b=(max-p)/d;lo=Math.max(lo,Math.min(a,b));hi=Math.min(hi,Math.max(a,b));return lo<=hi;
-    }
-    return slab(from.x,dx,r.x-r.w/2,r.x+r.w/2)&&slab(from.z,dz,r.z-r.d/2,r.z+r.d/2)&&slab(from.y,dy,r.bottom,r.top);
-  });
+  return groundVisible(from,x,z,occluders);
 }
 
 // Sweep short steps and slide on one axis when blocked. A missed input frame

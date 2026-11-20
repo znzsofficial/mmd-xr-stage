@@ -5,6 +5,7 @@ import {noPick} from '../sceneryPaint';
 import {useBakedSurface} from '../useBakedSurface';
 import {makeSonghouse} from './songhouseGeometry';
 import silkUrl from './songhouse-silk.webp';
+import closeUrl from './songhouse-close.webp';
 
 const tileCourses:MeshStandardMaterial['onBeforeCompile']=shader=>{
   shader.vertexShader='varying vec2 tileUv;\n'+shader.vertexShader.replace('#include <uv_vertex>','#include <uv_vertex>\n tileUv=uv;');
@@ -53,8 +54,8 @@ function River(){return <mesh name="qinhuai:water" position={[0,-.535,4]} rotati
     #include <colorspace_fragment>
     }`}/></mesh>;}
 export function Songhouse({shadows}:{shadows:boolean}){
-  const p=useMemo(makeSonghouse,[]),map=useBakedSurface(silkUrl);
-  useEffect(()=>()=>{for(const g of [p.roofs,p.fabric,p.prints,p.hulls])g.dispose();},[p]);
+  const p=useMemo(makeSonghouse,[]),map=useBakedSurface(silkUrl),close=useBakedSurface(closeUrl);
+  useEffect(()=>()=>{for(const g of [p.roofs,p.fabric,p.prints,p.hulls,p.close])g.dispose();},[p]);
   return <group name="qinhuai:songhouse" pointerEvents="none">
     <Batch name="qinhuai:joinery" parts={p.boxes} shade={joinery}/><Batch name="qinhuai:columns" parts={p.round} round casts={shadows}/>
     <mesh name="qinhuai:curtains" geometry={p.fabric} raycast={noPick}><meshStandardMaterial side={DoubleSide} vertexColors roughness={.89}/></mesh><Batch name="qinhuai:tea-and-finials" parts={p.facets} foliage/>
@@ -62,6 +63,7 @@ export function Songhouse({shadows}:{shadows:boolean}){
     <mesh name="qinhuai:tile-roofs" geometry={p.roofs} raycast={noPick}><meshStandardMaterial side={DoubleSide} vertexColors roughness={.84} onBeforeCompile={tileCourses}/></mesh>
     <mesh name="qinhuai:painted-boat" geometry={p.hulls} raycast={noPick}><meshStandardMaterial side={DoubleSide} vertexColors roughness={.79}/></mesh>
     {map&&<mesh name="qinhuai:folding-screen-and-signs" geometry={p.prints} raycast={noPick}><meshStandardMaterial key={map.uuid} map={map} roughness={.89}/></mesh>}
+    <mesh name="qinhuai:lacquer-rope-and-stone" geometry={p.close} raycast={noPick}><meshStandardMaterial key={close?.uuid??'unpainted'} map={close} color={close?'#ffffff':'#927961'} side={DoubleSide} roughness={.73}/></mesh>
     <River/>
   </group>;
 }

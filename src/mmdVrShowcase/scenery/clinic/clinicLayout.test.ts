@@ -21,7 +21,7 @@ it('slides along the divider but cannot jump the divider, outside wall or table 
   expect(moveInClinic(0,-1,-6,0).x).toBeGreaterThan(-2);
   const slide=moveInClinic(-1.6,-.85,-1,-.9);expect(slide.x).toBeGreaterThan(-2);expect(slide.z).toBeCloseTo(-1.75,4);
   expect(moveInClinic(5.83,-2.10,0,-5).z).toBeGreaterThan(-3.7);
-  expect(moveInClinic(0,2.7,0,12).z).toBeLessThan(4.8);
+  expect(moveInClinic(5.8,2.7,0,12).z).toBeLessThan(4.8);
   for(const f of Object.values(FIXTURES))expect(place(f.x,f.z)).toBe(false);
   for(const p of [[Infinity,0],[0,NaN],[8.65,0],[-3,-9]])expect(place(p[0],p[1])).toBe(false);
 });

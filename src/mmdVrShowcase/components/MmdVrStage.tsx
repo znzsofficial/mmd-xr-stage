@@ -18,7 +18,8 @@ import {
   setMmdVrClockTime,
 } from "../mmdVrClock";
 import { getMmdVrRenderProfile } from "../mmdVrQuality";
-import { PLACE_HALF_WIDTH, useMmdVrStore, type MmdVrLightPreset, type MmdVrMaterialState } from "../mmdVrStore";
+import { useMmdVrStore, type MmdVrLightPreset, type MmdVrMaterialState } from "../mmdVrStore";
+import { movePlaneHalfWidth } from '../scenery/catalog';
 import { objectHeadingDegrees, setObjectHeadingDegrees } from "../objectHeading";
 import { RoomSet,roomSets } from '../scenery/roomSets';
 import { StudioPlinth } from '../scenery/StudioPlinth';
@@ -239,7 +240,7 @@ function StageFloor({
   return (
     <group>
       {!deck && <StudioPlinth segments={segments} shadows={shadows} color={floorColor} />}
-      {placeMode && [{x:0,y:0,z:0,w:scenery==='qinhuai'?32:2*PLACE_HALF_WIDTH,d:scenery==='qinhuai'?32:2*PLACE_HALF_WIDTH},...elevatedPickDecks(scenery)].map(r=>(
+      {placeMode && [{x:0,y:0,z:0,w:2*movePlaneHalfWidth(scenery),d:2*movePlaneHalfWidth(scenery)},...elevatedPickDecks(scenery)].map(r=>(
         <mesh key={r.y} name="placement-surface" rotation={[-Math.PI / 2, 0, 0]} position={[r.x,r.y+.021,r.z]}
           onPointerDown={e => { e.stopPropagation(); if(visiblePick(scenery,e.ray.origin,e.point.x,r.y,e.point.z))useMmdVrStore.getState().requestGroundPlace(e.point.x, e.point.z); }}>
           <planeGeometry args={[r.w,r.d]} />
