@@ -4,6 +4,7 @@
 
 | 功能提交 | 已发布内容与验证范围 |
 |---|---|
+| `34beed9` | [屏幕键盘机位](./gameplay/screen-viewing.md)：WASD 平移，Q/E 原地转头，F/C 升降，R 重置。350 项测试通过；线上浏览器验证键盘操作后仍可滚轮拉近、拉远和鼠标拖动环绕。[固定版](https://fcf6a56a.mmd-xr-stage.pages.dev) |
 | `bb56fe1` | [普通行走与自由飞行](./gameplay/player-movement.md)，地面、重力、A 跳跃与顶板碰撞；四档 1.2–8 m/s。修复测试加载 XR 依赖 CJS 入口引起的 Three.js 弃用告警。347 项通过。[固定版](https://d919f2a9.mmd-xr-stage.pages.dev) |
 | `75ebdfb` | 拆分[观看会话、房间运行时、公共画面与偏好](./architecture.md)。340 项测试；六套灯光逐字段核对，五景固定机位前后像素一致，模拟 XR 放置与切景回访通过。[固定版](https://c602451e.mmd-xr-stage.pages.dev) |
 | `b492753` | 重做原有护士的侧脸、束发、制服、手指和坐姿，增加「工作台侧面」机位，整理人物几何、图集和显隐代码。339 项测试、模拟 XR 扳机与分景恢复通过。[同机位前后](./screenshots/clinic-nurse-before-after.webp) |
