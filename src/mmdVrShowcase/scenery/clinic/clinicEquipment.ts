@@ -83,6 +83,13 @@ export function examRoom(p:ClinicParts){
   p.box(desk.x-.78,.375,desk.z,.57,.706,.62,C.milk);p.box(desk.x+.96,.382,desk.z,.062,.703,.64,C.chrome);
   p.box(desk.x+.014,.894,desk.z+.074,.11,.235,.10,C.iron);monitor(p,desk.x+.015,1.175,desk.z+.081,.612,.367,13,pi);
   p.pad(desk.x+.02,.81,desk.z-.17,.41,.022,.13,C.graphite);
+  // The desk is seen from close by now. Put the keycaps at fingertip height,
+  // in the existing dark hardware batch rather than one mesh per key.
+  for(let row=0;row<4;row++)for(let key=0;key<15;key++){
+    if(row===0&&key>=4&&key<=10)continue;
+    p.box(desk.x+.02+(key-7)*.024, .822,desk.z-.211+row*.026,.020,.004,.021,'#56625f');
+  }
+  p.box(desk.x+.02,.822,desk.z-.211,.158,.004,.021,'#53615e');
   ({x,z}=F.deskSeat);p.pad(x,.465,z,.46,.076,.427,C.teal);p.pad(x,.708,z-.18,.428,.332,.071,C.green);p.cylinder(x,.25,z,.064,.348,.064,C.chrome);p.cylinder(x,.07,z,.41,.063,.41,C.iron);
   p.frame(-7.99,1.79,4.69,.80,.80,pi,5,C.oak);
 }

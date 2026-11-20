@@ -30,6 +30,7 @@ export const en: Record<keyof ZhMessages, string> = {
   weddingGateFinish:'Lacquer and roof tiles',classWindowDesk:'Window-side desk',
   sceneryPeople:'Scene people',sceneryPeopleOn:'Scene people: on',sceneryPeopleOff:'Scene people: off',
   clinicDesk:'Consultation desk',
+  clinicDeskSide:'Beside the consultation desk',
   classWindowPortrait:'Window-light portrait',
   qinLacquer:'Strings and lacquer',qinMooring:'At the mooring post',
   clinicModels:'Anatomy models',clinicInstruments:'Instrument tray',clinicSupplies:'Hygiene supplies',

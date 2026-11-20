@@ -6,6 +6,8 @@
 
 **原有护士的显隐。** 屏幕选「游览机位 → 诊室工作台」，在「背包 → 环境」切换「场景人物」；VR 在「B → 更多 → 环境」。[同机位开关对照](../screenshots/clinic-people-toggle.webp)。默认显示；隐藏后座椅、显示器和三类教具不动，护士专属的占地与射线遮挡随之移除。模拟 XR 扳机与屏幕勾选均验证了离区回访、刷新记忆和已放置 PMX／GLB 的位置与朝向。其余九景没有内置人物，不显示这个开关。
 
+**近看工作台。** 选「工作台侧面」，能看到护士侧脸、低发髻、制服领口和停在键盘上的手指。她仍是静态布景人物，没有打字动画。[同机位建模前后，左旧右新](../screenshots/clinic-nurse-before-after.webp) · [侧面实景](../screenshots/clinic-nurse.webp)。脸、头发、织物与胸牌共用一张原创 1024 × 512 图集（11,974 字节），粗糙度由顶点区分。新版人物为一个网格，9,692 个顶点、17,232 个三角形；不占角色名额，也不创建 Bullet 世界。桌面 WebGL 着色程序链接通过，真机帧率待验。
+
 - **解剖教具台（妇科诊室）**：从左至右是盆腔正中矢状剖面、子宫与附件正面剖面、胎儿与胎盘模型。左侧模型的前方在观察者左手边：蓝色膀胱在前，阴道上接宫颈，棕色直肠在后。中央可见宫腔、两侧输卵管及游离的伞端，第三件模型用脐带连接胎儿腹部和宫壁上的胎盘。每件对应一张墙图。护士坐在既有工作台前，不占背包角色名额。
 - **妇产科器械盘（手术室）**：在推车近看四件静态器械：带窗叶片的产钳、双叶窥器、环形钳头的卵圆钳、带指环的手术剪。器械牌只列名称与英文对照。
 - **卫生用品架（女卫生间）**：在有中文包装和图标的三格货架区分验孕试纸、卫生巾与一次性内裤。置物架旁和两个隔间内各有带盖脚踏桶。产后照护图贴在架旁，也挂在候诊宣教墙，区分可在随访时讨论的问题与需要立即就医的症状。
@@ -21,7 +23,7 @@
 
 ## 维护与核对
 
-- [模型与器械几何](../../src/mmdVrShowcase/scenery/clinic/teachingSolids.ts)在进场时生成，各合并为一个静态顶点色网格。货架、包装、底座和护士复用房间已有实例批次。新增绘制共三批：模型、器械、印刷面；退出后释放几何和图集，不创建额外灯光、骨骼或物理世界。
+- [模型与器械几何](../../src/mmdVrShowcase/scenery/clinic/teachingSolids.ts)在进场时生成，各合并为一个静态顶点色网格。包装、底座和键帽复用房间实例批次。护士由独立的 [ClinicNurse.tsx](../../src/mmdVrShowcase/scenery/clinic/ClinicNurse.tsx) 管理显隐、材质与释放；[坐姿模型](../../src/mmdVrShowcase/scenery/clinic/nurseFigure.ts)、[曲面建网](../../src/mmdVrShowcase/scenery/clinic/nurseSurface.ts)和[离线图集绘制](../../src/mmdVrShowcase/scenery/clinic/bakeNurse.py)分别维护。改人物不需要修改医院教学陈列。
 - [烘焙脚本](../../scripts/bake-clinic-teaching.py)与渲染器共用 `teachingPrints.json` 的像素区域。运行 `python scripts/bake-clinic-teaching.py` 生成 1536 × 1024 的 `clinic-teaching.webp`（约 163 KiB）；需要 Pillow 和中文字体，`CLINIC_FONT`、`CLINIC_FONT_BOLD` 可指定字体文件。改变地面设备位置后，运行 `python src/mmdVrShowcase/scenery/clinic/bakeClinic.py` 刷新地面的接触阴影。
 - `pnpm exec vitest run src/mmdVrShowcase/scenery/clinic` 检查房间连通、隔间边界、实际模型顶点是否落在声明的遮挡范围内，以及教具之间可穿过、实体背后不可穿过的放置线段。
 - 桌面 WebGL 已从实际屏幕控件打开三个新机位，核对中文海报、包装与器械形状。使用真实鼠标按下／抬起瞄准货架占地和护士背后的空地，均没有确认放置；改向工作台旁无阻挡地面，同一件测试物品成功放置。未作 Quest 帧率和头显可读性测量。

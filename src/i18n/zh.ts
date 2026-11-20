@@ -28,6 +28,7 @@ export const zh = {
   weddingGateFinish:'门楼漆木与灰瓦',classWindowDesk:'窗边课桌',
   sceneryPeople:'场景人物',sceneryPeopleOn:'场景人物：开',sceneryPeopleOff:'场景人物：关',
   clinicDesk:'诊室工作台',
+  clinicDeskSide:'工作台侧面',
   classWindowPortrait:'窗边人像',
   qinLacquer:'近看琴弦与漆面',qinMooring:'埠头系舟处',
   clinicModels:'解剖教具台',clinicInstruments:'妇产科器械盘',clinicSupplies:'卫生用品架',
