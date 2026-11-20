@@ -97,11 +97,11 @@ export function StageEnvironment({scenery, lighting, prefs, profile, sunRef, pla
       shadow-camera-top={extent} shadow-camera-bottom={-extent}/>
     <hemisphereLight args={[lighting.hemiSky, lighting.hemiGround, lighting.hemi]}/>
     {lamps && prefs.stageRimLightEnabled && <pointLight color={lighting.rimColor} intensity={rim} distance={8} decay={2} position={lighting.rimPosition}/>}
-    <group>
+    <group name="player:room-solids">
       {scenery==='floor' && <StudioPlinth segments={profile.floorSegments} shadows={profile.shadows} color={lighting.floorColor}/>}
-      {placing && <MoveSurfaces scenery={scenery} onPlace={onPlace}/>}
+      <RoomSet id={scenery} shadows={profile.shadows} concert={lightPreset==='contrast'}/>
     </group>
-    <RoomSet id={scenery} shadows={profile.shadows} concert={lightPreset==='contrast'}/>
+    {placing && <MoveSurfaces scenery={scenery} onPlace={onPlace}/>}
     {lamps && prefs.stageLightPoolEnabled && <LightPool color={lighting.poolColor} opacity={Math.min(.14, rim*.08)}/>}
     {showSceneryGrid(scenery, profile.showGrid, prefs.gridPref==='on', placing) && <gridHelper args={[12,12,'#d8dce0','#a5aaae']} position={[0,.01,0]}/>}
   </>;

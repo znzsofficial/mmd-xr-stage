@@ -33,8 +33,9 @@ it("opens on personal adjustments, keeps physics details contextual, and retains
     await act(async()=>harness.buttonEvent?.('pressed'));await click(t('settingsMmdVrPlay'));expect(state.setPlaying).toBeDefined();expect(buttons(t('hudMore'))).toHaveLength(0);
     await act(async()=>harness.buttonEvent?.('pressed'));await click(t("hudMore"));
     expect(buttons("Hide asset")).toHaveLength(0);
-    const startHeight=useMmdVrStore.getState().prefs.heightOffset;
-    await click('+');expect(useMmdVrStore.getState().prefs.heightOffset).toBeGreaterThan(startHeight);
+    expect(buttons('+')).toHaveLength(0); // no vertical override in walking mode
+    await click(t('moveFree'));expect(useMmdVrStore.getState().prefs.movementMode).toBe('free');
+    await click(t('moveNormal'));expect(useMmdVrStore.getState().prefs.movementMode).toBe('normal');
     expect(buttons(t('hudDiagnostics'))).toHaveLength(0);
     await click(t('settingsEnvironment'));expect(buttons('+')).toHaveLength(0);expect(buttons(t('hudDiagnostics'))).toHaveLength(1);
     expect(buttons(t('hudSimpleStage'))).toHaveLength(0);
@@ -47,7 +48,7 @@ it("opens on personal adjustments, keeps physics details contextual, and retains
     expect(useMmdVrStore.getState().prefs.softHighlights).toBe(true);
     await click(t('settingsCharacter'));expect(buttons(t('hudSolverDetails'))).toHaveLength(0);
     expect(buttons(t('settingsMmdVrPhysicsOff'))).toHaveLength(1);
-    await click(t('settingsPlayer'));expect(buttons('+')).toHaveLength(1);
+    await click(t('settingsPlayer'));expect(buttons(t('moveNormal'))).toHaveLength(1);
     expect(buttons(t('settingsMmdVrPhysicsOff'))).toHaveLength(0);
     await click(t("hudBack"));
     expect(buttons(t("hudModels"))).toHaveLength(0);

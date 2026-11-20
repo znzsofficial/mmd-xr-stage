@@ -4,8 +4,8 @@ import { HudButton, HudLine } from '../components/PorcelainControls';
 import { HudSlider, ValueLabel } from '../components/HudValues';
 import { useMmdVrStore } from '../mmdVrStore';
 import { normalizeMmdVrExposure } from './preferences';
-import { getMmdVrRenderProfile } from '../mmdVrQuality';
-import { mmdVrViewDistanceToSlider, mmdVrSliderToViewDistance, mmdVrHeightOffsetToSlider, mmdVrSliderToHeightOffset } from '../mmdVrAdjustments';
+import { getMmdVrRenderProfile, WALK_SPEED } from '../mmdVrQuality';
+import { mmdVrViewDistanceToSlider, mmdVrSliderToViewDistance } from '../mmdVrAdjustments';
 import { hasSceneryPeople, showSceneryGrid } from '../scenery/catalog';
 import {hasStageLamps} from './stageLamps';
 
@@ -13,20 +13,17 @@ export const settingsSections = [['player','settingsPlayer'],['character','setti
 export type SettingsSection = typeof settingsSections[number][0];
 type Drag = { onDrag: (active:boolean)=>void };
 
-export function PlayerSettings({onDrag}:Drag) {
+export function PlayerSettings() {
   const t=useLanguageStore(s=>s.t), p=useMmdVrStore(s=>s.prefs), set=useMmdVrStore(s=>s.setPrefs);
-  const [wide,setWide]=useState(Math.abs(p.heightOffset)>1);
-  const [centre,setCentre]=useState(0);
-  const speed=getMmdVrRenderProfile(p).walkSpeed;
+  const free=p.movementMode==='free',tier=p.walkSpeedPref==='auto'?'normal':p.walkSpeedPref;
+  const next={slow:'normal',normal:'fast',fast:'sprint',sprint:'slow'} as const;
+  const labels={slow:'moveSlow',normal:'moveCruise',fast:'moveFast',sprint:'moveSprint'} as const;
   return <group name="settings:player">
     <HudLine position={[0,.48,0]} width={1.85} role="title" text={t('hudSelfTitle')}/>
-    <ValueLabel position={[-.61,.22,0]} size={[.66,.14]} label={t('settingsEyeOffset')} value={`${p.heightOffset.toFixed(2)} m`}/>
-    <HudSlider position={[.03,.22,0]} width={.55} value={wide?mmdVrHeightOffsetToSlider(p.heightOffset):(p.heightOffset-centre+1)/2} onInteractionChange={onDrag} onChange={v=>set({heightOffset:wide?mmdVrSliderToHeightOffset(v):centre+2*v-1})}/>
-    <HudButton position={[.56,.22,0]} label="−" size={[.22,.15]} onPress={()=>set({heightOffset:p.heightOffset-.01})}/>
-    <HudButton position={[.84,.22,0]} label="+" size={[.22,.15]} onPress={()=>set({heightOffset:p.heightOffset+.01})}/>
-    <HudButton position={[-.49,-.01,0]} size={[.88,.15]} variant="quiet" active={wide} label={t(wide?'settingsFineHeight':'settingsWideHeight')} onPress={()=>{if(wide)setCentre(p.heightOffset);setWide(!wide);}}/>
-    <HudButton position={[.49,-.01,0]} size={[.88,.15]} variant="quiet" label={t('settingsResetHeight')} onPress={()=>{setCentre(0);set({heightOffset:0});}}/>
-    <HudButton position={[-.49,-.28,0]} size={[.88,.16]} label={`${t('settingsMmdVrWalkSpeed')}: ${speed.toFixed(2)} m/s`} onPress={()=>set({walkSpeedPref:p.walkSpeedPref==='slow'?'normal':p.walkSpeedPref==='fast'?'slow':'fast'})}/>
+    <HudButton position={[-.49,.23,0]} size={[.88,.17]} active={!free} label={t('moveNormal')} onPress={()=>set({movementMode:'normal'})}/>
+    <HudButton position={[.49,.23,0]} size={[.88,.17]} active={free} label={t('moveFree')} onPress={()=>set({movementMode:'free'})}/>
+    <HudLine position={[0,-.01,0]} width={1.85} role="muted" text={t(free?'moveFlyHint':'moveJumpHint')}/>
+    <HudButton position={[-.49,-.28,0]} size={[.88,.16]} label={`${t(labels[tier])} · ${WALK_SPEED[tier]} m/s`} onPress={()=>set({walkSpeedPref:next[tier]})}/>
     <HudButton position={[.49,-.28,0]} size={[.88,.16]} label={`${t('settingsMmdVrSnapTurn')}: ${p.snapTurnDegrees}°`} onPress={()=>set({snapTurnDegrees:p.snapTurnDegrees===15?30:p.snapTurnDegrees===30?45:15})}/>
     <HudButton position={[-.49,-.50,0]} size={[.88,.15]} active={p.handTracking} label={t(p.handTracking?'settingsHandModelOn':'settingsHandModelOff')} onPress={()=>set({handTracking:!p.handTracking})}/>
     <HudButton position={[.49,-.50,0]} size={[.88,.15]} active={p.panelFollowUser} label={t(p.panelFollowUser?'settingsFaceMeOn':'settingsFaceMeOff')} onPress={()=>set({panelFollowUser:!p.panelFollowUser})}/>

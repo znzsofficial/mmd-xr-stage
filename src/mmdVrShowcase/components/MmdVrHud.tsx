@@ -990,7 +990,7 @@ export function MmdVrControlBar({onExit,busy,onDragChange:reportInteraction}:{on
       </group>}
       <group position-x={tab==='models'?0:.30}>
       {status && !physicsError && tab==='models' ? <group position={[0,.60,0]}><StatusPlane text={status} /></group> : null}
-      {tab==='player'&&<PlayerSettings onDrag={onDragChange}/>}
+      {tab==='player'&&<PlayerSettings/>}
       {tab==='music'&&<MusicSettings onDrag={onDragChange}/>}
       {tab==='character'&&<CharacterSettings locked={editsLocked}/>}
       {tab==='environment'&&<EnvironmentSettings onDrag={onDragChange} diagnostics={()=>setDiagnosticsOpen(true)}/>}

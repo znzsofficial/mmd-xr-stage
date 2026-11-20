@@ -66,6 +66,7 @@ Fly the kite from a character's wrist, send the ferry across the pool, or change
 
 - **On screen:** drag to orbit, use the wheel or pinch to zoom, and select **Tour viewpoints** to visit a spot in the set.
 - **In VR:** press **B** on the right controller to recall the viewing menu. With hand tracking, raise your left wrist and point at **Menu** with the other hand. Playback, the backpack and scenery selection are available inside the stage.
+- **Movement:** under **B → More → Player**, normal mode walks on solid floors and jumps with **A**. Free mode passes through scenery; push the right stick forward to rise or back to descend. Both modes offer 1.2, 2.4, 4.8 and 8 m/s travel.
 - **Local music:** optionally choose one audio file on the prep page. Play, pause and adjust its volume from the screen controls or the VR menu. Music continues across sets and stops when you exit; it has its own clock, independent of character motions.
 - **Scene people:** where a set has built-in people, toggle them in **Backpack → Environment** on screen or **B → More → Environment** in VR. Your imported characters stay on stage.
 - **Physics:** controller and tracked-hand colliders interact with cloth during playback and while paused. Controller contact can trigger haptics. Hiding the hand models leaves the menu rays available.

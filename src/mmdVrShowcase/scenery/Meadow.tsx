@@ -163,5 +163,5 @@ export function Meadow({shadows}:{shadows:boolean}) {
     <SouthEntrance lawn shadows={shadows}/>
     <Batch name="meadow-seat-and-split-rail" parts={p.wood} casts={shadows} /><Batch name="oak-and-birch-branches" parts={p.branches} round casts={shadows} />
     {botanicals&&<mesh name="grove-canopies" geometry={foliage} raycast={noPick}><meshBasicMaterial map={botanicals} alphaTest={.36} vertexColors side={DoubleSide}/></mesh>}<Batch name="distant-ridges" parts={p.hills} foliage />
-    <mesh geometry={grass} raycast={noPick}><meshStandardMaterial vertexColors roughness={1} side={DoubleSide} /></mesh></group>;
+    <mesh geometry={grass} raycast={noPick} userData={{playerCollision:false}}><meshStandardMaterial vertexColors roughness={1} side={DoubleSide} /></mesh></group>;
 }

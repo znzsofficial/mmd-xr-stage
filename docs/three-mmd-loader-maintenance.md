@@ -24,6 +24,7 @@
 - Bullet 运行资产：`public/mmd/0.8.6/mmd_bullet.js`、`public/mmd/0.8.6/mmd_bullet.wasm`；版本化目录保证 ABI 配套的 JS/WASM 同步更新
 - pnpm patch：`patches/@yohawing__three-mmd-loader@0.8.6.patch`（rigid-body range contact 查询 + three r186/r187 TSL self-shadow 兼容降级，见下文）
 - `pnpm-workspace.yaml` 中的 `patchedDependencies` 负责应用补丁
+- **测试中出现 `THREE_CJS_DEPRECATED` 时先看调用栈**：r187 的 `three.cjs` 会对 `require('three')` 告警。本项目实测调用方为 `meshline@3.3.1/dist/index.cjs` 与 `@react-three/fiber@9.8.2` 的 CJS 构建，来源是 Vitest 在 Node／jsdom 中解析 XR 依赖链。`vite.config.ts` 在测试模式让这条链使用包自带的 `module` 入口；不用改业务代码的 ESM 导入，也不要屏蔽 Node 的警告。生产构建另用 `singleThreeRuntime` 检查只有一份 Three.js。Node 关于 `localStorage` 的实验性提示是另一回事。
 - 还包含重获追踪刚体中心查询与 CCD IK 活跃节点矩阵优化。升级后执行 `ccdSolverParity.test.ts` 并与原求解器对照；补丁 hash 以 `pnpm-lock.yaml` 为准。
 - `performance.js` 为 `enabled:false` 配合 `onMeasure` 提供仅回调的阶段计时，不把私有文件名写入全局 Performance Timeline。背包新建角色时将七个不重叠的阶段加入匿名报告；升级后用一次 XR 放置及导出验证字段和隐私边界。
 - `DefaultMmdRuntime` 的 `captureStageSnapshots:false` 仅关闭调试数组复制，保留各阶段的世界矩阵更新；库默认行为不变。`onPhysicsPoseWork` 提供一次 external physics 求值的四个非重叠片段。升级时复核 `physicsSnapshotParity.test.ts`、`scripts/physics-playback-probe.html`、真实 Bullet 回归和导出字段，见[桌面对照](./performance/xr-runtime-performance.md)。

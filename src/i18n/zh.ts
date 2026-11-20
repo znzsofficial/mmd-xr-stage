@@ -28,6 +28,8 @@ export const zh = {
   weddingGateFinish:'门楼漆木与灰瓦',classWindowDesk:'窗边课桌',
   sceneryPeople:'场景人物',sceneryPeopleOn:'场景人物：开',sceneryPeopleOff:'场景人物：关',
   clinicDesk:'诊室工作台',
+  moveNormal:'普通模式',moveFree:'自由模式',moveJumpHint:'左摇杆行走 · 右手 A 跳跃',moveFlyHint:'右摇杆升降 · 可穿过布景',
+  moveSlow:'慢走',moveCruise:'常速',moveFast:'快跑',moveSprint:'疾行',
   clinicDeskSide:'工作台侧面',
   classWindowPortrait:'窗边人像',
   qinLacquer:'近看琴弦与漆面',qinMooring:'埠头系舟处',

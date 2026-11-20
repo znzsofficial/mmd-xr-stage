@@ -89,6 +89,7 @@ export function createStageActors(scene: THREE.Scene, runtime: MmdRuntimeHandle,
       group = (await loader.loadAsync(url)).scene;
       if (stale()) throw abort();
       prepareStageObject(group);
+      group.userData.stagePropSolid = true;
       const defaultPosition: [number, number, number] = [x, y, place?.z ?? -2.2];
       group.position.set(...defaultPosition);
       if (saved) applySavedObject(group, saved);

@@ -34,10 +34,14 @@ function sceneReadyWithPrep(): Plugin {
   };
 }
 
-export default defineConfig({
+export default defineConfig(({mode}) => ({
   plugins: [react(), singleThreeRuntime(), sceneReadyWithPrep()],
-  resolve: { dedupe: ["three"] },
+  resolve: { dedupe: ["three"], ...(mode === 'test' && {mainFields:['module','main']}) },
+  ...(mode === 'test' && {ssr: {resolve: {mainFields:['module','main']}}}),
   test: {
+    // Use these packages' published ESM entries in Node/jsdom too. Native
+    // external resolution selects meshline/fiber's CJS main and a second Three.
+    server: {deps:{inline:['@react-three/xr','@pmndrs/xr','@react-three/fiber','meshline']}},
     environment: "node",
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
   },
@@ -55,4 +59,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));

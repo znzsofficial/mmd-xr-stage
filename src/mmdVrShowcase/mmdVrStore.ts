@@ -6,7 +6,7 @@ import { endMmdVrAssetSession } from "./mmdVrAssets";
 import { invalidateBackpackCommands, useBackpack } from "./backpack";
 import { resetMmdVrClock } from "./mmdVrClock";
 import { movePlaneHalfWidth, resetViewOnMenuSwitch } from "./scenery/catalog";
-import { normalizeMmdVrHeightOffset, normalizeMmdVrModelScale } from "./mmdVrAdjustments";
+import { normalizeMmdVrModelScale } from "./mmdVrAdjustments";
 
 export { normalizeMmdVrHeightOffset, normalizeMmdVrModelScale } from "./mmdVrAdjustments";
 
@@ -66,7 +66,6 @@ type MmdVrStore = {
   retryFailedAssets: () => void;
   prefs: MmdVrPrefs;
   setPrefs: (patch: Partial<MmdVrPrefs>, options?: { preserveViewOnCrossing: true }) => void;
-  setHeightOffsetTransient: (heightOffset: number) => void;
   phase: MmdVrSessionPhase;
   errorMessage: string | null;
   lastError: string | null;
@@ -229,10 +228,6 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
     const cur = get().prefs.physicsColliderRestitution;
     get().setPrefs({ physicsColliderRestitution: cur === "none" ? "low" : cur === "low" ? "high" : "none" });
   },
-  setHeightOffsetTransient: (heightOffset) =>
-    set((state) => ({
-      prefs: { ...state.prefs, heightOffset: normalizeMmdVrHeightOffset(heightOffset) },
-    })),
   entryEpoch: 0,
   entryStartedAt: null,
   phase: "idle",

@@ -8,7 +8,7 @@ import {
   type ImmersiveFramebufferScalePref,
   type ImmersiveFoveationPref,
   type ImmersiveFrameRate,
-} from "../xr";
+} from "../xr/qualityAxes";
 import type { MmdVrFrameRatePref, MmdVrPrefs, MmdVrRenderQuality } from './settings/preferences';
 
 export type { MmdVrRenderQuality };
@@ -44,6 +44,7 @@ export function resolveMmdVrFrameRate(pref: MmdVrFrameRatePref, fallback: MmdVrR
   };
 }
 
+export const WALK_SPEED = { slow: 1.2, normal: 2.4, fast: 4.8, sprint: 8 } as const;
 const PROFILES: Record<MmdVrRenderQuality, MmdVrRenderProfile> = {
   high: {
     quality: "high",
@@ -53,7 +54,7 @@ const PROFILES: Record<MmdVrRenderQuality, MmdVrRenderProfile> = {
     frameRate: "high",
     shadows: true,
     showGrid: true,
-    walkSpeed: 1.15,
+    walkSpeed: WALK_SPEED.normal,
     framebufferScale: 1,
     foveation: 0.25,
     shadowMapSize: 2048,
@@ -67,7 +68,7 @@ const PROFILES: Record<MmdVrRenderQuality, MmdVrRenderProfile> = {
     frameRate: "mid",
     shadows: false,
     showGrid: true,
-    walkSpeed: 1.15,
+    walkSpeed: WALK_SPEED.normal,
     framebufferScale: 0.85,
     foveation: 0.5,
     shadowMapSize: 1024,
@@ -81,19 +82,13 @@ const PROFILES: Record<MmdVrRenderQuality, MmdVrRenderProfile> = {
     frameRate: "low",
     shadows: false,
     showGrid: false,
-    walkSpeed: 1.15,
+    walkSpeed: WALK_SPEED.normal,
     framebufferScale: 0.7,
     foveation: 1,
     shadowMapSize: 512,
     targetFrameRateHz: null,
   },
 };
-
-const WALK_MAP = {
-  slow: 0.85,
-  normal: 1.15,
-  fast: 1.55,
-} as const;
 
 const SHADOW_MAP_SIZE = { low: 512, medium: 1024, high: 2048 } as const;
 
@@ -142,7 +137,7 @@ export function getMmdVrRenderProfile(
   if (gridPref === "on") base.showGrid = true;
   if (gridPref === "off") base.showGrid = false;
   if (walkSpeedPref && walkSpeedPref !== "auto") {
-    base.walkSpeed = WALK_MAP[walkSpeedPref] ?? base.walkSpeed;
+    base.walkSpeed = WALK_SPEED[walkSpeedPref] ?? base.walkSpeed;
   }
   if (shadowResolutionPref && shadowResolutionPref !== "auto") {
     base.shadowMapSize = SHADOW_MAP_SIZE[shadowResolutionPref] ?? base.shadowMapSize;

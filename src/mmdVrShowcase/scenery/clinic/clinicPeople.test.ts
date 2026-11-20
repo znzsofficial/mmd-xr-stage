@@ -2,7 +2,7 @@ import {expect,it} from 'vitest';
 import {useMmdVrStore} from '../../mmdVrStore';
 import {visiblePick} from '../pickDecks';
 import {canPlaceInScenery} from '../placementAreas';
-import {walkSurfaces} from '../walkSurfaces';
+import {roomGround} from '../../movement/roomGround';
 import {FIXTURES} from './clinicLayout';
 
 it('opens only the nurse sight lines and leaves the consultation furniture occupied',()=>{
@@ -20,9 +20,8 @@ it('opens only the nurse sight lines and leaves the consultation furniture occup
       expect(through(.57,3.41)).toBe(false); // chair still occludes the low ray
       for(const f of [FIXTURES.consultDesk,FIXTURES.deskSeat,FIXTURES.examCabinet]){
         expect(canPlaceInScenery('clinic',f.x,f.z)).toBe(false);
-        expect(walkSurfaces.clinic!.clear(f.x,f.z)).toBe(false);
+        expect(roomGround('clinic',f.x,f.z)).toBe(-Infinity);
       }
-      expect(walkSurfaces.clinic!.move(-4.60,3.41,-2,0).x).toBeGreaterThan(-6);
       expect(visiblePick('clinic',{x:-7.48,y:1.6,z:-2.92},-7.48,0,-1.29)).toBe(false); // teaching exhibit
     }
   } finally {setPrefs({showSceneryPeople:prefs.showSceneryPeople});}

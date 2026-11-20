@@ -5,7 +5,7 @@ import {
   type ImmersiveAntialiasPref, type ImmersiveDprPref, type ImmersiveFramebufferScalePref,
   type ImmersiveFoveationPref, type ImmersiveRenderQuality, type ImmersiveTogglePref,
 } from '../../xr/qualityAxes';
-import { normalizeMmdVrHeightOffset, normalizeMmdVrViewDistance } from '../mmdVrAdjustments';
+import { normalizeMmdVrViewDistance } from '../mmdVrAdjustments';
 import type { MmdVrHapticLevel } from '../mmdVrHaptics';
 import { resolveScenery, type SceneryId } from '../scenery/catalog';
 
@@ -14,7 +14,8 @@ export type MmdVrDprPref = ImmersiveDprPref;
 export type MmdVrAntialiasPref = ImmersiveAntialiasPref;
 export type MmdVrTogglePref = ImmersiveTogglePref;
 export type MmdVrFrameRatePref = 'auto' | '72' | '80' | '90' | '120';
-export type MmdVrWalkSpeedPref = 'auto' | 'slow' | 'normal' | 'fast';
+export type MmdVrWalkSpeedPref = 'auto' | 'slow' | 'normal' | 'fast' | 'sprint';
+export type MovementMode = 'normal' | 'free';
 export const LIGHT_ORDER = ['stage', 'contrast', 'soft', 'daylight', 'warm', 'rim'] as const;
 export type MmdVrLightPreset = typeof LIGHT_ORDER[number];
 export type MmdVrShadowResolutionPref = 'auto' | 'low' | 'medium' | 'high';
@@ -32,11 +33,11 @@ export interface MmdVrPrefs {
   shadowsPref: MmdVrTogglePref;
   gridPref: MmdVrTogglePref;
   walkSpeedPref: MmdVrWalkSpeedPref;
+  movementMode: MovementMode;
   lightPreset: MmdVrLightPreset;
   framebufferScalePref: ImmersiveFramebufferScalePref;
   foveationPref: ImmersiveFoveationPref;
   shadowResolutionPref: MmdVrShadowResolutionPref;
-  heightOffset: number;
   viewDistance: number;
   snapTurnDegrees: MmdVrSnapTurnDegrees;
   exposure: number;
@@ -95,12 +96,12 @@ export function normalizeMmdVrPrefs(parsed: Partial<MmdVrPrefs> & {liveHouseEnab
     antialiasPref: normalizeImmersiveAntialias(parsed.antialiasPref),
     shadowsPref: normalizeImmersiveToggle(parsed.shadowsPref),
     gridPref: normalizeImmersiveToggle(parsed.gridPref),
-    walkSpeedPref: walk === 'fast' || walk === 'normal' || walk === 'slow' ? walk : 'auto',
+    walkSpeedPref: walk === 'fast' || walk === 'normal' || walk === 'slow' || walk === 'sprint' ? walk : 'auto',
+    movementMode: parsed.movementMode === 'free' ? 'free' : 'normal',
     lightPreset,
     framebufferScalePref: normalizeImmersiveFramebufferScale(parsed.framebufferScalePref),
     foveationPref: normalizeImmersiveFoveation(parsed.foveationPref),
     shadowResolutionPref: shadow === 'low' || shadow === 'medium' || shadow === 'high' ? shadow : 'auto',
-    heightOffset: normalizeMmdVrHeightOffset(parsed.heightOffset),
     viewDistance: normalizeMmdVrViewDistance(parsed.viewDistance),
     snapTurnDegrees: normalizeMmdVrSnapTurnDegrees(parsed.snapTurnDegrees),
     exposure: normalizeMmdVrExposure(parsed.exposure),
