@@ -1,8 +1,8 @@
 # 会话交接｜2026-11-20
 
-[线上舞台](https://mmd-xr-stage.pages.dev) · [固定版 `75ebdfb`](https://c602451e.mmd-xr-stage.pages.dev) · [分类文档索引](./README.md)
+[线上舞台](https://mmd-xr-stage.pages.dev) · [固定版 `bb56fe1`](https://d919f2a9.mmd-xr-stage.pages.dev) · [分类文档索引](./README.md)
 
-**线上基线**：十景六件道具，含[喜院门楼](./scenery/wedding-materials.md)、[窗边课桌](./scenery/classroom-materials.md)和[诊室护士近景](./scenery/clinic-teaching.md)。维护入口见[舞台架构](./architecture.md)：观看会话、当前房间运行时、公共布景渲染和偏好归一化已拆开。340 项测试、生产构建、屏幕与模拟 XR 回归通过；主域名入口及 62 份文件 SHA-256 已核对。
+**线上基线**：十景六件道具。[玩家移动](./gameplay/player-movement.md)分普通／自由两种，A 跳跃或右摇杆升降，最快 8 m/s。347 项测试通过，测试依赖改走 ESM 后不再出现 `THREE_CJS_DEPRECATED`；已验模拟 XR 十景起跳、导入物件碰撞、跨区和速度。主域名入口及 62 份文件 SHA-256 已核对。维护入口见[舞台架构](./architecture.md)。
 
 ## 下次从这里开始
 
