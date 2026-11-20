@@ -6,7 +6,7 @@
 
 ## 下次从这里开始
 
-**另有 Babylon 实验入口**：[头显教室预览](https://babylon-classroom.mmd-xr-stage.pages.dev/classroom) · [按键、同轨迹拨衣及实模对照](../experiments/mmd-engine-ab/quest-classroom.md)。该预览只测一个房间和手柄球，尚无 Quest 真机成绩；正式版仍是 `b7273ba`。
+**Babylon 迁移暂缓，继续优先用 Three 的现成库。** [头显教室预览](https://babylon-classroom.mmd-xr-stage.pages.dev/classroom)及[接触对照](../experiments/mmd-engine-ab/quest-classroom.md)保留作参照；正式版仍是 `b7273ba`。[小星球轮子选型](../experiments/three-planet-wheel/README.md)：Ecctrl 2 + Rapier 已在独立桌面探针走过球底、低重力起跳落地并绕回；XR 原点接入、真机舒适度未验。
 
 1. **下一份 Quest 3S JSON 优先。** 新页教室放同一角色、绑同一动作，阴影关，空手同机位先关后开物理；再关，去泳池、回教室，正常退出后导出。[短测和字段](./performance/next-quest-export.md)。桌面已走通这趟，不能把旧版 60／41 FPS 当成本版成绩。
 2. **另外游玩时看路线与手感**：普通模式试三个门的反向视线，疾行、低顶、拨衣、细纹和双人远端站位仍要真机判断。[行走碰撞配对](./performance/player-collision-work.md)的 1789 点输出一致；[PMX 骨骼遍历候选](./performance/pmx-root-propagation.md)未测出可靠的整模提速，没有采用。
