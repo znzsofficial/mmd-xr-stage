@@ -13,9 +13,10 @@ it('keeps migrated preferences across a partial stage edit and reload, leaving t
     expect(migrated).toMatchObject({scenery:'liveHouse',frameRatePref:'90',stageRimLightEnabled:false,stageLightPoolEnabled:true});
     useMmdVrStore.setState({prefs:migrated});
     expect(migrated.balancedModelColor).toBe(true);
-    original.setPrefs({lightPreset:'stage', exposure:1.24, balancedModelColor:false});
+    expect(migrated.normalEyeOffset).toBe(0);
+    original.setPrefs({lightPreset:'stage', exposure:1.24, balancedModelColor:false,normalEyeOffset:.27});
     const persisted = prefsStorage.read();
-    expect(persisted).toEqual({...migrated,lightPreset:'stage',exposure:1.2,balancedModelColor:false});
+    expect(persisted).toEqual({...migrated,lightPreset:'stage',exposure:1.2,balancedModelColor:false,normalEyeOffset:.3});
     expect(data.get(MMD_VR_PREFS_LEGACY_KEY)).toBe(legacy);
     expect(JSON.parse(data.get(MMD_VR_PREFS_KEY)!)).not.toHaveProperty('obsoleteFlag');
   } finally {

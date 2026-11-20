@@ -9,6 +9,8 @@ import {clinicNavigation} from './clinic/clinicNavigation';
 import {canPlaceByLawnClinic,reserveLawnClinic} from './clinic/clinicApproach';
 import {songhouseClear,songhouseHeight} from './qinhuai/songhouseLayout';
 import {weddingClear} from './wedding/weddingLayout';
+import {velvetPlace} from './velvet/velvetLayout';
+import {chamberPlace} from './chamber/chamberLayout';
 import {retreatPlace} from './retreat/retreatLayout';
 import {planetPlace} from './planet/planetLayout';
 import {GUARD_CHAIR,PACE_CLOCK,POOL,POOL_SUPPORT,LIDO_PIERS,PAVILION_POSTS,POOL_ORIGIN,inLidoApproach,borrowedLido} from './LidoLayout';
@@ -68,6 +70,8 @@ export function canPlaceInScenery(id: SceneryId, x: number, z: number): boolean 
   if (!Number.isFinite(x) || !Number.isFinite(z)) return false;
   switch (id) {
     case 'glassPlanet':return planetPlace(x,z);
+    case 'velvetStudio':return velvetPlace(x,z);
+    case 'medievalChamber':return chamberPlace(x,z);
     case 'weddingCourt': return weddingClear(x,z,true);
     case 'lanternSuite': case 'moonSpa': return retreatPlace(id,x,z);
     case 'qinhuai': return songhouseClear(x,z,true);

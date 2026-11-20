@@ -1,7 +1,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { runtimeTiming } from "../runtimeTiming";
 import {elapsed,type PhysicsSwitchWork} from '../physicsSwitchWork';
-import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import * as THREE from "three";
 import {
   isMmdRuntimeRebuildError,
@@ -22,6 +22,7 @@ import { objectHeadingDegrees, setObjectHeadingDegrees } from "../objectHeading"
 import { roomSets } from '../scenery/roomSets';
 import { StageEnvironment } from './StageEnvironment';
 import { resolveStageLighting } from './lighting';
+import {getVelvetLight,resolveVelvetLight,subscribeVelvetLight} from '../scenery/velvet/velvetLight';
 import {xrRoomRestoreTiming} from '../roomRestoreTiming';
 import type {RoomMotionCache} from '../mmdRuntime/roomMotionCache';
 import {scheduleBulletModuleWarm} from '../mmdRuntime/bulletModule';
@@ -43,6 +44,8 @@ import { poseWristToy } from '../play/wristSocket';
 import { useStagePlay } from '../play/stagePlay';
 import { PlayPiece } from '../play/HeldPlay';
 
+const noRoomLightEvents=()=>()=>{};
+
 /** A single room owns a runtime: late restores and physics rebuilds can never target a new room's actors. */
 export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles }: { scenery: SceneryId; saved: StageSnapshot | null; slots: readonly MmdVrAssetSlot[]; motionCache?:RoomMotionCache; alphaTiles?:RoomAlphaTiles }) {
   const { scene, camera, size, gl } = useThree();
@@ -50,7 +53,12 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
   const profile = getMmdVrRenderProfile(mmdPrefs);
   const lightPreset = mmdPrefs.lightPreset;
   const room=roomSets[scenery];
-  const lightCfg = useMemo(() => resolveStageLighting(lightPreset, room), [room, lightPreset]);
+  const studio=scenery==='velvetStudio';
+  const strip=useSyncExternalStore(studio?subscribeVelvetLight:noRoomLightEvents,getVelvetLight);
+  const lightCfg=useMemo(()=>{
+    const base=resolveStageLighting(lightPreset,room);
+    return studio?resolveVelvetLight(base,strip):base;
+  },[lightPreset,room,studio,strip]);
   const viewDistance = mmdPrefs.viewDistance;
   const setPlaying = useMmdVrStore((s) => s.setPlaying);
   const setModels = useMmdVrStore((s) => s.setModels);
@@ -87,7 +95,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
   const sunRef = useRef<THREE.DirectionalLight>(null);
   const stopPlayingQueuedRef = useRef(false);
   const lastSeekEpochRef = useRef(0);
-  const lightingKeyRef = useRef("");
+  const appliedSun = useRef<THREE.DirectionalLight | null>(null);
   const lifecycleGenerationRef = useRef(0);
   const appliedPhysicsEnabledRef = useRef(saved?.physicsEnabled ?? useMmdVrStore.getState().physicsEnabled);
   const labelsRef = useRef({
@@ -255,10 +263,8 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
 
   function applyLighting() {
     const sun = sunRef.current;
-    if (!sun) return;
-    const key = `${scenery}|${lightPreset}|${profile.shadows}|${mmdPrefs.balancedModelColor}|${sun.uuid}`;
-    if (lightingKeyRef.current === key) return;
-    lightingKeyRef.current = key;
+    if (!sun || appliedSun.current===sun) return;
+    appliedSun.current=sun;
     const cfg = lightCfg;
     sun.position.set(...cfg.sunPos);
     sun.intensity = cfg.sun;
@@ -274,7 +280,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
   }
 
   useLayoutEffect(() => {
-    lightingKeyRef.current = "";
+    appliedSun.current=null;
     applyLighting();
   }, [runtime, lightCfg, profile.shadows, mmdPrefs.balancedModelColor]);
 
@@ -486,7 +492,8 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
       cancelWarm.current?.();
       cancelWarm.current = scheduleBulletModuleWarm(() => {
         const s = useMmdVrStore.getState();
-        return !isRoomStale() && s.models.length > 0 && !s.physicsEnabled && !s.physicsBusy && !s.assetLoad.running && !useBackpack.getState().busy;
+        if (isRoomStale() || !s.models.length || s.physicsEnabled || s.physicsFatal) return false;
+        return s.physicsBusy || s.assetLoad.running || useBackpack.getState().busy ? 'busy' : true;
       });
     }
 

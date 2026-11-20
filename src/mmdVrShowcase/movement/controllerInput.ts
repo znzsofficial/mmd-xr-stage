@@ -1,0 +1,18 @@
+// Quest Touch's xr-standard layout reserves axes 0/1 for a touchpad even
+// when none is fitted. A live source can exist before its profile is loaded.
+type Profile = {inputSource:XRInputSource; gamepad:{'xr-standard-thumbstick'?:{xAxis?:number;yAxis?:number};'a-button'?:{state?:string}}};
+export const stickAxis=(v:number)=>Math.sign(v)*Math.max(0,(Math.min(1,Math.abs(v))-.16)/.84);
+export const newStick=()=>({x:0,y:0,a:false,via:'none' as 'none'|'native'|'profile'});
+export function readStick(sources:XRInputSourceArray,hand:'left'|'right',profile:Profile|undefined,out:ReturnType<typeof newStick>){
+  out.x=out.y=0;out.a=false;out.via='none';
+  for(let i=0;i<sources.length;i++){
+    const s=sources[i],g=s.gamepad;if(s.handedness!==hand||s.hand||s.targetRayMode!=='tracked-pointer'||!g)continue;
+    const mapped=profile?.inputSource===s?profile.gamepad:undefined,stick=mapped?.['xr-standard-thumbstick'];
+    const axes=g.axes;
+    if(g.mapping==='xr-standard'&&Number.isFinite(axes[2])&&Number.isFinite(axes[3])){
+      out.x=axes[2];out.y=axes[3];out.via='native';
+    }else if(stick){out.x=Number.isFinite(stick.xAxis)?stick.xAxis!:0;out.y=Number.isFinite(stick.yAxis)?stick.yAxis!:0;out.via='profile';}
+    out.a=hand==='right'&&(mapped?.['a-button']?.state==='pressed'||(g.mapping==='xr-standard'&&g.buttons[4]?.pressed&&s.profiles.some(p=>/^(oculus-touch|meta-quest-touch)/.test(p)))===true);
+    if(out.via!=='none'||out.a)return;
+  }
+}

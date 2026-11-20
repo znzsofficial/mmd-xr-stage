@@ -66,6 +66,7 @@ describe("requestMmdVrEnter", () => {
         gridPref: "auto",
         walkSpeedPref: "auto",
         movementMode: 'normal',
+        normalEyeOffset: 0,
         lightPreset: "stage",
         framebufferScalePref: "auto",
         foveationPref: "auto",

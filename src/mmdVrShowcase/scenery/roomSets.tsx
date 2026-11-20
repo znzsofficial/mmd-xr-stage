@@ -13,6 +13,8 @@ import { Songhouse } from './qinhuai/Songhouse';
 import { WeddingCourt } from './wedding/WeddingCourt';
 import {LanternSuite,MoonSpa} from './retreat/RetreatRooms';
 import {GlassPlanet} from './planet/GlassPlanet';
+import {VelvetStudio} from './velvet/VelvetStudio';
+import {MedievalChamber} from './chamber/MedievalChamber';
 import type {SceneryId} from './catalog';
 import type {RoomLightingOverrides} from '../stage/lighting';
 
@@ -33,6 +35,8 @@ export const roomSets:Record<SceneryId,RoomSetDefinition>={
   weddingCourt:{view:WeddingCourt,sky:'day',sun:[-3.4,6.1,5.8],ambient:.13,hemi:.48,hemiSky:'#faebd8',hemiGround:'#bdab98',fog:'#e6d9c6'},
   lanternSuite:{view:LanternSuite,sun:[3.8,3.02,-2.8],ambient:.20,hemi:.50,hemiSky:'#ffe0c8',hemiGround:'#ac8388',fog:'#513d49'},
   moonSpa:{view:MoonSpa,sun:[-2.8,3.18,-4.92],ambient:.23,hemi:.50,hemiSky:'#e5efdf',hemiGround:'#8caaa1',fog:'#89978b'},
+  velvetStudio:{view:VelvetStudio,hemiSky:'#e4ced3',hemiGround:'#6f6068',fog:'#28212b'},
+  medievalChamber:{view:MedievalChamber,sun:[-3.8,4.6,-2.4],hemiSky:'#d6deeb',hemiGround:'#8f7967',hemi:.24,fog:'#484047'},
 };
 export function RoomSet({id,shadows,concert}:{id:SceneryId;shadows:boolean;concert:boolean}){
   const Set=roomSets[id].view;return <Set shadows={shadows} concert={concert}/>;

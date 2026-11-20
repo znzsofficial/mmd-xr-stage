@@ -1,7 +1,7 @@
 import {expect,it} from 'vitest';
 import {canPlaceInScenery,placementHeight} from '../placementAreas';
 import {visiblePick} from '../pickDecks';
-import {moveInSonghouse,SCREEN_ENTRY,SHOTS,songhouseClear,STAGE_Y,GALLERY_Y,XR_ENTRY} from './songhouseLayout';
+import {BED,BED_STEP,DOOR_X,DOOR_Z,DRESSER,DRESSING_STOOL,moveInSonghouse,PRIVATE_SPOTS,SCREEN_ENTRY,SHOTS,songhouseClear,STAGE_Y,GALLERY_Y,XR_ENTRY} from './songhouseLayout';
 
 it('walks the quay, enters through the façade, climbs the stage and returns up the outside stair',()=>{
   let pos=XR_ENTRY;
@@ -32,4 +32,24 @@ it('keeps the wrapped post out of the pier slot and out of a grazing placement r
   expect(canPlaceInScenery('qinhuai',4.8,12.18)).toBe(true);
   expect(canPlaceInScenery('qinhuai',4.04,-6.70)).toBe(false);
   expect(visiblePick('qinhuai',{x:3.97,y:.64,z:12.48},3.97,0,11.57)).toBe(false);
+});
+
+it('reaches both sides of the private chamber via the original stairs and listening gallery, and can walk back',()=>{
+  let p=XR_ENTRY;
+  for(const [x,z] of [[0,9],[-7.25,9],[-7.25,2],[-7.25,-4],[DOOR_X,DOOR_Z],...PRIVATE_SPOTS,[DOOR_X,-9],[DOOR_X,-6],[DOOR_X,9],[0,9]]){
+    p=moveInSonghouse(p.x,p.z,x-p.x,z-p.z);expect(p.x).toBeCloseTo(x);expect(p.z).toBeCloseTo(z);
+  }
+  for(const [x,z] of PRIVATE_SPOTS){expect(canPlaceInScenery('qinhuai',x,z)).toBe(true);expect(placementHeight('qinhuai',x,z)).toBe(GALLERY_Y);}
+  for(const {x,z} of [BED,BED_STEP,DRESSER,DRESSING_STOOL])expect(canPlaceInScenery('qinhuai',x,z)).toBe(false);
+  expect(moveInSonghouse(-6.36,-7.15,0,-1.5).z).toBeGreaterThan(DOOR_Z);
+});
+
+it('admits a ray through the open leaves, not through the jamb, bed, roof or lower plane',()=>{
+  const ray=(ox:number,oy:number,oz:number,x:number,z:number,y=GALLERY_Y)=>visiblePick('qinhuai',{x:ox,y:oy,z:oz},x,y,z);
+  expect(ray(-7.28,4.03,-6.24,...PRIVATE_SPOTS[0])).toBe(true);
+  expect(ray(-8.31,4.03,-6.78,...PRIVATE_SPOTS[1])).toBe(false);
+  for(const [x,z] of PRIVATE_SPOTS){expect(ray(-7.40,4.05,-8.59,x,z)).toBe(true);expect(ray(x,4.05,z,x,z,0)).toBe(false);}
+  expect(ray(BED.x,4.02,-11.44,BED.x,-14.01)).toBe(false);
+  expect(ray(-9.21,4.08,-13.33,-11.39,-13.53)).toBe(false);
+  expect(ray(-10.13,7.2,-10.77,...PRIVATE_SPOTS[1])).toBe(false);
 });

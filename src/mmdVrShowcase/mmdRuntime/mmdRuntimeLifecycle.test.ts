@@ -8,6 +8,7 @@ import { BlobWriter, TextReader, ZipWriter } from "@zip.js/zip.js";
 import { bindCompanion } from "../../mmdImport/assetPaths";
 import { createModelLoadTask } from "../modelLoadTask";
 import { createAssetLoadQueue } from "../mmdAssetLoadQueue";
+import { createRoomMotionCache } from './roomMotionCache';
 
 vi.mock("./mmdPhysics", async (original) => ({
   ...await original<typeof import("./mmdPhysics")>(),
@@ -173,13 +174,15 @@ describe("runtime asynchronous lifecycle", () => {
     vi.spyOn(ThreeMmdLoader.prototype, "loadModel").mockResolvedValue(model);
     const factory = vi.mocked(createBulletPhysicsBackend);
     factory.mockResolvedValueOnce({name: "solver", disabled: false, disposed: false, step: () => ({simulated: true})});
-    const rt = createMmdRuntimeHandle(new THREE.Scene());
+    const cache = createRoomMotionCache();
+    const rt = createMmdRuntimeHandle(new THREE.Scene(), {motionCache:cache});
     try {
       const {modelId} = await rt.addModel(new File([], "actor.pmx"), [], {physics: true});
       const [animation] = vi.mocked(model.setAnimation).mock.calls[0]; // initial static binding
       if (!("kind" in animation)) throw Error("Expected a raw VMD");
-      const original = new File([], "first.vmd"), replacement = new File([], "second.vmd");
-      const first = {source: original, animation}, second = {source: replacement, animation};
+      const original = new File([new Uint8Array(5*1024*1024)], "first.vmd"), replacement = new File([original], "second.vmd");
+      const tracks = {...animation, metadata:{...animation.metadata,counts:{...animation.metadata.counts,bones:Math.floor(original.size/111)}}};
+      const first = {source: original, animation:tracks}, second = {source: replacement, animation:tracks};
       vi.spyOn(ThreeMmdLoader.prototype, "loadAnimation").mockResolvedValueOnce(first).mockResolvedValueOnce(second);
       await rt.loadMotion(original, "body", modelId);
 
@@ -200,6 +203,7 @@ describe("runtime asynchronous lifecycle", () => {
       await expect(rt.loadMotion(replacement, "body", modelId)).rejects.toThrow("rejected motion");
       expect(bind.mock.calls.map(([clip]) => clip)).toEqual([second, first]);
       expect(rt.exportProjectModels()[0].bodyMotionFile).toBe(original);
+      expect(cache.acquire(original,'body').status).toBe('hit');
       rawY = .98; pausedFrame(); expect(hem.position.y).toBe(rawY); // no pre-bind filter history
     } finally { rt.dispose(); }
   });

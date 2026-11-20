@@ -132,9 +132,9 @@ async function setupBag(files: File[], useMotionCache = false) {
   const real = await vi.importActual<typeof import("../mmdRuntime/mmdRuntime")>("../mmdRuntime/mmdRuntime");
   vi.mocked(createMmdRuntimeHandle).mockImplementation((scene, opts) => real.createMmdRuntimeHandle(scene, {motionCache: useMotionCache ? opts?.motionCache : undefined}));
   const load = vi.spyOn(ThreeMmdLoader.prototype, "loadModel").mockImplementation(async () => loadedCharacter());
-  const motion = vi.spyOn(ThreeMmdLoader.prototype, "loadAnimation").mockResolvedValue({ animation: {
-    bytes: new Uint8Array(0), metadata:{ modelName:"", maxFrame:30 }, boneTracks:{}, morphTracks:{}, cameraFrames:[], lightFrames:[], selfShadowFrames:[], propertyFrames:[],
-  } } as unknown as Awaited<ReturnType<ThreeMmdLoader["loadAnimation"]>>);
+  const motion = vi.spyOn(ThreeMmdLoader.prototype, "loadAnimation").mockImplementation(async f => ({ animation: {
+    bytes: new Uint8Array(0), metadata:{ modelName:"", maxFrame:30, counts: {bones: f instanceof File ? Math.floor(f.size/111) : 0, morphs:0} }, boneTracks:{}, morphTracks:{}, cameraFrames:[], lightFrames:[], selfShadowFrames:[], propertyFrames:[],
+  } } as unknown as Awaited<ReturnType<ThreeMmdLoader["loadAnimation"]>>));
   const store = useMmdVrStore.getState, bag = useBackpack.getState;
   clearBackpack(); syncBackpackFiles(files); prepareBackpackEntry(false);
   store().setPrefs({scenery:"floor"}); store().prepareStage(false); store().openOverlay();
@@ -240,8 +240,8 @@ it('does not let a retired rebuild unlock a newer rebuild after a batched Aâ†’Bâ
   } finally { await exit(); }
 });
 
-it('reports parsed cache hits and rebind work from an actual room-return task without exporting asset identities', async () => {
-  const a=file('private-actor.pmx'), vmd=file('private-dance.vmd');
+it('reuses the last large body on room return, and releases it on library removal', async () => {
+  const a=file('private-actor.pmx'), vmd=new File([new Uint8Array(5*1024*1024)], 'private-dance.vmd');
   const {motion,place,exit,store,bag,id}=await setupBag([a,vmd],true);
   try {
     await place(a);await act(async()=>bag().applyMotion(id(a),vmd,'body'));
@@ -250,6 +250,10 @@ it('reports parsed cache hits and rebind work from an actual room-return task wi
     const e=xrRoomRestoreTiming.frame('floor');expect(e?.success).toBe(true);expect(e?.taskWallMs.body).toBeTypeOf('number');
     expect(e?.motionWork).toEqual([{slot:'body',cache:'hit',evaluator:'other',loadWallMs:expect.any(Number),setAnimationMs:expect.any(Number)}]);
     expect(motion).toHaveBeenCalledOnce();expect(JSON.stringify(e)).not.toContain('private-');
+    await act(async()=>store().setPrefs({scenery:'lawn'}));
+    await act(async()=>syncBackpackFiles([a]));
+    await act(async()=>syncBackpackFiles([a,vmd]));
+    await act(async()=>store().setPrefs({scenery:'floor'}));expect(motion).toHaveBeenCalledTimes(2);
   } finally {xrRoomRestoreTiming.cancel();await exit();}
 });
 

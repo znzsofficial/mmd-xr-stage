@@ -33,8 +33,10 @@ it("opens on personal adjustments, keeps physics details contextual, and retains
     await act(async()=>harness.buttonEvent?.('pressed'));await click(t('settingsMmdVrPlay'));expect(state.setPlaying).toBeDefined();expect(buttons(t('hudMore'))).toHaveLength(0);
     await act(async()=>harness.buttonEvent?.('pressed'));await click(t("hudMore"));
     expect(buttons("Hide asset")).toHaveLength(0);
-    expect(buttons('+')).toHaveLength(0); // no vertical override in walking mode
+    await click('+10 cm');expect(useMmdVrStore.getState().prefs.normalEyeOffset).toBe(.1);
+    await click(t('settingsMmdVrValueReset'));expect(useMmdVrStore.getState().prefs.normalEyeOffset).toBe(0);
     await click(t('moveFree'));expect(useMmdVrStore.getState().prefs.movementMode).toBe('free');
+    expect(buttons('+10 cm')).toHaveLength(0);
     await click(t('moveNormal'));expect(useMmdVrStore.getState().prefs.movementMode).toBe('normal');
     expect(buttons(t('hudDiagnostics'))).toHaveLength(0);
     await click(t('settingsEnvironment'));expect(buttons('+')).toHaveLength(0);expect(buttons(t('hudDiagnostics'))).toHaveLength(1);

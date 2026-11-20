@@ -1,24 +1,75 @@
-import {expect,it,vi} from 'vitest';
-import type {ThreeMmdAnimation} from '@yohawing/three-mmd-loader';
-import {createRoomMotionCache} from './roomMotionCache';
+import { expect, it, vi } from 'vitest';
+import type { ThreeMmdAnimation } from '@yohawing/three-mmd-loader';
+import { createRoomMotionCache } from './roomMotionCache';
 
-const parsed=()=>({} as ThreeMmdAnimation);
-it('shares only the same File, caps retained source volume, and clears across sessions',async()=>{
-  const parse=vi.fn(async(_f:File)=>parsed()),cache=createRoomMotionCache(parse);
-  const a=new File(['a'],'dance.vmd'),b=new File(['b'],'dance.vmd');
-  expect(cache.status(a)).toBe('miss');const first=cache.load(a);expect(cache.status(a)).toBe('pending');expect(cache.load(a)).toBe(first);expect(await cache.load(b)).not.toBe(await first);expect(cache.status(a)).toBe('hit');
-  const full=new File([new Uint8Array(4*1024*1024)],'full.vmd');await cache.load(full);
-  expect(await cache.load(a)).not.toBe(await first);cache.clear();await cache.load(a);expect(parse).toHaveBeenCalledTimes(5);
-  const huge=new File([full,'x'],'large.vmd');expect(cache.status(huge)).toBe('oversize');expect(await cache.load(huge)).not.toBe(await cache.load(huge));
+const MiB = 1024 * 1024;
+const file = (size = 1) => new File([new Uint8Array(size)], 'same.vmd');
+const parsed = (f: File) => ({ animation: { metadata: { counts: { bones: Math.floor(f.size / 111), morphs: 0 } }, boneTracks: {}, morphTracks: {} } } as ThreeMmdAnimation);
+const parse = async (f: File) => parsed(f);
+type Cache = ReturnType<typeof createRoomMotionCache>;
+async function bind(cache: Cache, f: File, slot: 'body' | 'face' = 'body') {
+  const ticket = cache.acquire(f, slot);
+  const clip = await ticket.promise;
+  ticket.bound(clip);
+  return ticket.status;
+}
+
+it('shares only the same small File, including pending reads; evicts by byte volume and recency', async () => {
+  const cache = createRoomMotionCache(parse), files = Array.from({ length: 5 }, () => file());
+  const first = cache.acquire(files[0], 'body'), pending = cache.acquire(files[0], 'face');
+  expect([first.status, pending.status]).toEqual(['miss', 'pending']);
+  expect(first.promise).toBe(pending.promise);
+  for (const f of files.slice(1, 4)) expect(await bind(cache, f)).toBe('miss');
+  expect(await bind(cache, files[0])).toBe('hit');
+  await bind(cache, files[4]);
+  expect(await bind(cache, files[1])).toBe('miss');
+  await bind(cache, file(4 * MiB));
+  expect(await bind(cache, files[4])).toBe('miss');
 });
-it('retries failures and ignores obsolete rejection after clear or eviction',async()=>{
-  let reject!:(e:Error)=>void;const f=new File(['x'],'f.vmd');const parse=vi.fn(async(_f:File)=>parsed())
-    .mockImplementationOnce(()=>new Promise((_,r)=>reject=r)).mockRejectedValueOnce(new Error('parse failed'));
-  const cache=createRoomMotionCache(parse),old=cache.load(f);cache.clear();await expect(cache.load(f)).rejects.toThrow('parse failed');
-  const valid=cache.load(f);reject(new Error('old'));await expect(old).rejects.toThrow('old');expect(cache.load(f)).toBe(valid);
+
+it('retains only the last successful large body plus the small LRU, never just a parse or a face bind', async () => {
+  const cache = createRoomMotionCache(parse), a = file(4 * MiB + 1), b = file(32 * MiB), face = file();
+  expect(await bind(cache, a, 'face')).toBe('oversize');
+  expect(await bind(cache, a)).toBe('miss');
+  expect(await bind(cache, face, 'face')).toBe('miss');
+  await cache.acquire(b, 'body').promise; // parsed but not bound
+  expect(await bind(cache, a)).toBe('hit');
+  expect(await bind(cache, b)).toBe('miss');
+  expect(await bind(cache, face, 'face')).toBe('hit');
+  expect(await bind(cache, a)).toBe('miss');
+  const oversize = new File([b, 'x'], 'huge.vmd');
+  expect(await bind(cache, oversize)).toBe('oversize');
+  expect(await bind(cache, oversize)).toBe('oversize');
+  expect(await bind(cache, a)).toBe('miss');
+  await bind(cache, face);
+  expect(await bind(cache, a)).toBe('miss');
 });
-it('evicts by recency even for tiny files',async()=>{
-  const cache=createRoomMotionCache(async()=>parsed()),files=Array.from({length:5},(_,i)=>new File(['x'],i+'.vmd'));
-  const [a,b]=await Promise.all(files.slice(0,4).map(cache.load));await cache.load(files[0]);await cache.load(files[4]);
-  expect(await cache.load(files[0])).toBe(a);expect(await cache.load(files[1])).not.toBe(b);
+
+it('does not keep a large body file dominated by unpacked sections', async () => {
+  const cache = createRoomMotionCache(async () => parsed(file(1))), camera = file(5 * MiB);
+  expect(await bind(cache, camera)).toBe('miss');
+  expect(await bind(cache, camera)).toBe('miss');
+});
+
+it.each(['release', 'clear'] as const)('%s invalidates already acquired large tickets, without reviving them on a later success', async end => {
+  const cache = createRoomMotionCache(parse), f = file(5 * MiB);
+  await bind(cache, f);
+  const late = cache.acquire(f, 'body');
+  cache[end](f);
+  await cache.acquire(f, 'body').promise; // fresh generation of the same File
+  late.bound(await late.promise);
+  expect(await bind(cache, f)).toBe('miss');
+  expect(await bind(cache, f)).toBe('hit');
+});
+
+it('retries parse failures; an obsolete rejection cannot erase a fresh entry', async () => {
+  let reject!: (e: Error) => void;
+  const f = file(), fn = vi.fn(parse).mockImplementationOnce(() => new Promise((_, r) => { reject = r; })).mockRejectedValueOnce(new Error('invalid'));
+  const cache = createRoomMotionCache(fn), old = cache.acquire(f, 'body');
+  cache.release(f);
+  await expect(bind(cache, f)).rejects.toThrow('invalid');
+  expect(await bind(cache, f)).toBe('miss');
+  reject(Error('obsolete'));
+  await expect(old.promise).rejects.toThrow('obsolete');
+  expect(await bind(cache, f)).toBe('hit');
 });

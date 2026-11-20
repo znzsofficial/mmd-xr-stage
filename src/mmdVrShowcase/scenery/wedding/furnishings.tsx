@@ -8,6 +8,9 @@ import { makeFeast } from './furnishingsFeast';
 import { makeAltar, makeChair, makeVanity } from './furnishingsHall';
 import { Surface, white } from './furnishingsMesh';
 import { makeSedan } from './furnishingsSedan';
+import {makeBridalBed,makeBridalTrunk,makeWeddingCups} from './bridalFurniture';
+import {BED,CUP_TABLE,TRUNK} from './bridalLayout';
+import {BridalCurtains} from './BridalCurtains';
 import atlas from './wedding-furnishings.webp';
 
 // The page can present its first XR or screen frame while the full print is
@@ -29,7 +32,7 @@ function makePaletteProof(){
 export function WeddingFurnishings({shadows=false}:{shadows?:boolean}={}){
   const map=useBakedSurface(atlas),proof=useMemo(makePaletteProof,[]),paint=map??proof;
   useEffect(()=>{if(map)proof.dispose();return ()=>proof.dispose();},[map,proof]);
-  const pieces=useMemo(()=>({sedan:makeSedan(),feast:makeFeast(),altar:makeAltar(),chair:makeChair(),vanity:makeVanity()}),[]);
+  const pieces=useMemo(()=>({sedan:makeSedan(),feast:makeFeast(),altar:makeAltar(),chair:makeChair(),vanity:makeVanity(),bed:makeBridalBed(),cups:makeWeddingCups(),trunk:makeBridalTrunk()}),[]);
   const windowBirds=useMemo(()=>{
     const s=new Surface();for(const k of [-1,1])s.grid(1,1,(u,v)=>[k*.2275+(u-.5)*.221,(v-.5)*.173,0],white,'pairBird',(u,v)=>[k<0?u:1-u,v]);
     return s.finish();
@@ -49,11 +52,12 @@ export function WeddingFurnishings({shadows=false}:{shadows?:boolean}={}){
         <meshStandardMaterial map={map} vertexColors roughness={.94} alphaTest={.47}/>
       </mesh>}
     </group>;
-  return <group name="wedding:furnishings" pointerEvents="none">
+  return <><group name="wedding:furnishings" pointerEvents="none">
     {draw('sedan',a.sedan,pieces.sedan)}{a.feasts.map((r,i)=>draw(`feast-${i}`,r,pieces.feast))}
     {draw('altar',a.altar,pieces.altar)}{a.chairs.map((r,i)=>draw(`armchair-${i}`,r,pieces.chair))}{draw('vanity',a.vanity,pieces.vanity)}
+    {draw('canopy-bed',BED,pieces.bed)}{draw('joined-cups',CUP_TABLE,pieces.cups)}{draw('trousseau-chest',TRUNK,pieces.trunk)}
     {map&&<mesh name="wedding:dressing-window-birds" geometry={windowBirds} position={[WEDDING_WINDOW_PAPER.x,WEDDING_WINDOW_PAPER.y,WEDDING_WINDOW_PAPER.z]} raycast={noPick}>
       <meshStandardMaterial map={map} roughness={.94} alphaTest={.47}/>
     </mesh>}
-  </group>;
+  </group><BridalCurtains print={paint}/></>;
 }

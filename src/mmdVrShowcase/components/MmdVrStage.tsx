@@ -11,7 +11,14 @@ import { MmdVrStageRoom } from '../stage/StageRoom';
 export function MmdVrStageContent() {
   const motionCache = useMemo(() => createRoomMotionCache(), []);
   const alphaTiles = useMemo(() => createRoomAlphaTiles(), []);
-  useEffect(() => () => { motionCache.clear(); alphaTiles.clear(); }, [motionCache, alphaTiles]);
+  useEffect(() => {
+    const unsubscribe = useBackpack.subscribe((s, prev) => {
+      if (s.files === prev.files) return;
+      const retained = new Set(s.files);
+      for (const file of prev.files) if (!retained.has(file)) motionCache.release(file);
+    });
+    return () => { unsubscribe(); motionCache.clear(); alphaTiles.clear(); };
+  }, [motionCache, alphaTiles]);
 
   const scenery = useMmdVrStore(s => s.prefs.scenery);
   // Even a batched A→B→A switch must retire A's old commands and loaders.

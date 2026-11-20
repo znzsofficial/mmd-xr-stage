@@ -4,8 +4,12 @@
 
 角色和导入物件可放在北端直径 5.6 米的平坦观星台，动作、握姿、布局与衣物物理照旧。玩家可以探索整颗球；球背暂不放置演员。屏幕保留原有镜头控制和滚轮，机位可看球面弧度和远处的环行星。
 
-[Ecctrl](https://github.com/pmndrs/ecctrl) 处理玩家行走、悬浮支撑和起跳，[React Three Rapier](https://github.com/pmndrs/react-three-rapier) 管玩家的碰撞世界。[球面适配层](../../src/mmdVrShowcase/movement/PlanetMotor.tsx)把输入投到切平面，连续传递玩家朝向，仅旋转 XR 原点，不改写头显追踪。自定义重力 2.5 m/s² 指向球心，不进入角色 Bullet 世界。
+[球面移动](../../src/mmdVrShowcase/movement/PlanetMotor.tsx)从第一帧就读取当前会话的手柄，Quest 使用原生 `xr-standard` 摇杆轴 2/3；其他布局可使用当前输入源的已解析摇杆。物理模块还在下载、编译或启动失败时，沿球面和平台走、转、跳、召回和飞行仍可使用。[Ecctrl/Rapier](../../src/mmdVrShowcase/movement/PlanetPhysics.tsx)就绪后从当前脚位、切面朝向、速度接手；不会把玩家送回观星台。两种路径共用 XR 原点和转向锁存，2.5 m/s² 的径向重力不进入角色 Bullet 世界。
 
 仅在 XR 进入本景时加载 Rapier（同源 JS 内联 WASM，本次约 1.60 MB gzip）；静态入口不能依赖它，由 Vite 构建检查。Ecctrl 每个渲染帧施加一次冲量，给它过长的物理步长会放大支撑弹簧，故每帧最多推进 1/60 秒。落点射线只接受北端平台；普通移动对导入物件使用实际三角面，对角色使用躯干代理。
 
-独立[控制器探针](../../experiments/three-planet-wheel/README.md)在 72/90 步下绕行一周。生产构建的双眼模拟 Quest 从台上走至球背、A 跳起约 0.25 米并落回、B 召回菜单、切换普通／自由、回教室恢复水平。屏幕实放 PMX 及回访也通过。实际 Quest 3S 舒适度和首次加载耗时待测。
+**真机已知现象**：2026-11-20 14:43Z 的 Quest 3S 报告记录了两次空景访问、21 个采样窗，FPS 中位数 117。用户确认 B 可用、左右摇杆都不能移动或转向。旧报告没有摇杆、姿态或玩家物理状态，不能据此定位为 WASM、追踪或手柄配置故障。
+
+**验证**：双眼模拟 Quest 的生产构建中，刻意挂起 1,569,397 字节的 Rapier WASM 实例化，左右摇杆仍可行走与 30° 转向；放行的那一帧视点位移和转角均为零。另一次直接拒绝实例化，走、转以及离开后再回来仍有效。另用模拟手柄走至球背（局部向上轴的世界 Y = −0.9996），转向 30°、按 A 径向升高 0.247 米、落回原高度，并用 B 召回后点开「更多」。此前的[球面探针](../../experiments/three-planet-wheel/README.md)在 72/90 步下走过整周。桌面模拟不证明真机原因已排除或头显舒适度合格。
+
+**真机复测**：新开页面进空星球，左摇杆向前 2 秒，右摇杆横拨、松开再横拨，按 A 跳和 B 召回。切到平地再进星球重复，退出并导出 JSON。`windows[].planetMovement` 是本次进星球以来的累计记录：`backend` 为 `pending` / `rapier` / `failed`；`poseFrames` 对照 `frames`，`left/right` 表示输入来源，`walkInputFrames`、`turnInputFrames` 为检测到摇杆的帧数，`inputHeldFrames` 为界面拖动或退出锁住输入的帧数。`snapTurns` 和 `footTravelM`（包括升降、跳跃及物理位移）记录实际执行结果。只保存计数和距离，不导出追踪坐标。

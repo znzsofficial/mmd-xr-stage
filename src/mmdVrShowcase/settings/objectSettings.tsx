@@ -19,10 +19,14 @@ export function PlayerSettings() {
   const next={slow:'normal',normal:'fast',fast:'sprint',sprint:'slow'} as const;
   const labels={slow:'moveSlow',normal:'moveCruise',fast:'moveFast',sprint:'moveSprint'} as const;
   return <group name="settings:player">
-    <HudLine position={[0,.48,0]} width={1.85} role="title" text={t('hudSelfTitle')}/>
-    <HudButton position={[-.49,.23,0]} size={[.88,.17]} active={!free} label={t('moveNormal')} onPress={()=>set({movementMode:'normal'})}/>
-    <HudButton position={[.49,.23,0]} size={[.88,.17]} active={free} label={t('moveFree')} onPress={()=>set({movementMode:'free'})}/>
-    <HudLine position={[0,-.01,0]} width={1.85} role="muted" text={t(free?'moveFlyHint':'moveJumpHint')}/>
+    <HudLine position={[0,.58,0]} width={1.85} role="title" text={t('hudSelfTitle')}/>
+    <HudButton position={[-.49,.38,0]} size={[.88,.17]} active={!free} label={t('moveNormal')} onPress={()=>set({movementMode:'normal'})}/>
+    <HudButton position={[.49,.38,0]} size={[.88,.17]} active={free} label={t('moveFree')} onPress={()=>set({movementMode:'free'})}/>
+    <HudLine position={[0,.18,0]} width={1.85} role="muted" text={t(free?'moveFlyHint':'moveJumpHint')}/>
+    {!free&&<><HudLine position={[-.56,-.04,0]} width={.75} text={`${t('settingsEyeOffset')}  ${p.normalEyeOffset>0?'+':''}${Math.round(p.normalEyeOffset*100)} cm`}/>
+      <HudButton position={[.02,-.04,0]} size={[.35,.15]} label="−10 cm" disabled={p.normalEyeOffset<=-.8} onPress={()=>set({normalEyeOffset:p.normalEyeOffset-.1})}/>
+      <HudButton position={[.40,-.04,0]} size={[.35,.15]} label="+10 cm" disabled={p.normalEyeOffset>=.8} onPress={()=>set({normalEyeOffset:p.normalEyeOffset+.1})}/>
+      <HudButton position={[.76,-.04,0]} size={[.31,.15]} variant="quiet" label={t('settingsMmdVrValueReset')} disabled={p.normalEyeOffset===0} onPress={()=>set({normalEyeOffset:0})}/></>}
     <HudButton position={[-.49,-.28,0]} size={[.88,.16]} label={`${t(labels[tier])} · ${WALK_SPEED[tier]} m/s`} onPress={()=>set({walkSpeedPref:next[tier]})}/>
     <HudButton position={[.49,-.28,0]} size={[.88,.16]} label={`${t('settingsMmdVrSnapTurn')}: ${p.snapTurnDegrees}°`} onPress={()=>set({snapTurnDegrees:p.snapTurnDegrees===15?30:p.snapTurnDegrees===30?45:15})}/>
     <HudButton position={[-.49,-.50,0]} size={[.88,.15]} active={p.handTracking} label={t(p.handTracking?'settingsHandModelOn':'settingsHandModelOff')} onPress={()=>set({handTracking:!p.handTracking})}/>

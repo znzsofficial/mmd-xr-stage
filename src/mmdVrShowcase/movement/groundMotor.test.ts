@@ -7,6 +7,7 @@ import {sceneryIds} from '../scenery/catalog';
 import {WALK_SPEED} from '../mmdVrQuality';
 import {normalizeMmdVrPrefs} from '../settings/preferences';
 import {actorBodies,sampleBodies} from './actorBodies';
+import {eyeLift,headMargin} from './eyeHeight';
 
 function world(root:Group):ReadColumn{const cols=createSolidColumns();return(x,z,y,c)=>{c.floor=0;c.ceiling=Infinity;c.blocked=false;cols.sample([root],x,z,y,c);};}
 function box(group:Group,x:number,y:number,z:number,w:number,h:number,d:number){const m=new Mesh(new BoxGeometry(w,h,d));m.position.set(x,y,z);group.add(m);return m;}
@@ -24,6 +25,20 @@ it('clips a jump at a low ceiling, rejects a midair jump and lands on the floor'
   const root=new Group();box(root,0,1.97,0,3,.1,3);const read=world(root),m=createGroundMotor(),b=groundedBody(0,0,0);
   let peak=0;for(let i=0;i<100;i++){m.advance(b,read,0,0,1/90,1.70,i===0||i===14);peak=Math.max(peak,b.y);}
   expect(peak).toBeCloseTo(.22,2);expect(b).toMatchObject({y:0,vy:0,grounded:true});
+});
+
+it('uses the raised eye for a low doorway and a jump; calibration cannot lift through a ceiling or lower below the floor',()=>{
+  const root=new Group();box(root,0,2.05,0,1,.1,3);const read=world(root),m=createGroundMotor(),b=groundedBody(-1,0,0);
+  const tracked=1.65,raised=tracked+eyeLift(.3,tracked)+headMargin;
+  for(let i=0;i<60;i++)m.advance(b,read,.025,0,1/90,raised,false);
+  expect(b.x).toBeLessThan(-.65);
+  const lowered=tracked+eyeLift(-.1,tracked)+headMargin;
+  for(let i=0;i<22;i++)m.advance(b,read,.025,0,1/90,lowered,false);
+  expect(b.x).toBeGreaterThan(-.2);let peak=0;
+  for(let i=0;i<120;i++){m.advance(b,read,0,0,1/90,lowered,i===0);peak=Math.max(peak,b.y);}
+  expect(peak+lowered).toBeCloseTo(2,3);expect(b.y).toBe(0);
+  expect(tracked+eyeLift(.8,tracked,2)+headMargin).toBeCloseTo(2);
+  expect(.30+eyeLift(-.8,.30)).toBeCloseTo(headMargin);
 });
 
 it('can jump onto a low prop and fall from its edge instead of snapping to ground',()=>{

@@ -1,3 +1,5 @@
+import {BED,CUP_TABLE,TRUNK,POST,FRONT,eachSheet,fullSweep,readDrapes,sheetBottom,sheetDepth,sheetTop} from './bridalLayout';
+
 // Metres, level ground at Y=0. Enter from +Z; the hall faces the court (+Z).
 export interface WeddingRect { x:number; z:number; w:number; d:number }
 const rect = (x:number,z:number,w:number,d:number):WeddingRect => ({x,z,w,d});
@@ -6,12 +8,14 @@ type Box = ReturnType<typeof solid>;
 
 export const WEDDING_FLOORS = {
   lane:rect(0,9.55,11.6,7.1), court:rect(0,-1,11.6,14), dressing:rect(7.8,-5.1,4,5.4),
+  bridal:rect(13.6,-6.1,7.6,7.4),
 };
 export const WEDDING_HALL_FRONT = -3.4;
 export const WEDDING_DOORS = {
   gate:{x:0,z:6,width:3.2,head:2.75}, dressing:{x:5.8,z:-4.8,width:1.8,head:2.30},
+  bridal:{x:9.8,z:-4.90,width:1.86,head:2.36},
 };
-const {gate,dressing} = WEDDING_DOORS;
+const {gate,dressing,bridal} = WEDDING_DOORS;
 const t=.20;
 const alongX=(id:string,x0:number,x1:number,z:number,top:number)=>solid(id,rect((x0+x1)/2,z,x1-x0,t),top);
 const alongZ=(id:string,x:number,z0:number,z1:number,top:number)=>solid(id,rect(x,(z0+z1)/2,t,z1-z0),top);
@@ -21,16 +25,20 @@ export const WEDDING_WALLS = [
   alongX('gateWest',-5.8,gate.x-gate.width/2,gate.z,2.60), alongX('gateEast',gate.x+gate.width/2,5.8,gate.z,2.60),
   alongZ('hallDressing',dressing.x,-8,dressing.z-dressing.width/2,3.45),
   alongZ('dressingCourt',dressing.x,dressing.z+dressing.width/2,-2.4,3.12), alongZ('courtEast',5.8,-2.4,6,2.58),
-  alongX('dressingBack',5.8,9.8,-7.8,3.12), alongZ('dressingEast',9.8,-7.8,-2.4,3.12), alongX('dressingSouth',5.8,9.8,-2.4,3.12),
+  alongX('dressingBack',5.8,9.8,-7.8,3.12), alongZ('dressingEast',9.8,-7.8,bridal.z-bridal.width/2,3.12), alongX('dressingSouth',5.8,9.8,-2.4,3.12),
+  alongZ('dressingEastReturn',9.8,bridal.z+bridal.width/2,-2.4,3.12),alongZ('bridalWest',9.8,-9.8,-7.8,3.12),
+  alongX('bridalNorth',9.8,17.4,-9.8,3.12),alongX('bridalSouth',9.8,17.4,-2.4,3.12),alongZ('bridalEast',17.4,-9.8,-2.4,3.12),
 ];
 export const WEDDING_HEADERS = [
   solid('gateHead',rect(gate.x,gate.z,gate.width,.26),3.36,gate.head),
   solid('dressingHead',rect(dressing.x,dressing.z,.20,dressing.width),3.12,dressing.head),
+  solid('bridalHead',rect(bridal.x,bridal.z,.20,bridal.width),3.12,bridal.head),
 ];
 // Open leaves are axis-aligned in their parked pose, not invisible closed doors.
 export const WEDDING_LEAVES = [
   ...[-1,1].map(side=>solid(side<0?'gateLeafWest':'gateLeafEast',rect(gate.x+side*(gate.width/2+.04),gate.z-.79,.08,1.56),gate.head-.06)),
   solid('dressingLeaf',rect(dressing.x+.77,dressing.z+dressing.width/2+.045,1.54,.09),dressing.head-.04),
+  solid('bridalLeaf',rect(bridal.x+.80,bridal.z+bridal.width/2+.05,1.60,.10),bridal.head-.035),
 ];
 export const WEDDING_SCREENS = [
   solid('spiritWall',rect(-2.4,4.4,2.4,.28),2.12),
@@ -49,6 +57,7 @@ export const WEDDING_ANCHORS = {
 export const WEDDING_MARKS = {
   pair:[{x:-.75,z:-4.98},{x:.75,z:-4.98}], pairFloor:rect(0,-4.98,3,2),
   sedan:{x:-1.48,z:8.48}, vanity:{x:8.62,z:-5.77},
+  bridalNear:{x:11.60,z:-5.20},bridalBay:{x:BED.x,z:-7.10},
 };
 export const WEDDING_ENTRY = {x:.65,z:10.15};
 // Across the lane the sedan's side silk and the whole gate roof fit in the
@@ -61,13 +70,17 @@ export const WEDDING_SHOTS = [
   {key:'weddingVanity',eye:[7.36,1.47,-5.26],aim:[8.65,1.12,-6.95]},
   {key:'weddingFromRoom',eye:[7.58,1.52,-4.8],aim:[.50,1.15,-4.98]},
   {key:'weddingReturn',eye:[5.40,1.58,-4.48],aim:[-2.41,.99,8.48]},
+  {key:'weddingBridal',eye:[12.50,1.56,-2.98],aim:[13.64,1.20,-7.78]},
+  {key:'weddingCups',eye:[15.47,1.23,-4.85],aim:[16.47,.91,-4.25]},
+  {key:'weddingBridalDoor',eye:[7.64,1.53,-4.53],aim:[12.46,1.08,-5.72]},
 ] as const;
 
 const floorPieces=Object.values(WEDDING_FLOORS);
 const floorAt=(x:number,z:number)=>floorPieces.some(r=>Math.abs(x-r.x)<=r.w/2 && Math.abs(z-r.z)<=r.d/2);
 const architecture=[...WEDDING_WALLS,...WEDDING_COLUMNS,...WEDDING_LEAVES,...WEDDING_SCREENS];
 const {sedan,chairs,altar,vanity,feasts}=WEDDING_ANCHORS;
-const footprints=[...architecture,sedan,altar,...chairs,vanity];
+const bedPosts=[-1,1].flatMap(s=>[-.78,.78,FRONT].map(v=>solid('bedPost',rect(BED.x+s*POST,BED.z+v,.116,.116),2.29)));
+const footprints=[...architecture,sedan,altar,...chairs,vanity,BED,CUP_TABLE,TRUNK,...bedPosts];
 function nearRect(r:WeddingRect,x:number,z:number,pad:number) {
   const u=Math.max(0,Math.abs(x-r.x)-r.w/2), v=Math.max(0,Math.abs(z-r.z)-r.d/2);
   return u*u+v*v<=pad*pad;
@@ -77,7 +90,9 @@ export function weddingClear(x:number,z:number,placing=false) {
   // Test the joined floor before applying the footprint; individually inset
   // pieces would create a solid sill at both the gate and the dressing room.
   return Number.isFinite(x)&&Number.isFinite(z)&&floorAt(x,z)&&floorAt(x-pad,z)&&floorAt(x+pad,z)&&floorAt(x,z-pad)&&floorAt(x,z+pad)&&
-    !footprints.some(r=>nearRect(r,x,z,pad)) && !feasts.some(f=>(x-f.x)**2+(z-f.z)**2<=(f.w/2+pad)**2);
+    !footprints.some(r=>nearRect(r,x,z,pad)) && !feasts.some(f=>(x-f.x)**2+(z-f.z)**2<=(f.w/2+pad)**2) &&
+    (Math.abs(x-BED.x)>1.8||Math.abs(z-BED.z-FRONT)>.60||
+      !eachSheet(placing?fullSweep:readDrapes(),(cx,cz,w)=>nearRect(rect(cx,cz,w,sheetDepth),x,z,pad)));
 }
 
 export function moveInWedding(x:number,z:number,dx:number,dz:number) {
@@ -111,6 +126,12 @@ const rayBoxes = [...architecture,...WEDDING_HEADERS,
   solid('altar',altar,.90),...chairs.map(r=>solid('chair',r,.51)),
   ...chairs.map(r=>solid('chairBack',relative(r,0,-.27,r.w,.15),1.23,.51)),
   solid('vanity',vanity,.79), solid('mirrorStand',relative(vanity,.03,-.17,.64,.06),.91,.79),
+  solid('bed',BED,.665),solid('bedBack',relative(BED,0,-.79,BED.w,.12),1.40),
+  ...[-1,1].flatMap(k=>[solid('bedSide',relative(BED,k*POST,0,.066,1.53),1.075,.62),
+    solid('bedRail',relative(BED,k*POST,0,.08,1.54),1.274,1.206),solid('bolster',relative(BED,k*.75,-.49,.93,.32),.867,.64)]),
+  ...bedPosts,solid('canopy',relative(BED,0,.69,3.12,3.14),2.49,2.18),
+  solid('trunk',TRUNK,.59),solid('cupTable',CUP_TABLE,.80),
+  solid('pairedCups',relative(CUP_TABLE,-.10,-.04,.38,.18),.949,.80),solid('flask',relative(CUP_TABLE,.15,.38,.17,.17),1.10,.80),
 ];
 const rayRounds = feasts.flatMap(f=>[
   {x:f.x,z:f.z,r:.67,bottom:0,top:.77},
@@ -152,6 +173,7 @@ export function weddingSightline(from:Point3,to:Point3) {
   if(![from.x,from.y,from.z,to.x,to.y,to.z].every(Number.isFinite))return false;
   const dx=to.x-from.x,dy=to.y-from.y,dz=to.z-from.z;
   return !rayBoxes.some(b=>crossesBox(from,dx,dy,dz,b)) &&
+    !eachSheet(readDrapes(),(x,z,w)=>crossesBox(from,dx,dy,dz,solid('curtain',rect(x,z,w,sheetDepth),sheetTop,sheetBottom))) &&
     !rayRounds.some(b=>crossesCylinder(from.y,dy,b.bottom,b.top,from.x-b.x,dx,from.z-b.z,dz,b.r)) &&
     !rayDiscs.some(b=>crossesCylinder(from.z,dz,b.z-b.d/2,b.z+b.d/2,from.x-b.x,dx,from.y-b.y,dy,b.r));
 }

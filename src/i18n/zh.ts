@@ -1,5 +1,11 @@
 /** Chinese (zh) UI strings — source of truth for TranslationKey keys. */
 export const zh = {
+  hudVelvetStudio:'黑绒私摄棚',velvetPortrait:'黑绒幕前人像',velvetLounge:'卧榻与更衣间',
+  hudMedievalChamber:'中世纪刑讯室',chamberRecord:'书记案旁',chamberVault:'石拱审讯厅',
+  weddingBridal:'合卺夜 · 掀帐见喜',qinhuaiPrivate:'月蘅馆 · 青楼内室',
+  weddingCups:'合卺杯',weddingSilkOpen:'开锦帐',weddingSilkClose:'合锦帐',weddingGauzeOpen:'开纱帐',weddingGauzeClose:'合纱帐',
+  weddingBridalDoor:'妆间望洞房',
+  toySilkFan:'并蒂莲团扇',guideFanVr:'握住漆柄，转动手腕，用扇面遮脸或让开视线。',guideFanScreen:'可递给角色的左手或右手，在握姿里微调扇面方向。',guideFanEnd:'团扇随手腕和原动作移动，收回或切景即放下。',
   hudGlassPlanet:'琉璃小行星',planetLimb:'离岸看星球弧面',planetRing:'观星台望行星环',
   modelColorBalanced:'角色色彩：保留亮部细节', modelColorBright:'角色色彩：明亮（原版）',
   screenCameraKeys:'WASD 移动 · Q 顺时针 / E 逆时针 · F 升 / C 降 · R 重置',

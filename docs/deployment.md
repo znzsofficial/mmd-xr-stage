@@ -8,7 +8,7 @@
 
 ```bash
 pnpm build
-# 本次入口迁移的兼容步骤：给已打开的旧准备页保留两个版本的成对 JS
+# 给已打开的旧准备页保留已校验的 XR 入口和按需星球模块
 node scripts/retain-legacy-scene.mjs
 npx -y wrangler@4.128.0 pages deploy ./dist --project-name=mmd-xr-stage --branch=main
 ```
@@ -25,6 +25,8 @@ npx -y wrangler@4.128.0 pages deploy ./dist --project-name=mmd-xr-stage --branch
 ```bash
 git -c http.proxy=http://127.0.0.1:7897 -c https.proxy=http://127.0.0.1:7897 push origin master
 ```
+
+`37a0ef3` 的小行星是在进景时才取玩家模块及内联 WASM 的 JS。兼容脚本也保留这两个旧哈希，方便已经准备好、尚未进星球的旧标签页；不从新入口静态预载它们。
 
 ## wrangler ≥4.130 的代理委托坑（PR #15004）
 

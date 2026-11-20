@@ -26,7 +26,8 @@ export function WeddingCourt({shadows}:{shadows:boolean}){
   const finish=useBakedSurface(finishUrl,'data');
   useEffect(()=>()=>{for(const {geometry} of house)geometry.dispose();},[house]);
   useEffect(()=>{if(map)proof.dispose();return ()=>proof.dispose();},[map,proof]);
-  return <group name="wedding:jiangnan-courtyard" pointerEvents="none">
+  return <group name="wedding:jiangnan-courtyard">
+    <group pointerEvents="none">
     <ArchitectureHorizon/>
     {house.map(({name,geometry,casts,foliage})=>(!foliage||spray)&&<mesh key={name} name={`wedding:architecture:${name}`} geometry={geometry}
       receiveShadow={shadows&&(casts||name==='ground')} castShadow={shadows&&casts} raycast={noPick}>
@@ -39,6 +40,8 @@ export function WeddingCourt({shadows}:{shadows:boolean}){
         Neither adds a shadow pass or uses the ceremonial red as a skin light. */}
     <pointLight name="wedding:hall-skylight-bounce" position={[.84,2.73,-3.11]} color="#fff0dc" intensity={6.8} distance={6.8} decay={2}/>
     <pointLight name="wedding:dressing-window-bounce" position={[9.15,2.35,-5.15]} color="#fff3df" intensity={3.7} distance={4.9} decay={2}/>
+    <pointLight name="wedding:bridal-window-bounce" position={[14.63,2.55,-5.53]} color="#fff0d9" intensity={8.2} distance={6.8} decay={2}/>
+    </group>
     <WeddingFurnishings shadows={shadows}/>
   </group>;
 }

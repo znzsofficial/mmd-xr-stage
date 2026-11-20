@@ -2,6 +2,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import { runtimeTiming } from "../runtimeTiming";
 import {xrRoomRestoreTiming} from '../roomRestoreTiming';
+import {samplePlanetMovement} from '../movement/planetDiagnostics';
 import { useBackpack } from "../backpack";
 import { useStagePlay } from '../play/stagePlay';
 import { createPerformanceRecording, useLastPerformanceReport } from "../performanceReport";
@@ -67,6 +68,7 @@ export function MmdVrDiagnostics({ requested }: { requested: RenderRequest }) {
       const s = useMmdVrStore.getState();
       recording.current?.sample(data, { models: s.models.length, objects: s.objects.length, playing: s.playing,
         physics: s.physicsEnabled, scenery: s.prefs.scenery, liveHouse: s.prefs.scenery === "liveHouse", shadows: gl.shadowMap.enabled,
+        ...(s.prefs.scenery==='glassPlanet'&&{planetMovement:samplePlanetMovement()}),
         actorPalmClothRequested:s.prefs.actorPalmCloth, heldToy: useStagePlay.getState().held?.toy ?? null });
     }
   });

@@ -31,12 +31,26 @@ export function getBulletModule(work?: PhysicsSwitchWork) {
   return cached ?? start(false);
 }
 
-/** Run only if the browser actually offers idle time; don't force a load on a
- * busy XR frame or in browsers without idle scheduling. No UI or world on completion. */
-export function scheduleBulletModuleWarm(eligible: () => boolean) {
-  if (state !== 'cold' || typeof window.requestIdleCallback !== 'function') return;
-  const id = window.requestIdleCallback(() => {
-    if (state === 'cold' && eligible()) void start(true).catch(() => {});
-  });
-  return () => window.cancelIdleCallback(id);
+/** The ready-frame caller only schedules work. Immersive rendering can
+ * starve idle callbacks; a separate task gives the module a second way in. */
+export function scheduleBulletModuleWarm(eligible: () => boolean | 'busy') {
+  if (state !== 'cold') return;
+  let cancelled = false;
+  let idle: number | undefined;
+  let timer: number;
+  function disarm() {
+    if (idle !== undefined) window.cancelIdleCallback(idle);
+    idle = undefined;
+    window.clearTimeout(timer);
+  }
+  function attempt() {
+    disarm();
+    if (cancelled || state !== 'cold') return;
+    const ready = eligible();
+    if (ready === 'busy') timer = window.setTimeout(attempt, 1000);
+    else if (ready) void start(true).catch(() => {});
+  }
+  timer = window.setTimeout(attempt, 1000);
+  idle = window.requestIdleCallback?.(attempt);
+  return () => { cancelled = true; disarm(); };
 }

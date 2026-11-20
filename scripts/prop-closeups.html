@@ -12,6 +12,7 @@ import {useMmdVrStore} from '/src/mmdVrShowcase/mmdVrStore';import {giveScreenTo
 const h=React.createElement, t=useLanguageStore.getState().t;
 useMmdVrStore.setState(s=>({prefs:{...s.prefs,scenery:'pool'}}));giveScreenToy('inspection','encore','left','liveHouse');
 const shots={kite:[[.33,.23,.43],[0,.004,-.068],.31],encore:[[.29,.17,.47],[0,-.004,-.075],.32],bubbles:[[.34,.17,-.37],[0,.002,-.084],.28],post:[[.28,.15,-.43],[0,-.016,-.078],.25],saber:[[.35,.26,-.21],[0,-.041,-.068],.29],dildo:[[.24,.12,.42],[0,.042,-.05],.20],wand:[[.27,.075,.40],[0,.004,-.061],.26],feather:[[.25,.07,.50],[0,.054,-.074],.36]};
+shots.lotusFan=[[.16,.14,.56],[0,.04,-.07],.42];
 function Capture({id}){
   const {gl,scene,camera,size,invalidate}=useThree();
   useLayoutEffect(()=>{const [p,target,span]=shots[id]??shots.post;camera.position.set(...p);camera.lookAt(...target);camera.zoom=Math.min(size.height,size.width)/span;camera.updateProjectionMatrix();invalidate();},[id,size,gl,camera,invalidate]);

@@ -2,6 +2,12 @@ import type { ZhMessages } from "./zh";
 
 /** English UI strings — must cover every key in zh. */
 export const en: Record<keyof ZhMessages, string> = {
+  hudVelvetStudio:'Black Velvet Studio',velvetPortrait:'Velvet portrait mark',velvetLounge:'Chaise and dressing room',
+  hudMedievalChamber:'Medieval Interrogation Chamber',chamberRecord:'At the clerk’s table',chamberVault:'Under the stone vault',
+  weddingBridal:'Behind the bridal curtains',qinhuaiPrivate:'Yueheng House · Courtesan’s Quarters',
+  weddingCups:'Wedding wine cups',weddingSilkOpen:'Open brocade',weddingSilkClose:'Close brocade',weddingGauzeOpen:'Open gauze',weddingGauzeClose:'Close gauze',
+  weddingBridalDoor:'Through the bridal doorway',
+  toySilkFan:'Twin Lotus Silk Fan',guideFanVr:'Hold the lacquer handle and turn your wrist to frame a face or reveal it.',guideFanScreen:'Give the fan to either wrist and adjust its angle in Grip.',guideFanEnd:'The fan follows the wrist during the original motion. Stow it or change sets to put it away.',
   hudGlassPlanet:'Opal Planetoid',planetLimb:'Across the curved horizon',planetRing:'Ringwatch from the landing',
   modelColorBalanced:'Character: preserve highlights', modelColorBright:'Character: bright (original)',
   screenCameraKeys:'WASD move · Q clockwise / E counterclockwise · F up / C down · R reset',

@@ -1,5 +1,5 @@
 <!doctype html><meta charset="utf-8"><title>Fresh room runtime, same local motion</title>
-<p>Choose one local PMX, its textures and one VMD. Compares independent room runtimes without drawing or GPU upload. Use ?physics=off to exercise the physics-off return path. Files over 4 MiB bypass the parsed cache.</p>
+<p>Choose one local PMX, its textures and one VMD. First bind fills the viewing cache. Four fresh rooms then compare reparse / reuse / reuse / reparse, with a final rebind after clearing. Uses real Bullet unless ?physics=off. No drawing or GPU upload.</p>
 <input type="file" multiple><button>Measure</button><pre></pre>
 <script type="module">
 import * as T from 'three';
@@ -9,14 +9,15 @@ import {prepareMmdVrModel} from '../src/mmdVrShowcase/prepareMmdVrModel.ts';
 window.compare=async()=>{
  const files=[...document.querySelector('input').files],pmx=files.find(f=>/\.pmx$/i.test(f.name)),vmd=files.find(f=>/\.vmd$/i.test(f.name));if(!pmx||!vmd)throw Error('Select the required files');
  const physics=new URLSearchParams(location.search).get('physics')!=='off';
- const cache=createRoomMotionCache(),rows=[];await cache.load(vmd);
- try{for(const reuse of [false,true,true,false]){
+ const cache=createRoomMotionCache(),rows=[];
+ try{for(const mode of ['fill','none','reuse','reuse','none','clear']){
+   const reuse=mode!=='none';if(mode==='clear')cache.clear();
    const rt=createMmdRuntimeHandle(new T.Scene(),{motionCache:reuse?cache:undefined,prepareModel:prepareMmdVrModel});
     try{const start=performance.now(),{modelId}=await rt.addModel(pmx,files,{physics,transform:{scale:.1}});
       const bind=performance.now(),work={slot:'body'};await rt.loadMotion(vmd,'body',modelId,undefined,work);const ready=performance.now();const root=rt.getModelRoot(modelId),camera=new T.PerspectiveCamera();let mesh;root.traverse(n=>{if(n.isSkinnedMesh&&!mesh)mesh=n});
       let poses=[];for(let i=0;i<120;i++){rt.update(i/72,physics,camera,1,false,1/72);if(i%15===0){root.updateMatrixWorld(true);for(const b of mesh.skeleton.bones)poses.push(...b.matrixWorld.elements);poses.push(...(mesh.morphTargetInfluences??[]));}}
      const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new Float32Array(poses))),b=>b.toString(16).padStart(2,'0')).join('');
-      if(rows.length&&rows[0].hash!==hash)throw Error('Rebind pose mismatch');rows.push({physics,reuse,work,modelMs:bind-start,motionMs:ready-bind,totalMs:ready-start,values:poses.length,hash});
+       if(rows.length&&rows[0].hash!==hash)throw Error('Rebind pose mismatch');rows.push({physics,mode,work,modelMs:bind-start,motionMs:ready-bind,totalMs:ready-start,values:poses.length,hash});
    }finally{rt.dispose();}
  }}finally{cache.clear();}return rows;
 };document.querySelector('button').onclick=async e=>{const b=e.target;b.disabled=true;try{document.querySelector('pre').textContent=JSON.stringify(await window.compare(),null,2);}finally{b.disabled=false;}};

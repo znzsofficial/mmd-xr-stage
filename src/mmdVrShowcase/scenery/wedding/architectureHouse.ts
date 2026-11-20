@@ -2,6 +2,7 @@ import {A,COUPLET_LEFT,COUPLET_RIGHT,Skin,type V} from './architectureMesh';
 import {Frame,paperWindow,ringPull} from './architectureJoinery';
 import {fireGable,tiledRoof} from './architectureRoofs';
 import {surroundingLane} from './architectureLane';
+import {BED,CUP_TABLE,TRUNK} from './bridalLayout';
 import {WEDDING_ANCHORS,WEDDING_COLUMNS,WEDDING_DOORS,WEDDING_FLOORS,WEDDING_HALL_FRONT,WEDDING_HEADERS,WEDDING_LEAVES,WEDDING_SCREENS,WEDDING_WALLS,type WeddingRect} from './weddingLayout';
 
 const gate=WEDDING_DOORS.gate,room=WEDDING_FLOORS.dressing,court=WEDDING_FLOORS.court,front=WEDDING_HALL_FRONT;
@@ -76,7 +77,9 @@ function wall(g:Skin,r:Solid){
   if(r.id==='hallBack')for(const sign of [-1,1])add(sign*len*.325,1.72,1.04,1.38);
   if(r.id==='hallWest')add(0,2.27,.91,1.52);
   if(r.id==='courtWest'||r.id==='courtEast')for(const s of [-1,0,1])add(s*len*.315,1.42,1.02,1.03);
-  if(r.id==='dressingEast')add(-.19,2.40,.97,1.38);
+  if(r.id==='dressingEast')add(0,1.20,1.07,1.20);
+  if(r.id==='bridalEast'||r.id==='bridalSouth')for(const s of [-1,1]) add(s*len*.24,1.65,1.01,1.37);
+  if(r.id==='bridalNorth')for(const s of [-1,1]) add(s*2.67,1.14,1.22,1.17);
   if(r.id==='dressingSouth')add(0,1.66,1.10,1.24);
   if(r.id==='dressingBack')panels.push(vanityLight);
   if(r.id==='gateEast'||r.id==='gateWest')add((r.id==='gateEast'?1:-1)*.47,1.04,1.24,.81);
@@ -315,14 +318,33 @@ function pavilions(hall:Skin,galleryWest:Skin,galleryEast:Skin,dressing:Skin){
 }
 
 export function makeWeddingArchitecture(){
-  const groups={ground:new Skin(false,gateFloorReveal),hall:new Skin(),gate:new Skin(false,gateReveal,[.74,2.30,2.46]),west:new Skin(),east:new Skin(),dressing:new Skin(),
+  const groups={ground:new Skin(false,gateFloorReveal),hall:new Skin(),gate:new Skin(false,gateReveal,[.74,2.30,2.46]),west:new Skin(),east:new Skin(),dressing:new Skin(),bridal:new Skin(),
     horizon:new Skin(),laneSouth:new Skin(),laneWest:new Skin(),laneEast:new Skin(),laneNorth:new Skin(),leafWest:new Skin(true),leafSouth:new Skin(true)};
   const {ground,hall,gate,west,east,dressing}=groups;
   floors(ground);for(const r of WEDDING_WALLS){
-    const g=r.id.startsWith('gate')?gate:r.id.startsWith('dressing')?dressing:r.id==='courtWest'?west:r.id==='courtEast'?east:hall;wall(g,r);
+    const g=r.id.startsWith('gate')?gate:r.id.startsWith('bridal')?groups.bridal:r.id.startsWith('dressing')?dressing:r.id==='courtWest'?west:r.id==='courtEast'?east:hall;wall(g,r);
   }
+  bridalPavilion(groups.bridal);
   openings(gate,dressing);screens(gate,dressing);posts(hall,west,east);gateTower(gate);pavilions(hall,west,east,dressing);surroundingLane(groups);
   // One bound per sightline, shared by its walls, tiny roof ends and window
   // frames. A view of the bronze mirror drops the whole opposite gate/eaves.
-  return Object.entries(groups).map(([name,skin])=>({name,geometry:skin.finish(),foliage:name.startsWith('leaf'),casts:['hall','gate','west','east','dressing'].includes(name)}));
+  return Object.entries(groups).map(([name,skin])=>({name,geometry:skin.finish(),foliage:name.startsWith('leaf'),casts:['hall','gate','west','east','dressing','bridal'].includes(name)}));
+}
+
+function bridalPavilion(g:Skin){
+  const r=WEDDING_FLOORS.bridal,door=WEDDING_DOORS.bridal,y=3.12;
+  paving(g,r,A.boards,2.26,1.12,'#f5d6b9',([x,,z])=>{
+    let shade=0;for(const f of [BED,TRUNK,CUP_TABLE]){const u=Math.max(0,Math.abs(x-f.x)-f.w/2),v=Math.max(0,Math.abs(z-f.z)-f.d/2);shade=Math.max(shade,.24*Math.exp(-3*Math.hypot(u,v)));}
+    return .97-shade;
+  });
+  g.block(door.x,-.014,door.z,.31,.043,door.width,A.granite,'#d9c8a8');
+  const frame=new Frame(g,door.x,door.z,true);
+  for(const s of [-1,1]){
+    for(const t of [-1,1])frame.box(t*(door.width/2+.025),door.head/2,s*.114,.065,door.head,.072,A.wood,'#c89873');
+    frame.panel(0,door.head+.15,s*.118,.59,.26,s,A.swallows,'#e7cfaf');
+  }
+  g.block(r.x,y+.06,r.z,r.w+.09,.12,r.d+.09,A.boards,'#c7a384',1.65,1.45);
+  for(const x of [r.x-2.62,r.x,r.x+2.62])g.block(x,y-.10,r.z,.12,.20,r.d,A.wood,'#c69d7a',1.45,.74);
+  // Hip ends close every elevation; the lower roof meets the makeup wing at the eave.
+  tiledRoof(g,{x:r.x,z:r.z,hw:r.w/2+.28,hd:r.d/2+.40,eave:y+.14,rise:1.10,hip:1.23,lift:.11,detail:false});
 }

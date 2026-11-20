@@ -5,7 +5,7 @@ import type { SceneryId } from './scenery/catalog';
 import type { RoomRestoreEvent } from './roomRestoreTiming';
 import type {PhysicsSwitchWork} from './physicsSwitchWork';
 
-type SceneSample = { models: number; objects: number; physics: boolean; scenery?: string; liveHouse: boolean; shadows: boolean; playing: boolean; actorPalmClothRequested?:boolean; heldToy?: import('./play/stagePlay').Toy | null };
+type SceneSample = { models: number; objects: number; physics: boolean; scenery?: string; liveHouse: boolean; shadows: boolean; playing: boolean; actorPalmClothRequested?:boolean; heldToy?: import('./play/stagePlay').Toy | null; planetMovement?:ReturnType<typeof import('./movement/planetDiagnostics').samplePlanetMovement> };
 type Window = Omit<RenderDiagnostics, "requested" | "active"> & SceneSample & { elapsedMs: number };
 const MAX_WINDOWS = 1800;
 

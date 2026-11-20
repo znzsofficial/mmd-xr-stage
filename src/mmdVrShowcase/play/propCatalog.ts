@@ -66,6 +66,10 @@ const catalog = {
     label:'toyFeather', home:null, homeLabel:'allSets', visit:null, view:'plumeBrush',grip:{point:[0,-.032,-.04],pitch:.40},
     guide:{vr:'guideFeatherVr',screen:'guideFeatherScreen',end:'guideFeatherEnd'},
   },
+  lotusFan: {
+    label:'toySilkFan',home:null,homeLabel:'allSets',visit:null,view:'roundFan',grip:{point:[0,-.032,-.043],pitch:.34},
+    guide:{vr:'guideFanVr',screen:'guideFanScreen',end:'guideFanEnd'},
+  },
 } as const satisfies Record<string,Definition>;
 
 export type Toy = keyof typeof catalog;

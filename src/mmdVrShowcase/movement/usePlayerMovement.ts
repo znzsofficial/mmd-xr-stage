@@ -14,26 +14,26 @@ import {createGroundMotor,groundedBody} from './groundMotor';
 import {roomEntry,roomGround} from './roomGround';
 import {createSolidColumns,playerSolidRoots,type Column} from './solidColumns';
 import {actorBodies,sampleBodies} from './actorBodies';
+import {newStick,readStick,stickAxis as axis} from './controllerInput';
+import {eyeLift,headMargin} from './eyeHeight';
 
-const axis=(v=0)=>Math.sign(v)*Math.max(0,(Math.min(1,Math.abs(v))-.16)/.84);
 export function usePlayerMovement(originRef:RefObject<Group|null>,veilRef:RefObject<Mesh|null>,dragging:boolean){
   const left=useXRInputSourceState('controller','left'),right=useXRInputSourceState('controller','right');
   const [s]=useState(()=>({body:groundedBody(0,0,0),safe:{x:0,y:0,z:0},mode:null as MovementMode|null,
     room:null as SceneryId|null,epoch:-1,gate:new RoomGate(),motor:createGroundMotor(),solids:createSolidColumns(),
     roots:[] as Object3D[],root:undefined as Object3D|undefined,live:null as unknown,people:true,bodies:[] as ReturnType<typeof actorBodies>,
-    direction:new Vector3(),q:new Quaternion(),snapReady:true,aDown:false,release:null as null|(()=>void)}));
+    direction:new Vector3(),q:new Quaternion(),left:newStick(),right:newStick(),headroom:{floor:0,ceiling:Infinity,blocked:false},snapReady:true,aDown:false,release:null as null|(()=>void)}));
   useEffect(()=>()=>{s.release?.();s.solids.invalidate();s.roots=[];},[s]);
   useFrame(({gl,scene},elapsed,frame)=>{
     const origin=originRef.current,space=gl.xr.getReferenceSpace();if(!origin||!frame||!space)return;
-    const pose=frame.getViewerPose(space);if(!pose){s.aDown=true;s.snapReady=false;return;}
+    const pose=(!frame.session.visibilityState||frame.session.visibilityState==='visible')&&frame.getViewerPose(space);if(!pose){s.aDown=true;s.snapReady=false;return;}
     const {prefs,viewEpoch}=useMmdVrStore.getState(),{scenery:room,movementMode:mode}=prefs;
     const local=pose.transform.position,q=pose.transform.orientation;
     const dt=Math.min(.1,Math.max(0,elapsed)),speed=WALK_SPEED[prefs.walkSpeedPref==='auto'?'normal':prefs.walkSpeedPref];
-    const h=Math.max(.24,local.y+.095); // protect the top of the head, including while crouched
-    const stickL=left?.gamepad['xr-standard-thumbstick'],stickR=right?.gamepad['xr-standard-thumbstick'];
-    const aState=right?.gamepad['a-button']?.state,pressed=aState==='pressed';
+    readStick(frame.session.inputSources,'left',left,s.left);readStick(frame.session.inputSources,'right',right,s.right);
+    const pressed=s.right.a;
     let jump=pressed&&!s.aDown&&!dragging;s.aDown=pressed;
-    const turn=stickR?.xAxis??0;
+    const turn=s.right.x;
     if(Math.abs(turn)<.5)s.snapReady=true;
     if(dragging)s.snapReady=false;
 
@@ -58,11 +58,11 @@ export function usePlayerMovement(originRef:RefObject<Group|null>,veilRef:RefObj
     cos=Math.cos(yaw);sin=Math.sin(yaw);
     s.direction.set(0,0,-1).applyQuaternion(s.q.set(q.x,q.y,q.z,q.w));
     const heading=yaw+Math.atan2(-s.direction.x,-s.direction.z),cx=Math.cos(heading),sx=Math.sin(heading);
-    const ax=dragging?0:axis(stickL?.xAxis),az=dragging?0:axis(stickL?.yAxis),scale=speed*dt/Math.max(1,Math.hypot(ax,az));
+    const ax=dragging?0:axis(s.left.x),az=dragging?0:axis(s.left.y),scale=speed*dt/Math.max(1,Math.hypot(ax,az));
     const dx=(cx*ax+sx*az)*scale,dz=(-sx*ax+cx*az)*scale;
-    let obstructed=false;
+    let obstructed=false,lift=0;
     if(mode==='free'){
-      x+=dx;z+=dz;if(!dragging)origin.position.y-=axis(stickR?.yAxis)*speed*dt;
+      x+=dx;z+=dz;if(!dragging)origin.position.y-=axis(s.right.y)*speed*dt;
       s.gate.reset();
     }else{
       const live=useBackpack.getState().live,root=scene.children.find(o=>o.name==='player:room-solids');
@@ -74,6 +74,11 @@ export function usePlayerMovement(originRef:RefObject<Group|null>,veilRef:RefObj
         out.floor=roomGround(room,px,pz);out.blocked=false;out.ceiling=Infinity;
         if(Number.isFinite(out.floor)){s.solids.sample(s.roots,px,pz,foot,out);sampleBodies(s.bodies,px,pz,foot,out);}
       };
+      // Constrain calibration at the current foot before testing the next
+      // step. Walking into a lower doorway must still enforce the full height.
+      if(prefs.normalEyeOffset>0)sample(s.body.x,s.body.z,s.body.y,s.headroom);
+      lift=eyeLift(prefs.normalEyeOffset,local.y,s.headroom.ceiling-(s.body.grounded?s.body.y:s.headroom.floor));
+      const eye=local.y+lift,h=Math.max(.24,eye+headMargin);
       // A prop might have been placed on the saved landing during free flight.
       // Prefer the entrance and nearby supported points, never an arbitrary Y.
       if((reset||returning)&&!s.motor.fits(sample,x,z,s.body.y,h)){
@@ -87,13 +92,13 @@ export function usePlayerMovement(originRef:RefObject<Group|null>,veilRef:RefObj
       }
       // A real lean into/through a solid obscures the view until the tracked
       // head returns. Never push the XR camera back or rewrite its physical pose.
-      if(local.y<.055||!s.motor.track(s.body,sample,x,z,h)){
+      if(eye<.055||!s.motor.track(s.body,sample,x,z,h)){
         obstructed=true;s.gate.reset();
-        if(!s.body.grounded){s.motor.advance(s.body,sample,0,0,dt,h,false);origin.position.y=s.body.y;}
+        if(!s.body.grounded)s.motor.advance(s.body,sample,0,0,dt,h,false);
       }
       else{
         const beforeX=x,beforeZ=z;
-        s.motor.advance(s.body,sample,dx,dz,dt,h,jump);x=s.body.x;z=s.body.z;origin.position.y=s.body.y;
+        s.motor.advance(s.body,sample,dx,dz,dt,h,jump);x=s.body.x;z=s.body.z;
         if(room==='classroom'&&!s.release&&nearCampusDoor(x,z))s.release=hintLawnPrints();
         // Keep sampling the seam across a small step down (or a jump through
         // the open doorway). Brief loss of ground contact must not erase it.
@@ -114,7 +119,8 @@ export function usePlayerMovement(originRef:RefObject<Group|null>,veilRef:RefObj
     }
     // Preserve the physical tracked offset, including on reset/portal crossing.
     origin.position.x=x-cos*local.x-sin*local.z;origin.position.z=z+sin*local.x-cos*local.z;
+    if(mode==='normal')origin.position.y=s.body.y+lift;
     origin.rotation.y=yaw;origin.updateMatrixWorld(true);
     if(veilRef.current){veilRef.current.visible=obstructed;veilRef.current.position.set(local.x,local.y,local.z);}
-  });
+  },-2); // before hand (-1) and controller (0) collider samples
 }

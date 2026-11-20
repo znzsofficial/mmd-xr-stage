@@ -1,13 +1,14 @@
 import {BufferGeometry,Float32BufferAttribute,Color} from 'three';
 import type {Part} from '../SceneryBatch';
 import {span} from '../detailParts';
-import {BACKDROP,CEILINGS,DAIS_TREADS,GALLERY,GALLERY_RAIL,GALLERY_Y,HALL,HEADER,MIRROR,MUSIC,PIER,POSTS,QUAY,RIVER_RAILS,STAGE,STAGE_Y,STAIR_TREADS,STOOLS,TABLES,UPPER_SEAT,VANITY,WALLS,stageDrapes,type Rect} from './songhouseLayout';
+import {BACKDROP,CEILINGS,DAIS_TREADS,GALLERY,GALLERY_RAIL,GALLERY_Y,HALL,HEADER,MIRROR,MUSIC,PIER,POSTS,PRIVATE_TOP,QUARTERS,QUAY,RIVER_RAILS,STAGE,STAGE_Y,STAIR_TREADS,STOOLS,TABLES,UPPER_SEAT,VANITY,WALLS,stageDrapes,type Rect} from './songhouseLayout';
 import {makeSonghouseClose} from './songhouseClose';
+import {furnishQuarters} from './privateQuarters';
 
 type V=Part['p'];
 type UV=[number,number];
 const wood='#774638',timber='#512f2b',dark='#422e30',amber='#ad7650',brass='#bf955d',ivory='#e3d1ad',jade='#53746c';
-class Skin {
+export class Skin {
   p:number[]=[]; uv:number[]=[]; colors:number[]=[]; indices:number[]=[];
   quad(a:V,b:V,c:V,d:V,color:string,uv:UV[]=[[0,0],[1,0],[1,1],[0,1]]){
     const i=this.p.length/3,col=new Color(color);this.p.push(...a,...b,...c,...d);this.uv.push(...uv.flat());
@@ -69,7 +70,7 @@ export function makeSonghouse(){
   for(let j=0;j<9;j++){let left=-8.8;const z=4.5+(j+.5)*.7;while(left<7.48){const next=Math.min(7.5,left+(left===-8.8&&j%2?.77:1.42+rnd()*.55));box((next+left)/2,-.05,z,next-left-.015,.10,.689,['#b1a597','#b5aa9c','#a99d90','#b4a899'][Math.floor(rnd()*4)]);left=next;}}
   for(const [i,r] of [...STAIR_TREADS,...DAIS_TREADS].entries()){slab(r,r.bottom,r.top,i%2?wood:'#905d45');box(r.x,r.top-.019,r.z+r.d/2-.036,r.w+.002,.044,.074,'#bb9874');}
   for(const x of [-8.73,-5.77]){line([x,.81,8.04],[x,GALLERY_Y+.81,2.6],.085,timber);line([x,.34,8.04],[x,GALLERY_Y+.34,2.6],.065,amber);for(let i=0;i<16;i+=2){const t=STAIR_TREADS[i];box(x,t.top+.4,t.z,.075,.80,.075,wood);}}
-  for(const [i,w] of WALLS.entries())slab(w,w.bottom,w.top,i===2?'#856451':i>=5?timber:'#d2bfaa');
+  for(const [i,w] of WALLS.entries())slab(w,w.bottom,w.top,i===2?'#856451':i>=4?timber:'#d2bfaa');
   const lattice=(x:number,y:number,z:number,w:number,h:number,side=false)=>{
     const piece=(u:number,v:number,ww:number,hh:number,c:string)=>box(x+(side?0:u),y+v,z+(side?u:0),side?.055:ww,hh,side?ww:.055,c);
     for(const s of [-1,1]){piece(s*w/2,h/2,.075,h+.07,timber);piece(0,s*h/2+h/2,w+.08,.07,timber);}
@@ -178,5 +179,8 @@ export function makeSonghouse(){
     const a=j*2.399,l=1+rnd()*1.55,tip:V=[x+Math.cos(a)*l,h*(.84+rnd()*.18),z+Math.sin(a)*l];line(fork,tip,.105,'#6e6654');bead(...tip,1.83,.75,1.42,['#72806f','#788676','#687d70'][j%3]);
     for(let i=0;i<6;i++){const u=tip[0]+(rnd()-.5)*1.65,v=tip[2]+(rnd()-.5)*1.18,low=tip[1]-.45-rnd()*1.5;line([u,tip[1],v],[u+.07,low,v+.11],.024,'#687967');for(let k=0;k<3;k++){const y=low+k*.26;hulls.quad([u+.07,y-.13,v+.11],[u+.13,y+.05,v+.13],[u+.08,y+.18,v+.09],[u+.03,y+.05,v+.08],'#7b8974');}}}
   }willow(-10.2,23.35,3.75);willow(7.76,23.49,4.05);
-  return {boxes,round,facets,glow,roofs:roofs.finish(),prints:prints.finish(),hulls:hulls.finish(),fabric:fabric.finish(),close:makeSonghouseClose(boxes)};
+  const art=new Skin();slab(QUARTERS,-.18,GALLERY_Y-.042,'#806e60');boards(QUARTERS,GALLERY_Y,['#a48269','#a8866d','#ad8e73']);
+  roof(QUARTERS.x,QUARTERS.z,3.63,3.49,PRIVATE_TOP+.15,1.13);
+  furnishQuarters({box,tube,bead,line,lantern,fabric,art});
+  return {boxes,round,facets,glow,roofs:roofs.finish(),prints:prints.finish(),hulls:hulls.finish(),fabric:fabric.finish(),close:makeSonghouseClose(boxes),quarters:art.finish()};
 }

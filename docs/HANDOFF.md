@@ -1,14 +1,14 @@
 # 会话交接｜2026-11-20
 
-[线上舞台](https://mmd-xr-stage.pages.dev) · [固定版 `37a0ef3`](https://561c3380.mmd-xr-stage.pages.dev) · [分类文档索引](./README.md)
+[线上舞台](https://mmd-xr-stage.pages.dev) · [发布记录与固定版](./release-history.md) · [分类文档索引](./README.md)
 
-**线上基线**：十三景八件道具。新[琉璃小行星](./scenery/opal-planet.md)使用 Ecctrl/Rapier 球面行走；[MMD 角色色彩](./scenery/model-highlight-color.md)默认保留亮部，场内可切回原版。374 项测试通过；主域名入口及 72 份文件哈希一致。在主域名已模拟双眼 XR 走到球背、起跳、召回并点菜单、自由升降和返回水平教室。
+**本版：十五景、九件道具。** [喜房](./scenery/wedding-court.md)接妆间，配双层帐和可递的团扇；[月蘅馆](./scenery/qinhuai.md)接歌楼原二楼。[黑绒私摄棚](./scenery/velvet-studio.md)和[中世纪刑讯室](./scenery/medieval-chamber.md)独立选景。普通模式能按 10 cm 调整眼高，常速仍是 2.4 m/s。星球输入不再等 Rapier；修正了大动作回场复用和首开物理的预热时机。
 
 ## 下次从这里开始
 
-**下次优先拿一份 `37a0ef3` 的 Quest 3S 教室 JSON。** 按[真机短测](./performance/next-quest-export.md)做关／开物理各 20 秒、暂停拨衣、恢复播放关物理、泳池往返回教室，再退出导出。小行星舒适度留到下载后另测。收到报告后按短测页末尾的字段分开读；旧版 60／41 FPS 不是本版成绩。
+**`37a0ef3` 真机报告已收到。** 星球空场两次进入，B 正常但不能行走或转向，21 个采样窗中位 117 FPS；当时未记录摇杆输入。教室单角色同一趟首访播放，关／开物理的窗口中位数 64／42 FPS；首次开启 949 ms 中 893 ms 等模块，泳池回教室 8.74 秒中 6.26 秒等超限身体动作。[下次短测](./performance/next-quest-export.md)：先在新页立即试星球两根摇杆，教室另测同一大动作回场和首次开物理。稳定 72 FPS 仍未获真机验证。
 
-**引擎决定：Three 继续做正式版，Babylon 只保留实验。** Ecctrl/Rapier 已用于星球玩家，MMD 衣物仍由 Bullet 驱动。桌面 A/B 和暂停拨衣不必重跑；何时值得重开迁移见[选型结论](./three-tooling.md#什么时候再考虑迁移)。
+**正式版继续用 Three，Babylon 只保留实验。** 见[重新考虑迁移的条件](./three-tooling.md#什么时候再考虑迁移)。海边终点站、旧城皮影台、深夜唱片行按用户决定留待以后。
 
 **继续开发的边界**：[舞台架构](./architecture.md)区分页面背包、观看会话和当前房间；玩家移动、资产放置和手部拨衣分别判断。用户优先与自选角色互动，[Blender 角色包](./gameplay/blender-characters.md)已走通，恋活卡暂缓。医院「场景人物」只切换[原有静态护士](./scenery/clinic-teaching.md)；喜院和教室的[首轮材质样板](./scenery/art-direction.md)已完成，其他美术候选未排期。公开 README 保留 badge 和技术章节，私有素材和真机原始 JSON 留在本机。
 

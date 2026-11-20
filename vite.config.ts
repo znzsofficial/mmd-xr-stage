@@ -42,7 +42,10 @@ function sceneReadyWithPrep(): Plugin {
 
 export default defineConfig(({mode}) => ({
   plugins: [react(), singleThreeRuntime(), sceneReadyWithPrep()],
-  resolve: { dedupe: ["three"], ...(mode === 'test' && {mainFields:['module','main']}) },
+  // experiments/ has standalone apps with their own React and Fiber. Scanning
+  // their HTML into the product dev cache splits the Rapier/Fiber contexts.
+  optimizeDeps:{entries:['index.html']},
+  resolve: { dedupe: ['react','react-dom','three','@react-three/fiber','@react-three/rapier'], ...(mode === 'test' && {mainFields:['module','main']}) },
   ...(mode === 'test' && {ssr: {resolve: {mainFields:['module','main']}}}),
   test: {
     // Use these packages' published ESM entries in Node/jsdom too. Native

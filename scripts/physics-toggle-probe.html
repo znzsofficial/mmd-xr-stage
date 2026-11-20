@@ -1,5 +1,5 @@
 <!doctype html><meta charset="utf-8"><title>Physics toggle parity</title>
-<p>Local development only. Pick a PMX and its textures. Compares full reload and in-place switching with the shipped Bullet and a fixed motion clock. For startup, open a fresh page with ?startup=cold or ?startup=warm and optionally select a body VMD. Run once per page.</p>
+<p>Local development only. Pick a PMX and its textures. Compares full reload and in-place switching with the shipped Bullet and a fixed motion clock. For startup, open a fresh page with ?startup=cold or ?startup=warm and optionally select a body VMD. Add &amp;idle=starved to withhold idle callbacks during startup. Run once per page.</p>
 <input type="file" multiple><button>Compare</button><pre></pre>
 <script type="module">
 import * as THREE from 'three';
@@ -12,10 +12,13 @@ async function startup(files, warm) {
   const fixture=clothSmokeFixture(), pmx=files.find(f=>/\.pmx$/i.test(f.name))??fixture.pmx, vmd=files.find(f=>/\.vmd$/i.test(f.name))??fixture.vmd;
   const rt=createMmdRuntimeHandle(new THREE.Scene(),{prepareModel:prepareMmdVrModel}), camera=new THREE.PerspectiveCamera(), rows=[];
   let cancel;
+  const starve=new URLSearchParams(location.search).get('idle')==='starved';
+  const idle=window.requestIdleCallback, cancelIdle=window.cancelIdleCallback;
   try {
     const {modelId}=await rt.addModel(pmx,files,{transform:{scale:.1}});
     await rt.loadMotion(vmd,'body',modelId);
     await new Promise(requestAnimationFrame);rt.update(.49,false,camera,1,false,1/72);
+    if(starve){window.requestIdleCallback=()=>0;window.cancelIdleCallback=()=>{};}
     if(warm) cancel=scheduleBulletModuleWarm(()=>true);
     await new Promise(resolve=>setTimeout(resolve,2000)); // same player thinking time in both arms
     const before={bodies:rt.getRigidBodyCount(),steps:rt.getPhysicsStepCount()}, root=rt.getModelRoot(modelId);
@@ -27,7 +30,7 @@ async function startup(files, warm) {
     }
     if(before.bodies||before.steps)throw Error('Physics ran before explicit enable');
     return {before,rows};
-  } finally { cancel?.();rt.dispose(); }
+  } finally { cancel?.();if(starve){window.requestIdleCallback=idle;window.cancelIdleCallback=cancelIdle;}rt.dispose(); }
 }
 
 async function compare(files){

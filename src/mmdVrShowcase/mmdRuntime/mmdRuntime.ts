@@ -829,13 +829,14 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       if (!id) throw new Error("No model selected");
       const entry = entries.get(id);
       if (!entry) throw new Error("Model not found");
+      const at = work ? performance.now() : 0;
+      const request = options.motionCache?.acquire(file, slot);
       if (work) {
-        work.cache = options.motionCache?.status(file) ?? 'none';
+        work.cache = request?.status ?? 'none';
         work.evaluator = entry.model.runtime instanceof MmdAnimRuntime ? 'wasm-adapter' : entry.model.runtime instanceof DefaultMmdRuntime ? 'js' : 'other';
       }
-      const at = work ? performance.now() : 0;
       let animation;
-      try { animation = await (options.motionCache?.load(file) ?? new ThreeMmdLoader().loadAnimation(file)); }
+      try { animation = await (request?.promise ?? new ThreeMmdLoader().loadAnimation(file)); }
       finally { if (work) work.loadWallMs = performance.now() - at; }
       assertActive();
       if (entries.get(id) !== entry || isStale?.()) throw new DOMException("MMD model changed", "AbortError");
@@ -854,6 +855,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
         throw error;
       }
       Object.assign(entry, candidate);
+      request?.bound(animation);
       // setAnimation resets physics state; clear clock so next step is "seeking".
       lastPhysicsSeconds.delete(entry.id);
       recomputeGlobal();

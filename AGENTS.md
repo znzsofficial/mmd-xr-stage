@@ -25,6 +25,7 @@
 - Keep mouse-wheel zoom in screen viewing. Keyboard translation moves both eye and orbit target; keyboard yaw turns around the eye. After camera changes, test turning and moving with the keys, then zooming in and out with the actual wheel and dragging to orbit before resetting the current room.
 - For PMX color comparisons, keep the same evaluated pose and compare character pixels rather than global screenshots. Default toon highlights should retain clothing and skin detail; keep the original bright grade available without changing the room lighting or the user's global exposure. See `docs/scenery/model-highlight-color.md`.
 - Only the XR planetoid mounts Ecctrl/Rapier. Keep its WASM off the static prep and screen import graph; the renderer/hand colliders and MMD Bullet worlds remain separate. Sample controller impulses and the bounded planet step on the same clock. Check recall and snap turns in the local tangent frame at the antipode.
+- Keep globe input and the XR origin usable before the optional physics module resolves, and on failure. A working B menu is not proof of locomotion. Check both sticks with a delayed or denied WASM on first entry and re-entry. Keep the product Vite dependency scan on `index.html`: scanning the standalone experiments can load a second React/Fiber in dev.
 
 ## Commands
 

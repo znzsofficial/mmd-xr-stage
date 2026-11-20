@@ -1,9 +1,13 @@
-// Optional migration step AFTER build for tabs running the last two lazy-scene releases.
+// After build: immutable lazy modules still reachable from an older open tab.
 // Only verified immutable Pages assets; never replace new code or index.html.
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 
 const files = [
+  // Old prep already imports its React/Three/vendor modules. Its first planet
+  // visit after an update can still request the on-demand motor and WASM.
+  ['561c3380','PlanetMotor-BVRXgpWJ.js','c36f9f43236ba248568dbaba80ab01fd513063ac1eb123a9bfbca7b4168725af'],
+  ['561c3380','planet-physics-CGqbHp4L.js','0915c83b10adebd455731953e485f62786042953e27227fab75f4bdfde8eed80'],
   ["7530d188", "index-YFpsiatv.js", "d8b245ef63c935bbc79421927b3222f8df55fbc86295c7a752827e4973bd04a0"],
   ["7530d188", "MmdVrScene-BYabBXrY.js", "e1b4a34b880cecf4bef1d7b533f82b92bb4db268c644127af9735ebb9c8d99e2"],
   ["d55e5a7f", "index-slHQRHJX.js", "c00e0a4886f6c175a85d08c6160494a1c9850f7d6a78eb0e9ed24c598a6828ee"],

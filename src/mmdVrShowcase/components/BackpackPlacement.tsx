@@ -72,7 +72,7 @@ function DropSurface({ id, scenery }: { id: string; scenery: SceneryId }) {
     if (hovering.current === e.pointerId && marker.current) marker.current.visible = false;
   };
   return <>
-    {[{x:0,y:0,z:0,w:scenery==='astralCourt'?108:72,d:scenery==='astralCourt'?108:72},...elevatedPickDecks(scenery)].map(r=><mesh key={r.y} name={r.y?'backpack:deck':'backpack:ground'} position={[r.x,r.y+.012,r.z]} rotation-x={-Math.PI/2} pointerEventsType={rayOnly} pointerEventsOrder={-1}
+    {[{x:0,y:0,z:0,w:scenery==='astralCourt'?108:72,d:scenery==='astralCourt'?108:72},...elevatedPickDecks(scenery)].map(r=><mesh key={`${r.x}/${r.y}/${r.z}`} name={r.y?'backpack:deck':'backpack:ground'} position={[r.x,r.y+.012,r.z]} rotation-x={-Math.PI/2} pointerEventsType={rayOnly} pointerEventsOrder={-1}
       onPointerMove={target} onPointerLeave={leave} onPointerCancel={leave}
       onPointerDown={e => { if (target(e)?.allowed) pressed.current = e.pointerId; }}
       onPointerUp={e => {

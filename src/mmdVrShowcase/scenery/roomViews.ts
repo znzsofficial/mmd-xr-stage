@@ -9,12 +9,15 @@ import {LIDO_ROUTE_SHOTS} from './LidoLayout';
 import {SCREEN_ENTRY,SHOTS} from './qinhuai/songhouseLayout';
 import {WEDDING_SHOTS,WEDDING_VIEW} from './wedding/weddingLayout';
 import {RETREAT_VIEWS} from './retreat/retreatLayout';
+import {velvetView} from './velvet/velvetLayout';
+import {chamberView} from './chamber/chamberLayout';
 
 type Point=readonly [number,number,number];
 type Shot={key:TranslationKey;eye:Point;aim:Point;link?:RoomLink;preloadLawn?:boolean;overview?:boolean};
 type RoomView={entry:readonly [Point,Point];shots?:readonly Shot[]};
 export const roomViews:Record<SceneryId,RoomView>={
   ...RETREAT_VIEWS,
+  velvetStudio:velvetView,medievalChamber:chamberView,
   glassPlanet:{entry:[[.6,1.6,3.4],[0,.85,-.65]],shots:[{key:'planetLimb',eye:[8.2,1.7,9.2],aim:[0,-3,-2]},{key:'planetRing',eye:[-1.45,1.25,2.1],aim:[5.4,2.36,-11]}]},
   floor:{entry:[[1.4,1.65,4],[0,.95,-.4]]}, liveHouse:{entry:[[.8,1.7,4.4],[0,1.05,-1.3]]},
   pool:{entry:[[2.1,1.7,2.8],[0,.85,-3.7]],shots:[LIDO_ROUTE_SHOTS.clock,LIDO_ROUTE_SHOTS.return]},
