@@ -8,6 +8,12 @@ const round=x=>+x.toFixed(3),delta=(a,b)=>Math.hypot(...a.map((v,i)=>v-b[i]));
 const ensure=(ok,msg)=>{if(!ok)throw Error(msg)};
 function view(label){const f=document.createElement('figure'),c=document.createElement('canvas'),cap=document.createElement('figcaption');c.width=c.height=400;cap.textContent=label;f.append(c,cap);$('views').append(f);return c;}
 
+function pixels(canvas){const copy=document.createElement('canvas');copy.width=canvas.width;copy.height=canvas.height;const ctx=copy.getContext('2d');ctx.drawImage(canvas,0,0);return ctx.getImageData(0,0,copy.width,copy.height).data;}
+function colorStats(images){const stats=images.map(()=>({luma:0,saturation:0,nearWhite:0}));let common=0;
+  for(let i=0;i<images[0].length;i+=4){if(images.some(a=>a[i]===a[0]&&a[i+1]===a[1]&&a[i+2]===a[2]))continue;common++;
+    images.forEach((a,j)=>{const r=a[i],g=a[i+1],b=a[i+2],max=Math.max(r,g,b),min=Math.min(r,g,b);stats[j].luma+=.2126*r+.7152*g+.0722*b;stats[j].saturation+=max?(max-min)/max:0;stats[j].nearWhite+=Number(min>=250)});}
+  return {commonPixels:common,order:['original Three','balanced Three','Babylon'],means:stats.map(m=>Object.fromEntries(Object.entries(m).map(([k,v])=>[k,round(v/(common||1))])))};}
+
 async function compare(files,vmd){
   const pmx=files.find(f=>f.webkitRelativePath===$('pmx').value);ensure(pmx&&vmd,'需要一份 PMX 和身体 VMD');
   const report={viewport:'400x400 WebGL2, no XR, shadows/AA off',bones:[],modes:[]},previous=[[],[]];
@@ -50,8 +56,14 @@ async function compare(files,vmd){
       report.modes.push({physics:on,updateMs:times.map(a=>round(median(a))),staticDrawMs:draws.map(a=>round(median(a))),
         updateBlocksMs:times.map(a=>a.map(round)),staticDrawBlocksMs:draws.map(a=>a.map(round)),
         babylonFasterBlocks:times[1].filter((b,i)=>b<times[0][i]).length,comparedDynamicBones:cloth.length,wristTravel:wristTravel.map(round),physicsVsOffMaxDisplacement:on?physicsDiff.map(round):null});
-      // Keep an image even after disposing these worlds. Snapshots stay in the browser.
-      for(const canvas of $('views').querySelectorAll('canvas')){const img=new Image();img.width=img.height=400;img.src=canvas.toDataURL();canvas.replaceWith(img)}
+      // Capture both grades on the SAME evaluated pose; never re-step Bullet.
+      const [three,babylon]=$('views').querySelectorAll('canvas');
+      const balancedPixels=pixels(three),referencePixels=pixels(babylon);
+      for(const [canvas,label] of [[three,'Three'],[babylon,'Babylon']]){const img=new Image();img.width=img.height=400;img.alt=label;img.src=canvas.toDataURL();
+        if(canvas===three){const balanced=img.src;rigs[0].setBalancedColor(false);rigs[0].draw();const original=canvas.toDataURL();
+          report.modes.at(-1).color=colorStats([pixels(three),balancedPixels,referencePixels]);
+          const toggle=document.createElement('button');toggle.textContent='对照旧亮度';let showOld=false;toggle.onclick=()=>{showOld=!showOld;img.src=showOld?original:balanced;toggle.textContent=showOld?'返回保留亮部':'对照旧亮度'};canvas.parentElement.querySelector('figcaption').append(' ',toggle);}
+        canvas.replaceWith(img)}
     }finally{for(const r of rigs)r.dispose();}
   }
   return report;

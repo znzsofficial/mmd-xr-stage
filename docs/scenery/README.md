@@ -1,6 +1,6 @@
 # 建模与布景
 
-舞台有十二景：[暮灯情侣套房、月庭双人私汤](./private-retreats.md)是独立选景，各有两处双人站位。[双喜堂](./wedding-court.md)从巷口花轿通到喜堂和侧室；[秦淮歌楼](./qinhuai.md)从埠头通戏台和二楼听曲廊。晴空草坪连通门诊、窗边教室和夏日泳池。另有 Live House、简易地台、星环遗庭和晨光礼拜堂。角色由用户导入。[实景截图](../../README.md#stage-gallery) · [各景站位](../gameplay/vr-controls.md#在布景中给角色选位置) · [接入新区域和通道](./adding-a-set.md)
+舞台有十三景。[琉璃小行星](./opal-planet.md)可低重力环游，在观星台摆角色。[暮灯情侣套房、月庭双人私汤](./private-retreats.md)各有两处双人站位。[双喜堂](./wedding-court.md)从花轿通到喜堂；[秦淮歌楼](./qinhuai.md)从埠头通到二楼。草坪连通门诊、教室和泳池。另有 Live House、简易地台、星环遗庭和晨光礼拜堂。[实景截图](../../README.md#stage-gallery) · [站位](../gameplay/vr-controls.md#在布景中给角色选位置) · [接入新区域](./adding-a-set.md)
 
 ## 布景怎么做
 

@@ -12,15 +12,17 @@ import { ClinicWard } from './clinic/ClinicWard';
 import { Songhouse } from './qinhuai/Songhouse';
 import { WeddingCourt } from './wedding/WeddingCourt';
 import {LanternSuite,MoonSpa} from './retreat/RetreatRooms';
+import {GlassPlanet} from './planet/GlassPlanet';
 import type {SceneryId} from './catalog';
 import type {RoomLightingOverrides} from '../stage/lighting';
 
 // Deliberately separate from the prep-page catalog. The registry holds
 // component types, never mounted meshes, textures or inactive room worlds.
 type RoomSetDefinition=RoomLightingOverrides & {view:ComponentType<{shadows:boolean;concert:boolean}>;
-  sky?:'day'|'court'|'river';warm?:boolean};
+  sky?:'day'|'court'|'river'|'stars';warm?:boolean};
 const day={sky:'day',hemi:.32,hemiSky:'#d4e5ee',hemiGround:'#a79d8d',fog:'#c5dfe6',warmFog:'#e7c8a7'} as const;
 export const roomSets:Record<SceneryId,RoomSetDefinition>={
+  glassPlanet:{view:GlassPlanet,sky:'stars',sun:[-5,3.2,3.8],hemiSky:'#e2d8fb',hemiGround:'#b4a0bf',hemi:.54,fog:'#15192f'},
   floor:{view:()=>null}, // StudioPlinth belongs to the shared StageFloor.
   liveHouse:{view:LiveHouse},classroom:{...day,view:Classroom,sun:CLASS_SUN},
   lawn:{...day,view:Meadow,sun:MEADOW_SUN,hemiGround:'#72845a'},pool:{...day,view:PoolTerrace,sun:POOL_SUN},

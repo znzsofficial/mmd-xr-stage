@@ -1,5 +1,7 @@
 /** Chinese (zh) UI strings — source of truth for TranslationKey keys. */
 export const zh = {
+  hudGlassPlanet:'琉璃小行星',planetLimb:'离岸看星球弧面',planetRing:'观星台望行星环',
+  modelColorBalanced:'角色色彩：保留亮部细节', modelColorBright:'角色色彩：明亮（原版）',
   screenCameraKeys:'WASD 移动 · Q 顺时针 / E 逆时针 · F 升 / C 降 · R 重置',
   importBindResource: "为此引用选择资源文件",
   hudBack: "返回观看",

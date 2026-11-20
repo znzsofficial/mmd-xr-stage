@@ -10,6 +10,7 @@ import {canWalkByLawnClinic} from '../scenery/clinic/clinicApproach';
 import {songhouseClear,songhouseHeight,XR_ENTRY} from '../scenery/qinhuai/songhouseLayout';
 import {weddingClear,WEDDING_ENTRY} from '../scenery/wedding/weddingLayout';
 import {retreatGround,retreatPlan} from '../scenery/retreat/retreatLayout';
+import {PAD_RADIUS} from '../scenery/planet/planetLayout';
 
 const origin={x:0,z:0},clinicEntry={x:0,z:2.8};
 export function roomEntry(room:SceneryId){
@@ -24,6 +25,7 @@ const inside=(x:number,z:number,r:Rect)=>Math.abs(x-r.x)<=r.w/2&&Math.abs(z-r.z)
 // -Infinity is outside the playable floor (water/void/borrowed scenery).
 export function roomGround(room:SceneryId,x:number,z:number){
   switch(room){
+    case 'glassPlanet':return Math.hypot(x,z)<PAD_RADIUS?0:-Infinity; // flat landing pad; XR uses the radial collider
     case 'floor':return Math.hypot(x,z)<SIMPLE_FLOOR_RADIUS-.16?0:-Infinity;
     case 'classroom':{
       const interior=Math.abs(x)<ROOM.w/2-.16&&Math.abs(z)<ROOM.d/2-.16;

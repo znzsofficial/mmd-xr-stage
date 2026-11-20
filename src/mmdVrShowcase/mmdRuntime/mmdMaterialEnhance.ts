@@ -9,6 +9,7 @@ export type MmdMaterialEnhanceState = {
   envIntensity: number;
   /** Scene ambient light — MMD MeshToon ignores THREE.AmbientLight; inject here. */
   ambientIntensity: number;
+  balancedModelColor?: boolean;
   /** PMREM CubeUV env map (from sky). */
   envMap?: THREE.Texture | null;
   /** Directional light direction in world space (surface → light). */
@@ -35,7 +36,7 @@ function clampRange(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-const ENHANCE_SHADER_REV = "v8-ibl-fix";
+const ENHANCE_SHADER_REV = "v9-toon-highlight-shoulder";
 
 /** Self-contained CubeUV PMREM sampling (subset of three's cube_uv_reflection_fragment). */
 const CUBE_UV_HELPERS = `
@@ -140,6 +141,7 @@ export function attachMmdMaterialEnhance(material: THREE.Material) {
     uniforms.mmdEnhanceEmissionColor = { value: new THREE.Color("#ffffff").convertSRGBToLinear() };
     uniforms.mmdEnhanceEnvInfluence = { value: 0 };
     uniforms.mmdEnhanceAmbient = { value: 0.55 };
+    uniforms.mmdBalancedColor = { value: 1 };
     uniforms.mmdEnhanceSpecularMode = { value: 0 };
     uniforms.mmdEnhanceLightingModel = { value: 0 };
     uniforms.mmdEnhanceHasAoMap = { value: 0 };
@@ -176,6 +178,7 @@ export function attachMmdMaterialEnhance(material: THREE.Material) {
         "uniform vec3 mmdEnhanceEmissionColor;",
         "uniform float mmdEnhanceEnvInfluence;",
         "uniform float mmdEnhanceAmbient;",
+        "uniform float mmdBalancedColor;",
         "uniform float mmdEnhanceSpecularMode;",
         "uniform float mmdEnhanceLightingModel;",
         "uniform float mmdEnhanceHasAoMap;",
@@ -232,7 +235,16 @@ export function attachMmdMaterialEnhance(material: THREE.Material) {
         // Ambient lift for MeshToon (scene AmbientLight is ignored).
         "  float ywMmdAmb = clamp( mmdEnhanceAmbient, 0.0, 3.0 );",
         "  ywMmdColor *= mix( 1.0, ywMmdEnhanceOcclusion, 0.35 );",
-        "  ywMmdColor = ywMmdColor * ( 0.72 + ywMmdAmb * 0.55 ) + ywMmdEnhanceBaseColor * ywMmdAmb * 0.22;",
+        // The loader has already included the PMX material ambient in the base.
+        // Compress the original hue by one scalar BEFORE RGB channels clip;
+        // leave authored emission maps/overrides and the rest of the stage alone.
+        "  if ( mmdBalancedColor > 0.5 && mmdEnhanceLightingModel < 0.5 ) {",
+        "    ywMmdColor *= 0.76 + 0.34 * ywMmdAmb;",
+        "    float peak = max( max( ywMmdColor.r, ywMmdColor.g ), ywMmdColor.b );",
+        "    if ( peak > 0.82 ) ywMmdColor *= ( 0.82 + 0.18 * (peak - 0.82) / (peak - 0.64) ) / peak;",
+        "  } else {",
+        "    ywMmdColor = ywMmdColor * ( 0.72 + ywMmdAmb * 0.55 ) + ywMmdEnhanceBaseColor * ywMmdAmb * 0.22;",
+        "  }",
         "  ywMmdColor += ywMmdEnhanceEmissionColor * ( 0.5 + mmdEnhanceEmission );",
         "  vec3 ywMmdF0 = mix( vec3( 0.04 ), ywMmdEnhanceBaseColor, ywMmdEnhanceMetallic );",
         "  vec3 ywMmdDiffuseCol = ywMmdEnhanceBaseColor * ( 1.0 - ywMmdEnhanceMetallic );",
@@ -338,6 +350,7 @@ export function syncMmdMaterialEnhance(material: THREE.Material, state: MmdMater
   setNum("mmdEnhanceEmission", emission);
   setNum("mmdEnhanceEnvInfluence", envInfluence);
   setNum("mmdEnhanceAmbient", ambient);
+  setNum("mmdBalancedColor", state.balancedModelColor === false ? 0 : 1);
   setNum("mmdEnhanceSpecularMode", specularMode);
   setNum("mmdEnhanceLightingModel", lightingModel);
 

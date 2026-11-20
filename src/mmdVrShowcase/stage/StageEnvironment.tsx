@@ -1,6 +1,7 @@
 import { useEffect, useMemo, type RefObject } from 'react';
 import * as THREE from 'three';
 import { CourtSky } from '../scenery/AstralCourt';
+import {PlanetSky} from '../scenery/planet/GlassPlanet';
 import { DaySky } from '../scenery/DaylightSets';
 import { StudioPlinth } from '../scenery/StudioPlinth';
 import { showSceneryGrid, type SceneryId } from '../scenery/catalog';
@@ -34,6 +35,7 @@ function GradientSky({zenith, horizon, bottom}: {zenith: string; horizon: string
 
 function Sky({scenery, lighting, warm}: {scenery: SceneryId; lighting: StageLighting; warm: boolean}) {
   switch (roomSets[scenery].sky) {
+    case 'stars': return <PlanetSky/>;
     case 'river': return <RiverSky/>;
     case 'court': return <CourtSky/>;
     case 'day': return <DaySky sun={lighting.sunPos} warm={warm || !!roomSets[scenery].warm}/>;

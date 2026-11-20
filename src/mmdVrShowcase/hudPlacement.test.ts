@@ -2,6 +2,16 @@ import { expect, it } from "vitest";
 import * as THREE from "three";
 import { placeHudInFront } from "./hudPlacement";
 
+it('keeps the recalled HUD readable relative to the floor at the stellar equator and antipode',()=>{
+  const origin=new THREE.Group(),camera=new THREE.PerspectiveCamera(),panel=new THREE.Group();origin.add(camera,panel);
+  camera.position.set(.17,1.65,-.11);camera.rotation.set(.35,.2,0,'YXZ');
+  for(const tilt of [Math.PI/2,Math.PI]){origin.rotation.x=tilt;origin.position.set(0,-12,0);origin.updateMatrixWorld(true);
+    placeHudInFront(camera,origin,panel);const difference=panel.position.clone().sub(camera.position);
+    expect(difference.y).toBeCloseTo(-.12);expect(difference.setY(0).length()).toBeCloseTo(1.8);
+    expect(difference.normalize().dot(new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).setY(0).normalize())).toBeCloseTo(1);
+  }
+});
+
 it("recalls the menu ahead of the current head pose even after locomotion and turning", () => {
   const origin = new THREE.Group();
   origin.position.set(4, 0.5, -3);

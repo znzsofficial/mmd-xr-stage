@@ -47,6 +47,8 @@ it("opens on personal adjustments, keeps physics details contextual, and retains
     await click(t("hudSoftHighlights"));
     expect(useMmdVrStore.getState().prefs.softHighlights).toBe(true);
     await click(t('settingsCharacter'));expect(buttons(t('hudSolverDetails'))).toHaveLength(0);
+    await click(t('modelColorBalanced'));expect(useMmdVrStore.getState().prefs.balancedModelColor).toBe(false);
+    await click(t('modelColorBright'));expect(useMmdVrStore.getState().prefs.balancedModelColor).toBe(true);
     expect(buttons(t('settingsMmdVrPhysicsOff'))).toHaveLength(1);
     await click(t('settingsPlayer'));expect(buttons(t('moveNormal'))).toHaveLength(1);
     expect(buttons(t('settingsMmdVrPhysicsOff'))).toHaveLength(0);

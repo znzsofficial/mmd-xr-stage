@@ -19,6 +19,7 @@ export async function current(canvas,pmx,files,vmd,on){
     const draw=()=>renderer.render(scene,camera);draw();await renderer.compileAsync(scene,camera);
     const mats=Array.isArray(mesh.material)?mesh.material:[mesh.material];
     return {boneCount:bones.length,duration:rt.duration,diffuseMaps:mats.filter(m=>m.map?.image).length,textureWarnings:(missingTextures?.length??0)+(textureWarnings?.length??0),
+      setBalancedColor(balancedModelColor){rt.setLighting({directionalLight:sun,envIntensity:0,ambientIntensity:.52,balancedModelColor});},
       update(frame){rt.update(frame/72,on,camera,1,false,1/72)},draw,
       xyz(name){const i=indices.get(name);return i===undefined?null:bones[i].matrixWorld.elements.slice(12,15)},
       dispose(){rt.dispose();renderer.dispose();renderer.forceContextLoss()}};

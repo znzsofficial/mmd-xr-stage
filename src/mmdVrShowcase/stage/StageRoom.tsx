@@ -256,7 +256,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
   function applyLighting() {
     const sun = sunRef.current;
     if (!sun) return;
-    const key = `${scenery}|${lightPreset}|${profile.shadows}|${sun.uuid}`;
+    const key = `${scenery}|${lightPreset}|${profile.shadows}|${mmdPrefs.balancedModelColor}|${sun.uuid}`;
     if (lightingKeyRef.current === key) return;
     lightingKeyRef.current = key;
     const cfg = lightCfg;
@@ -265,6 +265,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
     sun.color.set(cfg.sunColor);
     sun.castShadow = getMmdVrRenderProfile(useMmdVrStore.getState().prefs).shadows;
     runtime.setLighting({
+      balancedModelColor: mmdPrefs.balancedModelColor,
       envIntensity: 0,
       ambientIntensity: cfg.ambient,
       directionalLight: sun,
@@ -275,7 +276,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
   useLayoutEffect(() => {
     lightingKeyRef.current = "";
     applyLighting();
-  }, [runtime, lightCfg, profile.shadows]);
+  }, [runtime, lightCfg, profile.shadows, mmdPrefs.balancedModelColor]);
 
   useLayoutEffect(() => {
     if (!(camera instanceof THREE.PerspectiveCamera)) return;

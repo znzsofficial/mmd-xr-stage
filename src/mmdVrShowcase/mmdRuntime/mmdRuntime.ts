@@ -109,6 +109,7 @@ export type MmdRuntimeHandle = {
   setMaterialVisible: (modelId: string, materialName: string, visible: boolean) => void;
   setMaterialOverride: (modelId: string, materialName: string, patch: Partial<MaterialOverride>) => void;
   setLighting: (options: {
+    balancedModelColor?: boolean;
     envIntensity: number;
     ambientIntensity?: number;
     directionalLight: THREE.DirectionalLight | null;
@@ -286,6 +287,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
   let hasCameraTrack = false;
   let envIntensity = 0;
   let ambientIntensity = 0.55;
+  let balancedModelColor = true;
   let directionalLight: THREE.DirectionalLight | null = null;
   let envMap: THREE.Texture | null = null;
   const lightDirWorld = new THREE.Vector3(0.35, 0.9, 0.25);
@@ -311,6 +313,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
   function lightingContext() {
     // Shared vectors — consumers copy into uniforms immediately.
     return {
+      balancedModelColor,
       envIntensity,
       ambientIntensity,
       envMap,
@@ -808,6 +811,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       }
     },
     setLighting(options) {
+      if (options.balancedModelColor !== undefined) balancedModelColor = options.balancedModelColor;
       envIntensity = Math.max(0, options.envIntensity);
       if (options.ambientIntensity != null) ambientIntensity = Math.max(0, options.ambientIntensity);
       directionalLight = options.directionalLight;

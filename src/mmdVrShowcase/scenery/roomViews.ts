@@ -15,6 +15,7 @@ type Shot={key:TranslationKey;eye:Point;aim:Point;link?:RoomLink;preloadLawn?:bo
 type RoomView={entry:readonly [Point,Point];shots?:readonly Shot[]};
 export const roomViews:Record<SceneryId,RoomView>={
   ...RETREAT_VIEWS,
+  glassPlanet:{entry:[[.6,1.6,3.4],[0,.85,-.65]],shots:[{key:'planetLimb',eye:[8.2,1.7,9.2],aim:[0,-3,-2]},{key:'planetRing',eye:[-1.45,1.25,2.1],aim:[5.4,2.36,-11]}]},
   floor:{entry:[[1.4,1.65,4],[0,.95,-.4]]}, liveHouse:{entry:[[.8,1.7,4.4],[0,1.05,-1.3]]},
   pool:{entry:[[2.1,1.7,2.8],[0,.85,-3.7]],shots:[LIDO_ROUTE_SHOTS.clock,LIDO_ROUTE_SHOTS.return]},
   classroom:{entry:[[.15,1.58,3.95],[0,1.05,-1.4]],shots:[

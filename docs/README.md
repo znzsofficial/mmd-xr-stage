@@ -13,6 +13,8 @@
 
 ## 工程维护
 
+[现成工具取舍](./three-tooling.md) · [琉璃小行星](./scenery/opal-planet.md) · [MMD 亮部修正与实图指标](./scenery/model-highlight-color.md)
+
 [舞台代码架构：文件、观看会话、当前房间分别归谁管理](./architecture.md)。包含一次放置的走读，以及设置、布景、灯光、角色运行时的修改入口。
 
 [维护审查与修复记录](./structure-review-2026-11-20.md)：五项已落实，含物理重建中退出时保存的开关值与真实背包移动回归。

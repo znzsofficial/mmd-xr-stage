@@ -45,6 +45,7 @@ export interface MmdVrPrefs {
   showSceneryPeople: boolean;
   scenery: SceneryId;
   softHighlights: boolean;
+  balancedModelColor: boolean;
   stageFogEnabled: boolean;
   stageRimLightEnabled: boolean;
   stageLightPoolEnabled: boolean;
@@ -109,6 +110,7 @@ export function normalizeMmdVrPrefs(parsed: Partial<MmdVrPrefs> & {liveHouseEnab
     showSceneryPeople: parsed.showSceneryPeople !== false,
     scenery: resolveScenery(parsed.scenery, parsed.liveHouseEnabled),
     softHighlights: parsed.softHighlights === true,
+    balancedModelColor: parsed.balancedModelColor !== false,
     stageFogEnabled: parsed.stageFogEnabled !== false,
     // Before these flags existed, a non-stage preset implied both effects.
     stageRimLightEnabled: typeof parsed.stageRimLightEnabled === 'boolean' ? parsed.stageRimLightEnabled : lightPreset !== 'stage',

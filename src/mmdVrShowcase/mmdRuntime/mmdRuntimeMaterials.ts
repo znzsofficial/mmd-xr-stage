@@ -257,6 +257,7 @@ export function stripWebGlOnlyMaterialShaders(root: THREE.Object3D) {
 }
 
 export type MaterialLightingContext = {
+  balancedModelColor?: boolean;
   envIntensity?: number;
   ambientIntensity?: number;
   envMap?: THREE.Texture | null;
@@ -295,6 +296,7 @@ function applyMaterialOverrideToMaterial(
   state.override = override;
   state.envIntensity = ctx.envIntensity ?? 0;
   state.ambientIntensity = ctx.ambientIntensity ?? 0.55;
+  state.balancedModelColor = ctx.balancedModelColor;
   state.envMap = ctx.envMap ?? null;
   state.lightDirection = ctx.lightDirection ?? null;
   state.lightIntensity = ctx.lightIntensity;

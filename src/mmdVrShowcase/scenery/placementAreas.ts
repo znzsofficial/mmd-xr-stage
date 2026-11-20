@@ -10,6 +10,7 @@ import {canPlaceByLawnClinic,reserveLawnClinic} from './clinic/clinicApproach';
 import {songhouseClear,songhouseHeight} from './qinhuai/songhouseLayout';
 import {weddingClear} from './wedding/weddingLayout';
 import {retreatPlace} from './retreat/retreatLayout';
+import {planetPlace} from './planet/planetLayout';
 import {GUARD_CHAIR,PACE_CLOCK,POOL,POOL_SUPPORT,LIDO_PIERS,PAVILION_POSTS,POOL_ORIGIN,inLidoApproach,borrowedLido} from './LidoLayout';
 
 // A placement is a point on a supported y=0 surface with a little shoe room;
@@ -66,6 +67,7 @@ export const placementHeight=(id:SceneryId,x:number,z:number)=>id==='qinhuai'?so
 export function canPlaceInScenery(id: SceneryId, x: number, z: number): boolean {
   if (!Number.isFinite(x) || !Number.isFinite(z)) return false;
   switch (id) {
+    case 'glassPlanet':return planetPlace(x,z);
     case 'weddingCourt': return weddingClear(x,z,true);
     case 'lanternSuite': case 'moonSpa': return retreatPlace(id,x,z);
     case 'qinhuai': return songhouseClear(x,z,true);

@@ -2,6 +2,10 @@
 
 This file records notices for third-party code copied into the repository rather than installed only through the package manager.
 
+## Planetoid locomotion (npm packages)
+
+The on-demand XR planet module uses [Ecctrl 2.0.2](https://github.com/pmndrs/ecctrl) (MIT, © 2023–2026 Erdong Chen), [React Three Rapier 2.2.0](https://github.com/pmndrs/react-three-rapier) and [Rapier JS 0.19.2](https://github.com/dimforge/rapier.js) (Apache-2.0). Its WASM is distributed in the compat package. These are independent of the MMD Bullet backend.
+
 ## @webxr-input-profiles/assets 1.0.20
 
 `public/xr-input/1.0.20/` contains unmodified controller profiles/models for Meta Quest Touch Plus, Touch Plus v2, Touch Pro, Oculus Touch/v2/v3, generic trigger and trigger/squeeze/thumbstick controllers, plus the generic hand models. The local `profilesList.json` indexes only this bundled subset; other controller profiles use the library's generic-trigger fallback.

@@ -51,7 +51,8 @@ export function CharacterSettings({locked}:{locked:boolean}) {
     <HudLine position={[0,.54,0]} width={1.85} role="title" text={t('characterPhysics')}/>
     {physicsSwitch(.32)}
     <HudButton position={[.49,.32,0]} size={[.88,.18]} label={t('settingsMmdVrPhysicsReset')} disabled={locked||!physics||!count} variant="quiet" onPress={()=>useMmdVrStore.getState().requestPhysicsReset()}/>
-    <HudButton position={[0,.09,0]} size={[1.85,.18]} label={t('contactDetails')} variant="quiet" onPress={()=>showTuning(true)}/>
+    <HudButton position={[-.49,.09,0]} size={[.88,.18]} label={t('contactDetails')} variant="quiet" onPress={()=>showTuning(true)}/>
+    <HudButton position={[.49,.09,0]} size={[.88,.18]} active={p.balancedModelColor} label={t(p.balancedModelColor?'modelColorBalanced':'modelColorBright')} onPress={()=>set({balancedModelColor:!p.balancedModelColor})}/>
     <HudLine position={[0,-.10,0]} width={1.85} text={t(count?'touchWithPhysics':'settingsPlaceFirst')} role="muted"/>
     <HudLine position={[0,-.30,0]} width={1.85} role="title" text={t('actorTouch')}/>
     <HudButton position={[0,-.50,0]} size={[1.85,.18]} label={t(p.chestCompression?'chestPressureOn':'chestPressureOff')} active={p.chestCompression} disabled={locked} onPress={()=>set({chestCompression:!p.chestCompression})}/>

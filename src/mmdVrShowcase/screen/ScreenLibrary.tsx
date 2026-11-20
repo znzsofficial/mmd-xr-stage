@@ -43,6 +43,7 @@ export function ScreenLibrary({locked,close,frame,storyView}:{locked:boolean;clo
       </li>;})}</ul></details>
     {guide&&<ScreenToyGuide toy={guide} room={room} locked={locked} close={()=>setGuide(null)}/>}
     <details className="screen-stage-options"><summary>{t('settingsEnvironment')}</summary>
+      <label><input type="checkbox" checked={prefs.balancedModelColor} onChange={e=>useMmdVrStore.getState().setPrefs({balancedModelColor:e.target.checked})}/>{t('modelColorBalanced')}</label>
       {hasSceneryPeople(room)&&<label><input type="checkbox" checked={prefs.showSceneryPeople} onChange={e=>useMmdVrStore.getState().setPrefs({showSceneryPeople:e.target.checked})}/>{t('sceneryPeople')}</label>}
       <label><input type="checkbox" checked={profile.shadows} onChange={e=>useMmdVrStore.getState().setPrefs({shadowsPref:e.target.checked?'on':'off'})}/>{t('settingsMmdVrShadows')}</label>
       <label><input type="checkbox" checked={grid} onChange={e=>useMmdVrStore.getState().setPrefs({gridPref:e.target.checked?'on':'off'})}/>{t('settingsMmdVrGrid')}</label>

@@ -77,6 +77,7 @@ describe("requestMmdVrEnter", () => {
         showSceneryPeople: true,
         scenery: "floor",
         softHighlights: false,
+        balancedModelColor: true,
         stageFogEnabled: true,
         stageRimLightEnabled: false,
         stageLightPoolEnabled: false,
