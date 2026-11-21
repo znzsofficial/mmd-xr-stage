@@ -49,25 +49,33 @@ for _ in range(85000):
 # equator occlude the disk; the far side and its gaps are hidden by the limb.
 def planet(direction,radius,style,ring=False):
     d=unit(direction);right=unit(np.cross(d,[0,1,0]));up=np.cross(right,d);v=np.arccos(d[1])/np.pi
+    sun=unit([-5,3.2,3.8]);lx,ly,lz=sun@right,sun@up,-(sun@d)
     half=radius*(2.7 if ring else 1.25)
     def paint(az,t,row):
         xy=np.stack([-np.cos(az)*np.sin(t),np.full(len(az),np.cos(t)),np.sin(az)*np.sin(t)],axis=-1)
         l=xy@d;s=(xy@right)/(radius*l);b=(xy@up)/(radius*l);r2=s*s+b*b;disk=r2<=1
         if disk.any():
-            X=s[disk];Y=b[disk];Z=np.sqrt(1-r2[disk]);L=np.clip(-.62*X+.50*Y+.44*Z,0,1)
+            X=s[disk];Y=b[disk];Z=np.sqrt(1-r2[disk]);L=np.clip(lx*X+ly*Y+lz*Z,0,1)
             N=field(X,Y,Z,7)-.5;M=field(X,Y,Z,22)-.5
             if style=='amber':
-                h=Y+.25*X+.055*N+.017*np.sin(9*X+3*Y);stripe=.52+.31*np.sin(15*h)+.12*np.sin(38*h+.55*np.sin(7*X))+.05*np.sin(82*h)
+                h=Y+.25*X+.105*N+.028*np.sin(9*X+3*Y);stripe=.52+.30*np.sin(17*h)+.12*np.sin(41*h+2*N)+.065*np.sin(103*h+4*M)
                 color=np.array([174,100,81])+(np.array([246,209,155])-np.array([174,100,81]))*stripe[:,None]
+                # Follow a sun ray to the inclined ring plane. The wide gap
+                # interrupts the shadow belt instead of darkening a solid band.
+                q=-.24*X+.971*Y; ls=-.24*lx+.971*ly; inc=np.sqrt(1-.275**2)
+                t=-(inc*q+.275*Z)/(inc*ls+.275*lz);rad=np.sqrt((X+t*lx)**2+(Y+t*ly)**2+(Z+t*lz)**2)
+                L*=1-.62*((t>0)&(rad>1.27)&(rad<2.04)&((rad<1.72)|(rad>1.78)))
             else:
                 pal={'ice':([65,102,169],[138,229,219]),'red':([131,49,75],[244,132,100]),'lilac':([104,76,140],[221,197,236])}[style]
                 land=np.clip(.49+N*1.6+M*.8+.16*np.sin(13*Y+7*X),0,1);color=np.array(pal[0])+(np.array(pal[1])-np.array(pal[0]))*land[:,None]
-            rim=np.maximum(0,1-Z)**4*(.24+.76*L);row[disk]=color*(.12+.88*L[:,None]**.62)+rim[:,None]*[48,66,76]
+            rim=np.maximum(0,1-Z)**5*(.14+.86*L);row[disk]=color*(.085+.915*L[:,None]**.60)+rim[:,None]*[48,66,76]
         if ring:
             xx=s*.971+b*.24;yy=-s*.24+b*.971;r=np.sqrt(xx**2+(yy/.275)**2)
             mask=(r>1.27)&(r<2.04)&(~disk|(yy<0));r=r[mask]
             strength=.57+.24*np.sin(r*27)**2+.07*np.cos(r*67);strength*=np.where((r>1.72)&(r<1.78),.13,1);strength*=np.clip((r-1.27)*20,0,1)*np.clip((2.04-r)*22,0,1)
-            row[mask]=row[mask]*(1-strength[:,None])+np.array([208,174,140])*strength[:,None]
+            rz=-yy[mask]*np.sqrt(1-.275**2)/.275;along=-(s[mask]*lx+b[mask]*ly+rz*lz)
+            shadow=(along>0)&((s[mask]+along*lx)**2+(b[mask]+along*ly)**2+(rz+along*lz)**2<1)
+            row[mask]=row[mask]*(1-strength[:,None])+np.array([214,189,154])*strength[:,None]*(1-.79*shadow[:,None])
         return row
     for j in range(max(0,int(H*(v-half/np.pi))-3),min(H,int(H*(v+half/np.pi))+4)):
         t=(j+.5)*np.pi/H;ix=np.where((-np.cos(phi)*d[0]+np.sin(phi)*d[2])*np.sin(t)+d[1]*np.cos(t)>np.cos(half+.004))[0]

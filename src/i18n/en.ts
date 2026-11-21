@@ -2,6 +2,8 @@ import type { ZhMessages } from "./zh";
 
 /** English UI strings — must cover every key in zh. */
 export const en: Record<keyof ZhMessages, string> = {
+  emberWind:'Launch collar · Ember',frostWind:'Launch collar · Frost',emberReturn:'Ember · homeward view',frostReturn:'Frost · homeward view',planetWindHint:'G in an amber or ice-blue collar to fly or return (VR: left X in walk mode)',
+  weddingLetter:'Close-up · wedding letter and gourd cups',weddingSilkHall:'Courtyard · paired lanterns and silk swags',
   campusToArcade:'Pedestrian street → Arcade',arcadeToCampus:'Pedestrian street → Campus lawn',arcadeToPool:'East promenade → Pool timing deck',poolToArcade:'Timing deck → Arcade',
   weddingToRiver:'River street → Qinhuai songhouse',riverToWedding:'Stone bridge → Wedding court',
   campusPrintStreet:'Print street · towards the arcade',arcadePoolOverlook:'East lookout · pool promenade',poolArcadeWalk:'Timing deck · looking back along the street',

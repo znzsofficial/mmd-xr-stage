@@ -13,6 +13,7 @@ import {velvetView} from './velvet/velvetLayout';
 import {chamberView} from './chamber/chamberLayout';
 import {arcadeView} from './arcade/arcadeViews';
 import {transitPortrait,southPortrait} from './planet/opalTerrain';
+import {launchViews,lanes} from './planet/windAtlas';
 
 type Point=readonly [number,number,number];
 type Shot={key:TranslationKey;eye:Point;aim:Point;up?:Point;link?:RoomLink;preloadLawn?:boolean;overview?:boolean};
@@ -21,8 +22,9 @@ export const roomViews:Record<SceneryId,RoomView>={
   ...RETREAT_VIEWS,
   arcadeHall:arcadeView,
   velvetStudio:velvetView,medievalChamber:chamberView,
-  glassPlanet:{entry:[[1.10,1.68,3.55],[-.52,1.31,-4.8]],shots:[{key:'planetLimb',eye:[10.6,2.1,11.7],aim:[-.7,-2.2,-2.6]},{key:'planetRing',eye:[-.2,1.62,1.85],aim:[-3.6,3.02,-9.4]},
-    {key:'planetTransit',...transitPortrait},{key:'planetSouth',...southPortrait}]},
+  glassPlanet:{entry:[[0,3.1,11.4],[0,1.15,-8.75]],shots:[{key:'planetLimb',eye:[10.6,2.1,11.7],aim:[-.7,-2.2,-2.6]},{key:'planetRing',eye:[-.2,1.62,1.85],aim:[-3.6,3.02,-9.4]},
+    {key:'planetTransit',...transitPortrait},{key:'planetSouth',...southPortrait},...launchViews,
+    ...lanes.map(l=>({key:l.moon.id==='ember'?'emberReturn' as const:'frostReturn' as const,eye:[l.away.foot.x,l.away.foot.y+1.65,l.away.foot.z] as const,aim:[0,-1,0] as const}))]},
   floor:{entry:[[1.4,1.65,4],[0,.95,-.4]]}, liveHouse:{entry:[[.8,1.7,4.4],[0,1.05,-1.3]]},
   pool:{entry:[[2.1,1.7,2.8],[0,.85,-3.7]],shots:[LIDO_ROUTE_SHOTS.clock,LIDO_ROUTE_SHOTS.return]},
   classroom:{entry:[[.15,1.58,3.95],[0,1.05,-1.4]],shots:[

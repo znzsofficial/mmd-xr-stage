@@ -79,7 +79,7 @@ export function StageEnvironment({scenery, lighting, prefs, profile, sunRef}: Pr
   const lamps = hasStageLamps(scenery);
   return <>
     <color attach="background" args={['#171a1d']}/>
-    {prefs.stageFogEnabled && <fog attach="fog" args={[lighting.fogColor, Math.min(10, viewDistance*.45), viewDistance]}/>}
+    {prefs.stageFogEnabled && scenery!=='glassPlanet' && <fog attach="fog" args={[lighting.fogColor, Math.min(10, viewDistance*.45), viewDistance]}/>}
     {prefs.stageSkyEnabled && <Sky scenery={scenery} lighting={lighting} warm={lightPreset==='warm'}/>}
     <ambientLight color={lighting.ambientColor} intensity={lighting.ambient}/>
     <directionalLight ref={sunRef} position={lighting.sunPos} color={lighting.sunColor} intensity={lighting.sun}

@@ -12,6 +12,7 @@ import {makeBridalBed,makeBridalTrunk,makeWeddingCups} from './bridalFurniture';
 import {BED,CUP_TABLE,TRUNK} from './bridalLayout';
 import {BridalCurtains} from './BridalCurtains';
 import atlas from './wedding-furnishings.webp';
+import {CeremonyDetails} from './ceremonyDetails';
 
 // The page can present its first XR or screen frame while the full print is
 // still decoding. Keep USE_MAP in that first program and retain the local
@@ -53,6 +54,7 @@ export function WeddingFurnishings({shadows=false}:{shadows?:boolean}={}){
       </mesh>}
     </group>;
   return <><group name="wedding:furnishings" pointerEvents="none">
+    <CeremonyDetails cloth={paint}/>
     {draw('sedan',a.sedan,pieces.sedan)}{a.feasts.map((r,i)=>draw(`feast-${i}`,r,pieces.feast))}
     {draw('altar',a.altar,pieces.altar)}{a.chairs.map((r,i)=>draw(`armchair-${i}`,r,pieces.chair))}{draw('vanity',a.vanity,pieces.vanity)}
     {draw('canopy-bed',BED,pieces.bed)}{draw('joined-cups',CUP_TABLE,pieces.cups)}{draw('trousseau-chest',TRUNK,pieces.trunk)}

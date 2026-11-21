@@ -11,8 +11,8 @@ export function createTraveller(){return {
   destination:new Vector3(),radial:new Vector3(),arc:new Quaternion(),col:{floor:0,ceiling:Infinity,blocked:false},
 };}
 export type Traveller=ReturnType<typeof createTraveller>;
-export function transport(s:Traveller){
-  s.radial.subVectors(s.foot,planetCentre).normalize();
+export function transport(s:Traveller,centre=planetCentre){
+  s.radial.subVectors(s.foot,centre).normalize();
   s.basis.premultiply(s.arc.setFromUnitVectors(s.up,s.radial)).normalize();s.up.copy(s.radial);
 }
 

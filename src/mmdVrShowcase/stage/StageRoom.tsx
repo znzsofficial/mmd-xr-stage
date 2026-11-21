@@ -286,9 +286,9 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
 
   useLayoutEffect(() => {
     if (!(camera instanceof THREE.PerspectiveCamera)) return;
-    camera.far = viewDistance;
+    camera.far = scenery==='glassPlanet'?Math.max(70,viewDistance):viewDistance;
     camera.updateProjectionMatrix();
-  }, [camera, viewDistance]);
+  }, [camera, scenery, viewDistance]);
 
   useLayoutEffect(() => {
     const previousToneMapping = gl.toneMapping;

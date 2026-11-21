@@ -1,5 +1,7 @@
 /** Chinese (zh) UI strings — source of truth for TranslationKey keys. */
 export const zh = {
+  emberWind:'起飞风道 · 赭砾星',frostWind:'起飞风道 · 霜岬星',emberReturn:'赭砾星 · 回望母星',frostReturn:'霜岬星 · 回望母星',planetWindHint:'在琥珀或冰蓝风环上按 G 起飞／返航（VR：普通模式左手 X）',
+  weddingLetter:'近看 · 婚书与合卺礼器',weddingSilkHall:'庭中 · 望双灯喜幔',
   campusToArcade:'沿步行街 → 电玩厅',arcadeToCampus:'沿步行街 → 校园草坪',arcadeToPool:'沿东侧步道 → 泳池计时台',poolToArcade:'从计时台 → 电玩厅',
   weddingToRiver:'沿河街 → 秦淮歌楼',riverToWedding:'过石桥 → 双喜堂',
   campusPrintStreet:'步行街 · 望向电玩厅',arcadePoolOverlook:'东侧观景台 · 俯看泳场步道',poolArcadeWalk:'计时台 · 回望电玩厅步道',

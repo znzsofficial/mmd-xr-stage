@@ -61,6 +61,7 @@ export function ScreenStage(){
         {tourShots(prefs.scenery).length>0&&<select aria-label={t('courtTour')} value="" onChange={e=>actions.current?.tour(Number(e.target.value))}><option value="" disabled>{t('courtTour')}</option>{tourShots(prefs.scenery).map((s,i)=><option key={s.key} disabled={!!s.link&&(locked||!!draft||load.failures.length>0)} value={i}>{t(s.key)}</option>)}</select>}
        </div>
        {prefs.scenery==='arcadeHall'&&!draft&&<div className="screen-arcade-hint">{t('arcPassHint')}</div>}
+       {prefs.scenery==='glassPlanet'&&!draft&&<div className="screen-arcade-hint">{t('planetWindHint')}</div>}
        <div id="screen-camera-hint" className="screen-caption" role="status">{message?<><span>{message}</span>{load.failures.length>0&&<button disabled={locked} onClick={stage.retryFailedAssets}>{t('loadRetry')}</button>}{err&&<button onClick={()=>useBackpack.getState().dismissError()}>{t('hudDone')}</button>}</>:locked?t('hudWorking'):draft?<><span>{t('screenAim')}</span>{prefs.scenery!=='arcadeHall'&&<button onClick={()=>actions.current?.center()}>{t('screenCenter')}</button>}<button onClick={()=>useBackpack.getState().cancelPlace()}>{t('hudCancelPlace')}</button></>:<>{t('screenOrbit')}<span className="screen-key-hint">{t('screenCameraKeys')}</span></>}</div>
     </div>{library&&!draft&&<ScreenLibrary locked={locked} frame={()=>actions.current?.frame()} storyView={isStoryRoom(prefs.scenery)?()=>actions.current?.story():undefined} close={()=>setLibrary(false)}/>}</div>
     <div><ScreenMusic/><Transport locked={locked}/></div>

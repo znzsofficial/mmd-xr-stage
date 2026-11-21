@@ -11,6 +11,7 @@ import {walkBetweenZones,hintLawnPrints} from '../scenery/campusTransit';
 import { bindScreenCameraKeyboard } from './screenCameraKeyboard';
 import {screenStreetTravel} from './streetTravel';
 import {RoomGate} from '../scenery/connections';
+import {screenWindTravel} from './screenWindTravel';
 
 type Point = [number,number,number];
 const storyViews:Record<StoryRoom,[Point,Point]>={
@@ -26,7 +27,11 @@ export function ScreenCamera({actions,onReady,viewport}:{actions:RefObject<Camer
   useFrame((_,delta)=>keyboard.current?.step(delta));
   useLayoutEffect(()=>{
     if(!(camera instanceof PerspectiveCamera)||!viewport.current)return;
-    const travel=screenStreetTravel(scene,scenery);
+    const steering=new Vector3();
+    const wind=scenery==='glassPlanet'?screenWindTravel((direction,weight)=>{
+      steering.subVectors(orbit.target,camera.position);const distance=steering.length();
+      steering.normalize().lerp(direction,weight).normalize();orbit.target.copy(camera.position).addScaledVector(steering,distance);
+    }):undefined, travel=wind??screenStreetTravel(scene,scenery);
     const gate=new RoomGate();
     const steps={held:heldKeys.current,beforeWalk(eye:Vector3,aim:Vector3,d:Vector3){
       if(!gate.hasExits(scenery))return true;
@@ -49,9 +54,10 @@ export function ScreenCamera({actions,onReady,viewport}:{actions:RefObject<Camer
       keyboard.current=bindScreenCameraKeyboard(viewport.current!,orbit,reset,travel,steps);
     }
     const setLens=(fov:number)=>{camera.fov=fov;camera.updateProjectionMatrix();};
-    const reset=()=>{align();const [eye,look]=roomViews[scenery].entry;setLens(50);camera.position.set(...eye);orbit.target.set(...look);orbit.update();};
+    const reset=()=>{wind?.dispose();align();const [eye,look]=roomViews[scenery].entry;setLens(50);camera.position.set(...eye);orbit.target.set(...look);orbit.update();};
     const frame=()=>{
       const b=useBackpack.getState(), live=b.selected&&b.live[b.selected];if(!live)return;
+      wind?.dispose();
       if(scenery==='glassPlanet'&&camera.up.y<.99)reset(); // actors stand on the north landing
       setLens(50);const bounds=live.bounds, [x,y,z]=live.position;
       const target=new Vector3(...(bounds?.center??[x,y+.8,z]));
@@ -61,6 +67,7 @@ export function ScreenCamera({actions,onReady,viewport}:{actions:RefObject<Camer
     };
     let releaseHints:(()=>void)|undefined;
     actions.current={reset,frame,tour(index){const shot=tourShots(scenery)[index];if(!shot)return;
+      wind?.dispose();
       if(shot.link){arrival.current={room:shot.link.to,eye:shot.eye,aim:shot.aim};if(!walkBetweenZones(shot.link))arrival.current=null;return;}
       if(shot.preloadLawn&&!releaseHints)releaseHints=hintLawnPrints();
       align(shot.up);

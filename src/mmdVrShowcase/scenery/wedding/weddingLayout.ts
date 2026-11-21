@@ -73,6 +73,8 @@ export const WEDDING_SHOTS = [
   {key:'weddingBridal',eye:[12.50,1.56,-2.98],aim:[13.64,1.20,-7.78]},
   {key:'weddingCups',eye:[15.47,1.23,-4.85],aim:[16.47,.91,-4.25]},
   {key:'weddingBridalDoor',eye:[7.64,1.53,-4.53],aim:[12.46,1.08,-5.72]},
+  {key:'weddingLetter',eye:[-.08,1.59,-5.52],aim:[0,1.01,-6.81]},
+  {key:'weddingSilkHall',eye:[-.35,1.38,2.88],aim:[-.10,1.96,-4.65]},
 ] as const;
 
 const floorPieces=Object.values(WEDDING_FLOORS);

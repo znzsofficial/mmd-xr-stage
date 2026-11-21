@@ -1,4 +1,5 @@
 import { arc, curve, tau, white, Workshop, type V } from './furnishingsMesh';
+import {addRiteSet} from './ceremonyDetails';
 
 const walnut='#674036',wine='#743c36', rose='#aa6952',gold='#bb905c',silk='#d4ad72', ivory='#e6d4af';
 
@@ -79,6 +80,7 @@ export function makeAltar(){
     const a=j*tau/5,x=(j===5?0:.056)*Math.sin(a),z=.158+(j===5?0:.047)*Math.cos(a),y=j===5?1.029:.998;
     s.turn([x,y,z],[[.018,0],[.029,.009],[.029,.024],[.020,.036],[0,.039]],j%2?'#a9563e':'#925043','solid',12,.8);
   }
+  addRiteSet(shop);
   return shop.finish();
 }
 
