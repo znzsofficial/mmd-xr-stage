@@ -122,13 +122,3 @@ for i,(a,b) in enumerate([('CAMERA','EXAMINIS'),('ACTA','TABVLARIVM')]):
     text(256,oy+57,a,29,pale);text(256,oy+106,b,46,pale)
     for x0 in [39,473]:star(x0,oy+86,10,gold)
 save(np.array(im)+noise(w,h,34,19)[:,:,None]*4,'tablets',94)
-
-# A distant slate roof and tower, never an extra navigable space behind the grilles.
-w,h=384,480;y=np.arange(h)[:,None,None]/h
-a=(np.array([138,164,180])*(1-y)+np.array([226,219,190])*y)+noise(w,h,7,5)[:,:,None]*8
-im=Image.fromarray(np.uint8(np.clip(a,0,255)));d=ImageDraw.Draw(im)
-d.polygon([(0,364),(61,352),(93,335),(143,345),(191,337),(255,356),(309,351),(384,367),(384,480),(0,480)],fill=(151,163,161))
-d.polygon([(0,412),(106,353),(173,363),(167,322),(189,299),(207,322),(207,366),(242,380),(302,356),(345,373),(384,372),(384,480),(0,480)],fill=(131,145,147))
-d.polygon([(0,440),(90,409),(125,421),(178,389),(255,417),(318,385),(384,404),(384,480),(0,480)],fill=(112,130,134))
-d.line((189,299,189,285),fill=(128,141,145),width=2)
-save(np.array(im)+noise(w,h,85,105)[:,:,None]*1.8,'window')

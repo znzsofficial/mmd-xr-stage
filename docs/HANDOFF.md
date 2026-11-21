@@ -1,8 +1,8 @@
-# 会话交接｜2026-11-20
+# 会话交接｜2026-11-21
 
-[线上舞台](https://mmd-xr-stage.pages.dev) · [固定版 `7acb202`](https://bfa9499d.mmd-xr-stage.pages.dev) · [分类文档索引](./README.md)
+[线上舞台](https://mmd-xr-stage.pages.dev) · [发布记录与固定版](./release-history.md) · [分类文档索引](./README.md)
 
-**本版：十五景、九件道具。** [喜房](./scenery/wedding-court.md)接妆间，配双层帐和可递的团扇；[月蘅馆](./scenery/qinhuai.md)接歌楼原二楼。[黑绒私摄棚](./scenery/velvet-studio.md)和[中世纪刑讯室](./scenery/medieval-chamber.md)独立选景。普通模式能按 10 cm 调整眼高，常速仍是 2.4 m/s。星球输入不再等 Rapier；修正了大动作回场复用和首开物理的预热时机。395 项测试通过；[发布核查](./release-history.md)。
+**十五景、九件道具。** [琉璃小行星](./scenery/opal-planet.md)有可行走的矿脊和盆地、观测站、南极信标与远星；冷启动和 Rapier 就绪后均可绕行。[刑讯室](./scenery/medieval-chamber.md)调暗了石材，加入静态刑具、实窗与有视差的暮色村景。布景原有人物默认隐藏，已有显隐设置保留。[《卡拉彼丘》地图研究](./scenery/strinova-map-study.md)只做选点与参考；是否启动灰模由用户决定。
 
 ## 下次从这里开始
 

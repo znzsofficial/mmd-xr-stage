@@ -8,16 +8,19 @@ export const DAIS={x:-.54,z:-5.74,w:3.28,d:2.36};
 export const RIBS=[3.90,.86,-4.14,-7.12];
 export type Block={x:number;z:number;w:number;d:number;lo:number;hi:number};
 const block=(x:number,z:number,w:number,d:number,hi:number,lo=0):Block=>({x,z,w,d,hi,lo});
+export const WHEEL=block(-2.76,-3.39,.70,1.62,1.91),BOARD=block(-2.75,-5.99,.66,1.54,1.59);
 export const DESK=block(-1.77,.82,2.04,1.00,.84), STOOL=block(-2.07,-.13,.51,.49,.48);
 export const PRESS=block(2.99,1.16,.66,1.60,1.48), BENCH=block(-3.05,-4.79,.64,1.54,1.10);
 export const READERS=[block(-2.28,-6.96,.48,.43,1.22),block(1.19,-6.96,.48,.43,1.22)];
 const piers=RIBS.flatMap(z=>[-1,1].map(s=>block(s*(HALL.half-.135),z,.27,.42,HALL.spring)));
-const contents=[DESK,STOOL,PRESS,BENCH,...READERS,...piers];
+const contents=[DESK,STOOL,PRESS,BENCH,WHEEL,BOARD,...READERS,...piers];
 const ribs=RIBS.map(z=>({z,r:HALL.half-.21,spring:HALL.spring,rise:HALL.rise-.14,depth:.30,x:0}));
 export const chamberEntry={x:.91,z:3.68};
 export const chamberView={entry:[[chamberEntry.x,1.58,chamberEntry.z],[-.47,1.30,-1.12]],shots:[
   {key:'chamberRecord',eye:[-.57,1.48,2.38],aim:[-1.81,.96,.55]},
   {key:'chamberVault',eye:[-1.40,1.56,-3.00],aim:[1.21,1.21,-6.07]},
+  {key:'chamberWheel',eye:[.92,1.54,-4.05],aim:[-2.69,1.03,-4.46]},
+  {key:'chamberTown',eye:[-1.48,1.61,2.28],aim:[-9.4,1.90,2.18]},
 ]} as const;
 
 function within(b:Block,x:number,z:number,pad:number){return Math.abs(x-b.x)<=b.w/2+pad&&Math.abs(z-b.z)<=b.d/2+pad;}

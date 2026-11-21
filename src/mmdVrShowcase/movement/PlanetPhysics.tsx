@@ -1,6 +1,6 @@
-import {useLayoutEffect,useRef,type RefObject} from 'react';
+import {useLayoutEffect,useMemo,useRef,type RefObject} from 'react';
 import {useThree} from '@react-three/fiber';
-import {BallCollider,CylinderCollider,Physics,RigidBody,useRapier} from '@react-three/rapier';
+import {TrimeshCollider,CylinderCollider,Physics,RigidBody,useRapier} from '@react-three/rapier';
 import {Ecctrl,type EcctrlHandle} from 'ecctrl';
 import {useCustomGravity} from 'ecctrl/gravity';
 import {Matrix4,Vector3,type InstancedMesh} from 'three';
@@ -9,6 +9,7 @@ import {useBackpack} from '../backpack';
 import {WALK_SPEED} from '../mmdVrQuality';
 import {actorBodies} from './actorBodies';
 import {PAD_RADIUS,PLANET_RADIUS as R} from '../scenery/planet/planetLayout';
+import {makeCrust,stations} from '../scenery/planet/opalTerrain';
 
 import {planetCentre as centre,bodyAboveFoot,transport,type PlanetDriver} from './planetTravel';
 import {headMargin} from './eyeHeight';
@@ -41,6 +42,7 @@ function LandingSolids(){
 }
 
 function Walker({driver}:Props){
+  const hull=useMemo(()=>{const g=makeCrust(false),args:[Float32Array,Uint32Array]=[g.attributes.position.array as Float32Array,Uint32Array.from(g.index!.array)];g.dispose();return args;},[]);
   const player=useRef<EcctrlHandle>(null);
   const mode=useMmdVrStore(s=>s.prefs.movementMode),pref=useMmdVrStore(s=>s.prefs.walkSpeedPref),speed=WALK_SPEED[pref==='auto'?'normal':pref];
   const {world,rapier,step}=useRapier();
@@ -74,7 +76,9 @@ function Walker({driver}:Props){
     };
     driver.current=d;return()=>{if(driver.current===d)driver.current=null;};
   },[driver,rapier,step,world]);
-  return <><LandingSolids/><RigidBody type="fixed" colliders={false}><BallCollider args={[R]} position={[0,-R,0]}/><CylinderCollider args={[.17,PAD_RADIUS]} position={[0,-.17,0]}/></RigidBody>
+  return <><LandingSolids/><RigidBody type="fixed" colliders={false}><TrimeshCollider args={hull} position={[0,-R,0]}/><CylinderCollider args={[.17,PAD_RADIUS]} position={[0,-.17,0]}/>
+    {stations.map(s=><group key={s.name} position={s.base} quaternion={s.rotation}><CylinderCollider args={[(s.height+.16)/2,s.r]} position={[0,(s.height-.16)/2,0]}/></group>)}
+  </RigidBody>
     <Ecctrl ref={player} position={spawn} enable={mode==='normal'} enableCustomGravity gravityDirLerpSpeed={1000} useCustomForward canSleep={false} maxWalkVel={speed} jumpVel={2.4} fallingGravityScale={1}/></>;
 }
 

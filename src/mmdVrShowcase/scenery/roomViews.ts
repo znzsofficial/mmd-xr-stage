@@ -11,14 +11,16 @@ import {WEDDING_SHOTS,WEDDING_VIEW} from './wedding/weddingLayout';
 import {RETREAT_VIEWS} from './retreat/retreatLayout';
 import {velvetView} from './velvet/velvetLayout';
 import {chamberView} from './chamber/chamberLayout';
+import {transitPortrait,southPortrait} from './planet/opalTerrain';
 
 type Point=readonly [number,number,number];
-type Shot={key:TranslationKey;eye:Point;aim:Point;link?:RoomLink;preloadLawn?:boolean;overview?:boolean};
+type Shot={key:TranslationKey;eye:Point;aim:Point;up?:Point;link?:RoomLink;preloadLawn?:boolean;overview?:boolean};
 type RoomView={entry:readonly [Point,Point];shots?:readonly Shot[]};
 export const roomViews:Record<SceneryId,RoomView>={
   ...RETREAT_VIEWS,
   velvetStudio:velvetView,medievalChamber:chamberView,
-  glassPlanet:{entry:[[.6,1.6,3.4],[0,.85,-.65]],shots:[{key:'planetLimb',eye:[8.2,1.7,9.2],aim:[0,-3,-2]},{key:'planetRing',eye:[-1.45,1.25,2.1],aim:[5.4,2.36,-11]}]},
+  glassPlanet:{entry:[[1.10,1.68,3.55],[-.52,1.31,-4.8]],shots:[{key:'planetLimb',eye:[10.6,2.1,11.7],aim:[-.7,-2.2,-2.6]},{key:'planetRing',eye:[-.2,1.62,1.85],aim:[-3.6,3.02,-9.4]},
+    {key:'planetTransit',...transitPortrait},{key:'planetSouth',...southPortrait}]},
   floor:{entry:[[1.4,1.65,4],[0,.95,-.4]]}, liveHouse:{entry:[[.8,1.7,4.4],[0,1.05,-1.3]]},
   pool:{entry:[[2.1,1.7,2.8],[0,.85,-3.7]],shots:[LIDO_ROUTE_SHOTS.clock,LIDO_ROUTE_SHOTS.return]},
   classroom:{entry:[[.15,1.58,3.95],[0,1.05,-1.4]],shots:[

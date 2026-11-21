@@ -4,7 +4,7 @@
 
 [三件解剖教具](../screenshots/clinic-models.webp) · [器械盘](../screenshots/clinic-instruments.webp) · [卫生用品架](../screenshots/clinic-supplies.webp) · [产后宣教图](../screenshots/clinic-postpartum.webp) · [护士工作台](../screenshots/clinic-nurse.webp)
 
-**原有护士的显隐。** 屏幕选「游览机位 → 诊室工作台」，在「背包 → 环境」切换「场景人物」；VR 在「B → 更多 → 环境」。[同机位开关对照](../screenshots/clinic-people-toggle.webp)。默认显示；隐藏后座椅、显示器和三类教具不动，护士专属的占地与射线遮挡随之移除。模拟 XR 扳机与屏幕勾选均验证了离区回访、刷新记忆和已放置 PMX／GLB 的位置与朝向。其余九景没有内置人物，不显示这个开关。
+**原有护士的显隐。** 默认隐藏，沿用当前浏览器已保存的选择。屏幕选「游览机位 → 诊室工作台」，在「背包 → 环境」切换「场景人物」；VR 在「B → 更多 → 环境」。[同机位开关对照](../screenshots/clinic-people-toggle.webp)。隐藏后座椅、显示器和教具不动，护士专属的占地与射线遮挡一并移除。没有场景人物的布景不显示这个开关。
 
 **近看工作台。** 选「工作台侧面」，能看到护士侧脸、低发髻、制服领口和停在键盘上的手指。她仍是静态布景人物，没有打字动画。[同机位建模前后，左旧右新](../screenshots/clinic-nurse-before-after.webp) · [侧面实景](../screenshots/clinic-nurse.webp)。脸、头发、织物与胸牌共用一张原创 1024 × 512 图集（11,974 字节），粗糙度由顶点区分。新版人物为一个网格，9,692 个顶点、17,232 个三角形；不占角色名额，也不创建 Bullet 世界。桌面 WebGL 着色程序链接通过，真机帧率待验。
 

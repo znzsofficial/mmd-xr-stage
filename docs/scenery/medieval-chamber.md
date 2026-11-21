@@ -4,6 +4,12 @@
 
 ## 路线和机位
 
+[刑轮与示众枷机位](../screenshots/chamber-wheel-gallery.webp) · [书记室的窗与钟楼](../screenshots/chamber-dusk-window.webp)
+
+**暮色布景（2026-11-21）。** 冷紫灰石墙和深木色收暗拱顶，烛台和窗台保留暖亮边，不改变用户曝光或 PMX 材质。内厅西墙的展台新增卡通化的静态刑轮和示众枷，东侧保留闭目的铁像柜；选「刑轮与示众枷」可从侧廊看全。此处是空场历史戏布景，角色摆在席前。
+
+书记室的双联窗和内厅拱窗都是真开口，窗框、石台、外侧窗栅有各自厚度。窗外按距离搭出近栏、村舍、钟楼、树和远山；靠窗侧移会改变它们的重叠关系。屏幕「窗下看暮色钟楼」在桌后空位，窗外仍是借景，不接收角色落点。[外景建模](../../src/mmdVrShowcase/scenery/chamber/outsideTower.ts)
+
 - 全长 12 m、净宽 6.9 m。入口 `(0.91, 3.68)` 朝负 Z；书记桌靠左，东侧是卷宗柜。通过 `(0.64, -2.04)` 的 2.12 m 宽门洞，可走至 `(-0.54, -5.74)` 的肖像席。返程循同一门洞，能看见书记室的采光窗和封闭木门。内门不换景，两边共用角色与布局。
 - `chamberRecord` 近看案头；`chamberVault` 从内门左侧同时取到席面、铁像面具和候讯龛。铁像位于 `(2.72, -6.39)`，肖像席两个人物站位仍可用。席面与石板齐平；所有地面放置与脚底支撑都是 **Y=0**。
 - [布局](../../src/mmdVrShowcase/scenery/chamber/chamberLayout.ts)定义脚位、家具占地及石拱剖面。射线通过门洞需同时避开两侧门垛及弧形拱底，不能穿桌或越过栅格把人放进候讯龛。
@@ -13,7 +19,7 @@
 
 [石作](../../src/mmdVrShowcase/scenery/chamber/chamberShell.ts)包括连续筒拱、分块拱券、深窗洞和栅格后方的实体侧龛。[案头与挂毯](../../src/mmdVrShowcase/scenery/chamber/recordRoom.ts)随材质合批；书页沿书脊弯折，挂毯的褶裥和下摆直接进入轮廓。烛光和后墙冷光用于塑形，地面的窗棂光斑与石缝共享坐标。
 
-`python src/mmdVrShowcase/scenery/chamber/bake.py` 用 Pillow、NumPy 和本机 Georgia（或 DejaVu Serif）重新生成八张原创 WebP。砌石、斧凿石面及橡木按米铺贴；地坪、书记簿、挂毯、双面铭牌和窗外远景用各自的 UV。改房间边界或肖像席尺寸时须同步地坪画稿。
+`python src/mmdVrShowcase/scenery/chamber/bake.py` 用 Pillow、NumPy 和本机 Georgia（或 DejaVu Serif）重新生成七张室内 WebP。砌石、斧凿石面及橡木按米铺贴；地坪、书记簿、挂毯、双面铭牌有各自的 UV。外景是单独合批的几何体，不再采样旧窗景贴纸。改房间边界或肖像席尺寸时须同步地坪画稿。
 
 回归运行 `pnpm exec vitest run src/mmdVrShowcase/scenery/chamber/chamberLayout.test.ts`；其中包含实际场景三角面、站姿脚柱往返和高位射线击中拱券的对照。浏览器复查时，先从书记室尝试穿墙放置，再穿拱去内厅直接点肖像席；切去空舞台再回来检查两个房间的人物位置。
 

@@ -1,6 +1,7 @@
 import {Quaternion,Vector3} from 'three';
 import {PAD_RADIUS,PLANET_RADIUS as R} from '../scenery/planet/planetLayout';
 import type {ReadColumn} from './groundMotor';
+import {crustRadius,stationBlocks} from '../scenery/planet/opalTerrain';
 
 export const planetCentre=new Vector3(0,-R,0),north=new Vector3(0,1,0);
 // Ecctrl's .3 m half-capsule + .3 m radius + .2 m suspension.
@@ -19,12 +20,13 @@ export function transport(s:Traveller){
 // actors are authored on this pad only. Use their real column on its near side.
 function support(s:Traveller,p:Vector3,read:ReadColumn,height:number){
   const n=s.radial.subVectors(p,planetCentre).normalize();
-  if(n.y<=.8)return R;
+  const crust=crustRadius(n.x,n.y,n.z);if(stationBlocks(p,.22,height))return NaN;
+  if(n.y<=.8)return crust;
   const pad=R/n.y,px=n.x*pad,pz=n.z*pad;
-  const floor=Math.hypot(px,pz)<=PAD_RADIUS?0:R*n.y-R;
+  const floor=Math.hypot(px,pz)<=PAD_RADIUS?0:crust*n.y-R;
   const c=s.col;c.floor=floor;c.blocked=false;c.ceiling=Infinity;
   read(px,pz,s.foot.y,c);
-  return c.blocked||Math.max(c.floor,s.foot.y)+height>c.ceiling ? NaN : Math.max(R,(R+c.floor)/n.y);
+  return c.blocked||Math.max(c.floor,s.foot.y)+height>c.ceiling ? NaN : Math.max(crust,(R+c.floor)/n.y);
 }
 
 /** Always available, even with a cached module rejection. Move the existing

@@ -111,7 +111,7 @@ export function normalizeMmdVrPrefs(parsed: Partial<MmdVrPrefs> & {liveHouseEnab
     snapTurnDegrees: normalizeMmdVrSnapTurnDegrees(parsed.snapTurnDegrees),
     exposure: normalizeMmdVrExposure(parsed.exposure),
     stageSkyEnabled: parsed.stageSkyEnabled !== false,
-    showSceneryPeople: parsed.showSceneryPeople !== false,
+    showSceneryPeople: parsed.showSceneryPeople === true,
     scenery: resolveScenery(parsed.scenery, parsed.liveHouseEnabled),
     softHighlights: parsed.softHighlights === true,
     balancedModelColor: parsed.balancedModelColor !== false,

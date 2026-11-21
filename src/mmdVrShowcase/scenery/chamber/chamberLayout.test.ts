@@ -2,7 +2,7 @@ import {describe,expect,it} from 'vitest';
 import {DoubleSide,Group,Mesh,MeshBasicMaterial,Raycaster,Vector3} from 'three';
 import {createSolidColumns} from '../../movement/solidColumns';
 import {createGroundMotor,groundedBody,type ReadColumn} from '../../movement/groundMotor';
-import {BENCH,CELL,DAIS,DESK,HALL,PORTAL,PRESS,chamberEntry,chamberGround,chamberPlace,chamberSight,chamberView} from './chamberLayout';
+import {BENCH,BOARD,CELL,DAIS,DESK,HALL,PORTAL,PRESS,WHEEL,chamberEntry,chamberGround,chamberPlace,chamberSight,chamberView} from './chamberLayout';
 import {Masonry} from './masonry';
 import {chamberShell} from './chamberShell';
 import {dressChamber} from './recordRoom';
@@ -13,7 +13,7 @@ describe('record room and hearing vault',()=>{
     for(const [x,z] of [[0,0],[DAIS.x-.55,DAIS.z],[DAIS.x+.55,DAIS.z],[2.72,-7.16],[2.51,-4.84],[PORTAL.x,PORTAL.z],...chamberView.shots.map(s=>[s.eye[0],s.eye[2]])]){
       expect(chamberPlace(x,z)).toBe(true);expect(chamberGround(x,z)).toBe(0);
     }
-    for(const [x,z] of [[DESK.x,DESK.z],[BENCH.x,BENCH.z],[PRESS.x,PRESS.z],[EFFIGY.x,EFFIGY.z],[PORTAL.x+PORTAL.r,PORTAL.z],[CELL.x+.4,CELL.z],[0,HALL.front+1],[NaN,0]]){
+    for(const [x,z] of [[DESK.x,DESK.z],[BENCH.x,BENCH.z],[WHEEL.x,WHEEL.z],[BOARD.x,BOARD.z],[PRESS.x,PRESS.z],[EFFIGY.x,EFFIGY.z],[PORTAL.x+PORTAL.r,PORTAL.z],[CELL.x+.4,CELL.z],[0,HALL.front+1],[NaN,0]]){
       expect(chamberPlace(x,z)).toBe(false);expect(chamberGround(x,z)).toBe(-Infinity);
     }
   });

@@ -1,5 +1,6 @@
 import {CELL,HALL as H,PORTAL as P,RIBS} from './chamberLayout';
 import {Masonry,type V} from './masonry';
+import {towerViews} from './outsideTower';
 
 const sand=['#c2b89e','#ada48d','#c9bca4','#b8b09d','#cfc1a8'];
 function voussoirs(m:Masonry,x:number,z:number,spring:number,r:number,rise:number,dr:number,dy:number,d:number,n:number){
@@ -11,13 +12,14 @@ function voussoirs(m:Masonry,x:number,z:number,spring:number,r:number,rise:numbe
 }
 
 function westLight(m:Masonry){
-  const z=1.41,w=1.12,b=1.38,t=2.32,x=-H.half;
+  const z=2.21,w=1.79,b=1.06,t=2.37,x=-H.half;
   for(const [n,s] of [[H.back,z-w/2],[z+w/2,H.front]])m.box('ashlar',x-.12,H.spring/2,(n+s)/2,.24,H.spring,s-n,'#bdbbb3');
   for(const [lo,hi] of [[-.01,b],[t,H.spring]])m.box('ashlar',x-.12,(lo+hi)/2,z,.24,hi-lo,w,'#bdbbb3');
   m.box('toolstone',x-.04,b-.045,z,.34,.09,w+.2,'#d2c9b1');
-  m.quad('window',[[x-.25,b,z+w/2],[x-.25,b,z-w/2],[x-.25,t,z-w/2],[x-.25,t,z+w/2]],'#eff6f5');
-  for(let i=1;i<=3;i++)m.box('iron',x-.20,(t+b)/2,z-w/2+i*w/4,.045,t-b,.037,'#393e3e');
-  m.box('iron',x-.22,b+.58,z,.035,.032,w,'#3f4544');
+  for(const s of [-1,1]){m.box('toolstone',x-.07,(t+b)/2,z+s*(w/2+.06),.42,t-b,.12,'#bdbbaa');m.box('oak',x-.29,(t+b)/2,z+s*(w/2-.032),.13,t-b,.064,'#775649');}
+  m.box('toolstone',x-.14,t+.015,z,.44,.14,w+.32,'#babbaa');m.box('toolstone',x+.085,b-.068,z,.39,.098,w+.42,'#d0c6ac');
+  m.box('toolstone',x-.18,(t+b)/2,z,.19,t-b,.074,'#c6bdad');
+  for(const s of [-1,1])m.box('iron',x-.21,t-.20,z+s*w*.25,.042,.038,w*.49,'#3f4854');
 }
 
 function holdingBay(m:Masonry){
@@ -34,13 +36,16 @@ function holdingBay(m:Masonry){
 }
 
 function backWall(m:Masonry){
-  const x=1.99,w=.73,b=1.52,t=2.94,z=H.back;
+  const x=1.99,w=1.33,b=1.18,t=3.04,z=H.back;
   for(const [l,r] of [[-H.half,x-w/2],[x+w/2,H.half]])m.box('ashlar',(l+r)/2,2.15,z-.13,r-l,4.3,.26,'#bfb9ab');
   for(const [lo,hi] of [[0,b],[t,4.3]])m.box('ashlar',x,(hi+lo)/2,z-.13,w,hi-lo,.26,'#bfb9ab');
-  m.quad('window',[[x-w/2,b,z-.27],[x+w/2,b,z-.27],[x+w/2,t,z-.27],[x-w/2,t,z-.27]],'#edf6ff');
+  for(const s of [-1,1])m.box('toolstone',x+s*(w/2+.048),(b+t)/2,z-.10,.106,t-b+.12,.43,'#adaea4');
+  voussoirs(m,x,z-.11,2.45,w/2,.57,.142,.14,.43,11);
+  for(let i=0;i<18;i++){const a=i*Math.PI/18,q=(i+1)*Math.PI/18,xx=(t:number)=>x+Math.cos(t)*w*.5,yy=(t:number)=>2.45+Math.sin(t)*.57;
+    m.stone([[xx(q),yy(q)],[xx(a),yy(a)],[xx(a),3.10],[xx(q),3.10]],z-.13,.25,'#b8afab','ashlar');}
   m.box('toolstone',x,b-.05,z+.03,w+.20,.10,.32,'#d4c9b7');
-  for(const off of [-.15,.13])m.box('iron',x+off,(b+t)/2,z-.195,.042,t-b,.046,'#3f4844');
-  for(const off of [.51,1.08])m.box('iron',x,b+off,z-.21,w,.03,.04,'#535749');
+  for(const off of [-.35,.33])m.box('iron',x+off,(b+t)/2,z-.225,.036,t-b,.046,'#3f4852');
+  m.box('iron',x,b+1.25,z-.23,w,.035,.04,'#555964');
 }
 
 function passage(m:Masonry){
@@ -67,7 +72,7 @@ function passage(m:Masonry){
 export function chamberShell(m:Masonry){
   const {half,front,back,spring,rise}=H;
   m.quad('pavement',[[-half,0,front],[half,0,front],[half,0,back],[-half,0,back]],'#f1e9db');
-  westLight(m);holdingBay(m);backWall(m);passage(m);
+  westLight(m);holdingBay(m);backWall(m);passage(m);towerViews(m);
   m.box('ashlar',0,2.15,front+.12,half*2,4.3,.24,'#bfb7a4');
   // Continuous barrel soffit, split into strips with metre-scaled curved UVs.
   const n=36;

@@ -2,7 +2,7 @@ import {BufferGeometry,Color,Float32BufferAttribute} from 'three';
 
 export type V=[number,number,number];
 type UV=[number,number];
-export type Finish='ashlar'|'toolstone'|'pavement'|'oak'|'arras'|'register'|'tablets'|'window'|'pigment'|'iron'|'light';
+export type Finish='ashlar'|'toolstone'|'pavement'|'oak'|'arras'|'register'|'tablets'|'dusk'|'pigment'|'iron'|'light';
 type Batch={p:number[];uv:number[];rgb:number[];idx:number[]};
 const unit:UV[]=[[0,0],[1,0],[1,1],[0,1]];
 // Static geometry is sorted by surface, not by individual stones or book leaves.

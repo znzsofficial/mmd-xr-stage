@@ -69,7 +69,7 @@ describe("MMD VR adjustments", () => {
     expect(normalizeMmdVrPrefs().handTracking).toBe(true);
     expect(normalizeMmdVrPrefs({ handTracking: false }).handTracking).toBe(false);
     expect(normalizeMmdVrPrefs()).toMatchObject({
-      showSceneryPeople: true,
+      showSceneryPeople: false,
       stageSkyEnabled: true,
       stageFogEnabled: true,
       stageRimLightEnabled: false,

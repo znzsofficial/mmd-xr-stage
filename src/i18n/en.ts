@@ -2,6 +2,7 @@ import type { ZhMessages } from "./zh";
 
 /** English UI strings — must cover every key in zh. */
 export const en: Record<keyof ZhMessages, string> = {
+  chamberWheel:'Wheel and pillory gallery',chamberTown:'Dusk over the belfry',planetTransit:'Copper transit dome',planetSouth:'Southern beacon and moons',
   hudVelvetStudio:'Black Velvet Studio',velvetPortrait:'Velvet portrait mark',velvetLounge:'Chaise and dressing room',
   hudMedievalChamber:'Medieval Interrogation Chamber',chamberRecord:'At the clerk’s table',chamberVault:'Under the stone vault',
   weddingBridal:'Behind the bridal curtains',qinhuaiPrivate:'Yueheng House · Courtesan’s Quarters',

@@ -4,6 +4,7 @@ import {actorBodies,sampleBodies} from './actorBodies';
 import {createSolidColumns} from './solidColumns';
 import type {ReadColumn} from './groundMotor';
 import {PAD_RADIUS,PLANET_RADIUS} from '../scenery/planet/planetLayout';
+import {crustRadius} from '../scenery/planet/opalTerrain';
 
 /** User solids on the north landing; never index the decorative planet mesh. */
 export function createPlanetPad(){
@@ -14,7 +15,9 @@ export function createPlanetPad(){
     update(scene:Scene){const {entries,live}=useBackpack.getState();if(live===known)return;
       known=live;roots=scene.children.filter(o=>o.userData.stagePropSolid);bodies=actorBodies(entries,live);solids.invalidate();},
     column(x:number,z:number,footY:number){const r2=x*x+z*z;
-      column.floor=r2<=PAD_RADIUS*PAD_RADIUS?0:Math.sqrt(Math.max(0,PLANET_RADIUS**2-r2))-PLANET_RADIUS;
+      let r=PLANET_RADIUS;
+      if(r2>PAD_RADIUS*PAD_RADIUS){for(let i=0;i<4;i++){const y=Math.sqrt(Math.max(0,r*r-r2));r=crustRadius(x/r,y/r,z/r);}}
+      column.floor=r2<=PAD_RADIUS*PAD_RADIUS?0:Math.sqrt(Math.max(0,r*r-r2))-PLANET_RADIUS;
       column.ceiling=Infinity;column.blocked=false;read(x,z,footY,column);return column;}
   };
 }

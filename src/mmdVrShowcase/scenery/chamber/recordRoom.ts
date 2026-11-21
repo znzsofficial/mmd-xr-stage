@@ -1,6 +1,7 @@
 import {BENCH,DAIS,DESK,HALL,PRESS,READERS,STOOL} from './chamberLayout';
 import {Masonry,type V} from './masonry';
 import {ironEffigy} from './ironEffigy';
+import {galleryModels} from './galleryModels';
 
 const heart='#98775b',edge='#b4946a',rail='#6d5341',brass='#b49860';
 function candle(m:Masonry,x:number,y:number,z:number,scale:number){
@@ -91,4 +92,4 @@ function portrait(m:Masonry){
   for(const s of [-1,1])m.box('oak',b.x,.217,b.z+s*.56,b.w-.13,.434,.125,heart);
 }
 
-export function dressChamber(m:Masonry){desk(m);archivePress(m);portrait(m);ironEffigy(m);}
+export function dressChamber(m:Masonry){desk(m);archivePress(m);portrait(m);ironEffigy(m);galleryModels(m);}

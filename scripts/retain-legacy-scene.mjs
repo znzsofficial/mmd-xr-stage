@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 
 const files = [
+  ['bfa9499d','PlanetPhysics-C8b_0I-H.js','e0588c2b93bf4730502f21ca46f1b1930ebdd794e511e3a7addb21581122a3f9'],
   // Old prep already imports its React/Three/vendor modules. Its first planet
   // visit after an update can still request the on-demand motor and WASM.
   ['561c3380','PlanetMotor-BVRXgpWJ.js','c36f9f43236ba248568dbaba80ab01fd513063ac1eb123a9bfbca7b4168725af'],

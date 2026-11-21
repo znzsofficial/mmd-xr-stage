@@ -43,6 +43,7 @@ it("opens on personal adjustments, keeps physics details contextual, and retains
     expect(buttons(t('hudSimpleStage'))).toHaveLength(0);
     expect(buttons(t('sceneryPeopleOn'))).toHaveLength(0);
     await act(async()=>useMmdVrStore.getState().setPrefs({scenery:'clinic'}));
+    await click(t('sceneryPeopleOff'));expect(useMmdVrStore.getState().prefs.showSceneryPeople).toBe(true);
     await click(t('sceneryPeopleOn'));expect(useMmdVrStore.getState().prefs.showSceneryPeople).toBe(false);
     await act(async()=>useMmdVrStore.getState().setPrefs({scenery:'classroom'}));
     expect(buttons(t('sceneryPeopleOff'))).toHaveLength(0);

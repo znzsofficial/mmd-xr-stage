@@ -1,4 +1,4 @@
-import { Vector3 } from 'three';
+import { Quaternion,Vector3 } from 'three';
 import type { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 const cameraKeys = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE', 'KeyF', 'KeyC', 'KeyR']);
@@ -10,6 +10,7 @@ const radiansPerSecond = Math.PI / 2;
 export function bindScreenCameraKeyboard(viewport: HTMLElement, orbit: OrbitControls, reset: () => void) {
   const held = new Set<string>();
   const offset = new Vector3();
+  const tangent=new Quaternion().setFromUnitVectors(orbit.object.up,up).invert();
   const clear = () => held.clear();
   const axis = (positive: string, negative: string) => Number(held.has(positive)) - Number(held.has(negative));
   function keyDown(e: KeyboardEvent) {
@@ -34,12 +35,12 @@ export function bindScreenCameraKeyboard(viewport: HTMLElement, orbit: OrbitCont
       const yaw = axis('KeyE', 'KeyQ') * radiansPerSecond * dt;
       const heading = orbit.getAzimuthalAngle() + yaw;
       const eye = orbit.object.position;
-      if (yaw) orbit.target.sub(eye).applyAxisAngle(up, yaw).add(eye);
+      if (yaw) orbit.target.sub(eye).applyAxisAngle(orbit.object.up, yaw).add(eye);
 
       const forward = axis('KeyW', 'KeyS'), right = axis('KeyD', 'KeyA'), rise = axis('KeyF', 'KeyC');
       const sin = Math.sin(heading), cos = Math.cos(heading);
       offset.set(right * cos - forward * sin, rise, -right * sin - forward * cos)
-        .normalize().multiplyScalar(metresPerSecond * dt);
+        .applyQuaternion(tangent).normalize().multiplyScalar(metresPerSecond * dt);
       eye.add(offset);
       orbit.target.add(offset);
       orbit.update();

@@ -3,7 +3,7 @@ import {clinicNavigation} from './clinic/clinicNavigation';
 import {lawnClinicPlacementVisible} from './clinic/clinicApproach';
 import {weddingVisible} from './wedding/weddingLayout';
 import {retreatVisible} from './retreat/retreatLayout';
-import {planetSight} from './planet/planetLayout';
+import {planetSight} from './planet/planetSightline';
 import {velvetSight} from './velvet/velvetLayout';
 import {chamberSight} from './chamber/chamberLayout';
 import {PICK_DECKS,songhousePlacementVisible} from './qinhuai/songhouseLayout';
@@ -13,7 +13,7 @@ import {PICK_DECKS,songhousePlacementVisible} from './qinhuai/songhouseLayout';
 export const elevatedPickDecks=(room:SceneryId)=>room==='qinhuai'?PICK_DECKS:[];
 export function visiblePick(room:SceneryId,from:{x:number;y:number;z:number},x:number,y:number,z:number){
   switch(room){
-    case 'glassPlanet':return planetSight(from);
+    case 'glassPlanet':return planetSight(from,x,y,z);
     case 'velvetStudio':return velvetSight(from,x,y,z);
     case 'medievalChamber':return chamberSight(from,x,y,z);
     case 'qinhuai':return songhousePlacementVisible(from,x,y,z);

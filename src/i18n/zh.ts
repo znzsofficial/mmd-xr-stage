@@ -1,5 +1,6 @@
 /** Chinese (zh) UI strings — source of truth for TranslationKey keys. */
 export const zh = {
+  chamberWheel:'刑轮与示众枷',chamberTown:'窗下看暮色钟楼',planetTransit:'铜穹观测站',planetSouth:'南极信标与远月',
   hudVelvetStudio:'黑绒私摄棚',velvetPortrait:'黑绒幕前人像',velvetLounge:'卧榻与更衣间',
   hudMedievalChamber:'中世纪刑讯室',chamberRecord:'书记案旁',chamberVault:'石拱审讯厅',
   weddingBridal:'合卺夜 · 掀帐见喜',qinhuaiPrivate:'月蘅馆 · 青楼内室',

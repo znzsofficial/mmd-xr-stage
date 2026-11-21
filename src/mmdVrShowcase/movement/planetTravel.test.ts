@@ -3,6 +3,7 @@ import {Vector3} from 'three';
 import {newStick,readStick} from './controllerInput';
 import {createTraveller,planetCentre,surfaceStep,transport} from './planetTravel';
 import {WALK_SPEED} from '../mmdVrQuality';
+import {crustRadius} from '../scenery/planet/opalTerrain';
 
 it('reads the current Touch Plus source while its profile is pending, ignores hand/pad axes and drops disconnected state',()=>{
   const source={handedness:'right',targetRayMode:'tracked-pointer',profiles:['meta-quest-touch-plus'],gamepad:{mapping:'xr-standard',axes:[1,-1,-.77,.63],buttons:[{},{},{},{},{pressed:true}]}};
@@ -21,7 +22,7 @@ it('walks a full circuit without Rapier, transports heading at the antipode and 
   for(let i=0;i<3900;i++){
     v.set(0,0,-1).applyQuaternion(s.basis);const last=s.up.clone(),radius=s.foot.distanceTo(planetCentre);surfaceStep(s,v,WALK_SPEED.normal,dt,i===1800,()=>{},1.8);
     travel+=last.angleTo(s.up)*radius;minUp=Math.min(minUp,s.up.y);
-    if(i>=1800&&i<2000)maxAltitude=Math.max(maxAltitude,s.foot.distanceTo(planetCentre)-12);
+    if(i>=1800&&i<2000)maxAltitude=Math.max(maxAltitude,s.foot.distanceTo(planetCentre)-crustRadius(s.up.x,s.up.y,s.up.z));
     expect(v.dot(new Vector3(0,0,-1).applyQuaternion(s.basis))).toBeGreaterThan(.99);
   }
   expect(minUp).toBeLessThan(-.999);expect(travel).toBeCloseTo(3900*dt*2.4,2);

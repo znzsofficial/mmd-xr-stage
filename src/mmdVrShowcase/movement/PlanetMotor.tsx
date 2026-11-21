@@ -5,11 +5,11 @@ import {Quaternion,Vector3,type Group,type Mesh} from 'three';
 import {useMmdVrStore} from '../mmdVrStore';
 import {WALK_SPEED} from '../mmdVrQuality';
 import {newStick,readStick,stickAxis} from './controllerInput';
-import {createTraveller,north,planetCentre,surfaceStep,transport,type PlanetDriver} from './planetTravel';
+import {createTraveller,north,surfaceStep,transport,type PlanetDriver} from './planetTravel';
 import {observePlanet,planetCounters} from './planetDiagnostics';
 import {createPlanetPad} from './planetPad';
 import {eyeLift,headMargin} from './eyeHeight';
-import {PLANET_RADIUS} from '../scenery/planet/planetLayout';
+import {terrainAltitude,stationBlocks} from '../scenery/planet/opalTerrain';
 
 class PhysicsBoundary extends Component<{failed:()=>void;children:ReactNode},{failed:boolean}>{
   state={failed:false};static getDerivedStateFromError(){return {failed:true};}
@@ -82,7 +82,7 @@ export default function PlanetMotor({originRef,veilRef,dragging}:Props){
     if(!free)origin.position.addScaledVector(s.up,lift);
     origin.updateMatrixWorld(true);
     const veil=veilRef.current;if(veil){s.eye.copy(p).applyQuaternion(s.basis).add(origin.position);veil.position.copy(p);
-      let blocked=!free&&(s.localEye.y<.055||s.eye.distanceTo(planetCentre)<PLANET_RADIUS+.055);
+      let blocked=!free&&(s.localEye.y<.055||terrainAltitude(s.eye)<.055||stationBlocks(s.eye,.055,.055));
       if(!free&&!blocked){if(ready)blocked=ready.headBlocked(s.eye,s.basis);
         else if(s.up.y>.8){const c=s.pad.column(s.eye.x,s.eye.z,s.foot.y);
           blocked=c.blocked||s.eye.y<c.floor+.055||s.eye.y+headMargin>c.ceiling+.001;}}

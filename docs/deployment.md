@@ -26,7 +26,7 @@ npx -y wrangler@4.128.0 pages deploy ./dist --project-name=mmd-xr-stage --branch
 git -c http.proxy=http://127.0.0.1:7897 -c https.proxy=http://127.0.0.1:7897 push origin master
 ```
 
-`37a0ef3` 的小行星是在进景时才取玩家模块及内联 WASM 的 JS。兼容脚本也保留这两个旧哈希，方便已经准备好、尚未进星球的旧标签页；不从新入口静态预载它们。
+小行星在进景时才取物理模块。兼容脚本保留 `37a0ef3` 的旧移动模块和内联 WASM，以及 `7acb202` 的平滑球壳物理适配器，方便已打开、尚未进星球的旧标签页。新页只在进星球时取当前适配器。
 
 ## wrangler ≥4.130 的代理委托坑（PR #15004）
 

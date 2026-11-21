@@ -6,6 +6,8 @@
 
 ## 布景怎么做
 
+地图研究：[《卡拉彼丘》莱布伦城：从街角灰模到可实走样片](./strinova-map-study.md)。属于调研，不在游戏选景菜单内。
+
 先读[整体美术方向与逐景材质优先级](./art-direction.md)。实际样板：[喜院门楼](./wedding-materials.md) · [窗边课桌](./classroom-materials.md)，含同机位前后、横移与实时阴影开关对照。
 
 **场景人物是原来布景里的人员**，目前是医院诊室的护士。场内「环境 → 场景人物」只隐藏这类人员，教具、壁画和用户导入的角色保持原样。不为此向空场添加试镜人偶。[屏幕操作](../gameplay/screen-viewing.md) · [VR 环境设置](../gameplay/vr-controls.md)

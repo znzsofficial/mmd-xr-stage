@@ -23,12 +23,20 @@ export function ScreenCamera({actions,onReady,viewport}:{actions:RefObject<Camer
   useFrame((_,delta)=>keyboard.current?.step(delta));
   useLayoutEffect(()=>{
     if(!(camera instanceof PerspectiveCamera)||!viewport.current)return;
-    const orbit=new OrbitControls(camera,gl.domElement);
-    orbit.minDistance=.18;orbit.maxDistance=scenery==='astralCourt'?52:22;orbit.maxPolarAngle=Math.PI*(scenery==='qinhuai'?.64:.49);orbit.rotateSpeed=.70;
+    const makeOrbit=()=>{const o=new OrbitControls(camera,gl.domElement);o.minDistance=.18;o.maxDistance=scenery==='astralCourt'?52:scenery==='glassPlanet'?38:22;o.maxPolarAngle=Math.PI*(scenery==='qinhuai'?.64:scenery==='glassPlanet'?.99:.49);o.rotateSpeed=.70;o.enabled=!useBackpack.getState().draft;return o;};
+    let orbit=makeOrbit();const wup=[0,1,0] as const;
+    function align(up:readonly [number,number,number]=wup){
+      if(camera.up.distanceToSquared(new Vector3(...up))<1e-10)return;
+      // OrbitControls captures up at construction. Switch frames before a
+      // southern tour, rather than letting the next drag undo its horizon.
+      keyboard.current?.dispose();orbit.dispose();camera.up.fromArray(up);orbit=makeOrbit();
+      keyboard.current=bindScreenCameraKeyboard(viewport.current!,orbit,reset);
+    }
     const setLens=(fov:number)=>{camera.fov=fov;camera.updateProjectionMatrix();};
-    const reset=()=>{const [eye,look]=roomViews[scenery].entry;setLens(50);camera.position.set(...eye);orbit.target.set(...look);orbit.update();};
+    const reset=()=>{align();const [eye,look]=roomViews[scenery].entry;setLens(50);camera.position.set(...eye);orbit.target.set(...look);orbit.update();};
     const frame=()=>{
       const b=useBackpack.getState(), live=b.selected&&b.live[b.selected];if(!live)return;
+      if(scenery==='glassPlanet'&&camera.up.y<.99)reset(); // actors stand on the north landing
       setLens(50);const bounds=live.bounds, [x,y,z]=live.position;
       const target=new Vector3(...(bounds?.center??[x,y+.8,z]));
       const [w,h,d]=bounds?.size??[.65,1.6,.5];
@@ -39,14 +47,15 @@ export function ScreenCamera({actions,onReady,viewport}:{actions:RefObject<Camer
     actions.current={reset,frame,tour(index){const shot=tourShots(scenery)[index];if(!shot)return;
       if(shot.link){arrival.current={room:shot.link.to,eye:shot.eye,aim:shot.aim};if(!walkBetweenZones(shot.link))arrival.current=null;return;}
       if(shot.preloadLawn&&!releaseHints)releaseHints=hintLawnPrints();
+      align(shot.up);
       setLens(shot.overview?Math.min(130,Math.max(99,2*Math.atan(1.1/camera.aspect)*180/Math.PI)):50);camera.position.fromArray(shot.eye);orbit.target.fromArray(shot.aim);orbit.update();},story(){if(isStoryRoom(scenery)){const [eye,look]=storyViews[scenery];camera.position.set(...eye);orbit.target.set(...look);orbit.update();}},center(){const b=useBackpack.getState(),s=useMmdVrStore.getState();if(!b.draft||s.physicsBusy||s.assetLoad.running||s.physicsFatal)return;
       const prev=b.live[b.draft], transform=prev&&(s.models.find(m=>m.id===prev.runtimeId)??s.objects.find(o=>o.id===prev.runtimeId));
       b.confirmPlace(b.draft,0,0,transform?.rotationY??Math.atan2(camera.position.x,camera.position.z)*180/Math.PI);
     }};
     reset();const a=arrival.current;arrival.current=null;if(a?.room===scenery){camera.position.fromArray(a.eye);orbit.target.fromArray(a.aim);orbit.update();}orbit.enabled=!useBackpack.getState().draft;
-    const keys=bindScreenCameraKeyboard(viewport.current,orbit,reset);keyboard.current=keys;
-    onReady(true);const off=useBackpack.subscribe((b,old)=>{if(old.draft!==b.draft){keys.clear();orbit.enabled=!b.draft;}});
-    return ()=>{keys.dispose();keyboard.current=null;off();releaseHints?.();actions.current=null;onReady(false);orbit.dispose();};
+    keyboard.current=bindScreenCameraKeyboard(viewport.current,orbit,reset);
+    onReady(true);const off=useBackpack.subscribe((b,old)=>{if(old.draft!==b.draft){keyboard.current?.clear();orbit.enabled=!b.draft;}});
+    return ()=>{keyboard.current?.dispose();keyboard.current=null;off();releaseHints?.();actions.current=null;onReady(false);orbit.dispose();camera.up.set(0,1,0);};
   },[camera,gl,scenery,actions,onReady,viewport]);
   return null;
 }
