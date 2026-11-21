@@ -14,7 +14,7 @@ export type XrDiagnostics = {
   summary: string;
 };
 
-/** Snapshot for Settings / notifications (Quest has no console). */
+/** Device context for entry diagnostics on the preparation page. */
 export function getXrDiagnostics(): XrDiagnostics {
   const secure =
     typeof (globalThis as { isSecureContext?: boolean }).isSecureContext === "boolean"

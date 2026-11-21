@@ -4,6 +4,11 @@ import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 
 const files = [
+  ['1b995ab7','index-CtM0UrOA.js','6abbed0653cd631f89bdb3ba1017253f1f02b80bdbaa94a2ed6de8f15374f59b'],
+  ['1b995ab7','PlanetPhysics-DGDagXjQ.js','83725c723f71e752e4f2faebb4e6b4a086d3abde630011f334df1484a8bdb510'],
+  ['1b995ab7','vendor-state-BVgK4CvW.js','829690a58632276e111f36ddc990b1e7804ef3dcaea5c721df817e4c0f254868'],
+  ['1b995ab7','vendor-three-HgZdY9RH.js','ac112e801f1773a7fe0963c77685975ef463d155838fe0499bdc37b4cef6b20a'],
+  ['1b995ab7','emulate-n8-l-uVH.js','2b30fd6fb648e3c913bb21605fb500e24772438c059afe2005be0a1d971f0051'],
   ['fd236688','index-aXLCtKTQ.js','1c5ef1643de3568a864a1ca6f4072f6e9f8831a710b075821c6ec5fd5492eca9'],
   ['fd236688','PlanetPhysics-ttZKcRlb.js','5457c1f710e1b49b471e5231e99d67d6570a933d00fd4e27e1002efe69382b08'],
   ['4a1f20fc','winter-arm-Dr-S30zL.webp','280ca9d25664feed472ba8e93571e22728813c432c6c78e0236656ff4dc7b62a'],

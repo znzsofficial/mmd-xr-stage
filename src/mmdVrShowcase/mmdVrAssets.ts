@@ -50,60 +50,18 @@ function normalizeSlots(slots: readonly MmdVrAssetSlot[]): MmdVrAssetSlot[] {
   return [...models, ...objects];
 }
 
-/** Staged by enter click; moved into sessionAssets on successful requestSession. */
-let pendingAssets: MmdVrAssetSlot[] = [];
+/** Entry owns the initial slots for one screen or XR viewing session. React
+ * remounts read the same slots; closing or failing the entry releases them. */
+let sessionAssets: readonly MmdVrAssetSlot[] = [];
 
-/**
- * Active handoff for the current XR overlay.
- * Survives React Strict Mode remounts (do not clear on scene unmount).
- * Cleared on overlay close / enter fail.
- */
-let sessionAssets: MmdVrAssetSlot[] | null = null;
-
-export function setMmdVrPendingAssets(slots: readonly MmdVrAssetSlot[]) {
-  pendingAssets = normalizeSlots(slots);
-}
-
-export function peekMmdVrPendingAssets(): readonly MmdVrAssetSlot[] {
-  return pendingAssets;
-}
-
-/** @deprecated prefer begin/get session; kept for tests */
-export function takeMmdVrPendingAssets(): MmdVrAssetSlot[] {
-  const next = pendingAssets;
-  pendingAssets = [];
-  return next;
-}
-
-/**
- * After requestSession succeeds: promote pending → session (or keep existing session).
- * Safe to call on remount — does not wipe sessionAssets.
- */
-export function beginMmdVrAssetSession(slots?: readonly MmdVrAssetSlot[]) {
-  if (slots !== undefined) {
-    sessionAssets = normalizeSlots(slots);
-    pendingAssets = [];
-    return;
-  }
-  if (pendingAssets.length) {
-    sessionAssets = pendingAssets;
-    pendingAssets = [];
-  }
+export function beginMmdVrAssetSession(slots: readonly MmdVrAssetSlot[]) {
+  sessionAssets = normalizeSlots(slots);
 }
 
 export function getMmdVrSessionAssets(): readonly MmdVrAssetSlot[] {
-  return sessionAssets ?? [];
-}
-
-export function clearMmdVrPendingAssets() {
-  pendingAssets = [];
+  return sessionAssets;
 }
 
 export function endMmdVrAssetSession() {
-  sessionAssets = null;
-  pendingAssets = [];
-}
-
-export function clearMmdVrPendingAssetsAll() {
-  endMmdVrAssetSession();
+  sessionAssets = [];
 }

@@ -6,8 +6,6 @@ export type ImmersiveEnterResult = "entered" | "failed";
 export type RequestImmersiveEnterOpts = {
   /** Self already entering/active/open. */
   isSelfBusy: () => boolean;
-  /** Other product surface blocking enter (message for notify). */
-  getBlockerMessage?: () => string | null;
   setEntering: () => void;
   setLastError: (value: string | null) => void;
   openOverlay: () => void;
@@ -17,14 +15,12 @@ export type RequestImmersiveEnterOpts = {
   describeStartup?: () => string;
   markEntered: () => void;
   failEnter: (detail: string) => void;
-  onSuccess?: () => void;
   onFailCleanup?: () => void;
-  notify: (message: string, type?: "error" | "warning") => void;
+  /** Report an unavailable device/context without starting or cleaning up a session. */
+  onPreflightError: (message: string) => void;
   needHttpsMessage: string;
   noXrMessage: string;
   logTag: string;
-  /** Optional capability refresh after hard fails. */
-  refreshCapability?: () => void;
   isCancelled?: () => boolean;
 };
 
@@ -36,45 +32,27 @@ export type RequestImmersiveEnterOpts = {
 export function requestImmersiveEnter(opts: RequestImmersiveEnterOpts): Promise<ImmersiveEnterResult> {
   const {
     isSelfBusy,
-    getBlockerMessage,
     setEntering,
     setLastError,
     openOverlay,
     beginSessionFromClick,
     markEntered,
     failEnter,
-    onSuccess,
     onFailCleanup,
-    notify,
+    onPreflightError,
     needHttpsMessage,
     noXrMessage,
     logTag,
-    refreshCapability,
   } = opts;
 
   if (isSelfBusy()) {
     return Promise.resolve("failed");
   }
 
-  const blocker = getBlockerMessage?.() ?? null;
-  if (blocker) {
-    setLastError("blocked");
-    notify(blocker, "warning");
-    return Promise.resolve("failed");
-  }
-
   const diag = getXrDiagnostics();
-  if (!diag.secure) {
+  if (!diag.secure || !getXrSystem()) {
     setLastError(diag.summary);
-    refreshCapability?.();
-    notify(needHttpsMessage, "warning");
-    return Promise.resolve("failed");
-  }
-
-  if (!getXrSystem()) {
-    setLastError(diag.summary);
-    refreshCapability?.();
-    notify(noXrMessage, "warning");
+    onPreflightError(diag.secure ? noXrMessage : needHttpsMessage);
     return Promise.resolve("failed");
   }
 
@@ -99,7 +77,6 @@ export function requestImmersiveEnter(opts: RequestImmersiveEnterOpts): Promise<
     })
     .then(() => {
       if (opts.isCancelled?.()) return "failed" as const;
-      onSuccess?.();
       markEntered();
       return "entered" as const;
     })
@@ -109,8 +86,6 @@ export function requestImmersiveEnter(opts: RequestImmersiveEnterOpts): Promise<
       console.error(`[${logTag}] XR startup failed`, err);
       onFailCleanup?.();
       failEnter(detail);
-      notify(detail.length > 160 ? `${detail.slice(0, 157)}…` : detail, "error");
-      refreshCapability?.();
       return "failed" as const;
     });
 }

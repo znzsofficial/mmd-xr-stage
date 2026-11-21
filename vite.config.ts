@@ -66,7 +66,7 @@ export default defineConfig(({mode}) => ({
           if (id.includes("react-dom") || id.includes("scheduler")) return "vendor-react";
           if (id.includes("@yohawing")) return "vendor-mmd";
           if (/[\\/]node_modules[\\/](?:three|three-stdlib|@react-three[\\/][^\\/]+)[\\/]/.test(id)) return "vendor-three";
-          if (id.includes("zustand") || id.includes("nanoid")) return "vendor-state";
+          if (id.includes("zustand")) return "vendor-state";
           return undefined;
         },
       },

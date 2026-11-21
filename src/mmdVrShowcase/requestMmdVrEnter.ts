@@ -1,30 +1,20 @@
 import type { TranslationKey } from "../languageStore";
 import { requestImmersiveEnter } from "../xr";
 import type { MmdVrAssetSlot } from "./mmdVrAssets";
-import { beginMmdVrAssetSession, endMmdVrAssetSession } from "./mmdVrAssets";
+import { beginMmdVrAssetSession } from "./mmdVrAssets";
 import { prepareBackpackEntry } from "./backpack";
 import { useMmdVrStore } from "./mmdVrStore";
 import { beginMmdVrSessionFromClick, endMmdVrSession, getMmdVrSessionSnapshot, waitForMmdVrPresentation } from "./mmdVrSession";
-
-type Notify = (payload: {
-  title: string;
-  message: string;
-  type: "error" | "warning";
-  category: "system" | "media";
-  appId: "settings" | "mmd-studio";
-}) => void;
 
 /**
  * Call only from a button onClick (user activation).
  */
 export function requestMmdVrEnter(opts: {
   t: (key: TranslationKey) => string;
-  addNotification: Notify;
   assets?: readonly MmdVrAssetSlot[];
-  appId?: "settings" | "mmd-studio";
   resume?: boolean;
 }): Promise<"entered" | "failed"> {
-  const { t, addNotification, assets, appId = "settings" } = opts;
+  const { t, assets } = opts;
   const store = useMmdVrStore.getState();
   let entryEpoch = store.entryEpoch;
   const abort = new AbortController();
@@ -47,7 +37,6 @@ export function requestMmdVrEnter(opts: {
       const saved = opts.resume ? store.savedStage : null;
       prepareBackpackEntry(saved != null);
       store.prepareStage(saved != null);
-      // Even an empty stage needs an explicit handoff; never promote old pending slots.
       beginMmdVrAssetSession(saved?.assets ?? assets ?? []);
       store.setPhase("entering");
     },
@@ -66,21 +55,8 @@ export function requestMmdVrEnter(opts: {
       if (useMmdVrStore.getState().overlayOpen) store.markEntered();
     },
     failEnter: (detail) => store.failEnter(detail),
-    onFailCleanup: () => {
-      endEntrySession();
-      endMmdVrAssetSession();
-    },
-    notify: (message, type = "warning") => {
-      // failEnter already retained the full diagnostic; notifications may be shortened.
-      if (useMmdVrStore.getState().errorMessage == null) store.setPhase("error", message);
-      addNotification({
-        title: t("settingsMmdVrShowcase"),
-        message,
-        type,
-        category: appId === "mmd-studio" ? "media" : "system",
-        appId,
-      });
-    },
+    onFailCleanup: endEntrySession,
+    onPreflightError: (message) => store.setPhase("error", message),
     needHttpsMessage: t("settingsVrDesktopNeedHttps"),
     noXrMessage: t("settingsVrDesktopNoXr"),
     logTag: "mmdVr",

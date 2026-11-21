@@ -4,7 +4,6 @@ import classroomWindow from "./prep/classroom-window.webp";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import { useLanguageStore, type TranslationKey } from "../languageStore";
 import { collectFilesFromDataTransfer, relativePath } from "../mmdImport/folderFiles";
-import { useNotificationStore } from "../notificationStore";
 import { getXrSystem } from "../xr";
 import { MmdVrOverlay } from "./MmdVrOverlay";
 import { MusicPicker } from './music/MusicPicker';
@@ -31,7 +30,6 @@ const CATALOG_GROUPS = [
 
 export function MmdVrPrepApp() {
   const t = useLanguageStore((state) => state.t);
-  const addNotification = useNotificationStore((state) => state.addNotification);
   const phase = useMmdVrStore((state) => state.phase);
   const screenFailed = useMmdVrStore(state=>state.presentation==='screen'&&state.phase==='error');
   const assetLoad = useMmdVrStore((state) => state.assetLoad);
@@ -252,7 +250,7 @@ export function MmdVrPrepApp() {
   }
 
   function enterVr(resume = false) {
-    void requestMmdVrEnter({ t, addNotification, assets: [], resume });
+    void requestMmdVrEnter({ t, assets: [], resume });
   }
 
   const entryDisabled = importing || checkingAssets || readiness === "insecure" || readiness === "no-xr" || phase === "entering" || phase === "active";

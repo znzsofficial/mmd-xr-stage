@@ -3,7 +3,7 @@ import { beginMmdVrSessionFromClick, endMmdVrSession, waitForMmdVrPresentation }
 import { useMmdVrStore } from "./mmdVrStore";
 import { requestMmdVrEnter } from "./requestMmdVrEnter";
 import { getXrDiagnostics, getXrSystem } from "../xr/xrDetect";
-import { beginMmdVrAssetSession, endMmdVrAssetSession, getMmdVrSessionAssets, peekMmdVrPendingAssets, setMmdVrPendingAssets } from "./mmdVrAssets";
+import { beginMmdVrAssetSession, endMmdVrAssetSession, getMmdVrSessionAssets } from "./mmdVrAssets";
 import { clearBackpack, syncBackpackFiles, useBackpack } from "./backpack";
 import type { StageSnapshot } from "./stageSnapshot";
 
@@ -34,7 +34,6 @@ vi.mock("./mmdVrSession", async () => {
 
 describe("requestMmdVrEnter", () => {
   const t = (k: string) => k;
-  const addNotification = vi.fn();
 
   beforeEach(() => {
     useMmdVrStore.setState({ savedStage: null, resumeStage: null, captureStage: null });
@@ -43,7 +42,6 @@ describe("requestMmdVrEnter", () => {
     vi.mocked(waitForMmdVrPresentation).mockResolvedValue({ id: "mmd-s1" } as unknown as XRSession);
     endMmdVrAssetSession();
     clearBackpack();
-    addNotification.mockClear();
     vi.mocked(beginMmdVrSessionFromClick).mockClear();
     vi.mocked(beginMmdVrSessionFromClick).mockResolvedValue({ id: "mmd-s1" } as unknown as XRSession);
     vi.mocked(getXrSystem).mockReturnValue({ requestSession: vi.fn() } as unknown as XRSystem);
@@ -121,24 +119,34 @@ describe("requestMmdVrEnter", () => {
       host: "192.168.1.1",
       summary: "secure=false",
     });
-    const result = await requestMmdVrEnter({ t: t as never, addNotification });
+    const result = await requestMmdVrEnter({ t });
     expect(result).toBe("failed");
     expect(beginMmdVrSessionFromClick).not.toHaveBeenCalled();
     expect(useMmdVrStore.getState().errorMessage).toBe("settingsVrDesktopNeedHttps");
   });
 
+  it("reports a new preflight error without advancing the entry generation", async () => {
+    vi.mocked(getXrSystem).mockReturnValue(null);
+    useMmdVrStore.setState({ phase: "error", errorMessage: "previous entry failed" });
+    const { entryEpoch } = useMmdVrStore.getState();
+    await expect(requestMmdVrEnter({ t })).resolves.toBe("failed");
+    expect(useMmdVrStore.getState()).toMatchObject({ entryEpoch, overlayOpen: false, errorMessage: "settingsVrDesktopNoXr" });
+    expect(endMmdVrSession).not.toHaveBeenCalled();
+  });
+
   it("exposes a rejected XR session and allows a clean retry", async () => {
-    vi.mocked(beginMmdVrSessionFromClick).mockRejectedValueOnce(new Error("permission denied"));
-    const result = await requestMmdVrEnter({ t: t as never, addNotification });
+    const detail = "permission denied: " + "device information; ".repeat(12) + "END";
+    vi.mocked(beginMmdVrSessionFromClick).mockRejectedValueOnce(new Error(detail));
+    const result = await requestMmdVrEnter({ t });
     expect(result).toBe("failed");
     expect(endMmdVrSession).toHaveBeenCalledOnce();
     expect(useMmdVrStore.getState()).toMatchObject({ overlayOpen: false, phase: "error" });
-    expect(useMmdVrStore.getState().errorMessage).toContain("permission denied");
-    await expect(requestMmdVrEnter({ t: t as never, addNotification })).resolves.toBe("entered");
+    expect(useMmdVrStore.getState().errorMessage).toContain(detail);
+    await expect(requestMmdVrEnter({ t })).resolves.toBe("entered");
   });
 
   it("requests XR in the original click stack", async () => {
-    const entering = requestMmdVrEnter({ t: t as never, addNotification });
+    const entering = requestMmdVrEnter({ t });
     expect(beginMmdVrSessionFromClick).toHaveBeenCalledOnce();
     await entering;
   });
@@ -146,24 +154,24 @@ describe("requestMmdVrEnter", () => {
   it("does not reopen the overlay or overwrite a newer entry after cancellation", async () => {
     let resolveFrame!: (value: XRSession) => void;
     vi.mocked(waitForMmdVrPresentation).mockReturnValueOnce(new Promise((resolve) => { resolveFrame = resolve; }));
-    const entering = requestMmdVrEnter({ t: t as never, addNotification });
+    const entering = requestMmdVrEnter({ t });
     await Promise.resolve();
     useMmdVrStore.getState().closeOverlay();
     resolveFrame({} as XRSession);
     await expect(entering).resolves.toBe("failed");
     expect(useMmdVrStore.getState().overlayOpen).toBe(false);
-    expect(addNotification).not.toHaveBeenCalled();
+    expect(useMmdVrStore.getState().errorMessage).toBeNull();
   });
 
   it("fails when self is already busy", async () => {
     useMmdVrStore.setState({ overlayOpen: true, phase: "active" });
-    const result = await requestMmdVrEnter({ t: t as never, addNotification });
+    const result = await requestMmdVrEnter({ t });
     expect(result).toBe("failed");
     expect(beginMmdVrSessionFromClick).not.toHaveBeenCalled();
   });
 
   it("enters when secure and WebXR present", async () => {
-    const result = await requestMmdVrEnter({ t: t as never, addNotification });
+    const result = await requestMmdVrEnter({ t });
     expect(result).toBe("entered");
     expect(beginMmdVrSessionFromClick).toHaveBeenCalledOnce();
     expect(useMmdVrStore.getState().overlayOpen).toBe(true);
@@ -173,7 +181,7 @@ describe("requestMmdVrEnter", () => {
   it("stays entering until an XR frame, not just requestSession", async () => {
     let firstFrame!: (session: XRSession) => void;
     vi.mocked(waitForMmdVrPresentation).mockReturnValueOnce(new Promise((resolve) => { firstFrame = resolve; }));
-    const entering = requestMmdVrEnter({ t: t as never, addNotification });
+    const entering = requestMmdVrEnter({ t });
     await vi.waitFor(() => expect(waitForMmdVrPresentation).toHaveBeenCalledOnce());
     expect(useMmdVrStore.getState().phase).toBe("entering");
     firstFrame({ id: "mmd-s1" } as unknown as XRSession);
@@ -185,7 +193,7 @@ describe("requestMmdVrEnter", () => {
     vi.useFakeTimers();
     vi.mocked(waitForMmdVrPresentation).mockReturnValueOnce(new Promise(() => {}));
     try {
-      const entering = requestMmdVrEnter({ t: t as never, addNotification });
+      const entering = requestMmdVrEnter({ t });
       await vi.advanceTimersByTimeAsync(20_001);
       await expect(entering).resolves.toBe("failed");
       expect(useMmdVrStore.getState()).toMatchObject({ overlayOpen: false, phase: "error" });
@@ -197,11 +205,11 @@ describe("requestMmdVrEnter", () => {
 
   it("cancels a never-resolving request without waiting for browser permission", async () => {
     vi.mocked(beginMmdVrSessionFromClick).mockReturnValueOnce(new Promise(() => {}));
-    const entering = requestMmdVrEnter({ t: t as never, addNotification });
+    const entering = requestMmdVrEnter({ t });
     useMmdVrStore.getState().closeOverlay();
     await expect(entering).resolves.toBe("failed");
     expect(waitForMmdVrPresentation).not.toHaveBeenCalled();
-    expect(addNotification).not.toHaveBeenCalled();
+    expect(useMmdVrStore.getState()).toMatchObject({ overlayOpen: false, errorMessage: null });
   });
 
   it("restores only saved instances and scenery on continue, then opens a fresh empty stage on the same page", async () => {
@@ -211,7 +219,7 @@ describe("requestMmdVrEnter", () => {
       scenery: "classroom", models: [], objects: [], time: 10, playing: false, loop: true, physicsEnabled: false, controllerCollisions: true };
     useMmdVrStore.setState({ savedStage: saved });
     useBackpack.setState({ layouts: { classroom: saved } });
-    const entering = requestMmdVrEnter({ t: t as never, addNotification, resume: true, assets: [] });
+    const entering = requestMmdVrEnter({ t, resume: true, assets: [] });
     expect(beginMmdVrSessionFromClick).toHaveBeenCalledOnce();
     expect(getMmdVrSessionAssets()).toHaveLength(1);
     expect(getMmdVrSessionAssets()[0]).toMatchObject({ modelFile: file });
@@ -220,14 +228,11 @@ describe("requestMmdVrEnter", () => {
     expect(useBackpack.getState().layouts.classroom).toBe(saved);
     await entering;
     useMmdVrStore.getState().closeOverlay();
-    // An old session and the deprecated pending-slot handoff must both be overwritten by [].
+    // A fresh entry must replace the previous session slots, even with no new files.
     beginMmdVrAssetSession(saved.assets);
-    setMmdVrPendingAssets(saved.assets);
-    await requestMmdVrEnter({ t: t as never, addNotification });
-    beginMmdVrAssetSession(); // Simulate a consumer attaching on remount.
+    await requestMmdVrEnter({ t });
     expect(useMmdVrStore.getState().resumeStage).toBeNull();
     expect(getMmdVrSessionAssets()).toEqual([]);
-    expect(peekMmdVrPendingAssets()).toEqual([]);
     expect(useBackpack.getState().layouts).toEqual({});
     expect(useBackpack.getState().files).toEqual([file, spare]);
   });
@@ -242,7 +247,7 @@ describe("requestMmdVrEnter", () => {
       return { kind: "model" as const, modelFile: file, companionFiles: [file], bodyMotionFile: null };
     });
 
-    const entering = requestMmdVrEnter({ t: t as never, addNotification, assets });
+    const entering = requestMmdVrEnter({ t, assets });
 
     expect(useMmdVrStore.getState().overlayOpen).toBe(true);
     expect(getMmdVrSessionAssets().map((slot) => slot.kind === "model" ? slot.modelFile.name : "")).toEqual([
