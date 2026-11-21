@@ -4,6 +4,7 @@
 
 | 功能提交 | 已发布内容与验证范围 |
 |---|---|
+| `a04fc04` | 场内开关共用 [`useSceneAction`](../src/mmdVrShowcase/scenery/input/useSceneAction.ts)，消除双手抢占同一帘绳的误触；每颗近星自己提供测站、机位和地貌。439 项测试通过，主域名入口与 115 份文件哈希一致。线上实点帘绳、灯台，双眼模拟 XR 双手同时瞄准、交错松开只激活一次，两星 X 往返、步行与 A 跳通过。下一步的[灯影与回波](./gameplay/interactive-scene-studies.md)是方案。[固定版](https://4a1f20fc.mmd-xr-stage.pages.dev) |
 | `712a136` | [琉璃星双风道](./scenery/opal-planet.md)，新添可登陆的赭砾星、霜岬星；日照、环影、近星视差与测站。[双喜堂正堂](./scenery/wedding-court.md)新增双灯喜幔、婚书和合卺剖瓢。436 项测试通过；主域名入口与 113 份文件哈希一致。在线屏幕 G 与双眼模拟 Quest 左手 X 完成两星往返，登陆后摇杆步行及 A 跳约 0.37 m；从母星出发到返航验证同一 PMX 实例和脚位。真机舒适度与帧率待测。[固定版](https://38219f66.mmd-xr-stage.pages.dev/?set=glassPlanet&view=screen) |
 | `2aa0c7a` | [校园电玩环线](./scenery/campus-arcade-loop.md)与[枕河街](./scenery/jiangnan-river-street.md)：三组双向连接、五个沿途机位，WASD 和 XR 普通步行保留方向。431 项测试通过；[独立验收](./performance/new-street-validation.md)实走六个方向、校园完整闭环，验证鼠标／扳机摆位和回场。主域名入口及 108 份资源内容哈希一致，复测六个屏幕导览方向、河街双向长按松键和模拟双眼 XR 桥上往返。真机帧率与舒适度待测。[固定版](https://843fa0c9.mmd-xr-stage.pages.dev) |
 | `10af811` | [布景摆位重构](./architecture.md)：十六景各登记一份落点、楼面与遮挡规则；电玩厅布局、摆位、通行分别维护。以 `bf9844c` 为基线的 113,603 组坐标对照一致，405 项测试通过。正式域名复测鼠标同 XZ 双层摆放与恢复、模拟双眼 XR 外梯上楼及洞口返回；入口与 105 份文件哈希核对一致。[固定版](https://8dcd90e9.mmd-xr-stage.pages.dev) |
