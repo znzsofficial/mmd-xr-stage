@@ -1,5 +1,5 @@
 import {Vector3} from 'three';
-import {departureAt,moons,moonStations,rideStep,startRide,type Ride} from '../scenery/planet/windAtlas';
+import {departureAt,moons,rideStep,startRide,type Ride} from '../scenery/planet/windAtlas';
 
 // The screen keeps its usual orbit/inspection controls. Only G at a marked
 // collar owns camera translation until touchdown; selecting a shot cancels it.
@@ -19,7 +19,7 @@ export function screenWindTravel(look:(direction:Vector3,weight:number)=>void){
       // The last part of this screen-only travelling shot reveals the local
       // instrument and horizon. Never steer the tracked headset on arrival.
       const blend=Math.min(1,Math.max(0,(ride.time/ride.lane.duration-.55)*3.6));
-      if(blend){const station=moonStations[ride.lane.moon.id==='ember'?0:1];
+      if(blend){const station=ride.lane.moon.station;
         if(ride.returning)direction.set(0,.47,.22);else direction.copy(station.base).addScaledVector(station.up,.73);
         look(direction.sub(delta).normalize(),1-Math.exp(-3.0*dt*blend));}
       delta.sub(eye);if(done)ride=null;

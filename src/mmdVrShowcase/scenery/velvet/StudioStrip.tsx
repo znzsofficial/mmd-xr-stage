@@ -1,14 +1,12 @@
-import {useEffect,useMemo,useRef,useState,useSyncExternalStore} from 'react';
+import {useEffect,useMemo,useSyncExternalStore} from 'react';
 import {Color,Object3D,Vector3} from 'three';
 import {createPanelTexture} from '../../../shared/panelTexture';
 import {useLanguageStore} from '../../../languageStore';
-import {useBackpack} from '../../backpack';
-import {useHudWorldInput} from '../../components/hudWorldInput';
-import {useMmdVrStore} from '../../mmdVrStore';
+import {useSceneAction} from '../input/useSceneAction';
 import {velvetDeskSight,velvetPlan} from './velvetLayout';
 import {advanceVelvetLight,getVelvetLight,stripAim,stripX,stripY,stripZ,subscribeVelvetLight,type StripControl,type VelvetLightState} from './velvetLight';
 
-const noPlayer={playerCollision:false},rayOnly={allow:['ray','mouse','screen-mouse']};
+const noPlayer={playerCollision:false};
 function Strip({state}:{state:VelvetLightState}){
   const x=stripX(state),orientation=useMemo(()=>{
     const obj=new Object3D();obj.position.set(x,stripY,stripZ);obj.lookAt(new Vector3(...stripAim));return obj.quaternion;
@@ -25,10 +23,8 @@ function Strip({state}:{state:VelvetLightState}){
   </group>;
 }
 function Control({kind,value}:{kind:StripControl;value:number}){
-  const language=useLanguageStore(s=>s.language),zh=language==='zh',pointer=useRef<number|null>(null),[hover,setHover]=useState(false);
-  const xr=useMmdVrStore(s=>s.presentation==='xr'),panel=useHudWorldInput(s=>s.blocked);
-  const bagBusy=useBackpack(s=>!!s.draft||s.busy),blocked=bagBusy||(xr&&panel);
-  useEffect(()=>{if(blocked){pointer.current=null;setHover(false);}},[blocked]);
+  const language=useLanguageStore(s=>s.language),zh=language==='zh';
+  const {hovered:hover,bindings}=useSceneAction('velvetStudio',velvetDeskSight,()=>advanceVelvetLight(kind));
   const map=useMemo(()=>createPanelTexture(400,170,({ctx:c})=>{
     c.fillStyle=hover?'#61494d':'#41363e';c.fillRect(0,0,400,170);
     c.strokeStyle='#b4967c';c.lineWidth=3;c.strokeRect(6,6,388,158);
@@ -38,13 +34,7 @@ function Control({kind,value}:{kind:StripControl;value:number}){
     for(let i=0;i<3;i++){c.fillStyle=i===value?'#f3cea2':'#877274';c.fillRect(256+i*38,103,26,9);}
   },language),[language,zh,kind,value,hover]);
   useEffect(()=>()=>map.dispose(),[map]);
-  function cancel(id:number){if(id===pointer.current)pointer.current=null;}
-  return <mesh name={`velvet:control:${kind}`} position={[kind==='rail'?-.221:.221,0,0]} pointerEvents={blocked?'none':'auto'} pointerEventsType={rayOnly} userData={noPlayer}
-    onPointerEnter={e=>{if(!blocked&&velvetDeskSight(e.ray.origin,e.point)){e.stopPropagation();setHover(true);}}}
-    onPointerLeave={e=>{setHover(false);cancel(e.pointerId);}} onPointerCancel={e=>cancel(e.pointerId)}
-    onClick={xr?undefined:e=>{if(e.button===0&&e.delta<5&&!blocked&&velvetDeskSight(e.ray.origin,e.point)){e.stopPropagation();advanceVelvetLight(kind);}}}
-    onPointerDown={e=>{if(!xr||blocked||pointer.current!==null||!velvetDeskSight(e.ray.origin,e.point))return;e.stopPropagation();pointer.current=e.pointerId;}}
-    onPointerUp={e=>{if(e.pointerId!==pointer.current)return;e.stopPropagation();pointer.current=null;if(!blocked&&velvetDeskSight(e.ray.origin,e.point))advanceVelvetLight(kind);}}>
+  return <mesh name={`velvet:control:${kind}`} position={[kind==='rail'?-.221:.221,0,0]} userData={noPlayer} {...bindings}>
     <planeGeometry args={[.422,.199]}/><meshBasicMaterial map={map} toneMapped={false}/>
   </mesh>;
 }

@@ -2,15 +2,12 @@ import {useFrame,type ThreeEvent} from '@react-three/fiber';
 import {useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react';
 import {CanvasTexture,DoubleSide,Mesh,SRGBColorSpace,Vector3,type Group,type Texture} from 'three';
 import {useLanguageStore} from '../../../languageStore';
-import {useBackpack} from '../../backpack';
-import {useHudWorldInput} from '../../components/hudWorldInput';
-import {useMmdVrStore} from '../../mmdVrStore';
+import {sceneActionRays,useSceneAction,useSceneActionsEnabled} from '../input/useSceneAction';
 import {noPick} from '../sceneryPaint';
 import {BED,FRONT,bindDrapes,curtainTrack,layers,selvage,sheetBottom,sheetTop,sheetWidth,type Draw,type Layer} from './bridalLayout';
 import {Surface,tau,white,type V} from './furnishingsMesh';
 import {weddingSightline} from './weddingLayout';
 
-const rayOnly={allow:['ray','mouse','screen-mouse']};
 const intercept=(e:ThreeEvent<Event>)=>e.stopPropagation();
 function makePanel(k:Layer){
   const s=new Surface(),silk=k==='silk';
@@ -32,25 +29,18 @@ function tagPrint(text:string,lit:boolean){
 }
 const keys={silk:['weddingSilkClose','weddingSilkOpen'],gauze:['weddingGauzeClose','weddingGauzeOpen']} as const;
 
-function Pull({kind,closed,enabled,xr,onPull}:{kind:Layer;closed:boolean;enabled:boolean;xr:boolean;onPull:()=>void}){
-  const t=useLanguageStore(s=>s.t),[hover,setHover]=useState(false),down=useRef<number|null>(null);
-  const text=t(keys[kind][Number(closed)]),print=useMemo(()=>tagPrint(text,enabled&&hover),[text,enabled,hover]);
+function Pull({kind,closed,onPull}:{kind:Layer;closed:boolean;onPull:()=>void}){
+  const t=useLanguageStore(s=>s.t);
+  const {enabled,hovered,bindings}=useSceneAction('weddingCourt',weddingSightline,onPull);
+  const text=t(keys[kind][Number(closed)]),print=useMemo(()=>tagPrint(text,hovered),[text,hovered]);
   useEffect(()=>()=>print.dispose(),[print]);
-  useLayoutEffect(()=>{if(!enabled){down.current=null;setHover(false);}},[enabled]);
   const x=BED.x+(kind==='silk'?-1:1)*1.61,z=BED.z+FRONT+.11;
-  // The room geometry intentionally doesn't intercept backpack rays. Check
-  // occlusion explicitly here too, so the pull cannot be used through plaster.
-  const sight=(e:ThreeEvent<PointerEvent|MouseEvent>)=>weddingSightline(e.ray.origin,e.point);
   return <group position={[x,1.44,z]}>
     <mesh raycast={noPick} pointerEvents="none" userData={{playerCollision:false}}><boxGeometry args={[.46,.143,.032]}/><meshStandardMaterial color="#6f342a" roughness={.62}/></mesh>
     {[-1,1].map(s=><mesh key={s} raycast={noPick} pointerEvents="none" userData={{playerCollision:false}} position-z={s*.017} rotation-y={s===1?0:Math.PI}>
       <planeGeometry args={[.452,.137]}/><meshBasicMaterial map={print} toneMapped={false}/>
     </mesh>)}
-    {enabled&&<mesh name={`wedding:pull-${kind}`} position-y={-.068} userData={{playerCollision:false}} pointerEvents="auto" pointerEventsType={rayOnly}
-      onPointerOver={e=>{if(sight(e))setHover(true);}} onPointerOut={()=>{setHover(false);down.current=null;}}
-      onClick={xr?undefined:e=>{if(e.button===0&&e.delta<5&&sight(e)){e.stopPropagation();onPull();}}}
-      onPointerDown={e=>{if(xr&&sight(e)){e.stopPropagation();down.current=e.pointerId;}}}
-      onPointerCancel={()=>{down.current=null;}} onPointerUp={e=>{if(xr&&down.current===e.pointerId){down.current=null;e.stopPropagation();if(sight(e))onPull();}}}>
+    {enabled&&<mesh name={`wedding:pull-${kind}`} position-y={-.068} userData={{playerCollision:false}} {...bindings}>
       <boxGeometry args={[.49,.35,.060]}/><meshBasicMaterial visible={false}/>
     </mesh>}
   </group>;
@@ -61,9 +51,7 @@ export function BridalCurtains({print}:{print:Texture}){
   const [closed,setClosed]=useState({silk:false,gauze:false});
   const geometry=useMemo(()=>({silk:makePanel('silk'),gauze:makePanel('gauze')}),[]);
   const eye=useMemo(()=>new Vector3(),[]);
-  const bagBusy=useBackpack(s=>!!s.draft||s.busy),blocked=useHudWorldInput(s=>s.blocked);
-  const xr=useMmdVrStore(s=>s.presentation==='xr'),busy=useMmdVrStore(s=>s.assetLoad.running||s.physicsBusy||s.physicsFatal);
-  const enabled=!bagBusy&&!busy&&!(xr&&blocked);
+  const enabled=useSceneActionsEnabled('weddingCourt');
   useLayoutEffect(()=>bindDrapes(draw),[draw]);
   useEffect(()=>()=>{for(const g of Object.values(geometry))g.dispose();},[geometry]);
   useFrame(({gl},dt)=>{
@@ -83,10 +71,10 @@ export function BridalCurtains({print}:{print:Texture}){
   return <><group ref={root} name="wedding:curtains" pointerEvents={enabled?'auto':'none'}>
     {layers.flatMap(k=>[-1,1].map(side=><mesh key={`${k}:${side}`} name={`wedding:${k}:${side}`} geometry={geometry[k]} position={[selvage(side),0,curtainTrack(k)]}
       scale={[-side*sheetWidth(draw[k]),1,1]} userData={{playerCollision:false}} receiveShadow
-      raycast={enabled?Mesh.prototype.raycast:noPick} pointerEventsType={rayOnly} pointerEventsOrder={-1}
+      raycast={enabled?Mesh.prototype.raycast:noPick} pointerEventsType={sceneActionRays} pointerEventsOrder={-1}
       onClick={intercept} onPointerDown={intercept} onPointerUp={intercept}>
       {k==='silk'?<meshStandardMaterial vertexColors map={print} side={DoubleSide} roughness={.81}/>:
         <meshStandardMaterial vertexColors transparent opacity={.39} depthWrite={false} side={DoubleSide} forceSinglePass roughness={.97}/>}
     </mesh>))}
-  </group>{layers.map(k=><Pull key={k} kind={k} xr={xr} closed={closed[k]} enabled={enabled} onPull={()=>setClosed(c=>({...c,[k]:!c[k]}))}/>)}</>;
+  </group>{layers.map(k=><Pull key={k} kind={k} closed={closed[k]} onPull={()=>setClosed(c=>({...c,[k]:!c[k]}))}/>)}</>;
 }

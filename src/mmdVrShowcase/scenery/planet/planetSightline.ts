@@ -1,6 +1,7 @@
 import {stationBlocks,terrainAltitude} from './opalTerrain';
 import {planetPlace} from './planetLayout';
-import {moons,moonRadius} from './windAtlas';
+import {moons} from './windAtlas';
+import {moonRadius} from './moonSurface';
 
 /** Check the segment to the north deck, not only the side of its tangent
  * plane. The outlying observatory and ridges can rise across an oblique ray. */

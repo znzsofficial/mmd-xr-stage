@@ -18,7 +18,7 @@
 
 ![北台、两条风道与卫星着陆视角](../screenshots/wind-planets.webp)
 
-**维护与验收**：[风口、地形与曲线](../../src/mmdVrShowcase/scenery/planet/windAtlas.ts)供渲染和移动共用；[卫星行走](../../src/mmdVrShowcase/movement/moonWalk.ts)只更新玩家。飞行与卫星行走期间暂停母星的 Ecctrl 驱动，返航再从实际落点交还。两种地貌使用[原创反照率贴图](../../src/mmdVrShowcase/scenery/planet/bakeSatellites.py)。[检查](../../src/mmdVrShowcase/scenery/planet/windAtlas.test.ts)覆盖带偏移起飞、往返曲线净空、球背移动、地表射线和穿星拒放。诊断另记 `windDepartures` 和 `windLandings`。两条路线都已用屏幕 G 和模拟双眼 Quest 左手 X 往返；阻断可选物理模块时另验赭砾星起降、行走和跳跃。实机舒适度和帧率仍待 Quest 3S 检查。
+**维护与验收**：[目的地、测站与航线](../../src/mmdVrShowcase/scenery/planet/windAtlas.ts)供渲染和移动共用；[径向地形与网格](../../src/mmdVrShowcase/scenery/planet/moonSurface.ts)共用同一高度函数。[卫星行走](../../src/mmdVrShowcase/movement/moonWalk.ts)只更新玩家。飞行与卫星行走期间暂停母星的 Ecctrl 驱动，返航再从实际落点交还。两种地貌使用[原创反照率贴图](../../src/mmdVrShowcase/scenery/planet/bakeSatellites.py)。[检查](../../src/mmdVrShowcase/scenery/planet/windAtlas.test.ts)覆盖带偏移起飞、往返曲线净空、球背移动、地表射线和穿星拒放。诊断另记 `windDepartures` 和 `windLandings`。两条路线都已用屏幕 G 和模拟双眼 Quest 左手 X 往返；阻断可选物理模块时另验赭砾星起降、行走和跳跃。实机舒适度和帧率仍待 Quest 3S 检查。
 
 ### 地形与天空｜2026-11-21
 

@@ -10,7 +10,8 @@ import {observePlanet,planetCounters} from './planetDiagnostics';
 import {createPlanetPad} from './planetPad';
 import {eyeLift,headMargin} from './eyeHeight';
 import {terrainAltitude,stationBlocks} from '../scenery/planet/opalTerrain';
-import {departureAt,moonObstructed,moonRadius,rideStep,startRide,type Moon,type Ride} from '../scenery/planet/windAtlas';
+import {departureAt,moonObstructed,rideStep,startRide,type Moon,type Ride} from '../scenery/planet/windAtlas';
+import {moonRadius} from '../scenery/planet/moonSurface';
 import {moonWalk} from './moonWalk';
 import {useBackpack} from '../backpack';
 

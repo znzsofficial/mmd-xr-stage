@@ -1,5 +1,6 @@
 import type {Vector3} from 'three';
-import {moonObstructed,moonRadius,type Moon} from '../scenery/planet/windAtlas';
+import {moonObstructed,type Moon} from '../scenery/planet/windAtlas';
+import {moonRadius} from '../scenery/planet/moonSurface';
 import {transport,type Traveller} from './planetTravel';
 
 /** The small moons have no imported actors or structures above the surface.

@@ -6,6 +6,8 @@
 
 ## 下次从这里开始
 
+**下一轮互动候选**：[合卺对影与霜岬回波](./gameplay/interactive-scene-studies.md)列出操作、镜头和验收条件，尚未开做。新绳结／旋钮可复用帘绳和灯台的 `useSceneAction`；新月面仪器从 `moon.station` 读取位置，不靠卫星数组下标。
+
 **先试新风道：** [琉璃小行星](https://mmd-xr-stage.pages.dev/?set=glassPlanet)，普通模式走到左侧琥珀环或右侧冰蓝环，左手 X 起飞，落地后试左杆、A 跳、再按 X 返航。留意飞行段舒适度及冷启动输入；[双喜堂](./scenery/wedding-court.md)新增正堂双灯喜幔、婚书与剖瓢礼器两个机位。
 
 **新路线真机短验：** 从[草坪](https://mmd-xr-stage.pages.dev/?set=lawn)的版画街走进电玩厅西廊，经外梯上二楼，从东廊下坡到泳池计时台，再沿东岸回草坪。[江南河街](./scenery/jiangnan-river-street.md)从喜轿旁上桥，桥顶摆一位角色，过门到秦淮埠头再回望。留意步道地面、日暮切换和回访等待；Quest 3S 帧率仍需实测。

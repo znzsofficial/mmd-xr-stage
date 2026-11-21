@@ -22,6 +22,8 @@
 | 多景共用的天空、灯、网格和地台 | [`stage/StageEnvironment.tsx`](../src/mmdVrShowcase/stage/StageEnvironment.tsx) 只按当前房间的配置和画质绘制布景。新放置与移动已有资产都由 [`BackpackPlacement.tsx`](../src/mmdVrShowcase/components/BackpackPlacement.tsx) 拾取和校验：按下预览，松开有效落点才提交。 |
 | 共用灯光预设或布景的灯光覆盖值 | 六套预设在 [`stage/lighting.ts`](../src/mmdVrShowcase/stage/lighting.ts)，单景覆盖值在 [`scenery/roomSets.tsx`](../src/mmdVrShowcase/scenery/roomSets.tsx)。房间求值一次，让布景与 MMD 角色共用同一个主光源。 |
 | 摄影棚实景灯控 | [`velvetLight.ts`](../src/mmdVrShowcase/scenery/velvet/velvetLight.ts) 保存本页灯轨和强度。只有私摄棚订阅调节，`StageRoom` 将同一组灯光参数同时交给布景和 PMX；换档不重建房间。 |
+| 增加能用射线点击的场内机关 | [`useSceneAction`](../src/mmdVrShowcase/scenery/input/useSceneAction.ts) 管鼠标点选、XR 按下归属、松开复验及输入中断。喜房帘绳和灯台共用它；遮挡、动画、改变哪盏灯及是否跨房保留仍归各自布景。[两种拟议的接入例子](./gameplay/interactive-scene-studies.md) |
+| 星球的测站、风口、到站镜头 | [`windAtlas.ts`](../src/mmdVrShowcase/scenery/planet/windAtlas.ts) 每个目的地持有自己的测站、设备类型与机位键，屏幕到站、阴影和碰撞均引用同一测站；[`moonSurface.ts`](../src/mmdVrShowcase/scenery/planet/moonSurface.ts) 提供径向地形和对应网格，无需挂载 React 组件即可检查脚底与壳面。 |
 | 创建角色运行时、连接手追／手柄碰撞或 GPU 预热 | [`stage/createRoomRuntime.ts`](../src/mmdVrShowcase/stage/createRoomRuntime.ts) 组装依赖；MMD/Bullet 实现在 [`mmdRuntime/`](../src/mmdVrShowcase/mmdRuntime/)。句柄在房间的 layout effect 提交，加载、换物理与逐帧更新归房间。 |
 | XR 会话创建、绑定和首帧 | [`src/xr/`](../src/xr/) 与[会话生命周期](./xr-session-lifecycle.md)。普通屏幕不申请 XR 会话。 |
 | 玩家行走、跳跃、碰头或穿模飞行 | [`movement/`](../src/mmdVrShowcase/movement/)：`roomGround.ts` 管玩家通行范围和入口，`solidColumns.ts` 查附近实际几何，`groundMotor.ts` 管普通模式运动，`usePlayerMovement.ts` 接 XR 姿态、输入和切景。它们不借用角色 Bullet 世界，也不改变背包放置规则。[操作](./gameplay/vr-controls.md#普通与自由移动) |
