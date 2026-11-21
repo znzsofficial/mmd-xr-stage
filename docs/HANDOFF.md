@@ -1,6 +1,6 @@
 # 会话交接｜2026-11-21
 
-[线上舞台](https://mmd-xr-stage.pages.dev) · [发布记录与固定版](./release-history.md) · [分类文档索引](./README.md)
+[线上舞台](https://mmd-xr-stage.pages.dev) · [固定版 `15a73d0`](https://8a6648eb.mmd-xr-stage.pages.dev) · [分类文档索引](./README.md)
 
 **十五景、九件道具。** [琉璃小行星](./scenery/opal-planet.md)有可行走的矿脊和盆地、观测站、南极信标与远星；冷启动和 Rapier 就绪后均可绕行。[刑讯室](./scenery/medieval-chamber.md)调暗了石材，加入静态刑具、实窗与有视差的暮色村景。布景原有人物默认隐藏，已有显隐设置保留。[《卡拉彼丘》地图研究](./scenery/strinova-map-study.md)只做选点与参考；是否启动灰模由用户决定。
 
