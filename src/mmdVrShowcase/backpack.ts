@@ -9,6 +9,7 @@ import type { SavedModel, SavedObject, StageSnapshot } from "./stageSnapshot";
 export type BackpackEntry = { id: string; kind: "model" | "object" | "motion"; file: File; path: string; warning?: string };
 export type BackpackLive = { runtimeId: string; position: [number, number, number]; visible: boolean;
   wrists?: { left: boolean; right: boolean };
+  propMorphs?: readonly string[];
   bounds?: { center: [number,number,number]; size: [number,number,number] } };
 export type BackpackCommand =
   | { token: number; type: "place"; id: string; moveRuntimeId?: string; x: number; z: number; yaw: number; supportY?: number }

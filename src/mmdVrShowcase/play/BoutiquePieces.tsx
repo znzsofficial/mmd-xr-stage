@@ -4,6 +4,7 @@ import { DoubleSide, type Group } from 'three';
 import { makeBrushHandle, makePlume, makeWandHandle, makeWandHead, wandLights } from './boutiqueModels';
 import { TOYS } from './propCatalog';
 import { useWandMotor } from './wandMotor';
+import {createWandHead,mountWandHead} from './wandHead';
 
 function MovingHead({pivot,speed}:{pivot:RefObject<Group|null>;speed:1|2}) {
   const phase=useRef(0);
@@ -12,7 +13,7 @@ function MovingHead({pivot,speed}:{pivot:RefObject<Group|null>;speed:1|2}) {
     phase.current=(phase.current+Math.min(dt,.05)*(speed===1?4:7)*2*Math.PI)%(Math.PI*2);
     const arc=speed===1?.047:.095;
     joint.rotation.set(arc*.65*Math.cos(phase.current),0,arc*Math.sin(phase.current));
-  });
+  },-1);
   useLayoutEffect(()=>{const joint=pivot.current;return ()=>{joint?.rotation.set(0,0,0);};},[pivot]);
   return null;
 }
@@ -20,6 +21,7 @@ function MovingHead({pivot,speed}:{pivot:RefObject<Group|null>;speed:1|2}) {
 export function CordlessWand() {
   const handle=useMemo(makeWandHandle,[]),head=useMemo(makeWandHead,[]), pivot=useRef<Group>(null);
   const speed=useWandMotor(s=>s.speed),grip=TOYS.wand.grip;
+  useLayoutEffect(()=>{if(pivot.current)return mountWandHead(createWandHead(pivot.current,head));},[head]);
   useEffect(()=>()=>{handle.dispose();head.dispose();},[handle,head]);
   return <group name="play:piece:wand" position={grip.point} rotation-x={-grip.pitch}>
     <mesh geometry={handle}><meshStandardMaterial vertexColors roughness={.36} metalness={.12}/></mesh>

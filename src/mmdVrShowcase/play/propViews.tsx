@@ -12,6 +12,7 @@ import { BubbleStream, LiquidSpray, StampAim } from './heldEffects';
 import {siliconeOutlet} from './siliconeProfile';
 import { BubblePiece, SiliconePiece, StampPiece } from './simplePieces';
 import type { PropView } from './propView';
+import { EggHandset, EggHandFeedback } from './remote/RemotePieces';
 
 export const meadowReel:PropView = {Piece:KiteReel, Station:MeadowStation};
 export const ribbonMic:PropView = {Piece:EncoreMic, Station:EncoreStation};
@@ -22,3 +23,4 @@ export const silicone:PropView = {Piece:SiliconePiece,HeldEffect:LiquidSpray,out
 export const cordless:PropView = {Piece:CordlessWand};
 export const plumeBrush:PropView = {Piece:FeatherBrush};
 export const roundFan:PropView = {Piece:LotusFan};
+export const eggRemote:PropView = {Piece:EggHandset,HeldEffect:EggHandFeedback};

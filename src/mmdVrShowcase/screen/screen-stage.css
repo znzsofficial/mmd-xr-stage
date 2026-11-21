@@ -42,6 +42,7 @@
 .screen-tools{border-top:1px solid var(--line);padding-top:1rem}.screen-buttons{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.8rem}
 .screen-field{display:grid;gap:.2rem;margin:.65rem 0}.screen-field select{min-width:0;max-width:100%}
 .screen-props{border:none;padding:0;margin:.85rem 0;color:var(--quiet);font-size:.84rem}.screen-props button{margin:.26rem .25rem 0 0}
+.screen-egg-axis{display:flex;align-items:center;gap:.22rem;margin:.32rem 0}.screen-egg-axis span{flex:1}.screen-egg-axis output{font-variant-numeric:tabular-nums}
 .screen-transport{border-top:1px solid var(--line);gap:.7rem}.screen-stage .screen-play{color:white;background:var(--green);border-color:var(--green)}.screen-stage .screen-play:not(:disabled):hover{background:#124537}
 .screen-transport input[type=range]{flex:1;min-width:2rem}.screen-transport output{font-variant-numeric:tabular-nums;color:var(--quiet);font-size:.85rem}
 .screen-transport label{display:flex;align-items:center;gap:.3rem;white-space:nowrap}

@@ -12,6 +12,7 @@ import { firstCharacterScale } from "./firstCharacterScale";
 import {createPlacementWork,type PlacementWork} from './placementWork';
 import type {RestoreMotionWork} from './roomRestoreTiming';
 import { wristSockets } from './play/wristSocket';
+import { wandMorphNames } from './play/wandResponse';
 import { useStagePlay } from './play/stagePlay';
 import { applySavedObject, snapshotModel, snapshotObject, type SavedObject, type StageSnapshot } from "./stageSnapshot";
 
@@ -41,6 +42,14 @@ function disposeGroup(group: THREE.Group) {
 // Rest-geometry proxy: measure only when a root first goes live. Applying the
 // current root matrix later tracks move/turn/scale without skinning vertices.
 const localBounds = new WeakMap<THREE.Object3D, THREE.Box3>();
+const morphLists = new WeakMap<THREE.Object3D, readonly string[]>();
+function propMorphs(root:THREE.Object3D){
+  let list=morphLists.get(root);
+  if(!list){const names=new Set<string>();root.traverse(child=>{
+    const mesh=child as THREE.SkinnedMesh;
+    if(mesh.isSkinnedMesh)for(const name of wandMorphNames(mesh))names.add(name);
+  });list=[...names];morphLists.set(root,list);}return list;
+}
 function liveBounds(root: THREE.Object3D | null) {
   if (!root) return undefined;
   let local = localBounds.get(root);
@@ -130,7 +139,7 @@ export function createStageActors(scene: THREE.Scene, runtime: MmdRuntimeHandle,
       const root = runtime.getModelRoot(m.id), bounds = liveBounds(root);
       const sockets = root ? wristSockets(root) : {};
       bindings[id] = modelBindings(m);
-      live[id] = { runtimeId: m.id, position: [t.positionX, t.positionY, t.positionZ], visible: m.visible, wrists:{left:!!sockets.left,right:!!sockets.right}, ...(bounds && { bounds }) };
+      live[id] = { runtimeId: m.id, position: [t.positionX, t.positionY, t.positionZ], visible: m.visible, wrists:{left:!!sockets.left,right:!!sockets.right}, ...(root && {propMorphs:propMorphs(root)}), ...(bounds && { bounds }) };
     }
     for (const [runtimeId, o] of objects) {
       const id = ids.get(o.slot.objectFile);

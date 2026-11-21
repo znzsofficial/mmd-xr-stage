@@ -24,8 +24,10 @@ function InHand({toy,hand}:{toy:Toy;hand:Hand}) {
     const prop=body.current;if(!prop)return;
     const session=frame?.session,ref=gl.xr.getReferenceSpace(),s=scratch, f=s.frame;
     let source:XRInputSource|undefined;
+    prop.userData.heldToy=toy;
     if(session)for(const input of session.inputSources)if(input.handedness===hand&&!input.hand&&input.gripSpace&&input.targetRayMode==='tracked-pointer'){source=input;break;}
     if(!source&&session?.visibilityState==='visible') {
+      prop.visible=false; prop.userData.propUsable=false; prop.userData.gamepad=null; prop.userData.propFrame=null;
       const play=useStagePlay.getState();if(play.held?.hand===hand&&play.held.toy===toy)play.stow();return;
     }
     const visible=frame&&ref&&session?.visibilityState==='visible';
@@ -35,6 +37,8 @@ function InHand({toy,hand}:{toy:Toy;hand:Hand}) {
     if(s.source!==(source??null)){s.latch(false,false);s.source=source??null;}
     const bag=useBackpack.getState(),stage=useMmdVrStore.getState();
     f.usable=prop.visible&&canUseGrip(useStagePlay.getState(),toy,hand,stage.prefs.scenery)&&!useHudWorldInput.getState().blocked&&!bag.busy&&!bag.draft&&!bag.selected&&!stage.assetLoad.running&&!stage.physicsBusy&&!stage.physicsFatal;
+    f.gamepad=f.usable?source?.gamepad??null:null;
+    prop.userData.propUsable=f.usable; prop.userData.gamepad=f.gamepad; prop.userData.propFrame=prop.visible?frame:null;
     f.action=s.latch(f.usable,!!source?.gamepad?.buttons[1]?.pressed);
     f.dt=Math.min(.05,Math.max(0,delta));
     if(grip&&ray){
@@ -46,7 +50,7 @@ function InHand({toy,hand}:{toy:Toy;hand:Hand}) {
       if(f.action==='start')handleGripStart(toy,stage.prefs.scenery,f.at,f.dir);
     }
     effect.current?.(f);
-  });
+  },-1); // After XR locomotion (-2), before the room samples this frame's tool pose.
   return <group pointerEvents="none"><group ref={body} visible={false}><PlayPiece toy={toy}/></group>
     {HeldEffect&&<HeldEffect ref={effect}/>}</group>;
 }

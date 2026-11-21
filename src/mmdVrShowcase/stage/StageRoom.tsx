@@ -41,8 +41,12 @@ import { createAssetLoadQueue, emptyAssetLoadProgress, type AssetLoadProgress } 
 import { restoreStageTime, type StageSnapshot } from "../stageSnapshot";
 import { createStageActors } from "../stageActors";
 import { poseWristToy } from '../play/wristSocket';
+import { createRoomWand } from '../play/wandContact';
+import { useWandMotor } from '../play/wandMotor';
+import { forgetWandResponses, useWandResponse } from '../play/wandResponse';
 import { useStagePlay } from '../play/stagePlay';
 import { PlayPiece } from '../play/HeldPlay';
+import { RemoteWearable } from '../play/remote/RemoteWearable';
 
 const noRoomLightEvents=()=>()=>{};
 
@@ -152,6 +156,17 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
     [scene, gl, motionCache, alphaTiles]);
   const actors = useMemo(() => createStageActors(scene, runtime, () => appliedPhysicsEnabledRef.current, () => timeRef.current), [scene, runtime]);
   const wristGroup = useRef<THREE.Group>(null);
+  const wand = useMemo(createRoomWand,[runtime]);
+  useLayoutEffect(()=>{
+    const stopMotor=useWandMotor.subscribe(s=>{if(!s.speed)wand.reset();});
+    const stopConfig=useWandResponse.subscribe((s,prev)=>{if(!s.enabled)wand.reset();else if(s.byActor!==prev.byActor)wand.restore();});
+    const stopTransfer=useStagePlay.subscribe((s,p)=>{if(s.held!==p.held||s.character?.assetId!==p.character?.assetId||s.character?.hand!==p.character?.hand||s.character?.toy!==p.character?.toy)wand.reset();});
+    const stopRoom=useMmdVrStore.subscribe((s,p)=>{
+      if(s.models!==p.models)forgetWandResponses(p.models.filter(m=>!s.models.some(x=>x.id===m.id)).map(m=>m.id));
+      if(!s.overlayOpen||s.prefs.scenery!==scenery||s.physicsBusy||s.assetLoad.running||s.physicsFatal)wand.reset();
+    });
+    return ()=>{stopRoom();stopTransfer();stopConfig();stopMotor();wand.reset();forgetWandResponses(useMmdVrStore.getState().models.map(m=>m.id));};
+  },[wand,scenery]);
   const characterToy = useStagePlay(s => s.character?.toy);
   const isRoomStale = () => retired.current || !useMmdVrStore.getState().overlayOpen || useMmdVrStore.getState().prefs.scenery !== scenery || runtimeRef.current !== runtime;
 
@@ -483,7 +498,8 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
     })();
   }, [actors, command, physicsBusy, assetLoading]);
 
-  useFrame((_, delta) => {
+  useFrame((_, delta, frame) => {
+    wand.restore(); // Remove only last frame's display weight, before all VMD/Bullet work (also when paused).
     applyLighting();
 
     // Let the placement-ready frame run first. An idle callback can outlive
@@ -633,6 +649,11 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
       if (live && prop && !store.physicsBusy) poseWristToy(wristGroup.current, rt.getModelRoot(live.runtimeId), prop);
       else wristGroup.current.visible = false;
     }
+    const play=useStagePlay.getState(),held=play.held?.toy==='wand';
+    if((held||play.character?.toy==='wand')&&!isRoomStale()&&!store.physicsBusy&&!store.physicsFatal&&!store.assetLoad.running){
+      wand.advance(scene,wristGroup.current,held,frame,!!useWandMotor.getState().speed,store.prefs.physicsHapticLevel,
+        useMmdVrStore.getState().models,rt.getModelSurface);
+    }
     if(store.presentation!=='xr')return;
     hapticContactPollRef.current += delta;
     if (hapticContactPollRef.current >= MMD_VR_HAPTIC_POLL_INTERVAL) {
@@ -677,6 +698,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
   return (
     <>
       {characterToy && <group ref={wristGroup} name="play:character" pointerEvents="none" visible={false}><PlayPiece toy={characterToy}/></group>}
+      <RemoteWearable getRoot={runtime.getModelRoot}/>
       <StageEnvironment scenery={scenery} prefs={mmdPrefs} profile={profile} lighting={lightCfg}
         sunRef={sunRef}/>
     </>

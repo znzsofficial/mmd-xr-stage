@@ -7,6 +7,7 @@ import { aimEncore, dyeEncore, resetEncore } from './encore/encoreRound';
 import { clearCard } from './lunarCard';
 import { retractBlade, toggleBlade } from './saberLight';
 import { cycleWand, stopWand } from './wandMotor';
+import { clearRemoteEgg, cycleRemoteEgg } from './remote/remoteMotor';
 
 export type Hand = 'left' | 'right';
 type Story = { name:Key; help:Key; left:Key; right:Key; cue:(side:Hand)=>void };
@@ -69,6 +70,11 @@ const catalog = {
   lotusFan: {
     label:'toySilkFan',home:null,homeLabel:'allSets',visit:null,view:'roundFan',grip:{point:[0,-.032,-.043],pitch:.34},
     guide:{vr:'guideFanVr',screen:'guideFanScreen',end:'guideFanEnd'},
+  },
+  remoteEgg: {
+    label:'toyRemoteEgg',portable:true,home:null,homeLabel:'allSets',visit:null,view:'eggRemote',grip:{point:[0,-.025,-.046],pitch:.42},
+    guide:{vr:'guideEggVr',screen:'guideEggScreen',end:'guideEggEnd'},
+    onGrip:cycleRemoteEgg,onStow:clearRemoteEgg,onLeave:clearRemoteEgg,
   },
 } as const satisfies Record<string,Definition>;
 

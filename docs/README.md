@@ -5,7 +5,7 @@
 | 要做什么 | 入口 |
 |---|---|
 | 导入、摆角色、观看、续场 | [文件与背包](./gameplay/asset-workflow.md) · [Blender 角色包](./gameplay/blender-characters.md) · [屏幕键鼠](./gameplay/screen-viewing.md) · [VR 控制](./gameplay/vr-controls.md) |
-| 找道具或互动玩法 | [已上线的四幕与九件道具](./gameplay/README.md) · [未开发的两幕提案](./gameplay/interactive-scene-studies.md) |
+| 找道具或互动玩法 | [已上线的四幕与十件道具](./gameplay/README.md) · [未开发的两幕提案](./gameplay/interactive-scene-studies.md) |
 | 选地图、机位或步行路线 | [布景索引](./scenery/README.md) · [深空与风道](./scenery/opal-planet.md) · [校园环线](./scenery/campus-arcade-loop.md) · [喜院到秦淮](./scenery/jiangnan-river-street.md) |
 | 做 Quest 验收、查卡顿 | [下次头显短测与导出](./performance/next-quest-export.md) · [性能优先级](./performance/README.md) · [历次真机报告](./performance/viewing-and-diagnostics.md#已有测量) |
 | 改代码或加布景 | [舞台架构](./architecture.md) · [新布景与连接](./scenery/adding-a-set.md) · [美术样板](./scenery/art-direction.md) · [引擎取舍](./three-tooling.md) |

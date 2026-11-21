@@ -9,6 +9,8 @@ import type { SceneryId } from '../scenery/catalog';
 import {hasSceneryPeople,showSceneryGrid} from '../scenery/catalog';
 import {getMmdVrRenderProfile} from '../mmdVrQuality';
 import { resetEncore } from '../play/encore/encoreRound';
+import {EggFields,fitScreenEgg,WandFields} from './ContactPropFields';
+import {useRemoteEgg} from '../play/remoteEgg';
 
 function give(id:string,toy:Toy,hand:Hand,room:SceneryId){
   if(canGiveTo(useBackpack.getState().live[id],hand))giveScreenToy(id,toy,hand,room);
@@ -19,7 +21,7 @@ function ScreenToyGuide({toy,room,locked,close}:{toy:Toy;room:SceneryId;locked:b
   useLayoutEffect(()=>{const el=dialog.current!;el.showModal();return ()=>el.close();},[]);
   return <dialog ref={dialog} className="screen-guide-dialog" aria-labelledby="toy-guide-title" onCancel={e=>{e.preventDefault();e.stopPropagation();close();}}>
     <h3 id="toy-guide-title">{t(toyLabel(toy,room))} · {t('toyGuide')}</h3><p>{t('toyShelfHome')}{t(item.homeLabel)}</p>
-    <p>{t('toyGuideScreenGive')}</p><p>{t(screen)}</p><p><strong>VR</strong> · {t(vr)}</p><p>{t(end)}</p>
+    {toy!=='remoteEgg'&&<p>{t('toyGuideScreenGive')}</p>}<p>{t(screen)}</p><p><strong>VR</strong> · {t(vr)}</p><p>{t(end)}</p>
     <div className="screen-buttons"><button autoFocus onClick={close}>{t('toyCloseGuide')}</button>{item.home&&room!==item.home&&<button disabled={locked} onClick={()=>{close();useMmdVrStore.getState().setPrefs({scenery:item.home});}}>{t(item.visit)}</button>}</div>
   </dialog>;
 }
@@ -39,7 +41,7 @@ export function ScreenLibrary({locked,close,frame,storyView}:{locked:boolean;clo
     <details className="screen-toy-guide"><summary>{t('toyList')} · {shelfToys.length}</summary>
       <p>{t('toyGuideScreenGive')}</p><ul>{shelfToys.map(toy=>{return <li key={toy}>
         <span>{t(toyLabel(toy,room))}<small>{t('toyShelfHome')}{t(TOYS[toy].homeLabel)}</small></span>
-        <div>{actor&&selected&&(['left','right'] as const).map(hand=><button key={hand} disabled={locked||!canGiveTo(actor,hand)} onClick={()=>{choose({id:selected.id,toy});give(selected.id,toy,hand,room);}}>{t(hand==='left'?'propLeft':'propRight')}</button>)} <button onClick={()=>setGuide(toy)}>{t('toyGuide')}</button></div>
+        <div>{actor&&selected&&(toy==='remoteEgg'?<button disabled={locked||!actor.visible} onClick={()=>{choose({id:selected.id,toy});fitScreenEgg(selected.id)}}>{t('eggWear')}</button>:(['left','right'] as const).map(hand=><button key={hand} disabled={locked||!canGiveTo(actor,hand)} onClick={()=>{choose({id:selected.id,toy});give(selected.id,toy,hand,room);}}>{t(hand==='left'?'propLeft':'propRight')}</button>))} <button onClick={()=>setGuide(toy)}>{t('toyGuide')}</button></div>
       </li>;})}</ul></details>
     {guide&&<ScreenToyGuide toy={guide} room={room} locked={locked} close={()=>setGuide(null)}/>}
     <details className="screen-stage-options"><summary>{t('settingsEnvironment')}</summary>
@@ -77,7 +79,8 @@ function SelectedItem({entry,locked,frame,move,choice,setChoice}:{entry:Backpack
   const transform=useMmdVrStore(s=>(entry.kind==='model'?s.models:s.objects).find(e=>e.id===live?.runtimeId));
   const stage=useMmdVrStore.getState(), prop=useStagePlay(s=>s.character), motions=b.entries.filter(e=>e.kind==='motion');
   const room=useMmdVrStore(s=>s.prefs.scenery),localToy=isStoryRoom(room)?STORIES[room].toy:null;
-  const toy=choice??(prop?.assetId===entry.id?prop.toy:localToy??'saber');
+  const wearing=useRemoteEgg(s=>s.assetId===entry.id);
+  const toy=choice??(wearing?'remoteEgg':prop?.assetId===entry.id?prop.toy:localToy??'saber');
   if(!live||!transform)return null;
   return <section className="screen-tools"><h3>{entry.file.name}</h3>
     <div className="screen-buttons"><button onClick={frame}>{t('screenFit')}</button><button disabled={locked} onClick={move}>{t('hudMove')}</button>
@@ -88,12 +91,13 @@ function SelectedItem({entry,locked,frame,move,choice,setChoice}:{entry:Backpack
       <select disabled={locked} value={motions.find(e=>e.file===b.bindings[entry.id]?.[kind])?.id??''} onChange={e=>{const motion=motions.find(m=>m.id===e.target.value);if(motion)b.applyMotion(entry.id,motion.file,kind);}}>
         <option value="" disabled>{t('screenPickMotion')}</option>{motions.map(m=><option key={m.id} value={m.id}>{m.path}</option>)}
       </select></label>)}
-    {(live.wrists?.left||live.wrists?.right)&&<fieldset className="screen-props"><legend>{t('storyProp')}</legend>
+    {entry.kind==='model'&&<fieldset className="screen-props"><legend>{t('storyProp')}</legend>
       <select disabled={locked} aria-label={t('storyProp')} value={toy} onChange={e=>{const item=shelfToys.find(v=>v===e.target.value);if(item)setChoice(item);}}>{shelfToys.map(v=><option value={v} key={v}>{t(toyLabel(v,room))}</option>)}</select>
-      {(['left','right'] as const).map(hand=><button key={hand} disabled={locked||!canGiveTo(live,hand)} aria-pressed={prop?.assetId===entry.id&&prop.toy===toy&&prop.hand===hand} onClick={()=>give(entry.id,toy,hand,room)}>{t(hand==='left'?'propLeft':'propRight')}</button>)}
+      {toy==='remoteEgg'?<EggFields id={entry.id} locked={locked||!live.visible}/>:<>{(['left','right'] as const).map(hand=><button key={hand} disabled={locked||!canGiveTo(live,hand)} aria-pressed={prop?.assetId===entry.id&&prop.toy===toy&&prop.hand===hand} onClick={()=>give(entry.id,toy,hand,room)}>{t(hand==='left'?'propLeft':'propRight')}</button>)}{!live.wrists?.left&&!live.wrists?.right&&<small>{t('propNoWrist')}</small>}</>}
       {prop?.assetId===entry.id&&prop.toy===toy&&<><button disabled={locked} onClick={()=>useStagePlay.getState().adjust(0,0,30)}>{t('propTurn')} {prop.turn}°</button>
         {([['propLower',-15,0],['propRaise',15,0],['propCloser',0,-1],['propFarther',0,1]] as const).map(([label,a,d])=><button key={label} disabled={locked||Math.abs(prop.tilt+a)>90||Math.abs(prop.inset+d)>5} onClick={()=>useStagePlay.getState().adjust(a,d)}>{t(label)}</button>)}</>}
       {prop?.assetId===entry.id&&prop.toy!==localToy&&<button disabled={locked} onClick={()=>useStagePlay.getState().stow()}>{t('toyStow')}</button>}
+      {(toy==='wand'||prop?.toy==='wand')&&<WandFields live={live} locked={locked||!live.visible}/>}
     </fieldset>}
     <button disabled={locked} onClick={()=>b.putAway(entry.id)}>{t('hudPutAway')}</button>
   </section>;

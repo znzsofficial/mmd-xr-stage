@@ -100,6 +100,7 @@ export type MmdRuntimeHandle = {
   selectModel: (id: string | null) => void;
   /** Scene root Object3D for gizmo / helpers (null if missing). */
   getModelRoot: (id: string | null) => THREE.Object3D | null;
+  getModelSurface: (id:string) => Pick<ThreeMmdModel,'root'|'mesh'|'renderOrderMeshes'>|null;
   setModelVisible: (id: string, visible: boolean) => void;
   setModelTransform: (id: string, patch: Partial<MmdModelTransform>) => void;
   /** When true, update() will not overwrite root TRS from entry.transform (gizmo drag). */
@@ -771,6 +772,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       if (!id) return null;
       return entries.get(id)?.model.root ?? null;
     },
+    getModelSurface(id) {return entries.get(id)?.model??null;},
     setModelVisible(id, visible) {
       const entry = entries.get(id);
       if (!entry) return;

@@ -14,9 +14,9 @@ const get=useStagePlay.getState, forward=new Vector3(0,0,-1);
 beforeEach(()=>get().reset());
 
 describe('shared prop catalog and ownership',()=>{
-  it('can assign every shelf entry to either wrist without also holding a second copy',()=>{
+  it('can assign each wrist prop to either wrist without also holding a second copy',()=>{
     expect(shelfToys).toEqual(expect.arrayContaining(['bubbles','post','saber','kite','encore','dildo','wand','feather']));
-    for(const toy of shelfToys){
+    for(const toy of shelfToys.filter(t=>t!=='remoteEgg')){
       get().equip(toy,'left');get().give('actor','right');get().give('other','left');
       expect(get().character).toMatchObject({toy,assetId:'actor',hand:'right'});
       get().give('actor','left');expect(get().character?.hand).toBe('left');expect(get().held).toBeNull();

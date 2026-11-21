@@ -34,7 +34,8 @@ export const useStagePlay = create<Play>((set,get)=>{
     give:(assetId,hand)=>{
       const {held,character}=get();
       const toy=held?.toy??(character?.assetId===assetId?character.toy:null);
-      if(toy)set({held:null,character:{assetId,hand,toy,tilt:0,inset:0,turn:0}});
+      // Its player keeps the transmitter. bindRemoteEgg assigns the separate receiver.
+      if(toy && toy!=='remoteEgg')set({held:null,character:{assetId,hand,toy,tilt:0,inset:0,turn:0}});
     },
     adjust:(tilt,inset,turn=0)=>{const c=get().character;if(c)set({character:{...c,turn:(c.turn+turn+360)%360,
       tilt:Math.max(-90,Math.min(90,c.tilt+tilt)),inset:Math.max(-5,Math.min(5,c.inset+inset))}});},
