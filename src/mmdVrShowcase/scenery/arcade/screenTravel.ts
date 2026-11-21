@@ -3,7 +3,7 @@ import {useBackpack} from '../../backpack';
 import {createGroundMotor,groundedBody,type ReadColumn} from '../../movement/groundMotor';
 import {createSolidColumns,playerSolidRoots} from '../../movement/solidColumns';
 import {actorBodies,sampleBodies} from '../../movement/actorBodies';
-import {arcadePassage,baseGround} from './arcadeLayout';
+import {arcadePassage,baseGround} from './arcadeTravel';
 
 // Orbit/zoom/tour remain inspection tools. On a floor, keyboard walking and
 // the labelled passage sample the same geometry and standing body as XR.

@@ -16,7 +16,7 @@ import {createSolidColumns,playerSolidRoots,type Column} from './solidColumns';
 import {actorBodies,sampleBodies} from './actorBodies';
 import {newStick,readStick,stickAxis as axis} from './controllerInput';
 import {eyeLift,headMargin} from './eyeHeight';
-import {arcadePassage} from '../scenery/arcade/arcadeLayout';
+import {arcadePassage} from '../scenery/arcade/arcadeTravel';
 
 export function usePlayerMovement(originRef:RefObject<Group|null>,veilRef:RefObject<Mesh|null>,dragging:boolean){
   const left=useXRInputSourceState('controller','left'),right=useXRInputSourceState('controller','right');

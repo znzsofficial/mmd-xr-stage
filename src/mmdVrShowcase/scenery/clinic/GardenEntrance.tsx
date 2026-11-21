@@ -7,7 +7,8 @@ import {useBakedSurface} from '../useBakedSurface';
 import {APRON,BEDS,CANOPY_POSTS,CLINIC_ORIGIN,GLAZING,GUIDE,GARDEN_DOOR,EAST_FACE,TREES,WALK_POINTS,WALK_WIDTH} from './clinicApproach';
 import atlasUrl from './clinic-garden.webp';
 import turfUrl from '../meadow-walk.webp';
-import {LAWN_KNOLLS,LAWN_SIZE,MEADOW_POSTS} from '../placementAreas';
+import {LAWN_SIZE,MEADOW_POSTS} from '../meadowLandmarks';
+import {LAWN_KNOLLS} from '../meadowPlanting';
 
 type V=Part['p'];
 const noPick=()=>null;

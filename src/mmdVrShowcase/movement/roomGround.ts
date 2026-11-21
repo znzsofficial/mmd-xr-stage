@@ -3,7 +3,8 @@ import {ROOM} from '../scenery/ClassroomLayout';
 import {classPassageFloor,lawnSchoolFoot} from '../scenery/CampusLayout';
 import {chapelFloor} from '../scenery/ChapelLayout';
 import {onObservatoryFloor} from '../scenery/ObservatoryLayout';
-import {LAWN_SIZE,SIMPLE_FLOOR_RADIUS} from '../scenery/placementAreas';
+import {LAWN_SIZE} from '../scenery/meadowLandmarks';
+import {SIMPLE_FLOOR_RADIUS} from '../scenery/stageLayouts';
 import {borrowedLido,POOL,POOL_SUPPORT} from '../scenery/LidoLayout';
 import {clinicNavigation} from '../scenery/clinic/clinicNavigation';
 import {canWalkByLawnClinic} from '../scenery/clinic/clinicApproach';
@@ -13,7 +14,8 @@ import {retreatGround,retreatPlan} from '../scenery/retreat/retreatLayout';
 import {PAD_RADIUS} from '../scenery/planet/planetLayout';
 import {velvetEntry,velvetGround} from '../scenery/velvet/velvetLayout';
 import {chamberEntry,chamberGround} from '../scenery/chamber/chamberLayout';
-import {entry as arcadeEntry,baseGround} from '../scenery/arcade/arcadeLayout';
+import {entry as arcadeEntry} from '../scenery/arcade/arcadeLayout';
+import {baseGround} from '../scenery/arcade/arcadeTravel';
 
 const origin={x:0,z:0},clinicEntry={x:0,z:2.8};
 export function roomEntry(room:SceneryId){

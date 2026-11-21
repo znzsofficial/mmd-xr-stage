@@ -8,7 +8,7 @@
 2. [屏幕](../src/mmdVrShowcase/screen/ScreenStage.tsx)或 [XR 场景](../src/mmdVrShowcase/MmdVrScene.tsx)挂载同一个 [MmdVrStageContent](../src/mmdVrShowcase/components/MmdVrStage.tsx)。它管理本次观看的动作／透明度采样缓存，按布景和切换代次挂载一个 [StageRoom](../src/mmdVrShowcase/stage/StageRoom.tsx)。即使 A → B → A 被合成一次 React 渲染，第一次 A 的异步加载也不能提交到第二次 A。
 3. [放置射线](../src/mmdVrShowcase/components/BackpackPlacement.tsx)检查真实地面和遮挡，背包确认后发出带 token 的命令。房间检查命令有效性，通过 [stageActors](../src/mmdVrShowcase/stageActors.ts) 加载或移动实例，成功后才发布上场状态。
 
-   电玩厅上下层共用 XZ；`supportY` 是射线命中面的世界高度，从预览、确认一直传到 `StageRoom`。房间重验该楼面后再写变换，回访从快照的三维位置恢复。平地和秦淮歌楼保持自己的地形高度规则。
+   电玩厅上下层共用 XZ；`supportY` 是射线命中面的世界高度，从预览、确认一直传到 `StageRoom`。提交时房间调用 [`resolvePlacementHeight`](../src/mmdVrShowcase/scenery/placementAreas.ts)：`null` 表示拒放，否则将返回的世界高度交给角色或物件。回访从快照的三维位置恢复。
 4. 离场时由房间判断快照是否完整。背包的 `saveBackpackLayout` 一次写入本景布局、按文件身份匹配的摆放记录及动作绑定；切景后重建实例。布局不是一组隐藏的 Three.js 网格，也不保存 Bullet 世界。
 
 ## 按改动找入口
@@ -17,6 +17,7 @@
 |---|---|
 | 默认设置、合法值、v1/v2 偏好兼容 | [`settings/preferences.ts`](../src/mmdVrShowcase/settings/preferences.ts)。首次进入、读取旧记录和场内更新共用同一套规则；[`mmdVrStore.ts`](../src/mmdVrShowcase/mmdVrStore.ts) 发布状态和操作。文件、布局和运行时句柄不属于偏好。 |
 | 某一间房的模型、入口、机位、遮挡 | [`scenery/`](../src/mmdVrShowcase/scenery/)；按[布景接入指南](./scenery/adding-a-set.md)改注册表和本景布局。菜单切景是否重置视角由 `catalog.ts` 决定；步行跨门由 `connections.ts` 的平移数据决定。 |
+| 哪些楼面可指、哪些点能摆角色 | [`placementAreas.ts`](../src/mmdVrShowcase/scenery/placementAreas.ts) 为每个 `SceneryId` 登记落点解析、拾取平面和视线遮挡。模型和烘焙脚本直接读所属布景的布局数据；例如草坪的树丘在 [`meadowPlanting.ts`](../src/mmdVrShowcase/scenery/meadowPlanting.ts)，不会因为要画一棵树而导入所有布景的摆位规则。 |
 | 多景共用的天空、灯、网格和地台 | [`stage/StageEnvironment.tsx`](../src/mmdVrShowcase/stage/StageEnvironment.tsx) 只按当前房间的配置和画质绘制布景。新放置与移动已有资产都由 [`BackpackPlacement.tsx`](../src/mmdVrShowcase/components/BackpackPlacement.tsx) 拾取和校验：按下预览，松开有效落点才提交。 |
 | 共用灯光预设或布景的灯光覆盖值 | 六套预设在 [`stage/lighting.ts`](../src/mmdVrShowcase/stage/lighting.ts)，单景覆盖值在 [`scenery/roomSets.tsx`](../src/mmdVrShowcase/scenery/roomSets.tsx)。房间求值一次，让布景与 MMD 角色共用同一个主光源。 |
 | 摄影棚实景灯控 | [`velvetLight.ts`](../src/mmdVrShowcase/scenery/velvet/velvetLight.ts) 保存本页灯轨和强度。只有私摄棚订阅调节，`StageRoom` 将同一组灯光参数同时交给布景和 PMX；换档不重建房间。 |

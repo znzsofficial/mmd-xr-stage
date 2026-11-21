@@ -4,7 +4,7 @@ import { BufferAttribute, BufferGeometry, Color, DoubleSide, DynamicDrawUsage, G
 import { useBackpack } from '../../backpack';
 import { useMmdVrStore } from '../../mmdVrStore';
 import { noPick } from '../../scenery/sceneryPaint';
-import { MEADOW_SEAT } from '../../scenery/placementAreas';
+import { MEADOW_SEAT } from '../../scenery/meadowLandmarks';
 import { useStagePlay } from '../stagePlay';
 import { CORD_SAMPLES, displayedEyelet, EYELET_NAME, flightPoint, headOf, REEL_NAME, registerEyelet, writeCord } from './kiteFlight';
 import { GUIDE, makeReel, makeStreamer, makeSwallow } from './kiteModels';

@@ -1,6 +1,12 @@
 /** All connected tops meet the existing MMD foot plane. Bridges overlap the
  * landings slightly so a foot can cross the joint even on the circular rim. */
 export const OLD_COURT_RADIUS=6.8;
+// Paired piers bracket the rear stargate; broken columns line the approaches.
+export const COURT_PIERS = [
+  {x:-2.78,z:-4.3,w:1.08,d:1.08}, {x:2.78,z:-4.3,w:1.08,d:1.08},
+  {x:-5.05,z:-1.2,w:.95,d:.95}, {x:5.05,z:-1.2,w:.95,d:.95},
+  {x:-4.2,z:3.4,w:.95,d:.95}, {x:4.2,z:3.4,w:.95,d:.95},
+];
 export const TERRACES=[
   {id:'north',x:0,z:-39,r:7.2},
   {id:'west',x:-23,z:-20,r:5.8},

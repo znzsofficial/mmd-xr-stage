@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute } from 'three';
-import { ARBOR, ARBOR_POSTS, LAWN_KNOLLS, LAWN_SIZE, LAWN_TREES, MEADOW_POSTS, MEADOW_SEAT, MEADOW_SUN, meadowPathX as pathX } from './placementAreas';
+import { ARBOR, ARBOR_POSTS, LAWN_SIZE, MEADOW_POSTS, MEADOW_SEAT, MEADOW_SUN, meadowPathX as pathX } from './meadowLandmarks';
+import { LAWN_KNOLLS, LAWN_TREES } from './meadowPlanting';
 import { span } from './detailParts';
 import groundUrl from './meadow-walk.webp';
 import benchURL from './garden-joinery.webp';

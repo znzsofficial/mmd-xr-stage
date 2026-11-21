@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { Color, PlaneGeometry } from "three";
 import { Batch, type Part } from "../scenery/SceneryBatch";
-import { WEDGES, LIVE_DECK_SIZE, BACKLINE } from '../scenery/placementAreas';
+import { WEDGES, LIVE_DECK_SIZE, BACKLINE } from '../scenery/stageLayouts';
 import { span } from '../scenery/detailParts';
 import { noPick, paintedSurface } from '../scenery/sceneryPaint';
 import { useBakedSurface } from '../scenery/useBakedSurface';

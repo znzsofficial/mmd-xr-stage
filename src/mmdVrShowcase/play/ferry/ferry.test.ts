@@ -1,6 +1,7 @@
 import { afterEach, expect, it } from 'vitest';
 import { Box3, Matrix4, Vector3 } from 'three';
-import { canPlaceInScenery, POOL } from '../../scenery/placementAreas';
+import { canPlaceInScenery } from '../../scenery/placementAreas';
+import { POOL } from '../../scenery/LidoLayout';
 import { makeBoat, makeGate, makeWake } from './ferryModels';
 import { advanceFerry, aimFerry, boatPose, boatSize, GATE_RADIUS, GATE_X, GATE_Y, GATE_Z, launchFerry, resetFerry, ringPose, SIDES, sideSign } from './voyage';
 

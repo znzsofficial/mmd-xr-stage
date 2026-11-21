@@ -23,7 +23,7 @@
 
 [布局](../../src/mmdVrShowcase/scenery/arcade/arcadeLayout.ts)是楼板、门、阶梯、碰撞和放置的坐标来源。上层室内约 14 × 9 米，一楼约 14 × 11 米；楼面 `Y=3.40 m`。尺寸是本舞台取景和通行用的近似值。板脚、楼板洞和屋顶天窗分别建模，不能为简化拾取盖上一个穿过洞的整面。
 
-背包记录射线命中的支撑面高度 `supportY`，松开时和房间提交前都重验。换层沿洞中净空、板边和目标脚位检查人物净高；切区只重建一次房间，换层不卸载演员。[维护指南](./adding-a-set.md)
+背包记录射线命中的支撑面高度 `supportY`，松开时和房间提交前都重验。[摆位](../../src/mmdVrShowcase/scenery/arcade/arcadePlacement.ts)从布局生成射线平面，检查脚边余量和遮挡；[通行](../../src/mmdVrShowcase/scenery/arcade/arcadeTravel.ts)管脚下支撑范围和穿洞路径，由屏幕和 XR 共用。换层不卸载演员。[维护指南](./adding-a-set.md)
 
 [烘焙脚本](../../src/mmdVrShowcase/scenery/arcade/bakePrints.py)用 Pillow、NumPy 和系统字体重画四张 WebP，合计约 483 KiB，进入本景才请求。[表面网格](../../src/mmdVrShowcase/scenery/arcade/paintedShell.ts)按米制网格裁砖，不跨门洞。[西廊构件](../../src/mmdVrShowcase/scenery/arcade/westGallery.ts)区分占地实体与小配件，灯片、包装和玻璃共用现有图集和绘制批次。仓库中的[早期布局图](./arcade-blockout-views.webp)、各版机位和平台图均取自舞台自身。
 

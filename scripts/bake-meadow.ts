@@ -1,7 +1,8 @@
 // In the Vite dev page console: (await import('/scripts/bake-meadow.ts')).download()
 // The result goes in src/mmdVrShowcase/scenery/meadow-ground.webp. Re-bake when
 // the path, clearing size, trees or sun change. Never paint this atlas in XR.
-import { LAWN_SIZE, LAWN_TREES, MEADOW_SUN, meadowPathX } from '../src/mmdVrShowcase/scenery/placementAreas';
+import { LAWN_SIZE, MEADOW_SUN, meadowPathX } from '../src/mmdVrShowcase/scenery/meadowLandmarks';
+import { LAWN_TREES } from '../src/mmdVrShowcase/scenery/meadowPlanting';
 import { seededRandom } from '../src/mmdVrShowcase/scenery/ClassroomLayout';
 
 export function paintGround() {

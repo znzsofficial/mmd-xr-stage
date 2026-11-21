@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { sceneryIds } from './catalog';
-import { ARBOR, ARBOR_POSTS, BACKLINE, canPlaceInScenery, LAWN_KNOLLS, LAWN_TREES, MEADOW_POSTS, MEADOW_SEAT, POOL, WEDGES } from './placementAreas';
+import { canPlaceInScenery } from './placementAreas';
+import { ARBOR, ARBOR_POSTS, MEADOW_POSTS, MEADOW_SEAT } from './meadowLandmarks';
+import { LAWN_KNOLLS, LAWN_TREES } from './meadowPlanting';
+import { BACKLINE, WEDGES } from './stageLayouts';
+import { POOL } from './LidoLayout';
 import { CLASS_FIXTURES, ROOM } from './ClassroomLayout';
-import { COURT_PIERS, COURT_RADIUS } from './placementAreas';
-import { ROUTE_FEET } from './ObservatoryLayout';
+import { COURT_PIERS, OLD_COURT_RADIUS as COURT_RADIUS, ROUTE_FEET } from './ObservatoryLayout';
 import { CHAPEL_DAIS, CHAPEL_PEWS, CHAPEL_PIERS } from './ChapelLayout';
 
 describe('placeable ground at foot height', () => {

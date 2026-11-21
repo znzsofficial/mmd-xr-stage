@@ -1,10 +1,11 @@
 import {expect,it} from 'vitest';
 import {Group,InstancedMesh,BoxGeometry,MeshBasicMaterial,Matrix4} from 'three';
-import {blocks,baseGround,arcadePassage,lowerPad,upperPad,UPPER,opening,frontLip,cladding,upperFrontZ,arcadeSight,arcadePlace} from './arcadeLayout';
+import {blocks,lowerPad,upperPad,UPPER,opening,frontLip,cladding,upperFrontZ} from './arcadeLayout';
+import {baseGround,arcadePassage} from './arcadeTravel';
+import {arcadeSight,arcadePlace} from './arcadePlacement';
 import {createSolidColumns} from '../../movement/solidColumns';
 import {createGroundMotor,groundedBody,type ReadColumn} from '../../movement/groundMotor';
-import {roomPickDecks,visiblePick} from '../pickDecks';
-import {canPlaceInScenery,placementHeight} from '../placementAreas';
+import {roomPickDecks,visiblePick,canPlaceInScenery,resolvePlacementHeight} from '../placementAreas';
 
 const room='arcadeHall';
 it('puts the lower doorway wall directly under the front edge of the east–west upper walk',()=>{
@@ -19,7 +20,7 @@ it('puts the lower doorway wall directly under the front edge of the east–west
 it('has two independently addressable feet, with different occluders, at the same XZ',()=>{
   for(const y of [0,UPPER]){
     expect(roomPickDecks(room).some(r=>Math.abs(r.y-y)<.001&&Math.abs(r.x-.65)<r.w/2&&Math.abs(r.z-2.83)<r.d/2)).toBe(true);
-    expect(canPlaceInScenery(room,.65,2.83,y)).toBe(true);expect(placementHeight(room,.65,2.83,y)).toBe(y);
+    expect(canPlaceInScenery(room,.65,2.83,y)).toBe(true);expect(resolvePlacementHeight(room,.65,2.83,y)).toBe(y);
     expect(visiblePick(room,{x:.65,y:y+1.4,z:3.48},.65,y,2.83)).toBe(true);
   }
   expect(canPlaceInScenery(room,.65,2.83,.9)).toBe(false);

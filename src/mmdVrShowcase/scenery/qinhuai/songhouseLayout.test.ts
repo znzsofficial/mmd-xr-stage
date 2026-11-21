@@ -1,12 +1,11 @@
 import {expect,it} from 'vitest';
-import {canPlaceInScenery,placementHeight} from '../placementAreas';
-import {visiblePick} from '../pickDecks';
-import {BED,BED_STEP,DOOR_X,DOOR_Z,DRESSER,DRESSING_STOOL,moveInSonghouse,PRIVATE_SPOTS,SCREEN_ENTRY,SHOTS,songhouseClear,STAGE_Y,GALLERY_Y,XR_ENTRY} from './songhouseLayout';
+import {canPlaceInScenery,resolvePlacementHeight,visiblePick} from '../placementAreas';
+import {BED,BED_STEP,DOOR_X,DOOR_Z,DRESSER,DRESSING_STOOL,moveInSonghouse,PRIVATE_SPOTS,SCREEN_ENTRY,SHOTS,songhouseClear,songhouseHeight,STAGE_Y,GALLERY_Y,XR_ENTRY} from './songhouseLayout';
 
 it('walks the quay, enters through the façade, climbs the stage and returns up the outside stair',()=>{
   let pos=XR_ENTRY;
   for(const [x,z,y] of [[0,6,0],[0,0,0],[0,-5,STAGE_Y],[0,6,0],[0,9,0],[-7.23,9,0],[-7.23,5.32,GALLERY_Y/2],[-7.23,-1,GALLERY_Y],[-7.23,9,0],[4.95,9,0],[4.75,14.83,0]]){
-    pos=moveInSonghouse(pos.x,pos.z,x-pos.x,z-pos.z);expect(pos.x).toBeCloseTo(x);expect(pos.z).toBeCloseTo(z);expect(placementHeight('qinhuai',x,z)).toBeCloseTo(y);
+    pos=moveInSonghouse(pos.x,pos.z,x-pos.x,z-pos.z);expect(pos.x).toBeCloseTo(x);expect(pos.z).toBeCloseTo(z);expect(songhouseHeight(x,z)).toBeCloseTo(y);
   }
   for(const [eye] of [SCREEN_ENTRY,...SHOTS.map(s=>[s.eye])])expect(songhouseClear(eye[0],eye[2])).toBe(true);
 });
@@ -39,7 +38,7 @@ it('reaches both sides of the private chamber via the original stairs and listen
   for(const [x,z] of [[0,9],[-7.25,9],[-7.25,2],[-7.25,-4],[DOOR_X,DOOR_Z],...PRIVATE_SPOTS,[DOOR_X,-9],[DOOR_X,-6],[DOOR_X,9],[0,9]]){
     p=moveInSonghouse(p.x,p.z,x-p.x,z-p.z);expect(p.x).toBeCloseTo(x);expect(p.z).toBeCloseTo(z);
   }
-  for(const [x,z] of PRIVATE_SPOTS){expect(canPlaceInScenery('qinhuai',x,z)).toBe(true);expect(placementHeight('qinhuai',x,z)).toBe(GALLERY_Y);}
+  for(const [x,z] of PRIVATE_SPOTS){expect(canPlaceInScenery('qinhuai',x,z)).toBe(true);expect(resolvePlacementHeight('qinhuai',x,z)).toBe(GALLERY_Y);}
   for(const {x,z} of [BED,BED_STEP,DRESSER,DRESSING_STOOL])expect(canPlaceInScenery('qinhuai',x,z)).toBe(false);
   expect(moveInSonghouse(-6.36,-7.15,0,-1.5).z).toBeGreaterThan(DOOR_Z);
 });

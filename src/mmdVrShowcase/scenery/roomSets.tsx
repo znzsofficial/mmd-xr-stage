@@ -7,7 +7,7 @@ import { Meadow } from './Meadow';
 import { PoolTerrace, POOL_SUN } from './PoolTerrace';
 import {CLASS_SUN} from './ClassroomLayout';
 import {CHAPEL_SUN} from './ChapelLayout';
-import {MEADOW_SUN} from './placementAreas';
+import {MEADOW_SUN} from './meadowLandmarks';
 import { ClinicWard } from './clinic/ClinicWard';
 import { Songhouse } from './qinhuai/Songhouse';
 import { WeddingCourt } from './wedding/WeddingCourt';

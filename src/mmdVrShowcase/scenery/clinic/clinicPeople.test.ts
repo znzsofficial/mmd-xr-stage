@@ -1,7 +1,6 @@
 import {expect,it} from 'vitest';
 import {useMmdVrStore} from '../../mmdVrStore';
-import {visiblePick} from '../pickDecks';
-import {canPlaceInScenery} from '../placementAreas';
+import {canPlaceInScenery,visiblePick} from '../placementAreas';
 import {roomGround} from '../../movement/roomGround';
 import {FIXTURES} from './clinicLayout';
 

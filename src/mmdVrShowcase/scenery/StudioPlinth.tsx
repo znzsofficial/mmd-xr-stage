@@ -2,7 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, LatheGeometry, Vector2 } from 'three';
 import { Batch, type Part } from './SceneryBatch';
 import { span } from './detailParts';
-import { SIMPLE_FLOOR_RADIUS } from './placementAreas';
+import { SIMPLE_FLOOR_RADIUS } from './stageLayouts';
 import { noPick } from './sceneryPaint';
 import { useBakedSurface } from './useBakedSurface';
 import registrationURL from './studio-registration.webp';

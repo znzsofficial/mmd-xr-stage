@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import { BackSide, BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Group, OctahedronGeometry, SRGBColorSpace, TextureLoader, type Texture } from 'three';
 import { Batch, type Part } from './SceneryBatch';
 import { seededRandom } from './ClassroomLayout';
-import { COURT_PIERS, COURT_RADIUS } from './placementAreas';
+import { COURT_PIERS, OLD_COURT_RADIUS as COURT_RADIUS } from './ObservatoryLayout';
 import { noPick, paintedSurface } from './sceneryPaint';
 import duskUrl from './astral-dusk.webp';
 import workshopUrl from './meridian-workshop.webp';

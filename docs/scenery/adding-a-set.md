@@ -10,7 +10,7 @@
 
 1. 在 `scenery/catalog.ts` 加 ID、名称键和中英文翻译。准备页、VR 选景、屏幕选景、分景布局及报告使用该 ID。
 2. 在本景目录编写布局与模型组件，将组件登记在 `scenery/roomSets.tsx`。组件只在所属区域挂载；准备页的目录不依赖模型组件。全景共享的地面拾取、角色和物理生命周期仍由舞台持有。
-3. 在 `placementAreas.ts` 接入落点规则，确保 `(0,0)` 能用于「放在中央」。在 `roomViews.ts` 登记屏幕入口机位及本景导览。机位切换不加载房间，也不移动角色。
+3. 在 [`placementAreas.ts`](../../src/mmdVrShowcase/scenery/placementAreas.ts) 的 `rules` 给新 ID 登记一项，漏登记会报类型错误。单层布景用 `flat(落点判断)`，有墙体时另传视线判断；多层布景在同一项提供 `decks`、`visible` 和 `resolve`。`resolve(x,z,supportY)` 返回能用的世界高度或 `null`。在 `roomViews.ts` 登记屏幕入口机位及本景导览。
 
    有楼梯或戏台时要单独核对高度：参见[秦淮歌楼](./qinhuai.md)。拾取平面、目标世界坐标和摇杆行走高度分别使用同一布局；房间高度和玩家手调高度不可相互覆盖。楼上放下角色后切景往返，要验恢复后的实际 `y`，不能只数角色个数。
 
