@@ -18,12 +18,14 @@ export function towerViews(m:Masonry){
         face([[i*1.4,-4,d],[(i+1)*1.4,-4,d],[(i+1)*1.4,peak(i+1),d],[i*1.4,peak(i),d]],shade);
       }
     }
-    // Painted sky beyond the village, with a carved crescent on the western skyline.
+    // Edge-to-edge sky flats behind the ridge. No same-depth gradient overlap.
     for(let i=0;i<48;i++){const y=-3+i*.37,t=Math.min(1,i/35);const col=(v:number)=>v.toString(16).padStart(2,'0');
-      panel(-24,24,y,y+.374,21.5,'#'+[222-139*t,151-72*t,145-7*t].map(v=>col(Math.round(v))).join(''));}
+      panel(-24,24,y,-3+(i+1)*.37,21.5,'#'+[222-139*t,151-72*t,145-7*t].map(v=>col(Math.round(v))).join(''));}
     const roof=(x:number,y:number,d:number,w:number,h:number,depth:number)=>{
       face([[x-w/2,y,d-depth/2],[x+w/2,y,d-depth/2],[x+w/2,y+h,d],[x-w/2,y+h,d]],'#776480');
       face([[x+w/2,y,d-depth/2],[x+w/2,y,d+depth/2],[x+w/2,y+h,d],[x+w/2,y+h,d]],'#484764');
+      face([[x-w/2,y,d+depth/2],[x-w/2,y,d-depth/2],[x-w/2,y+h,d],[x-w/2,y+h,d]],'#55516a');
+      face([[x+w/2,y,d+depth/2],[x-w/2,y,d+depth/2],[x-w/2,y+h,d],[x+w/2,y+h,d]],'#6c6080');
     };
     for(let i=-4;i<=4;i++){
       const d=8+1.2*Math.cos(i*2.4),x=i*2.23+(west?.7:-.6),h=2.32+.48*Math.sin(i*1.8+.9);
@@ -37,14 +39,15 @@ export function towerViews(m:Masonry){
     for(let k=0;k<16;k++){
       const a=k*Math.PI/8,b=(k+1)*Math.PI/8;
       face([[x,1.96,d-.68],[x+Math.cos(a)*.25,1.96+Math.sin(a)*.25,d-.68],[x+Math.cos(b)*.25,1.96+Math.sin(b)*.25,d-.68],[x,1.96,d-.68]],'#eac396');
-    }panel(x-.014,x+.014,1.95,2.15,d-.69,'#624e60');panel(x-.14,x+.014,1.946,1.974,d-.69,'#624e60');
+     }panel(x-.014,x+.014,1.974,2.15,d-.69,'#624e60');panel(x-.14,x+.014,1.946,1.974,d-.69,'#624e60');
     face([[x-.89,3.27,d-.81],[x+.89,3.27,d-.81],[x+.05,4.95,d],[x+.05,4.95,d]],'#645b81');face([[x+.89,3.27,d-.81],[x+.89,3.27,d+.81],[x+.05,4.95,d],[x+.05,4.95,d]],'#464965');
-    panel(x+.02,x+.066,4.87,5.65,d,'#816058');face([[x+.05,5.33,d],[x+.77,5.47,d],[x+.43,5.51,d],[x+.05,5.64,d]],'#e8a473');
+    panel(x+.02,x+.066,4.94,5.65,d,'#816058');face([[x+.066,5.33,d],[x+.77,5.47,d-.07],[x+.43,5.51,d-.04],[x+.066,5.64,d]],'#e8a473');
     // Warm near parapet at the foot of the castle and dark cypress silhouettes.
     box(0,-.58,3.9,17,.26,.54,'#72657a','#514759','#ad94a1');
     for(let j=-4;j<=4;j++)box(j*1.9,-1.55,3.9,.36,1.89,.42,'#746373','#544c60','#a58391');
     for(let j=0;j<8;j++){const xx=(j<4?-1:1)*(2.4+(j%4)*1.14),zz=4.9+(j%3)*.72,h=2.7+(j%3)*.31;
-      for(let k=0;k<3;k++){const hw=.56-k*.13,y=-1.75+k*.72;face([[xx-hw,y,zz],[xx+hw,y,zz],[xx+.04,y+h*.65,zz],[xx+.04,y+h*.65,zz]],k%2?'#375563':'#475a69');}}
+      for(let k=0;k<3;k++){const hw=.56-k*.13,y=-1.75+k*.72,H=k===2?h*.65:.72,tip=k===2?0:hw*(1-H/(h*.65));
+        for(const s of [-1,1])face([[xx+s*hw,y,zz],[xx,y,zz-.16],[xx,y+H,k===2?zz:zz-.16],[xx+s*tip,y+H,zz]],s>0?'#375563':'#475a69');}}
   }
   street(false);street(true);
 }

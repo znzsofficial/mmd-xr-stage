@@ -4,6 +4,11 @@ import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 
 const files = [
+  // A 15a73d0 prep tab can first request the old chamber print or planet adapter
+  // after this release. The adapter statically imports that build's app entry.
+  ['8a6648eb','pavement-BH7aJcMu.webp','b26d5e2b16a449f0ae0ea13098010a78b9409b9ce09adc4fbb740bbc67c070d9'],
+  ['8a6648eb','PlanetPhysics-D8k0exf1.js','5c579a55522e014ca7b3f274b24bf05cd3d10af251d20d6a653c39e8ae170fe1'],
+  ['8a6648eb','index-COLA0-EE.js','aa57c1acf763166d4324ef4811e8efa747b8d69ff19b0addef606360d78eef97'],
   ['bfa9499d','PlanetPhysics-C8b_0I-H.js','e0588c2b93bf4730502f21ca46f1b1930ebdd794e511e3a7addb21581122a3f9'],
   // Old prep already imports its React/Three/vendor modules. Its first planet
   // visit after an update can still request the on-demand motor and WASM.

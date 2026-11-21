@@ -61,7 +61,7 @@ for bar in [1.13,1.43,1.72]:stripe*=.28+.72*np.clip(abs(sx-bar)/.065,0,1)
 rear=x-.34*(z+7.45);beam=wash(z,z,-7.26,-3.05,.38)*wash(rear,rear,1.66,2.32,.085)
 for bar in [1.86,2.12]:beam*=.34+.66*np.clip(abs(rear-bar)/.060,0,1)
 ar+=stripe[:,:,None]*np.array([37,44,43])+beam[:,:,None]*np.array([40,48,50]);
-for bx,bz,bw,bd in [(-1.77,.82,2.04,1),(2.99,1.16,.66,1.6),(-3.05,-4.79,.64,1.54)]:
+for bx,bz,bw,bd in [(-1.77,.82,2.04,1),(2.81,1.16,.66,1.6),(-2.86,-4.71,.58,.82)]:
     d=np.maximum(abs(x-bx)-bw/2,abs(z-bz)-bd/2);ar*=1-.22*np.exp(-np.maximum(d,0)*6)[:,:,None]
 ar*=.81+.19*np.clip(np.minimum.reduce([3.45-abs(x),z+7.45,4.55-z])/.52,0,1)[:,:,None];save(ar,'pavement',90)
 

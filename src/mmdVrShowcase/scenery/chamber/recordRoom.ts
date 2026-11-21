@@ -1,6 +1,6 @@
 import {BENCH,DAIS,DESK,HALL,PRESS,READERS,STOOL} from './chamberLayout';
 import {Masonry,type V} from './masonry';
-import {ironEffigy} from './ironEffigy';
+import {ironCabinet} from './ironCabinet';
 import {galleryModels} from './galleryModels';
 
 const heart='#98775b',edge='#b4946a',rail='#6d5341',brass='#b49860';
@@ -54,9 +54,11 @@ function desk(m:Masonry){
 
 function archivePress(m:Masonry){
   const {x,z,w,d,hi}=PRESS;
-  m.box('oak',x+w/2-.04,hi/2,z,.08,hi,d,rail);
-  for(const s of [-1,1])m.box('oak',x,hi/2,z+s*(d/2-.042),w-.035,hi-.04,.084,heart);
-  for(const y of [.09,.55,.99,hi-.04])m.box('oak',x,y,z,w,.08,d,y===hi-.04?edge:heart);
+  const lo=.13,top=hi-.08,middle=(lo+top)/2;
+  m.box('oak',x,lo/2,z,w,lo,d,rail);m.box('oak',x,hi-.04,z,w,.08,d,edge);
+  m.box('oak',x+w/2-.05,middle,z,.08,top-lo,d-.168,rail,['north','south','base','top']);
+  for(const s of [-1,1])m.box('oak',x,middle,z+s*(d/2-.042),w,top-lo,.084,heart,['base','top']);
+  for(const y of [.55,.99])m.box('oak',x-.05,y,z,w-.08-.02,.08,d-.168,heart,['east','north','south']);
   const hides=['#844b39','#625845','#475c57','#8e714d','#716953'];
   for(let row=0;row<3;row++){
     const floor=[.13,.59,1.03][row];
@@ -82,14 +84,14 @@ function portrait(m:Masonry){
   }
   const b=BENCH;
   m.box('oak',b.x,.46,b.z,b.w,.085,b.d,heart);m.box('oak',b.x-.245,.78,b.z,.071,.54,b.d-.045,rail);
-  for(let i=0;i<3;i++){
-    const zz=b.z+(i-1)*.46,xx=b.x-.202;
-    m.box('oak',xx,.805,zz,.042,.38,.377,heart);
+  for(const sign of [-1,1]){
+    const zz=b.z+sign*.18,xx=b.x-.202;
+    m.box('oak',xx,.805,zz,.042,.38,.28,heart);
     m.quad('pigment',[[xx+.024,.744,zz+.080],[xx+.024,.680,zz],[xx+.024,.744,zz-.080],[xx+.024,.946,zz]],'#b6935f');
   }
   m.box('oak',b.x-.24,1.063,b.z,.125,.074,b.d,edge);
-  for(const s of [-1,1]){m.box('oak',b.x,.675,b.z+s*.706,.51,.075,.094,edge);m.box('oak',b.x+.17,.595,b.z+s*.706,.07,.19,.07,rail);}
-  for(const s of [-1,1])m.box('oak',b.x,.217,b.z+s*.56,b.w-.13,.434,.125,heart);
+  for(const s of [-1,1]){m.box('oak',b.x,.675,b.z+s*.36,.51,.075,.094,edge);m.box('oak',b.x+.17,.595,b.z+s*.36,.07,.19,.07,rail);}
+  for(const s of [-1,1])m.box('oak',b.x,.208,b.z+s*.27,b.w-.13,.416,.125,heart);
 }
 
-export function dressChamber(m:Masonry){desk(m);archivePress(m);portrait(m);ironEffigy(m);galleryModels(m);}
+export function dressChamber(m:Masonry){desk(m);archivePress(m);portrait(m);ironCabinet(m);galleryModels(m);}
