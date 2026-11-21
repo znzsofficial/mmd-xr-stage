@@ -3,6 +3,7 @@ import {useFrame} from '@react-three/fiber';
 import {AdditiveBlending,BufferGeometry,DoubleSide,Float32BufferAttribute,Vector3} from 'three';
 import {noPick} from '../../sceneryPaint';
 import {skySpace} from './skySpace';
+import {useSkyAttention} from './skyAttention';
 
 // Two unequal lobes at a finite distance. A strip follows each bent spine
 // in 3D and faces each eye independently. Only the emission knots advance.
@@ -39,15 +40,15 @@ function ejecta(){
   const g=new BufferGeometry();g.setAttribute('position',new Float32BufferAttribute(position,3));g.setAttribute('spine',new Float32BufferAttribute(tangent,3));g.setAttribute('uv',new Float32BufferAttribute(uv,2));g.setAttribute('width',new Float32BufferAttribute(width,1));g.setIndex(index);return g;
 }
 export function Pulsar(){
-  const geo=useMemo(ejecta,[]),u=useMemo(()=>({time:{value:0}}),[]);
-  useEffect(()=>()=>geo.dispose(),[geo]);useFrame((_,dt)=>{u.time.value=(u.time.value+Math.min(.10,dt))%100;});
+  const attention=useSkyAttention(),geo=useMemo(ejecta,[]),u=useMemo(()=>({time:{value:0},attention}),[attention]);
+  useEffect(()=>()=>geo.dispose(),[geo]);useFrame((_,dt)=>{u.time.value=(u.time.value+Math.min(.10,dt))%100;u.attention.value=attention.value;});
   return <mesh name="sky:pulsar" renderOrder={-980} frustumCulled={false} geometry={geo} raycast={noPick}>
     <shaderMaterial uniforms={u} depthWrite={false} depthTest={false} blending={AdditiveBlending} side={DoubleSide} toneMapped={false}
       vertexShader={`${skySpace}attribute vec3 spine;attribute float width;varying vec2 local;varying float core;
         void main(){vec3 ray=position-skyEye(cameraPosition);core=step(width,0.);local=uv;vec3 d=mat3(viewMatrix)*ray;
           if(width>0.)d+=mat3(viewMatrix)*normalize(cross(spine,ray))*width*uv.x;else d.xy+=-width*uv;
           vec4 p=projectionMatrix*vec4(d,1.);gl_Position=p.xyww;}`}
-      fragmentShader={`uniform float time;varying vec2 local;varying float core;
+      fragmentShader={`uniform float time,attention;varying vec2 local;varying float core;
         void main(){vec3 light;float flux;
           if(core>.5){float r=length(local);flux=.30*exp(-5.*r)+.80*exp(-28.*r)+.18*exp(-abs(local.x*local.y)*225.-4.*r);
             light=mix(vec3(.20,.65,1.),vec3(.96,.99,1.),exp(-6.*r));}
@@ -58,7 +59,7 @@ export function Pulsar(){
             float bow=(t-.80-.11*(1.-x*x))/.047;
             flux=((.85*spine*knot+.35*rim)*pow(max(0.,1.-t),.85)+.20*exp(-bow*bow))*(1.-smoothstep(.78,1.,x));
             light=mix(vec3(.59,.22,.84),vec3(.15,.76,1.),spine);}
-          gl_FragColor=vec4(light,clamp(flux,0.,1.));
+          gl_FragColor=vec4(light,clamp(flux*mix(.35,1.,attention),0.,1.));
           #include <colorspace_fragment>
         }`}/></mesh>;
 }

@@ -35,7 +35,7 @@ Select a scene to open it in the screen viewer.
 | **[Pool terrace](https://mmd-xr-stage.pages.dev/?set=pool&view=screen)** | **[Dawn Chapel](https://mmd-xr-stage.pages.dev/?set=chapel&view=screen)** |
 | [![Outdoor swimming lanes beneath coloured pennants.](./docs/screenshots/pool-terrace.webp)](https://mmd-xr-stage.pages.dev/?set=pool&view=screen) | [![The chapel aisle leading to the altar beneath a stained-glass rose window.](./docs/screenshots/dawn-chapel.webp)](https://mmd-xr-stage.pages.dev/?set=chapel&view=screen) |
 
-[Guide to the five walkable moons](./docs/scenery/opal-planet.md) · [All sets and routes](./docs/scenery/README.md)
+[Opal field guide: mineral survey, five wind routes and two stepping-stone moons](./docs/scenery/opal-planet.md) · [All sets and routes](./docs/scenery/README.md)
 
 ## Features
 

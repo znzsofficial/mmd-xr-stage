@@ -3,6 +3,7 @@ import {useFrame} from '@react-three/fiber';
 import {AdditiveBlending,type ShaderMaterial} from 'three';
 import {noPick} from '../sceneryPaint';
 import {dustSpines,makeDriftField} from './orbitalDriftField';
+import {useSkyAttention} from './sky/skyAttention';
 
 const tau='const float TAU=6.28318530718;';
 const rocksVertex=`${tau}
@@ -87,7 +88,7 @@ const ionVertex=`${tau}
   }`;
 
 const ionFragment=`
-  uniform float cycle; varying vec2 ink; varying vec3 tint; varying float flux,kind;
+  uniform float cycle,attention; varying vec2 ink; varying vec3 tint; varying float flux,kind;
   void main(){
     float r2=dot(ink,ink), edge=max(0.,1.-r2);
     // A white mineral spark at the head of a coloured wake, interleaved
@@ -103,7 +104,7 @@ const ionFragment=`
       glow=(.18*exp(-3.6*x*x)+.45*exp(-core*core))*(1.-smoothstep(.58,1.,abs(x)));
     }
     vec3 emission=mix(tint,vec3(.93,.95,1.),(kind<.5?.53:.05)*head);
-    gl_FragColor=vec4(emission,clamp(glow*flux,0.,1.));
+    gl_FragColor=vec4(emission,clamp(glow*flux*mix(.15,1.,attention),0.,1.));
     #include <colorspace_fragment>
   }`;
 
@@ -112,7 +113,7 @@ const visualOnly={playerCollision:false};
 export function OrbitalDrift(){
   const {rocks,ions}=useMemo(makeDriftField,[]);
   const stone=useRef<ShaderMaterial>(null), dust=useRef<ShaderMaterial>(null);
-  const clock=useRef(0), uniforms=useMemo(()=>({cycle:{value:0}}),[]);
+  const attention=useSkyAttention(),clock=useRef(0),uniforms=useMemo(()=>({cycle:{value:0},attention}),[attention]);
   useEffect(()=>()=>{rocks.dispose();ions.dispose();},[rocks,ions]);
   useFrame((_,dt)=>{
     // All phases use integer multiples of this period, including particle
@@ -120,6 +121,7 @@ export function OrbitalDrift(){
     clock.current=(clock.current+Math.min(.1,dt)/240)%1;
     if(stone.current)stone.current.uniforms.cycle.value=clock.current;
     if(dust.current)dust.current.uniforms.cycle.value=clock.current;
+    if(dust.current)dust.current.uniforms.attention.value=attention.value;
   });
   return <group name="planet:orbital-drift" pointerEvents="none">
     <mesh name="drift:fracture-families" geometry={rocks} raycast={noPick} userData={visualOnly} renderOrder={-1}>

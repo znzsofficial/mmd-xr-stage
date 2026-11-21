@@ -1,9 +1,9 @@
 import type {newStick} from './controllerInput';
-import type {Moon} from '../scenery/planet/windAtlas';
+import type {WalkMoon} from '../scenery/planet/windAtlas';
 
 /** Counters since this planet visit, no tracking coordinates or device IDs. */
 export function planetCounters(){return {backend:'pending' as 'pending'|'failed'|'rapier',frames:0,poseFrames:0,inputHeldFrames:0,
-  location:'home' as 'home'|Moon['id']|'wind'|'twinLeap'|'free',gravityOwner:'home' as 'home'|Moon['id']|null,
+  location:'home' as 'home'|WalkMoon['id']|'wind'|'twinLeap'|'free',gravityOwner:'home' as 'home'|WalkMoon['id']|null,
   left:'none' as ReturnType<typeof newStick>['via'],right:'none' as ReturnType<typeof newStick>['via'],walkInputFrames:0,turnInputFrames:0,snapTurns:0,footTravelM:0,windDepartures:0,windLandings:0,twinDepartures:0,twinLandings:0};}
 type Counters=ReturnType<typeof planetCounters>;
 let active:Counters|null=null;

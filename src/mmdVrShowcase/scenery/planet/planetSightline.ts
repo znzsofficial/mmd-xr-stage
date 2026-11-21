@@ -1,6 +1,6 @@
 import {stationBlocks,terrainAltitude} from './opalTerrain';
 import {planetPlace} from './planetLayout';
-import {moons} from './windAtlas';
+import {allMoons} from './windAtlas';
 import {moonRadius} from './moonSurface';
 
 /** Check the segment to the north deck, not only the side of its tangent
@@ -11,7 +11,7 @@ export function planetSight(from:{x:number;y:number;z:number},x:number,y:number,
   if(!Number.isFinite(len))return false;
   // Clip to each neighbouring globe before sampling its relief. A ray from
   // the far side of the ice moon cannot place an actor through its crust.
-  if(len>0)for(const m of moons){
+  if(len>0)for(const m of allMoons){
     const a=from.x-m.centre.x,b=from.y-m.centre.y,c=from.z-m.centre.z,mid=-(a*dx+b*dy+c*dz)/len;
     const span=(m.radius+.9)**2-(a*a+b*b+c*c-mid*mid);if(span<=0)continue;
     const reach=Math.sqrt(span),start=Math.max(0,mid-reach),end=Math.min(len,mid+reach);

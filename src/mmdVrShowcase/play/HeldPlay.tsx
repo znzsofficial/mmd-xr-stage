@@ -1,5 +1,5 @@
-import { useFrame } from '@react-three/fiber';
-import { useMemo, useRef } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
+import { useLayoutEffect, useMemo, useRef } from 'react';
 import { Group, Matrix4, Vector3 } from 'three';
 import { useBackpack } from '../backpack';
 import { useHudWorldInput } from '../components/hudWorldInput';
@@ -9,6 +9,7 @@ import { canUseGrip, gripLatch, handleGripStart, useStagePlay } from './stagePla
 import type { GripFrame } from './propView';
 import * as views from './propViews';
 import { StoryStations } from './StoryStations';
+import { isContactTool, mountHeldColliderSource } from './propColliders';
 
 export function PlayPiece({toy}:{toy:Toy}) {
   const {Piece}=views[TOYS[toy].view];
@@ -18,6 +19,8 @@ export function PlayPiece({toy}:{toy:Toy}) {
 function InHand({toy,hand}:{toy:Toy;hand:Hand}) {
   const item=TOYS[toy], {HeldEffect,outlet}=views[item.view];
   const body=useRef<Group>(null), effect=useRef<((frame:GripFrame)=>void)|null>(null);
+  const {gl,scene}=useThree();
+  useLayoutEffect(()=>{if(isContactTool(toy)&&body.current)return mountHeldColliderSource(scene,body.current,gl.xr.getSession());},[scene,gl,toy]);
   const scratch=useMemo(()=>({latch:gripLatch(),pose:new Matrix4(),ray:new Matrix4(),source:null as XRInputSource|null,
     frame:{at:new Vector3(),dir:new Vector3(),action:'off',dt:0,usable:false} as GripFrame}),[]);
   useFrame(({gl},delta,frame)=>{
@@ -35,6 +38,7 @@ function InHand({toy,hand}:{toy:Toy;hand:Hand}) {
     const ray=visible&&source?frame.getPose(source.targetRaySpace,ref):null;
     prop.visible=!!grip&&!!ray;
     if(s.source!==(source??null)){s.latch(false,false);s.source=source??null;}
+    prop.userData.propSource=s.source;
     const bag=useBackpack.getState(),stage=useMmdVrStore.getState();
     f.usable=prop.visible&&canUseGrip(useStagePlay.getState(),toy,hand,stage.prefs.scenery)&&!useHudWorldInput.getState().blocked&&!bag.busy&&!bag.draft&&!bag.selected&&!stage.assetLoad.running&&!stage.physicsBusy&&!stage.physicsFatal;
     f.gamepad=f.usable?source?.gamepad??null:null;

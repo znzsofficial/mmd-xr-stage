@@ -1,6 +1,6 @@
-import {useEffect,useMemo,useRef} from 'react';
+import {useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react';
 import {useFrame} from '@react-three/fiber';
-import {Color,DoubleSide,InstancedMesh,Object3D,Quaternion,Vector3,type MeshBasicMaterial,type Texture} from 'three';
+import {DoubleSide,InstancedMesh,Object3D,Quaternion,Vector3,type MeshBasicMaterial,type Texture} from 'three';
 import {ball,box,PaintedParts,ring,rod,turn} from '../../play/modelParts';
 import {useBakedSurface} from '../useBakedSurface';
 import {noPick,paintedSurface} from '../sceneryPaint';
@@ -15,6 +15,10 @@ import {twinStation} from './twinStations';
 import {windRibbons} from './windRibbons';
 import {Reedwater,reedGaugeModel} from './Reedwater';
 import {surfaceGrain} from './surfaceGrain';
+import {createWindFocus,windPlateSight} from './windFocus';
+import {useSceneAction} from '../input/useSceneAction';
+import {useLanguageStore} from '../../../languageStore';
+import {SteppingMoons} from './SteppingMoons';
 
 const prints={basins:ember,rifts:frost,salt,glaze};
 const halite={HALITE:1};
@@ -76,44 +80,48 @@ function SurveyProbe({moon}:{moon:Moon}){
     {moon.instrument==='prism'||moon.instrument==='kiln'?<shaderMaterial vertexColors uniforms={daylight} vertexShader={instrumentVertex} fragmentShader={instrumentFragment}/>:<meshStandardMaterial vertexColors metalness={.22} roughness={.58} fog={false}/>}
   </mesh>;
 }
-function portHardware(color:string){
+function portHardware(){
   const parts=new PaintedParts();
   // Low annular wind nozzles. Keep the centre open and taper the collars into
   // the curved ground; no vertical posts in the player's actual flight path.
-  for(const [r,tube,y,paint] of [[.68,.075,.0,'#364955'],[.71,.023,.054,color],[.48,.028,.024,'#99a6a0']] as const)
+  for(const [r,tube,y,paint] of [[.68,.075,.0,'#364955'],[.71,.023,.054,'#b3ab97'],[.48,.028,.024,'#99a6a0']] as const)
     parts.add(ring(r,tube,56).rotateX(Math.PI/2).translate(0,y,0),paint);
   for(let i=0;i<18;i++){
-    const a=i*Math.PI/9;parts.add(box(0,.034,.565,.074,.085,.19).rotateY(a+.17),i%3?'#697b83':color);
+    const a=i*Math.PI/9;parts.add(box(0,.034,.565,.074,.085,.19).rotateY(a+.17),i%3?'#697b83':'#a4aea9');
   }
   return parts.finish();
 }
-function Terminal({port,lane,back}:{port:WindPort;lane:WindLane;back:boolean}){
-  const g=useMemo(()=>portHardware(lane.moon.color),[lane]);
+function Terminal({hardware,port,lane,back,active,pick}:{hardware:ReturnType<typeof portHardware>;port:WindPort;lane:WindLane;back:boolean;active:boolean;pick:(lane:WindLane)=>void}){
+  const zh=useLanguageStore(s=>s.language==='zh');
   const q=useMemo(()=>new Quaternion().setFromUnitVectors(axis,port.up),[port]);
-  const sign=useMemo(()=>paintedSurface(512,192,c=>{
-    c.fillStyle='#192d3c';c.fillRect(0,0,512,192);c.fillStyle=lane.moon.color;c.fillRect(0,0,11,192);c.fillRect(22,137,467,3);
-    c.textAlign='center';c.fillStyle='#fbf1d7';c.font='bold 59px system-ui,sans-serif';c.fillText(back?'返航 · 琉璃星':lane.moon.sign,265,84);
-    c.font='600 23px system-ui,sans-serif';c.fillText(back?'RETURN TO MERIDIAN':lane.moon.caption,262,124);
-    c.font='bold 25px system-ui,sans-serif';c.fillText('↑    G   /   LEFT  X',260,173);
-  }),[back,lane]);useEffect(()=>()=>{g.dispose();sign.dispose();},[g,sign]);
+  const {hovered,bindings}=useSceneAction('glassPlanet',(from,to)=>windPlateSight(lane,back,from,to),()=>pick(lane));
+  const code=lane.moon.sign.split(' · ')[0];
+  const sign=useMemo(()=>paintedSurface(512,384,c=>{
+    c.fillStyle='#26353b';c.fillRect(0,0,512,384);c.fillStyle=lane.moon.color;c.fillRect(12,12,5,168);c.textAlign='center';
+    c.fillStyle='#fbf1d7';c.font='bold 59px system-ui,sans-serif';c.fillText(back?(zh?'返航 · 琉璃星':'Opal · Return'):(zh?lane.moon.sign:lane.moon.caption.split('   /')[0]),259,80,455);
+      c.font='600 24px system-ui,sans-serif';c.fillText(back?'RETURN TO MERIDIAN':lane.moon.caption,256,124,460);
+      c.fillStyle=lane.moon.color;c.font='bold 25px system-ui,sans-serif';c.fillText(zh?'G   /   左 X':'G   /   LEFT X',256,168);
+    c.translate(0,192);c.fillRect(12,12,5,168);c.font='600 100px system-ui,sans-serif';c.fillStyle='#f0e6cb';c.fillText(code,206,132);c.strokeStyle=lane.moon.color;c.lineWidth=7;c.beginPath();c.moveTo(325,118);c.lineTo(363,77);c.lineTo(363,103);c.moveTo(363,77);c.lineTo(336,77);c.stroke();
+  }),[back,lane,zh,code]);useEffect(()=>()=>sign.dispose(),[sign]);
+  useLayoutEffect(()=>{sign.repeat.y=.5;sign.offset.y=active ? .5 : 0;},[sign,active]);
   return <group name={'wind:'+lane.moon.id+(back?':return':':launch')} position={port.foot} quaternion={q}>
-    <mesh geometry={g} raycast={noPick}><meshStandardMaterial vertexColors roughness={.62} fog={false}/></mesh>
-    <mesh position={[0,.22,-.70]} rotation-x={-.46} raycast={noPick}><planeGeometry args={[.82,.31]}/><meshBasicMaterial map={sign} side={DoubleSide} fog={false}/></mesh>
+    <mesh geometry={hardware} raycast={noPick}><meshStandardMaterial vertexColors roughness={.62} fog={false}/></mesh>
+    {active&&<mesh position-y={.078} rotation-x={-Math.PI/2} raycast={noPick}><ringGeometry args={[.68,.725,56]}/><meshBasicMaterial color={lane.moon.color} toneMapped={false}/></mesh>}
+    <mesh name={'wind:map:'+lane.moon.id+(back?':away':':home')} position={[0,active ? .22 : .12,-.70]} rotation-x={active ? -.46 : -.73} scale={active ? 1 : .70} {...bindings}><planeGeometry args={[.82,.31]}/><meshBasicMaterial map={sign} color={hovered?'#ffffff':'#eee8dc'} side={DoubleSide} fog={false}/></mesh>
   </group>;
 }
 const fadeAtEye:MeshBasicMaterial['onBeforeCompile']=shader=>{
   shader.vertexShader='varying float eyeRange;\n'+shader.vertexShader.replace('#include <project_vertex>','#include <project_vertex>\neyeRange=length(mvPosition.xyz);');
   shader.fragmentShader='varying float eyeRange;\n'+shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\ndiffuseColor.a*=smoothstep(.75,2.7,eyeRange);');
 };
-// One instanced draw for both streams. Short drifting streaks trace the arc,
-// with ample clear space through the middle and no full-screen effects.
-function Slipstreams(){
-  const field=useMemo(windRibbons,[]);useEffect(()=>()=>field.dispose(),[field]);
+// At most one departure ribbon and one small instanced tracer draw. A quiet
+// landing has no animated wind draw calls and runs no particle loop.
+function Slipstream({lane}:{lane:WindLane}){
+  const field=useMemo(()=>windRibbons(lane),[lane]);useEffect(()=>()=>field.dispose(),[field]);
   const mesh=useRef<InstancedMesh>(null),s=useMemo(()=>({time:0,a:new Vector3(),b:new Vector3(),right:new Vector3(),normal:new Vector3(),obj:new Object3D()}),[]);
-  useEffect(()=>{const m=mesh.current;if(!m)return;for(let i=0;i<m.count;i++)m.setColorAt(i,new Color(lanes[i%lanes.length].moon.color));m.instanceColor!.needsUpdate=true;},[]);
   useFrame((_,dt)=>{const m=mesh.current;if(!m)return;s.time=(s.time+Math.min(.05,dt))%300;
     for(let i=0;i<m.count;i++){
-      const l=lanes[i%lanes.length],t=(i*.618034+s.time/12)%1,theta=i*2.399+t*8;
+      const l=lane,t=(i*.618034+s.time/12)%1,theta=i*2.399+t*8;
       windPoint(l,t,s.a);windPoint(l,t+.001,s.b).sub(s.a).normalize();
       s.right.set(0,0,1).cross(s.b).normalize();s.normal.crossVectors(s.b,s.right);
       const width=.39+.22*Math.sin(Math.PI*t);
@@ -122,10 +130,16 @@ function Slipstreams(){
     }m.instanceMatrix.needsUpdate=true;
   });
   return <><mesh name="wind:streamlines" geometry={field} raycast={noPick}><meshBasicMaterial vertexColors transparent opacity={.36} depthWrite={false} side={DoubleSide} forceSinglePass fog={false} onBeforeCompile={fadeAtEye}/></mesh>
-    <instancedMesh ref={mesh} name="wind:particles" args={[undefined,undefined,72]} frustumCulled={false} raycast={noPick}><octahedronGeometry args={[1]}/><meshBasicMaterial transparent opacity={.70} depthWrite={false} fog={false} onBeforeCompile={fadeAtEye}/></instancedMesh></>;
+    <instancedMesh ref={mesh} name="wind:particles" args={[undefined,undefined,26]} frustumCulled={false} raycast={noPick}><octahedronGeometry args={[1]}/><meshBasicMaterial color={lane.moon.color} transparent opacity={.64} depthWrite={false} fog={false} onBeforeCompile={fadeAtEye}/></instancedMesh></>;
 }
-export function WindSystem({grain}:{grain:Texture|null}){return <group name="planet:wind-system" pointerEvents="none">
-  {lanes.map(l=><group key={l.moon.id}>{l.moon.relief==='wetland'?<Reedwater moon={l.moon} grain={grain}/>:<Satellite moon={l.moon} grain={grain}/>}<Terminal lane={l} port={l.home} back={false}/><Terminal lane={l} port={l.away} back/></group>)}
+export function WindSystem({grain}:{grain:Texture|null}){
+  const hardware=useMemo(portHardware,[]);useEffect(()=>()=>hardware.dispose(),[hardware]);
+  const [focus]=useState(createWindFocus),eye=useMemo(()=>new Vector3(),[]),[active,setActive]=useState<WindLane|null>(null),last=useRef<WindLane|null>(null);
+  useFrame(({camera,gl})=>{(gl.xr.isPresenting?gl.xr.getCamera():camera).getWorldPosition(eye);const next=focus.read(eye);
+    if(next!==last.current){last.current=next;setActive(next);}});
+  return <group name="planet:wind-system" pointerEvents="none">
+  {lanes.map(l=><group key={l.moon.id}>{l.moon.relief==='wetland'?<Reedwater moon={l.moon} grain={grain}/>:<Satellite moon={l.moon} grain={grain}/>}<Terminal hardware={hardware} lane={l} port={l.home} back={false} active={l===active} pick={focus.select}/><Terminal hardware={hardware} lane={l} port={l.away} back active={l===active} pick={focus.select}/></group>)}
   {moons.map(moon=><SurveyProbe key={moon.id} moon={moon}/>)}
-  <Slipstreams/>
+  <SteppingMoons grain={grain}/>
+  {active&&<group name={'wind:charted:'+active.moon.id}><Slipstream lane={active}/></group>}
 </group>;}

@@ -41,6 +41,7 @@ import { createAssetLoadQueue, emptyAssetLoadProgress, type AssetLoadProgress } 
 import { restoreStageTime, type StageSnapshot } from "../stageSnapshot";
 import { createStageActors } from "../stageActors";
 import { poseWristToy } from '../play/wristSocket';
+import { createPropColliderFeed, isContactTool } from '../play/propColliders';
 import { createRoomWand } from '../play/wandContact';
 import { useWandMotor } from '../play/wandMotor';
 import { forgetWandResponses, useWandResponse } from '../play/wandResponse';
@@ -152,14 +153,27 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
   }
 
   // Lifetime is tied to the room and renderer, not view/camera changes in XR.
-  const runtime = useMemo(() => createRoomRuntime(scene, gl, camera, motionCache, alphaTiles),
-    [scene, gl, motionCache, alphaTiles]);
+  const propFeed=useMemo(createPropColliderFeed,[scene,scenery]);
+  const screenPropSettle=useRef(0);
+  const runtime = useMemo(() => createRoomRuntime(scene, gl, camera, motionCache, alphaTiles,propFeed),
+    [scene, gl, motionCache, alphaTiles,propFeed]);
   const actors = useMemo(() => createStageActors(scene, runtime, () => appliedPhysicsEnabledRef.current, () => timeRef.current), [scene, runtime]);
   const wristGroup = useRef<THREE.Group>(null);
+  function poseCharacterProp(rt:MmdRuntimeHandle){
+    const group=wristGroup.current;if(!group)return;
+    const prop=useStagePlay.getState().character, live=prop&&useBackpack.getState().live[prop.assetId];
+    if(live&&prop&&!useMmdVrStore.getState().physicsBusy)poseWristToy(group,rt.getModelRoot(live.runtimeId),prop);
+    else group.visible=false;
+  }
+  useLayoutEffect(()=>{
+    const stop=useStagePlay.subscribe((s,p)=>{if(s.held!==p.held||s.character!==p.character)propFeed.clear();});
+    const stopRoom=useMmdVrStore.subscribe(s=>{if(!s.overlayOpen||s.prefs.scenery!==scenery||s.physicsBusy||!s.physicsEnabled||s.physicsFatal||s.assetLoad.running)propFeed.clear();});
+    return ()=>{stop();stopRoom();propFeed.clear();};
+  },[propFeed,scenery]);
   const wand = useMemo(createRoomWand,[runtime]);
   useLayoutEffect(()=>{
-    const stopMotor=useWandMotor.subscribe(s=>{if(!s.speed)wand.reset();});
-    const stopConfig=useWandResponse.subscribe((s,prev)=>{if(!s.enabled)wand.reset();else if(s.byActor!==prev.byActor)wand.restore();});
+    const stopMotor=useWandMotor.subscribe(s=>{if(!s.speed)wand.resetWand();});
+    const stopConfig=useWandResponse.subscribe((s,prev)=>{if(!s.enabled)wand.resetWand();else if(s.byActor!==prev.byActor)wand.restore();});
     const stopTransfer=useStagePlay.subscribe((s,p)=>{if(s.held!==p.held||s.character?.assetId!==p.character?.assetId||s.character?.hand!==p.character?.hand||s.character?.toy!==p.character?.toy)wand.reset();});
     const stopRoom=useMmdVrStore.subscribe((s,p)=>{
       if(s.models!==p.models)forgetWandResponses(p.models.filter(m=>!s.models.some(x=>x.id===m.id)).map(m=>m.id));
@@ -587,6 +601,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
       lastPhysicsResetEpochRef.current = store.physicsResetEpoch;
     }
     if ((physicsReseedNeeded || physicsResetRequested) && store.physicsEnabled && !store.physicsBusy) {
+      propFeed.clear();
       runtime.resetPhysics(timeRef.current);
       staticSettleElapsed.current = 0;
     }
@@ -616,7 +631,19 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
       }
     }
     const physicsOn = store.physicsEnabled && !store.physicsBusy;
-    const interactive = store.presentation==='xr';
+    const owners=useStagePlay.getState(), inXR=store.presentation==='xr';
+    let propActive=false;
+    if(physicsOn&&!isRoomStale()&&!store.physicsFatal&&!store.assetLoad.running&&!useBackpack.getState().busy&&!pendingSeekSeed.current&&(!inXR||frame?.session.visibilityState==='visible')){
+      // A character socket reads the last *displayed*, visually scaled wrist.
+      // Never evaluate a second VMD pose to feed its own Bullet world. Refit
+      // the drawn piece to the newly evaluated wrist below, after writeback.
+      if(isContactTool(owners.character?.toy))poseCharacterProp(rt);
+      propActive=propFeed.sample(scene,wristGroup.current,owners.held,owners.character,frame);
+    }else propFeed.clear();
+    // Screen has no free player hand. Keep the paused solver awake for a
+    // mounted wrist prop and briefly after stowing so a lifted hem can fall.
+    screenPropSettle.current=!physicsOn||inXR?0:propActive?1:Math.max(0,screenPropSettle.current-simulationDelta);
+    const interactive = inXR||screenPropSettle.current>0;
     let physicsDelta = advancedMotion || interactive ? simulationDelta : 0;
     if (physicsOn && duration <= 0) {
       if (!interactive) physicsDelta = Math.min(simulationDelta, 5 - staticSettleElapsed.current);
@@ -643,15 +670,10 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
       if(store.presentation==='xr')runtimeTiming.record(performance.now() - start);
       lastEvaluatedTimeRef.current = evaluationTime;
     }
-    if (wristGroup.current) {
-      const prop = useStagePlay.getState().character;
-      const live = prop && useBackpack.getState().live[prop.assetId];
-      if (live && prop && !store.physicsBusy) poseWristToy(wristGroup.current, rt.getModelRoot(live.runtimeId), prop);
-      else wristGroup.current.visible = false;
-    }
-    const play=useStagePlay.getState(),held=play.held?.toy==='wand';
-    if((held||play.character?.toy==='wand')&&!isRoomStale()&&!store.physicsBusy&&!store.physicsFatal&&!store.assetLoad.running){
-      wand.advance(scene,wristGroup.current,held,frame,!!useWandMotor.getState().speed,store.prefs.physicsHapticLevel,
+    poseCharacterProp(rt);
+    const play=useStagePlay.getState(),contactToy=play.held?.toy??play.character?.toy;
+    if((contactToy==='wand'||contactToy==='dildo')&&!isRoomStale()&&!store.physicsBusy&&!store.physicsFatal&&!store.assetLoad.running){
+      wand.advance(scene,wristGroup.current,contactToy,!!play.held,frame,!!useWandMotor.getState().speed,store.prefs.physicsHapticLevel,
         useMmdVrStore.getState().models,rt.getModelSurface);
     }
     if(store.presentation!=='xr')return;

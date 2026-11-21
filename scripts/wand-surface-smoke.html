@@ -1,0 +1,67 @@
+<!doctype html><meta charset="utf-8"><title>Silicone crown · skinned surface regression</title>
+<pre id="status">Loading WebGL</pre><div id="view" style="width:400px;height:400px"></div>
+<script type="module">
+// Synthetic skinned torso + independent wrist. No Bullet module, bodies, PMX
+// files or headset required. Run via Vite, e.g. /scripts/wand-surface-smoke.html.
+import React,{useEffect,useRef} from 'react';import {createRoot} from 'react-dom/client';
+import {Canvas,useThree} from '@react-three/fiber';import * as T from 'three';
+import {SiliconePiece} from '/src/mmdVrShowcase/play/simplePieces';
+import {siliconeCap} from '/src/mmdVrShowcase/play/wandHead';
+import {createRoomWand} from '/src/mmdVrShowcase/play/wandContact';
+import {poseWristToy} from '/src/mmdVrShowcase/play/wristSocket';
+
+const h=React.createElement, status=document.querySelector('#status');
+function syntheticActor(){
+  const g=new T.SphereGeometry(1,40,28).scale(.061,.16,.08),count=g.attributes.position.count;
+  const weights=new Float32Array(count*4);for(let i=0;i<count;i++)weights[i*4]=1;
+  g.setAttribute('skinIndex',new T.Uint16BufferAttribute(new Uint16Array(count*4),4));
+  g.setAttribute('skinWeight',new T.Float32BufferAttribute(weights,4));
+  const root=new T.Group(),mesh=new T.SkinnedMesh(g,new T.MeshStandardMaterial({color:0xb9cddc}));
+  const skin=new T.Bone(),wrist=new T.Bone();wrist.name='RightHand';mesh.add(skin,wrist);root.add(mesh);
+  mesh.bind(new T.Skeleton([skin,wrist]));return {root,mesh,skin,wrist,renderOrderMeshes:[]};
+}
+function Probe(){
+  const holder=useRef(null),{scene,gl,camera}=useThree();
+  useEffect(()=>{
+    const id=requestAnimationFrame(()=>{
+      const room=createRoomWand(),actor=syntheticActor(),owner=holder.current,part=owner.getObjectByName('play:piece:dildo');
+      const target=new T.WebGLRenderTarget(400,400), light=new T.DirectionalLight(0xffffff,2),ambient=new T.HemisphereLight(0xfff2da,0x646c79,1.4);
+      const assert=(ok,what)=>{if(!ok)throw Error(what)};
+      try{
+        scene.add(actor.root,light,ambient);light.position.set(1,2,3);light.layers.enableAll();ambient.layers.enableAll();
+        actor.wrist.position.set(.23,.7,-.12);actor.wrist.rotation.z=.27;
+        poseWristToy(owner,actor.root,{hand:'right',toy:'dildo',tilt:0,inset:0,turn:0});assert(owner.visible,'wrist socket');
+        const center=part.localToWorld(siliconeCap.center.clone()),q=part.getWorldQuaternion(new T.Quaternion()),dir=new T.Vector3(1,0,0).applyQuaternion(q);
+        actor.skin.quaternion.copy(q);const place=d=>{actor.skin.position.copy(center).addScaledVector(dir,d);actor.root.updateMatrixWorld(true);};
+        camera.position.copy(center).add(new T.Vector3(0,0,.17).applyQuaternion(q));camera.up.set(0,1,0).applyQuaternion(q);camera.lookAt(center);camera.updateProjectionMatrix();
+        const paths=[{id:'synthetic',visible:true}],wristFrame=()=>{room.restore();room.advance(scene,owner,'dildo',false,undefined,false,'normal',paths,()=>actor);};
+        part.layers.enable(1);
+        function pixels(){// Isolate the tool pass: moving the torso cannot itself produce a passing pixel difference.
+          camera.layers.set(1);gl.setRenderTarget(target);gl.render(scene,camera);
+          const image=new Uint8Array(400*400*4);gl.readRenderTargetPixels(target,0,0,400,400,image);
+          gl.setRenderTarget(null);camera.layers.set(0);return image;
+        }
+        function changed(a,b){let n=0;for(let i=0;i<a.length;i+=4)if(Math.abs(a[i]-b[i])>2||Math.abs(a[i+1]-b[i+1])>2||Math.abs(a[i+2]-b[i+2])>2)n++;return n;}
+        const pos=part.geometry.attributes.position,raw=pos.array.slice();
+        function depthMm(){let mm=0;for(let i=0;i<pos.count;i++)mm=Math.max(mm,1000*Math.hypot(raw[3*i]-pos.getX(i),raw[3*i+1]-pos.getY(i),raw[3*i+2]-pos.getZ(i)));return mm;}
+        place(.17);wristFrame();const rest=pixels();place(.071);
+        // Cold topology is intentionally time sliced; wait for a positive hit, at most 60 slices.
+        for(let i=0;i<60&&depthMm()===0;i++)wristFrame();
+        const wristMm=depthMm(),changedPixels=changed(rest,pixels());assert(wristMm>1&&changedPixels>30,`wrist: ${wristMm} mm, ${changedPixels} changed pixels`);
+        place(.17);wristFrame();const releasedPixels=changed(rest,pixels());assert(!depthMm()&&!releasedPixels,'wrist did not release');
+        const session=Object.assign(new EventTarget(),{visibilityState:'visible'});let pulses=0;
+        Object.assign(owner.userData,{heldToy:'dildo',propUsable:true,gamepad:{hapticActuators:[{pulse:()=>{pulses++;return true}}]}});
+        function controller(tracked=true){const frame={session};if(tracked)owner.userData.propFrame=frame;room.restore();room.advance(scene,null,'dildo',true,frame,false,'normal',paths,()=>actor);}
+        place(.071);for(let i=0;i<60&&!depthMm();i++)controller();controller();
+        const controllerMm=depthMm();assert(controllerMm>1&&pulses===1,`controller: ${controllerMm} mm, ${pulses} pulses`);controller(false);
+        assert(!depthMm()&&changed(rest,pixels())===0,'stale XRFrame did not release');assert(gl.getContext().getError()===0,'WebGL error');
+        status.textContent='PASS '+JSON.stringify({wristMm,changedPixels,releasedPixels,controllerMm,pulses});
+        wristFrame();gl.render(scene,camera); // Show the combined contact pose on the page.
+      }catch(e){status.textContent='FAIL '+e.stack;console.error(e);}
+      finally{room.reset();gl.setRenderTarget(null);target.dispose();actor.root.removeFromParent();actor.mesh.geometry.dispose();actor.mesh.material.dispose();actor.mesh.skeleton.dispose();light.removeFromParent();ambient.removeFromParent();}
+    });return ()=>cancelAnimationFrame(id);
+  },[scene,gl,camera]);
+  return h('group',{ref:holder},h(SiliconePiece));
+}
+createRoot(document.querySelector('#view')).render(h(Canvas,{frameloop:'demand',dpr:1,camera:{near:.001,far:4,fov:22},gl:{antialias:true,preserveDrawingBuffer:true}},h(Probe)));
+</script>

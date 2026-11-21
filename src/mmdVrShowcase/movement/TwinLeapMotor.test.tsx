@@ -5,9 +5,10 @@ import {Group,Mesh,Quaternion,Scene,Vector3} from 'three';
 import {expect,it,vi} from 'vitest';
 import {useMmdVrStore} from '../mmdVrStore';
 import {lanes} from '../scenery/planet/windAtlas';
+import {leapRoutes,twinPad} from '../scenery/planet/leapAtlas';
 import PlanetMotor from './PlanetMotor';
 import {samplePlanetMovement} from './planetDiagnostics';
-import {startTwinLeap,stepTwinLeap,twinPad} from './twinLeap';
+import {startTwinLeap,stepTwinLeap} from './twinLeap';
 import type {PlanetDriver} from './planetTravel';
 
 const h=vi.hoisted(()=>({frame:null as Function|null,ready:false,seed:vi.fn(),step:vi.fn(),stop:vi.fn()}));
@@ -41,9 +42,14 @@ it.each(['recall','other wind'] as const)('X/A and stick axes: round trip, track
   try{
     await act(async()=>root.render(<PlanetMotor originRef={{current:origin}} veilRef={{current:veil}} dragging={false}/>));tick();
     const walkIn=lane.home.foot.clone().sub(foot()).applyQuaternion(origin.quaternion.clone().invert());p.x+=walkIn.x;p.z+=walkIn.z;
+    // X pressed just after jumping (still within collar range) is consumed
+    // here, not queued for the frame when the mother surface supports us.
+    a.pressed=true;tick();x.pressed=true;tick(210);expect(report()).toMatchObject({location:'home',windDepartures:0});
+    x.pressed=a.pressed=false;tick();
     x.pressed=true;tick();expect(report().location).toBe('wind');tick(1000);x.pressed=false;tick();expect(report().location).toBe('salt');
     // At the north wind collar this is a normal radial jump under salt's 1.25 m/s².
-    const launch=foot();a.pressed=true;tick(90);expect(foot().y-launch.y).toBeCloseTo(1.6-.625,5);tick(160);a.pressed=false;tick();
+    const launch=foot();a.pressed=true;tick();x.pressed=true;tick(89);expect(foot().y-launch.y).toBeCloseTo(1.6-.625,5);tick(160);
+    expect(report()).toMatchObject({location:'salt',windDepartures:1});x.pressed=a.pressed=false;tick();
     expect(report().twinDepartures).toBe(0);
     walkTo(pad.foot);
     // Snap on the pad; that chosen heading must survive the handover. Rebase
@@ -80,10 +86,18 @@ it.each(['recall','other wind'] as const)('X/A and stick axes: round trip, track
       expect(report()).toMatchObject({location:'home',gravityOwner:'home',twinDepartures:4,twinLandings:2});
       expect(foot().distanceTo(new Vector3(0,0,1.9))).toBeLessThan(1e-8);
     }else{
-      tick(400);const otherLane=lanes.find(l=>l.moon.id==='glaze')!;walkTo(otherLane.away.foot);
+      tick(400);const otherLane=lanes.find(l=>l.moon.id==='glaze')!;
+      for(const [from,to] of [['glaze','mica'],['mica','sulfur'],['sulfur','mica'],['mica','glaze']]){
+        const crossing=leapRoutes.find(r=>r.pad.id===from&&r.target.id===to)!;
+        a.pressed=false;tick();walkTo(crossing.pad.foot);
+        a.pressed=true;tick(400);expect(report()).toMatchObject({location:to,gravityOwner:to});
+        expect(foot().distanceTo(crossing.target.foot)).toBeLessThan(.03);expect(veil.visible).toBe(false);
+      }
+      expect(h.seed).not.toHaveBeenCalled();expect(h.step).not.toHaveBeenCalled();
+      a.pressed=false;tick();walkTo(otherLane.away.foot);
       x.pressed=true;tick();expect(report().location).toBe('wind');for(let i=0;i<1100&&report().location==='wind';i++)tick();
       expect(h.seed).not.toHaveBeenCalled();tick();
-      expect(report()).toMatchObject({location:'home',gravityOwner:'home',windLandings:2,twinDepartures:4,twinLandings:3});
+      expect(report()).toMatchObject({location:'home',gravityOwner:'home',windLandings:2,twinDepartures:8,twinLandings:7});
       expect(foot().distanceTo(otherLane.home.foot)).toBeLessThan(.001);
     }
     expect(h.seed).toHaveBeenCalledOnce();tick();expect(h.step).toHaveBeenCalledOnce();

@@ -1,7 +1,7 @@
 import {Vector3} from 'three';
-import {twinPad} from '../../movement/twinLeap';
 import {moons} from './windAtlas';
 import {moonRadius} from './moonSurface';
+import {leapRoutes,twinPad,type LeapRoute} from './leapAtlas';
 
 type Point=[number,number,number];
 export const twinSurveys=moons.flatMap(moon=>{
@@ -24,3 +24,11 @@ export const twinSurveys=moons.flatMap(moon=>{
 // the system is moved to clear an existing portrait of the distant sky.
 const mid=twinSurveys[0].moon.centre.clone().lerp(twinSurveys[1].moon.centre,.5);
 export const straitPortrait={key:'twinPortrait' as const,eye:mid.clone().add(new Vector3(-.4,3.7,17.6)).toArray() as Point,aim:mid.toArray() as Point};
+
+function steppingView<K extends string>(key:K,route:LeapRoute){
+  const {pad,sight,crest}=route,eye=pad.foot.clone().addScaledVector(pad.up,1.65);
+  return {key,eye:eye.toArray() as Point,aim:eye.clone().addScaledVector(pad.up,8).addScaledVector(crest,.25).addScaledVector(sight,1.8).toArray() as Point};
+}
+const viewTo=(from:LeapRoute['pad']['id'],to:LeapRoute['target']['id'])=>leapRoutes.find(r=>r.pad.id===from&&r.target.id===to)!;
+export const steppingViews=[steppingView('glazeMicaLeap',viewTo('glaze','mica')),steppingView('micaSulfurLeap',viewTo('mica','sulfur')),
+  steppingView('sulfurMicaLeap',viewTo('sulfur','mica')),steppingView('micaGlazeLeap',viewTo('mica','glaze'))] as const;

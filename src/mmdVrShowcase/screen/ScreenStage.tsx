@@ -13,7 +13,7 @@ import { PrepIcon } from '../prep/PrepIcon';
 import { isPortalRoom, portalHall, resolveScenery } from '../scenery/catalog';
 import { SceneryOptions } from '../scenery/SceneryOptions';
 import { ScreenCamera, type CameraActions } from './ScreenCamera';
-import {tourShots} from '../scenery/roomViews';
+import {planetTourGroups,tourShots} from '../scenery/roomViews';
 import { ScreenLibrary } from './ScreenLibrary';
 import { ScreenMusic } from '../music/ScreenMusic';
 import './screen-stage.css';
@@ -59,7 +59,7 @@ export function ScreenStage(){
         <MmdVrStageContent/><StoryStations/><BackpackPlacement onScreenPick={()=>setLibrary(true)}/><ScreenCamera actions={actions} onReady={setCameraReady} viewport={viewport}/>
       </Canvas>
       <div className="screen-corner"><button aria-expanded={library&&!draft} onClick={()=>{if(draft){useBackpack.getState().cancelPlace();setLibrary(true);}else setLibrary(v=>!v);}}><PrepIcon name="bag"/>{t('hudBackpack')}</button><button onClick={()=>actions.current?.reset()}>{t('settingsMmdVrResetView')}</button>
-        {tourShots(prefs.scenery).length>0&&<select aria-label={t('courtTour')} value="" onChange={e=>actions.current?.tour(Number(e.target.value))}><option value="" disabled>{t('courtTour')}</option>{tourShots(prefs.scenery).map((s,i)=><option key={s.key} disabled={!!s.link&&(locked||!!draft||load.failures.length>0)} value={i}>{t(s.key)}</option>)}</select>}
+         {tourShots(prefs.scenery).length>0&&<select aria-label={t('courtTour')} value="" onChange={e=>actions.current?.tour(Number(e.target.value))}><option value="" disabled>{t('courtTour')}</option>{prefs.scenery==='glassPlanet'?planetTourGroups.map(g=><optgroup key={g.label} label={t(g.label)}>{g.items.map(s=><option key={s.key} value={s.index}>{t(s.key)}</option>)}</optgroup>):tourShots(prefs.scenery).map((s,i)=><option key={s.key} disabled={!!s.link&&(locked||!!draft||load.failures.length>0)} value={i}>{t(s.key)}</option>)}</select>}
          {isPortalRoom(prefs.scenery)&&<button disabled={locked||!!draft} onClick={()=>stage.setPrefs({scenery:portalHall})}>{t('returnPortalHall')}</button>}
        </div>
        {prefs.scenery===portalHall&&!draft&&<div className="screen-arcade-hint">{t('portalHint')}</div>}

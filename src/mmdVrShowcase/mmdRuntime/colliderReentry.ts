@@ -3,7 +3,7 @@ import type { MmdPhysicsRigidBodyShape, MmdPhysicsStepContext } from "@yohawing/
 export const syntheticColliderBody = Symbol("syntheticColliderBody");
 export const PARK_Y = -1000;
 type ReadCenters = (indices: readonly number[], out: Float32Array) => boolean;
-type Slot = { offset: number; radius: number; x: number; y: number; z: number; seen: boolean; cooling: number };
+type Slot = { offset: number; radius: number; x: number; y: number; z: number; seen: boolean; cooling: number; prop:boolean };
 
 function extent({ type, size: [x, y, z] }: MmdPhysicsRigidBodyShape) {
   return type === "sphere" ? x : type === "capsule" ? x + y / 2 : Math.hypot(x, y, z);
@@ -19,16 +19,21 @@ export class ColliderReentry {
 
   constructor(private readCenters: ReadCenters, private modelScale: () => number) {}
 
+  // Resets include hidden→visible and scrubs. The old prop can be inside a
+  // different garment at the new pose, even with no change in its XR position.
+  invalidateProps(){for(const slot of this.slots)if(slot.prop)slot.cooling=2/60;}
+
   apply(context: MmdPhysicsStepContext, dt: number) {
     const { rigidBodies, inputWorldMatricesColumnMajor: matrices } = context;
-    // Both collider wrappers own the appended Float32Array tail, in copied and direct mode.
+    // Collider wrappers own the appended Float32Array tail, in copied and direct mode.
     if (!rigidBodies || !(matrices instanceof Float32Array)) return 0;
     if (this.bodies !== rigidBodies) {
       this.bodies = rigidBodies;
       this.slots = []; this.dynamic = []; this.radii = [];
       rigidBodies.forEach((body, i) => {
         if (syntheticColliderBody in body && body.boneIndex != null) {
-          this.slots.push({ offset: body.boneIndex * 16 + 12, radius: extent(body.shape), x: 0, y: 0, z: 0, seen: false, cooling: 0 });
+          const prop=body[syntheticColliderBody]==='prop';
+          this.slots.push({ offset: body.boneIndex * 16 + 12, radius: extent(body.shape), x: 0, y: 0, z: 0, seen: false, cooling: prop?2/60:0, prop });
         } else if (body.motionType !== "static") {
           this.dynamic.push(i); this.radii.push(extent(body.shape));
         }
@@ -53,8 +58,11 @@ export class ColliderReentry {
         const r = slot.radius + this.radii[j] + clearance;
         clear = (x-this.centers[3*j])**2 + (y-this.centers[3*j+1])**2 + (z-this.centers[3*j+2])**2 > r*r;
       }
-      if (clear) {slot.cooling -= Math.max(0, dt);if(slot.cooling<=0)accepted|=1<<n;}
-      else {
+      if (clear) {
+        slot.cooling -= Math.max(0, dt);
+        if(slot.cooling<=0)accepted|=1<<n;
+        else if(slot.prop){matrices[i]=0;matrices[i+1]=PARK_Y;matrices[i+2]=0;}
+      } else {
         matrices[i] = 0; matrices[i+1] = PARK_Y; matrices[i+2] = 0;
         slot.cooling = 2/60;
       }

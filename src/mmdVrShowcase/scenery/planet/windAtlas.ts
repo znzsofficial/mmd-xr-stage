@@ -6,14 +6,24 @@ import {reedCentre,reedRadius,reedGauge,reedTrunkBlocks} from './reedBiosphere';
 
 export const sunDirection=new Vector3(-5,3.2,3.8).normalize();
 const homeCentre=new Vector3(0,-PLANET_RADIUS,0),north=new Vector3(0,1,0);
+const glazeCentre=new Vector3(9.8,21,-30);
+// Two different bearings: keep the original strait intact and the little
+// chain outside the wind approaches. Radii and gaps are in stage metres.
+const toMica=new Vector3(.77,0,-.64).normalize(),toSulfur=new Vector3(.78,0,.63).normalize();
+const glazeRadius=4.6,micaRadius=2.65,sulfurRadius=1.95;
+const micaCentre=glazeCentre.clone().addScaledVector(toMica,glazeRadius+6.95+micaRadius);
+export const steppingMoons=[
+  {id:'mica',relief:'mica',radius:micaRadius,centre:micaCentre,surfaceGravity:1.55,color:'#a8dddc',jumpHeadings:[toMica.clone().negate(),toSulfur]},
+  {id:'sulfur',relief:'sulfur',radius:sulfurRadius,centre:micaCentre.clone().addScaledVector(toSulfur,micaRadius+6.65+sulfurRadius),surfaceGravity:1.85,color:'#ffd686',jumpHeadings:[toSulfur.clone().negate()]},
+] as const;
 const destinations=[
-  {id:'ember',relief:'basins',instrument:'seismometer',centre:new Vector3(-15.2,4.5,-13.1),radius:4.55,surfaceGravity:2.8,color:'#f3a668',port:new Vector3(-.281,.957,-.069).normalize(),
+  {id:'ember',relief:'basins',instrument:'seismometer',centre:new Vector3(-18.2,5.3,-15.7),radius:4.55,surfaceGravity:2.8,color:'#f3a668',port:new Vector3(-.281,.957,-.069).normalize(),
     stationUp:new Vector3(.51,.82,-.36).normalize(),duration:8.5,launchKey:'emberWind',returnKey:'emberReturn',sign:'01 · 赭砾星',caption:'EMBER   /   IMPACT BASINS'},
-  {id:'frost',relief:'rifts',instrument:'dish',centre:new Vector3(16.5,6.1,-14.5),radius:5.2,surfaceGravity:2.15,color:'#72dcf0',port:new Vector3(.281,.957,-.069).normalize(),
+  {id:'frost',relief:'rifts',instrument:'dish',centre:new Vector3(19.8,7.2,-17.4),radius:5.2,surfaceGravity:2.15,color:'#72dcf0',port:new Vector3(.281,.957,-.069).normalize(),
     stationUp:new Vector3(-.48,.82,-.36).normalize(),duration:9.5,launchKey:'frostWind',returnKey:'frostReturn',sign:'02 · 霜岬星',caption:'FROST   /   ICE RIFTS'},
-  {id:'salt',relief:'salt',instrument:'prism',centre:new Vector3(-6.8,18,-25),radius:4.8,surfaceGravity:1.25,color:'#e6a7ff',port:new Vector3(-.208,.942,.263).normalize(),
+  {id:'salt',relief:'salt',instrument:'prism',centre:new Vector3(-6.8,glazeCentre.y,glazeCentre.z),radius:4.8,surfaceGravity:1.25,color:'#e6a7ff',port:new Vector3(-.208,.942,.263).normalize(),
     stationUp:new Vector3(.41,.77,.49).normalize(),duration:10.5,launchKey:'saltWind',returnKey:'saltReturn',sign:'03 · 棱盐星',caption:'HALITE   /   PRISM FLATS'},
-  {id:'glaze',relief:'glaze',instrument:'kiln',centre:new Vector3(9.8,18,-25),radius:4.6,surfaceGravity:3.65,color:'#ff7759',port:new Vector3(.208,.942,.263).normalize(),
+  {id:'glaze',relief:'glaze',instrument:'kiln',centre:glazeCentre,radius:glazeRadius,jumpHeadings:[toMica],surfaceGravity:3.65,color:'#ff7759',port:new Vector3(.208,.942,.263).normalize(),
     stationUp:new Vector3(-.60,.73,.32).normalize(),duration:10.5,launchKey:'glazeWind',returnKey:'glazeReturn',sign:'04 · 玄釉星',caption:'OBSIDIAN   /   FURNACE GLASS'},
   {id:'reed',relief:'wetland',instrument:'gauge',centre:reedCentre,radius:reedRadius,surfaceGravity:2.55,color:'#8ae59e',port:new Vector3(-.02,.935,.354).normalize(),
     stationUp:reedGauge,duration:9.0,launchKey:'reedWind',returnKey:'reedReturn',sign:'05 · 苇湾星',caption:'REEDWATER   /   LAGOONS'},
@@ -22,7 +32,11 @@ export const moons=destinations.map(({stationUp:up,...m})=>({
   ...m,station:{up,base:up.clone().multiplyScalar(moonRadius(m,up.x,up.y,up.z)).add(m.centre),r:.52,h:1.40},
 }));
 export type Moon=typeof moons[number];
-export function moonObstructed(m:Moon,p:Vector3,r:number,height:number){
+export type SteppingMoon=typeof steppingMoons[number];
+export type WalkMoon=Moon|SteppingMoon;
+export const allMoons:readonly WalkMoon[]=[...moons,...steppingMoons];
+export function moonObstructed(m:WalkMoon,p:Vector3,r:number,height:number){
+  if(!('station' in m))return false;
   if(m.id==='reed'&&reedTrunkBlocks(p,r,height))return true;
   const s=m.station,x=p.x-s.base.x,y=p.y-s.base.y,z=p.z-s.base.z,a=x*s.up.x+y*s.up.y+z*s.up.z;
   return a<s.h&&a+height>-.15&&x*x+y*y+z*z-a*a<(r+s.r)**2;
@@ -34,7 +48,7 @@ export const lanes=moons.map(m=>({moon:m,
   duration:m.duration,
 }));
 export type WindLane=typeof lanes[number];
-export function departureAt(foot:Vector3,world:Moon|null){
+export function departureAt(foot:Vector3,world:WalkMoon|null){
   return lanes.find(l=>(!world||world===l.moon)&&foot.distanceToSquared(world?l.away.foot:l.home.foot)<.90**2);
 }
 // A single geometric flightline for the wind tracers, XR foot and screen camera.

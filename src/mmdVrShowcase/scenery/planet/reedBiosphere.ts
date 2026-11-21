@@ -3,7 +3,7 @@ import {Vector3} from 'three';
 /** World metres on the Reedwater moon. Water is a separate spherical shell;
  * feet follow the actual lake bed, so the visitor can wade across a lagoon. */
 export const reedSeaLevel=-.15;
-export const reedCentre=new Vector3(-14,6,19),reedRadius=6.6;
+export const reedCentre=new Vector3(-16.2,6.9,22),reedRadius=6.6;
 const unit=(x:number,y:number,z:number)=>new Vector3(x,y,z).normalize();
 export const reedLake=unit(.19,.85,-.50),reedGauge=unit(-.16,.878,-.45);
 const pools=[{up:reedLake,width:.078},{up:unit(.62,.25,-.74),width:.147},{up:unit(-.49,-.17,.86),width:.22},

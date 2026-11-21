@@ -1,11 +1,11 @@
 import {BufferGeometry,Color,Float32BufferAttribute,Vector3} from 'three';
-import {lanes,windPoint} from './windAtlas';
+import {windPoint,type WindLane} from './windAtlas';
 
 /** Short translucent streamlines make each nozzle readable from the main dial;
  * the open middle of the journey is indicated only by moving tracer grains. */
-export function windRibbons(){
+export function windRibbons(l:WindLane){
   const pos:number[]=[],rgb:number[]=[],idx:number[]=[],a=new Vector3(),b=new Vector3(),dir=new Vector3(),u=new Vector3(),v=new Vector3(),edge=new Vector3();
-  for(const l of lanes)for(const end of [0,1])for(let j=0;j<3;j++){
+  for(const end of [0,1])for(let j=0;j<3;j++){
     const first=pos.length/3,c=new Color(l.moon.color);
     for(let i=0;i<=40;i++){
       const f=i/40,t=end?1-f*.15:f*.15,angle=f*6.4+j*2*Math.PI/3,r=.66+.08*Math.sin(Math.PI*f);

@@ -1,5 +1,5 @@
 import { Box3, Matrix4, Triangle, Vector3, type BufferAttribute, type InterleavedBufferAttribute, type Material, type Object3D, type SkinnedMesh } from 'three';
-import {capHalfHeight,capR,capToUnit,capY} from './wandHead';
+import type {ContactCap} from './wandHead';
 import {createWandPose} from './wandPose';
 import {visibleTexel} from './wandOpacity';
 
@@ -82,7 +82,7 @@ export function createWandSurface(model:WandModel){
     if(builder)do {const s=builder.next();if(s.done){layers=s.value;builder=null;break;}}while(performance.now()<deadline);
     return !builder;
   }
-  function face(l:Layer,j:number,out:WandHit){
+  function face(l:Layer,j:number,cap:ContactCap,out:WandHit){
     const index=l.mesh.geometry.index;
     l.pose.vertex(index?.getX(j)??j,a).applyMatrix4(worldToCap);
     l.pose.vertex(index?.getX(j+1)??j+1,b).applyMatrix4(worldToCap);
@@ -91,21 +91,21 @@ export function createWandSurface(model:WandModel){
     const d=point.length();if(!(d<1)||1-d<=out.depth||!visibleTexel(l.material,l.mesh.geometry,j,tri,point))return;
     out.depth=1-d;
     if(d>1e-6)bestAxis.copy(point);else tri.getNormal(bestAxis);
-    bestAxis.set(bestAxis.x/capR,bestAxis.y/capHalfHeight,bestAxis.z/capR).normalize();
+    bestAxis.applyMatrix3(cap.normalToPart).normalize();
     if(bestAxis.lengthSq()===0)bestAxis.set(0,1,0);
     out.axis.copy(bestAxis);lastLayer=l;lastFace=j;
   }
-  function query(pivot:Object3D,out:WandHit,deadline:number){
+  function query(pivot:Object3D,cap:ContactCap,out:WandHit,deadline:number){
     out.depth=0;if(!visible(model.root)||!warm(deadline)||!layers.length)return;
     pivot.updateWorldMatrix(true,false);
-    worldToCap.copy(pivot.matrixWorld).invert().premultiply(capToUnit);
-    center.set(0,capY,0).applyMatrix4(pivot.matrixWorld);
-    const radius=capHalfHeight*pivot.matrixWorld.getMaxScaleOnAxis()+.006; // allow the independent fingertip display offset in the broad phase
+    worldToCap.copy(pivot.matrixWorld).invert().premultiply(cap.toUnit);
+    center.copy(cap.center).applyMatrix4(pivot.matrixWorld);
+    const radius=cap.radius*pivot.matrixWorld.getMaxScaleOnAxis()+.006; // allow the independent fingertip display offset in the broad phase
     const previous=lastLayer;const cachedFace=lastFace;lastLayer=null;
     // Validate the last contact against this pose even on complex rigs. An
     // interrupted or budget-limited search never authorizes an old hit.
     if(previous&&visible(previous.owner)&&rendered(previous.material)){
-      previous.pose.begin();face(previous,cachedFace,out);
+      previous.pose.begin();face(previous,cachedFace,cap,out);
     }
     const startLayer=nextLayer;let checked=0;
     do {
@@ -135,7 +135,7 @@ export function createWandSurface(model:WandModel){
             if(box.distanceToPoint(center)>radius){if((++checked&63)===0&&performance.now()>=deadline){nextFace=0;nextCell++;return;}continue;}
           }
           for(;nextFace<cell.faces.length;nextFace++){
-            face(l,cell.faces[nextFace],out);
+            face(l,cell.faces[nextFace],cap,out);
             if((++checked&31)===0&&performance.now()>=deadline){nextFace++;return;}
           }
         }

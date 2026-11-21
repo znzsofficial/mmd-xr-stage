@@ -1,6 +1,6 @@
 import {DoubleSide,Mesh,MeshBasicMaterial,Raycaster,Vector3} from 'three';
 import {expect,it} from 'vitest';
-import {departureAt,lanes,rideStep,startRide,windPoint} from './windAtlas';
+import {allMoons,departureAt,lanes,rideStep,startRide,windPoint} from './windAtlas';
 import {moonRadius,moonShell} from './moonSurface';
 import {terrainAltitude,stationBlocks} from './opalTerrain';
 import {createTraveller} from '../../movement/planetTravel';
@@ -13,15 +13,15 @@ it.each(lanes)('carries an off-centre foot clear of both surfaces and back witho
   const ride=startRide(lane,false,start);rideStep(ride,0,p,up);expect(p.distanceTo(start)).toBeLessThan(1e-7);
   for(let i=1;i<100;i++){
     windPoint(lane,i/100,p);expect(terrainAltitude(p)).toBeGreaterThan(.01);expect(stationBlocks(p,.23,1.82)).toBe(false);
-    for(const {moon:m} of lanes){const n=p.clone().sub(m.centre),r=n.length();n.normalize();expect(r-moonRadius(m,n.x,n.y,n.z)).toBeGreaterThan(.001);}
+    for(const m of allMoons){const n=p.clone().sub(m.centre),r=n.length();n.normalize();expect(r-moonRadius(m,n.x,n.y,n.z)).toBeGreaterThan(.001);}
   }
   while(!rideStep(ride,1/72,p,up)){}expect(p.distanceTo(lane.away.foot)).toBeLessThan(1e-7);expect(up.toArray()).toEqual([0,1,0]);
   const back=startRide(lane,true,p);while(!rideStep(back,1/90,p,up)){}expect(p.distanceTo(lane.home.foot)).toBeLessThan(1e-7);
   expect(departureAt(lane.away.foot, lane.moon)).toBe(lane);
 });
-it.each(lanes)('supports an antipodal walk and radial jump on the actual rendered satellite',({moon:m,away})=>{
+it.each(allMoons)('$id supports an antipodal walk and radial jump on the actual rendered satellite',m=>{
   const s=createTraveller(),d=new Vector3(),g=moonShell(m),mat=new MeshBasicMaterial({side:DoubleSide}),mesh=new Mesh(g,mat),ray=new Raycaster();
-  s.foot.copy(away.foot);let lo=1,high=0,error=0;
+  s.foot.copy(m.centre).y+=moonRadius(m,0,1,0);let lo=1,high=0,error=0;
   try{for(let i=0;i<1800;i++){
     d.set(0,0,1).applyQuaternion(s.basis);moonWalk(m,s,d,2.4,1/90,i===50);lo=Math.min(lo,s.up.y);
     const radial=s.foot.distanceTo(m.centre),surface=moonRadius(m,s.up.x,s.up.y,s.up.z);high=Math.max(high,radial-surface);

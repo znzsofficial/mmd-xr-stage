@@ -1,7 +1,8 @@
 import {SphereGeometry} from 'three';
 import {reedRelief} from './reedBiosphere';
 
-type Profile={relief:'basins'|'rifts'|'salt'|'glaze'|'wetland';radius:number;station?:{up:{x:number;y:number;z:number}}};
+type Direction={x:number;y:number;z:number};
+type Profile={relief:'basins'|'rifts'|'salt'|'glaze'|'wetland'|'mica'|'sulfur';radius:number;station?:{up:Direction};jumpHeadings?:readonly Direction[]};
 const pits=Array.from({length:30},(_,i)=>{
   const y=1-(i+.5)/15,s=Math.sqrt(1-y*y),a=i*2.39996+.38;
   return {x:s*Math.sin(a),y,z:s*Math.cos(a),width:.007+.036*((i*13%29)/29)**2};
@@ -32,14 +33,30 @@ function twinHeight(relief:'salt'|'glaze',x:number,y:number,z:number){
   if(beyondPad===0)return 0;
   return beyondPad*(relief==='salt'?saltBeds(x,y,z):glassFlows(x,y,z));
 }
+// Tilted parallel cleavage planes vs. rounded sulphur deposits with a
+// weathered basin. Both signatures affect the silhouette as well as colour.
+export const micaStrata=(x:number,y:number,z:number)=>3.1*y+1.3*x-.65*z+.13*Math.sin(4*z);
+export const sulfurLobes=(x:number,y:number,z:number)=>Math.cos(7*x+2*y)*Math.sin(5*z-3*y)+.48*Math.cos(8*y-2*z);
+function padTerrain(m:Profile,x:number,y:number,z:number){
+  if(!m.jumpHeadings)return 1;
+  let d=-1;for(const up of m.jumpHeadings)d=Math.max(d,up.x*x+up.y*y+up.z*z);
+  // Width is in metres: on the smallest moon the footprint occupies much
+  // more of the hemisphere than the same footprint on Obsidian.
+  return smooth(.82,1.34,m.radius*Math.sqrt(Math.max(0,2*(1-d))));
+}
 // The walking motor and actual meshes sample the same unit-vector relief.
 // Taper the terrain towards the north landing so its wind collar sits flush.
 export function moonRadius(m:Profile,x:number,y:number,z:number){
   if(m.relief==='wetland')return m.radius+reedRelief(x,y,z);
+  if(m.relief==='mica'||m.relief==='sulfur'){
+    const height=m.relief==='mica'?.24*(x*x-z*z)+.095*Math.tanh(2.4*Math.sin(Math.PI*micaStrata(x,y,z)))
+      :.13*sulfurLobes(x,y,z)-.21*Math.exp(-(((1-(.6*x+.8*y))/.16)**2));
+    return m.radius+height*padTerrain(m,x,y,z);
+  }
   if(m.relief==='salt'||m.relief==='glaze'){
     // Spherical caps about north and BOTH equatorial jump headings, without
     // a step at their edge. At r=4.6 the undisturbed cap radius is ~1.12 m.
-    const h=twinHeight(m.relief,x,y,z),s=m.station?.up;
+    const h=twinHeight(m.relief,x,y,z)*padTerrain(m,x,y,z),s=m.station?.up;
     if(s){
       // Keep the whole instrument bed on its centre's original elevation.
       // The atlas can sample that centre before the station record exists.
@@ -61,7 +78,8 @@ export function moonRadius(m:Profile,x:number,y:number,z:number){
   return m.radius+h*relief;
 }
 export function moonShell(m:Profile){
-  const g=new SphereGeometry(1,112,72),p=g.attributes.position;
+  const small=m.relief==='mica'||m.relief==='sulfur';
+  const g=new SphereGeometry(1,small?80:112,small?48:72),p=g.attributes.position;
   for(let i=0;i<p.count;i++){
     const x=p.getX(i),y=p.getY(i),z=p.getZ(i),r=moonRadius(m,x,y,z);
     p.setXYZ(i,x*r,y*r,z*r);

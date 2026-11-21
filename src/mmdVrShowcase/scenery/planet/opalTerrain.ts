@@ -1,5 +1,6 @@
 import {Color,Float32BufferAttribute,Quaternion,SphereGeometry,Vector3} from 'three';
 import {PLANET_RADIUS as R} from './planetLayout';
+import {courseDistance} from './opalCourse';
 
 const smooth=(a:number,b:number,v:number)=>{const t=Math.min(1,Math.max(0,(v-a)/(b-a)));return t*t*(3-2*t);};
 // Cosine distance has no seam or pole. Broad cinder domes flank the meridian;
@@ -18,20 +19,17 @@ export function terrainAltitude(p:{x:number;y:number;z:number}){const y=p.y+R,n=
 
 export function makeCrust(painted=true){
   const g=new SphereGeometry(1,168,104),pos=g.attributes.position,colors=new Float32Array(painted?pos.count*3:0);
-  const ocean=new Color('#175783'),lagoon=new Color('#26b8ad'),jade=new Color('#62c9a1'),orchid=new Color('#8654ae'),mesa=new Color('#e58165'),sand=new Color('#f6bd72'),chalk=new Color('#fbe1ad');
-  const color=new Color(),warm=new Color();
+  const course=new Float32Array(painted?pos.count:0);
+  const shale=new Color('#48595c'),smoke=new Color('#738887'),slate=new Color('#526969'),color=new Color();
   for(let i=0;i<pos.count;i++){
     const x=pos.getX(i),y=pos.getY(i),z=pos.getZ(i),r=crustRadius(x,y,z),h=r-R;
     pos.setXYZ(i,x*r,y*r,z*r);if(!painted)continue;
     const ribbon=.47*Math.sin(x*5+y*4-z*2)+.31*Math.cos(z*6.5+x*2-.6)+.14*Math.sin(11*y+7*x);
-    const contour=h+.21*ribbon;
-    color.copy(ocean).lerp(lagoon,smooth(-.28,.28,contour)).lerp(jade,smooth(.16,.74,contour));
-    warm.copy(orchid).lerp(mesa,smooth(.30,.98,contour)).lerp(sand,smooth(1.12,1.98,contour));
-    color.lerp(warm,smooth(.26,.77,contour+.43*ribbon));
-    const seam=Math.abs(Math.sin(6.1*contour+1.4*ribbon));color.lerp(chalk,.49*(1-smooth(.05,.40,seam))*smooth(.06,.54,contour));
-    color.multiplyScalar(.95+.05*Math.sin(x*39+z*13+y*18)).toArray(colors,3*i);
+    const contour=h+.26*ribbon;
+    color.copy(shale).lerp(smoke,smooth(-.46,1.7,contour)).lerp(slate,.39*(1-smooth(.04,.53,Math.abs(Math.sin(4.1*contour+1.5*ribbon)))));
+    color.toArray(colors,3*i);course[i]=courseDistance(x,y,z);
   }
-  if(painted){g.setAttribute('color',new Float32BufferAttribute(colors,3));g.computeVertexNormals();g.computeBoundingSphere();}return g;
+  if(painted){g.setAttribute('color',new Float32BufferAttribute(colors,3));g.setAttribute('opalOffset',new Float32BufferAttribute(course,1));g.computeVertexNormals();g.computeBoundingSphere();}return g;
 }
 
 function instrument(name:string,x:number,y:number,z:number,r:number,height:number,style:'fork'|'dome'|'beacon'|'geode'){

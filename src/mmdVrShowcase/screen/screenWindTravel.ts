@@ -1,5 +1,5 @@
 import {Vector3} from 'three';
-import {departureAt,moons,rideStep,startRide,type Moon,type Ride} from '../scenery/planet/windAtlas';
+import {departureAt,allMoons,moons,rideStep,startRide,type WalkMoon,type Ride} from '../scenery/planet/windAtlas';
 import {moonRadius} from '../scenery/planet/moonSurface';
 import {createTraveller,north} from '../movement/planetTravel';
 import {moonWalk} from '../movement/moonWalk';
@@ -8,14 +8,14 @@ import {startTwinLeap,stepTwinLeap,type TwinLeap} from '../movement/twinLeap';
 // Inspection camera stays level. During a jump its eye follows the same foot
 // and local vertical as XR; mouse orbit, wheel or a new shot releases it.
 export function screenWindTravel(look:(direction:Vector3,weight:number)=>void){
-  let ride:Ride|null=null,leap:TwinLeap|null=null,hopping:Moon|null=null,launch=false;
+  let ride:Ride|null=null,leap:TwinLeap|null=null,hopping:WalkMoon|null=null,launch=false;
   const traveller=createTraveller(),lastEye=new Vector3(),still=new Vector3(),foot=new Vector3(),up=new Vector3(),direction=new Vector3(),height=1.65;
   return {
     jump(eye:Vector3){
       if(ride||leap||hopping)return;
       // The nearest *surface*, not the nearest centre: either wall of the
       // strait may host the eye, even when the moons have different radii.
-      for(const m of moons){
+      for(const m of allMoons){
         up.subVectors(eye,m.centre);const r=up.length();if(r<.01)continue;up.divideScalar(r);
         const ground=moonRadius(m,up.x,up.y,up.z);
         if(Math.abs(r-height-ground)>.14)continue;
@@ -39,8 +39,8 @@ export function screenWindTravel(look:(direction:Vector3,weight:number)=>void){
           const done=stepTwinLeap(leap,Math.min(.05,dt),foot,up);
           // A level screen travelling shot pans through open space; otherwise
           // the final view would stare into the rock directly under the feet.
-          const f=Math.min(1,leap.time/leap.eta),yaw=(leap.from.id==='salt'?1:-1)*1.35*Math.cos(Math.PI*f);
-          direction.set(Math.sin(yaw),.03,-Math.cos(yaw));look(direction,1-Math.exp(-5*dt));
+          const f=Math.min(1,leap.time/leap.eta),yaw=1.35*Math.cos(Math.PI*f);
+          direction.copy(leap.route.pad.up).multiplyScalar(Math.sin(yaw)).addScaledVector(leap.route.sight,Math.cos(yaw)).addScaledVector(north,.03).normalize();look(direction,1-Math.exp(-5*dt));
           if(done)leap=null;
         }
         else if(hopping){moonWalk(hopping,traveller,still,0,Math.min(.05,dt),launch);launch=false;

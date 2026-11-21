@@ -53,6 +53,8 @@ export async function createBulletPhysicsBackend(options: {
   handColliders?: MmdControllerColliderProvider;
   handRadius?: number | (() => number);
   handShape?: ColliderShapeFactory;
+  propColliders?: MmdControllerColliderProvider;
+  propShape?: ColliderShapeFactory;
   simulationDelta?: () => number | undefined;
   modelScale?: () => number;
   onPhysicsBones?: PhysicsBoneObserver;
@@ -82,9 +84,14 @@ export async function createBulletPhysicsBackend(options: {
   const refreshStepOptions = () => {
     backendOptions.maxSubSteps = MAX_SUBSTEPS[options.quality?.() ?? 'medium'];
   };
+  // Innermost appends last: [model | controllers | fingertips/palms | props].
+  const propBackend = options.propColliders && options.propShape
+    ? createControllerColliderPhysicsBackend(backend, options.propColliders, () => 1 / (options.modelScale?.() ?? 1),
+        undefined, options.controllerFriction, options.controllerRestitution, options.propShape, 'prop')
+    : backend;
   const colliderBackend = options.handColliders
     ? createControllerColliderPhysicsBackend(
-        backend,
+        propBackend,
         options.handColliders,
         options.handRadius,
         undefined,
@@ -92,7 +99,7 @@ export async function createBulletPhysicsBackend(options: {
         options.controllerRestitution,
         options.handShape,
       )
-    : backend;
+    : propBackend;
   const result=options.controllerColliders
     ? createControllerColliderPhysicsBackend(
         colliderBackend,
@@ -142,7 +149,7 @@ export function createPhysicsDiagnosticsBackend(backend: MmdPhysicsBackend, simu
       onPhysicsBones?.(context.output?.updatedBoneIndices, result.updatedBoneCount ?? 0, context.rigidBodies);
       return result;
     },
-    reset: (context) => backend.reset?.(context),
+    reset: (context) => {guard?.invalidateProps();backend.reset?.(context);},
     dispose: () => backend.dispose?.(),
     diagnostics: () => backend.diagnostics?.() ?? [],
     debugRigidBodyWorldTransformsColumnMajor: () => backend.debugRigidBodyWorldTransformsColumnMajor?.() ?? [],
@@ -215,6 +222,7 @@ export function createControllerColliderPhysicsBackend(
   friction: number | (() => number) = 0.5,
   restitution: number | (() => number) = 0,
   makeShape: ColliderShapeFactory = (_, r) => ({ type: "sphere", size: [r, r, r] }),
+  family: 'xr'|'prop' = 'xr',
 ): MmdControllerColliderPhysicsBackend {
   let sourceSkeleton: MmdPhysicsStepContext["skeleton"];
   let sourceRigidBodies: MmdPhysicsStepContext["rigidBodies"];
@@ -278,7 +286,7 @@ export function createControllerColliderPhysicsBackend(
           if (body.motionType !== "static") dynamicRigidBodyCount += 1;
           if (!(syntheticColliderBody in body)) modelGroupMask |= 1 << Math.min(15, Math.max(0, Math.trunc(body.collisionGroup ?? 0)));
         }
-        controllerGroup = chooseControllerCollisionGroup(context.rigidBodies);
+        controllerGroup = chooseControllerCollisionGroup(context.rigidBodies, family === 'prop');
       }
       if (directColliderCount !== undefined && colliderCount !== directColliderCount) {
         throw new Error("Controller collider count changed after direct buffers were acquired");
@@ -308,7 +316,7 @@ export function createControllerColliderPhysicsBackend(
             ...context.skeleton.bones,
             ...matrices.map((_, index) => ({
               index: boneCount + index,
-              name: `xr-controller-${index}`,
+              name: family==='prop'?`held-prop-${index}`:`xr-controller-${index}`,
               parentIndex: -1,
               restTranslation: [0, 0, 0] as const,
               restRotation: [0, 0, 0, 1] as const,
@@ -316,14 +324,14 @@ export function createControllerColliderPhysicsBackend(
           ],
         };
         augmentedRigidBodies = [
-          ...context.rigidBodies.map((body) => controllerGroupMask === 0 || syntheticColliderBody in body || isActorPalm(body.name) ? body : ({
+           ...context.rigidBodies.map((body) => controllerGroupMask === 0 || ((body.collisionMask ?? 0xffff) & controllerGroupMask) !== 0 || syntheticColliderBody in body || isActorPalm(body.name) ? body : ({
             ...body,
             collisionMask: (body.collisionMask ?? 0xffff) | controllerGroupMask,
           })),
           ...matrices.map((_, index) => ({
-            [syntheticColliderBody]: true,
+            [syntheticColliderBody]: family==='prop'?'prop':true,
             index: context.rigidBodies!.length + index,
-            name: `xr-controller-${index}`,
+            name: family==='prop'?`held-prop-${index}`:`xr-controller-${index}`,
             boneIndex: boneCount + index,
             motionType: "static" as const,
             shape: makeShape(index, colliderRadius),
@@ -412,7 +420,7 @@ export function createControllerColliderPhysicsBackend(
     diagnostics: () => backend.diagnostics?.() ?? [],
     debugRigidBodyWorldTransformsColumnMajor: () => backend.debugRigidBodyWorldTransformsColumnMajor?.() ?? [],
     debugControllerContactCount: (controllerIndex) => {
-      if (controllerBodyCount === 0 || backend.disposed) return 0;
+      if (family === 'prop' || controllerBodyCount === 0 || backend.disposed) return 0;
       if (controllerIndex != null && (!Number.isInteger(controllerIndex) || controllerIndex < 0 || controllerIndex >= controllerBodyCount)) return 0;
       const debugBackend = backend as MmdDebugPhysicsBackend;
       // This wrapper appends its bodies before delegating to inner wrappers.
@@ -475,9 +483,12 @@ export function createControllerColliderPhysicsBackend(
   return wrapper;
 }
 
-function chooseControllerCollisionGroup(rigidBodies: readonly NonNullable<MmdPhysicsStepContext["rigidBodies"]>[number][]) {
+function chooseControllerCollisionGroup(rigidBodies: readonly NonNullable<MmdPhysicsStepContext["rigidBodies"]>[number][], shareHelperGroup=false) {
   let usedGroups = 0;
   for (const body of rigidBodies) {
+    // All helper masks exclude helper groups. Sharing the controller group
+    // avoids consuming a third PMX group and doesn't change any native pair.
+    if(shareHelperGroup && syntheticColliderBody in body)continue;
     const group = Math.min(15, Math.max(0, Math.trunc(body.collisionGroup ?? 0)));
     usedGroups |= 1 << group;
   }

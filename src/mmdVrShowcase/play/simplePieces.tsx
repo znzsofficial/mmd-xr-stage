@@ -1,11 +1,15 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import type { Mesh } from 'three';
 import { useMmdVrStore } from '../mmdVrStore';
 import { makeBlower, makePunch, makeSilicone } from './workshopModels';
 import {siliconeMount,siliconeTilt} from './siliconeProfile';
+import {createSiliconeHead,mountWandHead} from './wandHead';
 
 export function SiliconePiece(){
-  const geometry=useMemo(makeSilicone,[]);useEffect(()=>()=>geometry.dispose(),[geometry]);
-  return <mesh name="play:piece:dildo" geometry={geometry} rotation-x={siliconeTilt} position={siliconeMount}><meshStandardMaterial vertexColors roughness={.42}/></mesh>;
+  const geometry=useMemo(makeSilicone,[]),part=useRef<Mesh>(null);
+  useLayoutEffect(()=>{if(part.current)return mountWandHead(createSiliconeHead(part.current,geometry));},[geometry]);
+  useEffect(()=>()=>geometry.dispose(),[geometry]);
+  return <mesh ref={part} name="play:piece:dildo" geometry={geometry} rotation-x={siliconeTilt} position={siliconeMount}><meshStandardMaterial vertexColors roughness={.42}/></mesh>;
 }
 export function StampPiece(){
   const geometry=useMemo(makePunch,[]);useEffect(()=>()=>geometry.dispose(),[geometry]);

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { MmdPhysicsBackend, MmdPhysicsStepContext, MmdDirectBufferPhysicsBackend, MmdPhysicsStepBufferLayout } from "@yohawing/three-mmd-loader/physics";
 import { createCustomBulletMmdPhysicsBackend } from "@yohawing/three-mmd-loader/physics";
 import { createControllerColliderPhysicsBackend, createDynamicSelfCollisionPhysicsBackend, createPhysicsDiagnosticsBackend } from "./mmdPhysics";
+import { createPropColliderFeed, propColliderShape } from '../play/propColliders';
 
 const identity = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
 const context = (): MmdPhysicsStepContext => ({
@@ -47,6 +48,24 @@ describe("XR collider physics regression", () => {
     expect(query).toHaveBeenCalledWith(2, 2);
     expect(hand.debugControllerContactCount()).toBe(1);
     expect(query).toHaveBeenCalledWith(4, 12);
+  });
+
+  it('places both manufactured tool profiles after the 14 XR slots, sharing an existing helper group without emitting hand contacts',()=>{
+    const feed=createPropColliderFeed(),m=feed.getMatrices().map(x=>new Float32Array(x.elements));
+    const step=vi.fn((_context:MmdPhysicsStepContext)=>({simulated:true}));
+    const range=vi.fn(()=>[{rigidBodyIndexA:0,rigidBodyIndexB:29}]); // model -> first prop
+    const prop=createControllerColliderPhysicsBackend({name:'native',disabled:false,disposed:false,step,debugPhysicsContactsForRigidBodyRange:range} as MmdPhysicsBackend,
+      ()=>m,2,undefined,.5,0,propColliderShape,'prop');
+    const hand=createControllerColliderPhysicsBackend(prop,()=>Array(12).fill(identity)),controller=createControllerColliderPhysicsBackend(hand,()=>[identity,identity]);
+    const c=context(),rigidBodies=Array.from({length:15},(_,i)=>({...c.rigidBodies![0],index:i,collisionGroup:i,collisionMask:0}));
+    controller.step({...c,rigidBodies});const all=step.mock.lastCall![0].rigidBodies!;
+    expect(all).toHaveLength(36);expect(all.slice(29).map(b=>b.shape)).toEqual(m.map((_,i)=>propColliderShape(i,2)));
+    expect(all[29].collisionGroup).toBe(all[15].collisionGroup);expect(all[29].collisionMask).toBe(0x7fff);
+    expect(all[0].collisionMask!&(1<<all[29].collisionGroup!)).not.toBe(0);
+    expect(controller.debugControllerContactCount()).toBe(0);expect(hand.debugControllerContactCount()).toBe(0);expect(prop.debugControllerContactCount()).toBe(0);
+    expect(range.mock.calls).toEqual([[15,2],[17,12]]);
+    m[3][13]=.42;controller.step({...c,rigidBodies});expect(step.mock.lastCall![0].rigidBodies).toBe(all);
+    m[3][13]=-1000;m[6][13]=.6;controller.step({...c,rigidBodies});expect(step.mock.lastCall![0].rigidBodies).toBe(all);
   });
 
   it("normalizes scaled matrices without scaling away translation or radius", () => {

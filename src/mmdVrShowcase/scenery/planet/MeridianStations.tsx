@@ -1,9 +1,11 @@
 import {useLayoutEffect,useMemo,useRef} from 'react';
 import {useFrame} from '@react-three/fiber';
-import {Color,Group,InstancedMesh,Object3D,Quaternion,Vector3} from 'three';
+import {Color,Group,InstancedMesh,Object3D,Vector3} from 'three';
 import {PaintedParts,ball,box,rod,turn} from '../../play/modelParts';
 import {stations,crustRadius} from './opalTerrain';
 import {PLANET_RADIUS as R} from './planetLayout';
+import {courseUp} from './opalCourse';
+import {sampleInk} from './opalSurvey';
 
 const cream='#ffe8b4',brass='#cf874d',enamel='#156269',glass='#9fe4cf',seal='#28374c';
 // Same pose as the runtime collider. All detail stays on one column, wholly
@@ -32,7 +34,6 @@ function buildStation(s:typeof stations[number]){
     collar(h*.37,r*.57,.035,cream);
     if(s.style==='fork'){
       for(const side of [-1,1]){g.add(rod([side*r*.42,h*.53,0],[side*r*.74,h*.91,0],.097,.065,7),brass);g.add(ball(side*r*.74,h*.91,0,.071,.104,.071,8),cream);}
-      g.add(turn([[0,h*.59],[r*.27,h*.73],[0,h*.92]],6),glass);
     }else{
       g.add(turn([[0,h*.52],[r*.53,h*.59],[r*.41,h*.78],[.06,h*.86],[0,h*.87]],8),glass);
       g.add(turn([[0,h*.84],[r*.62,h*.80],[r*.54,h*.85],[.08,h*.92],[0,h]],10),cream);
@@ -42,18 +43,23 @@ function buildStation(s:typeof stations[number]){
   g.add(ball(0,.26,r*.82,.11,.07,.022,10),cream);
   return g.finish();
 }
-function Station({s}:{s:typeof stations[number]}){
+function Station({s,lamps}:{s:typeof stations[number];lamps:number}){
   const geo=useMemo(()=>buildStation(s),[s]),a=useRef<Group>(null);
+  const west=s.name==='west-prism',lit=Boolean(lamps&(west?1:2)),colour=west?sampleInk.aqua:sampleInk.coral;
   useLayoutEffect(()=>()=>geo.dispose(),[geo]);
   useFrame((_,dt)=>{if(a.current)a.current.rotation.y+=Math.min(.1,dt)*.46;});
   return <group name={'planet:'+s.name} position={s.base} quaternion={s.rotation}>
     <mesh geometry={geo}><meshStandardMaterial vertexColors roughness={.61} metalness={.08}/></mesh>
+    {s.style==='fork'&&<group name={'survey:lamp-'+(west?'aqua':'coral')} userData={{lit}}>
+      <mesh position-y={s.height*.75} scale={[s.r*.44,s.height*.20,s.r*.44]}><octahedronGeometry args={[1]}/><meshStandardMaterial color={lit?colour:'#677e7f'} emissive={lit?colour:'#000000'} emissiveIntensity={.85} roughness={.34}/></mesh>
+      <mesh position-y={s.height*.54}><cylinderGeometry args={[s.r*.64,s.r*.64,.065,10]}/><meshBasicMaterial color={lit?colour:'#637071'} toneMapped={false}/></mesh>
+    </group>}
     {s.style==='beacon'&&<group ref={a} position-y={s.height*.68} rotation-z={.22}>
       <mesh rotation-x={Math.PI/2}><torusGeometry args={[s.r*.78,.023,8,48]}/><meshBasicMaterial color="#92fce3"/></mesh>
       <mesh position-x={s.r*.77}><octahedronGeometry args={[.065]}/><meshBasicMaterial color="#ffe69b"/></mesh></group>}
   </group>;
 }
-export function MeridianStations(){return <>{stations.map(s=><Station key={s.name} s={s}/>)}</>;}
+export function MeridianStations({lamps}:{lamps:number}){return <>{stations.map(s=><Station key={s.name} s={s} lamps={lamps}/>)}</>;}
 
 /** A few slowly drifting phosphor grains around the two mineral springs.
  * One draw, no extra lights, textures or collision bodies. */
@@ -70,9 +76,10 @@ export function SpringLights(){
 
 export function MeridianMarks(){
   const inst=useRef<InstancedMesh>(null);
-  useLayoutEffect(()=>{const m=inst.current!,v=new Vector3(),axis=new Vector3(-1,0,0),o=new Object3D(),q=new Quaternion(),c=new Color();
-    for(let i=0;i<110;i++){const a=(i+5)*2*Math.PI/120;v.set(0,Math.cos(a),-Math.sin(a));o.position.copy(v).multiplyScalar(crustRadius(v.x,v.y,v.z)+.018);o.position.y-=R;
-      o.quaternion.copy(q.setFromAxisAngle(axis,a));o.scale.set(i%5===0?.28:.10,.022,i%5===0?.13:.08);o.updateMatrix();m.setMatrixAt(i,o.matrix);m.setColorAt(i,c.set(i%5===0?'#ffe6a6':'#a8ede1'));}
+  useLayoutEffect(()=>{const m=inst.current!,o=new Object3D(),c=new Color();
+    for(let i=0;i<110;i++){const a=(i+5)*2*Math.PI/120,v=courseUp(a);o.position.copy(v).multiplyScalar(crustRadius(v.x,v.y,v.z)+.019);o.position.y-=R;
+      const next=courseUp(a+.001),tangent=next.addScaledVector(v,-next.dot(v)).normalize();o.up.copy(v);o.lookAt(tangent.add(o.position));
+      o.scale.set(i%5===0?.15:.073,.022,i%5===0?.058:.045);o.updateMatrix();m.setMatrixAt(i,o.matrix);m.setColorAt(i,c.set(i%5===0?'#a5724b':'#8b6850'));}
     m.instanceMatrix.needsUpdate=true;m.computeBoundingSphere();},[]);
   return <instancedMesh ref={inst} args={[undefined,undefined,110]}><octahedronGeometry args={[1]}/><meshStandardMaterial roughness={.55}/></instancedMesh>;
 }

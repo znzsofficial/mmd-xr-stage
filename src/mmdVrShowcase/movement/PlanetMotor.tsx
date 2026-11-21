@@ -10,7 +10,7 @@ import {observePlanet,planetCounters} from './planetDiagnostics';
 import {createPlanetPad} from './planetPad';
 import {eyeLift,headMargin} from './eyeHeight';
 import {terrainAltitude,stationBlocks} from '../scenery/planet/opalTerrain';
-import {departureAt,moonObstructed,rideStep,startRide,type Moon,type Ride} from '../scenery/planet/windAtlas';
+import {departureAt,moonObstructed,rideStep,startRide,type WalkMoon,type Ride} from '../scenery/planet/windAtlas';
 import {moonRadius} from '../scenery/planet/moonSurface';
 import {moonWalk} from './moonWalk';
 import {startTwinLeap,stepTwinLeap,type TwinLeap} from './twinLeap';
@@ -32,7 +32,7 @@ export default function PlanetMotor({originRef,veilRef,dragging}:Props){
   const [s]=useState(()=>({...createTraveller(),l:newStick(),r:newStick(),offset:new Vector3(),tmp:new Vector3(),travel:new Vector3(),
     safe:new Vector3(),prev:new Vector3(),eye:new Vector3(),localEye:new Vector3(),head:new Quaternion(),safeBasis:new Quaternion(),epoch:-1,free:false,snap:true,a:false,
     active:null as PlanetDriver|null,parked:null as PlanetDriver|null,diag:planetCounters(),pad:createPlanetPad(),lastLift:0,
-    moon:null as Moon|null,ride:null as Ride|null,leap:null as TwinLeap|null,xDown:false}));
+    moon:null as WalkMoon|null,ride:null as Ride|null,leap:null as TwinLeap|null,xDown:false,windSupportFrames:2}));
   useLayoutEffect(()=>{const unbind=observePlanet(s.diag);return()=>{unbind();s.pad.dispose();};},[s]);
   useFrame(({gl,scene},elapsed,frame)=>{
     const origin=originRef.current,space=gl.xr.getReferenceSpace();if(!origin||!frame)return;
@@ -45,13 +45,13 @@ export default function PlanetMotor({originRef,veilRef,dragging}:Props){
     const pose=space&&(!frame.session.visibilityState||frame.session.visibilityState==='visible')&&frame.getViewerPose(space);
     const ready=d?.ready()?d:null;if(diag.backend!=='failed')diag.backend=ready?'rapier':'pending';
     if(!ready)s.parked=null;
-    if(!pose){s.snap=false;s.a=s.xDown=true;if(s.active){if(s.active===ready)ready.stop();s.active=null;s.velocity.set(0,0,0);}return;}
+    if(!pose){s.snap=false;s.a=s.xDown=true;s.windSupportFrames=0;if(s.active){if(s.active===ready)ready.stop();s.active=null;s.velocity.set(0,0,0);}return;}
     diag.poseFrames++;
     const {position:p,orientation:q}=pose.transform,free=prefs.movementMode==='free';
     const dt=Math.min(.05,Math.max(0,elapsed)),speed=WALK_SPEED[prefs.walkSpeedPref==='auto'?'normal':prefs.walkSpeedPref];
     const reset=s.epoch!==viewEpoch;
     if(reset){s.moon=null;s.ride=null;s.leap=null;s.xDown=s.l.primary;s.epoch=viewEpoch;s.up.copy(north);s.basis.identity();s.offset.set(p.x,0,p.z);s.foot.set(0,0,1.9);transport(s);
-      s.safe.copy(s.foot);s.safeBasis.copy(s.basis);s.grounded=true;s.velocity.set(0,0,0);s.active=null;s.a=s.r.primary;s.snap=true;s.free=false;}
+      s.safe.copy(s.foot);s.safeBasis.copy(s.basis);s.grounded=true;s.velocity.set(0,0,0);s.active=null;s.a=s.r.primary;s.snap=true;s.free=false;s.windSupportFrames=2;}
     if(free!==s.free){
       if(free){if(s.leap)s.moon=s.leap.from; // safe foot is the last grounded take-off point
         s.ride=null;s.leap=null;if(!reset)s.foot.addScaledVector(s.up,s.lastLift);}
@@ -76,7 +76,11 @@ export default function PlanetMotor({originRef,veilRef,dragging}:Props){
       }}
     const lift=free?0:eyeLift(prefs.normalEyeOffset,p.y,room);s.lastLift=lift;s.localEye.y+=lift;
     s.prev.copy(s.foot);
-    if(!free&&!dragging&&!s.ride&&!s.leap&&s.l.primary&&!s.xDown&&!useBackpack.getState().draft){
+    // Ecctrl's support cast has 28 cm of forgiveness, and its jump impulse
+    // can be applied after this frame callback. A fresh A or fast radial
+    // ascent/descent breaks support even if the cached cast still says true.
+    s.windSupportFrames=!free&&!s.ride&&!s.leap&&!jump&&s.grounded&&Math.abs(s.velocity.dot(s.up))<.30?Math.min(2,s.windSupportFrames+1):0;
+    if(!dragging&&s.windSupportFrames===2&&s.l.primary&&!s.xDown&&!useBackpack.getState().draft){
       // Account for the real room-scale offset when the visitor steps into
       // the collar. Rebase without a camera jump and land over the return pad.
       const actual=s.tmp.set(s.localEye.x,0,s.localEye.z).applyQuaternion(s.basis).add(s.foot);

@@ -2,9 +2,11 @@ import {Bone,BufferGeometry,DataTexture,Float32BufferAttribute,Group,MeshBasicMa
 import {expect,it,vi} from 'vitest';
 import {makeWandHead} from './boutiqueModels';
 import {createRoomWand,createWandBlend} from './wandContact';
-import {capR,capY,createWandHead,mountWandHead} from './wandHead';
-import {setWandResponse,wandMorphNames} from './wandResponse';
+import {capR,capY,createSiliconeHead,createWandHead,mountWandHead,siliconeCap,wandCap} from './wandHead';
+import {setWandResponse,setWandResponseEnabled,useWandResponse,wandMorphNames} from './wandResponse';
 import {createWandSurface} from './wandSurface';
+import {centerZ,siliconeCrown,siliconeMount,siliconeTilt} from './siliconeProfile';
+import {makeSilicone} from './workshopModels';
 
 function rig(){
   const root=new Group(),g=new BufferGeometry(),m=new MeshBasicMaterial();
@@ -20,7 +22,7 @@ function at(x:number,y:number,z:number){const pivot=new Group();pivot.position.s
 it('requires actual posed triangles (including triangle interiors); excludes empty AABB corners, handle-only overlap, hidden material, hidden actor and proxy ranges',()=>{
   const {model,mesh,m,root,g}=rig(),h=hit(),proxy=new SkinnedMesh(g.clone(),m);proxy.bind(mesh.skeleton,mesh.bindMatrix);root.add(proxy);
   g.setDrawRange(0,0);model.renderOrderMeshes.push(proxy);
-  const pass=createWandSurface(model),query=(x:number,y:number,z:number)=>{pass.query(at(x,y,z),h,Infinity);return h.depth;};
+  const pass=createWandSurface(model),query=(x:number,y:number,z:number)=>{pass.query(at(x,y,z),wandCap,h,Infinity);return h.depth;};
   expect(query(.3,.3,.001)).toBe(0);expect(query(-.1,-.1,capR+.0001)).toBe(0);
   expect(query(-.1,-.1,capR-.003)).toBeCloseTo(.003/capR);expect(h.axis.z).toBeCloseTo(-1);
   expect(query(-.1,-.1,.08)).toBe(0);
@@ -45,8 +47,8 @@ it('uses the current scaled/rotated wrist pose, animated bone and a reordered sp
     const center=new Vector3(-.15,-.15,.85).applyMatrix4(bone.matrixWorld);
     wrist.position.copy(center);wrist.quaternion.setFromEuler(bone.rotation);wrist.updateMatrixWorld(true);
     // Make the cap center coincide with the triangle independent of hand rotation.
-    pass.query(pivot,h,Infinity);expect(h.depth).toBeCloseTo(1,4);
-    mesh.morphTargetInfluences[1]=0;pass.query(pivot,h,Infinity);expect(h.depth).toBe(0);mesh.morphTargetInfluences[1]=1;
+    pass.query(pivot,wandCap,h,Infinity);expect(h.depth).toBeCloseTo(1,4);
+    mesh.morphTargetInfluences[1]=0;pass.query(pivot,wandCap,h,Infinity);expect(h.depth).toBe(0);mesh.morphTargetInfluences[1]=1;
   }
 });
 
@@ -73,8 +75,8 @@ it.each(['Sdef','Qdef'])('samples the rendered %s rotation, not a linearly colla
   bone.rotation.y=-Math.PI/3;second.rotation.y=Math.PI/3;root.updateMatrixWorld(true);
   // Equal antipodal rotations average to identity in both nonlinear modes.
   // Linear blend would instead put this tiny triangle at x=.5.
-  const pass=createWandSurface(model),h=hit();pass.query(at(1,0,.01),h,Infinity);expect(h.depth).toBeGreaterThan(.5);
-  pass.query(at(.5,0,.01),h,Infinity);expect(h.depth).toBe(0);
+  const pass=createWandSurface(model),h=hit();pass.query(at(1,0,.01),wandCap,h,Infinity);expect(h.depth).toBeGreaterThan(.5);
+  pass.query(at(.5,0,.01),wandCap,h,Infinity);expect(h.depth).toBe(0);
 });
 
 it('deforms only the touching side of the silicone head, and releases exactly',()=>{
@@ -94,7 +96,7 @@ it('held XR requires the same XRFrame; pulses once on entry, follows a stationar
   const session=Object.assign(new EventTarget(),{visibilityState:'visible'}) as unknown as XRSession;
   const pulse=vi.fn(()=>true);Object.assign(hand.userData,{heldToy:'wand',propUsable:true,gamepad:{hapticActuators:[{pulse}]}});
   const step=(fresh=true)=>{const frame={session} as XRFrame;if(fresh)hand.userData.propFrame=frame;
-    room.restore();expect(mesh.morphTargetInfluences).toEqual([.25]);room.advance(scene,null,true,frame,true,'normal',[{id:'actor',visible:true}],()=>model);};
+    room.restore();expect(mesh.morphTargetInfluences).toEqual([.25]);room.advance(scene,null,'wand',true,frame,true,'normal',[{id:'actor',visible:true}],()=>model);};
   try{
     // Cold preparation may take more than one small XR slice.
     for(let i=0;i<4;i++)step();expect(mesh.morphTargetInfluences[0]).toBeGreaterThan(.25);expect(pulse).toHaveBeenCalledTimes(1);
@@ -102,10 +104,55 @@ it('held XR requires the same XRFrame; pulses once on entry, follows a stationar
     step(false);expect(mesh.morphTargetInfluences).toEqual([.25]);expect(geo.attributes.position.array).toEqual(raw);
     step();session.dispatchEvent(new Event('end'));expect(mesh.morphTargetInfluences).toEqual([.25]);expect(geo.attributes.position.array).toEqual(raw);
     // Screen wrist uses the same actual geometry, independent of XR input.
-    room.advance(scene,hand,false,undefined,true,'normal',[{id:'actor',visible:true}],()=>model);expect(mesh.morphTargetInfluences[0]).toBeGreaterThan(.25);
+    room.advance(scene,hand,'wand',false,undefined,true,'normal',[{id:'actor',visible:true}],()=>model);expect(mesh.morphTargetInfluences[0]).toBeGreaterThan(.25);
     expect(pulse).toHaveBeenCalledTimes(1);room.restore();pivot.position.z=.12;
-    room.advance(scene,hand,false,undefined,true,'normal',[{id:'actor',visible:true}],()=>model);expect(mesh.morphTargetInfluences).toEqual([.25]);expect(geo.attributes.position.array).toEqual(raw);
+    room.advance(scene,hand,'wand',false,undefined,true,'normal',[{id:'actor',visible:true}],()=>model);expect(mesh.morphTargetInfluences).toEqual([.25]);expect(geo.attributes.position.array).toEqual(raw);
   }finally{room.reset();unmount();geo.dispose();}
+});
+
+it('uses the silicone crown dimensions on the posed visible skin at either owner, independent of wand motor and expression',()=>{
+  const {model,mesh,bone,root,m}=rig(),scene=new Scene(),holder=new Group(),part=new Group(),geom=makeSilicone();
+  const room=createRoomWand(),unmount=mountWandHead(createSiliconeHead(part,geom)),before=useWandResponse.getState();
+  const p=geom.attributes.position,n=geom.attributes.normal,raw=p.array.slice(),norm=n.array.slice();
+  const session=Object.assign(new EventTarget(),{visibilityState:'visible'}) as unknown as XRSession;
+  const pulse=vi.fn(()=>true);Object.assign(holder.userData,{heldToy:'dildo',propUsable:true,gamepad:{hapticActuators:[{pulse}]}});
+  holder.add(part);part.position.set(...siliconeMount);part.rotation.x=siliconeTilt;holder.scale.setScalar(1.45);holder.rotation.x=.25;
+  scene.add(root,holder);root.rotation.y=Math.PI/2;root.position.set(-.53,.12,.46);root.scale.setScalar(.68);bone.position.z=.09;root.updateMatrixWorld(true);
+  const target=bone.localToWorld(new Vector3(-.1,-.1,0));
+  function place(center:Vector3,offset:number){holder.position.set(0,0,0);const origin=part.localToWorld(center.clone());
+    holder.position.copy(target).sub(origin);holder.position.x+=offset*holder.scale.x;}
+  function step(held:boolean,tracked=true){const frame=held?{session} as XRFrame:undefined;if(tracked)holder.userData.propFrame=frame;
+    room.restore();room.advance(scene,held?null:holder,'dildo',held,frame,false,'normal',[{id:'s',visible:true}],()=>model);}
+  try{
+    mesh.morphTargetDictionary={Smile:0};mesh.morphTargetInfluences=[.21];setWandResponse('s','Smile',1);setWandResponseEnabled(false);
+    place(siliconeCap.center,.021);step(true);expect(p.array).toEqual(raw);expect(pulse).not.toHaveBeenCalled();
+    place(siliconeCap.center,.009);for(let i=0;i<4;i++)step(true);
+    expect(p.array).not.toEqual(raw);expect(pulse).toHaveBeenCalledTimes(1);expect(mesh.morphTargetInfluences).toEqual([.21]);
+    let moved=0,forbidden=0,maxDelta=0;
+    for(let i=0;i<p.count;i++){const x=raw[3*i],y=raw[3*i+1],d=p.getX(i)-x;
+      if(d){moved++;if(x>=0||y<=.085||d<0)forbidden++;maxDelta=Math.max(maxDelta,d);}}
+    expect(moved).toBeGreaterThan(10);expect(forbidden).toBe(0);expect(maxDelta).toBeCloseTo(.0035,4);
+    setWandResponseEnabled(true);room.resetWand();expect(p.array).not.toEqual(raw);
+    step(true);expect(mesh.morphTargetInfluences).toEqual([.21]);expect(pulse).toHaveBeenCalledTimes(1);
+    step(true,false);expect(p.array).toEqual(raw);expect(n.array).toEqual(norm);
+    holder.userData.propUsable=false;step(true);expect(p.array).toEqual(raw);
+    step(false);expect(p.array).not.toEqual(raw);expect(pulse).toHaveBeenCalledTimes(1);
+    m.visible=false;step(false);expect(p.array).toEqual(raw);m.visible=true;
+    step(false);bone.position.z+=.3;root.updateMatrixWorld(true);step(false);expect(p.array).toEqual(raw);expect(n.array).toEqual(norm);
+  }finally{room.reset();unmount();geom.dispose();useWandResponse.setState(before);}
+});
+
+it('compresses the crown around the fixed nozzle on end-on contact and restores its manufactured normals',()=>{
+  const g=makeSilicone(),p=g.attributes.position,n=g.attributes.normal,raw=p.array.slice(),norm=n.array.slice(),head=createSiliconeHead(new Group(),g);
+  const pitch=siliconeCrown.pitch;head.press(new Vector3(0,Math.cos(pitch),Math.sin(pitch)),.9);
+  let moved=0,nozzleMoved=0,fixedLip=0;
+  for(let i=0;i<p.count;i++){
+    const [x,y,z]=[raw[3*i],raw[3*i+1],raw[3*i+2]],delta=Math.hypot(x-p.getX(i),y-p.getY(i),z-p.getZ(i));
+    if(y>.111&&Math.hypot(x,z-centerZ(y))<=.005){fixedLip++;if(delta)nozzleMoved++;}
+    if(y>.11&&delta>.001)moved++;
+  }
+  expect(moved).toBeGreaterThan(10);expect(fixedLip).toBeGreaterThan(10);expect(nozzleMoved).toBe(0);
+  head.release();expect(p.array).toEqual(raw);expect(n.array).toEqual(norm);g.dispose();
 });
 
 it('slices the cold topology build rather than scanning a dense input in its first callback',()=>{

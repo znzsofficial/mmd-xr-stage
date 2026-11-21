@@ -1,6 +1,6 @@
 import { Vector3, type Object3D, type Scene, type SkinnedMesh } from 'three';
 import {createMmdVrHapticDriver,createMmdVrHapticGate,getMmdVrHapticFeedback,type MmdVrHapticLevel} from '../mmdVrHaptics';
-import {findWandInput,type WandHead} from './wandHead';
+import {findWandInput,type ContactToy,type WandHead} from './wandHead';
 import {useWandResponse,type WandResponse} from './wandResponse';
 import {createWandSurface,type WandModel} from './wandSurface';
 
@@ -36,10 +36,10 @@ export function createRoomWand(){
     session=next;
   };
   function reset(){blend.restore();pressed?.release();pressed=null;pad=null;gate.reset();haptics.reset();listen(null);}
-  function advance(scene:Scene,wrist:Object3D|null,held:boolean,frame:XRFrame|undefined,active:boolean,level:MmdVrHapticLevel,
+  function advance(scene:Scene,wrist:Object3D|null,toy:ContactToy,held:boolean,frame:XRFrame|undefined,motorOn:boolean,level:MmdVrHapticLevel,
     models:readonly {id:string;visible:boolean}[],getModel:(id:string)=>WandModel|null){
-    const settings=useWandResponse.getState();
-    const input=settings.enabled&&findWandInput(scene,wrist,held,frame);
+    const settings=toy==='wand'?useWandResponse.getState():null,active=toy==='dildo'||motorOn;
+    const input=settings?.enabled!==false&&findWandInput(scene,wrist,toy,held,frame);
     if(!input){if(pressed||session)reset();return;}
     const {head,gamepad}=input;
     if(pad!==gamepad||pressed!==head){reset();pressed=head;pad=gamepad;}
@@ -52,12 +52,15 @@ export function createRoomWand(){
       // entire cold/hot allowance is divided among the mounted actor slots.
       const deadline=performance.now()+(active?2.4:1)/Math.max(1,models.length);
       if(!active){surface.warm(deadline);continue;}
-      surface.query(head.pivot,hit,deadline);
+      surface.query(head.pivot,head.cap,hit,deadline);
       if(hit.depth>best){best=hit.depth;bestAxis.copy(hit.axis);actor=model;id=m.id;}
     }
     if(!actor){head.release();gate.update(false,performance.now());return;}
-    head.press(bestAxis,best);blend.apply(actor.mesh,settings.byActor[id],best*4);
-    if(gate.update(true,performance.now())&&pad&&level!=='off')void haptics.pulse(pad,getMmdVrHapticFeedback(.5,level));
+    head.press(bestAxis,best);if(settings)blend.apply(actor.mesh,settings.byActor[id],best*4);
+    // The prop's visible surface owns its one feedback edge. A wrist has no
+    // actuator: it must not consume the next controller's cooldown.
+    if(pad&&gate.update(true,performance.now())&&level!=='off')void haptics.pulse(pad,getMmdVrHapticFeedback(.5,level));
   }
-  return {restore:blend.restore,advance,reset};
+  function resetWand(){if(pressed?.toy==='wand')reset();}
+  return {restore:blend.restore,advance,reset,resetWand};
 }

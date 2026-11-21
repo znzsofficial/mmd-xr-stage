@@ -3,7 +3,8 @@ import {
   InstancedBufferAttribute, InstancedBufferGeometry, Line3, Sphere, Vector3,
 } from 'three';
 import {terrainAltitude} from './opalTerrain';
-import {lanes,moons,windPoint} from './windAtlas';
+import {lanes,allMoons,windPoint} from './windAtlas';
+import {leapRoutes} from './leapAtlas';
 
 // Three local wakes, not a shell around the viewer. The long one passes
 // *behind* the binary; the middle one passes below the wind approaches and
@@ -39,13 +40,12 @@ const clasts = ['#a38675','#748698','#c49d81','#86788c','#a5acad'];
 type OpenAir=(p:Vector3,sweptRadius:number)=>boolean;
 function atlasClearance():OpenAir {
   const flights=lanes.flatMap(l=>Array.from({length:65},(_,i)=>windPoint(l,i/64,new Vector3())));
-  const salt=moons.find(m=>m.id==='salt'),glaze=moons.find(m=>m.id==='glaze');
-  const strait=salt&&glaze?new Line3(salt.centre,glaze.centre):null,nearest=new Vector3();
+  const straits=leapRoutes.filter(r=>r.pad.id<r.target.id).map(r=>new Line3(r.pad.foot,r.target.foot)),nearest=new Vector3();
   return (p,r)=>{
     if(terrainAltitude(p)<r+2.6)return false;
     // Walkers, local relief and station equipment stay inside these envelopes.
-    if(moons.some(m=>p.distanceToSquared(m.centre)<(m.radius+3+r)**2))return false;
-    if(strait&&strait.closestPointToPoint(p,true,nearest).distanceToSquared(p)<(4.5+r)**2)return false;
+    if(allMoons.some(m=>p.distanceToSquared(m.centre)<(m.radius+3+r)**2))return false;
+    if(straits.some(line=>line.closestPointToPoint(p,true,nearest).distanceToSquared(p)<(4.5+r)**2))return false;
     // Allow for the off-centre takeoff, standing eye and sample spacing.
     return !flights.some(f=>p.distanceToSquared(f)<(3.5+r)**2);
   };

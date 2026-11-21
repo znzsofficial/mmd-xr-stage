@@ -263,6 +263,8 @@ export type MmdRuntimeOptions = {
   handCollidersEnabled?: () => boolean;
   handColliderRadius?: () => number;
   handShape?: ColliderShapeFactory;
+  propColliders?: () => readonly THREE.Matrix4[];
+  propShape?: ColliderShapeFactory;
   physicsQuality?: () => MmdPhysicsQuality;
   physicsDynamicSelfCollision?: () => boolean;
   prepareModel?: (root: THREE.Object3D) => void;
@@ -391,20 +393,24 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
     ) => {
       if (!getWorldMatrices) return undefined;
       const colliderMatrices = Array.from({ length: slotCount }, () => new Float32Array(16));
+      // A stowed tool (or the inactive XR input family) needs no inverse,
+      // basis conversion or root update. Wrappers copy this immutable input.
+      const parked=new Float32Array(new THREE.Matrix4().makeTranslation(0,PARK_Y,0).elements);
+      const hiddenMatrices=colliderMatrices.map(()=>parked);
+      const isParked=(m:THREE.Matrix4)=>m.elements[12]===0&&m.elements[13]===PARK_Y&&m.elements[14]===0;
       return () => {
         const root = colliderRoot;
         const worldMatrices = getWorldMatrices();
         if (!root || worldMatrices.length !== colliderMatrices.length) return [];
+        if(getEnabled?.()===false||worldMatrices.every(isParked))return hiddenMatrices;
         root.updateWorldMatrix(true, false);
         unitRoot.copy(root.matrixWorld);
         const scale = Math.min(10, Math.max(0.01, Number(root.userData.mmdVisualScale) || 1));
         visualRoot.copy(unitRoot).scale(visualScale.setScalar(scale));
         inverseVisualRoot.copy(visualRoot).invert();
         worldToPhysics.multiplyMatrices(unitRoot, inverseVisualRoot);
-        const enabled = getEnabled?.() !== false;
         for (let index = 0; index < colliderMatrices.length; index += 1) {
-          const world = worldMatrices[index].elements;
-          if (!enabled || (world[12] === 0 && world[13] === PARK_Y && world[14] === 0)) {
+          if (isParked(worldMatrices[index])) {
             mappedCollider.makeTranslation(0, PARK_Y, 0);
           } else {
             mappedCollider.multiplyMatrices(worldToPhysics, worldMatrices[index]);
@@ -428,6 +434,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       handCollidersEnabled,
       handColliders?.().length ?? 0,
     );
+    const propColliderProvider=createMappedColliderProvider(options.propColliders,undefined,options.propColliders?.().length??0);
     // One Bullet world per model (library world holds a single uploaded model identity).
     const physicsDisplay = withPhysics ? new PhysicsPoseDisplay() : undefined;
     const handEligibility={mask:0};
@@ -438,7 +445,9 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
             return (controllerColliderRadius?.() ?? 0.08) / scale;
           },
            handColliders: handColliderProvider,
-           onEligibleColliders:handColliderProvider ? mask=>{handEligibility.mask=mask >>> (colliderProvider?2:0);} : undefined,
+           onEligibleColliders:handColliderProvider ? mask=>{handEligibility.mask=(mask >>> (colliderProvider?2:0)) & 0xfff;} : undefined,
+           propColliders:propColliderProvider,
+           propShape:options.propShape,
           handShape: options.handShape,
           simulationDelta: () => stepDelta,
           modelScale: () => Math.min(10, Math.max(0.01, Number(colliderRoot?.userData.mmdVisualScale) || transform.scale)),

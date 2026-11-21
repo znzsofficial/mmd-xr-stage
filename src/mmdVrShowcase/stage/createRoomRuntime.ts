@@ -9,6 +9,7 @@ import { useMmdVrStore } from '../mmdVrStore';
 import { prepareMmdVrModel } from '../prepareMmdVrModel';
 import { prepareModelGpu } from '../prepareModelGpu';
 import { runtimeTiming } from '../runtimeTiming';
+import { propColliderShape, type createPropColliderFeed } from '../play/propColliders';
 
 const friction = { low: .2, medium: .5, high: .9 } as const;
 const restitution = { none: 0, low: .25, high: .55 } as const;
@@ -16,7 +17,7 @@ const restitution = { none: 0, low: .25, high: .55 } as const;
 /** Wire the product-specific hooks to one active room. Read contact preferences
  * on demand: a menu edit must not reconstruct the runtime or its Bullet world. */
 export function createRoomRuntime(scene: Scene, gl: WebGLRenderer, camera: Camera,
-  motionCache?: RoomMotionCache, alphaTiles?: RoomAlphaTiles) {
+  motionCache?: RoomMotionCache, alphaTiles?: RoomAlphaTiles, props?:ReturnType<typeof createPropColliderFeed>) {
   const prefs = () => useMmdVrStore.getState().prefs;
   const recordXR = useMmdVrStore.getState().presentation === 'xr';
   return createMmdRuntimeHandle(scene, {
@@ -32,6 +33,8 @@ export function createRoomRuntime(scene: Scene, gl: WebGLRenderer, camera: Camer
     handCollidersEnabled: () => gl.xr.isPresenting,
     handColliderRadius: () => handReferenceRadius(prefs().physicsColliderRadius),
     handShape: handContactShape,
+    propColliders: props?.getMatrices,
+    propShape: propColliderShape,
     controllerColliderFriction: () => friction[prefs().physicsColliderFriction],
     controllerColliderRestitution: () => restitution[prefs().physicsColliderRestitution],
     prepareModel: prepareMmdVrModel,
