@@ -1,6 +1,10 @@
 // Prototype dimensions in metres, not measurements from the game. Facing the
 // twin front doors from outside, east/LOUNGE is on the left (-X), west on +X.
 export const UPPER = 3.4, ROOF = 6.65;
+// Face the building from +Z. The setback is upstairs only: the strip is
+// the roof of the front of the lower hall, not a canopy over an outdoor void.
+export const upperFrontZ=4.5,cladding=.158,frontWalkDepth=2;
+export const frontLip=upperFrontZ+cladding+frontWalkDepth,lowerFrontZ=frontLip-cladding;
 export const entry = {x:-2.35,z:8.5};
 export const opening = {left:-3.45,right:3.45,back:-1.84,front:1.42};
 export const skylight = {left:-2.95,right:2.7,back:-1.16,front:1.88};
@@ -17,12 +21,12 @@ function slab(tag:string,l:number,r:number,b:number,f:number,top:number,h:number
 const turf='#799687', tile='#626d7e', upperTile='#616875', teal='#569699', ivory='#c1b7a8';
 // Base court and sunken lounge are distinct travel/pick surfaces. All treads
 // have real tops; upper gallery is four plates, never an invisible whole quad.
-slab('court',-8,13,4.5,13,0,.20,'#999b95');
+slab('court',-8,13,frontLip,13,0,.20,'#999b95');
 slab('court',-8,13,-6,-4.5,0,.20,'#999b95');
-slab('court',-8,-7,-4.5,4.5,0,.20,'#999b95');
-slab('court',7,14,-4.5,4.5,0,.20,'#90959e');
+slab('court',-8,-7,-4.5,frontLip,0,.20,'#999b95');
+slab('court',7,14,-4.5,frontLip,0,.20,'#90959e');
 slab('lounge-court',-15,-8,-6,13,-.68,.22,turf);
-slab('hall-tile',-7,7,-4.5,4.5,0,.14,tile);
+slab('hall-tile',-7,7,-4.5,frontLip,0,.14,tile);
 for(let i=0;i<4;i++)slab('lounge-step',-8-(i+1)*.43,-8-i*.43,-2.0,4.15,-.17*i,.20,'#999c98');
 function ring(tag:string,hole:typeof opening,top:number,h:number,ink:string,deck:boolean){
   const {left:l,right:r,back:b,front:f}=hole;
@@ -31,32 +35,36 @@ function ring(tag:string,hole:typeof opening,top:number,h:number,ink:string,deck
 }
 ring('upper-slab',opening,UPPER,.27,upperTile,true);
 ring('roof',skylight,ROOF,.24,'#475876',false);
-slab('balcony',-7,7,4.5,6.45,UPPER,.28,'#829396');
-slab('west-walk',7,11.25,1.5,6.45,UPPER,.26,'#708496');
-slab('east-balcony',-8.7,-7,-4.45,4.5,UPPER,.26,'#738e88');
+slab('balcony',-7,7,upperFrontZ,frontLip,UPPER,.27,'#829396');
+slab('west-walk',7,11.25,1.5,frontLip,UPPER,.26,'#708496');
+slab('east-balcony',-8.7,-7,-4.45,frontLip,UPPER,.26,'#738e88');
 for(let i=0;i<20;i++)slab('west-step',9.27,11.24,1.5-(20-i)*.31,1.5-(19-i)*.31,(i+1)*UPPER/20,.18,'#84909d');
 
 // Split every wall at its actual door(s), including the header above each.
 type Axis='x'|'z';
-function wall(axis:Axis,at:number,half:number,base:number,height:number,doors:number[],trim:string){
+function wall(axis:Axis,at:number,half:number,base:number,height:number,doors:number[],trim:string,end=half){
   const w=1.78,dh=2.33,solid=(tag:string,a:number,b:number,lo:number,h:number,ink:string,thick:number)=>
     axis==='x'?block(tag,(a+b)/2,lo,at,b-a,h,thick,ink):block(tag,at,lo,(a+b)/2,thick,h,b-a,ink);
   let edge=-half;
-  for(const c of [...doors,half+w/2]){
+  function fill(to:number){if(to<=edge)return;solid('wall',edge,to,base,height,ivory,.26);solid('skirting',edge,to,base,.54,'#966e70',.29);}
+  for(const c of doors){
     const start=c-w/2;
-    if(start>edge){solid('wall',edge,start,base,height,ivory,.26);solid('skirting',edge,start,base,.54,'#966e70',.29);}
-    if(start===half)break;
-    solid('header',start,start+w,base+dh,height-dh,ivory,.26);
-    for(const s of [-1,1]){const p=c+s*(w/2+.077);solid('jamb',p-.077,p+.077,base,dh+.16,trim,.39);}
-    solid('lintel',start-.154,start+w+.154,base+dh,.16,trim,.39);edge=start+w;
+    // End the plaster at the frame, not at the opening: coincident reveal
+    // faces previously produced little ivory triangles in the teal jambs.
+    fill(start-.154);
+    solid('header',start-.154,start+w+.154,base+dh+.16,height-dh-.16,ivory,.26);
+    for(const s of [-1,1]){const p=c+s*(w/2+.077);solid('jamb',p-.077,p+.077,base,dh,trim,.39);}
+    solid('lintel',start-.154,start+w+.154,base+dh,.16,trim,.39);edge=start+w+.154;
   }
+  fill(end);
 }
 for(const y of [0,UPPER]){
   const h=y===0?UPPER-.27:ROOF-UPPER-.24;
-  wall('x',4.5,7,y,h,y===0?[-2.35,2.35]:[0],teal);
+  const front=y===0?lowerFrontZ:upperFrontZ;
+  wall('x',front,7,y,h,y===0?[-2.35,2.35]:[0],teal);
   wall('x',-4.5,7,y,h,[],'#934f50');
-  wall('z',-7,4.5,y,h,y===0?[.05]:[-2.75],'#af685e');
-  wall('z',7,4.5,y,h,y===0?[-2.65,.9]:[-2.7],teal);
+  wall('z',-7,4.5,y,h,y===0?[.05]:[-2.75],'#af685e',front);
+  wall('z',7,4.5,y,h,y===0?[-2.65,.9]:[-2.7],teal,front);
 }
 // Side balcony at the western upper back door and glass-backed gallery.
 slab('west-side',7,9.27,-4.5,1.5,UPPER,.26,'#708496');

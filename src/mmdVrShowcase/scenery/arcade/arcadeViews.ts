@@ -1,6 +1,6 @@
-import {lowerPad,UPPER} from './arcadeLayout';
+import {frontLip,upperFrontZ,lowerPad,UPPER} from './arcadeLayout';
 
-export const arcadeView={entry:[[.28,3.16,12.64],[0,3.33,4.36]],shots:[
+export const arcadeView={entry:[[1.66,4.68,12.64],[0,3.04,frontLip-.46]],shots:[
   {key:'arcHallReturn',eye:[0,1.58,-1.30],aim:[0,1.46,4.65]},
   {key:'arcLowerPad',eye:[lowerPad.x,1.65,lowerPad.z],aim:[5.83,2.18,-.68]},
   {key:'arcUpperEntry',eye:[0,UPPER+1.58,5.86],aim:[0,UPPER+.87,-1.66]},
@@ -15,4 +15,7 @@ export const arcadeView={entry:[[.28,3.16,12.64],[0,3.33,4.36]],shots:[
   {key:'arcLowWest',eye:[-6.96,1.67,.05],aim:[6.80,1.51,.77]},
   {key:'arcGlass',eye:[12.01,1.60,-3.76],aim:[11.53,1.38,1.32]},
   {key:'arcEastCourt',eye:[-8.08,UPPER+1.48,3.61],aim:[-12.41,.85,-.75]},
+  {key:'arcPrintConsole',eye:[4.89,UPPER+1.52,.57],aim:[6.08,UPPER+1.16,-.20]},
+  {key:'arcPrintMural',eye:[-1.92,UPPER+1.48,-3.62],aim:[.09,UPPER+.63,-1.85]},
+  {key:'arcFrontWalk',eye:[-6.42,UPPER+1.54,frontLip-.51],aim:[3.76,UPPER+.83,upperFrontZ+.78]},
 ]} as const;
