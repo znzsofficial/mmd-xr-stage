@@ -27,41 +27,21 @@ Import budgets apply to files, including textures and ZIP contents: **4,096 entr
 
 ## Stage gallery
 
-**[Explore the Opal system](https://mmd-xr-stage.pages.dev/?set=glassPlanet&view=screen).** Five wind collars lead to five walkable moons. Follow the green collar to Reedwater's meadows and lily lagoons, or take a low-gravity jump from Halite to Obsidian. In Quest walk mode use left **X** at a collar and right **A** to jump; on screen use **G** and **Space** at the corresponding views. [Flight guide and surface close-ups](./docs/scenery/opal-planet.md).
+Select a scene to open it in the screen viewer.
 
-**[Arcade Spawn · 电玩厅出生点](https://mmd-xr-stage.pages.dev/?set=arcadeHall&view=screen).** Walk through the twin doors and look up beside the tall signboard to see both the opening in the upper floor and the skylight. Use **G** on screen or the **left X** on a Quest controller at the gold passage mark. The upper front walk connects the lounge and the west staircase. [Views and placement guide](./docs/scenery/arcade-hall.md).
-
-**Double Happiness Courtyard · 双喜堂.** Walk past the [embroidered bridal sedan](./docs/screenshots/wedding-bridal-sedan.webp) into the banquet courtyard. Place two characters side by side in front of the wedding altar, then take the guest’s view from the table or step into the dressing room for a portrait by the bronze mirror.
-
-Choose **Lacquer and roof tiles** in the courtyard or **Window-side desk** in the classroom to see how the surfaces catch the light. [Gate close-up](./docs/screenshots/wedding-materials/near.webp) · [Desk close-up](./docs/screenshots/classroom-window-desk.webp).
-
-![A red bridal sedan beside a tiled gate, with the banquet table visible through the open doors.](./docs/screenshots/wedding-court-entry.webp)
-
-**Campus walk.** The [print street](./docs/scenery/campus-arcade-loop.md) leads from the meadow to the arcade’s west entrance. Climb the outside staircase, cross the upper front walk and follow the ramp down to the pool timing deck. The original pool gate takes you back to the meadow; the classroom and clinic branch off the same garden. Each set keeps its own layout when you return.
-
-**Jiangnan river street.** Leave the bridal sedan alley and cross the [stone bridge](./docs/scenery/jiangnan-river-street.md) to the Qinhuai songhouse quay. The level bridge crown and the dry quay both have room for character portraits.
-
-![Afternoon light across the desks and parquet floor of the window-side classroom.](./src/mmdVrShowcase/prep/classroom-window.webp)
-
-| Wisteria meadow | Pool terrace |
+| [Opal star system](https://mmd-xr-stage.pages.dev/?set=glassPlanet&view=screen) | [Window-side classroom](https://mmd-xr-stage.pages.dev/?set=classroom&view=screen) |
 | :---: | :---: |
-| ![Flowers along the path beneath the arbor.](./docs/screenshots/wisteria-path.webp) | ![The pace clock and lifeguard chair beside the lanes.](./docs/screenshots/lido-timing-deck.webp) |
+| [![A ringed planet, a pulsar and an ice moon above the landing pad.](./docs/screenshots/planet-pulsar.webp)](https://mmd-xr-stage.pages.dev/?set=glassPlanet&view=screen) | [![Afternoon sunlight across wooden desks by the classroom windows.](./src/mmdVrShowcase/prep/classroom-window.webp)](https://mmd-xr-stage.pages.dev/?set=classroom&view=screen) |
+| **[Pool terrace](https://mmd-xr-stage.pages.dev/?set=pool&view=screen)** | **[Dawn Chapel](https://mmd-xr-stage.pages.dev/?set=chapel&view=screen)** |
+| [![Outdoor swimming lanes beneath coloured pennants.](./docs/screenshots/pool-terrace.webp)](https://mmd-xr-stage.pages.dev/?set=pool&view=screen) | [![The chapel aisle leading to the altar beneath a stained-glass rose window.](./docs/screenshots/dawn-chapel.webp)](https://mmd-xr-stage.pages.dev/?set=chapel&view=screen) |
 
-**Qinhuai Songhouse · 泊月楼.** Place a character on the timber stage, then take the outside stairs to the [upper listening gallery](./docs/screenshots/qinhuai-gallery.webp) for a second view of the performance. Two close-up viewpoints take you to the [lacquered seven-string zither](./docs/screenshots/qinhuai-detail-zither-after.webp) and the [boat’s mooring line](./docs/screenshots/qinhuai-detail-mooring-after.webp).
-
-![The songhouse entrance from the river landing, with lanterns over the doors and the stairs on the left.](./docs/screenshots/qinhuai-entry.webp)
-
-For a different setting, follow the [chapel aisle into the garden](./docs/screenshots/chapel-water-court.webp), cross the [observatory causeway](./docs/screenshots/observatory-return.webp), or arrange a performance in the [Live House](./docs/screenshots/live-house.webp).
+[Guide to the five walkable moons](./docs/scenery/opal-planet.md) · [All sets and routes](./docs/scenery/README.md)
 
 ## Features
 
-### Three short scenes to play
+### Interactive props
 
-| Kite stand | Bubble ferry | Encore print |
-| :---: | :---: | :---: |
-| ![A paper kite rising beside the meadow bench.](./docs/screenshots/kite-stand.webp) | ![A striped ferry crossing the pool.](./docs/screenshots/bubble-ferry.webp) | ![A sunrise print on the club curtain.](./docs/screenshots/encore-print.webp) |
-
-Fly the kite from a character's wrist, send the ferry across the pool, or change the club backdrop and hand over the microphone. A fourth vignette, Lunar Post, lets you stamp a postcard on the studio plinth.
+Fly a kite from a character’s wrist, send a ferry across the pool, dye a concert backdrop or stamp a lunar postcard. The [gameplay guide](./docs/gameplay/README.md) lists the controls for each activity.
 
 ### Prep page
 
