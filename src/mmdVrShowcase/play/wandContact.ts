@@ -3,6 +3,8 @@ import {createMmdVrHapticDriver,createMmdVrHapticGate,getMmdVrHapticFeedback,typ
 import {findWandInput,type ContactToy,type WandHead} from './wandHead';
 import {useWandResponse,type WandResponse} from './wandResponse';
 import {createWandSurface,type WandModel} from './wandSurface';
+import {createWandRhythm,useWandMotor} from './wandMotor';
+import type {Hand} from './propCatalog';
 
 /** Raw values are captured after evaluation, including manual overrides.
  * Never set a VMD track or a persistent MMD morph weight for contact. */
@@ -27,25 +29,28 @@ export function createWandBlend(){
 
 export function createRoomWand(){
   const blend=createWandBlend(),surfaces=new WeakMap<Object3D,ReturnType<typeof createWandSurface>>();
-  const gate=createMmdVrHapticGate(),haptics=createMmdVrHapticDriver();
+  const gate=createMmdVrHapticGate(),haptics=createMmdVrHapticDriver(),rhythm=createWandRhythm();
   const hit={depth:0,axis:new Vector3()},bestAxis=new Vector3();
   let pad:Gamepad|null=null,pressed:WandHead|null=null,session:XRSession|null=null;
+  let driving=false;
   const listen=(next:XRSession|null)=>{
     if(next===session)return;
     for(const event of ['end','visibilitychange','inputsourceschange'] as const){session?.removeEventListener(event,reset);next?.addEventListener(event,reset);}
     session=next;
   };
-  function reset(){blend.restore();pressed?.release();pressed=null;pad=null;gate.reset();haptics.reset();listen(null);}
-  function advance(scene:Scene,wrist:Object3D|null,toy:ContactToy,held:boolean,frame:XRFrame|undefined,motorOn:boolean,level:MmdVrHapticLevel,
+  function stopDrive(){if(driving){driving=false;rhythm.reset();haptics.stop();}}
+  function clearContact(){blend.restore();pressed?.release();gate.reset();rhythm.clearAccent();}
+  function reset(){clearContact();stopDrive();pressed=null;pad=null;haptics.reset();listen(null);}
+  function advance(scene:Scene,wrist:Object3D|null,toy:ContactToy,hand:Hand|null,frame:XRFrame|undefined,frameMs:number,level:MmdVrHapticLevel,
     models:readonly {id:string;visible:boolean}[],getModel:(id:string)=>WandModel|null){
-    const settings=toy==='wand'?useWandResponse.getState():null,active=toy==='dildo'||motorOn;
-    const input=settings?.enabled!==false&&findWandInput(scene,wrist,toy,held,frame);
+    const settings=toy==='wand'?useWandResponse.getState():null,motor=useWandMotor.getState(),active=toy==='dildo'||motor.speed!==0;
+    const input=findWandInput(scene,wrist,toy,hand,frame);
     if(!input){if(pressed||session)reset();return;}
     const {head,gamepad}=input;
     if(pad!==gamepad||pressed!==head){reset();pressed=head;pad=gamepad;}
     listen(frame?.session??null);
     let best=0,actor:WandModel|null=null,id='';
-    for(const m of models){if(!m.visible)continue;
+    if(settings?.enabled!==false)for(const m of models){if(!m.visible)continue;
       const model=getModel(m.id);if(!model?.root.visible)continue;
       let surface=surfaces.get(model.root);if(!surface){surface=createWandSurface(model);surfaces.set(model.root,surface);}
       // Warm while the wand is equipped, even before the first squeeze. The
@@ -55,12 +60,19 @@ export function createRoomWand(){
       surface.query(head.pivot,head.cap,hit,deadline);
       if(hit.depth>best){best=hit.depth;bestAxis.copy(hit.axis);actor=model;id=m.id;}
     }
-    if(!actor){head.release();gate.update(false,performance.now());return;}
-    head.press(bestAxis,best);if(settings)blend.apply(actor.mesh,settings.byActor[id],best*4);
-    // The prop's visible surface owns its one feedback edge. A wrist has no
-    // actuator: it must not consume the next controller's cooldown.
-    if(pad&&gate.update(true,performance.now())&&level!=='off')void haptics.pulse(pad,getMmdVrHapticFeedback(.5,level));
+    if(actor){head.press(bestAxis,best);if(settings)blend.apply(actor.mesh,settings.byActor[id],best*4);}else head.release();
+    // Wrist-held props keep their surface and motor animation, without a pad.
+    if(!pad)return;
+    const onset=gate.update(!!actor,frameMs);
+    if(level==='off'){stopDrive();return;}
+    if(toy==='wand'){
+      if(!motor.speed){stopDrive();return;}
+      driving=true;
+      const power=rhythm.sample(motor,frameMs,onset);
+      if(power!==null)void haptics.pulse(pad,getMmdVrHapticFeedback(power,level));
+    }else if(onset)void haptics.pulse(pad,getMmdVrHapticFeedback(.5,level));
   }
   function resetWand(){if(pressed?.toy==='wand')reset();}
-  return {restore:blend.restore,advance,reset,resetWand};
+  return {restore:blend.restore,advance,reset,resetWand,stopDrive,
+    clearWandContact(){if(pressed?.toy==='wand')clearContact();}};
 }

@@ -34,7 +34,7 @@ function Probe(){
         const center=part.localToWorld(siliconeCap.center.clone()),q=part.getWorldQuaternion(new T.Quaternion()),dir=new T.Vector3(1,0,0).applyQuaternion(q);
         actor.skin.quaternion.copy(q);const place=d=>{actor.skin.position.copy(center).addScaledVector(dir,d);actor.root.updateMatrixWorld(true);};
         camera.position.copy(center).add(new T.Vector3(0,0,.17).applyQuaternion(q));camera.up.set(0,1,0).applyQuaternion(q);camera.lookAt(center);camera.updateProjectionMatrix();
-        const paths=[{id:'synthetic',visible:true}],wristFrame=()=>{room.restore();room.advance(scene,owner,'dildo',false,undefined,false,'normal',paths,()=>actor);};
+        const paths=[{id:'synthetic',visible:true}],wristFrame=()=>{room.restore();room.advance(scene,owner,'dildo',null,undefined,performance.now(),'normal',paths,()=>actor);};
         part.layers.enable(1);
         function pixels(){// Isolate the tool pass: moving the torso cannot itself produce a passing pixel difference.
           camera.layers.set(1);gl.setRenderTarget(target);gl.render(scene,camera);
@@ -50,8 +50,8 @@ function Probe(){
         const wristMm=depthMm(),changedPixels=changed(rest,pixels());assert(wristMm>1&&changedPixels>30,`wrist: ${wristMm} mm, ${changedPixels} changed pixels`);
         place(.17);wristFrame();const releasedPixels=changed(rest,pixels());assert(!depthMm()&&!releasedPixels,'wrist did not release');
         const session=Object.assign(new EventTarget(),{visibilityState:'visible'});let pulses=0;
-        Object.assign(owner.userData,{heldToy:'dildo',propUsable:true,gamepad:{hapticActuators:[{pulse:()=>{pulses++;return true}}]}});
-        function controller(tracked=true){const frame={session};if(tracked)owner.userData.propFrame=frame;room.restore();room.advance(scene,null,'dildo',true,frame,false,'normal',paths,()=>actor);}
+        Object.assign(owner.userData,{heldToy:'dildo',propSource:{handedness:'right'},propUsable:true,gamepad:{hapticActuators:[{pulse:()=>{pulses++;return true}}]}});
+        function controller(tracked=true){const frame={session};if(tracked)owner.userData.propFrame=frame;room.restore();room.advance(scene,null,'dildo','right',frame,performance.now(),'normal',paths,()=>actor);}
         place(.071);for(let i=0;i<60&&!depthMm();i++)controller();controller();
         const controllerMm=depthMm();assert(controllerMm>1&&pulses===1,`controller: ${controllerMm} mm, ${pulses} pulses`);controller(false);
         assert(!depthMm()&&changed(rest,pixels())===0,'stale XRFrame did not release');assert(gl.getContext().getError()===0,'WebGL error');

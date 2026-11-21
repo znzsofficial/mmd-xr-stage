@@ -1,26 +1,20 @@
 import { useFrame } from '@react-three/fiber';
-import { useEffect, useLayoutEffect, useMemo, useRef, type RefObject } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { DoubleSide, type Group } from 'three';
 import { makeBrushHandle, makePlume, makeWandHandle, makeWandHead, wandLights } from './boutiqueModels';
 import { TOYS } from './propCatalog';
-import { useWandMotor } from './wandMotor';
+import { useWandMotor, wandTurns } from './wandMotor';
 import {createWandHead,mountWandHead} from './wandHead';
-
-function MovingHead({pivot,speed}:{pivot:RefObject<Group|null>;speed:1|2}) {
-  const phase=useRef(0);
-  useFrame((_,dt)=>{
-    const joint=pivot.current;if(!joint)return;
-    phase.current=(phase.current+Math.min(dt,.05)*(speed===1?4:7)*2*Math.PI)%(Math.PI*2);
-    const arc=speed===1?.047:.095;
-    joint.rotation.set(arc*.65*Math.cos(phase.current),0,arc*Math.sin(phase.current));
-  },-1);
-  useLayoutEffect(()=>{const joint=pivot.current;return ()=>{joint?.rotation.set(0,0,0);};},[pivot]);
-  return null;
-}
 
 export function CordlessWand() {
   const handle=useMemo(makeWandHandle,[]),head=useMemo(makeWandHead,[]), pivot=useRef<Group>(null);
   const speed=useWandMotor(s=>s.speed),grip=TOYS.wand.grip;
+  useFrame(({clock})=>{
+    const joint=pivot.current,motor=useWandMotor.getState();if(!joint)return;
+    if(!motor.speed){if(joint.rotation.x||joint.rotation.z)joint.rotation.set(0,0,0);return;}
+    const phase=(wandTurns(motor,clock.oldTime)%1)*2*Math.PI,arc=motor.speed===1?.047:.095;
+    joint.rotation.set(arc*.65*Math.cos(phase),0,arc*Math.sin(phase));
+  },-.5); // After the held grip switches speed, before contact and Bullet sample the cap.
   useLayoutEffect(()=>{if(pivot.current)return mountWandHead(createWandHead(pivot.current,head));},[head]);
   useEffect(()=>()=>{handle.dispose();head.dispose();},[handle,head]);
   return <group name="play:piece:wand" position={grip.point} rotation-x={-grip.pitch}>
@@ -31,7 +25,6 @@ export function CordlessWand() {
     {wandLights.map(({radius,y},i)=><mesh key={y} name={`wand:lamp:${i+1}`} visible={speed>i} position-y={y} rotation-x={Math.PI/2}>
       <torusGeometry args={[radius,.0019,8,40]}/><meshBasicMaterial color="#a5ffdd" toneMapped={false}/>
     </mesh>)}
-    {speed!==0&&<MovingHead pivot={pivot} speed={speed}/>}
   </group>;
 }
 

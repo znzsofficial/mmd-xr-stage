@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   clearMmdVrHapticContacts,
   createMmdVrHapticDriver,
@@ -9,8 +9,18 @@ import {
   type MmdVrHapticGamepad,
 } from "./mmdVrHaptics";
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((next) => { resolve = next; });
+  return { promise, resolve };
+}
+
 describe("MMD VR haptics", () => {
-  beforeEach(clearMmdVrHapticContacts);
+  beforeEach(() => {
+    clearMmdVrHapticContacts();
+    vi.spyOn(performance, "now").mockReturnValue(3_000);
+  });
+  afterEach(() => vi.restoreAllMocks());
 
   it("stores per-controller contacts without publishing React state", () => {
     setMmdVrHapticContacts(true, false);
@@ -106,5 +116,110 @@ describe("MMD VR haptics", () => {
     await expect(driver.pulse(gamepad, undefined, 1_000)).resolves.toBe(false);
     await expect(driver.pulse(gamepad, undefined, 2_100)).resolves.toBe(true);
     expect(pulse).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops a pending legacy pulse immediately; its late failure cannot rumble after a hand switch", async () => {
+    const pending = deferred<boolean>();
+    const pulse = vi.fn().mockReturnValueOnce(pending.promise).mockResolvedValue(true);
+    const playEffect = vi.fn().mockResolvedValue("complete");
+    const left = { hapticActuators: [{ pulse }], vibrationActuator: { playEffect } } as unknown as MmdVrHapticGamepad;
+    const rightPulse = vi.fn().mockResolvedValue(true);
+    const right = { hapticActuators: [{ pulse: rightPulse }] } as unknown as MmdVrHapticGamepad;
+    const driver = createMmdVrHapticDriver();
+
+    const previous = driver.pulse(left);
+    driver.stop();
+    driver.stop();
+    expect(pulse.mock.calls).toEqual([[0.28, 36], [0, 0]]);
+    await driver.pulse(right);
+    pending.resolve(false);
+    await expect(previous).resolves.toBe(false);
+    expect(playEffect).not.toHaveBeenCalled();
+    expect(rightPulse.mock.calls).toEqual([[0.28, 36]]);
+  });
+
+  it("does not replay an older rejected beat on the same pad or forget the active beat", async () => {
+    const pending = deferred<boolean>();
+    const pulse = vi.fn().mockReturnValueOnce(pending.promise).mockResolvedValue(true);
+    const playEffect = vi.fn().mockResolvedValue("complete");
+    const pad = { hapticActuators: [{ pulse }], vibrationActuator: { playEffect } } as unknown as MmdVrHapticGamepad;
+    const driver = createMmdVrHapticDriver();
+    const previous = driver.pulse(pad);
+    await driver.pulse(pad);
+    pending.resolve(false);
+    await expect(previous).resolves.toBe(false);
+    driver.stop();
+    expect(playEffect).not.toHaveBeenCalled();
+    expect(pulse.mock.calls).toEqual([[0.28, 36], [0.28, 36], [0, 0]]);
+  });
+
+  it.each([true, false])("stops only the pending dual-rumble fallback (reset available: %s)", async (hasReset) => {
+    const started = deferred<void>();
+    const pending = deferred<GamepadHapticsResult>();
+    const playEffect = vi.fn().mockImplementationOnce(() => { started.resolve(); return pending.promise; })
+      .mockResolvedValue("complete");
+    const reset = hasReset ? vi.fn().mockResolvedValue("complete") : undefined;
+    const pulse = vi.fn().mockResolvedValue(false);
+    const pad = { hapticActuators: [{ pulse }], vibrationActuator: { playEffect, reset } } as unknown as MmdVrHapticGamepad;
+    const driver = createMmdVrHapticDriver();
+    const result = driver.pulse(pad);
+    await started.promise;
+    driver.stop();
+    driver.stop();
+    expect(pulse.mock.calls).toEqual([[0.28, 36]]);
+    if (reset) {
+      expect(reset).toHaveBeenCalledTimes(1);
+      expect(playEffect).toHaveBeenCalledTimes(1);
+    } else {
+      expect(playEffect).toHaveBeenCalledTimes(2);
+      expect(playEffect).toHaveBeenLastCalledWith("dual-rumble", { duration: 0, strongMagnitude: 0, weakMagnitude: 0 });
+    }
+    pending.resolve("preempted");
+    await result;
+  });
+
+  it("never zeroes idle hardware, including an expired pending effect; reset stays silent", async () => {
+    const pending = deferred<boolean>();
+    const pulse = vi.fn().mockReturnValueOnce(pending.promise).mockResolvedValue(true);
+    const playEffect = vi.fn();
+    const pad = { hapticActuators: [{ pulse }], vibrationActuator: { playEffect } } as unknown as MmdVrHapticGamepad;
+    const driver = createMmdVrHapticDriver();
+    driver.stop();
+    const result = driver.pulse(pad, undefined, 120_000);
+    vi.mocked(performance.now).mockReturnValue(3_036);
+    driver.stop();
+    pending.resolve(false);
+    await expect(result).resolves.toBe(false);
+    await driver.pulse(pad);
+    driver.reset();
+    driver.stop();
+    expect(pulse.mock.calls).toEqual([[0.28, 36], [0.28, 36]]);
+    expect(playEffect).not.toHaveBeenCalled();
+  });
+
+  it("does not cancel a synchronously rejected actuator or start its fallback after stop", async () => {
+    const pulse = vi.fn(() => false), playEffect = vi.fn();
+    const pad = { hapticActuators: [{ pulse }], vibrationActuator: { playEffect } } as unknown as MmdVrHapticGamepad;
+    const driver = createMmdVrHapticDriver();
+    const result = driver.pulse(pad);
+    driver.stop();
+    await expect(result).resolves.toBe(false);
+    expect(pulse.mock.calls).toHaveLength(1);
+    expect(playEffect).not.toHaveBeenCalled();
+  });
+
+  it("leaves a newer owner's output on the same gamepad alone", async () => {
+    const pending = deferred<boolean>();
+    const pulse = vi.fn().mockReturnValueOnce(pending.promise).mockResolvedValue(true);
+    const playEffect = vi.fn();
+    const pad = { hapticActuators: [{ pulse }], vibrationActuator: { playEffect } } as unknown as MmdVrHapticGamepad;
+    const oldOwner = createMmdVrHapticDriver(), newOwner = createMmdVrHapticDriver();
+    const previous = oldOwner.pulse(pad);
+    await newOwner.pulse(pad);
+    oldOwner.stop();
+    pending.resolve(false);
+    await expect(previous).resolves.toBe(false);
+    expect(pulse.mock.calls).toEqual([[0.28, 36], [0.28, 36]]);
+    expect(playEffect).not.toHaveBeenCalled();
   });
 });

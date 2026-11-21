@@ -48,6 +48,7 @@ describe('shared prop catalog and ownership',()=>{
     get().equip('wand','left');
     expect([sample(false),sample(true),sample(true),sample(false),sample(true),sample(false),sample(true)]).toEqual([0,1,1,1,2,2,0]);
     expect([sample(true,true),sample(true),sample(false),sample(true)]).toEqual([0,0,0,1]);
+    const running=useWandMotor.getState();get().equip('wand','right');expect(useWandMotor.getState()).toBe(running);
     get().give('actor','right');get().give('actor','left');expect(sample(true)).toBe(1);
     get().equip('feather','right');expect(speed()).toBe(0);
     giveScreenToy('actor','wand','right','chapel');giveScreenToy('actor','wand','left','chapel');expect(speed()).toBe(1);

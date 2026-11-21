@@ -1,5 +1,6 @@
 import { Matrix3, Matrix4, Vector3, type BufferGeometry, type Object3D, type Scene } from 'three';
 import {crownFlex,siliconeCrown} from './siliconeProfile';
+import type {Hand} from './propCatalog';
 
 export type ContactToy='wand'|'dildo';
 type Triple=readonly [number,number,number];
@@ -57,15 +58,15 @@ export function mountWandHead(head:WandHead){mounted.add(head);return ()=>{head.
 
 /** Resolve ownership and visibility again after this frame's evaluated wrist
  * and controller pose. A tracking gap cannot leave a usable old pose behind. */
-export function findWandInput(scene:Scene,wrist:Object3D|null,toy:ContactToy,held:boolean,frame?:XRFrame){
+export function findWandInput(scene:Scene,wrist:Object3D|null,toy:ContactToy,hand:Hand|null,frame?:XRFrame){
   if(frame&&frame.session.visibilityState!=='visible')return null;
   for(const head of mounted){
     if(head.toy!==toy)continue;
     let usable=false,gamepad:Gamepad|null=null;
     for(let node:Object3D|null=head.pivot;node;node=node.parent){
       if(!node.visible)break;
-      if(node===wrist&&!held)usable=true;
-      if(held&&frame&&node.userData.heldToy===toy&&
+      if(node===wrist&&!hand)usable=true;
+      if(hand&&frame&&node.userData.heldToy===toy&&node.userData.propSource?.handedness===hand&&
         node.userData.propUsable&&node.userData.propFrame===frame){usable=true;gamepad=node.userData.gamepad??null;}
       if(node===scene&&usable)return {head,gamepad};
     }

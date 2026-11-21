@@ -61,7 +61,7 @@ const catalog = {
   wand: {
     label:'toyWand', portable:true, home:null, homeLabel:'allSets', visit:null, view:'cordless',grip:{point:[0,-.034,-.041],pitch:.48},
     guide:{vr:'guideWandVr',screen:'guideWandScreen',end:'guideWandEnd'},
-    onGrip:cycleWand, onEquip:stopWand, onScreenEquip:cycleWand, onStow:stopWand,
+    onGrip:cycleWand, onScreenEquip:cycleWand, onStow:stopWand,
   },
   feather: {
     label:'toyFeather', home:null, homeLabel:'allSets', visit:null, view:'plumeBrush',grip:{point:[0,-.032,-.04],pitch:.40},

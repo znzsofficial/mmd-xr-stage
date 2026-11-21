@@ -40,7 +40,7 @@ export const zh = {
   watchMenu:'菜单',watchArrange:'摆位置',watchExperiments:'实验功能',watchStart:'先选场景，再从背包放角色。',watchRecall:'右手 B 呼出菜单；手追可抬起左腕或低头点「菜单」。',
   toyClubName:'Live House',toyStudioName:'简易地台',
   toyDildo:'硅胶假阳具',allSets:'所有布景',guideDildoVr:'尖端贴近角色可压缩，侧握可喷液。开角色物理后可从下方托起衣摆。',guideDildoScreen:'递给角色后用握姿或动作接触；可压软头，开物理可推活动衣物。',guideDildoEnd:'撤开软头复原；追踪恢复后先移出衣物，再重新接近。',
-  toyWand:'无线按摩棒',guideWandVr:'低／高档触碰会压缩棒头。开启角色物理，棒头或握柄都能托动活动衣摆。',guideWandScreen:'递给手腕后用动作或握姿接触；低／高档可压软头、叠加表情。',guideWandEnd:'停机也能推物理衣摆。撤开后恢复表情，衣摆自然落下。',
+  toyWand:'无线按摩棒',guideWandVr:'侧握切低档、高档、关。持棒手随棒头振动，低档轻缓，高档更密；初触加重一拍。',guideWandScreen:'递给手腕后用动作或握姿接触；低／高档可压软头、叠加表情。',guideWandEnd:'开启角色物理，棒头或握柄都能托动活动衣摆，停机也有效。',
   wandMotor:'棒头档位',wandLow:'低速',wandHigh:'高速',
   toyRemoteEgg:'遥控跳蛋',guideEggVr:'拿遥控器，选成年角色 → 佩戴跳蛋。收起菜单后侧握切换节律。',guideEggScreen:'选角色 → 道具 → 遥控跳蛋，佩戴后可调位置和模式。',guideEggEnd:'换手保留节律；收回道具、隐藏佩戴者或切景会停止。',
   eggWear:'佩戴跳蛋',eggFit:'佩戴位置',eggReset:'复位位置',eggMode:'模式',eggOff:'关闭',eggSteady:'常振',eggRamp:'渐强',eggPulse:'间歇',

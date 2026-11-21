@@ -47,6 +47,7 @@ import { useWandMotor } from '../play/wandMotor';
 import { forgetWandResponses, useWandResponse } from '../play/wandResponse';
 import { useStagePlay } from '../play/stagePlay';
 import { PlayPiece } from '../play/HeldPlay';
+import {useHudWorldInput} from '../components/hudWorldInput';
 import { RemoteWearable } from '../play/remote/RemoteWearable';
 
 const noRoomLightEvents=()=>()=>{};
@@ -173,13 +174,16 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
   const wand = useMemo(createRoomWand,[runtime]);
   useLayoutEffect(()=>{
     const stopMotor=useWandMotor.subscribe(s=>{if(!s.speed)wand.resetWand();});
-    const stopConfig=useWandResponse.subscribe((s,prev)=>{if(!s.enabled)wand.resetWand();else if(s.byActor!==prev.byActor)wand.restore();});
+    const stopConfig=useWandResponse.subscribe((s,prev)=>{if(!s.enabled&&prev.enabled)wand.clearWandContact();else if(s.byActor!==prev.byActor)wand.restore();});
+    const stopHud=useHudWorldInput.subscribe(s=>{if(s.blocked)wand.stopDrive();});
+    const stopBag=useBackpack.subscribe(s=>{if(s.busy||s.draft||s.selected)wand.stopDrive();});
     const stopTransfer=useStagePlay.subscribe((s,p)=>{if(s.held!==p.held||s.character?.assetId!==p.character?.assetId||s.character?.hand!==p.character?.hand||s.character?.toy!==p.character?.toy)wand.reset();});
     const stopRoom=useMmdVrStore.subscribe((s,p)=>{
       if(s.models!==p.models)forgetWandResponses(p.models.filter(m=>!s.models.some(x=>x.id===m.id)).map(m=>m.id));
       if(!s.overlayOpen||s.prefs.scenery!==scenery||s.physicsBusy||s.assetLoad.running||s.physicsFatal)wand.reset();
+      else if(s.prefs.physicsHapticLevel==='off')wand.stopDrive();
     });
-    return ()=>{stopRoom();stopTransfer();stopConfig();stopMotor();wand.reset();forgetWandResponses(useMmdVrStore.getState().models.map(m=>m.id));};
+    return ()=>{stopRoom();stopBag();stopHud();stopTransfer();stopConfig();stopMotor();wand.reset();forgetWandResponses(useMmdVrStore.getState().models.map(m=>m.id));};
   },[wand,scenery]);
   const characterToy = useStagePlay(s => s.character?.toy);
   const isRoomStale = () => retired.current || !useMmdVrStore.getState().overlayOpen || useMmdVrStore.getState().prefs.scenery !== scenery || runtimeRef.current !== runtime;
@@ -512,7 +516,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
     })();
   }, [actors, command, physicsBusy, assetLoading]);
 
-  useFrame((_, delta, frame) => {
+  useFrame(({clock}, delta, frame) => {
     wand.restore(); // Remove only last frame's display weight, before all VMD/Bullet work (also when paused).
     applyLighting();
 
@@ -673,7 +677,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
     poseCharacterProp(rt);
     const play=useStagePlay.getState(),contactToy=play.held?.toy??play.character?.toy;
     if((contactToy==='wand'||contactToy==='dildo')&&!isRoomStale()&&!store.physicsBusy&&!store.physicsFatal&&!store.assetLoad.running){
-      wand.advance(scene,wristGroup.current,contactToy,!!play.held,frame,!!useWandMotor.getState().speed,store.prefs.physicsHapticLevel,
+      wand.advance(scene,wristGroup.current,contactToy,play.held?.hand??null,frame,clock.oldTime,store.prefs.physicsHapticLevel,
         useMmdVrStore.getState().models,rt.getModelSurface);
     }
     if(store.presentation!=='xr')return;

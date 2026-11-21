@@ -29,6 +29,7 @@ type LegacyHapticActuator = {
 };
 
 type DualRumbleActuator = {
+  reset?: () => GamepadHapticsResult | Promise<GamepadHapticsResult>;
   playEffect: (
     type: "dual-rumble",
     params: { duration: number; strongMagnitude: number; weakMagnitude: number },
@@ -95,13 +96,13 @@ export function createMmdVrHapticGate(
   };
 }
 
-async function tryHaptic(
-  action: (() => boolean | GamepadHapticsResult | Promise<boolean | GamepadHapticsResult>) | undefined,
-): Promise<boolean> {
-  if (!action) return false;
+type HapticResult = boolean | GamepadHapticsResult;
+type HapticAction = () => HapticResult | Promise<HapticResult>;
+
+function tryHaptic(action: HapticAction): HapticResult | Promise<HapticResult> {
   try {
-    const result = await action();
-    return result === true || result === "complete" || result === "preempted";
+    const result = action();
+    return typeof result === "object" ? result.catch(() => false) : result;
   } catch {
     return false;
   }
@@ -113,55 +114,86 @@ export type MmdVrHapticDriver = {
     feedback?: MmdVrHapticFeedback,
     nowMs?: number,
   ) => Promise<boolean>;
+  /** Forget the current gamepad without writing to its actuators. */
   reset: () => void;
+  /** Also interrupt this driver's unexpired hardware pulse, if it still owns it. */
+  stop: () => void;
 };
 
 export function supportsMmdVrHaptics(gamepad: MmdVrHapticGamepad | null | undefined): boolean {
   return Boolean(gamepad?.hapticActuators?.[0] || gamepad?.vibrationActuator);
 }
 
+// A wand, contact feedback and a remote can all write to the same gamepad.
+const lastPadWriter = new WeakMap<Gamepad, symbol>();
+
 export function createMmdVrHapticDriver(): MmdVrHapticDriver {
   let currentGamepad: MmdVrHapticGamepad | null = null;
-  let generation = 0;
+  let latestRequest: symbol | null = null;
+  let playing: { request: symbol; until: number; cancel: HapticAction } | null = null;
   let legacyRetryAt = 0;
   let rumbleRetryAt = 0;
+
+  function reset() {
+    currentGamepad = null;
+    latestRequest = null;
+    playing = null;
+    legacyRetryAt = 0;
+    rumbleRetryAt = 0;
+  }
 
   return {
     async pulse(gamepad, feedback = { intensity: HAPTIC_INTENSITY, weakMagnitude: 0.18, durationMs: 36 }, nowMs = performance.now()) {
       if (!gamepad) return false;
       if (currentGamepad !== gamepad) {
+        reset();
         currentGamepad = gamepad;
-        generation += 1;
-        legacyRetryAt = 0;
-        rumbleRetryAt = 0;
       }
-      const callGeneration = generation;
+      const request = latestRequest = Symbol();
+      const isCurrent = () => request === latestRequest && lastPadWriter.get(gamepad) === request;
       const now = Number.isFinite(nowMs) ? nowMs : 0;
+
+      const attempt = async (start: HapticAction, cancel: HapticAction) => {
+        // Arm before invoking hardware: the promise may still be pending at tracking loss.
+        // Playback uses wall time even when the caller's scene clock is paused.
+        const output = { request, until: performance.now() + feedback.durationMs, cancel };
+        playing = output;
+        lastPadWriter.set(gamepad, request);
+        const started = tryHaptic(start);
+        const result = typeof started === "object" ? await started : started;
+        if (result === true || result === "complete") return true;
+        if (playing === output) playing = null;
+        return result === "preempted";
+      };
 
       const legacy = gamepad.hapticActuators?.[0];
       if (legacy && now >= legacyRetryAt) {
-        if (await tryHaptic(() => legacy.pulse(feedback.intensity, feedback.durationMs))) return true;
-        if (callGeneration !== generation || currentGamepad !== gamepad) return false;
+        if (await attempt(() => legacy.pulse(feedback.intensity, feedback.durationMs), () => legacy.pulse(0, 0))) return true;
+        if (!isCurrent()) return false;
         legacyRetryAt = now + ACTUATOR_RETRY_MS;
       }
 
       const rumble = gamepad.vibrationActuator;
       if (rumble && now >= rumbleRetryAt) {
-        if (await tryHaptic(() => rumble.playEffect("dual-rumble", {
+        if (await attempt(() => rumble.playEffect("dual-rumble", {
           duration: feedback.durationMs,
           strongMagnitude: feedback.intensity,
           weakMagnitude: feedback.weakMagnitude,
+        }), () => rumble.reset ? rumble.reset() : rumble.playEffect("dual-rumble", {
+          duration: 0, strongMagnitude: 0, weakMagnitude: 0,
         }))) return true;
-        if (callGeneration !== generation || currentGamepad !== gamepad) return false;
+        if (!isCurrent()) return false;
         rumbleRetryAt = now + ACTUATOR_RETRY_MS;
       }
       return false;
     },
-    reset() {
-      currentGamepad = null;
-      generation += 1;
-      legacyRetryAt = 0;
-      rumbleRetryAt = 0;
+    reset,
+    stop() {
+      const output = playing, pad = currentGamepad;
+      reset();
+      if (output && pad && lastPadWriter.get(pad) === output.request && performance.now() < output.until) {
+        void tryHaptic(output.cancel);
+      }
     },
   };
 }

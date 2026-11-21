@@ -7,6 +7,7 @@ import {setWandResponse,setWandResponseEnabled,useWandResponse,wandMorphNames} f
 import {createWandSurface} from './wandSurface';
 import {centerZ,siliconeCrown,siliconeMount,siliconeTilt} from './siliconeProfile';
 import {makeSilicone} from './workshopModels';
+import {useWandMotor,stopWand} from './wandMotor';
 
 function rig(){
   const root=new Group(),g=new BufferGeometry(),m=new MeshBasicMaterial();
@@ -89,25 +90,51 @@ it('deforms only the touching side of the silicone head, and releases exactly',(
   }expect(moved).toBeGreaterThan(0);head.release();expect(p.array).toEqual(raw);expect(n.array).toEqual(norm);geom.dispose();
 });
 
-it('held XR requires the same XRFrame; pulses once on entry, follows a stationary paused pose and restores on tracking/session loss',()=>{
+it('mixes an off-beat touch into one motor beat on a paused skin, and drops feedback with stale tracking or wrist ownership',()=>{
   const {model,mesh}=rig(),scene=new Scene(),hand=new Group(),pivot=at(-.1,-.1,.012),geo=makeWandHead();scene.add(model.root,hand);hand.add(pivot);
   const unmount=mountWandHead(createWandHead(pivot,geo)),room=createRoomWand(),raw=geo.attributes.position.array.slice();
   mesh.morphTargetDictionary={Smile:0};mesh.morphTargetInfluences=[.25];setWandResponse('actor','Smile',.6);
   const session=Object.assign(new EventTarget(),{visibilityState:'visible'}) as unknown as XRSession;
-  const pulse=vi.fn(()=>true);Object.assign(hand.userData,{heldToy:'wand',propUsable:true,gamepad:{hapticActuators:[{pulse}]}});
-  const step=(fresh=true)=>{const frame={session} as XRFrame;if(fresh)hand.userData.propFrame=frame;
-    room.restore();expect(mesh.morphTargetInfluences).toEqual([.25]);room.advance(scene,null,'wand',true,frame,true,'normal',[{id:'actor',visible:true}],()=>model);};
+  const pulse=vi.fn((_force:number,_duration:number)=>true),positive=()=>pulse.mock.calls.map(([force])=>force).filter(force=>force>0);
+  Object.assign(hand.userData,{heldToy:'wand',propUsable:true,propSource:{handedness:'left'},gamepad:{hapticActuators:[{pulse}]}});
+  const step=(ms:number,fresh=true)=>{const frame={session} as XRFrame;if(fresh)hand.userData.propFrame=frame;
+    room.restore();expect(mesh.morphTargetInfluences).toEqual([.25]);room.advance(scene,null,'wand','left',frame,ms,'normal',[{id:'actor',visible:true}],()=>model);};
   try{
-    // Cold preparation may take more than one small XR slice.
-    for(let i=0;i<4;i++)step();expect(mesh.morphTargetInfluences[0]).toBeGreaterThan(.25);expect(pulse).toHaveBeenCalledTimes(1);
-    expect(geo.attributes.position.array).not.toEqual(raw);
-    step(false);expect(mesh.morphTargetInfluences).toEqual([.25]);expect(geo.attributes.position.array).toEqual(raw);
-    step();session.dispatchEvent(new Event('end'));expect(mesh.morphTargetInfluences).toEqual([.25]);expect(geo.attributes.position.array).toEqual(raw);
+    useWandMotor.setState({speed:1,startedMs:0});pivot.position.z=.12;step(0);
+    const base=positive()[0];expect(base).toBeGreaterThan(0);
+    pivot.position.z=.012;for(let i=1;i<=4;i++)step(i*10);
+    expect(mesh.morphTargetInfluences[0]).toBeGreaterThan(.25);expect(geo.attributes.position.array).not.toEqual(raw);
+    step(249);expect(positive()).toEqual([base]);step(250);step(260);
+    expect(positive()).toHaveLength(2);expect(positive()[1]).toBeGreaterThan(base);
+    step(500);expect(positive()[2]).toBe(base); // sustained contact has no more accents
+    step(550,false);expect(positive()).toHaveLength(3);expect(mesh.morphTargetInfluences).toEqual([.25]);expect(geo.attributes.position.array).toEqual(raw);
+    step(600);session.dispatchEvent(new Event('end'));expect(mesh.morphTargetInfluences).toEqual([.25]);expect(geo.attributes.position.array).toEqual(raw);
     // Screen wrist uses the same actual geometry, independent of XR input.
-    room.advance(scene,hand,'wand',false,undefined,true,'normal',[{id:'actor',visible:true}],()=>model);expect(mesh.morphTargetInfluences[0]).toBeGreaterThan(.25);
-    expect(pulse).toHaveBeenCalledTimes(1);room.restore();pivot.position.z=.12;
-    room.advance(scene,hand,'wand',false,undefined,true,'normal',[{id:'actor',visible:true}],()=>model);expect(mesh.morphTargetInfluences).toEqual([.25]);expect(geo.attributes.position.array).toEqual(raw);
-  }finally{room.reset();unmount();geo.dispose();}
+    const count=positive().length;
+    room.advance(scene,hand,'wand',null,undefined,750,'normal',[{id:'actor',visible:true}],()=>model);expect(mesh.morphTargetInfluences[0]).toBeGreaterThan(.25);
+    room.restore();pivot.position.z=.12;
+    room.advance(scene,hand,'wand',null,undefined,1000,'normal',[{id:'actor',visible:true}],()=>model);expect(mesh.morphTargetInfluences).toEqual([.25]);expect(geo.attributes.position.array).toEqual(raw);
+    expect(positive()).toHaveLength(count);
+  }finally{room.reset();stopWand();unmount();geo.dispose();}
+});
+
+it('runs in empty air with surface response disabled; high beats follow flex cycles and missed frames never burst',()=>{
+  const scene=new Scene(),pivot=new Group(),holder=new Group(),geo=makeWandHead(),room=createRoomWand();
+  scene.add(holder);holder.add(pivot);
+  const unmount=mountWandHead(createWandHead(pivot,geo)),before=useWandResponse.getState();
+  const session=Object.assign(new EventTarget(),{visibilityState:'visible'}) as unknown as XRSession;
+  const calls:number[]=[],data=holder.userData;
+  Object.assign(data,{heldToy:'wand',propSource:{handedness:'right'},propUsable:true,gamepad:{hapticActuators:[{pulse:(x:number)=>{if(x)calls.push(x);return true;}}]}});
+  const step=(ms:number,level:'low'|'normal'|'off'='low',hand:'left'|'right'='right')=>{
+    const frame=data.propFrame={session} as XRFrame;room.advance(scene,null,'wand',hand,frame,ms,level,[],()=>null);};
+  try{
+    setWandResponseEnabled(false);useWandMotor.setState({speed:2,startedMs:1000});
+    for(const ms of [1000,1100,1142,1143,1285,1286])step(ms);
+    expect(calls).toHaveLength(3);expect(calls[0]).toBeGreaterThan(0);
+    step(2500,'normal');expect(calls).toHaveLength(4);expect(calls[3]).toBeGreaterThan(calls[0]);
+    step(3000,'off');step(3200,'normal','left');data.propUsable=false;step(3400);
+    data.propUsable=true;stopWand();step(3700);expect(calls).toHaveLength(4);
+  }finally{room.reset();stopWand();unmount();geo.dispose();useWandResponse.setState(before);}
 });
 
 it('uses the silicone crown dimensions on the posed visible skin at either owner, independent of wand motor and expression',()=>{
@@ -115,14 +142,14 @@ it('uses the silicone crown dimensions on the posed visible skin at either owner
   const room=createRoomWand(),unmount=mountWandHead(createSiliconeHead(part,geom)),before=useWandResponse.getState();
   const p=geom.attributes.position,n=geom.attributes.normal,raw=p.array.slice(),norm=n.array.slice();
   const session=Object.assign(new EventTarget(),{visibilityState:'visible'}) as unknown as XRSession;
-  const pulse=vi.fn(()=>true);Object.assign(holder.userData,{heldToy:'dildo',propUsable:true,gamepad:{hapticActuators:[{pulse}]}});
+  const pulse=vi.fn(()=>true);Object.assign(holder.userData,{heldToy:'dildo',propSource:{handedness:'left'},propUsable:true,gamepad:{hapticActuators:[{pulse}]}});
   holder.add(part);part.position.set(...siliconeMount);part.rotation.x=siliconeTilt;holder.scale.setScalar(1.45);holder.rotation.x=.25;
   scene.add(root,holder);root.rotation.y=Math.PI/2;root.position.set(-.53,.12,.46);root.scale.setScalar(.68);bone.position.z=.09;root.updateMatrixWorld(true);
   const target=bone.localToWorld(new Vector3(-.1,-.1,0));
   function place(center:Vector3,offset:number){holder.position.set(0,0,0);const origin=part.localToWorld(center.clone());
     holder.position.copy(target).sub(origin);holder.position.x+=offset*holder.scale.x;}
   function step(held:boolean,tracked=true){const frame=held?{session} as XRFrame:undefined;if(tracked)holder.userData.propFrame=frame;
-    room.restore();room.advance(scene,held?null:holder,'dildo',held,frame,false,'normal',[{id:'s',visible:true}],()=>model);}
+    room.restore();room.advance(scene,held?null:holder,'dildo',held?'left':null,frame,performance.now(),'normal',[{id:'s',visible:true}],()=>model);}
   try{
     mesh.morphTargetDictionary={Smile:0};mesh.morphTargetInfluences=[.21];setWandResponse('s','Smile',1);setWandResponseEnabled(false);
     place(siliconeCap.center,.021);step(true);expect(p.array).toEqual(raw);expect(pulse).not.toHaveBeenCalled();
