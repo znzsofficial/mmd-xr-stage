@@ -13,9 +13,11 @@ import {retreatGround,retreatPlan} from '../scenery/retreat/retreatLayout';
 import {PAD_RADIUS} from '../scenery/planet/planetLayout';
 import {velvetEntry,velvetGround} from '../scenery/velvet/velvetLayout';
 import {chamberEntry,chamberGround} from '../scenery/chamber/chamberLayout';
+import {entry as arcadeEntry,baseGround} from '../scenery/arcade/arcadeLayout';
 
 const origin={x:0,z:0},clinicEntry={x:0,z:2.8};
 export function roomEntry(room:SceneryId){
+  if(room==='arcadeHall')return arcadeEntry;
   if(room==='velvetStudio')return velvetEntry;
   if(room==='medievalChamber')return chamberEntry;
   if(room==='lanternSuite'||room==='moonSpa')return retreatPlan(room).entry;
@@ -29,6 +31,7 @@ const inside=(x:number,z:number,r:Rect)=>Math.abs(x-r.x)<=r.w/2&&Math.abs(z-r.z)
 // -Infinity is outside the playable floor (water/void/borrowed scenery).
 export function roomGround(room:SceneryId,x:number,z:number){
   switch(room){
+    case 'arcadeHall':return baseGround(x,z);
     case 'velvetStudio':return velvetGround(x,z);
     case 'medievalChamber':return chamberGround(x,z);
     case 'glassPlanet':return Math.hypot(x,z)<PAD_RADIUS?0:-Infinity; // flat landing pad; XR uses the radial collider

@@ -1,6 +1,6 @@
 # 建模与布景
 
-舞台有十五个独立选景。[双喜堂](./wedding-court.md)从花轿一路通到妆室和喜房；[秦淮歌楼](./qinhuai.md)从埠头上二楼听曲廊，走到尽头便是月蘅馆。走进这两个新房间不切景，原来放在堂前和戏台的角色继续表演。
+舞台有十六个独立选景。[电玩厅出生点](./arcade-hall.md)的双层大厅可从橙沿洞口换层，两层均可就地摆人。[双喜堂](./wedding-court.md)从花轿一路通到妆室和喜房；[秦淮歌楼](./qinhuai.md)从埠头上二楼听曲廊，走到尽头便是月蘅馆。楼内移动不切景。
 
 [黑绒私摄棚](./velvet-studio.md)和[中世纪刑讯室](./medieval-chamber.md)是各存布局的独立场景；[暮灯情侣套房、月庭双人私汤](./private-retreats.md)各有两处双人站位。[琉璃小行星](./opal-planet.md)可沿球面环游，在北端观星台摆角色。校园草坪连通门诊、教室和泳池。另有 Live House、简易地台、星环遗庭和晨光礼拜堂。[实景截图](../../README.md#stage-gallery) · [站位](../gameplay/vr-controls.md#在布景中给角色选位置) · [接入新区域](./adding-a-set.md)
 

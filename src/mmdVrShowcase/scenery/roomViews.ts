@@ -11,6 +11,7 @@ import {WEDDING_SHOTS,WEDDING_VIEW} from './wedding/weddingLayout';
 import {RETREAT_VIEWS} from './retreat/retreatLayout';
 import {velvetView} from './velvet/velvetLayout';
 import {chamberView} from './chamber/chamberLayout';
+import {arcadeView} from './arcade/arcadeViews';
 import {transitPortrait,southPortrait} from './planet/opalTerrain';
 
 type Point=readonly [number,number,number];
@@ -18,6 +19,7 @@ type Shot={key:TranslationKey;eye:Point;aim:Point;up?:Point;link?:RoomLink;prelo
 type RoomView={entry:readonly [Point,Point];shots?:readonly Shot[]};
 export const roomViews:Record<SceneryId,RoomView>={
   ...RETREAT_VIEWS,
+  arcadeHall:arcadeView,
   velvetStudio:velvetView,medievalChamber:chamberView,
   glassPlanet:{entry:[[1.10,1.68,3.55],[-.52,1.31,-4.8]],shots:[{key:'planetLimb',eye:[10.6,2.1,11.7],aim:[-.7,-2.2,-2.6]},{key:'planetRing',eye:[-.2,1.62,1.85],aim:[-3.6,3.02,-9.4]},
     {key:'planetTransit',...transitPortrait},{key:'planetSouth',...southPortrait}]},

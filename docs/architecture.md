@@ -7,6 +7,8 @@
 1. [准备页](../src/mmdVrShowcase/MmdVrPrepApp.tsx)把本地文件交给[背包](../src/mmdVrShowcase/backpack.ts)。此时只有目录条目，角色尚未加载，也不占上场名额。
 2. [屏幕](../src/mmdVrShowcase/screen/ScreenStage.tsx)或 [XR 场景](../src/mmdVrShowcase/MmdVrScene.tsx)挂载同一个 [MmdVrStageContent](../src/mmdVrShowcase/components/MmdVrStage.tsx)。它管理本次观看的动作／透明度采样缓存，按布景和切换代次挂载一个 [StageRoom](../src/mmdVrShowcase/stage/StageRoom.tsx)。即使 A → B → A 被合成一次 React 渲染，第一次 A 的异步加载也不能提交到第二次 A。
 3. [放置射线](../src/mmdVrShowcase/components/BackpackPlacement.tsx)检查真实地面和遮挡，背包确认后发出带 token 的命令。房间检查命令有效性，通过 [stageActors](../src/mmdVrShowcase/stageActors.ts) 加载或移动实例，成功后才发布上场状态。
+
+   电玩厅上下层共用 XZ；`supportY` 是射线命中面的世界高度，从预览、确认一直传到 `StageRoom`。房间重验该楼面后再写变换，回访从快照的三维位置恢复。平地和秦淮歌楼保持自己的地形高度规则。
 4. 离场时由房间判断快照是否完整。背包的 `saveBackpackLayout` 一次写入本景布局、按文件身份匹配的摆放记录及动作绑定；切景后重建实例。布局不是一组隐藏的 Three.js 网格，也不保存 Bullet 世界。
 
 ## 按改动找入口

@@ -44,7 +44,7 @@ export default function PlanetMotor({originRef,veilRef,dragging}:Props){
     const dt=Math.min(.05,Math.max(0,elapsed)),speed=WALK_SPEED[prefs.walkSpeedPref==='auto'?'normal':prefs.walkSpeedPref];
     const reset=s.epoch!==viewEpoch;
     if(reset){s.epoch=viewEpoch;s.up.copy(north);s.basis.identity();s.offset.set(p.x,0,p.z);s.foot.set(0,0,1.9);transport(s);
-      s.safe.copy(s.foot);s.safeBasis.copy(s.basis);s.grounded=true;s.velocity.set(0,0,0);s.active=null;s.a=s.r.a;s.snap=true;s.free=false;}
+      s.safe.copy(s.foot);s.safeBasis.copy(s.basis);s.grounded=true;s.velocity.set(0,0,0);s.active=null;s.a=s.r.primary;s.snap=true;s.free=false;}
     if(free!==s.free){
       if(free){if(!reset)s.foot.addScaledVector(s.up,s.lastLift);ready?.stop();}
       else{s.foot.copy(s.safe);s.basis.copy(s.safeBasis);s.up.copy(north).applyQuaternion(s.basis);s.velocity.set(0,0,0);s.grounded=true;}
@@ -57,7 +57,7 @@ export default function PlanetMotor({originRef,veilRef,dragging}:Props){
       s.basis.multiply(s.arc.setFromAxisAngle(north,angle));}
     s.dir.set(0,0,-1).applyQuaternion(s.head.set(q.x,q.y,q.z,q.w)).setY(0);if(s.dir.lengthSq()<1e-7)s.dir.set(0,0,-1);
     s.dir.normalize().applyQuaternion(s.basis);
-    const x=dragging?0:stickAxis(s.l.x),forward=dragging?0:-stickAxis(s.l.y),jump=!dragging&&s.r.a&&!s.a;s.a=s.r.a;
+    const x=dragging?0:stickAxis(s.l.x),forward=dragging?0:-stickAxis(s.l.y),jump=!dragging&&s.r.primary&&!s.a;s.a=s.r.primary;
     s.travel.crossVectors(s.dir,s.up).multiplyScalar(x).addScaledVector(s.dir,forward).clampLength(0,1);
     s.localEye.copy(p).sub(s.offset);
     let room=Infinity;

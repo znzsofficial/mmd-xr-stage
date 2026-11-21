@@ -16,22 +16,25 @@ import {createSolidColumns,playerSolidRoots,type Column} from './solidColumns';
 import {actorBodies,sampleBodies} from './actorBodies';
 import {newStick,readStick,stickAxis as axis} from './controllerInput';
 import {eyeLift,headMargin} from './eyeHeight';
+import {arcadePassage} from '../scenery/arcade/arcadeLayout';
 
 export function usePlayerMovement(originRef:RefObject<Group|null>,veilRef:RefObject<Mesh|null>,dragging:boolean){
   const left=useXRInputSourceState('controller','left'),right=useXRInputSourceState('controller','right');
   const [s]=useState(()=>({body:groundedBody(0,0,0),safe:{x:0,y:0,z:0},mode:null as MovementMode|null,
-    room:null as SceneryId|null,epoch:-1,gate:new RoomGate(),motor:createGroundMotor(),solids:createSolidColumns(),
+    room:null as SceneryId|null,epoch:-1,xDown:false,gate:new RoomGate(),motor:createGroundMotor(),solids:createSolidColumns(),
     roots:[] as Object3D[],root:undefined as Object3D|undefined,live:null as unknown,people:true,bodies:[] as ReturnType<typeof actorBodies>,
     direction:new Vector3(),q:new Quaternion(),left:newStick(),right:newStick(),headroom:{floor:0,ceiling:Infinity,blocked:false},snapReady:true,aDown:false,release:null as null|(()=>void)}));
   useEffect(()=>()=>{s.release?.();s.solids.invalidate();s.roots=[];},[s]);
   useFrame(({gl,scene},elapsed,frame)=>{
     const origin=originRef.current,space=gl.xr.getReferenceSpace();if(!origin||!frame||!space)return;
-    const pose=(!frame.session.visibilityState||frame.session.visibilityState==='visible')&&frame.getViewerPose(space);if(!pose){s.aDown=true;s.snapReady=false;return;}
+    const pose=(!frame.session.visibilityState||frame.session.visibilityState==='visible')&&frame.getViewerPose(space);if(!pose){s.aDown=s.xDown=true;s.snapReady=false;return;}
     const {prefs,viewEpoch}=useMmdVrStore.getState(),{scenery:room,movementMode:mode}=prefs;
     const local=pose.transform.position,q=pose.transform.orientation;
     const dt=Math.min(.1,Math.max(0,elapsed)),speed=WALK_SPEED[prefs.walkSpeedPref==='auto'?'normal':prefs.walkSpeedPref];
     readStick(frame.session.inputSources,'left',left,s.left);readStick(frame.session.inputSources,'right',right,s.right);
-    const pressed=s.right.a;
+    const pressed=s.right.primary;
+    const passage=room==='arcadeHall'&&s.left.primary&&!s.xDown&&!dragging;
+    s.xDown=s.left.primary;
     let jump=pressed&&!s.aDown&&!dragging;s.aDown=pressed;
     const turn=s.right.x;
     if(Math.abs(turn)<.5)s.snapReady=true;
@@ -98,6 +101,10 @@ export function usePlayerMovement(originRef:RefObject<Group|null>,veilRef:RefObj
       }
       else{
         const beforeX=x,beforeZ=z;
+        if(passage&&!reset&&!returning&&s.body.grounded&&!useBackpack.getState().draft){
+          const dest=arcadePassage(s.body,(px,py,pz)=>s.motor.fits(sample,px,pz,py,h));
+          if(dest)Object.assign(s.body,groundedBody(dest.x,dest.y,dest.z));
+        }
         s.motor.advance(s.body,sample,dx,dz,dt,h,jump);x=s.body.x;z=s.body.z;
         if(room==='classroom'&&!s.release&&nearCampusDoor(x,z))s.release=hintLawnPrints();
         // Keep sampling the seam across a small step down (or a jump through

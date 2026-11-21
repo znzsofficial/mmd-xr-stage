@@ -4,6 +4,10 @@ import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 
 const files = [
+  ['cfdfbbc6','PlanetPhysics-f2Xm0MaL.js','d7b5aba21bd0a11d7975a4dc22abad8a5c8d1a63127a26ade6addd511ed3efe4'],
+  ['cfdfbbc6','index-DXgnwrGM.js','dbc6ef6f54c5f5eb1cf73eacb07631f9c667ef6619c1c5d1ecd4d24fde97aae1'],
+  ['cfdfbbc6','vendor-three-D5cTBeFN.js','cd6a940e0c2678daa8fcc7521cd09f06fb9fd85fc7eefb2483bc7a4143f91ff0'],
+  ['cfdfbbc6','vendor-mmd-D-Afj8i5.js','43366e05f951130b18cf284851eaf0c38e3b21f3e5896cef5a7202016dcf63e9'],
   // A 15a73d0 prep tab can first request the old chamber print or planet adapter
   // after this release. The adapter statically imports that build's app entry.
   ['8a6648eb','pavement-BH7aJcMu.webp','b26d5e2b16a449f0ae0ea13098010a78b9409b9ce09adc4fbb740bbc67c070d9'],

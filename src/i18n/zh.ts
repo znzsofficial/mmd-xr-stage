@@ -1,8 +1,11 @@
 /** Chinese (zh) UI strings — source of truth for TranslationKey keys. */
 export const zh = {
+  arcPrintConsole:'近看 · 双机台面',arcPrintMural:'近看 · 木板喷绘',
+  arcFrontWalk:'二楼 · 沿正门平台望西',
   chamberWheel:'刑轮与示众枷',chamberTown:'窗下看暮色钟楼',planetTransit:'铜穹观测站',planetSouth:'南极信标与远月',
   hudVelvetStudio:'黑绒私摄棚',velvetPortrait:'黑绒幕前人像',velvetLounge:'卧榻与更衣间',
   hudMedievalChamber:'中世纪刑讯室',chamberRecord:'书记案旁',chamberVault:'石拱审讯厅',
+  hudArcadeHall:'电玩厅出生点',arcHallReturn:'一楼 · 回看双门',arcLowerPad:'一楼 · 洞口通行标记',arcUpperEntry:'二楼 · 从正门看大板',arcEastEnd:'二楼 · 向东看 F5',arcWestEnd:'二楼 · 向西看双机',arcWood:'二楼 · 木面背侧',arcLounge:'东侧 · 休息区与台阶',arcGraffiti:'西侧 · 上下通道',arcSky:'仰看 · 穿洞见天窗',arcPassHint:'洞口黄框内按 G 换层（VR 左手 X）',arcDown:'二楼 · 从洞边俯看',arcLowEast:'一楼 · 向东看街机',arcLowWest:'一楼 · 向西看通道',arcGlass:'西侧 · 玻璃与长凳',arcEastCourt:'东侧 · 外平台俯看',
   weddingBridal:'合卺夜 · 掀帐见喜',qinhuaiPrivate:'月蘅馆 · 青楼内室',
   weddingCups:'合卺杯',weddingSilkOpen:'开锦帐',weddingSilkClose:'合锦帐',weddingGauzeOpen:'开纱帐',weddingGauzeClose:'合纱帐',
   weddingBridalDoor:'妆间望洞房',

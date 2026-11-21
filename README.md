@@ -27,6 +27,8 @@ Import budgets apply to files, including textures and ZIP contents: **4,096 entr
 
 ## Stage gallery
 
+**[Arcade Spawn · 电玩厅出生点](https://mmd-xr-stage.pages.dev/?set=arcadeHall&view=screen).** Walk through the twin doors and look up beside the tall signboard to see both the opening in the upper floor and the skylight. Use **G** on screen or the **left X** on a Quest controller at the gold passage mark. The upper front walk connects the lounge and the west staircase. [Views and placement guide](./docs/scenery/arcade-hall.md).
+
 **Double Happiness Courtyard · 双喜堂.** Walk past the [embroidered bridal sedan](./docs/screenshots/wedding-bridal-sedan.webp) into the banquet courtyard. Place two characters side by side in front of the wedding altar, then take the guest’s view from the table or step into the dressing room for a portrait by the bronze mirror.
 
 Choose **Lacquer and roof tiles** in the courtyard or **Window-side desk** in the classroom to see how the surfaces catch the light. [Gate close-up](./docs/screenshots/wedding-materials/near.webp) · [Desk close-up](./docs/screenshots/classroom-window-desk.webp).

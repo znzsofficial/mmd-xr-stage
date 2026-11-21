@@ -14,19 +14,21 @@ export const SCENERY = {
   glassPlanet: { label: 'hudGlassPlanet', daylight:false },
   velvetStudio: { label: 'hudVelvetStudio', daylight:false },
   medievalChamber: { label: 'hudMedievalChamber', daylight:false },
+  arcadeHall: { label: 'hudArcadeHall', daylight:true },
 } as const;
 export type SceneryId = keyof typeof SCENERY;
+export const isSceneryId=(value:unknown):value is SceneryId=>typeof value==='string'&&Object.hasOwn(SCENERY,value);
 export const sceneryIds = Object.keys(SCENERY) as SceneryId[];
 export const hasSceneryPeople=(room:SceneryId)=>room==='clinic';
 
 /** A manual room jump must not strand the viewer on a distant terrace.
  * Walked crossings own their translation instead and bypass this policy. */
+const entranceRooms:ReadonlySet<SceneryId>=new Set(['clinic','qinhuai','weddingCourt','lanternSuite','moonSpa','glassPlanet','velvetStudio','medievalChamber','arcadeHall']);
 export function resetViewOnMenuSwitch(from: SceneryId, to: SceneryId) {
-  const hasEntryPose = (id: SceneryId) => id === 'clinic' || id === 'qinhuai' || id === 'weddingCourt' || id === 'lanternSuite' || id === 'moonSpa' || id === 'glassPlanet' || id==='velvetStudio' || id==='medievalChamber';
-  return from !== to && (from === 'astralCourt' || from === 'chapel' || hasEntryPose(from) || hasEntryPose(to));
+  return from !== to && (from === 'astralCourt' || from === 'chapel' || entranceRooms.has(from) || entranceRooms.has(to));
 }
 export function resolveScenery(value: unknown, legacyLiveHouse?: boolean): SceneryId {
-  return typeof value === "string" && Object.hasOwn(SCENERY, value) ? value as SceneryId : legacyLiveHouse === true ? "liveHouse" : "floor";
+  return isSceneryId(value) ? value : legacyLiveHouse === true ? "liveHouse" : "floor";
 }
 export function nextScenery(id: SceneryId) { return sceneryIds[(sceneryIds.indexOf(id) + 1) % sceneryIds.length]; }
 
