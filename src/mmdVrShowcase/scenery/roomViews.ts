@@ -46,7 +46,15 @@ export const roomViews:Record<SceneryId,RoomView>={
     {key:'weddingGateFinish',eye:[1.38,3.16,8.56],aim:[-.55,2.94,5.92]}]},
 };
 const tours=new Map<SceneryId,readonly Shot[]>();
+// Local standing views on the way; unlike a link's arrival camera these never change rooms.
+const streetViews:Partial<Record<SceneryId,readonly Shot[]>>={
+  lawn:[{key:'campusPrintStreet',eye:[31.5,1.65,2.9],aim:[46.4,1.16,2.9]}],
+  arcadeHall:[{key:'arcadePoolOverlook',eye:[-7.84,3.70,-24.15],aim:[-24,1.30,-24.15]}],
+  pool:[{key:'poolArcadeWalk',eye:[6.2,1.65,-19.25],aim:[15,1.02,-19.25]}],
+  weddingCourt:[{key:'weddingBridgeView',eye:[-17,2.07,10.45],aim:[-23.4,1.14,10.45]}],
+  qinhuai:[{key:'qinhuaiLanternQuay',eye:[10.6,1.65,7.65],aim:[18.1,.98,7.65]}],
+};
 export function tourShots(room:SceneryId):readonly Shot[]{
-  let list=tours.get(room);if(!list){list=[...(roomViews[room].shots??[]),...roomLinks.filter(l=>l.from===room).map(link=>({...link.arrival,link}))];tours.set(room,list);}
+  let list=tours.get(room);if(!list){list=[...(roomViews[room].shots??[]),...roomLinks.filter(l=>l.from===room).map(link=>({...link.arrival,link})),...(streetViews[room]??[])];tours.set(room,list);}
   return list;
 }

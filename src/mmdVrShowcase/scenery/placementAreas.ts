@@ -10,9 +10,9 @@ import { planetSight } from './planet/planetSightline';
 import { velvetPlace, velvetSight } from './velvet/velvetLayout';
 import { chamberPlace, chamberSight } from './chamber/chamberLayout';
 import { arcadePlace, arcadeSight, pickDecks } from './arcade/arcadePlacement';
+import { streetsIn } from './routes/streets';
+import type { PickDeck, RoutePoint as Point } from './routes/types';
 
-type Point = { x: number; y: number; z: number };
-type PickDeck = Point & { w: number; d: number };
 type Sight = (from: Point, x: number, y: number, z: number) => boolean;
 type PlacementRule = {
   resolve: (x: number, z: number, supportY?: number) => number | null;
@@ -36,7 +36,7 @@ const rules: Record<SceneryId, PlacementRule> = {
   astralCourt: { ...flat(courtPlace), decks: [ground(108)] },
   chapel: flat(chapelPlace),
   clinic: flat(clinicNavigation.place, (from,x,_y,z) => clinicNavigation.visible(from,x,z)),
-  weddingCourt: flat((x,z) => weddingClear(x,z,true), (from,x,_y,z) => weddingVisible(from,x,z)),
+  weddingCourt: flat((x,z) => weddingClear(x,z,true), (from,x,y,z) => weddingVisible(from,x,z,y)),
   lanternSuite: retreat('lanternSuite'),
   moonSpa: retreat('moonSpa'),
   glassPlanet: flat(planetPlace, planetSight),
@@ -54,12 +54,27 @@ const rules: Record<SceneryId, PlacementRule> = {
 
 /** null rejects the drop; zero (and, in the arcade lounge, a negative Y) is valid. */
 export function resolvePlacementHeight(room: SceneryId, x: number, z: number, supportY?: number) {
-  return Number.isFinite(x) && Number.isFinite(z) ? rules[room].resolve(x,z,supportY) : null;
+  if (!Number.isFinite(x) || !Number.isFinite(z)) return null;
+  for (const street of streetsIn(room)) {
+    const height = street.resolve(room,x,z,supportY);
+    if (height !== undefined) return height;
+  }
+  return rules[room].resolve(x,z,supportY);
 }
 export function canPlaceInScenery(room: SceneryId, x: number, z: number, supportY?: number) {
   return resolvePlacementHeight(room,x,z,supportY) !== null;
 }
-export function roomPickDecks(room: SceneryId) { return rules[room].decks ?? commonDecks; }
+const deckCache = new Map<SceneryId, readonly PickDeck[]>();
+export function roomPickDecks(room: SceneryId) {
+  const base = rules[room].decks ?? commonDecks, streets = streetsIn(room);
+  if (!streets.length) return base;
+  let decks = deckCache.get(room);
+  if (!decks) {
+    decks = [...base, ...streets.flatMap(street => street.decks(room))];
+    deckCache.set(room,decks);
+  }
+  return decks;
+}
 export function visiblePick(room: SceneryId, from: Point, x: number, y: number, z: number) {
-  return rules[room].visible?.(from,x,y,z) ?? true;
+  return (rules[room].visible?.(from,x,y,z) ?? true) && streetsIn(room).every(street => street.visible(room,from,x,y,z));
 }

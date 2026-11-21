@@ -177,6 +177,6 @@ export function weddingSightline(from:Point3,to:Point3) {
     !rayRounds.some(b=>crossesCylinder(from.y,dy,b.bottom,b.top,from.x-b.x,dx,from.z-b.z,dz,b.r)) &&
     !rayDiscs.some(b=>crossesCylinder(from.z,dz,b.z-b.d/2,b.z+b.d/2,from.x-b.x,dx,from.y-b.y,dy,b.r));
 }
-export function weddingVisible(from:Point3,x:number,z:number) {
-  return from.y>.012 && weddingSightline(from,{x,y:.012,z});
+export function weddingVisible(from:Point3,x:number,z:number,floorY=0) {
+  return from.y>floorY+.012 && weddingSightline(from,{x,y:floorY+.012,z});
 }

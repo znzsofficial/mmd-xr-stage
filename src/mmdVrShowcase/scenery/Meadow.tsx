@@ -15,6 +15,7 @@ import { Batch, type Part } from './SceneryBatch';
 import {GardenEntrance} from './clinic/GardenEntrance';
 import {SchoolBrickWalk} from './SchoolBrickWalk';
 import {reserveLawnClinic} from './clinic/clinicApproach';
+import {reserveArcadeSite} from './routes/campusArcade/site';
 import { noPick, paintedSurface } from './sceneryPaint';
 
 type V = Part['p'];
@@ -28,7 +29,7 @@ function flowers() {
     const z=(random()-.5)*28,x=patch<90?pathX(z)+(patch%2?1:-1)*(.9+random()*.8):(random()-.5)*29;
     if(Math.abs(x-pathX(z))<.88||Math.hypot(x,z)<1.55)continue;
     for(let j=0;j<9;j++){const xx=x+(random()-.5)*.8,zz=z+(random()-.5)*.8,h=.1+random()*.22,ox=.11*(random()-.5),oz=.13*(random()-.5);
-      if(lawnPaving(xx,zz)||inLidoApproach(xx,zz)||reserveLawnClinic(xx,zz,.06)){if(j<4)random();continue;}
+      if(lawnPaving(xx,zz)||inLidoApproach(xx,zz)||reserveLawnClinic(xx,zz,.06)||reserveArcadeSite(xx,zz,.06)){if(j<4)random();continue;}
       tri([xx-.017,0,zz],[xx+.017,0,zz],[xx+ox,h,zz+oz],j%2?'#788e44':'#a1ad56');
       if(j<4){const rad=.035+random()*.02;const color=patch%6===0?'#ba85ac':patch%4?'#fff1cb':'#e2b55c';
         for(let k=0;k<5;k++){const a=k*1.256;tri([xx+ox,h,zz+oz],[xx+ox+rad*Math.cos(a-.38),h+.026,zz+oz+rad*Math.sin(a-.38)],[xx+ox+rad*Math.cos(a+.38),h+.032,zz+oz+rad*Math.sin(a+.38)],color);}}
@@ -41,6 +42,7 @@ function flowers() {
     const z=-10+random()*13,x=pathX(z)+(tuft%2?1:-1)*(1.08+random()*.55);
     for(let stalk=0;stalk<3;stalk++){
       const xx=x+(random()-.5)*.31,zz=z+(random()-.5)*.30,h=.30+random()*.31,lean=(random()-.5)*.094;
+      if(reserveArcadeSite(xx,zz,.11)){for(let k=0;k<5;k++)random();continue;}
       tri([xx-.011,0,zz],[xx+.011,0,zz],[xx+lean,h,zz],'#7d8e63');
       for(let j=0;j<9;j++){
         const a=j*2.4+tuft,r=(1-j*.083)*.035,y=h*(.48+.057*j),dx=r*Math.cos(a),dz=r*Math.sin(a),stem=xx+lean*y/h;
@@ -117,7 +119,8 @@ function grove() {
   for(let i=0;i<30;i++){const a=i*2*Math.PI/30,x=Math.sin(a)*39,z=Math.cos(a)*39;
     // The borrowed lido pavilion extends beyond the original circular horizon.
     // Carry the north ridge behind its roof instead of through the lane flags.
-    hills.push({p:[x,-1.5,z< -24&&x> -34&&x<12?z-25:z],s:[17+rng()*6,6+rng()*8,15+rng()*7],ry:a,color:i%3?'#819a83':'#91a591'});}
+    const atEast=reserveArcadeSite(x,z,13);
+    hills.push({p:[atEast&&x>14?x+32:x,-1.5,z< -24&&x> -34&&(x<12||atEast)?z-25:z],s:[17+rng()*6,6+rng()*8,15+rng()*7],ry:a,color:i%3?'#819a83':'#91a591'});}
   for(let i=0;i<LAWN_TREES.length;i++){const tree=LAWN_TREES[i],{x,z,h}=tree,birch=i%3===1;const bark=birch?'#c4c1a9':'#806d53';
     const fork:V=[x+.12,h*.44,z-.10],knee:V=[x-.037,h*.18,z+.05];beam([x,-.08,z],knee,h*(birch?.062:.086),bark);beam(knee,fork,h*(birch?.052:.069),bark);
     for(let j=0;j<6;j++) {const a=j*2.4+i*.61,r=j===0?0:h*(.19+rng()*.09),end:V=[x+Math.sin(a)*r,h*(j===0?.96:.66+rng()*.17),z+Math.cos(a)*r];

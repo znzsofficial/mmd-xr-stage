@@ -1,5 +1,9 @@
 /** Chinese (zh) UI strings — source of truth for TranslationKey keys. */
 export const zh = {
+  campusToArcade:'沿步行街 → 电玩厅',arcadeToCampus:'沿步行街 → 校园草坪',arcadeToPool:'沿东侧步道 → 泳池计时台',poolToArcade:'从计时台 → 电玩厅',
+  weddingToRiver:'沿河街 → 秦淮歌楼',riverToWedding:'过石桥 → 双喜堂',
+  campusPrintStreet:'步行街 · 望向电玩厅',arcadePoolOverlook:'东侧观景台 · 俯看泳场步道',poolArcadeWalk:'计时台 · 回望电玩厅步道',
+  weddingBridgeView:'石桥上 · 望向秦淮',qinhuaiLanternQuay:'河街埠头 · 回望喜院',
   arcPrintConsole:'近看 · 双机台面',arcPrintMural:'近看 · 木板喷绘',
   arcFrontWalk:'二楼 · 沿正门平台望西',
   arcWestPortal:'西廊 · 从涂鸦牌下进门',arcWestStair:'西廊 · 从橱窗回望外梯',

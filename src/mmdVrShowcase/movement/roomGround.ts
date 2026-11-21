@@ -16,6 +16,7 @@ import {velvetEntry,velvetGround} from '../scenery/velvet/velvetLayout';
 import {chamberEntry,chamberGround} from '../scenery/chamber/chamberLayout';
 import {entry as arcadeEntry} from '../scenery/arcade/arcadeLayout';
 import {baseGround} from '../scenery/arcade/arcadeTravel';
+import {streetsIn} from '../scenery/routes/streets';
 
 const origin={x:0,z:0},clinicEntry={x:0,z:2.8};
 export function roomEntry(room:SceneryId){
@@ -32,6 +33,10 @@ const inside=(x:number,z:number,r:Rect)=>Math.abs(x-r.x)<=r.w/2&&Math.abs(z-r.z)
 // Actual walls, planks, GLB furniture and overhead beams are tested separately.
 // -Infinity is outside the playable floor (water/void/borrowed scenery).
 export function roomGround(room:SceneryId,x:number,z:number){
+  for (const street of streetsIn(room)) {
+    const ground = street.ground(room,x,z);
+    if (ground !== null) return ground;
+  }
   switch(room){
     case 'arcadeHall':return baseGround(x,z);
     case 'velvetStudio':return velvetGround(x,z);

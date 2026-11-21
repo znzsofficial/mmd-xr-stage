@@ -17,6 +17,7 @@
 |---|---|
 | 默认设置、合法值、v1/v2 偏好兼容 | [`settings/preferences.ts`](../src/mmdVrShowcase/settings/preferences.ts)。首次进入、读取旧记录和场内更新共用同一套规则；[`mmdVrStore.ts`](../src/mmdVrShowcase/mmdVrStore.ts) 发布状态和操作。文件、布局和运行时句柄不属于偏好。 |
 | 某一间房的模型、入口、机位、遮挡 | [`scenery/`](../src/mmdVrShowcase/scenery/)；按[布景接入指南](./scenery/adding-a-set.md)改注册表和本景布局。菜单切景是否重置视角由 `catalog.ts` 决定；步行跨门由 `connections.ts` 的平移数据决定。 |
+| 让两景共用一段可走的街 | [`routes/types.ts`](../src/mmdVrShowcase/scenery/routes/types.ts) 定义扩建区域的地面、摆位和遮挡接口。两景各用本地坐标引用同一份道路布局；[`connections.ts`](../src/mmdVrShowcase/scenery/connections.ts) 判断是否真正穿过门口。XR 与[屏幕步行](../src/mmdVrShowcase/screen/streetTravel.ts)共用门线；屏幕跨门时平移相机和环绕目标，XR 跨门时平移追踪原点。 |
 | 哪些楼面可指、哪些点能摆角色 | [`placementAreas.ts`](../src/mmdVrShowcase/scenery/placementAreas.ts) 为每个 `SceneryId` 登记落点解析、拾取平面和视线遮挡。模型和烘焙脚本直接读所属布景的布局数据；例如草坪的树丘在 [`meadowPlanting.ts`](../src/mmdVrShowcase/scenery/meadowPlanting.ts)，不会因为要画一棵树而导入所有布景的摆位规则。 |
 | 多景共用的天空、灯、网格和地台 | [`stage/StageEnvironment.tsx`](../src/mmdVrShowcase/stage/StageEnvironment.tsx) 只按当前房间的配置和画质绘制布景。新放置与移动已有资产都由 [`BackpackPlacement.tsx`](../src/mmdVrShowcase/components/BackpackPlacement.tsx) 拾取和校验：按下预览，松开有效落点才提交。 |
 | 共用灯光预设或布景的灯光覆盖值 | 六套预设在 [`stage/lighting.ts`](../src/mmdVrShowcase/stage/lighting.ts)，单景覆盖值在 [`scenery/roomSets.tsx`](../src/mmdVrShowcase/scenery/roomSets.tsx)。房间求值一次，让布景与 MMD 角色共用同一个主光源。 |

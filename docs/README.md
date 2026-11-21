@@ -4,6 +4,7 @@
 
 | 我想做什么 | 从这里开始 |
 |---|---|
+| 在布景间走一圈，沿路摆角色 | [校园、电玩厅和泳池环线](./scenery/campus-arcade-loop.md) · [双喜堂到秦淮的河街](./scenery/jiangnan-river-street.md) |
 | 进新地图、在同一大厅的上下两层摆人 | [屏幕直达电玩厅](https://mmd-xr-stage.pages.dev/?set=arcadeHall&view=screen) · [洞口换层、外平台与贴图机位](./scenery/arcade-hall.md) |
 | 下次戴 Quest 先测什么 | [小星球从进门就能否行走、转向](./scenery/opal-planet.md) · [教室：同一大动作回场、首次开物理](./performance/next-quest-export.md) |
 | 查手持道具在哪里生效、怎样递给角色 | [玩法与道具](./gameplay/README.md)：四幕玩法、逐件用法、屏幕／VR 操作 |

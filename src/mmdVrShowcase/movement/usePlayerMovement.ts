@@ -109,7 +109,7 @@ export function usePlayerMovement(originRef:RefObject<Group|null>,veilRef:RefObj
         if(room==='classroom'&&!s.release&&nearCampusDoor(x,z))s.release=hintLawnPrints();
         // Keep sampling the seam across a small step down (or a jump through
         // the open doorway). Brief loss of ground contact must not erase it.
-        const link=dragging?null:s.gate.next(room,x,z);
+        const link=dragging?null:s.gate.next(room,x,z,s.body.y);
         if(dragging)s.gate.reset();
         if(link){
           if(walkBetweenZones(link)){

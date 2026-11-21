@@ -1,3 +1,5 @@
+import {quayOpening} from '../routes/riverStreet/plan';
+
 // Metres. The elevated decks have closed plinths: there is only one
 // supported playing level at each (x,z). The stairs are travel, not actor slots.
 export const rect=(x:number,z:number,w:number,d:number)=>({x,z,w,d});
@@ -53,7 +55,8 @@ export const WALLS=[solid(rect(0,-7.94,11.44,.15),-.1,5.53),solid(rect(5.64,-1.7
   solid(rect(-5.7,-1.75,.16,12.5),-.1,GALLERY_Y),solid(rect(-8.75,-2.54,.13,10.58),GALLERY_Y,5.12),
   ...[-4.43,4.43].map(x=>solid(rect(x,4.42,2.19,.15),0,3.05))];
 export const GALLERY_RAIL=solid(rect(-5.84,-2.6,.12,10.35),GALLERY_Y,GALLERY_Y+.93);
-export const RIVER_RAILS=[rect(-2.52,10.71,12.56,.13),rect(6.85,10.71,1.3,.13),rect(7.41,7.65,.13,6.16),rect(-8.71,9.41,.13,2.67)].map(r=>solid(r,0,.83));
+const eastRail=(a:number,b:number)=>rect(7.41,(a+b)/2,.13,b-a);
+export const RIVER_RAILS=[rect(-2.52,10.71,12.56,.13),rect(6.85,10.71,1.3,.13),eastRail(4.57,quayOpening.min),eastRail(quayOpening.max,10.73),rect(-8.71,9.41,.13,2.67)].map(r=>solid(r,0,.83));
 // The ties leave the west edge for the boat. Include the standing turns,
 // tucked end and pile in the footprint, not just the inner timber core.
 export const MOORING_POSTS=[3.85,6.06].flatMap(x=>[12.18,15.22].map(z=>({...rect(x,z,x<5?.28:.19,x<5?.28:.19),tied:x<5})));

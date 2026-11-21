@@ -61,3 +61,31 @@ it('keeps wheel zoom centred on the new orbit target after keyboard translation 
   expect(distance()).toBeGreaterThan(near); expect(orbit.target.equals(target)).toBe(true);
   expect(camera.getWorldDirection(new Vector3()).distanceTo(direction)).toBeLessThan(1e-9);
 });
+
+it('only sends an actual horizontal keyboard step to a street door and waits on a busy crossing',()=>{
+  const {view,orbit,camera,keys,press}=rig();keys.dispose();
+  const beforeWalk=vi.fn(()=>false),held=new Set<string>();
+  const streetKeys=bindScreenCameraKeyboard(view,orbit,()=>{},undefined,{held,beforeWalk});
+  cleanups.push(()=>streetKeys.dispose());
+  const initial=camera.position.clone();
+  press('KeyW');streetKeys.step(.1);
+  expect(beforeWalk).toHaveBeenCalledTimes(1);expect(camera.position.equals(initial)).toBe(true);
+  beforeWalk.mockReturnValue(true);streetKeys.step(.1);
+  expect(camera.position.z).toBeCloseTo(initial.z-.24);
+  press('KeyF');streetKeys.step(.1);expect(beforeWalk).toHaveBeenCalledTimes(2);
+  streetKeys.clear();streetKeys.step(.1);expect(beforeWalk).toHaveBeenCalledTimes(2);
+});
+
+it('hands a held key to the destination rig until the actual key-up, but not on a menu exit',()=>{
+  const {view,orbit,camera,keys,press}=rig();keys.dispose();
+  const options={held:new Set<string>(),beforeWalk:()=>true};
+  const bind=()=>bindScreenCameraKeyboard(view,orbit,()=>{},undefined,options);
+  const source=bind();press('KeyS');source.step(.1);source.dispose(true);
+  const dest=bind(),atGate=camera.position.clone();
+  try{
+    dest.step(.1);expect(camera.position.z-atGate.z).toBeCloseTo(.24);
+    press('KeyS','keyup');const released=camera.position.clone();dest.step(.1);expect(camera.position.equals(released)).toBe(true);
+    press('KeyW');
+  }finally{dest.dispose();}
+  expect(options.held.size).toBe(0);
+});

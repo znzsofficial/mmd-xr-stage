@@ -9,7 +9,8 @@ import { isStoryRoom, type StoryRoom } from '../play/stagePlay';
 import {roomViews,tourShots} from '../scenery/roomViews';
 import {walkBetweenZones,hintLawnPrints} from '../scenery/campusTransit';
 import { bindScreenCameraKeyboard } from './screenCameraKeyboard';
-import {arcadeScreenTravel} from '../scenery/arcade/screenTravel';
+import {screenStreetTravel} from './streetTravel';
+import {RoomGate} from '../scenery/connections';
 
 type Point = [number,number,number];
 const storyViews:Record<StoryRoom,[Point,Point]>={
@@ -19,12 +20,25 @@ export type CameraActions = { reset():void; frame():void; center():void; story()
 
 export function ScreenCamera({actions,onReady,viewport}:{actions:RefObject<CameraActions|null>;onReady:(ready:boolean)=>void;viewport:RefObject<HTMLDivElement|null>}) {
   const {camera,gl,scene}=useThree(); const scenery=useMmdVrStore(s=>s.prefs.scenery);
-  const arrival=useRef<{room:SceneryId;eye:readonly number[];aim:readonly number[]}|null>(null);
+  const arrival=useRef<{room:SceneryId;eye:readonly number[];aim:readonly number[];walking?:boolean}|null>(null);
+  const heldKeys=useRef(new Set<string>());
   const keyboard=useRef<ReturnType<typeof bindScreenCameraKeyboard>|null>(null);
   useFrame((_,delta)=>keyboard.current?.step(delta));
   useLayoutEffect(()=>{
     if(!(camera instanceof PerspectiveCamera)||!viewport.current)return;
-    const travel=scenery==='arcadeHall'?arcadeScreenTravel(scene):undefined;
+    const travel=screenStreetTravel(scene,scenery);
+    const gate=new RoomGate();
+    const steps={held:heldKeys.current,beforeWalk(eye:Vector3,aim:Vector3,d:Vector3){
+      if(!gate.hasExits(scenery))return true;
+      // Screens can fly to inspect a roof or use an overhead tour. A crossing
+      // is a horizontal step at the actual doorway, not flight over its XZ.
+      const link=gate.crossing(scenery,eye.x,eye.z,eye.x+d.x,eye.z+d.z,eye.y-1.65);
+      if(!link)return true;
+      const [tx,tz]=link.offset;
+      arrival.current={room:link.to,walking:true,eye:[eye.x+d.x+tx,eye.y+d.y,eye.z+d.z+tz],aim:[aim.x+d.x+tx,aim.y+d.y,aim.z+d.z+tz]};
+      if(walkBetweenZones(link))return true;
+      arrival.current=null;return false;
+    }};
     const makeOrbit=()=>{const o=new OrbitControls(camera,gl.domElement);o.minDistance=.18;o.maxDistance=scenery==='astralCourt'?52:scenery==='glassPlanet'?38:22;o.maxPolarAngle=Math.PI*(scenery==='qinhuai'?.64:scenery==='glassPlanet'||scenery==='arcadeHall'?.99:.49);o.rotateSpeed=.70;o.enabled=!useBackpack.getState().draft;return o;};
     let orbit=makeOrbit();const wup=[0,1,0] as const;
     function align(up:readonly [number,number,number]=wup){
@@ -32,7 +46,7 @@ export function ScreenCamera({actions,onReady,viewport}:{actions:RefObject<Camer
       // OrbitControls captures up at construction. Switch frames before a
       // southern tour, rather than letting the next drag undo its horizon.
       keyboard.current?.dispose();orbit.dispose();camera.up.fromArray(up);orbit=makeOrbit();
-      keyboard.current=bindScreenCameraKeyboard(viewport.current!,orbit,reset,travel);
+      keyboard.current=bindScreenCameraKeyboard(viewport.current!,orbit,reset,travel,steps);
     }
     const setLens=(fov:number)=>{camera.fov=fov;camera.updateProjectionMatrix();};
     const reset=()=>{align();const [eye,look]=roomViews[scenery].entry;setLens(50);camera.position.set(...eye);orbit.target.set(...look);orbit.update();};
@@ -54,10 +68,14 @@ export function ScreenCamera({actions,onReady,viewport}:{actions:RefObject<Camer
       const prev=b.live[b.draft], transform=prev&&(s.models.find(m=>m.id===prev.runtimeId)??s.objects.find(o=>o.id===prev.runtimeId));
       b.confirmPlace(b.draft,0,0,transform?.rotationY??Math.atan2(camera.position.x,camera.position.z)*180/Math.PI);
     }};
-    reset();const a=arrival.current;arrival.current=null;if(a?.room===scenery){camera.position.fromArray(a.eye);orbit.target.fromArray(a.aim);orbit.update();}orbit.enabled=!useBackpack.getState().draft;
-    keyboard.current=bindScreenCameraKeyboard(viewport.current,orbit,reset,travel);
+    reset();
+    const a=arrival.current;arrival.current=null;
+    if(a?.room===scenery){camera.position.fromArray(a.eye);orbit.target.fromArray(a.aim);orbit.update();}
+    if(!a?.walking||a.room!==scenery)heldKeys.current.clear();
+    orbit.enabled=!useBackpack.getState().draft;
+    keyboard.current=bindScreenCameraKeyboard(viewport.current,orbit,reset,travel,steps);
     onReady(true);const off=useBackpack.subscribe((b,old)=>{if(old.draft!==b.draft){keyboard.current?.clear();orbit.enabled=!b.draft;}});
-    return ()=>{keyboard.current?.dispose();keyboard.current=null;travel?.dispose();off();releaseHints?.();actions.current=null;onReady(false);orbit.dispose();camera.up.set(0,1,0);};
+    return ()=>{keyboard.current?.dispose(arrival.current?.walking===true);keyboard.current=null;travel?.dispose();off();releaseHints?.();actions.current=null;onReady(false);orbit.dispose();camera.up.set(0,1,0);};
   },[camera,gl,scene,scenery,actions,onReady,viewport]);
   return null;
 }

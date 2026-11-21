@@ -4,6 +4,8 @@ import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 
 const files = [
+  ['8dcd90e9','PlanetPhysics-II020E8s.js','8721a640104c41e4b04183f8af195383503049b4b29215f5e7d5c3becb899cac'],
+  ['8dcd90e9','index-BhSYxMOA.js','ad179c53e52dc7c00ebf960ef7920a629b2902125a4079a662fb88c7c30988d8'],
   ['5e0320e4','PlanetPhysics-Bq1zXxO_.js','62e02e4133d4693469437fc97897b5d1fb537654975484cb2aec25daf652a1dc'],
   ['5e0320e4','index-B3X5PRz7.js','39c68dd0b1e3082e9e26fc4f77bf055850ebf4da8c75f8a0575473501ca29833'],
   // An already-open arcade release can enter the arcade or planet for the first time.

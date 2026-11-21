@@ -22,6 +22,18 @@ export const POOL={
   flagPosts:[-9.5,-16.8].flatMap(z=>[-5.45,5.45].map(x=>({x,z,w:.14,d:.14}))),
 };
 export const POOL_SUPPORT=[POOL.deck,...POOL.walks,POOL.farWalk,TIME_DECK,LIDO_ENTRY];
+// Keep the eastern two rails, but terminate them at a real opening to the
+// timing deck. The other bays and the opposite perimeter remain intact.
+export function poolBarrierParts():Part[]{
+  const parts:Part[]=[],tint='#8fa9a7';
+  for(const x of [-10.5,10.5]){
+    const runs=x<0?[[-7,-10.1,-13.2,-16.3,-19.4,-22.5]]:[[-7,-10.1,-13.2,-16.3,-17.75],[-20.75,-22.5]];
+    for(const run of runs)for(const [i,z] of run.entries()){
+      parts.push({p:[x,.88,z],s:[.09,1.76,.09],color:tint});if(i===0)continue;
+      for(const [y,w] of [[1.70,.06],[.50,.035]])parts.push({p:[x,y,(run[i-1]+z)/2],s:[w,w,run[i-1]-z],color:tint});
+    }
+  }return parts;
+}
 // Meadow only borrows the forecourt up to the door; the basin is in the active pool set.
 export function borrowedLido(x:number,z:number){return Math.abs(x-POOL_ORIGIN.x)<POOL.deck.w/2+.2&&z<POOL_ORIGIN.z+LIDO_GATE.in-.36;}
 export const LIDO_ROUTE_SHOTS={

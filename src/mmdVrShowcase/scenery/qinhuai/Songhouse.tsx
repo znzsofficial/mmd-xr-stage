@@ -41,7 +41,7 @@ export function RiverSky(){return <mesh name="qinhuai:evening-sky" renderOrder={
     }`}/></mesh>;}
 // Static ripple field in world metres. The broad wake and lantern tracks are
 // intentionally painted reflections; no second camera, simulation or frame loop.
-function River(){return <mesh name="qinhuai:water" position={[0,-.535,4]} rotation-x={-Math.PI/2} raycast={noPick}>
+export function QinhuaiWater(){return <mesh name="qinhuai:water" position={[0,-.535,4]} rotation-x={-Math.PI/2} raycast={noPick}>
   <planeGeometry args={[140,85]}/><shaderMaterial vertexShader={`varying vec2 w;void main(){vec4 p=modelMatrix*vec4(position,1.);w=p.xz;gl_Position=projectionMatrix*viewMatrix*p;}`}
     fragmentShader={`varying vec2 w;
     float hash(vec2 p){return fract(sin(dot(p,vec2(31.7,127.1)))*43758.5453);}
@@ -66,6 +66,6 @@ export function Songhouse({shadows}:{shadows:boolean}){
     {map&&<mesh name="qinhuai:folding-screen-and-signs" geometry={p.prints} raycast={noPick}><meshStandardMaterial key={map.uuid} map={map} roughness={.89}/></mesh>}
     <mesh name="qinhuai:lacquer-rope-and-stone" geometry={p.close} raycast={noPick}><meshStandardMaterial key={close?.uuid??'unpainted'} map={close} color={close?'#ffffff':'#927961'} side={DoubleSide} roughness={.73}/></mesh>
     <mesh name="qinhuai:quarters-silks" geometry={p.quarters} raycast={noPick}><meshStandardMaterial key={quarters?.uuid??'unpainted'} map={quarters} color={quarters?'#ffffff':'#ab907f'} side={DoubleSide} roughness={.88}/></mesh>
-    <River/>
+    <QinhuaiWater/>
   </group>;
 }

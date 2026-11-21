@@ -3,7 +3,8 @@ import { useFrame } from '@react-three/fiber';
 import { BufferGeometry, Color, CylinderGeometry, DoubleSide, Float32BufferAttribute, TorusGeometry, Vector3, type Mesh,type ShaderMaterial } from 'three';
 import {ARBOR} from './meadowLandmarks';
 import {BorrowedMeadow} from './BorrowedMeadow';
-import {arcadeParts,judgeStand,PACE_CLOCK,POOL,POOL_SUPPORT,POOL_ORIGIN,PAVILION_POSTS} from './LidoLayout';
+import {arcadeParts,judgeStand,PACE_CLOCK,POOL,POOL_SUPPORT,POOL_ORIGIN,PAVILION_POSTS,poolBarrierParts} from './LidoLayout';
+import {reserveArcadeSite} from './routes/campusArcade/site';
 import {LidoPlates} from './LidoPlates';
 import { span } from './detailParts';
 import { useBakedSurface } from './useBakedSurface';
@@ -89,9 +90,7 @@ function furnishings() {
   for(let j=0;j<8;j++){const x=-7+j*2.14;box([x,1.17,-22.41],[1.35,2.06,.06],j%2?'#769e97':'#88aaa0');box([x+.44,1.14,-22.36],[.05,.16,.042],'#d4c5a5');for(let k=0;k<4;k++)box([x,1.85+k*.065,-22.36],[1.06,.023,.04],'#587a76');}
   for(const {x,z,w,d} of PAVILION_POSTS){box([x,1.43,z],[w,2.86,d],'#e6d6b7');box([x,.17,z],[.21,.34,.21],'#849f93');}
   for(let i=0;i<8;i++){const x=-7+i*2.14;box([x,.045,-22.22],[1.44,.082,.38],'#b3b6a8');box([x,1.04,-22.354],[.18,.31,.028],'#587871');box([x,1.09,-22.322],[.13,.024,.043],'#d1c9b0');}
-  for(const x of [-10.5,10.5])for(let j=0;j<6;j++){
-    const z=-7-j*3.1;box([x,.88,z],[.09,1.76,.09],steel);if(j<5){box([x,1.7,z-1.55],[.06,.06,3.1],steel);box([x,.5,z-1.55],[.035,.035,3.1],steel);}
-  }
+  blocks.push(...poolBarrierParts());
   for(const r of POOL.benches){box([r.x,.39,r.z],[r.w,.09,r.d],'#ae8c69');for(const dx of [-.65,.65])box([r.x+dx,.075,r.z],[.09,.54,.43],steel);}
   // Backstroke flags sag between capped uprights. The sockets are outside the water.
   for(const f of POOL.flagPosts){tube([f.x,1.54,f.z],[.056,3.08,.056],steel);tube([f.x,.038,f.z],[.14,.074,.14],'#839e99');}
@@ -104,7 +103,9 @@ function furnishings() {
   // Narrow ceramic kickplates and glazed transoms catch sky light across the pool.
   for(let j=0;j<8;j++){const x=-7+j*2.14;box([x,.22,-22.366],[1.22,.24,.018],'#88a29a');box([x,2.48,-22.425],[1.44,.35,.05],'#a0bec0');
     for(const dx of [-.64,0,.64])box([x+dx,2.48,-22.39],[.055,.37,.042],'#e6d7b7');}
-  for(let j=0;j<24;j++) {const a=j*.73,x=(j%2?-1:1)*(14+3*Math.sin(a)),z=-29+(j>>1)*3.7,h=3.2+1.1*Math.cos(a);tube([x,(h-.2)/2,z],[.27,h+.2,.27],'#847663');for(let k=0;k<4;k++)crowns.push({p:[x+.82*Math.sin(k*2),h+.4*Math.cos(k*2),z+.8*Math.cos(k*2)],s:[2.7,2.2,2.3],color:['#769568','#8aab72','#668662','#94ad73'][k]});}
+  for(let j=0;j<24;j++) {const a=j*.73,x=(j%2?-1:1)*(14+3*Math.sin(a)),z=-29+(j>>1)*3.7,h=3.2+1.1*Math.cos(a);
+    if(reserveArcadeSite(x+POOL_ORIGIN.x,z+POOL_ORIGIN.z,2.2))continue;
+    tube([x,(h-.2)/2,z],[.27,h+.2,.27],'#847663');for(let k=0;k<4;k++)crowns.push({p:[x+.82*Math.sin(k*2),h+.4*Math.cos(k*2),z+.8*Math.cos(k*2)],s:[2.7,2.2,2.3],color:['#769568','#8aab72','#668662','#94ad73'][k]});}
   return {blocks,drums,crowns};
 }
 

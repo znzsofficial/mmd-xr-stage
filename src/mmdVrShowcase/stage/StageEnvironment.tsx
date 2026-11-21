@@ -7,6 +7,7 @@ import { StudioPlinth } from '../scenery/StudioPlinth';
 import { showSceneryGrid, type SceneryId } from '../scenery/catalog';
 import { RiverSky } from '../scenery/qinhuai/Songhouse';
 import { RoomSet, roomSets } from '../scenery/roomSets';
+import { StreetScenery } from '../scenery/routes/StreetScenery';
 import { hasStageLamps } from '../settings/stageLamps';
 import type { MmdVrRenderProfile } from '../mmdVrQuality';
 import type { MmdVrPrefs } from '../settings/preferences';
@@ -90,6 +91,7 @@ export function StageEnvironment({scenery, lighting, prefs, profile, sunRef}: Pr
     <group name="player:room-solids">
       {scenery==='floor' && <StudioPlinth segments={profile.floorSegments} shadows={profile.shadows} color={lighting.floorColor}/>}
       <RoomSet id={scenery} shadows={profile.shadows} concert={lightPreset==='contrast'}/>
+      <StreetScenery room={scenery}/>
     </group>
     {lamps && prefs.stageLightPoolEnabled && <LightPool color={lighting.poolColor} opacity={Math.min(.14, rim*.08)}/>}
     {showSceneryGrid(scenery, profile.showGrid, prefs.gridPref==='on') && <gridHelper args={[12,12,'#d8dce0','#a5aaae']} position={[0,.01,0]}/>}

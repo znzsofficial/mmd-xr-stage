@@ -35,7 +35,9 @@ Choose **Lacquer and roof tiles** in the courtyard or **Window-side desk** in th
 
 ![A red bridal sedan beside a tiled gate, with the banquet table visible through the open doors.](./docs/screenshots/wedding-court-entry.webp)
 
-**Campus walk.** Leave the classroom through its rear door and follow the covered passage into the meadow. The blue-tiled gate leads to the pool; a separate garden path takes you under the clinic canopy into the waiting hall. Each set keeps its own layout, so you can leave a character in the classroom and find it there when you return.
+**Campus walk.** The [print street](./docs/scenery/campus-arcade-loop.md) leads from the meadow to the arcade’s west entrance. Climb the outside staircase, cross the upper front walk and follow the ramp down to the pool timing deck. The original pool gate takes you back to the meadow; the classroom and clinic branch off the same garden. Each set keeps its own layout when you return.
+
+**Jiangnan river street.** Leave the bridal sedan alley and cross the [stone bridge](./docs/scenery/jiangnan-river-street.md) to the Qinhuai songhouse quay. The level bridge crown and the dry quay both have room for character portraits.
 
 ![Afternoon light across the desks and parquet floor of the window-side classroom.](./src/mmdVrShowcase/prep/classroom-window.webp)
 

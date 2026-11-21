@@ -2,12 +2,13 @@ import { seededRandom } from './ClassroomLayout';
 import { lawnPaving } from './CampusLayout';
 import { inLidoApproach } from './LidoLayout';
 import { reserveLawnClinic } from './clinic/clinicApproach';
+import { reserveArcadeSite } from './routes/campusArcade/site';
 
 // Keep the two consecutive draws from the same seed: rendered landscaping
 // and actor exclusions must agree even at the ends of the borrowed scenery.
 const random = seededRandom(11281);
 function clearPath(x: number, z: number, margin: number) {
-  return !inLidoApproach(x,z,margin) && !reserveLawnClinic(x,z,margin) && !lawnPaving(x,z,margin);
+  return !inLidoApproach(x,z,margin) && !reserveLawnClinic(x,z,margin) && !reserveArcadeSite(x,z,margin) && !lawnPaving(x,z,margin);
 }
 export const LAWN_KNOLLS = Array.from({ length: 58 }, () => {
   const x = random() * 54 - 27, z = random() * 54 - 27;

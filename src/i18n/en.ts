@@ -2,6 +2,10 @@ import type { ZhMessages } from "./zh";
 
 /** English UI strings — must cover every key in zh. */
 export const en: Record<keyof ZhMessages, string> = {
+  campusToArcade:'Pedestrian street → Arcade',arcadeToCampus:'Pedestrian street → Campus lawn',arcadeToPool:'East promenade → Pool timing deck',poolToArcade:'Timing deck → Arcade',
+  weddingToRiver:'River street → Qinhuai songhouse',riverToWedding:'Stone bridge → Wedding court',
+  campusPrintStreet:'Print street · towards the arcade',arcadePoolOverlook:'East lookout · pool promenade',poolArcadeWalk:'Timing deck · looking back along the street',
+  weddingBridgeView:'Stone bridge · towards Qinhuai',qinhuaiLanternQuay:'Lantern quay · towards the wedding court',
   arcPrintConsole:'Close-up · racing cabinets',arcPrintMural:'Close-up · timber mural',
   arcFrontWalk:'Upper door · looking along the front walk',
   arcWestPortal:'West walk · under the print sign',arcWestStair:'West walk · windows and stair',

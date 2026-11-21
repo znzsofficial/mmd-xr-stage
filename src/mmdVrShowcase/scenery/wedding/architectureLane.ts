@@ -2,6 +2,7 @@ import {A,Skin,type V} from './architectureMesh';
 import {Frame} from './architectureJoinery';
 import {fireGable,tiledRoof} from './architectureRoofs';
 import {WEDDING_FLOORS} from './weddingLayout';
+import {eastWaterEdge} from '../routes/riverStreet/plan';
 
 // The camera can orbit outside the furnished footprint. The next lane and
 // roofs are scenery, not placeable extensions. Every street elevation has a
@@ -9,8 +10,10 @@ import {WEDDING_FLOORS} from './weddingLayout';
 export function surroundingLane(groups:{horizon:Skin;laneSouth:Skin;laneWest:Skin;laneEast:Skin;laneNorth:Skin;leafWest:Skin;leafSouth:Skin}){
   const g=groups.horizon;
   const lane=WEDDING_FLOORS.lane,far=lane.z+lane.d/2;
-  g.block(0,-.125,0,260,.18,260,A.plain,'#b9c1af');
-  g.surface([-33,-.018,far+.75],[33,-.018,far+.75],[33,-.018,far-lane.d-.58],[-33,-.018,far-lane.d-.58],A.paving,'#d3d1c0',1.95,1.68);
+  // Three banks, rather than an unbroken backdrop under the new waterway.
+  const bank=(l:number,r:number,n:number,s:number)=>g.block((l+r)/2,-.125,(n+s)/2,r-l,.18,s-n,A.plain,'#b9c1af');
+  bank(eastWaterEdge,130,-130,130);bank(-130,eastWaterEdge,-130,-7.2);bank(-130,eastWaterEdge,25.4,130);
+  g.surface([eastWaterEdge,-.018,far+.75],[33,-.018,far+.75],[33,-.018,far-lane.d-.58],[eastWaterEdge,-.018,far-lane.d-.58],A.paving,'#d3d1c0',1.95,1.68);
 
   function house(x:number,z:number,w:number,d:number,h:number,sign:number,kind:number,near=false){
     const g=z>far?groups.laneSouth:z<-10?groups.laneNorth:x<0?groups.laneWest:groups.laneEast;
@@ -58,12 +61,11 @@ export function surroundingLane(groups:{horizon:Skin;laneSouth:Skin;laneWest:Ski
   house(-7.0,far+2.96,6.90,4.36,2.70,-1,0,true);
   house(-.47,far+3.54,5.65,5.1,3.01,-1,1,true);
   house(6.83,far+3.51,6.40,4.68,2.82,-1,2,true);
-  house(-14.5,far+4.14,7.18,5.36,3.53,-1,1);
+  house(-18.2,28.4,7.18,5.36,3.53,-1,1);
   house(14.92,far+3.47,7.11,4.27,3.37,-1,0);
   house(-10.8,2.50,7.5,5.35,2.96,1,2);house(12.31,2.47,7.78,5.80,3.29,1,1);
   house(-12.64,-5.28,6.46,5.52,3.71,1,0);house(22.65,-5.89,7.17,5.68,3.02,1,2);
   house(-3.36,-13.92,7.85,4.6,2.93,1,2);house(4.79,-14.38,7.24,4.8,3.60,1,0);
-  house(-15.92,lane.z+.19,5.52,5.38,3.71,-1,2); // end of the lane turns behind its gable
   for(const [x,z,w,d] of [[-6.54,-1.08,1.24,14.88],[7.33,-8.85,9.37,1.24],[10.74,-4.97,1.59,7.09]])
     g.surface([x-w/2,-.025,z+d/2],[x+w/2,-.025,z+d/2],[x+w/2,-.025,z-d/2],[x-w/2,-.025,z-d/2],A.paving,'#bdc1b4',1.97,1.74);
 
