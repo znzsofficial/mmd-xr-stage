@@ -4,6 +4,7 @@
 
 | 功能提交 | 已发布内容与验证范围 |
 |---|---|
+| `aee99d5` | [星环遗庭传送大厅](./scenery/README.md)：六个小片场改从罗盘旁的实景星门进入，主列表由 16 项减到 10 项。屏幕逐门往返，旧片场书签可直接进入；模拟双眼 XR 扳机进入私摄棚、B 面板返回。主域名入口和 125 份资源哈希一致。[固定版](https://1b995ab7.mmd-xr-stage.pages.dev/?set=astralCourt&view=screen) |
 | `8160ce0` | [潮汐深空](./scenery/opal-planet.md#深空--潮汐星云与脉冲星)：分层星云与暗尘、8,831 个独立星点、带风暴和实时互投影的环行星、双向喷流。439 项测试通过；正式域名入口及 122 份文件内容哈希一致。单独测天空为五次绘制，同朝向横移 6 米，环行星亮部形心横移约 27 像素；五档抽样星点慢转未掉点，模拟 XR 双眼独立绘制通过。Quest 3S 实际锐度、帧率待测。[固定版](https://fd236688.mmd-xr-stage.pages.dev/?set=glassPlanet&view=screen) |
 | `a04fc04` | 场内开关共用 [`useSceneAction`](../src/mmdVrShowcase/scenery/input/useSceneAction.ts)，消除双手抢占同一帘绳的误触；每颗近星自己提供测站、机位和地貌。439 项测试通过，主域名入口与 115 份文件哈希一致。线上实点帘绳、灯台，双眼模拟 XR 双手同时瞄准、交错松开只激活一次，两星 X 往返、步行与 A 跳通过。下一步的[灯影与回波](./gameplay/interactive-scene-studies.md)是方案。[固定版](https://4a1f20fc.mmd-xr-stage.pages.dev) |
 | `712a136` | [琉璃星双风道](./scenery/opal-planet.md)，新添可登陆的赭砾星、霜岬星；日照、环影、近星视差与测站。[双喜堂正堂](./scenery/wedding-court.md)新增双灯喜幔、婚书和合卺剖瓢。436 项测试通过；主域名入口与 113 份文件哈希一致。在线屏幕 G 与双眼模拟 Quest 左手 X 完成两星往返，登陆后摇杆步行及 A 跳约 0.37 m；从母星出发到返航验证同一 PMX 实例和脚位。真机舒适度与帧率待测。[固定版](https://38219f66.mmd-xr-stage.pages.dev/?set=glassPlanet&view=screen) |

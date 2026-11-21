@@ -1,8 +1,8 @@
 # 会话交接｜2026-11-21
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `8160ce0`](https://fd236688.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md) · [文档索引](./README.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `aee99d5`](https://1b995ab7.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md) · [文档索引](./README.md)
 
-**已交付：16 景、9 件道具。** [四幕玩法](./gameplay/README.md)、[校园电玩环线](./scenery/campus-arcade-loop.md)、[枕河街](./scenery/jiangnan-river-street.md)、双喜堂礼案、两颗可登陆卫星及[潮汐深空](./scenery/opal-planet.md)均已上线。此版 439 项测试通过，主域名和模拟双眼 XR 已复核。
+**16 景、9 件道具，主列表 10 个入口。** [星环遗庭传送大厅](./scenery/README.md)接入六个独立小片场；[琉璃小行星](./scenery/opal-planet.md)仍可直达。主域名六门往返、模拟双眼 XR 扳机进门和 B 面板返回已复核。
 
 ## 下次从这里开始
 
