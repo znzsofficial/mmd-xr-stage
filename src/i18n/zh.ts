@@ -70,7 +70,7 @@ export const zh = {
   hudChapel: "晨光礼拜堂",
   screenHideAsset:'隐藏',screenShowAsset:'显示',
   screenWatch:'屏幕观看', screenAim:'点击地面上的脚印放置', screenOrbit:'拖动环绕 · 滚轮或双指缩放', screenCenter:'放在中央', screenLoop:'循环', screenSeek:'播放位置', screenFit:'看向选中项', screenEmpty:'背包里还没有角色或物件。返回准备页导入文件，或直接拖动欣赏布景。', screenPickMotion:'选择动作', screenWebgl:'此浏览器无法启动 WebGL 画面。请开启硬件加速或换用支持 WebGL 2 的浏览器。', screenHide:'收起背包', screenSaber:'把光剑交给角色',
-  hudAstralCourt: "星环遗庭", toySaber: "星辉光剑", toySaberHint: "轻握侧键，展开／收起光刃",
+  hudAstralCourt: "星环遗庭 · 传送大厅", returnPortalHall:'返回大厅', portalHint:'点选星门，进入门中的片场', portalPost:'地台 · 月面邮局', toySaber: "星辉光剑", toySaberHint: "轻握侧键，展开／收起光刃",
   hudBackpack: "背包",
   propGive:'递道具', propGrip:'调整握姿', propLeft:'给角色左手', propRight:'给角色右手', propLower:'压低', propRaise:'抬高', propCloser:'移近', propFarther:'移远', propEquipFirst:'先到背包的「玩具」拿一件道具', propNoWrist:'未识别到角色的手腕骨', propHidden:'先显示角色再递道具', propPickHand:'选角色的手', propHint:'扳机点角色，可递道具',
   hudToys: "玩具", toyControls: "侧握键玩道具，食指扳机点菜单", toyNeedController: "拿起左手或右手手柄来玩",

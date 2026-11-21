@@ -6,7 +6,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { useLanguageStore } from "../../languageStore";
 import { useBackpack, type BackpackEntry } from "../backpack";
 import { useMmdVrStore } from "../mmdVrStore";
-import { SCENERY, sceneryIds } from "../scenery/catalog";
+import { SCENERY, mainSceneryIds, portalRooms } from "../scenery/catalog";
 import { BackpackWorldTools, positionWorldTools } from "./BackpackWorldTools";
 import { MmdVrControlBar } from "./MmdVrHud";
 import * as hudValues from "./HudValues";
@@ -53,14 +53,17 @@ afterEach(async () => {
   vi.restoreAllMocks(); vi.unstubAllGlobals();
 });
 
-it("can choose every set directly from viewing, with no scenery cycle or settings page", async () => {
+it("returns from a portal room and offers only the ten main destinations", async () => {
+  store().setPrefs({scenery:'velvetStudio'});
   await render();await recall();
-  for (const id of [...sceneryIds].reverse()) {
+  await click(t('returnPortalHall'));expect(store().prefs.scenery).toBe('astralCourt');
+  await recall();
+  for (const id of [...mainSceneryIds].reverse()) {
     await click(t("hudScenery"));
-    for (const other of sceneryIds) expect(button(t(SCENERY[other].label))).toBeDefined();
+    for (const other of portalRooms) expect(button(t(SCENERY[other].label))).toBeUndefined();
     await click(t(SCENERY[id].label));
     expect(store().prefs.scenery).toBe(id);
-    expect(button(t("hudBackpack"))).toBeDefined();
+    if(id==='astralCourt')expect(button(t('hudBackpack'))).toBeUndefined();else expect(button(t('hudBackpack'))).toBeDefined();
     expect(button(t("hudModels"))).toBeUndefined();
   }
 });

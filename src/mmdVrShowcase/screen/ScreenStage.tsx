@@ -10,7 +10,8 @@ import { useMmdVrStore } from '../mmdVrStore';
 import { isStoryRoom } from '../play/stagePlay';
 import { StoryStations } from '../play/StoryStations';
 import { PrepIcon } from '../prep/PrepIcon';
-import { resolveScenery, SCENERY, sceneryIds } from '../scenery/catalog';
+import { isPortalRoom, portalHall, resolveScenery } from '../scenery/catalog';
+import { SceneryOptions } from '../scenery/SceneryOptions';
 import { ScreenCamera, type CameraActions } from './ScreenCamera';
 import {tourShots} from '../scenery/roomViews';
 import { ScreenLibrary } from './ScreenLibrary';
@@ -50,7 +51,7 @@ export function ScreenStage(){
   return <dialog ref={dialog} className="screen-stage" aria-label={t('screenWatch')} onCancel={e=>{e.preventDefault();if(draft)useBackpack.getState().cancelPlace();else if(library)setLibrary(false);else close();}}>
     <header className="screen-header"><h1><PrepIcon name="screen"/>{t('screenWatch')}</h1>
       <select aria-label={t('sceneryPicker')} value={prefs.scenery} disabled={locked} onChange={e=>stage.setPrefs({scenery:resolveScenery(e.target.value)})}>
-        {sceneryIds.map(id=><option key={id} value={id}>{t(SCENERY[id].label)}</option>)}
+        <SceneryOptions current={prefs.scenery}/>
       </select><button className="screen-back" onClick={close}>{t('loadBack')}</button></header>
     <div className="screen-workspace"><div className="screen-picture" ref={viewport} tabIndex={0} role="region" aria-label={t('screenWatch')} aria-describedby="screen-camera-hint"
       onPointerDownCapture={e=>{if(e.target instanceof HTMLCanvasElement)e.currentTarget.focus({preventScroll:true});}}>
@@ -59,7 +60,9 @@ export function ScreenStage(){
       </Canvas>
       <div className="screen-corner"><button aria-expanded={library&&!draft} onClick={()=>{if(draft){useBackpack.getState().cancelPlace();setLibrary(true);}else setLibrary(v=>!v);}}><PrepIcon name="bag"/>{t('hudBackpack')}</button><button onClick={()=>actions.current?.reset()}>{t('settingsMmdVrResetView')}</button>
         {tourShots(prefs.scenery).length>0&&<select aria-label={t('courtTour')} value="" onChange={e=>actions.current?.tour(Number(e.target.value))}><option value="" disabled>{t('courtTour')}</option>{tourShots(prefs.scenery).map((s,i)=><option key={s.key} disabled={!!s.link&&(locked||!!draft||load.failures.length>0)} value={i}>{t(s.key)}</option>)}</select>}
+         {isPortalRoom(prefs.scenery)&&<button disabled={locked||!!draft} onClick={()=>stage.setPrefs({scenery:portalHall})}>{t('returnPortalHall')}</button>}
        </div>
+       {prefs.scenery===portalHall&&!draft&&<div className="screen-arcade-hint">{t('portalHint')}</div>}
        {prefs.scenery==='arcadeHall'&&!draft&&<div className="screen-arcade-hint">{t('arcPassHint')}</div>}
        {prefs.scenery==='glassPlanet'&&!draft&&<div className="screen-arcade-hint">{t('planetWindHint')}</div>}
        <div id="screen-camera-hint" className="screen-caption" role="status">{message?<><span>{message}</span>{load.failures.length>0&&<button disabled={locked} onClick={stage.retryFailedAssets}>{t('loadRetry')}</button>}{err&&<button onClick={()=>useBackpack.getState().dismissError()}>{t('hudDone')}</button>}</>:locked?t('hudWorking'):draft?<><span>{t('screenAim')}</span>{prefs.scenery!=='arcadeHall'&&<button onClick={()=>actions.current?.center()}>{t('screenCenter')}</button>}<button onClick={()=>useBackpack.getState().cancelPlace()}>{t('hudCancelPlace')}</button></>:<>{t('screenOrbit')}<span className="screen-key-hint">{t('screenCameraKeys')}</span></>}</div>

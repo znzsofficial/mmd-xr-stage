@@ -72,7 +72,7 @@ export const en: Record<keyof ZhMessages, string> = {
   hudChapel: "Dawn Chapel",
   screenHideAsset:'Hide',screenShowAsset:'Show',
   screenWatch:'Watch on screen', screenAim:'Click a footprint on the ground to place', screenOrbit:'Drag to orbit · Scroll or pinch to zoom', screenCenter:'Place at centre', screenLoop:'Loop', screenSeek:'Playback position', screenFit:'Frame selection', screenEmpty:'No characters or props yet. Return to setup to import files, or drag to explore the set.', screenPickMotion:'Choose motion', screenWebgl:'WebGL could not start. Enable hardware acceleration or try a browser with WebGL 2.', screenHide:'Close backpack', screenSaber:'Give character a saber',
-  hudAstralCourt: "Astral Court", toySaber: "Astral saber", toySaberHint: "Squeeze to light or retract",
+  hudAstralCourt: "Astral Court · Portal Hall", returnPortalHall:'Return to hall', portalHint:'Select a star gate to enter its set', portalPost:'Lunar Post', toySaber: "Astral saber", toySaberHint: "Squeeze to light or retract",
   hudBackpack: "Backpack",
   propGive:'Give toy', propGrip:'Adjust grip', propLeft:'To left hand', propRight:'To right hand', propLower:'Tilt down', propRaise:'Tilt up', propCloser:'Closer', propFarther:'Farther', propEquipFirst:'Take a toy from Backpack → Toys first', propNoWrist:'No wrist bones found on this model', propHidden:'Show the character before giving a toy', propPickHand:'Choose a hand', propHint:'Point at a character to give a toy',
   hudToys: "Toys", toyControls: "Grip to play. Trigger for menus.", toyNeedController: "Pick up a controller to play",

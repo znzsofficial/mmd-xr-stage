@@ -1,6 +1,8 @@
 # 建模与布景
 
-**十六个独立选景。** [实景截图](../../README.md#stage-gallery) · [角色站位](../gameplay/vr-controls.md#在布景中给角色选位置) · [接入新区域](./adding-a-set.md)
+**十六个独立布景，主列表十个入口。** [屏幕直接进星环传送大厅](https://mmd-xr-stage.pages.dev/?set=astralCourt&view=screen) · [Quest 入口](https://mmd-xr-stage.pages.dev/?set=astralCourt) · [角色站位](../gameplay/vr-controls.md#在布景中给角色选位置) · [接入新区域](./adding-a-set.md)
+
+星环遗庭的罗盘旁有六扇星门：黑绒私摄棚、情侣套房、双人私汤、中世纪刑讯室、Live House 和简易地台（月面邮局）。鼠标点击门中的实景；VR 先收起菜单，用射线瞄准门面，按下并松开扳机。回程点「返回大厅」（VR：右 B 召回后点）。每景仍记自己的角色、动作和摆位，原来的直达链接也可用。琉璃小行星和晨光礼拜堂仍在主列表。
 
 - **校园**：[教室、草坪、门诊和泳池](./campus-garden-routes.md)已有三条双向连接；[校园电玩环线](./campus-arcade-loop.md)将[双层电玩厅](./arcade-hall.md)接入步行网。门诊内三间房共享一层，原有护士默认隐藏。[陈列与显隐](./clinic-teaching.md)
 - **江南**：[双喜堂](./wedding-court.md)看喜幔、婚书与喜房；沿[枕河街](./jiangnan-river-street.md)可到[秦淮歌楼](./qinhuai.md)埠头、听曲廊和月蘅馆。跨景各存布局，楼内步行不卸载角色。

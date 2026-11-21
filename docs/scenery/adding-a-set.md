@@ -8,7 +8,7 @@
 
 ## 新增独立区域
 
-1. 在 `scenery/catalog.ts` 加 ID、名称键和中英文翻译。准备页、VR 选景、屏幕选景、分景布局及报告使用该 ID。
+1. 在 `scenery/catalog.ts` 加 ID、名称键和中英文翻译。`sceneryIds` 是完整目录，供布局、书签及报告使用；准备页、VR 和屏幕主列表只用 `mainSceneryIds`。`portalRooms` 的独立小片场从星环遗庭的门进入，勿通过删除 ID 来隐藏选项。
 2. 在本景目录编写布局与模型组件，将组件登记在 `scenery/roomSets.tsx`。组件只在所属区域挂载；准备页的目录不依赖模型组件。全景共享的地面拾取、角色和物理生命周期仍由舞台持有。
 3. 在 [`placementAreas.ts`](../../src/mmdVrShowcase/scenery/placementAreas.ts) 的 `rules` 给新 ID 登记一项，漏登记会报类型错误。单层布景用 `flat(落点判断)`，有墙体时另传视线判断；多层布景在同一项提供 `decks`、`visible` 和 `resolve`。`resolve(x,z,supportY)` 返回能用的世界高度或 `null`。在 `roomViews.ts` 登记屏幕入口机位及本景导览。
 

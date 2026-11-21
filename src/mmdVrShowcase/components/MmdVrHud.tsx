@@ -27,6 +27,7 @@ import { resolveHudSurface } from "../hudMode";
 import { WatchRecall } from './WatchRecall';
 import { useStageMusic } from '../music/stageMusic';
 import { MusicSettings } from '../music/MusicSettings';
+import { isPortalRoom, portalHall } from '../scenery/catalog';
 
 let introducedWatch = false; // one first-empty-stage hint per document, never per room
 
@@ -149,6 +150,7 @@ export function CompactPlaybackControls({ onExpand, onExit, onTransport, busy, p
   const playing = useMmdVrStore((s) => s.playing);
   const modelCount = useMmdVrStore((s) => s.modelCount);
   const duration = useMmdVrStore(s=>s.duration);
+  const inPortalRoom=useMmdVrStore(s=>isPortalRoom(s.prefs.scenery));
   return <group>
     {!nav.expanded && <>
       <HudButton position={[.59, 0, 0]} size={[.55, .17]} label={t("hudScenery")} onPress={nav.onScenery} disabled={busy} />
@@ -156,8 +158,8 @@ export function CompactPlaybackControls({ onExpand, onExit, onTransport, busy, p
     </>}
     <HudButton position={[nav.expanded ? -.55 : -.59, 0, 0]} size={[.55, .17]} label={t(playing ? "settingsMmdVrPause" : "settingsMmdVrPlay")} active={playing}
       disabled={busy || playbackLocked || modelCount === 0 || duration<=0} onPress={() => {const s=useMmdVrStore.getState();if(!s.playing&&getMmdVrClock().time>=duration)s.requestSeek(0);s.setPlaying(!s.playing);onTransport?.();}} />
-    <HudButton position={[0, nav.expanded?0:-.24, 0]} label={t(nav.expanded ? "hudBack" : "hudMore")} size={[.5,.14]} variant="quiet" disabled={busy} onPress={onExpand} />
-    <HudButton position={[.55, nav.expanded?0:-.24, 0]} label={t("settingsVrDesktopExit")} size={[.5,.14]} variant="quiet" disabled={busy} onPress={onExit} />
+    <HudButton position={[!nav.expanded&&inPortalRoom?.225:0, nav.expanded?0:-.24, 0]} label={t(nav.expanded ? "hudBack" : "hudMore")} size={[!nav.expanded&&inPortalRoom?.415:.5,.14]} variant="quiet" disabled={busy} onPress={onExpand} />
+    <HudButton position={[!nav.expanded&&inPortalRoom?.675:.55, nav.expanded?0:-.24, 0]} label={t("settingsVrDesktopExit")} size={[!nav.expanded&&inPortalRoom?.415:.5,.14]} variant="quiet" disabled={busy} onPress={onExit} />
   </group>;
 }
 
@@ -815,7 +817,7 @@ export function MmdVrControlBar({onExit,busy,onDragChange:reportInteraction}:{on
     const open = (next: typeof page) => { if (interacting.current) return; setIntro(false);setDock(false);recall(); setPage(next); };
     if (page === "bag" || page === "scenery") return <group position={panelPosition} ref={panelGroupRef} pointerEventsOrder={2}>
       {notice}{page === "bag" ? <BackpackPanel locked={locked} onClose={quiet} /> : <SceneryPanel locked={locked}
-        onClose={quiet} onSelected={() => summon()} />}
+         onClose={quiet} onSelected={() => useMmdVrStore.getState().prefs.scenery===portalHall?quiet():summon()} />}
     </group>;
     if (draft) return <group position={panelPosition} ref={panelGroupRef} pointerEventsOrder={2}>
       {notice}<HudSheet size={[1.98, 0.36]} />
@@ -832,7 +834,8 @@ export function MmdVrControlBar({onExit,busy,onDragChange:reportInteraction}:{on
         <group position-y={-.04}><HudSheet size={[1.89,intro ? .92 : .75]} /></group>
         {notice}
         <CompactPlaybackControls onScenery={() => open("scenery")} onBackpack={() => open("bag")} onExpand={() => {setTab('player');useMmdVrStore.getState().setMaterialPanelModelId(null);open('advanced');}} onTransport={quiet} onExit={onExit} busy={busy || inputHeld} playbackLocked={bagBusy || physicsBusy} />
-        <HudButton position={[-.55,-.24,0]} label={t('hudBack')} size={[.51,.14]} variant="quiet" onPress={quiet}/>
+        <HudButton position={[isPortalRoom(prefs.scenery)?-.675:-.55,-.24,0]} label={t('hudBack')} size={[isPortalRoom(prefs.scenery)?.415:.51,.14]} variant="quiet" onPress={quiet}/>
+        {isPortalRoom(prefs.scenery)&&<HudButton position={[-.225,-.24,0]} size={[.415,.14]} label={t('returnPortalHall')} variant="quiet" disabled={locked} onPress={()=>{useMmdVrStore.getState().setPrefs({scenery:portalHall});quiet();}}/>}
         {intro?<><HudLine position={[0,.25,0]} center text={t('watchStart')} width={1.78}/><HudLine position={[0,-.405,0]} center text={t('watchRecall')} width={1.79} role="muted"/></>:<group position={[.41,.005,0]} scale={.85}>{!locked || inputHeld ? <ProgressBar onInteractionChange={onDragChange} /> : null}</group>}
         {toy && !assetLoad.failures.length && <HudButton position={[0,.43,0]} label={t('toyStow')} size={[.86,.14]} onPress={()=>useStagePlay.getState().stow()}/>}
         {assetLoad.failures.length > 0 ? <HudButton position={[0, 0.43, 0]} label={t("loadDetails")} size={[0.95, 0.13]} onPress={() => setDismissedLoadEpoch(-1)} /> : null}

@@ -12,6 +12,8 @@ The confirmed primary user watches MMD scenes on Quest 3S, mainly using controll
 
 The viewer imports game characters. Built-in modelling means places for those characters: a sunlit classroom, pool terrace, meadow and sky. Prioritize environmental detail, convincing sunlight and responsive local asset loading over bundled characters.
 
+The viewer especially likes fantastical settings such as the Opal Planetoid. Give these worlds a prominent place when curating destinations; adding more small rooms is not itself a goal.
+
 “Scene people” defaults off and remembers the viewer’s choice. It controls only people already authored into the environment (such as the clinic nurse). It must not spawn a sample actor, affect the viewer’s imported characters or treat static teaching exhibits as people.
 
 At arm’s length, different surfaces should respond to light like different materials: a sealed cabinet side, the grain of a wood shelf and a paper carton should not all read as the same coloured plastic. Give close-up assets appropriate edge profiles, roughness, subtle surface normals and contact shade; compare them in the actual stage under the same lighting.

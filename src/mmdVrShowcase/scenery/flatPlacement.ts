@@ -2,6 +2,7 @@ import { CLASS_OBSTACLES, ROOM, type Footprint } from './ClassroomLayout';
 import { classPassageFloor, lawnSchoolFoot, passagePost } from './CampusLayout';
 import { chapelFloor, CHAPEL_OBSTACLES } from './ChapelLayout';
 import { COURT_PIERS, onObservatoryFloor, ROUTE_FEET } from './ObservatoryLayout';
+import {courtPortals} from './portalLayout';
 import { ARBOR_POSTS, LAWN_SIZE, MEADOW_POSTS, MEADOW_SEAT } from './meadowLandmarks';
 import { LAWN_KNOLLS, LAWN_TREES } from './meadowPlanting';
 import { canPlaceByLawnClinic } from './clinic/clinicApproach';
@@ -25,7 +26,7 @@ export function chapelPlace(x: number, z: number) {
 }
 export function courtPlace(x: number, z: number) {
   return shoeOffsets.every(([dx,dz]) => onObservatoryFloor(x+dx,z+dz)) &&
-    !COURT_PIERS.some(r => hits(r,x,z)) && !ROUTE_FEET.some(r => hits(r,x,z));
+    !COURT_PIERS.some(r => hits(r,x,z)) && !ROUTE_FEET.some(r => hits(r,x,z)) && !courtPortals.some(r=>hits(r,x,z));
 }
 
 const cyc = { x: 0, z: -5.32, w: 6.5, d: .088 };

@@ -13,7 +13,8 @@ import { enterScreen } from './screen/enterScreen';
 import { clearBackpack, syncBackpackFiles, useBackpack } from "./backpack";
 import { requestMmdVrEnter } from "./requestMmdVrEnter";
 import { useMmdVrStore } from "./mmdVrStore";
-import { SCENERY, sceneryIds, resolveScenery } from "./scenery/catalog";
+import { resolveScenery } from "./scenery/catalog";
+import { SceneryOptions } from './scenery/SceneryOptions';
 import { expandAssetFiles, AssetImportError, IMPORT_LIMITS, type ArchiveEncoding, type ImportProgress } from "../mmdImport/importArchive";
 import { bindCompanion, mergeAssetFiles } from "../mmdImport/assetPaths";
 import { inspectAssets, type ImportReport } from "../mmdImport/inspectAssets";
@@ -525,7 +526,7 @@ export function MmdVrPrepApp() {
            <label className="stage-field stage-first-room">
              <span className="stage-field-label"><PrepIcon name="window" />{t("sceneryPicker")}</span>
              <select className="stage-select" value={prefs.scenery} onChange={(event) => setPrefs({ scenery: resolveScenery(event.target.value) })}>
-               {sceneryIds.map(id => <option key={id} value={id}>{t(SCENERY[id].label)}</option>)}
+                <SceneryOptions current={prefs.scenery}/>
              </select>
            </label>
            <MusicPicker disabled={phase === 'entering' || phase === 'active'} />

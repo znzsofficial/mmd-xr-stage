@@ -9,6 +9,7 @@ import duskUrl from './astral-dusk.webp';
 import workshopUrl from './meridian-workshop.webp';
 import { useBakedSurface } from './useBakedSurface';
 import { Observatory } from './Observatory';
+import { CourtPortals } from './CourtPortals';
 
 const TAU = Math.PI * 2;
 const stone = ['#747b8d','#9596a2','#858796','#666e84','#8e91a0'];
@@ -165,7 +166,7 @@ export function AstralCourt({shadows}:{shadows:boolean}){
   const p=useMemo(masonry,[]),arch=useMemo(ruinedArch,[]),floor=useMemo(starChart,[]),facet=useMemo(()=>new OctahedronGeometry(1),[]);
   const cliffGeo=useMemo(cliff,[]),fabric=useMemo(meridianFaces,[]),workshop=useBakedSurface(workshopUrl);
   useEffect(()=>()=>{arch.dispose();floor.dispose();facet.dispose();cliffGeo.dispose();fabric.dispose();},[arch,floor,facet,cliffGeo,fabric]);
-  return <group name="scenery:astralCourt" pointerEvents="none">
+  return <><CourtPortals/><group name="scenery:astralCourt" pointerEvents="none">
     <mesh position-y={-.24} raycast={noPick}><cylinderGeometry args={[COURT_RADIUS,COURT_RADIUS-.26,.476,96]}/><meshStandardMaterial color="#626979"/></mesh>
     <mesh rotation-x={-Math.PI/2} receiveShadow={shadows} raycast={noPick}><circleGeometry args={[COURT_RADIUS,96]}/><meshStandardMaterial map={floor} roughness={.89}/></mesh>
     <mesh position-y={-.95} raycast={noPick}><cylinderGeometry args={[COURT_RADIUS-.27,3.7,1,16]}/><meshStandardMaterial color="#545b6b" flatShading/></mesh>
@@ -174,5 +175,5 @@ export function AstralCourt({shadows}:{shadows:boolean}){
     <Batch parts={p.blocks} name="court:bases" casts={shadows}/><Batch parts={p.columns} name="court:columns" round casts={shadows}/>
     <Batch parts={p.islets} name="court:sky-islands" geometry={cliffGeo}/><Batch parts={p.jewels} name="court:waystones" geometry={facet}/>
     <Orrery/><Observatory floor={floor} shadows={shadows}/>
-  </group>;
+  </group></>;
 }

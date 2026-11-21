@@ -7,6 +7,7 @@ import { weddingClear, weddingVisible } from './wedding/weddingLayout';
 import { retreatPlace, retreatVisible, type Retreat } from './retreat/retreatLayout';
 import { planetPlace } from './planet/planetLayout';
 import { planetSight } from './planet/planetSightline';
+import {portalPlacementSight} from './portalLayout';
 import { velvetPlace, velvetSight } from './velvet/velvetLayout';
 import { chamberPlace, chamberSight } from './chamber/chamberLayout';
 import { arcadePlace, arcadeSight, pickDecks } from './arcade/arcadePlacement';
@@ -33,7 +34,7 @@ const rules: Record<SceneryId, PlacementRule> = {
   classroom: flat(classroomPlace),
   pool: flat(poolPlace),
   lawn: flat(lawnPlace, (from,x,_y,z) => lawnClinicPlacementVisible(from,x,z)),
-  astralCourt: { ...flat(courtPlace), decks: [ground(108)] },
+  astralCourt: { ...flat(courtPlace,portalPlacementSight), decks: [ground(108)] },
   chapel: flat(chapelPlace),
   clinic: flat(clinicNavigation.place, (from,x,_y,z) => clinicNavigation.visible(from,x,z)),
   weddingCourt: flat((x,z) => weddingClear(x,z,true), (from,x,y,z) => weddingVisible(from,x,z,y)),

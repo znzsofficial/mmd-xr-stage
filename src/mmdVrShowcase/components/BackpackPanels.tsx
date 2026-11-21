@@ -3,7 +3,7 @@ import { useLanguageStore } from "../../languageStore";
 import { useBackpack, type BackpackEntry } from "../backpack";
 import { MMD_VR_MAX_MODELS, MMD_VR_MAX_OBJECTS } from "../mmdVrAssets";
 import { useMmdVrStore } from "../mmdVrStore";
-import { SCENERY, sceneryIds } from "../scenery/catalog";
+import { SCENERY, mainSceneryIds } from "../scenery/catalog";
 import { HudButton, HudLine, HudSheet } from "./PorcelainControls";
 import { BackpackThumbnail, indexBackpackCovers } from "./BackpackThumbnail";
 import { useXRInputSourceState } from '@react-three/xr';
@@ -16,13 +16,12 @@ export function SceneryPanel({ onClose, onSelected, locked }: { onClose: () => v
   const t = useLanguageStore(s => s.t);
   const current = useMmdVrStore(s => s.prefs.scenery);
   // Keep even the last set in the reading zone when using a seated eye height.
-  // The picker keeps a direct button for each room, as on the setup screen.
-  const cols=3, rows=Math.ceil(sceneryIds.length/cols), height=.48+.23*rows, top=height/2;
+  const cols=3, rows=Math.ceil(mainSceneryIds.length/cols), height=.48+.23*rows, top=height/2;
   return <group name="hud-scenery">
     <HudSheet size={[2.90,height]} />
     <HudLine position={[-.91,top-.19,0]} text={t("hudScenery")} width={0.86} role="title" />
     <HudButton position={[1.02,top-.19,0]} label={t("hudBack")} size={[0.65,0.14]} onPress={onClose} variant="quiet" />
-    {sceneryIds.map((id, i) => <HudButton key={id} position={[(i % cols - 1) * .94,top-.47-Math.floor(i/cols)*.23,0]}
+    {mainSceneryIds.map((id, i) => <HudButton key={id} position={[(i % cols - 1) * .94,top-.47-Math.floor(i/cols)*.23,0]}
       label={t(SCENERY[id].label)} active={id === current} disabled={locked} size={[0.86, 0.17]} onPress={() => {
         if (useMmdVrStore.getState().prefs.scenery !== id) useMmdVrStore.getState().setPrefs({ scenery: id });
         onSelected();

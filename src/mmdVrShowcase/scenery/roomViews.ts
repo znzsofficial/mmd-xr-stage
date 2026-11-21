@@ -36,7 +36,7 @@ export const roomViews:Record<SceneryId,RoomView>={
     {key:'campusSchool',eye:[.30,1.62,-2.67],aim:[5.21,1.53,-7.60]},
     {key:'campusArbor',eye:[-.73,1.58,.6],aim:[-4.2,1.40,-6.4]},LIDO_ROUTE_SHOTS.gate,
     {key:'clinicGardenPorch',eye:[CLINIC_ORIGIN.x+16.40,1.6,CLINIC_ORIGIN.z+2.28],aim:[CLINIC_ORIGIN.x+9.28,1.33,CLINIC_ORIGIN.z+2.32]}]},
-  astralCourt:{entry:[[.85,1.65,4.4],[0,1.47,-1.25]],shots:COURT_SHOTS.map(s=>({...s,overview:s.key==='courtOverview'}))},
+  astralCourt:{entry:[[0,1.65,5.65],[0,1.42,-3.6]],shots:COURT_SHOTS.map(s=>({...s,overview:s.key==='courtOverview'}))},
   chapel:{entry:[[.25,1.63,4.7],[0,1.68,-3.8]],shots:CHAPEL_SHOTS}, clinic:{entry:CLINIC_VIEW,shots:[...CLINIC_SHOTS,
     {key:'clinicEastExit',eye:[4.18,1.58,2.74],aim:[10.77,1.28,2.83]},
     {key:'clinicDesk',eye:[-4.90,1.53,2.12],aim:[-6.42,.96,3.74]},
