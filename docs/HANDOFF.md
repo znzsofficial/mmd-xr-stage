@@ -1,8 +1,8 @@
 # 会话交接｜2026-11-21
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `35057bf`](https://8177e079.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md) · [文档索引](./README.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `54e5f86`](https://bf6b88dd.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md) · [文档索引](./README.md)
 
-**16 景、10 件道具，主列表 10 个入口。** [第四页遥控佩戴与第三页棒头接触](./gameplay/README.md)已上线；真机握感待验。琉璃星系有母星与五颗卫星；[母星导航、岩脊与采谱](./scenery/opal-planet.md#下一轮母星提案未实施)是下一轮提案。
+**16 景、10 件道具，主列表 10 个入口。** [母星白脊采谱](./scenery/opal-planet.md#母星沿白脊采谱)、五条按需展开的风道与「玄釉星↔云母屿↔硫珠屿」已上线。硅胶件与按摩棒均可[推动 PMX 活动衣物](./gameplay/README.md)，含暂停与角色腕持。真机手感、跨跳舒适度待验。
 
 ## 下次从这里开始
 
