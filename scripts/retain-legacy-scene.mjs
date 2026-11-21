@@ -4,6 +4,11 @@ import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 
 const files = [
+  ['2f8b45a6','index-Cv085TUZ.js','45c7076c5ca27142800167b8159e516088da0d693a73b90a5bdf864da0768e42'],
+  ['2f8b45a6','PlanetPhysics-BUCZC-5P.js','55a9ecf9a906385ed39817ccdd8dfd7414a4c0be1161aa40d4f73fbebcf2b738'],
+  ['2f8b45a6','vendor-mmd-Bm4ni5rV.js','a3e8bd6472539eb4e8ad50270d44198ffbf3e89e716e2759ccf54cec916c0eb9'],
+  ['2f8b45a6','vendor-three-g-xxlsXH.js','ac323f5c38df94692d8174701f6c95bc596e6c9ce54b244b89ad918359315222'],
+  ['2f8b45a6','emulate-B58xIiMi.js','f2713f59c3176483d9ae84ed2f000f4e77047c7a98c542f92db9bfc1175d0915'],
   ['1b995ab7','index-CtM0UrOA.js','6abbed0653cd631f89bdb3ba1017253f1f02b80bdbaa94a2ed6de8f15374f59b'],
   ['1b995ab7','PlanetPhysics-DGDagXjQ.js','83725c723f71e752e4f2faebb4e6b4a086d3abde630011f334df1484a8bdb510'],
   ['1b995ab7','vendor-state-BVgK4CvW.js','829690a58632276e111f36ddc990b1e7804ef3dcaea5c721df817e4c0f254868'],

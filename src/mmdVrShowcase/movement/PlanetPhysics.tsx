@@ -8,7 +8,7 @@ import {useMmdVrStore} from '../mmdVrStore';
 import {useBackpack} from '../backpack';
 import {WALK_SPEED} from '../mmdVrQuality';
 import {actorBodies} from './actorBodies';
-import {PAD_RADIUS,PLANET_RADIUS as R} from '../scenery/planet/planetLayout';
+import {homeGravity,PAD_RADIUS,PLANET_RADIUS as R} from '../scenery/planet/planetLayout';
 import {makeCrust,stations} from '../scenery/planet/opalTerrain';
 
 import {planetCentre as centre,bodyAboveFoot,transport,type PlanetDriver} from './planetTravel';
@@ -47,7 +47,7 @@ function Walker({driver}:Props){
   const mode=useMmdVrStore(s=>s.prefs.movementMode),pref=useMmdVrStore(s=>s.prefs.walkSpeedPref),speed=WALK_SPEED[pref==='auto'?'normal':pref];
   const {world,rapier,step}=useRapier();
   useLayoutEffect(()=>{const store=useCustomGravity.getState(),prev=store.gravityField,force=new Vector3();
-    store.setGravityField(p=>force.subVectors(centre,p).normalize().multiplyScalar(2.5));return()=>store.setGravityField(prev);
+    store.setGravityField(p=>{force.subVectors(centre,p);const r=force.length();return r>0?force.multiplyScalar(homeGravity(r-bodyAboveFoot)/r):force;});return()=>store.setGravityField(prev);
   },[]);
   useLayoutEffect(()=>{
     const at=new Vector3(),radial=new Vector3(),headShape=new rapier.Ball(headMargin);

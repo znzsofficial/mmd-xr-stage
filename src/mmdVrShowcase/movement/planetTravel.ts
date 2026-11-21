@@ -1,5 +1,5 @@
 import {Quaternion,Vector3} from 'three';
-import {PAD_RADIUS,PLANET_RADIUS as R} from '../scenery/planet/planetLayout';
+import {homeGravity,PAD_RADIUS,PLANET_RADIUS as R} from '../scenery/planet/planetLayout';
 import type {ReadColumn} from './groundMotor';
 import {crustRadius,stationBlocks} from '../scenery/planet/opalTerrain';
 
@@ -38,7 +38,8 @@ export function surfaceStep(s:Traveller,travel:Vector3,speed:number,dt:number,ju
   if(!Number.isFinite(floor)) {p.copy(s.foot);floor=support(s,p,read,height);if(!Number.isFinite(floor))return;}
   let vy=s.velocity.dot(s.up);
   if(jump&&s.grounded)vy=1.45;
-  let r=radius+vy*dt-1.25*dt*dt;vy-=2.5*dt;
+  const gravity=homeGravity(radius);
+  let r=radius+vy*dt-.5*gravity*dt*dt;vy-=gravity*dt;
   if(s.radial.y>.8&&Number.isFinite(s.col.ceiling)&&vy>0){
     const max=(R+s.col.ceiling-height)/s.radial.y;
     if(r>max){r=max;vy=0;}

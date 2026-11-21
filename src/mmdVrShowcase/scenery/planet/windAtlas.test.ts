@@ -26,6 +26,6 @@ it.each(lanes)('supports an antipodal walk and radial jump on the actual rendere
     d.set(0,0,1).applyQuaternion(s.basis);moonWalk(m,s,d,2.4,1/90,i===50);lo=Math.min(lo,s.up.y);
     const radial=s.foot.distanceTo(m.centre),surface=moonRadius(m,s.up.x,s.up.y,s.up.z);high=Math.max(high,radial-surface);
     if(i%48===0){ray.ray.origin.copy(s.up).multiplyScalar(8);ray.ray.direction.copy(s.up).negate();const hit=ray.intersectObject(mesh)[0];error=Math.max(error,Math.abs(surface-hit.point.length()));}
-  }expect(lo).toBeLessThan(-.99);expect(high).toBeGreaterThan(.30);expect(error).toBeLessThan(.065);expect(s.grounded).toBe(true);}finally{g.dispose();mat.dispose();}
+   }expect(lo).toBeLessThan(-.99);expect(high).toBeGreaterThan(.30);expect(error).toBeLessThan(.065);expect(s.grounded).toBe(true);}finally{g.dispose();mat.dispose();}
   const eye=m.centre.clone().multiplyScalar(1.6);expect(planetSight(eye,0,0,0)).toBe(false);
 });

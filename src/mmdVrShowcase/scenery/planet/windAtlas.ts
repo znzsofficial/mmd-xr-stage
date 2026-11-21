@@ -6,10 +6,14 @@ import {moonRadius} from './moonSurface';
 export const sunDirection=new Vector3(-5,3.2,3.8).normalize();
 const homeCentre=new Vector3(0,-PLANET_RADIUS,0),north=new Vector3(0,1,0);
 const destinations=[
-  {id:'ember',relief:'basins',instrument:'seismometer',centre:new Vector3(-15.2,4.5,-13.1),radius:4.55,color:'#f3a668',port:new Vector3(-.281,.957,-.069).normalize(),
+  {id:'ember',relief:'basins',instrument:'seismometer',centre:new Vector3(-15.2,4.5,-13.1),radius:4.55,surfaceGravity:2.8,color:'#f3a668',port:new Vector3(-.281,.957,-.069).normalize(),
     stationUp:new Vector3(.51,.82,-.36).normalize(),duration:8.5,launchKey:'emberWind',returnKey:'emberReturn',sign:'01 · 赭砾星',caption:'EMBER   /   IMPACT BASINS'},
-  {id:'frost',relief:'rifts',instrument:'dish',centre:new Vector3(16.5,6.1,-14.5),radius:5.2,color:'#72dcf0',port:new Vector3(.281,.957,-.069).normalize(),
+  {id:'frost',relief:'rifts',instrument:'dish',centre:new Vector3(16.5,6.1,-14.5),radius:5.2,surfaceGravity:2.15,color:'#72dcf0',port:new Vector3(.281,.957,-.069).normalize(),
     stationUp:new Vector3(-.48,.82,-.36).normalize(),duration:9.5,launchKey:'frostWind',returnKey:'frostReturn',sign:'02 · 霜岬星',caption:'FROST   /   ICE RIFTS'},
+  {id:'salt',relief:'salt',instrument:'prism',centre:new Vector3(-6.8,18,-25),radius:4.8,surfaceGravity:1.25,color:'#e6a7ff',port:new Vector3(-.208,.942,.263).normalize(),
+    stationUp:new Vector3(.41,.77,.49).normalize(),duration:10.5,launchKey:'saltWind',returnKey:'saltReturn',sign:'03 · 棱盐星',caption:'HALITE   /   PRISM FLATS'},
+  {id:'glaze',relief:'glaze',instrument:'kiln',centre:new Vector3(9.8,18,-25),radius:4.6,surfaceGravity:3.65,color:'#ff7759',port:new Vector3(.208,.942,.263).normalize(),
+    stationUp:new Vector3(-.60,.73,.32).normalize(),duration:10.5,launchKey:'glazeWind',returnKey:'glazeReturn',sign:'04 · 玄釉星',caption:'OBSIDIAN   /   FURNACE GLASS'},
 ] as const;
 export const moons=destinations.map(({stationUp:up,...m})=>({
   ...m,station:{up,base:up.clone().multiplyScalar(moonRadius(m,up.x,up.y,up.z)).add(m.centre),r:.52,h:1.40},

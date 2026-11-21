@@ -1,6 +1,10 @@
 /** Chinese (zh) UI strings — source of truth for TranslationKey keys. */
 export const zh = {
-  emberWind:'起飞风道 · 赭砾星',frostWind:'起飞风道 · 霜岬星',emberReturn:'赭砾星 · 回望母星',frostReturn:'霜岬星 · 回望母星',planetWindHint:'在琥珀或冰蓝风环上按 G 起飞／返航（VR：普通模式左手 X）',
+  emberWind:'起飞风道 · 赭砾星',frostWind:'起飞风道 · 霜岬星',emberReturn:'赭砾星 · 回望母星',frostReturn:'霜岬星 · 回望母星',
+  saltWind:'起飞风道 · 棱盐星',glazeWind:'起飞风道 · 玄釉星',saltReturn:'棱盐星 · 回望母星',glazeReturn:'玄釉星 · 回望母星',
+  saltLeap:'棱盐星 · 跃向玄釉星',glazeLeap:'玄釉星 · 跃向棱盐星',twinPortrait:'双星之间 · 引力海峡',
+  saltPortrait:'近看 · 盐晶测站',glazePortrait:'近看 · 玄釉炉台',
+  planetWindHint:'风环 G 起降 · 卫星表面按空格跳，双星跃台可跨星',
   weddingLetter:'近看 · 婚书与合卺礼器',weddingSilkHall:'庭中 · 望双灯喜幔',
   campusToArcade:'沿步行街 → 电玩厅',arcadeToCampus:'沿步行街 → 校园草坪',arcadeToPool:'沿东侧步道 → 泳池计时台',poolToArcade:'从计时台 → 电玩厅',
   weddingToRiver:'沿河街 → 秦淮歌楼',riverToWedding:'过石桥 → 双喜堂',

@@ -8,15 +8,21 @@ import {lanes,moons,sunDirection,windPoint,type Moon,type WindLane,type WindPort
 import {moonShell} from './moonSurface';
 import ember from './ember-basins.webp';
 import frost from './frost-rifts.webp';
+import salt from './salt-hoppers.webp';
+import glaze from './glaze-fractures.webp';
+import {instrumentFragment,instrumentVertex,mineralFragment,mineralVertex} from './twinMinerals';
+import {twinStation} from './twinStations';
 import {windRibbons} from './windRibbons';
 
-const prints={basins:ember,rifts:frost};
+const prints={basins:ember,rifts:frost,salt,glaze};
+const halite={HALITE:1};
 function Satellite({moon}:{moon:Moon}){
-  const g=useMemo(()=>moonShell(moon),[moon]),map=useBakedSurface(prints[moon.relief]);
-  const u=useMemo(()=>({albedo:{value:map},sun:{value:sunDirection},ice:{value:moon.relief==='rifts'?1:0},probe:{value:moon.station.base},probeUp:{value:moon.station.up}}),[map,moon]);
+  const twin=moon.relief==='salt'||moon.relief==='glaze';
+  const g=useMemo(()=>moonShell(moon),[moon]),map=useBakedSurface(prints[moon.relief],twin?'mask':'print');
+  const u=useMemo(()=>({albedo:{value:map},printMap:{value:map},mapped:{value:map?1:0},sun:{value:sunDirection},ice:{value:moon.relief==='rifts'?1:0},probe:{value:moon.station.base},probeUp:{value:moon.station.up}}),[map,moon]);
   useEffect(()=>()=>g.dispose(),[g]);
   return <mesh name={'planet:moon-'+moon.id} geometry={g} position={moon.centre} userData={{playerCollision:false}} raycast={noPick}>
-    {map?<shaderMaterial uniforms={u} vertexShader={`varying vec2 st;varying vec3 n,v,world;
+    {twin?<shaderMaterial uniforms={u} defines={moon.relief==='salt'?halite:undefined} vertexShader={mineralVertex} fragmentShader={mineralFragment}/>:map?<shaderMaterial uniforms={u} vertexShader={`varying vec2 st;varying vec3 n,v,world;
       void main(){st=uv;n=mat3(modelMatrix)*normal;vec4 p=modelMatrix*vec4(position,1.);world=p.xyz;v=cameraPosition-p.xyz;gl_Position=projectionMatrix*viewMatrix*p;}`}
       fragmentShader={`uniform sampler2D albedo;uniform vec3 sun,probe,probeUp;uniform float ice;varying vec2 st;varying vec3 n,v,world;
         float shade(vec3 center,float rad){vec3 diff=center-world;float t=dot(diff,sun);return smoothstep(.015,.15,t)*(1.-smoothstep(rad*.75,rad+.03,length(diff-t*sun)));}
@@ -34,9 +40,12 @@ function Satellite({moon}:{moon:Moon}){
 }
 
 const axis=new Vector3(0,1,0);
+const daylight={sun:{value:sunDirection}};
 function SurveyProbe({moon}:{moon:Moon}){
   const s=moon.station;
-  const g=useMemo(()=>{const p=new PaintedParts();
+  const g=useMemo(()=>{
+    if(moon.instrument==='prism'||moon.instrument==='kiln')return twinStation(moon.instrument);
+    const p=new PaintedParts();
     for(let i=0;i<3;i++){
       const a=i*2*Math.PI/3,x=.40*Math.cos(a),z=.40*Math.sin(a);
       p.add(rod([x,-.09,z],[x*.39,.54,z*.39],.034,.026,8),'#aab2ab');p.add(ball(x,-.015,z,.096,.039,.080,8),'#696a66');
@@ -57,7 +66,9 @@ function SurveyProbe({moon}:{moon:Moon}){
       p.add(ball(0,1.32,.16,.054,.047,.048,10),'#b49671');
     }return p.finish();},[moon]);
   const q=useMemo(()=>new Quaternion().setFromUnitVectors(axis,s.up),[s]);useEffect(()=>()=>g.dispose(),[g]);
-  return <mesh name={'planet:survey-'+moon.id} geometry={g} position={s.base} quaternion={q} raycast={noPick}><meshStandardMaterial vertexColors metalness={.22} roughness={.58} fog={false}/></mesh>;
+  return <mesh name={'planet:survey-'+moon.id} geometry={g} position={s.base} quaternion={q} raycast={noPick}>
+    {moon.instrument==='prism'||moon.instrument==='kiln'?<shaderMaterial vertexColors uniforms={daylight} vertexShader={instrumentVertex} fragmentShader={instrumentFragment}/>:<meshStandardMaterial vertexColors metalness={.22} roughness={.58} fog={false}/>}
+  </mesh>;
 }
 function portHardware(color:string){
   const parts=new PaintedParts();

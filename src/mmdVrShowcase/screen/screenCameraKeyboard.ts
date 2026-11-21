@@ -7,7 +7,7 @@ const metresPerSecond = 2.4;
 const radiansPerSecond = Math.PI / 2;
 
 /** Translate the orbit rig together; yaw changes the aim around the eye, not the eye around the subject. */
-type Travel={walk(eye:Vector3,offset:Vector3,dt:number):void;pass?:(eye:Vector3,offset:Vector3)=>boolean};
+type Travel={walk(eye:Vector3,offset:Vector3,dt:number):void;pass?:(eye:Vector3,offset:Vector3)=>boolean;jump?:(eye:Vector3)=>void};
 type StepOptions={held:Set<string>;beforeWalk:(eye:Vector3,aim:Vector3,offset:Vector3)=>boolean};
 export function bindScreenCameraKeyboard(viewport: HTMLElement, orbit: OrbitControls, reset: () => void, travel?:Travel, steps?:StepOptions) {
   const held = steps?.held ?? new Set<string>();
@@ -16,10 +16,11 @@ export function bindScreenCameraKeyboard(viewport: HTMLElement, orbit: OrbitCont
   const clear = () => held.clear();
   const axis = (positive: string, negative: string) => Number(held.has(positive)) - Number(held.has(negative));
   function keyDown(e: KeyboardEvent) {
-    if (e.target !== viewport || !orbit.enabled || e.defaultPrevented || e.isComposing || e.ctrlKey || e.metaKey || e.altKey || !(cameraKeys.has(e.code)||(travel?.pass&&e.code==='KeyG'))) return;
+    if (e.target !== viewport || !orbit.enabled || e.defaultPrevented || e.isComposing || e.ctrlKey || e.metaKey || e.altKey || !(cameraKeys.has(e.code)||(travel?.pass&&e.code==='KeyG')||(travel?.jump&&e.code==='Space'))) return;
     e.preventDefault();
     if (e.repeat) return;
     if (e.code === 'KeyR') { clear(); reset(); }
+    else if(e.code==='Space')travel?.jump?.(orbit.object.position);
     else if(e.code==='KeyG'){if(travel?.pass?.(orbit.object.position,offset)){orbit.object.position.add(offset);orbit.target.add(offset);orbit.update();}}
     else held.add(e.code);
   }

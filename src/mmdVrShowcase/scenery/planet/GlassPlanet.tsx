@@ -7,6 +7,9 @@ import {useBakedSurface} from '../useBakedSurface';
 import mineral from './fracture.webp';
 import dial from './landing-rose.webp';
 import {WindSystem} from './WindSystem';
+import {TwinWaymarks} from './TwinWaymarks';
+import {OrbitalDrift} from './OrbitalDrift';
+import {StationFallout} from './StationFallout';
 export {PlanetSky} from './PlanetSky';
 
 export function GlassPlanet(){
@@ -16,7 +19,7 @@ export function GlassPlanet(){
   return <group name="planet:glass-meridian">
     <mesh name="planet:crust" geometry={stone} position-y={-R}><meshStandardMaterial key={print?.uuid} vertexColors map={print} roughness={.75} bumpMap={print} bumpScale={.028} emissive="#26363f" emissiveIntensity={.32}/></mesh>
     <MeridianMarks/><MeridianStations/><SpringLights/>
-    <WindSystem/>
+    <WindSystem/><TwinWaymarks/><StationFallout/><OrbitalDrift/>
     <mesh position-y={-.17}><cylinderGeometry args={[PAD_RADIUS,PAD_RADIUS-.10,.34,80]}/><meshStandardMaterial color="#526875" roughness={.71}/></mesh>
     <mesh rotation-x={-Math.PI/2} position-y={.002}><circleGeometry args={[PAD_RADIUS-.025,80]}/><meshStandardMaterial key={landing?.uuid} map={landing} color={landing?'#ffffff':'#526875'} roughness={.70}/></mesh>
     {[1.98,2.55,2.70].map(r=><mesh key={r} rotation-x={Math.PI/2}><torusGeometry args={[r,.012,6,90]}/><meshStandardMaterial color="#e0b177"/></mesh>)}

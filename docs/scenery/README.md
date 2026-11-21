@@ -6,7 +6,7 @@
 
 - **校园**：[教室、草坪、门诊和泳池](./campus-garden-routes.md)已有三条双向连接；[校园电玩环线](./campus-arcade-loop.md)将[双层电玩厅](./arcade-hall.md)接入步行网。门诊内三间房共享一层，原有护士默认隐藏。[陈列与显隐](./clinic-teaching.md)
 - **江南**：[双喜堂](./wedding-court.md)看喜幔、婚书与喜房；沿[枕河街](./jiangnan-river-street.md)可到[秦淮歌楼](./qinhuai.md)埠头、听曲廊和月蘅馆。跨景各存布局，楼内步行不卸载角色。
-- **天体**：[琉璃小行星](./opal-planet.md)从母星风环飞两颗近星，潮汐深空是远景；星环遗庭另有三座步行露台。
+- **天体**：[琉璃小行星](./opal-planet.md)从母星风环飞四颗卫星，棱盐星与玄釉星之间有[双星跃台](./opal-planet.md#双星引力海峡)；潮汐深空是远景。星环遗庭另有三座步行露台。
 - [传送大厅实景：六扇拱门与中央通道](../screenshots/astral-portal-hall.webp)。门中的图像拍自六个空片场；只加载一张图集，不预加载六个房间或角色。
 - **其他片场**：[黑绒私摄棚](./velvet-studio.md)、[中世纪刑讯室](./medieval-chamber.md)、[暮灯情侣套房与月庭双人私汤](./private-retreats.md)、晨光礼拜堂、简易地台和 Live House。
 
