@@ -2,9 +2,9 @@
 
 **最近已分析的真机报告是 11 月 20 日 14:43Z（`37a0ef3`），早于预热、缓存和深空更新。** 下次用[正式版](https://mmd-xr-stage.pages.dev)；星球和教室分两次进 VR、分别退出导出，以免后一趟覆盖前一份记录。
 
-## 星球：先确认移动，再看深空
+## 星球：跨跳与深空观感（可选）
 
-新开页面进[琉璃小行星](https://mmd-xr-stage.pages.dev/?set=glassPlanet)，普通模式立即试左杆前推、右杆转头，切回平地再重进星球重复。若仍只有 B 可用，到此退出导出，查 `windows[].planetMovement` 的输入与执行计数。能走则进琥珀／冰蓝环按左 X，落地后走、A 跳、X 返航；在罗盘台慢转与侧移看暗星、环缝、喷流和尘带，记录是否闪、是否晕。`windDepartures`／`windLandings` 可核对起落次数。[风道与双眼对照](../scenery/opal-planet.md)
+用户已确认[琉璃小行星](https://mmd-xr-stage.pages.dev/?set=glassPlanet)正常行走，体验还可以，不需为此专程冷进、重进。下次游玩可在罗盘台慢转、侧移看暗星与环缝，或在风环站稳后按左 X 往返。若以后再次出现只能按 B 的情况，再退出导出，查 `windows[].planetMovement` 的输入与执行计数。[风道与双眼对照](../scenery/opal-planet.md)
 
 也可改走[双星引力海峡](../scenery/opal-planet.md#双星引力海峡)：从 03 环飞棱盐星，试普通 A 跳，再沿箭纹到赤道踏印，用 A 跨到玄釉星，从它的北端 X 返航。记录翻过局部地平线时的感受、盐晶彩边和碎岩靠近时是否闪；报告中的 `twinDepartures`／`twinLandings` 与风道起落分开。
 

@@ -54,7 +54,7 @@
 
 白脊与测站朝向使用[同一条采样路线](../../src/mmdVrShowcase/scenery/planet/opalCourse.ts)，母星仍使用原有山形和碰撞壳。岩底改为烟青哑光，乳白断面侧看泛青紫，铜色用于刻度。北台平视时降低尘流和彩云的亮度；抬头、瞄准脉冲星或离台远行后逐渐恢复，不改变近星轮廓或角色曝光。
 
-**重力边界：** 母星按半径衰减，卫星普通跳使用各自的地表重力；三组双向足印的辅助跨跳才在飞行中切换引力井。风道是固定曲线，自由飞行不受引力。Quest 3S 的冷进／重进摇杆、地平线翻转舒适度和实际帧率仍待真机反馈。
+**重力边界：** 母星按半径衰减，卫星普通跳使用各自的地表重力；三组双向足印的辅助跨跳才在飞行中切换引力井。风道是固定曲线，自由飞行不受引力。跨跳时的地平线翻转舒适度和实际帧率仍待单独反馈。
 
 ## 深空 · 潮汐星云与脉冲星
 
@@ -74,4 +74,4 @@
 
 [球面移动](../../src/mmdVrShowcase/movement/PlanetMotor.tsx)从第一帧读当前手柄；[地形](../../src/mmdVrShowcase/scenery/planet/opalTerrain.ts)供脚下支撑、可见壳面和碰撞共用。仅 XR 进入母星时加载 [Ecctrl/Rapier](../../src/mmdVrShowcase/movement/PlanetPhysics.tsx)，就绪后从当前脚位、朝向和速度接管，每帧最多推进 1/60 秒。模拟双眼 XR 已验延迟／拒绝加载、球背走跳与 B 召回。母星参考重力为 2.5 m/s²，不进入角色 Bullet 世界。[球面探针](../../experiments/three-planet-wheel/README.md) · [历次发布证据](../release-history.md)
 
-**仍需 Quest 3S 复测。** 11 月 20 日 14:43Z 的旧版两次空场共 21 个窗口，中位 117 FPS，但只有 B 有效，两杆无效；当时没记录输入，原因未证实。按[真机短测](../performance/next-quest-export.md#星球先确认移动再看深空)分别试冷进与重进，退出即导出。`windows[].planetMovement` 的 `backend`、姿态帧和摇杆计数与 `snapTurns`、`footTravelM` 对照看；风道看 `windDepartures/windLandings`，跨跳看 `twinDepartures/twinLandings`、`location`、`gravityOwner`。
+**Quest 3S 实际使用反馈：** 用户确认已可正常行走，体验还可以。11 月 20 日 14:43Z 的「只有 B 有效」是旧版现象，当时两次空场共 21 个窗口、中位 117 FPS，未记录输入，原因未证实。若复发，对照 `windows[].planetMovement` 的姿态帧、摇杆计数与 `snapTurns`、`footTravelM`。可选的[跨跳与深空观感](../performance/next-quest-export.md#星球跨跳与深空观感可选)另记。

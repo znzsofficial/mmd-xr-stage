@@ -6,6 +6,6 @@
 
 **[按摩棒电机同步](./gameplay/prop-authoring.md#按摩棒电机同步)：** 低／高档只向持棒手按棒头节拍发脉冲，初触加重一拍。Quest 3S 待确认闭眼分档和初触的辨识度。
 
-**待 Quest 3S：** 星球冷进、重进时的双杆输入和跨跳舒适度；道具初触与拨衣手感。教室另开一趟，用同一角色和大 VMD 查首次开物理、回场和稳态。11 月 20 日 14:43Z 是改前报告，持续 72 FPS 尚未验收。[短测与导出](./performance/next-quest-export.md)
+**Quest 3S 反馈：** 用户确认琉璃小行星已能正常行走，使用体验还可以。无需再专项测步行；跨跳翻转、道具初触与拨衣手感可在游玩时留意。教室用同一角色和大 VMD 查首次开物理、回场和稳态。11 月 20 日 14:43Z 是改前报告，持续 72 FPS 尚未验收。[短测与导出](./performance/next-quest-export.md)
 
 **暂缓：** 恋活卡暂不做逐卡手动导出；[Blender 转换](./gameplay/blender-characters.md)已交付。[灯影／霜岬回波](./gameplay/interactive-scene-studies.md)、新增街段与[片场候选](./scenery/next-modeling-round.md#婚礼之后的新景候选未排期)未排期；[暂停物理休眠](./performance/README.md#回场与后续验收)先取证。正式版继续用 Three。
