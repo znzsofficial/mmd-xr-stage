@@ -20,6 +20,8 @@ At arm’s length, different surfaces should respond to light like different mat
 
 For future character features, the user's reference is Koikatsu's Free H mode: direct, player-controlled intimate interaction with chosen adult characters matters more than playing dance clips. Keep dance playback available. Treat the exact interaction controls, partner setup and supported import formats as design choices still to be validated.
 
+When proposing adult content, describe what the player can do with a chosen adult character or prop and what responds. A wedding room, romantic lighting or themed décor alone does not meet that request.
+
 ## Product Purpose
 
 MMD XR Stage loads local model, animation and environment assets into an immersive WebXR stage. Success means dependable entry and playback, unobstructed viewing, and settings that are easy to reach and dismiss.
