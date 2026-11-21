@@ -18,4 +18,6 @@ export const arcadeView={entry:[[1.66,4.68,12.64],[0,3.04,frontLip-.46]],shots:[
   {key:'arcPrintConsole',eye:[4.89,UPPER+1.52,.57],aim:[6.08,UPPER+1.16,-.20]},
   {key:'arcPrintMural',eye:[-1.92,UPPER+1.48,-3.62],aim:[.09,UPPER+.63,-1.85]},
   {key:'arcFrontWalk',eye:[-6.42,UPPER+1.54,frontLip-.51],aim:[3.76,UPPER+.83,upperFrontZ+.78]},
+  {key:'arcWestPortal',eye:[9.10,1.65,11.90],aim:[8.85,2.26,4.10]},
+  {key:'arcWestStair',eye:[11.94,1.65,-5.04],aim:[10.88,1.72,-.16]},
 ]} as const;

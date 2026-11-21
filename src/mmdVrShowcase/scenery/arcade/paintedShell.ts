@@ -1,6 +1,7 @@
 import {BufferGeometry,Color,Float32BufferAttribute} from 'three';
 import {blocks,board,cabinets,ROOF,UPPER,skylight,lowerFrontZ,upperFrontZ,cladding} from './arcadeLayout';
 import layout from './printRects.json';
+import {diffusers,displays,gallerySign,lastRiser} from './westGallery';
 
 type V=[number,number,number];type Face={o:V;u:V;v:V};type Rect=readonly number[];
 // Origin at bottom left when viewed from outside. Floor UV axes are +X/-Z.
@@ -51,6 +52,13 @@ export function arcadePaint(){
     if(tag==='east-retaining')tile(xFace(x+w/2+.003,y,z,d,h),3,1.65,3.30);
     if(tag==='west-shelter-back')tile(xFace(x-w/2-.004,y,z,d,h,-1),2,2.23,2.23);
     if(tag==='west-glass')tile(zFace(x,y,z-d/2-.004,w,h,-1),7,2.7,2.4);
+    if(tag==='west-spine')for(const s of [-1,1])tile(xFace(x+s*(w/2+.003),y,z,d,h,s),2,2.38,2.17,s===-1?'#6d9e9b':'#66839a');
+    if(tag==='west-end-wall')tile(zFace(x,y,z+d/2+.004,w,h),2,2.38,2.17,'#82a49e');
+    if(tag==='west-side'||tag==='west-walk'||tag==='west-shelter-roof')tile(deck(x,bot-.003,z,w,d,false),2,1.70,1.72,'#afb5b0');
+    if(tag==='west-step'){
+      tile(zFace(x,top-.085,z-d/2-.003,w,.17,-1),2,2.48,1.70,'#8698a5');
+      for(const side of [-1,1])tile(xFace(x+side*(w/2+.002),y,z,d,h,side),2,2.6,2.2,'#9ab0b4');
+    }
     if(tag==='west-bench')tile(deck(x,top+.006,z,w,d),4,1.65,.83);
     if(tag==='upper-shutter'||tag==='back-shutter')tile(zFace(x,y,z+d/2+.006,w,h),5,2.6,1.13);
   }
@@ -58,8 +66,24 @@ export function arcadePaint(){
   tile(zFace(0,UPPER/2,board.z+.133,board.w-.09,UPPER-.09),2,2.17,3.4);
   art('blueboard',zFace(0,UPPER+.595,board.z+.142,board.w-.15,1.04));
   art('wood',zFace(0,UPPER+.60,board.z-.138,board.w-.13,1.14,-1));
-  art('graffiti',zFace(9.93,UPPER+.53,6.408,2.55,.76));art('lounge',xFace(-12.48,2.09,.10,3.4,.44));
+  const sign=gallerySign;
+  for(const side of [-1,1])art('graffiti',zFace(sign.x,sign.y,sign.z+side*(sign.d/2+.004),sign.w-.09,sign.h-.09,side));
+  art('lounge',xFace(-12.48,2.09,.10,3.4,.44));
   art('direction',zFace(3.93,UPPER+2.44,4.688,1.54,.45));art('game',zFace(12.62,1.54,1.548,2.14,.40,-1));
+  art('game',xFace(10.971,1.50,4.0,1.65,.40,-1));
+  art('vents',zFace(lastRiser.x,1.00,lastRiser.z+.072,1.07,1.12));
+  art('turn',zFace(lastRiser.x,2.21,lastRiser.z+.074,1.35,.46));
+  for(const {x,y,z} of diffusers)art('diffuser',deck(x,y,z,.46,1.1,false),true);
+  art('stairMap',zFace(10.15,1.41,-5.474,2.08,.78));
+  for(const [i,z] of displays.entries()){
+    tile(xFace(13.435,1.59,z,1.46,1.40,-1),7,1.81,1.42,'#8ea1b5');
+    art('service',xFace(13.360,.54,z,1.22,.34,-1));
+    for(let j=0;j<3;j++){
+      const cz=z-.46+j*.43;
+      art((i+j)%2?'racerB':'racerA',xFace(13.210,1.20,cz,.255,.227,-1));
+      art('vents',xFace(13.236,1.635,cz,.20,.19,-1));
+    }
+  }
   for(const [i,b] of cabinets.entries()){
     const {x,y,z,side,style}=b,fault=style==='fault',w=fault?1.13:.66,fx=x+side*.39;
     if(style==='vent'){art('vents',xFace(fx,y+.89,z,.66,1.47,side));continue;}

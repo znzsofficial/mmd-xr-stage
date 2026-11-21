@@ -31,6 +31,17 @@ it('has two independently addressable feet, with different occluders, at the sam
   for(const y of [0,UPPER])expect(visiblePick(room,{x:0,y:y+.92,z:.7},0,y,-3.2)).toBe(false);
 });
 
+it('keeps the passage, inside turn and window bay placeable, with a solid wall and stair between the aisles',()=>{
+  for(const [x,z] of [[9.03,4.08],[8.14,-2.65],[8.18,-4.96],[10.22,-5.02],[12.27,-2.42]])expect(arcadePlace(x,0,z),`${x},${z}`).toBe(true);
+  expect(arcadePlace(10.66,0,4.0)).toBe(false); // corridor bench
+  expect(arcadePlace(10.2,0,-.1)).toBe(false); // stair cheek, not an underpass
+  expect(arcadePlace(13.65,0,-1.65)).toBe(false);
+  expect(arcadePlace(13.15,0,-1.65)).toBe(false); // heel would clip the projecting display shelf
+  expect(arcadeSight({x:8.16,y:1.65,z:-2.8},8.16,0,-4.95)).toBe(true);
+  expect(arcadeSight({x:8.16,y:1.65,z:-.1},12.27,0,-.1)).toBe(false);
+  expect(arcadeSight({x:9,y:1.65,z:4},12.20,0,4)).toBe(false);
+});
+
 it('passes through the aperture, keeps a marginal foot supported, then falls only after leaving the lip',()=>{
   const root=new Group(),mesh=new InstancedMesh(new BoxGeometry(),new MeshBasicMaterial(),blocks.length);
   blocks.forEach((b,i)=>mesh.setMatrixAt(i,new Matrix4().makeScale(b.w,b.h,b.d).setPosition(b.x,b.y,b.z)));root.add(mesh);

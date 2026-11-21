@@ -4,6 +4,10 @@ import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 
 const files = [
+  // An already-open arcade release can enter the arcade or planet for the first time.
+  ['14d11a74','hall-lettering-DnAjU0ST.webp','7d89e675f3088b9df338d348f625d6feb2f4e7de89ce5e082622cb05f86250c2'],
+  ['14d11a74','PlanetPhysics-qbkTvyf4.js','454be3221e59d9678e4f8eeeaaacad94486d84289f7b2772c8b7f1614816ca53'],
+  ['14d11a74','index-ShALZi0d.js','73330fcf686904c5289cd463eeca4101696221cefcf7f8f8a5d098080326a3b2'],
   ['cfdfbbc6','PlanetPhysics-f2Xm0MaL.js','d7b5aba21bd0a11d7975a4dc22abad8a5c8d1a63127a26ade6addd511ed3efe4'],
   ['cfdfbbc6','index-DXgnwrGM.js','dbc6ef6f54c5f5eb1cf73eacb07631f9c667ef6619c1c5d1ecd4d24fde97aae1'],
   ['cfdfbbc6','vendor-three-D5cTBeFN.js','cd6a940e0c2678daa8fcc7521cd09f06fb9fd85fc7eefb2483bc7a4143f91ff0'],

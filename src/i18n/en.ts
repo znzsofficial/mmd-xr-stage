@@ -4,6 +4,7 @@ import type { ZhMessages } from "./zh";
 export const en: Record<keyof ZhMessages, string> = {
   arcPrintConsole:'Close-up · racing cabinets',arcPrintMural:'Close-up · timber mural',
   arcFrontWalk:'Upper door · looking along the front walk',
+  arcWestPortal:'West walk · under the print sign',arcWestStair:'West walk · windows and stair',
   chamberWheel:'Wheel and pillory gallery',chamberTown:'Dusk over the belfry',planetTransit:'Copper transit dome',planetSouth:'Southern beacon and moons',
   hudVelvetStudio:'Black Velvet Studio',velvetPortrait:'Velvet portrait mark',velvetLounge:'Chaise and dressing room',
   hudMedievalChamber:'Medieval Interrogation Chamber',chamberRecord:'At the clerk’s table',chamberVault:'Under the stone vault',

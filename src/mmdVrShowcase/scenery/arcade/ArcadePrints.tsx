@@ -22,6 +22,15 @@ const hallFinish:MeshStandardMaterial['onBeforeCompile']=shader=>{
     float walls=min(7.-abs(a.x),min(front-a.y,4.5+a.y));contact=max(contact,.19*exp(-max(0.,walls)*3.));
     float shade=(1.-ground)*(.08+.16*(1.-smoothstep(.0,.95,walls)));
     diffuseColor.rgb*=1.-hall*(ground*contact+shade);
+    // Contact colour under the west decks, including when real shadows are
+    // off on Quest. Fade it out at each open end and below the upper walk.
+    float aisle=smoothstep(7.0,7.42,a.x)*(1.-smoothstep(10.96,11.24,a.x))*smoothstep(-4.6,-3.5,a.y)*(1.-smoothstep(5.15,6.65,a.y));
+    float caseLane=smoothstep(11.18,11.68,a.x)*(1.-smoothstep(13.83,14.06,a.x))*smoothstep(-4.5,-3.45,a.y)*(1.-smoothstep(3.05,4.42,a.y));
+    float under=1.-smoothstep(3.18,3.38,arcLocal.y);
+    diffuseColor.rgb*=vec3(1.)-under*(aisle*vec3(.19,.23,.23)+caseLane*vec3(.30,.23,.17));
+    float wallFoot=min(abs(a.x-7.15),abs(a.x-10.98));
+    vec2 bench=max(abs(a-vec2(10.67,4.0))-vec2(.27,.99),vec2(0.));
+    diffuseColor.rgb*=1.-aisle*(1.-smoothstep(.03,.43,arcLocal.y))*max(.26*(1.-smoothstep(.04,.58,wallFoot)),.34*(1.-smoothstep(.02,.72,length(bench))));
     #if NUM_DIR_LIGHT_SHADOWS == 0
       vec2 shaft=abs(a-vec2(1.35,-.45));float day=(1.-smoothstep(2.38,2.82,shaft.x))*(1.-smoothstep(1.06,1.42,shaft.y));
       diffuseColor.rgb*=1.+hall*ground*(.05+day*.27);

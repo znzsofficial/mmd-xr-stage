@@ -2,9 +2,10 @@ import {useEffect,useLayoutEffect,useMemo,useRef} from 'react';
 import {BoxGeometry,CanvasTexture,Color,DoubleSide,InstancedMesh,Matrix4,MeshStandardMaterial,SRGBColorSpace} from 'three';
 import {blocks,board,cabinets,opening,skylight,lowerPad,upperPad,UPPER,ROOF,upperFrontZ,lowerFrontZ,frontLip} from './arcadeLayout';
 import {ArcadePrints} from './ArcadePrints';
+import {westGallery} from './westGallery';
 
-type Piece={x:number;y:number;z:number;w:number;h:number;d:number;ink:string};
-const trim:Piece[]=[];
+type Piece={x:number;y:number;z:number;w:number;h:number;d:number;ink:string;roll?:number};
+const trim:Piece[]=[...westGallery.skins];
 const add=(x:number,y:number,z:number,w:number,h:number,d:number,ink:string)=>trim.push({x,y,z,w,h,d,ink});
 // Separate decorative skins from solids. One instance batch for each; all
 // dimensions below are colours and edge profiles, not an extra walking layer.
@@ -27,6 +28,11 @@ const rim=(hole:typeof opening,y:number,ink:string)=>{
 };
 for(const y of [UPPER+.004,UPPER-.275])rim(opening,y,'#eb9978');
 rim(skylight,ROOF-.245,'#c9826e');
+// Return the cladding around the exposed ends of the side walls. Otherwise
+// the plaster and skirting end caps occupy the same Z plane at the corner.
+for(const [z,base,h] of [[lowerFrontZ,0,UPPER-.27],[upperFrontZ,UPPER,ROOF-UPPER-.24]])for(const side of [-1,1]){
+  add(side*7.074,base+h/2,z+.067,.151,h,.193,'#60908c');
+}
 // The front is pale below, blue-grey *above* the floor line; the wood back
 // can be inspected by walking around either end. Both skins share one core.
 add(0,UPPER/2,board.z+.123,board.w-.08,UPPER,.012,'#d0c5ad');
@@ -62,7 +68,6 @@ for(const z of [-2.04,1.87])add(-13.33,1.73,z,.86,.051,1.32,'#d7dac1');
 for(let i=0;i<10;i++)add(-14.54+i*.63,2.67,-5.44,.054,.19,.13,'#446568');
 add(-10.6,.54,-5.44,2.57,2.39,.043,'#4e686e');add(-10.6,.52,-5.407,2.27,2.19,.03,'#778482');
 for(let i=0;i<5;i++)add(-10.6,.07+i*.31,-5.375,2.17,.029,.025,'#607875');
-for(let i=0;i<6;i++)add(12.61,3.00,-3.86+i*1.5,2.63,.16,.11,'#4f626b');
 for(const x of [11.65,13.60])add(x,.69,1.33,.09,.37,.13,'#756d65');
 add(12.62,.81,1.33,2.37,.25,.17,'#94816e');
 for(const x of [-3.8,3.8]){add(x,1.24,12.823,1.76,2.48,.035,'#857f7d');add(x,1.21,12.80,1.50,2.29,.022,'#986f59');}
@@ -77,8 +82,8 @@ function Batch({pieces,solid}:{pieces:readonly Piece[];solid:boolean}){
   const ref=useRef<InstancedMesh>(null);
   const [g,m]=useMemo(()=>[new BoxGeometry(),new MeshStandardMaterial({roughness:.88})] as const,[]);
   useEffect(()=>()=>{g.dispose();m.dispose();},[g,m]);
-  useLayoutEffect(()=>{const im=ref.current!,mat=new Matrix4(),ink=new Color();
-    pieces.forEach((b,i)=>{im.setMatrixAt(i,mat.makeScale(b.w,b.h,b.d).setPosition(b.x,b.y,b.z));im.setColorAt(i,ink.set(b.ink));});
+  useLayoutEffect(()=>{const im=ref.current!,mat=new Matrix4(),rotation=new Matrix4(),ink=new Color();
+    pieces.forEach((b,i)=>{mat.makeScale(b.w,b.h,b.d);if(b.roll)mat.premultiply(rotation.makeRotationZ(b.roll));im.setMatrixAt(i,mat.setPosition(b.x,b.y,b.z));im.setColorAt(i,ink.set(b.ink));});
     im.instanceMatrix.needsUpdate=true;im.instanceColor!.needsUpdate=true;im.computeBoundingSphere();
   },[pieces]);
   return <instancedMesh ref={ref} args={[g,m,pieces.length]} name={solid?'arcade:solids':'arcade:skins'} userData={{playerCollision:solid}} receiveShadow/>;

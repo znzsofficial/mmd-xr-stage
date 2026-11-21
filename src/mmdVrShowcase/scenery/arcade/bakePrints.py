@@ -132,6 +132,26 @@ p,d=art('direction',(1024,1168,1024,144),'#b76c69');d.polygon([(35,72),(148,16),
 p,d=art('coin',(0,1312,256,224),'#b39b68');pill(d,(4,3,252,219),14,'#e4cb89');d.rounded_rectangle((13,12,243,210),9,fill='#c7ab70',outline='#ead39a',width=3);put(d,(128,111),'?',145,'#fff1be',True,mono=True,anchor='mm');paste('coin',p)
 p,d=art('coinPort',(256,1312,256,224),'#536b78');pill(d,(20,26,237,208),17,'#263946');d.rectangle((43,56,122,90),outline='#9aabb0',width=6);d.line((58,72,107,72),fill='#101f28',width=6);put(d,(43,118),'CREDIT',28,'#b6c1b3',True,mono=True);d.rectangle((178,54,204,77),fill='#c7a073');paste('coinPort',p)
 p,d=art('tank',(512,1312,512,224),'#91a9a9');d.line((0,192,512,192),fill='#496775',width=9);put(d,(22,24),'P-07',85,'#4c6772',True,mono=True);put(d,(24,134),'PRESSURE   /   SERVICE',20,'#3d626b',mono=True);paste('tank',p)
+# Sun-faded print with a curling ink plume and diagonal ribbons; draw the
+# face at its installed aspect ratio. The other side reads from the stair.
+p,d=art('graffiti',(0,0,1024,256),'#617ba6')
+for j,(shift,col) in enumerate([(0,'#eee178'),(16,'#78d9cf'),(163,'#589bbd'),(218,'#f3cf64')]):
+    x=302+shift;d.polygon([(x,256),(x+153,256),(x+534,0),(x+381,0)],fill=col)
+for j,col in enumerate(['#9976bd','#c591cd','#cda2d5']):
+    x=132+j*15;y=24+j*8;d.polygon([(x+85,y+193),(x+19,y+176),(x-12,y+129),(x-8,y+70),(x+15,y+113),(x+30,y+120),(x+16,y+69),(x+36,y+8),(x+45,y+71),(x+69,y+92),(x+82,y+25),(x+99,y+70),(x+136,y+94),(x+144,y+135)],fill=col)
+f=font(121,True);title='GRAFFITI ART';xx=(1024-f.getlength(title))/2
+for j,ch in enumerate(title):
+    yy=160+6*sin(j*1.13);d.text((xx+4,yy+5),ch,font=f,anchor='ls',fill='#41476b',stroke_width=3,stroke_fill='#41476b');d.text((xx,yy),ch,font=f,anchor='ls',fill=['#7be0da','#efd862','#f3b2cd'][j%3],stroke_width=1,stroke_fill='#767a99');xx+=f.getlength(ch)
+d.line((28,229,280,229),fill='#abbfd0',width=2);put(d,(31,202),'W / 02     SILKSCREEN CLUB',14,'#dce5dd',mono=True);paste('graffiti',p)
+p,d=art('stairMap',(1024,1312,576,224),'#365561');d.rounded_rectangle((5,5,570,218),12,outline='#8bb1ac',width=3);put(d,(25,19),'WEST   /   02',23,'#c4d9ce',mono=True);put(d,(24,61),'STAIR WALK',42,'#efe1bc',True)
+for i in range(4):
+    x=338+i*44;y=153-i*26;d.line((x,y,x+44,y,x+44,y-26),fill='#dfb777',width=6)
+d.line((28,127,305,127),fill='#8bb1ac',width=2);put(d,(28,154),'1F   /   GLASS GALLERY',18,'#ccddd5',mono=True);paste('stairMap',p)
+p,d=art('service',(1600,1312,448,100),'#496271');put(d,(21,7),'REPLAY',40,'#e0ddc8',True);put(d,(23,62),'ARCHIVE    /    SERIES 08',17,'#b3c5c5',mono=True);paste('service',p)
+p,d=art('turn',(1600,1412,344,124),'#486469');d.line((7,7,335,7),fill='#bdcfba',width=3);d.polygon([(14,74),(60,36),(60,55),(133,55),(133,86),(60,86),(60,105)],fill='#f5d49c');put(d,(159,25),'HALL',42,'#f7dfbc',True);put(d,(162,81),'01   /   WEST',16,'#c9dac8',mono=True);paste('turn',p)
+p,d=art('diffuser',(1944,1412,104,124),'#e3dbc5');d.rounded_rectangle((4,3,99,120),6,fill='#f5ebd7');
+for x in range(11,95,5):d.line((x,8,x,115),fill='#e7dec9',width=1)
+paste('diffuser',p)
 # Crop unused rows; use padding between sheets in the runtime UVs.
 sheet=sheet.crop((0,0,2048,1536));sheet.save(out/'hall-lettering.webp',quality=93,method=6)
 import json

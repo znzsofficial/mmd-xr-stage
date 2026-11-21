@@ -1,4 +1,6 @@
-// Prototype dimensions in metres, not measurements from the game. Facing the
+import {westGallery} from './westGallery';
+
+// Stage dimensions in metres, not measurements from the game. Facing the
 // twin front doors from outside, east/LOUNGE is on the left (-X), west on +X.
 export const UPPER = 3.4, ROOF = 6.65;
 // Face the building from +Z. The setback is upstairs only: the strip is
@@ -38,7 +40,8 @@ ring('roof',skylight,ROOF,.24,'#475876',false);
 slab('balcony',-7,7,upperFrontZ,frontLip,UPPER,.27,'#829396');
 slab('west-walk',7,11.25,1.5,frontLip,UPPER,.26,'#708496');
 slab('east-balcony',-8.7,-7,-4.45,frontLip,UPPER,.26,'#738e88');
-for(let i=0;i<20;i++)slab('west-step',9.27,11.24,1.5-(20-i)*.31,1.5-(19-i)*.31,(i+1)*UPPER/20,.18,'#84909d');
+// Solid stair cheek between the covered passage and the blue window lane.
+for(let i=0;i<20;i++)slab('west-step',9.27,11.24,1.5-(20-i)*.31,1.5-(19-i)*.31,(i+1)*UPPER/20,(i+1)*UPPER/20,'#818c99');
 
 // Split every wall at its actual door(s), including the header above each.
 type Axis='x'|'z';
@@ -75,11 +78,10 @@ for(const x of [-2.24,2.24]){
 }
 export const board=block('board',0,0,-1.67,6.57,UPPER+1.22,.24,'#aa957c');
 // Under the sign is a real lower passage; no solid front wall across it.
-block('gallery-post',10.95,0,3.98,.35,UPPER,.42,'#577483');
+boxes.push(...westGallery.solids);
 block('west-glass',12.66,0,1.66,2.65,2.4,.16,'#577785');
 block('west-bench',12.62,0,1.10,2.38,.48,.56,'#8a7970');
-block('west-sign',9.93,UPPER,6.33,2.63,1.02,.14,'#405774');
-block('west-sign-rail',7.78,UPPER,6.32,1.56,.82,.18,'#506b74');
+block('west-sign-rail',7.26,UPPER,6.32,.58,.82,.18,'#506b74');
 block('lounge-kiosk',-14.15,-.68,.10,1.34,3.12,5.72,'#416967');
 block('lounge-canopy',-13.42,1.84,.10,1.72,.20,5.94,'#7ca598');
 block('tank-base',-13.66,2.44,-1.31,1.46,.57,1.68,'#486569');

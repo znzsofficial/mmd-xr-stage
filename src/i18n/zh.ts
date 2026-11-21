@@ -2,6 +2,7 @@
 export const zh = {
   arcPrintConsole:'近看 · 双机台面',arcPrintMural:'近看 · 木板喷绘',
   arcFrontWalk:'二楼 · 沿正门平台望西',
+  arcWestPortal:'西廊 · 从涂鸦牌下进门',arcWestStair:'西廊 · 从橱窗回望外梯',
   chamberWheel:'刑轮与示众枷',chamberTown:'窗下看暮色钟楼',planetTransit:'铜穹观测站',planetSouth:'南极信标与远月',
   hudVelvetStudio:'黑绒私摄棚',velvetPortrait:'黑绒幕前人像',velvetLounge:'卧榻与更衣间',
   hudMedievalChamber:'中世纪刑讯室',chamberRecord:'书记案旁',chamberVault:'石拱审讯厅',
