@@ -4,6 +4,7 @@
 
 | 功能提交 | 已发布内容与验证范围 |
 |---|---|
+| `2aa0c7a` | [校园电玩环线](./scenery/campus-arcade-loop.md)与[枕河街](./scenery/jiangnan-river-street.md)：三组双向连接、五个沿途机位，WASD 和 XR 普通步行保留方向。431 项测试通过；[独立验收](./performance/new-street-validation.md)实走六个方向、校园完整闭环，验证鼠标／扳机摆位和回场。主域名入口及 108 份资源内容哈希一致，复测六个屏幕导览方向、河街双向长按松键和模拟双眼 XR 桥上往返。真机帧率与舒适度待测。[固定版](https://843fa0c9.mmd-xr-stage.pages.dev) |
 | `10af811` | [布景摆位重构](./architecture.md)：十六景各登记一份落点、楼面与遮挡规则；电玩厅布局、摆位、通行分别维护。以 `bf9844c` 为基线的 113,603 组坐标对照一致，405 项测试通过。正式域名复测鼠标同 XZ 双层摆放与恢复、模拟双眼 XR 外梯上楼及洞口返回；入口与 105 份文件哈希核对一致。[固定版](https://8dcd90e9.mmd-xr-stage.pages.dev) |
 | `bf9844c` | [电玩厅西廊](./scenery/arcade-hall.md#从西廊步行上楼)：涂鸦牌下的红框走廊、顶灯、靠墙座椅、梯旁橱窗与两个站立机位。405 项测试通过，主域名入口和 103 份文件与构建哈希一致。线上鼠标在橱窗前实放 PMX 并回场恢复；模拟双眼 Quest 穿侧门往返、绕梯脚到橱窗、沿外梯上平台再从洞口下楼。近眼观感及真机帧率待测。[固定版](https://5e0320e4.mmd-xr-stage.pages.dev/?set=arcadeHall&view=screen) |
 | `a1a10d4` | 第十六景[电玩厅出生点](./scenery/arcade-hall.md)：双层大厅、洞口换层、两米宽的门前平台和 17 个机位。404 项测试通过，主域名入口及 100 份资源内容哈希与构建一致。线上实测屏幕 G、同一 XZ 上下层放置与回场，模拟双眼 Quest 左手 X、平台东西往返。真机尺寸感与帧率待测。[固定版](https://14d11a74.mmd-xr-stage.pages.dev/?set=arcadeHall&view=screen) |
