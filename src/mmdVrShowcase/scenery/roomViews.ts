@@ -23,7 +23,8 @@ export const roomViews:Record<SceneryId,RoomView>={
   arcadeHall:arcadeView,
   velvetStudio:velvetView,medievalChamber:chamberView,
   glassPlanet:{entry:[[0,3.1,11.4],[0,1.15,-8.75]],shots:[{key:'planetLimb',eye:[10.6,2.1,11.7],aim:[-.7,-2.2,-2.6]},{key:'planetRing',eye:[-.2,1.62,1.85],aim:[-3.6,3.02,-9.4]},
-    {key:'planetTransit',...transitPortrait},{key:'planetSouth',...southPortrait},...launchViews,...returnViews]},
+    {key:'planetTransit',...transitPortrait},{key:'planetSouth',...southPortrait},...launchViews,...returnViews,
+    {key:'planetPulsar',eye:[.55,1.65,1.88],aim:[4.50,2.73,-12.78]}]},
   floor:{entry:[[1.4,1.65,4],[0,.95,-.4]]}, liveHouse:{entry:[[.8,1.7,4.4],[0,1.05,-1.3]]},
   pool:{entry:[[2.1,1.7,2.8],[0,.85,-3.7]],shots:[LIDO_ROUTE_SHOTS.clock,LIDO_ROUTE_SHOTS.return]},
   classroom:{entry:[[.15,1.58,3.95],[0,1.05,-1.4]],shots:[

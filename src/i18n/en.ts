@@ -20,6 +20,7 @@ export const en: Record<keyof ZhMessages, string> = {
   weddingBridalDoor:'Through the bridal doorway',
   toySilkFan:'Twin Lotus Silk Fan',guideFanVr:'Hold the lacquer handle and turn your wrist to frame a face or reveal it.',guideFanScreen:'Give the fan to either wrist and adjust its angle in Grip.',guideFanEnd:'The fan follows the wrist during the original motion. Stow it or change sets to put it away.',
   hudGlassPlanet:'Opal Planetoid',planetLimb:'Across the curved horizon',planetRing:'Ringwatch from the landing',
+  planetPulsar:'Deep sky · twin pulsar jets',
   modelColorBalanced:'Character: preserve highlights', modelColorBright:'Character: bright (original)',
   screenCameraKeys:'WASD move · Q clockwise / E counterclockwise · F up / C down · R reset',
   importBindResource: "Choose a file for this reference",

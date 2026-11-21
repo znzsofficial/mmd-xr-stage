@@ -6,6 +6,8 @@
 
 ## 下次从这里开始
 
+**深空近眼检查**：在[星球](https://mmd-xr-stage.pages.dev/?set=glassPlanet)的罗盘台看环缝、暗星和双向喷流；侧移后乘一趟风道，比较暗尘、行星与恒星的视差。[同机位对照与测量范围](./scenery/opal-planet.md#深空--潮汐星云与脉冲星)。
+
 **下一轮互动候选**：[合卺对影与霜岬回波](./gameplay/interactive-scene-studies.md)列出操作、镜头和验收条件，尚未开做。新绳结／旋钮可复用帘绳和灯台的 `useSceneAction`；新月面仪器从 `moon.station` 读取位置，不靠卫星数组下标。
 
 **先试新风道：** [琉璃小行星](https://mmd-xr-stage.pages.dev/?set=glassPlanet)，普通模式走到左侧琥珀环或右侧冰蓝环，左手 X 起飞，落地后试左杆、A 跳、再按 X 返航。留意飞行段舒适度及冷启动输入；[双喜堂](./scenery/wedding-court.md)新增正堂双灯喜幔、婚书与剖瓢礼器两个机位。

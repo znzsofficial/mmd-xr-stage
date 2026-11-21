@@ -18,6 +18,7 @@ export const zh = {
   weddingBridalDoor:'妆间望洞房',
   toySilkFan:'并蒂莲团扇',guideFanVr:'握住漆柄，转动手腕，用扇面遮脸或让开视线。',guideFanScreen:'可递给角色的左手或右手，在握姿里微调扇面方向。',guideFanEnd:'团扇随手腕和原动作移动，收回或切景即放下。',
   hudGlassPlanet:'琉璃小行星',planetLimb:'离岸看星球弧面',planetRing:'观星台望行星环',
+  planetPulsar:'深空 · 脉冲星双向喷流',
   modelColorBalanced:'角色色彩：保留亮部细节', modelColorBright:'角色色彩：明亮（原版）',
   screenCameraKeys:'WASD 移动 · Q 顺时针 / E 逆时针 · F 升 / C 降 · R 重置',
   importBindResource: "为此引用选择资源文件",
