@@ -9,6 +9,7 @@ import { isStoryRoom, type StoryRoom } from '../play/stagePlay';
 import {roomViews,tourShots} from '../scenery/roomViews';
 import {walkBetweenZones,hintLawnPrints} from '../scenery/campusTransit';
 import { bindScreenCameraKeyboard } from './screenCameraKeyboard';
+import {arcadeScreenTravel} from '../scenery/arcade/screenTravel';
 
 type Point = [number,number,number];
 const storyViews:Record<StoryRoom,[Point,Point]>={
@@ -17,20 +18,21 @@ const storyViews:Record<StoryRoom,[Point,Point]>={
 export type CameraActions = { reset():void; frame():void; center():void; story():void; tour(index:number):void };
 
 export function ScreenCamera({actions,onReady,viewport}:{actions:RefObject<CameraActions|null>;onReady:(ready:boolean)=>void;viewport:RefObject<HTMLDivElement|null>}) {
-  const {camera,gl}=useThree(); const scenery=useMmdVrStore(s=>s.prefs.scenery);
+  const {camera,gl,scene}=useThree(); const scenery=useMmdVrStore(s=>s.prefs.scenery);
   const arrival=useRef<{room:SceneryId;eye:readonly number[];aim:readonly number[]}|null>(null);
   const keyboard=useRef<ReturnType<typeof bindScreenCameraKeyboard>|null>(null);
   useFrame((_,delta)=>keyboard.current?.step(delta));
   useLayoutEffect(()=>{
     if(!(camera instanceof PerspectiveCamera)||!viewport.current)return;
-    const makeOrbit=()=>{const o=new OrbitControls(camera,gl.domElement);o.minDistance=.18;o.maxDistance=scenery==='astralCourt'?52:scenery==='glassPlanet'?38:22;o.maxPolarAngle=Math.PI*(scenery==='qinhuai'?.64:scenery==='glassPlanet'?.99:.49);o.rotateSpeed=.70;o.enabled=!useBackpack.getState().draft;return o;};
+    const travel=scenery==='arcadeHall'?arcadeScreenTravel(scene):undefined;
+    const makeOrbit=()=>{const o=new OrbitControls(camera,gl.domElement);o.minDistance=.18;o.maxDistance=scenery==='astralCourt'?52:scenery==='glassPlanet'?38:22;o.maxPolarAngle=Math.PI*(scenery==='qinhuai'?.64:scenery==='glassPlanet'||scenery==='arcadeHall'?.99:.49);o.rotateSpeed=.70;o.enabled=!useBackpack.getState().draft;return o;};
     let orbit=makeOrbit();const wup=[0,1,0] as const;
     function align(up:readonly [number,number,number]=wup){
       if(camera.up.distanceToSquared(new Vector3(...up))<1e-10)return;
       // OrbitControls captures up at construction. Switch frames before a
       // southern tour, rather than letting the next drag undo its horizon.
       keyboard.current?.dispose();orbit.dispose();camera.up.fromArray(up);orbit=makeOrbit();
-      keyboard.current=bindScreenCameraKeyboard(viewport.current!,orbit,reset);
+      keyboard.current=bindScreenCameraKeyboard(viewport.current!,orbit,reset,travel);
     }
     const setLens=(fov:number)=>{camera.fov=fov;camera.updateProjectionMatrix();};
     const reset=()=>{align();const [eye,look]=roomViews[scenery].entry;setLens(50);camera.position.set(...eye);orbit.target.set(...look);orbit.update();};
@@ -53,9 +55,9 @@ export function ScreenCamera({actions,onReady,viewport}:{actions:RefObject<Camer
       b.confirmPlace(b.draft,0,0,transform?.rotationY??Math.atan2(camera.position.x,camera.position.z)*180/Math.PI);
     }};
     reset();const a=arrival.current;arrival.current=null;if(a?.room===scenery){camera.position.fromArray(a.eye);orbit.target.fromArray(a.aim);orbit.update();}orbit.enabled=!useBackpack.getState().draft;
-    keyboard.current=bindScreenCameraKeyboard(viewport.current,orbit,reset);
+    keyboard.current=bindScreenCameraKeyboard(viewport.current,orbit,reset,travel);
     onReady(true);const off=useBackpack.subscribe((b,old)=>{if(old.draft!==b.draft){keyboard.current?.clear();orbit.enabled=!b.draft;}});
-    return ()=>{keyboard.current?.dispose();keyboard.current=null;off();releaseHints?.();actions.current=null;onReady(false);orbit.dispose();camera.up.set(0,1,0);};
-  },[camera,gl,scenery,actions,onReady,viewport]);
+    return ()=>{keyboard.current?.dispose();keyboard.current=null;travel?.dispose();off();releaseHints?.();actions.current=null;onReady(false);orbit.dispose();camera.up.set(0,1,0);};
+  },[camera,gl,scene,scenery,actions,onReady,viewport]);
   return null;
 }

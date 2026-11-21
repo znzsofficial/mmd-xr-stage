@@ -11,7 +11,7 @@ export type BackpackLive = { runtimeId: string; position: [number, number, numbe
   wrists?: { left: boolean; right: boolean };
   bounds?: { center: [number,number,number]; size: [number,number,number] } };
 export type BackpackCommand =
-  | { token: number; type: "place"; id: string; moveRuntimeId?: string; x: number; z: number; yaw: number }
+  | { token: number; type: "place"; id: string; moveRuntimeId?: string; x: number; z: number; yaw: number; supportY?: number }
   | { token: number; type: "remove"; id: string }
   | { token: number; type: "motion"; id: string; file: File; kind: "body" | "face" };
 export type BackpackPlacementTiming = { token: number; kind: "model" | "object"; confirmedAt: number; wasMove: boolean; previewDelayMs: number | null; work?: import('./placementWork').PlacementWork };
@@ -24,7 +24,7 @@ type State = {
   draftStartedAt: number | null; previewDelayMs: number | null;
   placement: BackpackPlacementTiming | null; lastCompletedPlacement: BackpackPlacementTiming | null;
   select(id: string | null): void; beginPlace(id: string): void; cancelPlace(): void;
-  confirmPlace(id: string, x: number, z: number, yaw: number): void;
+  confirmPlace(id: string, x: number, z: number, yaw: number, supportY?:number): void;
   putAway(id: string): void; applyMotion(id: string, file: File, kind: "body" | "face"): void;
   finishCommand(command: BackpackCommand, error?: string, work?: BackpackPlacementTiming['work']): void; publishLive(map: State["live"]): void; dismissError(): void;
 };
@@ -54,13 +54,13 @@ export const useBackpack = create<State>((set, get) => ({
     set({ draft: id, error: null, draftStartedAt: performance.now(), previewDelayMs: null });
   },
   cancelPlace: () => set({ draft: null }),
-  confirmPlace: (id, x, z, yaw) => {
+  confirmPlace: (id, x, z, yaw,supportY) => {
     const s = get(), entry = s.entries.find(e => e.id === id);
     if (s.busy || s.draft !== id || !entry || entry.kind === "motion" || ![x,z,yaw].every(Number.isFinite)) return;
     const error = capacityError(s, entry);
     if (error) { set({ error, draft: null }); return; }
     const moveRuntimeId = s.live[id]?.runtimeId;
-    const command = { type: "place", token: ++token, id, moveRuntimeId, x, z, yaw } as const;
+    const command = { type: "place", token: ++token, id, moveRuntimeId, x, z, yaw,supportY } as const;
     set({ busy: true, command, draft: null, error: null,
       placement: { token, kind: entry.kind, confirmedAt: performance.now(), wasMove: moveRuntimeId !== undefined, previewDelayMs: s.previewDelayMs } });
   },

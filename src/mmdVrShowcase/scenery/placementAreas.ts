@@ -11,6 +11,7 @@ import {songhouseClear,songhouseHeight} from './qinhuai/songhouseLayout';
 import {weddingClear} from './wedding/weddingLayout';
 import {velvetPlace} from './velvet/velvetLayout';
 import {chamberPlace} from './chamber/chamberLayout';
+import {arcadePlace} from './arcade/arcadeLayout';
 import {retreatPlace} from './retreat/retreatLayout';
 import {planetPlace} from './planet/planetLayout';
 import {GUARD_CHAIR,PACE_CLOCK,POOL,POOL_SUPPORT,LIDO_PIERS,PAVILION_POSTS,POOL_ORIGIN,inLidoApproach,borrowedLido} from './LidoLayout';
@@ -65,10 +66,11 @@ export const LAWN_TREES = Array.from({ length: 19 }, (_, i) => {
   return { x: Math.cos(a) * r, z: Math.sin(a) * r, h: 3.3 + 2.2 * landscapeRandom() };
 }).concat([{x:5.75,z:-5.2,h:5.6},{x:-6.2,z:-9.4,h:4.4}]).filter(t=>!inLidoApproach(t.x,t.z,1.5)&&!reserveLawnClinic(t.x,t.z,t.h*.42)&&!lawnPaving(t.x,t.z,t.h*.42));
 
-export const placementHeight=(id:SceneryId,x:number,z:number)=>id==='qinhuai'?songhouseHeight(x,z):0;
-export function canPlaceInScenery(id: SceneryId, x: number, z: number): boolean {
+export const placementHeight=(id:SceneryId,x:number,z:number,supportY?:number)=>id==='arcadeHall'?(supportY??0):id==='qinhuai'?songhouseHeight(x,z):0;
+export function canPlaceInScenery(id: SceneryId, x: number, z: number,supportY?:number): boolean {
   if (!Number.isFinite(x) || !Number.isFinite(z)) return false;
   switch (id) {
+    case 'arcadeHall':return arcadePlace(x,supportY??0,z);
     case 'glassPlanet':return planetPlace(x,z);
     case 'velvetStudio':return velvetPlace(x,z);
     case 'medievalChamber':return chamberPlace(x,z);

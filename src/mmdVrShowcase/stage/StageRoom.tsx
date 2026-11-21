@@ -455,13 +455,13 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
     executing.current = command.token;
     void (async () => {
       try {
-        if (command.type === "place" && !canPlaceInScenery(scenery, command.x, command.z)) throw new Error(
+        if (command.type === "place" && !canPlaceInScenery(scenery, command.x, command.z,command.supportY)) throw new Error(
           useLanguageStore.getState().language === "zh" ? "请指向可摆放的地面。" : "Choose an open spot on the ground.");
         // Includes recent material edits / scrubs. Closing during this command uses the last healthy room.
         saveRoom();
         const freshModel = command.type === 'place' && !command.moveRuntimeId && useBackpack.getState().placement?.kind === 'model';
         const work = freshModel ? createPlacementWork() : undefined;
-        const warning = await actors.execute(command, stale, work,command.type==='place'?placementHeight(scenery,command.x,command.z):0);
+        const warning = await actors.execute(command, stale, work,command.type==='place'?placementHeight(scenery,command.x,command.z,command.supportY):0);
         if (stale()) return;
         staticSettleElapsed.current = 0;
         lastEvaluatedTimeRef.current = -Infinity;

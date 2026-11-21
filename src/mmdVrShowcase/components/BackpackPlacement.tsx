@@ -5,7 +5,7 @@ import { useBackpack, type BackpackLive } from "../backpack";
 import { HUD_COLORS } from "../hudAppearance";
 import { useMmdVrStore } from "../mmdVrStore";
 import { canPlaceInScenery } from "../scenery/placementAreas";
-import {elevatedPickDecks,visiblePick} from '../scenery/pickDecks';
+import {roomPickDecks,visiblePick} from '../scenery/pickDecks';
 import type { SceneryId } from "../scenery/catalog";
 import { useLanguageStore } from "../../languageStore";
 import { useHudWorldInput } from "./hudWorldInput";
@@ -47,11 +47,11 @@ function DropSurface({ id, scenery }: { id: string; scenery: SceneryId }) {
   useEffect(() => () => stamps.forEach(t => t.dispose()), [stamps]);
   const pressed = useRef<number | null>(null), hovering = useRef<number | null>(null);
 
-  function target(e: ThreeEvent<PointerEvent>) {
+  function target(e: ThreeEvent<PointerEvent>,supportY:number) {
     if (pressed.current != null && e.pointerId !== pressed.current) return;
     e.stopPropagation();
     const { x, y, z } = e.point;
-    const allowed = canPlaceInScenery(scenery, x, z) && visiblePick(scenery,e.ray.origin,x,y-.012,z);
+    const allowed = canPlaceInScenery(scenery, x, z,supportY) && visiblePick(scenery,e.ray.origin,x,supportY,z);
     (gl.xr.isPresenting ? gl.xr.getCamera() : camera).getWorldPosition(head);
     const s = useMmdVrStore.getState(), live = useBackpack.getState().live[id];
     const existing = live ? s.models.find(e => e.id === live.runtimeId) ?? s.objects.find(e => e.id === live.runtimeId) : undefined;
@@ -65,22 +65,22 @@ function DropSurface({ id, scenery }: { id: string; scenery: SceneryId }) {
       marker.current.position.set(x, y+.009, z); marker.current.rotation.y = yaw * Math.PI / 180;
       marker.current.visible = true; valid.current.visible = allowed; invalid.current.visible = !allowed;
     }
-    return { allowed, x, z, yaw };
+    return { allowed, x, z, yaw,supportY };
   }
   const leave = (e: ThreeEvent<PointerEvent>) => {
     if (pressed.current === e.pointerId) pressed.current = null;
     if (hovering.current === e.pointerId && marker.current) marker.current.visible = false;
   };
   return <>
-    {[{x:0,y:0,z:0,w:scenery==='astralCourt'?108:72,d:scenery==='astralCourt'?108:72},...elevatedPickDecks(scenery)].map(r=><mesh key={`${r.x}/${r.y}/${r.z}`} name={r.y?'backpack:deck':'backpack:ground'} position={[r.x,r.y+.012,r.z]} rotation-x={-Math.PI/2} pointerEventsType={rayOnly} pointerEventsOrder={-1}
-      onPointerMove={target} onPointerLeave={leave} onPointerCancel={leave}
-      onPointerDown={e => { if (target(e)?.allowed) pressed.current = e.pointerId; }}
+    {roomPickDecks(scenery).map(r=><mesh key={`${r.x}/${r.y}/${r.z}`} name={r.y?'backpack:deck':'backpack:ground'} userData={{supportY:r.y}} position={[r.x,r.y+.012,r.z]} rotation-x={-Math.PI/2} pointerEventsType={rayOnly} pointerEventsOrder={-1}
+      onPointerMove={e=>target(e,r.y)} onPointerLeave={leave} onPointerCancel={leave}
+      onPointerDown={e => { if (target(e,r.y)?.allowed) pressed.current = e.pointerId; }}
       onPointerUp={e => {
-        const hit = target(e);
+        const hit = target(e,r.y);
         if (pressed.current !== e.pointerId) return;
         pressed.current = null;
         const s = useMmdVrStore.getState();
-        if (hit?.allowed && !s.physicsBusy && !s.assetLoad.running && s.prefs.scenery === scenery) useBackpack.getState().confirmPlace(id, hit.x, hit.z, hit.yaw);
+        if (hit?.allowed && !s.physicsBusy && !s.assetLoad.running && s.prefs.scenery === scenery) useBackpack.getState().confirmPlace(id, hit.x, hit.z, hit.yaw,hit.supportY);
       }}>
       <planeGeometry args={[r.w,r.d]} /><meshBasicMaterial visible={false} />
     </mesh>)}

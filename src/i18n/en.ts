@@ -5,6 +5,7 @@ export const en: Record<keyof ZhMessages, string> = {
   chamberWheel:'Wheel and pillory gallery',chamberTown:'Dusk over the belfry',planetTransit:'Copper transit dome',planetSouth:'Southern beacon and moons',
   hudVelvetStudio:'Black Velvet Studio',velvetPortrait:'Velvet portrait mark',velvetLounge:'Chaise and dressing room',
   hudMedievalChamber:'Medieval Interrogation Chamber',chamberRecord:'At the clerk’s table',chamberVault:'Under the stone vault',
+  hudArcadeHall:'Arcade spawn · blockout',arcHallReturn:'Hall · twin doors',arcLowerPad:'Hall · passage mark',arcUpperEntry:'Upper portal · board face',arcEastEnd:'Upper east · F5',arcWestEnd:'Upper west · twin cabinets',arcWood:'Upper rear · wood side',arcLounge:'East · lounge steps',arcGraffiti:'West · stacked passages',arcSky:'Look up · skylight',arcPassHint:'G inside the gold passage marks to change floor (VR: left X)',arcDown:'Upper rim · look down',arcLowEast:'Ground floor · east',arcLowWest:'Ground floor · west',arcGlass:'West · glass and bench',arcEastCourt:'East · upper landing',
   weddingBridal:'Behind the bridal curtains',qinhuaiPrivate:'Yueheng House · Courtesan’s Quarters',
   weddingCups:'Wedding wine cups',weddingSilkOpen:'Open brocade',weddingSilkClose:'Close brocade',weddingGauzeOpen:'Open gauze',weddingGauzeClose:'Close gauze',
   weddingBridalDoor:'Through the bridal doorway',

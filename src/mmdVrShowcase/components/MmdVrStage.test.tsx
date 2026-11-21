@@ -147,6 +147,19 @@ async function setupBag(files: File[], useMotionCache = false) {
 }
 const file = (name: string) => new File([name], name);
 
+it('moves an actor between coincident XZ supports and restores the chosen floor',async()=>{
+  const actor=file('arcade.pmx'),{id,store,bag,exit}=await setupBag([actor]);
+  const room=async(scenery:'arcadeHall'|'floor')=>act(async()=>store().setPrefs({scenery}));
+  const place=async(y:number)=>act(async()=>{bag().beginPlace(id(actor));bag().confirmPlace(id(actor),.65,2.83,35,y);});
+  try{
+    await room('arcadeHall');await place(0);const initial=bag().live[id(actor)];expect(initial.position).toEqual([.65,0,2.83]);
+    await place(3.4);expect(bag().live[id(actor)]).toMatchObject({runtimeId:initial.runtimeId,position:[.65,3.4,2.83]});
+    await place(2);expect(bag().error).toBeTruthy();expect(bag().live[id(actor)].position[1]).toBe(3.4);
+    await room('floor');expect(bag().live[id(actor)]).toBeUndefined();await room('arcadeHall');
+    expect(bag().live[id(actor)].position).toEqual([.65,3.4,2.83]);expect(store().models[0].rotationY).toBe(35);
+  }finally{await exit();}
+});
+
 function runtimeWith(actor: File) {
   return vi.mocked(createMmdRuntimeHandle).mock.results.map(r => r.value as ReturnType<typeof createMmdRuntimeHandle>)
     .reverse().find(rt => rt.exportProjectModels().some(m => m.modelFile === actor))!;
