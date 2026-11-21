@@ -1,8 +1,8 @@
 # 会话交接｜2026-11-21
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `7e27289`](https://265be8b7.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md) · [文档索引](./README.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `2ec5d2c`](https://6b33a340.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md) · [文档索引](./README.md)
 
-**16 景、9 件道具，主列表 10 个入口。** [星环遗庭传送大厅](./scenery/README.md)接入六个小片场；[琉璃星系](./scenery/opal-planet.md#双星引力海峡)可探索母星与四颗卫星。棱盐星低重力、玄釉星高重力，右 A 从赤道踏印跨星；屏幕用空格。
+**16 景、9 件道具，主列表 10 个入口。** [星环遗庭传送大厅](./scenery/README.md)接入六个小片场；琉璃星系有母星与五颗卫星。[05 号青绿环通往苇湾星](./scenery/opal-planet.md#苇湾星与地表近景)，可涉水看睡莲、从草坡看林冠；旧星球也已重绘地表纹理。
 
 ## 下次从这里开始
 

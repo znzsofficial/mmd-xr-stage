@@ -4,6 +4,7 @@
 
 | 功能提交 | 已发布内容与验证范围 |
 |---|---|
+| `2ec5d2c` | [苇湾生态星与地表近景](./scenery/opal-planet.md#苇湾星与地表近景)：第五条风道通往草岸、浅水睡莲和冠木林，旧四颗卫星地貌重新烘焙、母星与卫星加入近景纹理。457 项测试通过；WebGL 着色器编译／链接及五处同机位对照通过。模拟双眼 Quest 从母星往返，在水面下约 33 cm 的湖床走跳。Quest 3S 锐度和帧率仍待真机确认。[固定版](https://6b33a340.mmd-xr-stage.pages.dev/?set=glassPlanet&view=screen) |
 | `7e27289` | [双星引力海峡](./scenery/opal-planet.md#双星引力海峡)：两条新风道、四星分级重力、盐晶与玻岩、有限距离碎岩和彩色尘流。453 项测试通过；生产构建的屏幕实跳约 1.02 / 0.35 m，双向跨跳后母星 PMX 不变。双眼模拟 Quest 从棱盐星出发、连续跨跳并经玄釉星风环返航；真机舒适度与帧率待验。[固定版](https://265be8b7.mmd-xr-stage.pages.dev/?set=glassPlanet&view=screen) |
 | `1222cbb` | 移除桌面通知、无消费者的持久化暂停队列、待入场资产队列和 Iconify / nanoid 直接依赖。435 项测试通过；生产构建模拟拒绝 XR 后准备页可展开完整原因，重试收到首帧。主域名入口与 130 份资源哈希一致。[固定版](https://2f8b45a6.mmd-xr-stage.pages.dev) |
 | `aee99d5` | [星环遗庭传送大厅](./scenery/README.md)：六个小片场改从罗盘旁的实景星门进入，主列表由 16 项减到 10 项。屏幕逐门往返，旧片场书签可直接进入；模拟双眼 XR 扳机进入私摄棚、B 面板返回。主域名入口和 125 份资源哈希一致。[固定版](https://1b995ab7.mmd-xr-stage.pages.dev/?set=astralCourt&view=screen) |
