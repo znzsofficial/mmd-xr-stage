@@ -1,6 +1,6 @@
 # 会话交接｜2026-11-21
 
-[线上舞台](https://mmd-xr-stage.pages.dev) · [固定版 `2aa0c7a`](https://843fa0c9.mmd-xr-stage.pages.dev) · [分类文档索引](./README.md)
+[线上舞台](https://mmd-xr-stage.pages.dev) · [固定版 `712a136`](https://38219f66.mmd-xr-stage.pages.dev) · [分类文档索引](./README.md)
 
 **十六景、九件道具。** [电玩厅出生点](./scenery/arcade-hall.md)支持上下层摆放，G／左 X 过洞，门前约 2 米宽的平台东西贯通，一楼双门墙与外沿齐平。[刑讯室](./scenery/medieval-chamber.md)沿用已修复的无面八角柜、石作与接缝；布景原有人物默认隐藏。莱布伦城街段仍是[独立研究](./scenery/strinova-map-study.md)。
 
