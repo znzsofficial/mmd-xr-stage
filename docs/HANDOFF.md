@@ -1,6 +1,6 @@
 # 会话交接｜2026-11-21
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `aee99d5`](https://1b995ab7.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md) · [文档索引](./README.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `1222cbb`](https://2f8b45a6.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md) · [文档索引](./README.md)
 
 **16 景、9 件道具，主列表 10 个入口。** [星环遗庭传送大厅](./scenery/README.md)接入六个独立小片场；[琉璃小行星](./scenery/opal-planet.md)仍可直达。主域名六门往返、模拟双眼 XR 扳机进门和 B 面板返回已复核。
 

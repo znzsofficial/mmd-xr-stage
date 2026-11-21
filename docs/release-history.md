@@ -4,6 +4,7 @@
 
 | 功能提交 | 已发布内容与验证范围 |
 |---|---|
+| `1222cbb` | 移除桌面通知、无消费者的持久化暂停队列、待入场资产队列和 Iconify / nanoid 直接依赖。435 项测试通过；生产构建模拟拒绝 XR 后准备页可展开完整原因，重试收到首帧。主域名入口与 130 份资源哈希一致。[固定版](https://2f8b45a6.mmd-xr-stage.pages.dev) |
 | `aee99d5` | [星环遗庭传送大厅](./scenery/README.md)：六个小片场改从罗盘旁的实景星门进入，主列表由 16 项减到 10 项。屏幕逐门往返，旧片场书签可直接进入；模拟双眼 XR 扳机进入私摄棚、B 面板返回。主域名入口和 125 份资源哈希一致。[固定版](https://1b995ab7.mmd-xr-stage.pages.dev/?set=astralCourt&view=screen) |
 | `8160ce0` | [潮汐深空](./scenery/opal-planet.md#深空--潮汐星云与脉冲星)：分层星云与暗尘、8,831 个独立星点、带风暴和实时互投影的环行星、双向喷流。439 项测试通过；正式域名入口及 122 份文件内容哈希一致。单独测天空为五次绘制，同朝向横移 6 米，环行星亮部形心横移约 27 像素；五档抽样星点慢转未掉点，模拟 XR 双眼独立绘制通过。Quest 3S 实际锐度、帧率待测。[固定版](https://fd236688.mmd-xr-stage.pages.dev/?set=glassPlanet&view=screen) |
 | `a04fc04` | 场内开关共用 [`useSceneAction`](../src/mmdVrShowcase/scenery/input/useSceneAction.ts)，消除双手抢占同一帘绳的误触；每颗近星自己提供测站、机位和地貌。439 项测试通过，主域名入口与 115 份文件哈希一致。线上实点帘绳、灯台，双眼模拟 XR 双手同时瞄准、交错松开只激活一次，两星 X 往返、步行与 A 跳通过。下一步的[灯影与回波](./gameplay/interactive-scene-studies.md)是方案。[固定版](https://4a1f20fc.mmd-xr-stage.pages.dev) |
