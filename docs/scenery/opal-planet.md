@@ -16,7 +16,7 @@
 - **苇湾星**：后半圈中间的 **05 号青绿环**通往草坡和浅湖，单程约 9 秒。站在北极返航环望向水尺，沿草岸走向香蒲与睡莲。水面有独立波纹，脚下踩的是湖床；可以涉水，从岸边的冠木之间绕回风环。
 - **屏幕**：选「游览机位 → 起飞风道」下对应星球的机位，点回画面按 **G**。到站后按**空格**试当地的垂直跳，在原落点再按 **G** 返回。若用鼠标离开了环，可选对应的「回望母星」机位。**R** 结束当前镜头行程并回入口。
 
-母星、五颗有风环的卫星、两座只能跨跳的小星屿属于同一布景，演员始终在母星北台。母星至五颗卫星的距离已适度拉开。远处的背景行星不能着陆；尺度和飞行时间为观看、行走而缩小，不模拟真实天体轨道。
+母星、五颗风环卫星和两座跳岛共用一个布景，途中不卸载北台演员。远处的背景行星不能着陆。
 
 ### 苇湾星与地表近景
 
@@ -40,11 +40,9 @@
 
 **从玄釉星继续跳岛：** 在另一枚标有「跃向云母屿」的足印按 A，跨过约 6.95 m 到达半径 2.65 m 的云母屿。沿另一色箭纹到第二枚足印，再跨约 6.65 m 到半径 1.95 m 的硫珠屿。两段都可以反向跳，回到玄釉星后从北端风环回母星。屏幕「游览机位 → 引力海峡与跳岛」收录两向踏印；按空格完成相同的动作。跳岛没有另设北台出发口。
 
-![早期两条风道：北台、赭砾星与霜岬星](../screenshots/wind-planets.webp)
-
 ![双星引力海峡，以及盐晶折射仪与玻岩退火窑近景](../screenshots/twin-wells.webp)
 
-**维护与验收**：[目的地、重力、测站与航线](../../src/mmdVrShowcase/scenery/planet/windAtlas.ts)供渲染和移动共用；[脚下地形与网格](../../src/mmdVrShowcase/scenery/planet/moonSurface.ts)共用同一高度函数。原卫星用[反照率](../../src/mmdVrShowcase/scenery/planet/bakeSatellites.py)，双星用[多通道矿物纹样](../../src/mmdVrShowcase/scenery/planet/bakeTwinCuts.py)。[跨跳](../../src/mmdVrShowcase/movement/twinLeap.ts)用 1/120 秒步长，按当前引力井积分；抵达实际壳面才算着陆。[专项测试](../../src/mmdVrShowcase/movement/twinLeap.test.ts)覆盖中心和边缘起跳、不同帧率和两米身高净空。风道和卫星停留期间母星 Ecctrl 停用，返航再从实际脚位接管。诊断区分 `windDepartures/windLandings`、`twinDepartures/twinLandings`，并记录 `location` 和 `gravityOwner`。Quest 3S 上的近眼舒适度及持续帧率仍待实机检查。
+**维护入口：** [星表与航线](../../src/mmdVrShowcase/scenery/planet/windAtlas.ts)供渲染和移动共用；[脚下高度](../../src/mmdVrShowcase/scenery/planet/moonSurface.ts)与可见壳面一致。[跨跳](../../src/mmdVrShowcase/movement/twinLeap.ts)用 1/120 秒步长积分，触及目标壳面才着陆。[测试](../../src/mmdVrShowcase/movement/twinLeap.test.ts)覆盖踏印边缘、不同帧率与两米身高净空。母星 Ecctrl 在离星期间停用，返航时从实际脚位接管。
 
 ## 母星：沿白脊采谱
 
@@ -72,20 +70,8 @@
 
 **验证范围**：在相同的 1,100 × 606 WebGL 画面里，固定时间、朝向，仅平移眼睛 6 米。旧版 `a04fc04` 单独渲染的天空完全相同，新版环行星亮部形心横移约 27 像素。单独渲染天空为 5 次绘制。另取五档亮度、连续 18 个亚像素转头位置，在每颗星周围 14 × 14 像素内积分，检查不掉点；逐项核对实际着色器的编译、链接及双眼视口。这些是桌面 WebGL／模拟 XR 的结果，Quest 3S 的锐度、闪烁和帧率以实机为准。
 
-### 早期地形与天空记录
+### 移动实现与真机待验
 
-[北端罗盘与环行星](../screenshots/opal-compass.webp) · [南极信标与远月](../screenshots/opal-south.webp)（正式构建的屏幕机位）
+[球面移动](../../src/mmdVrShowcase/movement/PlanetMotor.tsx)从第一帧读当前手柄；[地形](../../src/mmdVrShowcase/scenery/planet/opalTerrain.ts)供脚下支撑、可见壳面和碰撞共用。仅 XR 进入母星时加载 [Ecctrl/Rapier](../../src/mmdVrShowcase/movement/PlanetPhysics.tsx)，就绪后从当前脚位、朝向和速度接管，每帧最多推进 1/60 秒。模拟双眼 XR 已验延迟／拒绝加载、球背走跳与 B 召回。母星参考重力为 2.5 m/s²，不进入角色 Bullet 世界。[球面探针](../../experiments/three-planet-wheel/README.md) · [历次发布证据](../release-history.md)
 
-- [径向地形](../../src/mmdVrShowcase/scenery/planet/opalTerrain.ts)用同一高度函数生成球壳、Rapier 三角面及加载前的贴地支撑。240 个方向的测试将数学半径与渲染网格的实际射线交点对照，允许误差 3.5 cm。建筑、晶簇不占用北端双人站位；瞄准观星台时会拒绝穿过山脊或仪器的射线。
-- 早期天空由 [`bakeFirmament.py`](../../src/mmdVrShowcase/scenery/planet/bakeFirmament.py) 将恒星、尘带和五个远天体合成全景图，仅随眼睛朝向旋转；这是上方同机位对照的旧版。母星地面的罗盘和矿纹仍使用 [`bakeLanding.py`](../../src/mmdVrShowcase/scenery/planet/bakeLanding.py)。
-- 三轮屏幕实景修订：先对照旧版测山形和天空；再纠正环行星被初始镜头裁切、地台缺少比例参照的问题；最后把侧面／南极机位改为局部水平，修补迟到贴图并对行星环离线抗锯齿。双眼模拟 Quest 用实际摇杆沿子午线走到球背，沿线采样地形高差约 1.18 m；正常载入与阻断物理模块各走一遍，均可原地跳起、落地、转向 30°、按 B 召回。测试不等于 Quest 3S 真机帧率或舒适度。
-
-[球面移动](../../src/mmdVrShowcase/movement/PlanetMotor.tsx)从第一帧就读取当前会话的手柄，Quest 使用原生 `xr-standard` 摇杆轴 2/3；其他布局可使用当前输入源的已解析摇杆。物理模块还在下载、编译或启动失败时，沿球面和平台走、转、跳、召回和飞行仍可使用。[Ecctrl/Rapier](../../src/mmdVrShowcase/movement/PlanetPhysics.tsx)就绪后从当前脚位、切面朝向、速度接手。两种路径共用 XR 原点和转向锁存；母星参考表面的重力为 2.5 m/s²，随脚位到星心的距离增加按平方反比变弱，不进入角色 Bullet 世界。
-
-仅在 XR 进入本景时加载 Rapier（同源 JS 内联 WASM，本次约 1.60 MB gzip）；静态入口不能依赖它，由 Vite 构建检查。Ecctrl 每个渲染帧施加一次冲量，给它过长的物理步长会放大支撑弹簧，故每帧最多推进 1/60 秒。落点射线只接受北端平台；普通移动对导入物件使用实际三角面，对角色使用躯干代理。
-
-**真机已知现象**：2026-11-20 14:43Z 的 Quest 3S 报告记录了两次空景访问、21 个采样窗，FPS 中位数 117。用户确认 B 可用、左右摇杆都不能移动或转向。旧报告没有摇杆、姿态或玩家物理状态，不能据此定位为 WASM、追踪或手柄配置故障。
-
-**验证**：双眼模拟 Quest 的生产构建中，刻意挂起 1,569,397 字节的 Rapier WASM 实例化，左右摇杆仍可行走与 30° 转向；放行的那一帧视点位移和转角均为零。另一次直接拒绝实例化，走、转以及离开后再回来仍有效。另用模拟手柄走至球背（局部向上轴的世界 Y = −0.9996），转向 30°、按 A 径向升高 0.247 米、落回原高度，并用 B 召回后点开「更多」。此前的[球面探针](../../experiments/three-planet-wheel/README.md)在 72/90 步下走过整周。桌面模拟不证明真机原因已排除或头显舒适度合格。
-
-**真机复测**：新开页面进空星球，左摇杆向前 2 秒，右摇杆横拨、松开再横拨，按 A 跳和 B 召回。切到平地再进星球重复，退出并导出 JSON。`windows[].planetMovement` 是本次进星球以来的累计记录：`backend` 为 `pending` / `rapier` / `failed`；`poseFrames` 对照 `frames`，`left/right` 表示输入来源，`walkInputFrames`、`turnInputFrames` 为检测到摇杆的帧数，`inputHeldFrames` 为界面拖动或退出锁住输入的帧数。`snapTurns` 和 `footTravelM`（包括升降、跳跃及物理位移）记录实际执行结果。只保存计数和距离，不导出追踪坐标。
+**仍需 Quest 3S 复测。** 11 月 20 日 14:43Z 的旧版两次空场共 21 个窗口，中位 117 FPS，但只有 B 有效，两杆无效；当时没记录输入，原因未证实。按[真机短测](../performance/next-quest-export.md#星球先确认移动再看深空)分别试冷进与重进，退出即导出。`windows[].planetMovement` 的 `backend`、姿态帧和摇杆计数与 `snapTurns`、`footTravelM` 对照看；风道看 `windDepartures/windLandings`，跨跳看 `twinDepartures/twinLandings`、`location`、`gravityOwner`。
