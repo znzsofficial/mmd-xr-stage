@@ -6,6 +6,7 @@ export const en: Record<keyof ZhMessages, string> = {
   saltWind:'Launch collar · Halite',glazeWind:'Launch collar · Obsidian',saltReturn:'Halite · homeward view',glazeReturn:'Obsidian · homeward view',
   saltLeap:'Halite · leap to Obsidian',glazeLeap:'Obsidian · leap to Halite',twinPortrait:'Between the twins · Gravity Narrows',
   saltPortrait:'Close view · prism station',glazePortrait:'Close view · obsidian kiln',
+  reedWind:'Launch collar · Reedwater',reedReturn:'Reedwater · homeward view',reedGlobe:'Reedwater · lagoon globe',reedShore:'Reedwater · lily gauge',reedGrove:'Reedwater · meadow canopy',
   planetWindHint:'G at a wind collar to fly · Space to jump on a moon or cross at a twin jump mark',
   weddingLetter:'Close-up · wedding letter and gourd cups',weddingSilkHall:'Courtyard · paired lanterns and silk swags',
   campusToArcade:'Pedestrian street → Arcade',arcadeToCampus:'Pedestrian street → Campus lawn',arcadeToPool:'East promenade → Pool timing deck',poolToArcade:'Timing deck → Arcade',

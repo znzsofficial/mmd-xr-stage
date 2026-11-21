@@ -27,7 +27,7 @@ Import budgets apply to files, including textures and ZIP contents: **4,096 entr
 
 ## Stage gallery
 
-**[Explore the Opal system](https://mmd-xr-stage.pages.dev/?set=glassPlanet&view=screen).** Four wind collars lead to four walkable moons. Try a low-gravity jump on Halite, follow the marks to the equator and leap across to Obsidian, then take its wind lane home. In Quest walk mode use left **X** at a collar and right **A** to jump; on screen use **G** and **Space** at the corresponding views. [Flight guide and sky comparison](./docs/scenery/opal-planet.md).
+**[Explore the Opal system](https://mmd-xr-stage.pages.dev/?set=glassPlanet&view=screen).** Five wind collars lead to five walkable moons. Follow the green collar to Reedwater's meadows and lily lagoons, or take a low-gravity jump from Halite to Obsidian. In Quest walk mode use left **X** at a collar and right **A** to jump; on screen use **G** and **Space** at the corresponding views. [Flight guide and surface close-ups](./docs/scenery/opal-planet.md).
 
 **[Arcade Spawn · 电玩厅出生点](https://mmd-xr-stage.pages.dev/?set=arcadeHall&view=screen).** Walk through the twin doors and look up beside the tall signboard to see both the opening in the upper floor and the skylight. Use **G** on screen or the **left X** on a Quest controller at the gold passage mark. The upper front walk connects the lounge and the west staircase. [Views and placement guide](./docs/scenery/arcade-hall.md).
 

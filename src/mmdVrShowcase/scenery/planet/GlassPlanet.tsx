@@ -10,18 +10,20 @@ import {WindSystem} from './WindSystem';
 import {TwinWaymarks} from './TwinWaymarks';
 import {OrbitalDrift} from './OrbitalDrift';
 import {StationFallout} from './StationFallout';
+import {opalGrain,useSurfaceGrain} from './surfaceGrain';
 export {PlanetSky} from './PlanetSky';
 
 export function GlassPlanet(){
   const print=useBakedSurface(mineral),landing=useBakedSurface(dial),stone=useMemo(makeCrust,[]);
+  const grain=useSurfaceGrain(),crustDetail=useMemo(()=>opalGrain(grain,1),[grain]),deckDetail=useMemo(()=>opalGrain(grain,.42),[grain]);
   useLayoutEffect(()=>{if(print){print.wrapS=print.wrapT=RepeatWrapping;print.repeat.set(14,7);print.needsUpdate=true}},[print]);
   useLayoutEffect(()=>()=>stone.dispose(),[stone]);
   return <group name="planet:glass-meridian">
-    <mesh name="planet:crust" geometry={stone} position-y={-R}><meshStandardMaterial key={print?.uuid} vertexColors map={print} roughness={.75} bumpMap={print} bumpScale={.028} emissive="#26363f" emissiveIntensity={.32}/></mesh>
+    <mesh name="planet:crust" geometry={stone} position-y={-R}><meshStandardMaterial key={`${print?.uuid}:${grain?.uuid}`} onBeforeCompile={crustDetail} vertexColors map={print} roughness={.75} bumpMap={print} bumpScale={.028} emissive="#26363f" emissiveIntensity={.32}/></mesh>
     <MeridianMarks/><MeridianStations/><SpringLights/>
-    <WindSystem/><TwinWaymarks/><StationFallout/><OrbitalDrift/>
+    <WindSystem grain={grain}/><TwinWaymarks/><StationFallout/><OrbitalDrift/>
     <mesh position-y={-.17}><cylinderGeometry args={[PAD_RADIUS,PAD_RADIUS-.10,.34,80]}/><meshStandardMaterial color="#526875" roughness={.71}/></mesh>
-    <mesh rotation-x={-Math.PI/2} position-y={.002}><circleGeometry args={[PAD_RADIUS-.025,80]}/><meshStandardMaterial key={landing?.uuid} map={landing} color={landing?'#ffffff':'#526875'} roughness={.70}/></mesh>
+    <mesh rotation-x={-Math.PI/2} position-y={.002}><circleGeometry args={[PAD_RADIUS-.025,80]}/><meshStandardMaterial key={`${landing?.uuid}:${grain?.uuid}`} onBeforeCompile={deckDetail} map={landing} color={landing?'#ffffff':'#526875'} roughness={.70}/></mesh>
     {[1.98,2.55,2.70].map(r=><mesh key={r} rotation-x={Math.PI/2}><torusGeometry args={[r,.012,6,90]}/><meshStandardMaterial color="#e0b177"/></mesh>)}
   </group>;
 }

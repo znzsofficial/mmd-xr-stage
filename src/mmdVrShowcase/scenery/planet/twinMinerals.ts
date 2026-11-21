@@ -1,3 +1,5 @@
+import {surfaceGrain} from './surfaceGrain';
+
 // Each print packs two tangent slopes, a stone tone and a mineral mask in a
 // single mip chain. Shade per eye; neither the sun nor a highlight is in the art.
 export const mineralVertex=`
@@ -9,6 +11,7 @@ export const mineralVertex=`
   }`;
 
 export const mineralFragment=`
+  ${surfaceGrain}
   varying vec3 world,n,radial,eye;varying vec2 st;
   uniform vec3 sun,probe,probeUp;uniform sampler2D printMap;uniform float mapped;
   float probeShadow(vec3 mid,float r){
@@ -29,6 +32,8 @@ export const mineralFragment=`
       ink=vec4(.5,.5,.52+.18*vein,.50+.18*smoothstep(.66,1.,vein));
     }
     float tone=clamp(ink.b,0.,1.),mask=clamp((ink.a-.5)*2.04,0.,1.);
+    vec3 grit=grainAt(radial,R,1.82,length(eye));
+    tone=clamp(tone+.43*grit.r+.18*grit.g,0.,1.);
     vec2 slope=ink.rg*2.-1.;vec3 F=normalize(N+(T*slope.x+B*slope.y)*.81);
     // Centimetre-scale cleavage under the coarse mineral print. Sample in
     // metres, attenuating the whole grain before it goes sub-pixel in either eye.
@@ -36,7 +41,7 @@ export const mineralFragment=`
     vec2 freq=fwidth(vein)*92.;float detail=1.-smoothstep(.18,1.1,max(freq.x,freq.y));
     float lamella=sin(vein.x*91.+2.8*sin(vein.y*19.));
     float inclusion=cos(vein.y*113.+1.9*sin(vein.x*37.));
-    F=normalize(F+detail*(.063*T*lamella+.045*B*inclusion));
+    F=normalize(F+detail*(.063*T*lamella+.045*B*inclusion)+T*grit.g*.15+B*grit.r*.11);
     float day=max(0.,dot(N,sun)),lit=max(0.,dot(F,sun));
     float facing=clamp(dot(F,V),0.,1.),grazing=1.-facing;
     vec3 H=normalize(V+sun);float coat=max(0.,dot(F,H));
@@ -50,7 +55,7 @@ export const mineralFragment=`
       vec3 film=mix(vec3(.82,.43,.23),vec3(.23,.65,.73),smoothstep(.10,.53,phase));
       film=mix(film,vec3(.62,.29,.71),smoothstep(.54,.97,phase));
       vec3 c=base*(vec3(.15,.17,.21)+shadow*vec3(1.,.95,.84)*(.32*day+.68*lit));
-      c=mix(c,film*(.28+.78*lit*shadow),mask*(.49+.36*grazing));
+       c=mix(c,film*(.28+.78*lit*shadow),clamp(mask*(.49+.36*grazing)+.12*grit.b,0.,1.));
       c+=shadow*smoothstep(.0,.18,day)*vec3(.72,.80,.75)*pow(coat,34.)*(.07+.34*mask);
     #else
       float shadow=1.-.85*max(probeShadow(probe+.44*probeUp,.37),probeShadow(probe+.93*probeUp,.23));

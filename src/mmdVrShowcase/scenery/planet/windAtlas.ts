@@ -2,6 +2,7 @@ import {Vector3} from 'three';
 import {crustRadius} from './opalTerrain';
 import {PLANET_RADIUS} from './planetLayout';
 import {moonRadius} from './moonSurface';
+import {reedCentre,reedRadius,reedGauge,reedTrunkBlocks} from './reedBiosphere';
 
 export const sunDirection=new Vector3(-5,3.2,3.8).normalize();
 const homeCentre=new Vector3(0,-PLANET_RADIUS,0),north=new Vector3(0,1,0);
@@ -14,12 +15,15 @@ const destinations=[
     stationUp:new Vector3(.41,.77,.49).normalize(),duration:10.5,launchKey:'saltWind',returnKey:'saltReturn',sign:'03 · 棱盐星',caption:'HALITE   /   PRISM FLATS'},
   {id:'glaze',relief:'glaze',instrument:'kiln',centre:new Vector3(9.8,18,-25),radius:4.6,surfaceGravity:3.65,color:'#ff7759',port:new Vector3(.208,.942,.263).normalize(),
     stationUp:new Vector3(-.60,.73,.32).normalize(),duration:10.5,launchKey:'glazeWind',returnKey:'glazeReturn',sign:'04 · 玄釉星',caption:'OBSIDIAN   /   FURNACE GLASS'},
+  {id:'reed',relief:'wetland',instrument:'gauge',centre:reedCentre,radius:reedRadius,surfaceGravity:2.55,color:'#8ae59e',port:new Vector3(-.02,.935,.354).normalize(),
+    stationUp:reedGauge,duration:9.0,launchKey:'reedWind',returnKey:'reedReturn',sign:'05 · 苇湾星',caption:'REEDWATER   /   LAGOONS'},
 ] as const;
 export const moons=destinations.map(({stationUp:up,...m})=>({
   ...m,station:{up,base:up.clone().multiplyScalar(moonRadius(m,up.x,up.y,up.z)).add(m.centre),r:.52,h:1.40},
 }));
 export type Moon=typeof moons[number];
 export function moonObstructed(m:Moon,p:Vector3,r:number,height:number){
+  if(m.id==='reed'&&reedTrunkBlocks(p,r,height))return true;
   const s=m.station,x=p.x-s.base.x,y=p.y-s.base.y,z=p.z-s.base.z,a=x*s.up.x+y*s.up.y+z*s.up.z;
   return a<s.h&&a+height>-.15&&x*x+y*y+z*z-a*a<(r+s.r)**2;
 }

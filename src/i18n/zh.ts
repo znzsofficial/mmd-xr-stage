@@ -4,6 +4,7 @@ export const zh = {
   saltWind:'起飞风道 · 棱盐星',glazeWind:'起飞风道 · 玄釉星',saltReturn:'棱盐星 · 回望母星',glazeReturn:'玄釉星 · 回望母星',
   saltLeap:'棱盐星 · 跃向玄釉星',glazeLeap:'玄釉星 · 跃向棱盐星',twinPortrait:'双星之间 · 引力海峡',
   saltPortrait:'近看 · 盐晶测站',glazePortrait:'近看 · 玄釉炉台',
+  reedWind:'起飞风道 · 苇湾星',reedReturn:'苇湾星 · 回望母星',reedGlobe:'苇湾星 · 环湖全景',reedShore:'苇湾星 · 荷塘水尺',reedGrove:'苇湾星 · 草坡看林冠',
   planetWindHint:'风环 G 起降 · 卫星表面按空格跳，双星跃台可跨星',
   weddingLetter:'近看 · 婚书与合卺礼器',weddingSilkHall:'庭中 · 望双灯喜幔',
   campusToArcade:'沿步行街 → 电玩厅',arcadeToCampus:'沿步行街 → 校园草坪',arcadeToPool:'沿东侧步道 → 泳池计时台',poolToArcade:'从计时台 → 电玩厅',

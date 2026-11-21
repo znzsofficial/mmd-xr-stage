@@ -1,6 +1,7 @@
 import {SphereGeometry} from 'three';
+import {reedRelief} from './reedBiosphere';
 
-type Profile={relief:'basins'|'rifts'|'salt'|'glaze';radius:number;station?:{up:{x:number;y:number;z:number}}};
+type Profile={relief:'basins'|'rifts'|'salt'|'glaze'|'wetland';radius:number;station?:{up:{x:number;y:number;z:number}}};
 const pits=Array.from({length:30},(_,i)=>{
   const y=1-(i+.5)/15,s=Math.sqrt(1-y*y),a=i*2.39996+.38;
   return {x:s*Math.sin(a),y,z:s*Math.cos(a),width:.007+.036*((i*13%29)/29)**2};
@@ -34,6 +35,7 @@ function twinHeight(relief:'salt'|'glaze',x:number,y:number,z:number){
 // The walking motor and actual meshes sample the same unit-vector relief.
 // Taper the terrain towards the north landing so its wind collar sits flush.
 export function moonRadius(m:Profile,x:number,y:number,z:number){
+  if(m.relief==='wetland')return m.radius+reedRelief(x,y,z);
   if(m.relief==='salt'||m.relief==='glaze'){
     // Spherical caps about north and BOTH equatorial jump headings, without
     // a step at their edge. At r=4.6 the undisturbed cap radius is ~1.12 m.
@@ -65,7 +67,7 @@ export function moonShell(m:Profile){
     p.setXYZ(i,x*r,y*r,z*r);
   }
   g.computeVertexNormals();
-  if(m.relief==='salt'||m.relief==='glaze'){
+  {
     // The UV seam and poles have duplicated vertices, but the daylight
     // highlight must be continuous across both sides of the same rock.
     const n=g.attributes.normal,stride=g.parameters.widthSegments+1,last=g.parameters.heightSegments;

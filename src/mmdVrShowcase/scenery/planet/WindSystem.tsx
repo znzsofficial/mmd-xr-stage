@@ -1,6 +1,6 @@
 import {useEffect,useMemo,useRef} from 'react';
 import {useFrame} from '@react-three/fiber';
-import {Color,DoubleSide,InstancedMesh,Object3D,Quaternion,Vector3,type MeshBasicMaterial} from 'three';
+import {Color,DoubleSide,InstancedMesh,Object3D,Quaternion,Vector3,type MeshBasicMaterial,type Texture} from 'three';
 import {ball,box,PaintedParts,ring,rod,turn} from '../../play/modelParts';
 import {useBakedSurface} from '../useBakedSurface';
 import {noPick,paintedSurface} from '../sceneryPaint';
@@ -13,21 +13,26 @@ import glaze from './glaze-fractures.webp';
 import {instrumentFragment,instrumentVertex,mineralFragment,mineralVertex} from './twinMinerals';
 import {twinStation} from './twinStations';
 import {windRibbons} from './windRibbons';
+import {Reedwater,reedGaugeModel} from './Reedwater';
+import {surfaceGrain} from './surfaceGrain';
 
 const prints={basins:ember,rifts:frost,salt,glaze};
 const halite={HALITE:1};
-function Satellite({moon}:{moon:Moon}){
+function Satellite({moon,grain}:{moon:Exclude<Moon,{relief:'wetland'}>;grain:Texture|null}){
   const twin=moon.relief==='salt'||moon.relief==='glaze';
   const g=useMemo(()=>moonShell(moon),[moon]),map=useBakedSurface(prints[moon.relief],twin?'mask':'print');
-  const u=useMemo(()=>({albedo:{value:map},printMap:{value:map},mapped:{value:map?1:0},sun:{value:sunDirection},ice:{value:moon.relief==='rifts'?1:0},probe:{value:moon.station.base},probeUp:{value:moon.station.up}}),[map,moon]);
+  const u=useMemo(()=>({albedo:{value:map},printMap:{value:map},mapped:{value:map?1:0},grainMap:{value:grain},grainReady:{value:grain?1:0},core:{value:moon.centre},sun:{value:sunDirection},ice:{value:moon.relief==='rifts'?1:0},probe:{value:moon.station.base},probeUp:{value:moon.station.up}}),[map,moon,grain]);
   useEffect(()=>()=>g.dispose(),[g]);
   return <mesh name={'planet:moon-'+moon.id} geometry={g} position={moon.centre} userData={{playerCollision:false}} raycast={noPick}>
     {twin?<shaderMaterial uniforms={u} defines={moon.relief==='salt'?halite:undefined} vertexShader={mineralVertex} fragmentShader={mineralFragment}/>:map?<shaderMaterial uniforms={u} vertexShader={`varying vec2 st;varying vec3 n,v,world;
       void main(){st=uv;n=mat3(modelMatrix)*normal;vec4 p=modelMatrix*vec4(position,1.);world=p.xyz;v=cameraPosition-p.xyz;gl_Position=projectionMatrix*viewMatrix*p;}`}
-      fragmentShader={`uniform sampler2D albedo;uniform vec3 sun,probe,probeUp;uniform float ice;varying vec2 st;varying vec3 n,v,world;
+      fragmentShader={`${surfaceGrain}\nuniform sampler2D albedo;uniform vec3 sun,probe,probeUp,core;uniform float ice;varying vec2 st;varying vec3 n,v,world;
         float shade(vec3 center,float rad){vec3 diff=center-world;float t=dot(diff,sun);return smoothstep(.015,.15,t)*(1.-smoothstep(rad*.75,rad+.03,length(diff-t*sun)));}
         void main(){vec3 N=normalize(n),V=normalize(v);float day=dot(N,sun),facing=max(0.,dot(N,V));
           vec3 base=texture2D(albedo,st).rgb;
+          vec3 grain=grainAt(world-core,N,mix(1.65,1.1,ice),length(v));
+          base*=max(.35,1.+grain.r*mix(1.25,.53,ice)+grain.g*.49-grain.b*mix(.21,.72,ice));
+          vec3 facet=vec3(grain.g,grain.r,-grain.b);N=normalize(N+.18*(facet-dot(N,facet)*N));day=dot(N,sun);
           float diffuse=max(0.,day);float regolith=diffuse/(.45+diffuse+.35*facing);
           float shadow=1.-.86*max(shade(probe+.52*probeUp,.26),shade(probe+1.08*probeUp,mix(.11,.37,ice)));
           vec3 c=base*(vec3(.034,.053,.082)+shadow*vec3(1.18,1.11,1.02)*mix(regolith,diffuse,ice*.55));
@@ -44,6 +49,7 @@ const daylight={sun:{value:sunDirection}};
 function SurveyProbe({moon}:{moon:Moon}){
   const s=moon.station;
   const g=useMemo(()=>{
+    if(moon.instrument==='gauge')return reedGaugeModel();
     if(moon.instrument==='prism'||moon.instrument==='kiln')return twinStation(moon.instrument);
     const p=new PaintedParts();
     for(let i=0;i<3;i++){
@@ -118,8 +124,8 @@ function Slipstreams(){
   return <><mesh name="wind:streamlines" geometry={field} raycast={noPick}><meshBasicMaterial vertexColors transparent opacity={.36} depthWrite={false} side={DoubleSide} forceSinglePass fog={false} onBeforeCompile={fadeAtEye}/></mesh>
     <instancedMesh ref={mesh} name="wind:particles" args={[undefined,undefined,72]} frustumCulled={false} raycast={noPick}><octahedronGeometry args={[1]}/><meshBasicMaterial transparent opacity={.70} depthWrite={false} fog={false} onBeforeCompile={fadeAtEye}/></instancedMesh></>;
 }
-export function WindSystem(){return <group name="planet:wind-system" pointerEvents="none">
-  {lanes.map(l=><group key={l.moon.id}><Satellite moon={l.moon}/><Terminal lane={l} port={l.home} back={false}/><Terminal lane={l} port={l.away} back/></group>)}
+export function WindSystem({grain}:{grain:Texture|null}){return <group name="planet:wind-system" pointerEvents="none">
+  {lanes.map(l=><group key={l.moon.id}>{l.moon.relief==='wetland'?<Reedwater moon={l.moon} grain={grain}/>:<Satellite moon={l.moon} grain={grain}/>}<Terminal lane={l} port={l.home} back={false}/><Terminal lane={l} port={l.away} back/></group>)}
   {moons.map(moon=><SurveyProbe key={moon.id} moon={moon}/>)}
   <Slipstreams/>
 </group>;}

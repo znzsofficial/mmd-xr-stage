@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 out=Path(__file__).parent;rng=np.random.default_rng(2703);field=rng.random((64,64,64)).astype('f')
-w,h=1024,512;phi=(np.arange(w)+.5)*2*np.pi/w;theta=((np.arange(h)+.5)*np.pi/h)[:,None]
+w,h=1536,768;phi=(np.arange(w)+.5)*2*np.pi/w;theta=((np.arange(h)+.5)*np.pi/h)[:,None]
 x=-np.sin(theta)*np.cos(phi);y=np.broadcast_to(np.cos(theta),x.shape);z=np.sin(theta)*np.sin(phi)
 def noise(f):
     a,b,c=(v*f+9.37 for v in (x,y,z));i,j,k=(np.floor(v).astype(int) for v in (a,b,c));u,v,t=a-i,b-j,c-k;u,v,t=(q*q*(3-2*q) for q in (u,v,t));result=0

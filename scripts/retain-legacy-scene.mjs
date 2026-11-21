@@ -4,6 +4,12 @@ import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 
 const files = [
+  ['265be8b7','index-tPuae25K.js','5cfc3f80cd3ac06dda57862e51b4fa053251b6b4175dd1fc74db7ef9a28bc40d'],
+  ['265be8b7','PlanetPhysics-DUo6ZfWA.js','379e8ba1ea7742a97e6929eacf24f24f5c7d6f61afab2828e01bcfccdaa5a6a2'],
+  ['265be8b7','glaze-fractures-Dis1LmWJ.webp','e87ab1f7cf7c946965f8723f752ae3593138b9ef7a55742cc8046cb5a3bbb9ad'],
+  ['265be8b7','salt-hoppers-B5CtpafJ.webp','2436d3ed679c95f9299aacd9e6c83d23d4f5646ccec34841bf1a18a213aa854b'],
+  ['265be8b7','frost-rifts-o2wiLWp6.webp','a4ea076646f71280d79444290d1ef341cfd44af423e839767541b8b75bcbdd31'],
+  ['265be8b7','ember-basins-GZK_MODY.webp','be8701a91621d4a38761809fa8283d3b10f837cd75977d6d91df393782ea2ed6'],
   ['2f8b45a6','index-Cv085TUZ.js','45c7076c5ca27142800167b8159e516088da0d693a73b90a5bdf864da0768e42'],
   ['2f8b45a6','PlanetPhysics-BUCZC-5P.js','55a9ecf9a906385ed39817ccdd8dfd7414a4c0be1161aa40d4f73fbebcf2b738'],
   ['2f8b45a6','vendor-mmd-Bm4ni5rV.js','a3e8bd6472539eb4e8ad50270d44198ffbf3e89e716e2759ccf54cec916c0eb9'],

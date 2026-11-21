@@ -9,7 +9,7 @@ import numpy as np
 from PIL import Image
 
 OUT = Path(__file__).parent
-W, H = 2048, 1024  # supersample each channel before packing the final 1024x512
+W, H = 3072, 1536  # supersample actual cleavage geometry for a 1536x768 field
 tau = 2*np.pi
 theta = (np.arange(H, dtype='f')[:, None]+.5)*np.pi/H
 phi = (np.arange(W, dtype='f')+.5)*tau/W
@@ -64,7 +64,7 @@ def write(name,radius,depth,tone,accent):
         im = Image.fromarray(np.uint8(np.clip(v,0,1)*255+.5))
         return im.resize((W//2,H//2),Image.Resampling.LANCZOS)
     texture = Image.merge('RGBA',tuple(map(channel,(.5+.5*nx,.5+.5*ny,tone,.5+.49*accent))))
-    texture.save(OUT/name,quality=91,alpha_quality=84,method=6)
+    texture.save(OUT/name,quality=94,alpha_quality=91,method=6)
 
 
 def salt():
