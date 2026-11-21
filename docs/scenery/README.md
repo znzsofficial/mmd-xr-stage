@@ -1,22 +1,15 @@
 # 建模与布景
 
-舞台有十六个独立选景。[电玩厅出生点](./arcade-hall.md)的双层大厅可从橙沿洞口换层，两层均可就地摆人。[双喜堂](./wedding-court.md)从花轿一路通到妆室和喜房；[秦淮歌楼](./qinhuai.md)从埠头上二楼听曲廊，走到尽头便是月蘅馆。楼内移动不切景。
+**十六个独立选景。** [实景截图](../../README.md#stage-gallery) · [角色站位](../gameplay/vr-controls.md#在布景中给角色选位置) · [接入新区域](./adding-a-set.md)
 
-[黑绒私摄棚](./velvet-studio.md)和[中世纪刑讯室](./medieval-chamber.md)是各存布局的独立场景；[暮灯情侣套房、月庭双人私汤](./private-retreats.md)各有两处双人站位。[琉璃小行星](./opal-planet.md)可沿球面环游，在北端观星台摆角色。校园草坪连通门诊、教室和泳池。另有 Live House、简易地台、星环遗庭和晨光礼拜堂。[实景截图](../../README.md#stage-gallery) · [站位](../gameplay/vr-controls.md#在布景中给角色选位置) · [接入新区域](./adding-a-set.md)
+- **校园**：[教室、草坪、门诊和泳池](./campus-garden-routes.md)已有三条双向连接；[校园电玩环线](./campus-arcade-loop.md)将[双层电玩厅](./arcade-hall.md)接入步行网。门诊内三间房共享一层，原有护士默认隐藏。[陈列与显隐](./clinic-teaching.md)
+- **江南**：[双喜堂](./wedding-court.md)看喜幔、婚书与喜房；沿[枕河街](./jiangnan-river-street.md)可到[秦淮歌楼](./qinhuai.md)埠头、听曲廊和月蘅馆。跨景各存布局，楼内步行不卸载角色。
+- **天体**：[琉璃小行星](./opal-planet.md)从母星风环飞两颗近星，潮汐深空是远景；星环遗庭另有三座步行露台。
+- **其他片场**：[黑绒私摄棚](./velvet-studio.md)、[中世纪刑讯室](./medieval-chamber.md)、[暮灯情侣套房与月庭双人私汤](./private-retreats.md)、晨光礼拜堂、简易地台和 Live House。
 
 ## 布景怎么做
 
-[琉璃小行星的两座风口](./opal-planet.md)可飞到两颗能走动、跳跃的近星；[双喜堂正堂](./wedding-court.md)可从庭中看双灯喜幔，或靠近礼案看婚书和剖瓢。这两处都保留原布景身份和演员布局。
-
-想直接逛街，可走[校园电玩环线](./campus-arcade-loop.md)：草坪出发，经电玩厅二楼东侧步道到泳池计时台，再沿已有东岸回草坪。另一路从[喜院巷口过桥到秦淮歌楼埠头](./jiangnan-river-street.md)。两组街道都是舞台自建，从普通 XR 走过去，或在屏幕用站立机位步行／游览；各布景仍各存自己的演员与动作。
-
-地图研究：[《卡拉彼丘》莱布伦城：从街角灰模到可实走样片](./strinova-map-study.md)。属于调研，不在游戏选景菜单内。
-
-先读[整体美术方向与逐景材质优先级](./art-direction.md)。实际样板：[喜院门楼](./wedding-materials.md) · [窗边课桌](./classroom-materials.md)，含同机位前后、横移与实时阴影开关对照。
-
-**场景人物是原来布景里的人员**，目前是医院诊室的护士。场内「环境 → 场景人物」只隐藏这类人员，教具、壁画和用户导入的角色保持原样。不为此向空场添加试镜人偶。[屏幕操作](../gameplay/screen-viewing.md) · [VR 环境设置](../gameplay/vr-controls.md)
-
-本轮的[建模分工与贴图清单](./next-modeling-round.md)保留了喜院、校园与歌楼的设计意图。实际路线与机位见各景专页。
+[美术方向](./art-direction.md)与已完成的[喜院门楼](./wedding-materials.md)、[窗边课桌](./classroom-materials.md)有同机位对照。[原建模分工](./next-modeling-round.md)是历史记录；[莱布伦城街角](./strinova-map-study.md)仍是选点研究。
 
 日景的云使用[按球面方向烘焙的无缝蒙版](../../scripts/bake-day-clouds.py)，太阳仍取各景主光方向。背景先绘制、不参与场景深度比较，按每眼朝向取景，移动玩家不平移云层。[草坪画面](../screenshots/day-sky-lawn.webp) · [泳池画面](../screenshots/day-sky-pool.webp)。两景切换的模拟双眼渲染已核对，真机观感待看。
 

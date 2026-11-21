@@ -1,27 +1,13 @@
 # 会话交接｜2026-11-21
 
-[线上舞台](https://mmd-xr-stage.pages.dev) · [固定版 `8160ce0`](https://fd236688.mmd-xr-stage.pages.dev) · [分类文档索引](./README.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `8160ce0`](https://fd236688.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md) · [文档索引](./README.md)
 
-**十六景、九件道具。** [电玩厅出生点](./scenery/arcade-hall.md)支持上下层摆放，G／左 X 过洞，门前约 2 米宽的平台东西贯通，一楼双门墙与外沿齐平。[刑讯室](./scenery/medieval-chamber.md)沿用已修复的无面八角柜、石作与接缝；布景原有人物默认隐藏。莱布伦城街段仍是[独立研究](./scenery/strinova-map-study.md)。
+**已交付：16 景、9 件道具。** [四幕玩法](./gameplay/README.md)、[校园电玩环线](./scenery/campus-arcade-loop.md)、[枕河街](./scenery/jiangnan-river-street.md)、双喜堂礼案、两颗可登陆卫星及[潮汐深空](./scenery/opal-planet.md)均已上线。此版 439 项测试通过，主域名和模拟双眼 XR 已复核。
 
 ## 下次从这里开始
 
-**深空近眼检查**：在[星球](https://mmd-xr-stage.pages.dev/?set=glassPlanet)的罗盘台看环缝、暗星和双向喷流；侧移后乘一趟风道，比较暗尘、行星与恒星的视差。[同机位对照与测量范围](./scenery/opal-planet.md#深空--潮汐星云与脉冲星)。
+1. **待真机：先验星球，再单独测教室。** 星球冷进和重入试两根摇杆；能动再用左 X 起飞、返航，侧移看环缝与暗星。教室用上次角色和大身体 VMD，阴影关，物理关／开各看约 20 秒，保持物理开从泳池回教室，退出立即导出 JSON。[操作和读数](./performance/next-quest-export.md)。11 月 20 日 14:43Z 是改前报告；新版预热、回场缓存和持续 72 FPS 尚无真机结论。
+2. **未开发，等选题：** [合卺对影／霜岬回波](./gameplay/interactive-scene-studies.md)。推荐先做喜院红绳触发双燕灯影。性能方面，[暂停物理休眠](./performance/README.md#回场与后续验收)须先测静止、接近、首触，再决定是否实现。
+3. **未排期：** 草坪↔礼拜堂水庭、情侣套房↔月庭私汤仅是连接建议；[莱布伦城街角](./scenery/strinova-map-study.md)仍是选点研究。[海边终点站、旧城皮影台、深夜唱片行](./scenery/next-modeling-round.md#婚礼之后的新景候选未排期)及恋活卡暂缓。[Blender 转换](./gameplay/blender-characters.md)已交付；[Babylon](./three-tooling.md#什么时候再考虑迁移)保留实验，正式版用 Three。
 
-**下一轮互动候选**：[合卺对影与霜岬回波](./gameplay/interactive-scene-studies.md)列出操作、镜头和验收条件，尚未开做。新绳结／旋钮可复用帘绳和灯台的 `useSceneAction`；新月面仪器从 `moon.station` 读取位置，不靠卫星数组下标。
-
-**先试新风道：** [琉璃小行星](https://mmd-xr-stage.pages.dev/?set=glassPlanet)，普通模式走到左侧琥珀环或右侧冰蓝环，左手 X 起飞，落地后试左杆、A 跳、再按 X 返航。留意飞行段舒适度及冷启动输入；[双喜堂](./scenery/wedding-court.md)新增正堂双灯喜幔、婚书与剖瓢礼器两个机位。
-
-**新路线真机短验：** 从[草坪](https://mmd-xr-stage.pages.dev/?set=lawn)的版画街走进电玩厅西廊，经外梯上二楼，从东廊下坡到泳池计时台，再沿东岸回草坪。[江南河街](./scenery/jiangnan-river-street.md)从喜轿旁上桥，桥顶摆一位角色，过门到秦淮埠头再回望。留意步道地面、日暮切换和回访等待；Quest 3S 帧率仍需实测。
-
-**`37a0ef3` 真机报告已收到。** 星球空场两次进入，B 正常但不能行走或转向，21 个采样窗中位 117 FPS；当时未记录摇杆输入。教室单角色同一趟首访播放，关／开物理的窗口中位数 64／42 FPS；首次开启 949 ms 中 893 ms 等模块，泳池回教室 8.74 秒中 6.26 秒等超限身体动作。[下次短测](./performance/next-quest-export.md)：先在新页立即试星球两根摇杆，教室另测同一大动作回场和首次开物理。稳定 72 FPS 仍未获真机验证。
-
-**正式版继续用 Three，Babylon 只保留实验。** 见[重新考虑迁移的条件](./three-tooling.md#什么时候再考虑迁移)。海边终点站、旧城皮影台、深夜唱片行按用户决定留待以后。
-
-**继续开发的边界**：[舞台架构](./architecture.md)区分页面背包、观看会话和当前房间；玩家移动、资产放置和手部拨衣分别判断。用户优先与自选角色互动，[Blender 角色包](./gameplay/blender-characters.md)已走通，恋活卡暂缓。医院「场景人物」只切换[原有静态护士](./scenery/clinic-teaching.md)；喜院和教室的[首轮材质样板](./scenery/art-direction.md)已完成，其他美术候选未排期。公开 README 保留 badge 和技术章节，私有素材和真机原始 JSON 留在本机。
-
-## 已发布与证据
-
-[发布里程碑](./release-history.md) · [建模与贴图](./scenery/README.md) · [桌面物理回归](./performance/xr-runtime-performance.md)
-
-接手先看 `git status --short --branch`。用户模型仅在本机使用；不暂存 `sample/` 或 `.openchamber/`。功能验证通过后按[发布约定](./deployment.md)正常推送并核对主域名；只整理文档时推送文档即可。
+接手先看 `git status --short --branch`；改代码读[架构](./architecture.md)和 [AGENTS.md](../AGENTS.md)。私有模型、原图和真机原始 JSON 留在本机。只改文档时推送文档即可。
