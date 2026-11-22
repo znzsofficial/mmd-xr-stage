@@ -141,6 +141,18 @@ it('keeps painting a moving orbit at a bounded cadence during a stream of pointe
   }finally{driver.dispose();}
 });
 
+it('stops serializing a stationary canal, but repaints when the shaft shifts with an unchanged tip',()=>{
+  const assetId='actor',runtimeId='id',sample={tip:[0,0,-.02] as const,tail:[0,0,.05] as const,shaft:[[0,0,.05],[0,0,-.02]] as const,
+    outletInside:true,aligned:true,atCervix:false,depth:.02,radiusM:.024,lengthM:.09,angleDeg:0};
+  setAtlasView(assetId,{motion:true});usePelvic.setState({byAsset:{actor:calibrated},sample,
+    active:{assetId,runtimeId,token:1,mode:'standManual',source:'xr',running:true,awaitingWorld:false,position:.2}});
+  const upload=vi.fn(),p=atlasPainter(paper(),{assetId,runtimeId},'vagina',()=>{},upload);
+  try{p.tick(0);for(let i=1;i<=12;i++){usePelvic.setState({sample:structuredClone(sample)});p.tick(i*100);}
+    expect(upload).toHaveBeenCalledOnce();usePelvic.setState({sample:{...sample,shaft:[[.003,0,.05],sample.tip]}});p.tick(1300);
+    expect(upload).toHaveBeenCalledTimes(2);setAtlasView(assetId,{degrees:90});p.tick(1400);expect(upload).toHaveBeenCalledTimes(3);
+  }finally{p.dispose();}
+});
+
 it.each(['vulva','vagina','uterus'] as const)('observes %s without enabling a socket and follows only the selected runtime while the figure is frozen',focus=>{
   setAtlasView('a',{mode:'measure',motion:false});
   const canvas=paper(),driver=atlasPainter(canvas,{assetId:'a',runtimeId:'r'},focus,()=>{},()=>{}),latest=()=>art.draw.mock.lastCall![1];

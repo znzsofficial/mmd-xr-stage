@@ -2,7 +2,7 @@ import {useLanguageStore} from '../../../languageStore';
 import {useBodyState} from '../../bodyState/store';
 import {BODY_DAY_SECONDS,DEFAULT_BODY_PROFILE,sampleBody,type BodyProfile} from '../../bodyState/data';
 import {semenColor} from '../../play/semenAppearance';
-import {usePelvic} from '../store';
+import {usePelvic,type PelvicSample} from '../store';
 import {drawPelvicSection,sectionLayout,SECTION_W as W,SECTION_H as H} from '../sectionPaint';
 import {outletLabel,outletObservation} from '../sectionProjection';
 import {organOutput} from './organOutput';
@@ -19,6 +19,16 @@ export function actorBinding(s:SocketState,assetId:string,runtimeId:string){
 }
 export function actorRodSample(s:SocketState,assetId:string,runtimeId:string){
   const a=actorBinding(s,assetId,runtimeId);return a?(a.running?s.sample:s.parkedSample):null;
+}
+
+// The focused canal now animates the measured impression, not a periodic
+// wave. Stationary sampling still refreshes the store at 10 Hz; it must not
+// cause a worker raster or a headset texture upload by itself.
+function sameCanalPose(a:PelvicSample,b:PelvicSample){
+  if(a.lengthM!==b.lengthM||a.radiusM!==b.radiusM||a.outletInside!==b.outletInside||outletObservation(a)!==outletObservation(b))return false;
+  const same=(v:PelvicSample['tip'],w:PelvicSample['tip'])=>Math.abs(v[0]-w[0])<=1e-7&&Math.abs(v[1]-w[1])<=1e-7&&Math.abs(v[2]-w[2])<=1e-7;
+  if(!same(a.tip,b.tip))return false;
+  const x=a.shaft,y=b.shaft;return !a.outletInside||x===y||!!x&&!!y&&x.length===y.length&&x.every((v,i)=>same(v,y[i]));
 }
 
 // Only inputs to the lining, shedding and cycle-day readout. Breast refill
@@ -68,6 +78,7 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
     const a=binding(s),b=binding(p);
     if(s.byAsset[assetId]!==p.byAsset[assetId]||a?.token!==b?.token){changed();return;}
     if(a){const x=observed(s),y=observed(p);
+      if(scope==='vagina'&&x&&y&&a.running===b?.running&&sameCanalPose(x,y))return;
       if(x!==y||a.running!==b?.running)changed(!x||!y||a.running!==b?.running||outletObservation(x)!==outletObservation(y));}
   }));
 
@@ -77,7 +88,7 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
     const body=currentBody(),pelvis=usePelvic.getState(),profile=scope==='body'?undefined:pelvis.byAsset[assetId];
     if(scope==='pelvic'&&!profile)return false;
     art?.flush();
-    const anim=mode==='organ'&&v.motion,dt=lastTime===null?0:Math.min(.10,Math.max(0,(now-lastTime)/1000));lastTime=now;
+    const anim=mode==='organ'&&scope!=='vagina'&&v.motion,dt=lastTime===null?0:Math.min(.10,Math.max(0,(now-lastTime)/1000));lastTime=now;
     const remaining=v.degrees-heading;
     heading=!v.motion||Math.abs(remaining)<.15?v.degrees:heading+remaining*(-Math.expm1(-23*dt));
     const turning=heading!==v.degrees;

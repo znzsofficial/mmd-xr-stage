@@ -14,7 +14,7 @@ export type Mesh = {rows:number;cols:number;section:boolean;wing:number;a:Float3
 // Record = position, smooth normal, display pigment, section-axis centre,
 // mucosal displacement weight, physical compartment (1 uterus, 2 vagina).
 export const stride=12;
-function grid(n:number,m:number,section:boolean,wing:number,sample:(u:number,v:number,side:boolean)=>Vertex):Mesh {
+export function grid(n:number,m:number,section:boolean,wing:number,sample:(u:number,v:number,side:boolean)=>Vertex):Mesh {
   const rows=m+1,cols=n+1;
   function bake(side:boolean){
     const data=new Float32Array(rows*cols*stride);
@@ -62,14 +62,17 @@ const cuts=[boundary(cavity),boundary(sagittal)];
 // window narrows into a sagittal slit during an orbit instead of cross-fading
 // two differently shaped cavities onto the same surface.
 const seam=.46;
-const axes=cuts.map(poly=>Float32Array.from({length:512},(_,i)=>{
+// The focused canal has no fundal dissection. Defer its unrelated split-axis
+// tables until the corpus is actually requested (also on the worker path).
+const bakeAxes=()=>cuts.map(poly=>Float32Array.from({length:512},(_,i)=>{
   const z=mix(-1.618,4.819,i/511),level=Math.min(3.68,z),rw=profile(corpus,z)[poly===cuts[1]?1:0];let edge=.01;
   for(let j=0,k=poly.length-1;j<poly.length;k=j++){
     const a=poly[j],b=poly[k];if((a[1]>level)!==(b[1]>level))edge=Math.max(edge,a[0]+(b[0]-a[0])*(level-a[1])/(b[1]-a[1]));
   }
   return mix(Math.asin(clamp(edge/rw,.06,.91)),.75,smooth(3.68,4.48,z));
 }));
-function splitAngle(z:number,side:boolean){const f=clamp((z+1.618)/6.437)*511,i=Math.min(510,Math.floor(f)),a=axes[+side];return mix(a[i],a[i+1],f-i);}
+let axes:Float32Array[]|undefined;
+function splitAngle(z:number,side:boolean){const f=clamp((z+1.618)/6.437)*511,i=Math.min(510,Math.floor(f)),a=(axes??=bakeAxes())[+side];return mix(a[i],a[i+1],f-i);}
 function distance(poly:P[],x:number,y:number){let inside=false,best=1e3;
   for(let i=0,j=poly.length-1;i<poly.length;j=i++){
     const [a,b]=poly[j],[c,d]=poly[i]; if((b>y)!==(d>y)&&x<a+(c-a)*(y-b)/(d-b))inside=!inside;
@@ -223,11 +226,9 @@ function adnexa(s:number,all:Mesh[]){
 // Each live rasterizer owns the topology. Share it across plates without
 // pinning all vertex/etch buffers on the page after the last fallback closes.
 let cached:WeakRef<Mesh[]>|undefined;
-let canalCache:WeakRef<Mesh[]>|undefined;
-export function vaginalMeshes(){
-  let meshes=canalCache?.deref();if(!meshes){meshes=[vagina(true),vagina(false)];canalCache=new WeakRef(meshes);}return meshes;
-}
 export function organMeshes(){
-  let meshes=cached?.deref();if(!meshes){meshes=[...vaginalMeshes(),body(true),body(false)];adnexa(-1,meshes);adnexa(1,meshes);cached=new WeakRef(meshes);}
+  // The small inferior tract in the uterine overview keeps its own section
+  // convention. The focused dissection is built independently in canalGeometry.
+  let meshes=cached?.deref();if(!meshes){meshes=[vagina(true),vagina(false),body(true),body(false)];adnexa(-1,meshes);adnexa(1,meshes);cached=new WeakRef(meshes);}
   return meshes;
 }
