@@ -1,6 +1,6 @@
 # MMD XR Stage 文档
 
-**会话压缩后接续：先读[交接页](./HANDOFF.md)。** 查某项是否已经上线，看[发布记录](./release-history.md)；查实际测过什么，看[角色工具回归](./performance/actor-tools-regression.md)；拿到头显报告后按[分趟验收说明](./performance/next-quest-export.md)分析。[舞台可见泌乳](./gameplay/stage-lactation-proposal.md)说明哪些模型能显示，以及为什么有时只更新充盈度。
+**会话压缩后接续：先读[交接页](./HANDOFF.md)，再读[下一轮角色工具：摆姿势与局部样式](./gameplay/next-actor-tools.md)。** 查某项是否已经上线，看[发布记录](./release-history.md)；查实际测过什么，看[角色工具回归](./performance/actor-tools-regression.md)；拿到头显报告后按[分趟验收说明](./performance/next-quest-export.md)分析。[舞台可见泌乳](./gameplay/stage-lactation-proposal.md)说明哪些模型能显示，以及为什么有时只更新充盈度。
 
 | 要做什么 | 入口 |
 |---|---|
