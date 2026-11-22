@@ -12,10 +12,10 @@ import { createGarmentGuard } from './garment';
 import { createPelvicSolver, pelvicRailMatrix, registerPelvicSocket, samplePelvicFrame,
   type PelvicCalibration, type PelvicContact, type PelvicFrame } from './geometry';
 import { createPelvicInput, isMountedVisible, mountPelvicInput, samplePelvicNozzle } from './input';
-import { pelvicRailTravel } from './path';
+import { measuredRailPosition, pelvicRailTravel } from './path';
 import {createStandHold} from './rigHold';
 import { advancePelvic, clearPelvicSupport, consumePelvicDose, discardPelvicDoses, endPelvic, interruptPelvic,
-  publishParkedSample, publishPelvicSample, publishPelvicSupport, usePelvic, type PelvicSample, type PelvicSupport } from './store';
+  presentRailTechnique, publishParkedSample, publishPelvicSample, publishPelvicSupport, usePelvic, PELVIC_LIMITS, type PelvicSample, type PelvicSupport } from './store';
 
 export type PelvicRigProps={getRoot:(runtimeId:string)=>Object3D|null;getSurface?:(runtimeId:string)=>WandModel|null};
 type Options=PelvicRigProps & {scene:Scene;host:Group;standPiece:()=>Group|null;standSpray:() => ((f:GripFrame)=>void)|null;tracked?:(frame:XRFrame)=>boolean};
@@ -149,7 +149,7 @@ export function mountPelvicRig(o:Options):PelvicRigHandle&{dispose:()=>void}{
       // React can commit the single stand mesh one render after an ownership
       // change. Never start/advance the motor until its actual piece is live.
       if(!piece||!manual&&(!piece.parent||!isMountedVisible(piece.parent,o.scene)||!hold.shown(piece))){
-        if(!a.running||manual||standKey)interrupt();else discardPelvicDoses(a.token);return;
+        if(!a.running||manual||standKey||a.take)interrupt();else discardPelvicDoses(a.token);return;
       }
       if(manual){hideStand();if(!a.running||!queued)return;
         if(source&&(source!==queued.source||epoch!==queued.epoch)){interrupt();return;}source=queued.source;epoch=queued.epoch;
@@ -164,6 +164,7 @@ export function mountPelvicRig(o:Options):PelvicRigHandle&{dispose:()=>void}{
           if(!tracked||rebound||!validStand()||currentRoomToken()!==token||bag.selected&&bag.selected!==a.assetId||
              typeof document!=='undefined'&&document.hidden||!hold.matches(f,piece)){interrupt();return;}
            discardPelvicDoses(token);
+           if(a.take?.kind==='record')presentRailTechnique(token,delta,null);
            if(!exposed){b.port.draw(f,false,bag.selected===a.assetId);
              if(state.sample?.outletVisible)publishPelvicSample(token,{...state.sample,outletVisible:false,exteriorCovered:true});
             }else aperture=lastAperture;
@@ -190,10 +191,13 @@ export function mountPelvicRig(o:Options):PelvicRigHandle&{dispose:()=>void}{
       const exteriorCovered=contact.outletVisible&&!exposed;
       if(exteriorCovered)contact.outletVisible=false;
       if(!contact.shaftLocal.length){interrupt();return;}
-      if(!a.running){publishParkedSample(a.token,sample(f,contact,spray.dir));return;}
+      const measured=a.mode==='standManual'?measuredRailPosition(f,contact.outletLocal):null,reading=sample(f,contact,spray.dir,exteriorCovered);
+      reading.railHome=reading.aligned&&measured!==null&&Math.abs(measured-PELVIC_LIMITS.position[0])<=1e-6;
+      if(rebound&&a.take&&!reading.railHome){interrupt();return;}
+      if(!a.running){publishParkedSample(a.token,reading);return;}
       const amount=b.port.draw(f,exposed&&profile.showAdapter,bag.selected===a.assetId,exposed?contact:undefined);
       if(amount>0)aperture={assetId:a.assetId,runtimeId:a.runtimeId,amount};
-      if(!publishPelvicSample(a.token,sample(f,contact,spray.dir,exteriorCovered))){interrupt();return;}
+      if(!publishPelvicSample(a.token,reading)){interrupt();return;}
       if(contact.motion){response=b.responseFrame;response.motion=contact.motion;response.token=a.token;response.dt=delta;response.depthM=contact.depthM/f.scale;}
       if(!manual)hold.record(f,piece);
       observer.setFromMatrixPosition(f.world);hasObserver=true;
@@ -203,6 +207,7 @@ export function mountPelvicRig(o:Options):PelvicRigHandle&{dispose:()=>void}{
       spray.usable=contact.outletVisible&&!contact.outletInside&&(!rebound||route==='external');
       spray.action=route==='external'&&spray.usable?'start':'off';
       heldReady=manual;standReady=!manual;
+      if(a.take){presentRailTechnique(a.token,delta,measured,reading.railHome);standReady=usePelvic.getState().active?.token===a.token;}
     }finally{
       // Always tick the SAME emitter, once. Cancel a partly emitted train when
       // the next frame moves inside, ownership changes or tracking is lost.

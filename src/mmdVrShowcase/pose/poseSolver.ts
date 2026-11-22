@@ -2,15 +2,20 @@ import type { MmdAnimation, ThreeMmdAnimation, ThreeMmdModel } from '@yohawing/t
 import { Bone, Quaternion, Vector3 } from 'three';
 import { bindPoseClip, type ClipSnapshot } from './poseClip';
 
-export type PoseKey = 'pelvis' | 'head' | 'leftHand' | 'rightHand' | 'leftFoot' | 'rightFoot';
+const wrists = ['leftHand', 'rightHand'] as const;
+export type WristKey = typeof wrists[number];
+export type PoseKey = 'pelvis' | 'torso' | 'head' | WristKey | 'leftFoot' | 'rightFoot';
+const isWrist = (key: PoseKey): key is WristKey => key === 'leftHand' || key === 'rightHand';
 export type PoseAxis = 'x' | 'y' | 'z' | Vector3;
-export type PoseSnapshot = ClipSnapshot & { feetLocked: boolean; poles: Partial<Record<PoseKey, [number, number, number]>> };
+type WristTargets = Partial<Record<WristKey, { position: [number, number, number]; rotation: [number, number, number, number] }>>;
+export type PoseSnapshot = ClipSnapshot & { feetLocked: boolean; poles: Partial<Record<PoseKey, [number, number, number]>>; wrists: WristTargets };
 export type PoseSolver = ReturnType<typeof createPoseSolver>;
 type Limb = { base: Bone; joint: Bone; tip: Bone; pole: Vector3 };
-const ordered: readonly PoseKey[] = ['pelvis', 'head', 'leftHand', 'rightHand', 'leftFoot', 'rightFoot'];
+type Anchor = { p: Vector3; q: Quaternion };
+const ordered: readonly PoseKey[] = ['pelvis', 'torso', 'head', 'leftHand', 'rightHand', 'leftFoot', 'rightFoot'];
 const feet = ['leftFoot', 'rightFoot'] as const;
 const wp = (b: Bone) => b.getWorldPosition(new Vector3()); // solver's isolated mesh space
-const wq = (b: Bone) => b.getWorldQuaternion(new Quaternion());
+const wq = (b: Bone) => b.getWorldQuaternion(new Quaternion()).normalize();
 const valid = (v: Vector3) => Number.isFinite(v.x) && Number.isFinite(v.y) && Number.isFinite(v.z);
 function ancestor(parent: Bone | undefined, child: Bone | undefined) {
   if (!parent || !child) return false;
@@ -48,7 +53,9 @@ function attachControls(model: ThreeMmdModel, clip: ReturnType<typeof bindPoseCl
   function find(...names: string[]) { for (const n of names) { const b = aliases.get(normalize(n)); if (b) return b; } }
   const control: Partial<Record<PoseKey, Bone | undefined>> = {
     pelvis: find('hips', 'pelvis', 'センター', 'center', 'グルーブ', 'groove', '腰', 'waist', '下半身', 'lowerbody'), head: find('頭', 'head'),
+    torso: find('上半身', 'upperbody', 'spine', '胸', 'chest', '上半身2', 'upperchest'),
   };
+  if (control.torso === control.pelvis) delete control.torso;
   const neck = find('首', 'neck');
   const limb: Partial<Record<PoseKey, Limb>> = {};
   for (const side of ['left', 'right'] as const) {
@@ -72,7 +79,8 @@ function attachControls(model: ThreeMmdModel, clip: ReturnType<typeof bindPoseCl
   const keys: readonly PoseKey[] = ordered.filter(k => control[k]);
   const headMovable = !!neck && !!control.head && ancestor(neck, control.head) && wp(neck).distanceToSquared(wp(control.head)) > 1e-12;
   let active = true, feetLocked = false;
-  const anchors = new Map<PoseKey, { p: Vector3; q: Quaternion }>();
+  const soles = new Map<typeof feet[number], Anchor>();
+  const wristTargets = new Map<WristKey, Anchor>();
 
   function point(key: PoseKey, out: Vector3) {
     const b = control[key]; if (!active || !b) return false;
@@ -99,6 +107,9 @@ function attachControls(model: ThreeMmdModel, clip: ReturnType<typeof bindPoseCl
     const ray = target.clone().sub(a), desired = ray.length();
     if (desired < 1e-10) ray.copy(oldAxis.lengthSq() ? oldAxis : new Vector3(0, -1, 0)); else ray.divideScalar(desired);
     const d = Math.max(1e-8, Math.abs(l1 - l2), Math.min(l1 + l2, desired));
+    const reachable = a.clone().addScaledVector(ray, d);
+    // Includes an already straight arm holding a target beyond its reach.
+    if (!swivel && c.distanceToSquared(reachable) <= ((l1 + l2) * 1e-7) ** 2) return;
     // Transport the current bend plane to the new axis; projecting the old
     // elbow onto the *new* axis would flip the joint during a straight drag.
     const actualPole = b.sub(a); actualPole.addScaledVector(oldAxis, -oldAxis.dot(actualPole));
@@ -107,20 +118,38 @@ function attachControls(model: ThreeMmdModel, clip: ReturnType<typeof bindPoseCl
     perpendicular(ray, pole).applyAxisAngle(ray, swivel);
     const along = (l1 * l1 + d * d - l2 * l2) / (2 * d), height = Math.sqrt(Math.max(0, l1 * l1 - along * along));
     swing(base, joint, a.clone().addScaledVector(ray, along).addScaledVector(pole, height));
-    swing(joint, tip, a.addScaledVector(ray, d));
+    swing(joint, tip, reachable);
   }
   function lockFeet(locked: boolean) {
     if (!active) return;
-    feetLocked = locked; anchors.clear();
-    if (locked) for (const k of feet) { const l = limb[k]; if (l) anchors.set(k, { p: wp(l.tip), q: wq(l.tip) }); }
+    soles.clear();
+    if (locked) for (const k of feet) { const l = limb[k]; if (l) soles.set(k, { p: wp(l.tip), q: wq(l.tip) }); }
+    feetLocked = soles.size > 0;
   }
-  function plant() { for (const [k, a] of anchors) { const l = limb[k]!; solve(l, a.p); orient(l.tip, a.q); } }
+  function pinWrist(key: WristKey, pinned: boolean) {
+    const l = limb[key]; if (!active || !isWrist(key) || !l || pinned === wristTargets.has(key)) return false;
+    if (pinned) wristTargets.set(key, { p: wp(l.tip), q: wq(l.tip) }); else wristTargets.delete(key);
+    return true;
+  }
+  function wristTarget(key: PoseKey, out: Vector3) {
+    const anchor = isWrist(key) && wristTargets.get(key); if (!active || !anchor) return false;
+    model.mesh.localToWorld(out.copy(anchor.p)); return true;
+  }
+  function plantFeet() { for (const [k, a] of soles) { const l = limb[k]!; solve(l, a.p); orient(l.tip, a.q); } }
+  function plantWrists() {
+    // Feet can stop a hip edit. Wrists instead retain the *requested* contact
+    // through overreach so leaning back into range returns the hand to the table.
+    for (const [k, a] of wristTargets) {
+      const l = limb[k]!; solve(l, a.p);
+      if (wq(l.tip).angleTo(a.q) > 1e-7) orient(l.tip, a.q);
+    }
+  }
   function limitPelvisStep(b: Bone, delta: Vector3) {
     // Intersect the requested hip displacement with each planted leg's reach
     // sphere. Raising a fully extended leg stops the hip, never slides a foot.
     const d2 = delta.lengthSq(); if (!d2) return;
     let t = 1;
-    for (const [k, anchor] of anchors) {
+    for (const [k, anchor] of soles) {
       const l = limb[k]!; if (!ancestor(b, l.base) && l.base !== b) continue;
       const hip = wp(l.base), knee = wp(l.joint), ankle = wp(l.tip), from = hip.clone().sub(anchor.p);
       const dot = from.dot(delta), l1 = hip.distanceTo(knee), l2 = knee.distanceTo(ankle);
@@ -136,9 +165,15 @@ function attachControls(model: ThreeMmdModel, clip: ReturnType<typeof bindPoseCl
     const b = control[key]!, target = model.mesh.worldToLocal(worldTarget.clone());
     if (key === 'pelvis') {
       const here = wp(b), delta = target.sub(here); limitPelvisStep(b, delta);
-      clip.set(index.get(b)!, b.parent!.worldToLocal(here.add(delta)), b.quaternion); plant();
+      clip.set(index.get(b)!, b.parent!.worldToLocal(here.add(delta)), b.quaternion); plantFeet();
     } else if (key === 'head') swing(neck!, b, target);
-    else solve(limb[key]!, target);
+    else {
+      solve(limb[key]!, target);
+      // Directly carrying a pinned wrist chooses a new landing. Keep its
+      // orientation and commit only a point the hand actually reached.
+      if (isWrist(key)) wristTargets.get(key)?.p.copy(wp(b));
+    }
+    plantWrists();
     return true;
   }
   function rotate(key: PoseKey, axis: PoseAxis, radians: number) {
@@ -147,9 +182,10 @@ function attachControls(model: ThreeMmdModel, clip: ReturnType<typeof bindPoseCl
     if (!valid(localAxis) || localAxis.lengthSq() < 1e-14) return false;
     localAxis.normalize().applyQuaternion(model.mesh.getWorldQuaternion(new Quaternion()).invert());
     const before = wq(b);
-    if (key === 'pelvis' && anchors.size) {
+    const turnsLegs = key === 'pelvis' || key === 'torso' && feet.some(k => soles.has(k) && ancestor(b, limb[k]?.base));
+    if (turnsLegs && soles.size) {
       const pivot = wp(b), candidate = new Vector3(), rotation = new Quaternion();
-      const legs = Array.from(anchors, ([k, anchor]) => {
+      const legs = Array.from(soles, ([k, anchor]) => {
         const { base, joint, tip } = limb[k]!, hip = wp(base), knee = wp(joint);
         const a = hip.distanceTo(knee), c = knee.distanceTo(wp(tip)), pad = (a+c)*1e-9;
         return { base, anchor, rotates: ancestor(b, base), radius: hip.sub(pivot), min: Math.max(0,Math.abs(a-c)-pad), max: a+c+pad };
@@ -176,29 +212,41 @@ function attachControls(model: ThreeMmdModel, clip: ReturnType<typeof bindPoseCl
         orient(b, before); return false;
       }
     } else orient(b, new Quaternion().setFromAxisAngle(localAxis, radians).multiply(before));
-    if (key === 'pelvis') plant();
-    else anchors.get(key)?.q.copy(wq(b));
+    if (turnsLegs) plantFeet();
+    else if (key === 'leftFoot' || key === 'rightFoot') soles.get(key)?.q.copy(wq(b));
+    else if (isWrist(key)) wristTargets.get(key)?.q.copy(wq(b)); // an intentional wrist turn
+    plantWrists();
     return true;
   }
   function bend(key: PoseKey, radians: number) {
     const l = limb[key]; if (!active || !l || !Number.isFinite(radians)) return false;
-    const target = wp(l.tip), q = wq(l.tip); solve(l, target, radians); orient(l.tip, q); return true;
+    const target = wp(l.tip), q = wq(l.tip); solve(l, target, radians); orient(l.tip, q); plantWrists(); return true;
   }
   function capture(): PoseSnapshot {
     const poles: PoseSnapshot['poles'] = {};
     for (const key of keys) if (limb[key]) poles[key] = limb[key].pole.toArray();
-    return { ...clip.capture(), feetLocked, poles };
+    const pins: WristTargets = {};
+    for (const [k, { p, q }] of wristTargets) pins[k] = { position: [p.x,p.y,p.z], rotation: [q.x,q.y,q.z,q.w] };
+    return { ...clip.capture(), feetLocked, poles, wrists: pins };
   }
   function apply(s: PoseSnapshot) {
     if (!active) return;
     clip.apply(s);
     for (const k of keys) { const p = s.poles[k]; if (limb[k] && p?.every(Number.isFinite)) limb[k].pole.fromArray(p); }
     lockFeet(s.feetLocked);
+    wristTargets.clear();
+    // All coordinates are in the isolated actor rig. In particular do not
+    // recapture the displayed wrist here: a saved pin may be out of reach.
+    for (const k of wrists) {
+      const pin = s.wrists[k];
+      if (limb[k] && pin) wristTargets.set(k, { p: new Vector3(...pin.position), q: new Quaternion(...pin.rotation) });
+    }
   }
   function restore() { if (active) { clip.restore(); active = false; } }
   return { keys, point, canMove, points() {
     const result: Partial<Record<PoseKey, Vector3>> = {};
     for (const key of keys) { const p = new Vector3(); if (point(key, p)) result[key] = p; } return result;
   }, animation: clip.animation, get feetLocked() { return feetLocked; }, canBend: (key: PoseKey) => active && !!limb[key],
+  get pinnedWrists() { return [...wristTargets.keys()]; }, pinWrist, wristTarget,
   move, rotate, bend, lockFeet, capture, apply, restore, dispose: restore };
 }

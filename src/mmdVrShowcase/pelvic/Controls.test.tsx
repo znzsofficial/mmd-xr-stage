@@ -2,10 +2,14 @@
 import {act,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {afterEach,expect,it,vi} from 'vitest';
+import {Group,Mesh,MeshBasicMaterial,Scene} from 'three';
 import {clearBackpack,useBackpack} from '../backpack';
 import {useMmdVrStore} from '../mmdVrStore';
 import {PelvicScreenControls} from './Controls';
-import {consumePelvicDose,publishParkedSample,publishPelvicSample,publishPelvicSupport,usePelvic,type PelvicSample} from './store';
+import {assignPelvic,consumePelvicDose,enablePelvic,patchPelvic,publishParkedSample,publishPelvicSample,publishPelvicSupport,usePelvic,type PelvicSample} from './store';
+import {mountPelvicRig} from './rig';
+import {makeSilicone} from '../play/workshopModels';
+import {siliconeMount,siliconeTilt} from '../play/siliconeProfile';
 
 const stage=useMmdVrStore.getState(),pelvic=usePelvic.getState;
 const actor={assetId:'a',runtimeId:'r'},initial:PelvicSample={tip:[0,0,.06],tail:[0,0,.18],depth:0,angleDeg:0,aligned:true,
@@ -42,4 +46,29 @@ it('keeps the named release on the controls, waits for room evidence and resumes
     await click('停止');expect(button('停止').disabled).toBe(true);expect(button('射入宫腔').disabled).toBe(true);
     expect(pelvic().sample).toBeNull();expect(pelvic().byAsset.a.clothingClear).toBe(false);
   }finally{await act(()=>root.unmount());}
+});
+
+it('operates the actual paused stand from the recording sheet and requires a physical return before enabling playback',async()=>{
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);vi.spyOn(document,'hidden','get').mockReturnValue(false);
+  useMmdVrStore.setState({overlayOpen:true,presentation:'screen',playing:false});
+  useBackpack.setState({selected:'a',entries:[{id:'a',kind:'model',file:new File([],'a.pmx'),path:'a.pmx'}],live:{a:{runtimeId:'r',visible:true,position:[0,0,0]}}});
+  enablePelvic('a',true);patchPelvic('a',{calibration:{manual:{origin:[0,0,0],unitsPerMeter:1},pitchDeg:0}});patchPelvic('a',{clothed:true});
+  const scene=new Scene(),host3D=new Group(),model=new Group(),piece=new Group(),rod=new Mesh(makeSilicone(),new MeshBasicMaterial());
+  rod.name='play:piece:dildo';rod.position.fromArray(siliconeMount);rod.rotation.x=siliconeTilt;piece.add(rod);scene.add(host3D,model);host3D.add(piece);
+  const room=mountPelvicRig({scene,host:host3D,getRoot:()=>model,standPiece:()=>piece,standSpray:()=>null});
+  const frame=()=>room.advance(1/60);frame();assignPelvic('a','standManual','screen');frame();
+  const host=document.createElement('div'),root=createRoot(host);
+  const find=(s:string)=>[...host.querySelectorAll('button')].find(b=>b.textContent===s)!;
+  const click=async(s:string)=>{expect(find(s)?.disabled).toBe(false);await act(()=>find(s).click());};
+  const frames=async(n:number)=>act(()=>{for(let i=0;i<n;i++)frame();});
+  try{
+    await act(()=>root.render(<PelvicScreenControls {...actor}/>));await click('手法录放');await click('录制手法');
+    expect(find('保存手法').disabled).toBe(true);await click('推进');await click('推进');await click('推进');await frames(36);
+    const at=piece.matrixWorld.clone();expect(pelvic().sample?.outletInside).toBe(true);await click('保存手法');await frames(1);
+    expect(find('播放手法').disabled).toBe(true);await click('退出到起点');expect(find('播放手法').disabled).toBe(true);await frames(36);
+    await click('循环：关');await click('播放手法');await frames(35);expect(pelvic().sample?.outletInside).toBe(true);
+    expect(piece.matrixWorld.elements.every((x,i)=>Math.abs(x-at.elements[i])<1e-6)).toBe(true);
+    await click('停止回放');await frames(1);expect(pelvic().byAsset.a.fluid.vaginal).toBe(0);
+    await click('清除手法');expect(find('播放手法')).toBeUndefined();expect(pelvic().byAsset.a.technique).toBeUndefined();
+  }finally{await act(()=>root.unmount());room.dispose();rod.geometry.dispose();rod.material.dispose();}
 });

@@ -12,7 +12,8 @@ import type { GripFrame } from '../play/propView';
 import { mountPelvicRig } from './rig';
 import { queuePelvicGrip } from './input';
 import { pelvicRailMatrix, registerPelvicSocket, samplePelvicFrame } from './geometry';
-import { assignPelvic, enablePelvic, nudgePelvic, patchPelvic, requestPelvicDose, setActorResponse, startPelvic, stopPelvic, usePelvic } from './store';
+import { assignPelvic, clearRailTechnique, enablePelvic, nudgePelvic, patchPelvic, requestPelvicDose, saveRailTechnique,
+  setActorResponse, startPelvic, startRailTechnique, stopPelvic, usePelvic } from './store';
 
 const st=usePelvic.getState,initialStage=useMmdVrStore.getState();
 const cleanup:(()=>void)[]=[];
@@ -223,4 +224,102 @@ it.each(['stop/restart','tracking','actor','room','off/on','swap'] as const)('re
       expect(face.z(3)).toBeCloseTo(.095);expect(face.z(0)).toBe(baseline[0]);seen=true;
     }}expect(seen).toBe(true);
   }
+});
+
+it.each(['screen','xr'] as const)('records and replays the mounted %s nozzle, including a real held stall and an unfinished withdrawal on paused VMD',source=>{
+  const {root,piece,tick,driver,session,emissions}=fixture(source);patchPelvic('a',{clothed:true});tick();
+  assignPelvic('a','standManual',source);expect(startRailTechnique('a','record')).toBe(false);tick();
+  const frame=(dt:number)=>driver.advance(dt,source==='xr'?{session} as XRFrame:undefined);
+  const part=piece.getObjectByName('play:piece:dildo')!,c=st().byAsset.a.calibration,socket=registerPelvicSocket(root,c);
+  const tip=()=>part.localToWorld(new Vector3(0,tipHeight,centerZ(tipHeight))).applyMatrix4(samplePelvicFrame(socket,c)!.inverse);
+  const repeat=(n:number,dt:number)=>{for(let i=0;i<n;i++)frame(dt);};
+  expect(startRailTechnique('a','record')).toBe(true);nudgePelvic('a',.8);frame(1/60);
+  expect(saveRailTechnique('a')).toBe(false);const home=tip();expect(home.z).toBeGreaterThan(.04);
+  repeat(12,1/60);const midway=tip();repeat(12,1/60);const deep=tip();
+  expect(deep.z).toBeLessThan(midway.z-.02);expect(st().sample?.outletInside).toBe(true);
+  expect(requestPelvicDose('a','vaginal')).toBe(true);repeat(18,1/60);
+  nudgePelvic('a',-2);frame(.24);expect(tip().distanceTo(deep)).toBeLessThan(1e-7); // target is already home
+  repeat(6,1/60);const end=tip();expect(end.z).toBeGreaterThan(deep.z+.01);expect(end.z).toBeLessThan(-.01);
+  expect(saveRailTechnique('a')).toBe(true);const saved=st().byAsset.a.technique!;
+  expect(saved.seconds).toBeCloseTo(1.04,6);expect(Math.max(...saved.positions)).toBeCloseTo(.6,6);expect(saved.positions.at(-1)).toBeCloseTo(.4,6);
+  expect(st().byAsset.a.fluid.vaginal).toBe(1);tick();expect(st().parkedSample?.railHome).toBe(false);
+  startPelvic('a');tick();expect(startRailTechnique('a','replay')).toBe(false); // already running, behind the opening
+  nudgePelvic('a',-2);repeat(30,1/60);expect(st().sample?.railHome).toBe(true);
+  root.position.x+=.31;root.rotation.y+=.23;patchPelvic('a',{replayRate:2});
+  expect(startRailTechnique('a','replay')).toBe(true);frame(1/30);
+  expect(driver.getActorContact()).toBeNull();expect(tip().distanceTo(home)).toBeLessThan(1e-7);expect(nudgePelvic('a',1)).toBe(false);
+  repeat(3,1/30);expect(tip().distanceTo(midway)).toBeLessThan(.0001);
+  expect(requestPelvicDose('a','vaginal')).toBe(true);frame(.24);expect(tip().distanceTo(midway)).toBeLessThan(.0001); // no catch-up or deferred dose
+  repeat(3,1/30);expect(tip().distanceTo(deep)).toBeLessThan(.0001);
+  repeat(7,1/30);expect(tip().distanceTo(deep)).toBeLessThan(.0001); // duration includes the verified .24 s hold
+  repeat(5,1/30);expect(st().active?.running).toBe(false);expect(tip().distanceTo(end)).toBeLessThan(.0001);
+  expect(driver.getActorContact()).toBeNull();expect(emissions.some(e=>e.action==='start')).toBe(false);expect(st().byAsset.a.fluid.vaginal).toBe(1);
+  expect(clearRailTechnique('a')).toBe(true);expect(st().byAsset.a.technique).toBeUndefined();expect(st().byAsset.a.fluid.vaginal).toBe(1);
+});
+
+function shortInsideTake(withGarment=false){
+  const f=fixture('xr'),skirt=withGarment?new Mesh(new BoxGeometry(.14,.14,.004),new MeshBasicMaterial({name:'Pleated Skirt',visible:false})):null;
+  if(skirt){skirt.position.z=.022;f.root.add(skirt);cleanup.push(()=>{skirt.geometry.dispose();skirt.material.dispose();});}
+  f.tick();assignPelvic('a','standManual','xr');f.tick();
+  expect(startRailTechnique('a','record')).toBe(true);nudgePelvic('a',.65);for(let i=0;i<37;i++)f.tick();
+  expect(st().sample?.outletInside).toBe(true);expect(saveRailTechnique('a')).toBe(true);f.tick();
+  startPelvic('a');nudgePelvic('a',-2);for(let i=0;i<40;i++)f.tick();expect(st().sample?.railHome).toBe(true);return {...f,skirt};
+}
+it('physically returns an inside-ending loop through the opening before the next entrance; never replays response edges at a seam',()=>{
+  const {driver,tick,piece}=shortInsideTake();patchPelvic('a',{replayLoop:true,replayRate:1.5});
+  expect(startRailTechnique('a','replay')).toBe(true);const part=piece.getObjectByName('play:piece:dildo')!;
+  let entered=0,left=0,home=true,prev:Vector3|null=null;
+  for(let i=0;i<200;i++){
+    tick();const at=part.localToWorld(new Vector3(0,tipHeight,centerZ(tipHeight)));
+    if(prev)expect(at.distanceTo(prev)).toBeLessThan(.012);prev=at;
+    if(st().sample?.railHome)home=true;
+    const motion=driver.getActorContact()?.motion;
+    if(motion==='enter'){expect(home).toBe(true);expect(left).toBe(entered);home=false;entered++;}
+    if(motion==='withdraw'){left++;expect(entered).toBe(left);}
+  }
+  expect(entered).toBeGreaterThan(2);expect(st().byAsset.a.fluid.vaginal).toBe(0);
+});
+
+it.each([
+  ['record','stop'],['replay','tracking'],['record','takeover'],['replay','actor'],['record','room'],
+  ['replay','calibration'],['replay','garment'],['replay','dispose'],
+] as const)('retires %s on %s without overwriting the actor’s saved take or completing a pending release',(operation,cause)=>{
+  const {skirt,tick,viewer,driver}=shortInsideTake(cause==='garment'),clip=st().byAsset.a.technique;
+  patchPelvic('a',{replayLoop:true});expect(startRailTechnique('a',operation)).toBe(true);
+  if(operation==='record')nudgePelvic('a',.8);
+  for(let i=0;i<28;i++)tick();expect(st().sample?.outletInside).toBe(true);expect(requestPelvicDose('a','vaginal')).toBe(true);
+  if(cause==='stop')stopPelvic('a');
+  if(cause==='tracking'){viewer.tracked=false;tick();viewer.tracked=true;}
+  if(cause==='takeover')useStagePlay.getState().equip('feather','left');
+  if(cause==='actor'){useBackpack.setState({selected:'other'});useBackpack.setState({selected:'a'});}
+  if(cause==='room'){const s=useMmdVrStore.getState();s.setPrefs({scenery:s.prefs.scenery==='floor'?'pool':'floor'});}
+  if(cause==='calibration')patchPelvic('a',{calibration:{pitchDeg:15}});
+  if(cause==='garment'){
+    // Material visibility changes on an existing indexed surface, not a
+    // fabricated UI obstruction. A fresh bare-only take cannot run under it.
+    expect(st().support.a.obstruction).toBeUndefined();skirt!.material.visible=true;for(let i=0;i<4;i++)tick();
+    expect(st().support.a.obstruction).toBe('garment');skirt!.material.visible=false;
+  }
+  if(cause==='dispose')driver.dispose();
+  for(let i=0;i<3;i++)tick();expect(st().active?.take).toBeUndefined();expect(st().active?.running).not.toBe(true);
+  expect(driver.getActorContact()).toBeNull();expect(saveRailTechnique('a')).toBe(false);
+  expect(st().byAsset.a.technique).toBe(clip);expect(st().byAsset.a.fluid.vaginal).toBe(0);
+});
+
+it('reuses only track data for the same backpack asset in a new presentation, calibration and actor root',()=>{
+  const old=shortInsideTake();const clip=st().byAsset.a.technique!;old.driver.dispose();
+  expect(st().support.a).toBeUndefined();expect(st().active).toBeNull();expect(JSON.parse(JSON.stringify(clip))).toEqual(clip);
+  const bag=useBackpack.getState(),b={...bag.entries[0],id:'b'},a=bag.live.a;
+  useMmdVrStore.setState({presentation:'screen'});useBackpack.setState({entries:[...bag.entries,b],live:{a:{...a,runtimeId:'new'},b:{...a,runtimeId:'copy'}}});
+  useBackpack.getState().select('b');enablePelvic('b',true);expect(st().byAsset.b.technique).toBeUndefined();useBackpack.getState().select('a');
+  patchPelvic('a',{calibration:{pitchDeg:-8,lengthM:.11}});patchPelvic('a',{clothed:true});
+  const scene=new Scene(),host=new Group(),root=new Group(),piece=actualPiece();scene.add(host,root);host.add(piece);
+  root.position.set(.45,.77,-1.2);root.rotation.y=-.41;root.scale.setScalar(.95);
+  const room=mountPelvicRig({scene,host,getRoot:id=>id==='new'?root:null,standPiece:()=>piece,standSpray:()=>null});cleanup.push(room.dispose);
+  const frame=()=>room.advance(1/60);frame();expect(st().byAsset.a.technique).toBe(clip);
+  expect(assignPelvic('a','standManual','screen')).toBe(true);expect(startRailTechnique('a','replay')).toBe(false);frame();
+  expect(startRailTechnique('a','replay')).toBe(true);let entered=false;
+  for(let i=0;i<23;i++){frame();entered||=room.getActorContact()?.motion==='enter';}
+  expect(entered).toBe(true);expect(st().sample?.outletInside).toBe(true);expect(st().sample?.lengthM).toBeCloseTo(.11*.95);
+  useBackpack.setState({entries:[b]});expect(st().active).toBeNull();expect(st().byAsset.a).toBeUndefined();
 });

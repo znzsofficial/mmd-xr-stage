@@ -5,6 +5,7 @@ import { useMmdVrStore } from '../mmdVrStore';
 import { useStagePlay, type Hand } from '../play/stagePlay';
 import { defaultPelvicCalibration, type PelvicCalibration, type PelvicContact, type PelvicXYZ } from './contract';
 import { canStartAtOpening, PELVIC_LIMITS as limits, type PelvicActive, type PelvicDoseTarget, type PelvicMode, type PelvicPatch, type PelvicProfile, type PelvicSample, type PelvicSupport } from './stateTypes';
+import {createRailRecorder,createRailReplay} from './railTechnique';
 
 export * from './stateTypes';
 
@@ -17,6 +18,7 @@ let sequence=0;
 // copy with measured geometry, never a notification per controller frame.
 let position:number=outside, direction=1, doseCount=0, publishIn=0, seed=true, dispensed=false;
 let doseTarget:PelvicDoseTarget='vaginal';
+let recorder:ReturnType<typeof createRailRecorder>|null=null,replay:ReturnType<typeof createRailReplay>|null=null;
 const clamp=(x:number,[lo,hi]:readonly [number,number])=>Math.min(hi,Math.max(lo,x));
 function limited(n:number|undefined, fallback:number, range:readonly [number,number]) {
   return n!==undefined&&Number.isFinite(n)?clamp(n,range):fallback;
@@ -72,14 +74,15 @@ export function patchPelvic(assetId:string,patch:PelvicPatch){
   writeProfile(assetId,{...p,calibration:patch.calibration?calibrate(p.calibration,patch.calibration):p.calibration,
     clothingClear,clothed,showAdapter:patch.showAdapter??p.showAdapter,
     container:patch.container==='vaginal'||patch.container==='fantasyUterine'?patch.container:p.container,
-    speedHz:limited(patch.speedHz,p.speedHz,limits.speedHz),stroke:limited(patch.stroke,p.stroke,limits.stroke)});
+    speedHz:limited(patch.speedHz,p.speedHz,limits.speedHz),stroke:limited(patch.stroke,p.stroke,limits.stroke),
+    replayRate:limited(patch.replayRate,p.replayRate??1,limits.replayRate),replayLoop:patch.replayLoop??p.replayLoop});
   return true;
 }
 export function publishPelvicSupport(assetId:string,support:PelvicSupport){
   const bag=useBackpack.getState(),live=bag.live[assetId];
   if(!live?.visible||live.runtimeId!==support.runtimeId||state().support[assetId]===support)return;
   const a=state().active;
-  if(support.kind==='missing'&&a?.assetId===assetId)interruptPelvic(a.token);
+  if(a?.assetId===assetId&&(support.kind==='missing'||a.take&&!canStartAtOpening(state().byAsset[assetId],support)))interruptPelvic(a.token);
   usePelvic.setState(s=>({support:{...s.support,[assetId]:support}}));
 }
 /** Apply the ordinary actor material setting (including outlines/proxies).
@@ -102,12 +105,13 @@ function blocked(a:Pick<PelvicActive,'assetId'|'source'>){
   const bag=useBackpack.getState();
   return !ready(a.assetId)||!!bag.selected&&bag.selected!==a.assetId||a.source==='xr'&&useHudWorldInput.getState().blocked;
 }
+function resetDrive(){recorder=null;replay=null;doseCount=0;publishIn=0;seed=true;dispensed=false;}
 function park(a:PelvicActive){
-  position=outside;direction=1;doseCount=0;publishIn=0;seed=true;dispensed=false;
-  usePelvic.setState({active:{...a,token:++sequence,running:false,awaitingWorld:false,position},sample:null,parkedSample:null});
+  position=outside;direction=1;resetDrive();
+  usePelvic.setState({active:{...a,token:++sequence,running:false,awaitingWorld:false,position,take:undefined},sample:null,parkedSample:null});
 }
 function dropBinding(){
-  position=outside;direction=1;doseCount=0;publishIn=0;seed=true;dispensed=false;
+  position=outside;direction=1;resetDrive();
   usePelvic.setState({active:null,sample:null,parkedSample:null});
 }
 /** Explicit command only; neither wearing, selecting, nor calibrating takes a toy. */
@@ -143,8 +147,11 @@ export function interruptPelvic(token:number){
 export function stopPelvic(assetId:string){
   const a=state().active;if(a?.assetId!==assetId)return false;
   if(!a.running&&!a.awaitingWorld)return true;
-  doseCount=0;publishIn=0;seed=true;dispensed=false;
-  usePelvic.setState({active:{...a,position,token:++sequence,running:false,awaitingWorld:false},sample:null,parkedSample:null});return true;
+  freeze(a);return true;
+}
+function freeze(a:PelvicActive,profile?:PelvicProfile){
+  resetDrive();usePelvic.setState(s=>({active:{...a,position,token:++sequence,running:false,awaitingWorld:false,take:undefined},sample:null,parkedSample:null,
+    byAsset:profile?{...s.byAsset,[a.assetId]:profile}:s.byAsset}));
 }
 export function endPelvic(token:number){
   const a=state().active;if(a?.token!==token)return false;
@@ -157,7 +164,7 @@ export function endPelvic(token:number){
 export function releasePelvic(assetId:string){const a=state().active;return a?.assetId===assetId&&endPelvic(a.token);}
 
 export function nudgePelvic(assetId:string,deltaNormalized:number){
-  const a=state().active;if(a?.assetId!==assetId||!a.running||blocked(a)||a.mode!=='standManual'||!Number.isFinite(deltaNormalized))return false;
+  const a=state().active;if(a?.assetId!==assetId||!a.running||blocked(a)||a.mode!=='standManual'||a.take?.kind==='replay'||!Number.isFinite(deltaNormalized))return false;
   usePelvic.setState({active:{...a,position:clamp(a.position+deltaNormalized,limits.position)}});return true;
 }
 /** Call once on the render clock, including when VMD is paused. Not wall time.
@@ -171,9 +178,11 @@ export function advancePelvic(token:number,dtSeconds:number){
   // even if start and dragging the slider to its far stop share one frame.
   if(seed){seed=false;return position;}
   const dt=Math.min(.05,dtSeconds);
-  if(a.mode==='standManual'){
+  if(replay){
+    const p=state().byAsset[a.assetId];position=replay.next(dtSeconds,p.replayRate??1,!!p.replayLoop);
+  }else if(a.mode==='standManual'){
     const delta=a.position-position;
-    position+=Math.sign(delta)*Math.min(Math.abs(delta),dt*2);
+    position=Math.abs(delta)<=dt*2?a.position:position+Math.sign(delta)*dt*2;
   }else if(a.mode==='standAuto'){
     const {speedHz,stroke}=state().byAsset[a.assetId];
     // Reflect a continuous position at the two ends. A live stroke reduction
@@ -188,6 +197,39 @@ export function advancePelvic(token:number,dtSeconds:number){
   }
   return position;
 }
+
+/** Never announce a take based on the target slider. Even when the motor is
+ * already running, both the live rail clock AND mounted outlet must be home. */
+export function startRailTechnique(assetId:string,kind:'record'|'replay'){
+  const {active:a,byAsset,support,sample,parkedSample}=state(),p=byAsset[assetId];
+  if(!a||a.assetId!==assetId||a.mode!=='standManual'||a.take||!selected(assetId)||blocked(a)||!p||
+    support[assetId]?.runtimeId!==a.runtimeId||!canStartAtOpening(p,support[assetId])||Math.abs(position-outside)>1e-6||!(a.running?sample:parkedSample)?.railHome||
+    (kind==='replay'&&!p.technique))return false;
+  // A jog from .55 to -.2 can round to -.19999999999999996. Only snap
+  // this sub-micron residue after the mounted outlet also measured home.
+  position=outside;resetDrive();if(kind==='record')recorder=createRailRecorder();else replay=createRailReplay(p.technique!);
+  usePelvic.setState({active:{...a,position,running:true,token:++sequence,take:kind==='record'?{kind,seconds:0,canSave:false}:{kind}},sample:null,parkedSample:null});return true;
+}
+export function saveRailTechnique(assetId:string){
+  const a=state().active;if(a?.assetId!==assetId||a.take?.kind!=='record'||!selected(assetId)||blocked(a))return false;
+  const clip=recorder?.finish();if(!clip)return false;
+  freeze(a,{...state().byAsset[assetId],technique:clip});return true;
+}
+export function clearRailTechnique(assetId:string){
+  const {active:a,byAsset}=state(),p=byAsset[assetId];
+  if(!selected(assetId)||!p?.technique||a?.assetId===assetId&&a.take)return false;
+  writeProfile(assetId,{...p,technique:undefined});return true;
+}
+/** Called by the room *after* placement and admission, even when the HUD sample
+ * did not change. A held slow frame can extend an observed dwell only. */
+export function presentRailTechnique(token:number,dt:number,measured:number|null,atHome=false){
+  const a=state().active;if(a?.token!==token||!a.take)return;
+  if(a.take.kind==='record'&&recorder){
+    if(!(measured===null?recorder.hold(dt):recorder.sample(dt,measured))){interruptPelvic(token);return;}
+    const seconds=Math.floor(recorder.seconds()),canSave=recorder.savable();
+    if(seconds!==a.take.seconds||canSave!==a.take.canSave)usePelvic.setState({active:{...a,take:{kind:'record',seconds,canSave}}});
+  }else if(replay&&measured!==null&&replay.presented(atHome,!!state().byAsset[a.assetId].replayLoop))freeze(a);
+}
 const snapshot=(sample:PelvicSample)=>({...sample,tip:copyXYZ(sample.tip),tail:copyXYZ(sample.tail),shaft:sample.shaft?.map(copyXYZ)});
 /** Idle geometry is read from the mounted mesh. It deliberately has no
  * crossing history and cannot authorize motor, aperture, physics or dosing. */
@@ -196,7 +238,7 @@ export function publishParkedSample(token:number,sample:PelvicSample){
   const prev=state().parkedSample;
   // The rail is rigid relative to the socket. A dancing actor should not
   // rerender every diagram merely due to floating point roundoff in that fit.
-  if(prev&&Math.abs(prev.radiusM-sample.radiusM)<1e-6&&Math.abs(prev.lengthM-sample.lengthM)<1e-6&&
+  if(prev&&prev.railHome===sample.railHome&&Math.abs(prev.radiusM-sample.radiusM)<1e-6&&Math.abs(prev.lengthM-sample.lengthM)<1e-6&&
     sample.tip.every((n,i)=>Math.abs(prev.tip[i]-n)<1e-6)&&sample.tail.every((n,i)=>Math.abs(prev.tail[i]-n)<1e-6))return;
   usePelvic.setState({parkedSample:{...snapshot(sample),atCervix:false,depth:0,outletInside:false,outletVisible:false}});
 }
@@ -205,7 +247,7 @@ export function publishPelvicSample(token:number,sample:PelvicSample){
   if(![sample.depth,sample.angleDeg,sample.radiusM,sample.lengthM].every(Number.isFinite)||!finiteXYZ(sample.tip)||!finiteXYZ(sample.tail)||
       sample.shaft&&!sample.shaft.every(finiteXYZ)){interruptPelvic(token);return false;}
   const prev=state().sample;
-  if(prev&&publishIn>0&&prev.outletInside===sample.outletInside&&prev.outletVisible===sample.outletVisible&&prev.exteriorCovered===sample.exteriorCovered&&prev.atCervix===sample.atCervix&&prev.aligned===sample.aligned)return true;
+  if(prev&&publishIn>0&&prev.railHome===sample.railHome&&prev.outletInside===sample.outletInside&&prev.outletVisible===sample.outletVisible&&prev.exteriorCovered===sample.exteriorCovered&&prev.atCervix===sample.atCervix&&prev.aligned===sample.aligned)return true;
   publishIn=.1;
   usePelvic.setState({active:a.mode==='standAuto'&&a.position!==position?{...a,position}:a,sample:snapshot(sample)});return true;
 }

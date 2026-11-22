@@ -17,9 +17,15 @@ export function usePoseEditor({ assetId, runtimeId, onBack }: PoseControlsProps)
     return () => poseActions.hold(assetId,runtimeId);
   }, [assetId, runtimeId]);
   const own = state.assetId === assetId && state.runtimeId === runtimeId;
+  const key = state.selected;
+  const wrist = own && (key === 'leftHand' || key === 'rightHand') ? {
+    pinned: state.pinnedWrists.includes(key), disabled: state.dragging || !poseActions.canBend(key),
+    toggle: () => poseActions.setWristPinned(assetId, runtimeId, key, !state.pinnedWrists.includes(key)),
+  } : null;
   return {
-    ...state, active: own && state.editing, held: own && !state.editing,
+    ...state, active: own && state.editing, held: own && !state.editing, wrist,
     savedNames: state.names[assetId] ?? empty,
+    save: (name:string) => owns() && poseActions.save(name),
     begin: () => poseActions.begin(assetId, runtimeId),
     leave: () => { poseActions.hold(assetId,runtimeId); onBack?.(); },
     restore: () => { if (owns()) poseActions.end(); onBack?.(); },

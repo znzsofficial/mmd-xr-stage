@@ -1,6 +1,6 @@
 import { useId, useState } from 'react';
 import { poseActions, type PoseKey } from './poseSession';
-import { limbBendLabel, nextPoseName, usePoseText } from './poseText';
+import { jointHint, limbBendLabel, nextPoseName, usePoseText } from './poseText';
 import { POSE_ANGLE_STEP, POSE_AXES, POSE_BEND_STEP, usePoseTool } from './poseTool';
 import { usePoseEditor, type PoseControlsProps } from './usePoseEditor';
 import './pose-controls.css';
@@ -19,7 +19,7 @@ export function PoseScreenControls(props: PoseControlsProps) {
   const turn = (dir: number) => poseActions.rotate(s.selected, axis, dir * POSE_ANGLE_STEP);
   const save = () => {
     if (!s.active || !clean || s.savedNames.includes(clean)) return;
-    if (poseActions.save(clean)) { setChoice(clean); setLast(clean); setDraft(null); }
+    if (s.save(clean)) { setChoice(clean); setLast(clean); setDraft(null); }
   };
   return <div className="pose-screen" aria-label={t.title} role="group">
     <div className="pose-screen-header"><h3>{t.title}</h3>{s.active && <span>{t.frozen}</span>}</div>
@@ -31,7 +31,7 @@ export function PoseScreenControls(props: PoseControlsProps) {
       {tab === 'joints' ? <>
         <label className="pose-field">{t.joint}<select disabled={busy || !s.keys.length} value={s.selected}
           onChange={e => poseActions.select(e.target.value as PoseKey)}>{s.keys.map(k => <option key={k} value={k}>{t.labels[k]}</option>)}</select></label>
-        <p>{movable ? busy ? t.reachScreen : t.dragScreen : t.rotateScreen}</p>
+        <p>{jointHint(t,true,movable,busy,s.wrist)}</p>
         <fieldset disabled={busy || !joint}><legend>{t.rotate}</legend>
           <div className="pose-axis">{POSE_AXES.map(a => <button key={a} aria-pressed={a === axis}
             onClick={() => usePoseTool.setState({ axis: a })}>{t.axes[a]}</button>)}</div>
@@ -42,6 +42,7 @@ export function PoseScreenControls(props: PoseControlsProps) {
         </fieldset>
         <div className="pose-row"><label><input type="checkbox" checked={s.feetLocked} disabled={busy || !(poseActions.canBend('leftFoot') || poseActions.canBend('rightFoot'))}
           onChange={e => poseActions.setFeetLocked(e.target.checked)}/>{t.lock}</label>
+          {s.wrist && <button disabled={s.wrist.disabled} aria-pressed={s.wrist.pinned} onClick={s.wrist.toggle}>{s.wrist.pinned ? t.unpin : t.pin}</button>}
           <button disabled={busy || !s.canUndo} onClick={poseActions.undo}>{t.undo}</button></div>
       </> : <>
         <label className="pose-field" htmlFor={id}>{t.name}</label><input id={id} className="pose-name" type="text" maxLength={32} value={name}

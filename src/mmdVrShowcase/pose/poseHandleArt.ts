@@ -3,7 +3,7 @@ import { HUD_COLORS } from '../hudAppearance';
 
 /** World-space registration marks: open center so the underlying joint
  * remains visible. One textured quad per control, independent of stage exposure. */
-export function poseHandleArt(selected: boolean) {
+export function poseHandleArt(selected: boolean, pinned = false) {
   const canvas = document.createElement('canvas'); canvas.width = canvas.height = 256;
   const c = canvas.getContext('2d')!;
   c.translate(128,128);
@@ -21,6 +21,13 @@ export function poseHandleArt(selected: boolean) {
   if (selected) stroke(29,HUD_COLORS.primary,5);
   c.fillStyle = selected ? HUD_COLORS.primary : HUD_COLORS.ink;
   c.beginPath(); c.arc(0,0,6,0,Math.PI*2); c.fill();
+  if (pinned) {
+    // A shelf under the joint remains legible when the other hand is selected.
+    for (const [ink, width] of [[HUD_COLORS.surface,13],[HUD_COLORS.primary,6]] as const) {
+      c.strokeStyle = ink; c.lineWidth = width; c.beginPath();
+      c.moveTo(-36,31); c.lineTo(-36,46); c.lineTo(36,46); c.lineTo(36,31); c.stroke();
+    }
+  }
   const texture = new CanvasTexture(canvas); texture.colorSpace = SRGBColorSpace;
   return texture;
 }

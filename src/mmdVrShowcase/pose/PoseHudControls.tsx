@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { HudButton, HudLine, HudSheet } from '../components/PorcelainControls';
 import { poseActions } from './poseSession';
-import { limbBendLabel, nextPoseName, usePoseText } from './poseText';
+import { jointHint, limbBendLabel, nextPoseName, usePoseText } from './poseText';
 import { POSE_ANGLE_STEP, POSE_AXES, POSE_BEND_STEP, usePoseTool } from './poseTool';
 import { usePoseEditor, type PoseControlsProps } from './usePoseEditor';
 
@@ -51,7 +51,7 @@ export function PoseHudControls(props: PoseControlsProps & { onBack: () => void 
         <Key x={-.47} y={.30} w={.28} text={t.previous} disabled={busy || s.keys.length < 2} press={() => keyStep(-1)}/>
         <HudLine position={[0,.30,0]} width={.60} center text={t.labels[s.selected]}/>
         <Key x={.47} y={.30} w={.28} text={t.next} disabled={busy || s.keys.length < 2} press={() => keyStep(1)}/>
-        <Line y={.145} text={movable ? busy ? t.reachXr : t.dragXr : t.rotateXr} muted/>
+        <Line y={.145} text={jointHint(t,false,movable,busy,s.wrist)} muted/>
         {POSE_AXES.map((a,i) => <Key key={a} x={(i-1)*.42} y={.005} w={.38} text={t.axes[a]} active={axis === a} disabled={busy || !joint}
           press={() => usePoseTool.setState({ axis: a })}/>)}
         <Key x={-half} y={-.165} w={.59} text={`${axis.toUpperCase()} −5°`} disabled={busy || !joint} press={() => poseActions.rotate(s.selected,axis,-POSE_ANGLE_STEP)}/>
@@ -65,14 +65,17 @@ export function PoseHudControls(props: PoseControlsProps & { onBack: () => void 
         <Line y={.305} text={`${t.name}: ${name}`} />
         <Key x={-half} y={.135} w={.59} text={t.editName} disabled={busy} press={() => { setDraft(name); setTab('keyboard'); }}/>
         <Key x={half} y={.135} w={.59} text={t.save} disabled={busy || !clean || s.savedNames.includes(clean)}
-          press={() => { if (poseActions.save(clean)) { setChosen(clean); setSaved(clean); setDraft(null); } }}/>
+          press={() => { if (s.save(clean)) { setChosen(clean); setSaved(clean); setDraft(null); } }}/>
         <Line y={-.025} muted text={s.savedNames.includes(clean) ? t.duplicate : saved ? `${t.saved}: ${saved}` : ''}/>
         {entry ? <><Line y={-.20} text={`${savedIndex + 1}/${s.savedNames.length}  ${entry}`}/>
           <Key x={-.475} y={-.385} w={.27} text={t.previous} disabled={busy || savedIndex === 0} press={() => setChosen(s.savedNames[savedIndex-1])}/>
           <Key y={-.385} w={.60} text={t.load} disabled={busy} press={() => { if (poseActions.load(props.assetId, props.runtimeId, entry)) setTab('joints'); }}/>
           <Key x={.475} y={-.385} w={.27} text={t.next} disabled={busy || savedIndex+1 >= s.savedNames.length} press={() => setChosen(s.savedNames[savedIndex+1])}/></> : <Line y={-.20} text={t.empty} muted/>}
       </>}
-       <Key y={-.68} text={t.end} press={s.restore} disabled={busy} quiet/>
+      {tab === 'joints' && s.wrist ? <>
+        <Key x={-half} y={-.68} w={.59} text={s.wrist.pinned ? t.unpin : t.pin} active={s.wrist.pinned} disabled={s.wrist.disabled} press={s.wrist.toggle}/>
+        <Key x={half} y={-.68} w={.59} text={t.end} press={s.restore} disabled={busy} quiet/>
+      </> : <Key y={-.68} text={t.end} press={s.restore} disabled={busy} quiet/>}
     </>}
   </group>;
 }

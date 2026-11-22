@@ -41,8 +41,15 @@ export const pelvicRailLimit = (f: Pick<PelvicFrame, 'lengthM'>) => Math.min(f.l
 /** The negative handle range is the approach, not part of the canal. Leave
  * room for the visible tip on a clothed actor. The bounded 4.5–6 cm run-up
  * also keeps the fastest rail within the solver's continuous stroke budget. */
+const approach=(f:PelvicFrame)=>Math.min(.06,Math.max(.045,.07*f.scale));
 export function pelvicRailTravel(f:PelvicFrame,command:number){
-  return command>=0?command*pelvicRailLimit(f):command/-PELVIC_LIMITS.position[0]*Math.min(.06,Math.max(.045,.07*f.scale));
+  return command>=0?command*pelvicRailLimit(f):command/-PELVIC_LIMITS.position[0]*approach(f);
+}
+/** Invert the manufactured outlet's measured arc, including the exterior
+ * approach where ordinary contact depth is zero. Stand only, never a hand. */
+export function measuredRailPosition(f:PelvicFrame,outletLocal:Vector3){
+  const d=projectDepth(f,outletLocal);
+  return d>=0?d/pelvicRailLimit(f):d*-PELVIC_LIMITS.position[0]/approach(f);
 }
 
 /** Transform the real PlayPiece PARENT (not the mesh, grip or decoration).

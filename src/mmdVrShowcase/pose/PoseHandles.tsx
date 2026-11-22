@@ -34,6 +34,7 @@ export function PoseHandles() {
 
 function MountedHandles() {
   const { camera, gl } = useThree(), keys = usePoseSession(s => s.keys), selected = usePoseSession(s => s.selected);
+  const pinned = usePoseSession(s => s.pinnedWrists);
   const root = useRef<Group>(null), joints = useRef(new Map<PoseKey,Group>()), drag = useRef<Drag | null>(null);
   const guide = useRef<PoseGuideUpdate>(null), pick = useMemo(posePicker,[]), readTracked = useMemo(xrPoseSampler,[]);
   const pressCaster=useMemo(()=>new Raycaster(),[]);
@@ -41,7 +42,7 @@ function MountedHandles() {
   const moving = usePoseSession(s=>s.dragging) && !!drag.current?.goal;
   const scratch = useMemo(() => ({ eye: new Vector3(), center: new Vector3(), out: new Vector3(), normal: new Vector3(),
     q: new Quaternion(), parentQ: new Quaternion() }), []);
-  const art = useMemo(() => [poseHandleArt(false),poseHandleArt(true)],[]);
+  const art = useMemo(() => [poseHandleArt(false),poseHandleArt(true),poseHandleArt(false,true),poseHandleArt(true,true)],[]);
   useLayoutEffect(() => () => art.forEach(texture => texture.dispose()),[art]);
 
   const release = useCallback((cancel: boolean) => {
@@ -64,12 +65,18 @@ function MountedHandles() {
     const carry = movable && grip ? carryPoseCenter(grip,scratch.center) : null;
     const slide = movable && !source ? screenPoseTranslation(ray,point,scratch.center,scratch.normal,joint.scale.x/13) : null;
     const start = scratch.center.clone(), goal = carry || slide ? start.clone() : undefined;
+    // Selecting a wrist at the end of its reach must not silently replace its
+    // more distant pin with hand jitter. Once moving, retain full precision.
+    let movingPin = !p.pinnedWrists.some(k => k === hit.key);
+    const slop = source ? .004 : joint.scale.x * 2/13;
     const d: Drag = { id, assetId: p.assetId!, runtimeId: p.runtimeId!, target, source, beganEmulated, start, goal, transaction: !!(turn || goal), update(next,wheel,hand) {
       if (turn) {
         if (wheel) return;
         const delta = turn(next);
         if (Math.abs(delta) > 1e-6) poseActions.rotate(hit.key,axis,delta);
       } else if (goal && (carry && hand ? carry(hand,scratch.out) : slide?.(next,scratch.out,wheel)) && scratch.out.distanceToSquared(goal) > 1e-12) {
+        if (!movingPin && scratch.out.distanceToSquared(start) < slop*slop) return;
+        movingPin = true;
         goal.copy(scratch.out); poseActions.move(hit.key,scratch.out);
       }
     } };
@@ -103,7 +110,10 @@ function MountedHandles() {
       node.scale.setScalar(xr ? MathUtils.clamp(distance*.023,.021,.058) : MathUtils.clamp(distance*pixelScale*13,.009,.18));
     }
     const key=usePoseSession.getState().selected, node=joints.current.get(key), active=drag.current;
-    if (node?.visible) guide.current?.(group,key,node,active?.start,active?.goal);
+    if (node?.visible) {
+      const goal = active?.goal ?? (poseActions.wristTarget(key,scratch.out) ? scratch.out : undefined);
+      guide.current?.(group,key,node,active?.goal ? active.start : undefined,goal);
+    }
   });
 
   useLayoutEffect(() => {
@@ -156,7 +166,7 @@ function MountedHandles() {
     onClick={e=>e.stopPropagation()}>
     {keys.map(k => <group key={k} pointerEvents="none" name={`pose:${k}`} ref={el => { if (el) joints.current.set(k,el); else joints.current.delete(k); }}>
       <mesh raycast={noRaycast} renderOrder={k===selected?9:8}><planeGeometry args={[6.4,6.4]}/>
-        <meshBasicMaterial map={art[Number(k===selected && !moving)]} fog={false} toneMapped={false} transparent depthWrite={false} depthTest={false}/></mesh>
+        <meshBasicMaterial map={art[Number(k===selected && !moving) + ((k==='leftHand' || k==='rightHand') && pinned.includes(k) ? 2 : 0)]} fog={false} toneMapped={false} transparent depthWrite={false} depthTest={false}/></mesh>
       <mesh name={`pose:point:${k}`} userData={{poseHit:{key:k,ring:false}}}><circleGeometry args={[1.15,24]}/><meshBasicMaterial visible={false}/></mesh>
       {selected===k && <mesh name={`pose:dial:${k}`} userData={{poseHit:{key:k,ring:true}}}><ringGeometry args={[1.96,2.84,48]}/><meshBasicMaterial visible={false}/></mesh>}
     </group>)}<PoseGuide ref={guide}/>

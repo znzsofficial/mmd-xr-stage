@@ -10,10 +10,11 @@ import {fitRows,type Fit} from './fitRows';
 import {entryClearance} from './solver';
 import {prepareFirstStand} from './firstStand';
 import {responseRows} from './responseRows';
+import {techniquePage} from './techniqueRows';
 import {assignPelvic,canStartAtOpening,clearPelvicFluid,disablePelvic,drainPelvic,enablePelvic,nudgePelvic,patchPelvic,PELVIC_LIMITS as lim,
   releasePelvic,requestPelvicDose,setPelvicCapacity,setPelvicGarmentVisible,startPelvic,stopPelvic,usePelvic,type PelvicMode} from './store';
 
-type Page='use'|'view'|'fit'|'clothes'|'holder'|'fluid';
+type Page='use'|'view'|'fit'|'clothes'|'holder'|'fluid'|'technique';
 const main=(label:string,press:()=>void,disabled=false)=>buttons(key(label,press,{primary:true,disabled}));
 const link=(label:string,press:()=>void)=>buttons(key(label,press));
 
@@ -34,6 +35,8 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen
   const active=(s:ReturnType<typeof usePelvic.getState>)=>s.active?.assetId===assetId&&s.active.runtimeId===runtimeId?s.active:null;
   const hand=useStagePlay(s=>s.held?.toy==='dildo'?s.held.hand:null);
   const mode=usePelvic(s=>active(s)?.mode),running=usePelvic(s=>!!active(s)?.running);
+  const take=usePelvic(s=>active(s)?.take),replaying=take?.kind==='replay';
+  const home=usePelvic(s=>active(s)?.mode==='standManual'&&!!(s.active?.running?s.sample:s.parkedSample)?.railHome);
   const target=usePelvic(s=>active(s)?.mode==='standManual'?s.active!.position:lim.position[0]);
   const withdrawFirst=usePelvic(s=>active(s)?.mode==='standManual'&&!!s.parkedSample&&s.parkedSample.tip[2]<entryClearance(s.parkedSample.radiusM));
   // The diagram owns continuous samples. Rebuild the controls only when the
@@ -43,7 +46,8 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen
     if(!s.sample)return s.parkedSample?'parked':'waiting';
     return s.sample.outletInside?'inside':s.sample.outletVisible?'outside':s.sample.exteriorCovered?'coveredOutside':'unverified';
   });
-  const tabs:Key[]=[],rows:Row[]=[],stop=running||mode&&page==='use'?key(l('停止','Stop'),()=>stopPelvic(assetId),{danger:true,disabled:!running}):null;
+  const stopLabel=take?.kind==='record'?l('停止录制，不保存','Stop without saving'):replaying?l('停止回放','Stop replay'):l('停止','Stop');
+  const tabs:Key[]=[],rows:Row[]=[],stop=running||mode&&page==='use'?key(stopLabel,()=>stopPelvic(assetId),{danger:true,disabled:!running}):null;
   const result={title:l('插入','Insertion'),back:backLabel??l('返回互动','Back to interaction'),tabs,rows,stop,
     status:'',warn:false,chart:page==='view',blocked,enabled:!!profile};
   if(!profile){
@@ -53,7 +57,7 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen
     if(onClothing||onObserve)rows.push(buttons(...(onClothing?[key(l('服装','Clothing'),onClothing)]:[]),...(onObserve?[key(l('身体观察','Body observation'),onObserve)]:[])));
     return result;
   }
-  const section=page==='holder'?'use':page==='clothes'?clothesBack:page==='fluid'?'view':page;
+  const section=page==='holder'||page==='technique'?'use':page==='clothes'?clothesBack:page==='fluid'?'view':page;
   for(const [id,label] of [['use',l('操作','Use')],['view',l('测量与容量','Measurements')],['fit',l('调整入口','Fit opening')]] as const)
     tabs.push(key(label,()=>go(id),{id,active:section===id}));
   const known=!!support&&support.kind!=='missing',covered=support?.obstruction;
@@ -72,10 +76,11 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen
   };
   const setTarget=(n:number)=>{const a=active(usePelvic.getState());if(a?.mode==='standManual')nudgePelvic(assetId,n-a.position);};
   const ready=canStartAtOpening(profile,support);
-  const jogReady=mode==='standManual'&&(running||ready&&signal==='parked');
+  const jogReady=mode==='standManual'&&!replaying&&(running||ready&&signal==='parked');
   const jog=(n:number)=>{if(running||startPelvic(assetId))setTarget(n);};
   const jogKeys=()=>buttons(key(l('推进','Advance'),()=>jog(running?Math.min(1,target+.25):.5),{primary:true,disabled:!jogReady||(!running&&withdrawFirst)||target>=1}),
     key(l('退出','Withdraw'),()=>jog(lim.position[0]),{disabled:!jogReady||target<=lim.position[0]&&!withdrawFirst}));
+  const targetSlider=()=>field(l('支架目标位置','Target rail position'),Math.round(target*100),'%',[-20,100],5,p=>setTarget(p/100),!running||replaying);
   const site=profile.container==='vaginal'?l('阴道','Vagina'):l('宫腔','Uterus');
   const targetKeys=()=>buttons(key(l('阴道','Vagina'),()=>patchPelvic(assetId,{container:'vaginal'}),{active:profile.container==='vaginal'}),
     key(l('宫腔','Uterus'),()=>patchPelvic(assetId,{container:'fantasyUterine'}),{active:profile.container==='fantasyUterine'}));
@@ -108,10 +113,14 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen
     }
     if(pages>1)rows.push(buttons(key(l('上一页','Previous'),()=>setListPage(at-1),{disabled:!at}),key(l('下一页','Next'),()=>setListPage(at+1),{disabled:at===pages-1})));
     rows.push(link(clothesBack==='fit'?l('返回模型设置','Back to model settings'):l('返回操作','Back to controls'),()=>go(clothesBack)));
+  }else if(page==='technique'){
+    const withdraw=buttons(key(l('退出到起点','Withdraw to start'),()=>jog(lim.position[0]),{disabled:!jogReady||running&&target<=lim.position[0]}));
+    const sheet=techniquePage(assetId,profile,take,l,{manual:mode==='standManual',ready,home,jog:jogKeys(),withdraw,slider:targetSlider(),back:()=>go('use')});
+    result.title=l('手法录放','Rail takes');result.status=sheet.status;rows.push(...sheet.rows);
   }else if(page==='holder'){
     result.status=mode?l(`当前：${rigName}`,`Using: ${rigName}`):l('选择谁来拿假阳具。','Choose how to hold the rod.');
     rows.push(...responseRows(assetId,runtimeId,profile,support,l));
-    if(mode==='standManual')rows.push(field(l('支架目标位置','Target rail position'),Math.round(target*100),'%',[-20,100],5,p=>setTarget(p/100),!running));
+    if(mode==='standManual'&&!replaying)rows.push(targetSlider());
     if(mode==='standAuto')rows.push(field(l('每秒往复','Cycles per second'),profile.speedHz,' Hz',lim.speedHz,.1,n=>patchPelvic(assetId,{speedHz:n})),
       field(l('往复幅度','Stroke length'),profile.stroke*100,'%',percentRange(lim.stroke),5,n=>patchPelvic(assetId,{stroke:n/100})));
     for(const [m,label,h] of [['standManual',l('手动支架','Manual stand')],['standAuto',l('自动支架','Motor stand')],
@@ -135,7 +144,7 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen
       link(l('返回测量','Back to measurements'),()=>go('view')));
   }else if(page==='view'){
     result.status=!mode?l('还没有放置假阳具。','No rod placed.'):!running?waiting:reading;
-    if(running&&mode==='standManual')rows.push(jogKeys());
+    if(running&&mode==='standManual'&&!replaying)rows.push(jogKeys());
     if(running&&mode!=='xrManual')rows.push(doseKeys());
     rows.push(link(l('精液存量与容量','Semen amount and capacity'),()=>go('fluid')));
     if(!mode)rows.push(link(l('去放置假阳具','Place the rod'),()=>go('use')));
@@ -161,13 +170,14 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen
       if(mode!=='standManual'&&!running)rows.push(main(mode==='xrManual'?l('开始手持并收起面板','Start hand control'):l('开始自动往复','Start motor'),start,mode!=='xrManual'&&signal!=='parked'));
     }
     if(mode&&(running||ready)){
-      if(mode==='standManual')rows.push(jogKeys());
+      if(mode==='standManual'&&!replaying)rows.push(jogKeys());
       if(onFace)rows.push(link(l('近看表情','Frame face'),onFace));
       rows.push(balance(),targetKeys(),doseKeys());
       if(profile.container==='fantasyUterine')rows.push(note(l('宫腔是释放目标，棒头仍止于宫颈。','The uterus is the release target. The rod still stops at the cervix.')));
     }
     rows.push(buttons(key(clothesLabel,onClothing??clothes),key(onObserve?l('身体观察','Body observation'):l('观察图','Anatomy'),onObserve??(()=>go('view')))));
-    if(known)rows.push(link(l('拿法与支架设置','Holder and rail settings'),()=>go('holder')));
+    if(known||profile.technique)rows.push(buttons(...(known?[key(l('拿法与支架设置','Holder and rail settings'),()=>go('holder'))]:[]),
+      ...(profile.technique||mode==='standManual'&&ready?[key(l('手法录放','Rail takes'),()=>go('technique'))]:[])));
   }
   return result;
 }

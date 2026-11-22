@@ -13,7 +13,7 @@ export function poseFixture(partial = false) {
   for (const side of ['Left', 'Right']) {
     const sign = side === 'Left' ? 1 : -1, i = joints.length;
     joints.push([side+'Arm', sign*.18, 1.48, 0, 1], [side+'Elbow', sign*.48, 1.46, .025, i],
-      [side+'Hand', sign*.78, 1.46, 0, partial ? -1 : i+1], [side+'Index1', sign*.87, 1.46, 0, i+2],
+      [side+'Hand', sign*.78, 1.46, 0, partial && side === 'Right' ? -1 : i+1], [side+'Index1', sign*.87, 1.46, 0, i+2],
       [side+'Thigh', sign*.12, .98, 0, 0], [side+'Knee', sign*.12, .51, -.025, i+4], [side+'Foot', sign*.12, .04, 0, i+5]);
   }
   joints.push(['Sleeve', -.32, 1.4, 0, 11], ['Cloth', -.32, 1.18, 0, 18], ['LegGoal', .12, .10, -.09, -1]);

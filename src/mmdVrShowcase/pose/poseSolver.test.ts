@@ -3,7 +3,8 @@ import { runInNewContext } from 'node:vm';
 import { expect, it, vi } from 'vitest';
 import { DefaultMmdRuntime, MmdAnimRuntime, ThreeMmdLoader, disposeMmdModel, type ThreeMmdModel } from '@yohawing/three-mmd-loader';
 import { createCustomBulletMmdPhysicsBackend, type CustomBulletMmdModule } from '@yohawing/three-mmd-loader/physics';
-import { Quaternion, Vector3 } from 'three';
+import { Group, Quaternion, Vector3 } from 'three';
+import { poseWristToy } from '../play/wristSocket';
 import { createPoseSolver } from './poseSolver';
 import { poseFixture } from './poseFixture.testSupport';
 
@@ -33,7 +34,7 @@ it.each([true, false])('freezes a fractional native IK/morph/grant pose, sits wi
   // A previous display deformation must not enter the pose or its bind.
   at(model, 'Cloth').position.y -= 7; at(model, 'RightHand').quaternion.setFromAxisAngle(new Vector3(1,0,0), .99);
   const pose = createPoseSolver(model, orig, seconds), bind = vi.spyOn(model, 'setAnimation');
-  expect(pose.keys).toHaveLength(6);
+  expect(pose.keys).toEqual(['pelvis', 'torso', 'head', 'leftHand', 'rightHand', 'leftFoot', 'rightFoot']);
   compare(model, dancing);
   expect(expression[1]).toBeGreaterThan(.1);
   expect(model.mesh.morphTargetDictionary!.Expression).toBe(model.mesh.morphTargetDictionary!.Gesture);
@@ -73,6 +74,8 @@ it('a static PMX with an incomplete arm has a rotation-only wrist; recall follow
   const pose = createPoseSolver(model, null, 0);
   compare(model, rest);
   expect(pose.canMove('rightHand')).toBe(false); expect(pose.bend('rightHand', 1)).toBe(false);
+  expect(pose.pinWrist('rightHand',true)).toBe(false); expect(pose.pinWrist('leftHand',true)).toBe(true);
+  expect(pose.pinnedWrists).toEqual(['leftHand']);
   const hand = pose.points().rightHand!;
   expect(pose.move('rightHand', hand.clone().addScalar(3))).toBe(false);
   expect(pose.rotate('rightHand', 'z', 1)).toBe(true); model.update(0, edit); close(xyz(model,'RightHand'), hand);
@@ -100,6 +103,39 @@ it('pelvis turns respect planted straight legs, then turn normally after sitting
   close(xyz(model,'RightFoot'),start.rightFoot!); close(xyz(model,'LeftFoot'),start.leftFoot!);
   expect(at(model,'RightFoot').getWorldQuaternion(new Quaternion()).angleTo(soleQ)).toBeLessThan(5e-4);
   pose.restore(); disposeMmdModel(model);
+});
+
+it('keeps two seated tabletop contacts, soles, and a wrist prop while the pelvis and spine move independently', async () => {
+  const {model, orig} = await actor(true), seconds = .4;
+  model.update(seconds,{physics:false}); const source = all(model);
+  const pose = createPoseSolver(model,orig,seconds), show = () => model.update(seconds,edit);
+  const prop = new Group(), sampleProp = () => {
+    poseWristToy(prop,model.root,{assetId:'actor',toy:'encore',hand:'right',turn:15,tilt:10,inset:0});
+    expect(prop.visible).toBe(true); return {p:prop.position.clone(),q:prop.quaternion.clone()};
+  };
+  const soleL = xyz(model,'LeftFoot'), soleR = xyz(model,'RightFoot'); pose.lockFeet(true);
+  pose.move('pelvis',xyz(model,'Pelvis').add(new Vector3(0,-.22,.04))); show();
+  const tableY = xyz(model,'RightArm').y - .24;
+  const left = xyz(model,'LeftArm').add(new Vector3(.025,0,.08)).setY(tableY);
+  const right = xyz(model,'RightArm').add(new Vector3(-.025,0,.08)).setY(tableY);
+  pose.move('rightHand',right); pose.rotate('rightHand','y',.27); pose.pinWrist('rightHand',true); show();
+  const propStart = sampleProp();
+  pose.move('leftHand',left); pose.pinWrist('leftHand',true); show();
+  const leftFinger = xyz(model,'LeftIndex1'), rightFinger = xyz(model,'RightIndex1'), chest = at(model,'Spine').quaternion.clone();
+  const hip = xyz(model,'Pelvis').add(new Vector3(.035,-.015,-.01)); pose.move('pelvis',hip);
+  pose.rotate('torso','x',.26); pose.rotate('pelvis','y',.10); pose.bend('leftHand',.36); show();
+  close(xyz(model,'Pelvis'),hip); expect(at(model,'Spine').quaternion.angleTo(chest)).toBeGreaterThan(.22);
+  close(xyz(model,'RightHand'),right); close(xyz(model,'LeftHand'),left); close(xyz(model,'RightIndex1'),rightFinger); close(xyz(model,'LeftIndex1'),leftFinger);
+  close(xyz(model,'RightFoot'),soleR); close(xyz(model,'LeftFoot'),soleL);
+  const kept = sampleProp(); close(kept.p,propStart.p); expect(kept.q.angleTo(propStart.q)).toBeLessThan(.0007);
+  // Carry and turn the right contact on purpose. Only an explicit release lets it follow the trunk again.
+  const newRight = right.clone().add(new Vector3(.02,.005,-.04)); pose.move('rightHand',newRight); show();
+  close(sampleProp().p,propStart.p.clone().add(newRight).sub(right));
+  pose.rotate('rightHand','z',.38); show(); const turned = sampleProp(); expect(turned.q.angleTo(kept.q)).toBeCloseTo(.38,3);
+  pose.rotate('torso','y',.12); show(); close(xyz(model,'RightHand'),newRight); close(xyz(model,'LeftHand'),left); close(sampleProp().p,turned.p);
+  pose.pinWrist('rightHand',false); pose.rotate('torso','z',.32); show();
+  expect(xyz(model,'RightHand').distanceTo(newRight)).toBeGreaterThan(.015); close(xyz(model,'LeftHand'),left);
+  pose.restore(); compare(model,source); disposeMmdModel(model);
 });
 
 it.each([true,false])('rolls back even if the edit binding throws after installing its clip (WASM=%s)', async native => {
@@ -130,6 +166,13 @@ it('Bullet consumes the changing single-frame wrist before stepping without rese
     positions.push(wrist);
   }
   expect(positions[0].distanceTo(positions[9])).toBeGreaterThan(.1);
+  const pinned = xyz(m,'RightHand'), hip = xyz(m,'Pelvis'); pose.pinWrist('rightHand',true);
+  for (let i=1;i<=6;i++) {
+    const seat = hip.clone().add(new Vector3(0,-i*.006,0)); pose.move('pelvis',seat);
+    m.update(.42+(9+i)/60,{physics:true,ik:false}); close(xyz(m,'Pelvis'),seat); close(xyz(m,'RightHand'),pinned);
+    const center = new Float32Array(3); expect(backend.readRigidBodyCenters([0],center)).toBe(true);
+    close(new Vector3(center[0],center[1],-center[2]),pinned,.001);
+  }
   expect(reset).not.toHaveBeenCalled(); expect(bind).not.toHaveBeenCalled();
   pose.restore(); backend.dispose?.(); disposeMmdModel(m);
 });

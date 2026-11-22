@@ -8,4 +8,5 @@
 .screen-library .pose-screen p{margin:.5rem 0;color:var(--quiet);font-size:.85rem;line-height:1.45;overflow-wrap:anywhere}.pose-screen p:empty{display:none}
 .pose-screen fieldset{padding:0;min-width:0;border:0;margin:.7rem 0}.pose-screen legend{padding:0;margin-bottom:.25rem}
 .pose-step{margin:.4rem 0}.pose-step span{flex:1}.pose-step button{font-variant-numeric:tabular-nums}
+.pose-screen .pose-row{flex-wrap:wrap}
 .pose-screen .pose-row label{display:inline-flex;align-items:center;gap:.3rem}.pose-screen .pose-exit{border-top:1px solid var(--line);padding-top:.65rem}

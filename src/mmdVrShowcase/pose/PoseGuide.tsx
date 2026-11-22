@@ -30,11 +30,14 @@ export function PoseGuide({ref}: {ref: Ref<PoseGuideUpdate>}) {
   useImperativeHandle(ref,() => (root,key,joint,start,target) => {
     const dot=goal.current!, line=stem.current!, tick=origin.current!, name=label.current!, scale=joint.scale.x;
     dot.visible=!!target; line.visible=false; tick.visible=false; let gap=0;
-    if (target && start) {
+    if (target) {
       root.worldToLocal(dot.position.copy(target)); dot.quaternion.copy(joint.quaternion); dot.scale.setScalar(scale);
-      root.worldToLocal(tick.position.copy(start)); tick.quaternion.copy(joint.quaternion); tick.scale.setScalar(scale);
-      tick.visible=tick.position.distanceToSquared(joint.position)>(scale*.9)**2;
+      if (start) {
+        root.worldToLocal(tick.position.copy(start)); tick.quaternion.copy(joint.quaternion); tick.scale.setScalar(scale);
+        tick.visible=tick.position.distanceToSquared(joint.position)>(scale*.9)**2;
+      }
       diff.subVectors(dot.position,joint.position); gap=diff.length(); line.visible=gap>scale*.75;
+      dot.visible=!!start || line.visible;
       if (line.visible) { line.position.copy(joint.position).addScaledVector(diff,.5); line.scale.set(scale*.065,gap,scale*.065); line.quaternion.setFromUnitVectors(up,diff.normalize()); }
     }
     const error = gap>.005 ? ` · ${Math.round(gap*100)} cm` : '';
@@ -43,7 +46,7 @@ export function PoseGuide({ref}: {ref: Ref<PoseGuideUpdate>}) {
       badge.paint(text); last.text=text; last.time=now;
     }
     name.quaternion.copy(joint.quaternion); name.scale.setScalar(scale);
-    name.position.set(0,target?1.95:3.8,0).multiplyScalar(scale).applyQuaternion(joint.quaternion).add(joint.position);
+    name.position.set(0,start?1.95:3.8,0).multiplyScalar(scale).applyQuaternion(joint.quaternion).add(joint.position);
   },[badge,diff,t]);
   return <group pointerEvents="none">
     <mesh ref={label} name="pose:joint-label" raycast={noPick} renderOrder={14}><planeGeometry args={[8.64,1.8]}/><meshBasicMaterial map={badge.texture} transparent depthWrite={false} depthTest={false} toneMapped={false} fog={false}/></mesh>

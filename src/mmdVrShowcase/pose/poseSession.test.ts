@@ -12,8 +12,8 @@ it('treats one real drag as one undo, cancels unfinished edits on recall, and on
   const live=(runtimeId:string)=>({runtimeId,visible:true,position:[0,0,0] as [number,number,number]});
   useBackpack.setState({entries,live:{a:live('m1'),b:live('m2')},selected:'a',busy:false,draft:null});
   useMmdVrStore.setState({overlayOpen:true,duration:3,playing:true,physicsBusy:false,physicsFatal:false});
-  let x=0;const snapshot=():PoseSnapshot=>({bones:[x],poles:{},morphs:[],feetLocked:true});
-  const open=vi.fn(()=>{x=0;return {keys:['pelvis'],feetLocked:true,canMove:()=>true,move:(_:string,p:Vector3)=>{x=p.y;return true;},
+  let x=0;const snapshot=():PoseSnapshot=>({bones:[x],poles:{},morphs:[],feetLocked:true,wrists:{}});
+  const open=vi.fn(()=>{x=0;return {keys:['pelvis'],feetLocked:true,pinnedWrists:[],canMove:()=>true,move:(_:string,p:Vector3)=>{x=p.y;return true;},
     capture:snapshot,apply:(s:PoseSnapshot)=>{x=s.bones[0];}} as unknown as PoseSolver;});
   const close=vi.fn(()=>{x=0;}),stop=mountPoseRoom({open,close,dirty:()=>{}});
   const drag=(...ys:number[])=>{pose.startDrag('pelvis');for(const y of ys)pose.move('pelvis',new Vector3(0,y,0));};
@@ -40,7 +40,7 @@ it('holds a suspended editor on unmount and preserves that pose when the next ac
   useBackpack.setState({entries,live:{a:live('m1'),b:live('m2')},selected:'a',busy:false,draft:null});
   useMmdVrStore.setState({overlayOpen:true,duration:3,playing:true,physicsBusy:false,physicsFatal:false});
   let x=0;
-  const solver={keys:['pelvis'],capture:():PoseSnapshot=>({bones:[x],morphs:[],poles:{},feetLocked:false}),
+  const solver={keys:['pelvis'],feetLocked:false,pinnedWrists:[],capture:():PoseSnapshot=>({bones:[x],morphs:[],poles:{},feetLocked:false,wrists:{}}),
     rotate:()=>{x++;return true;},apply:(s:PoseSnapshot)=>{x=s.bones[0];}};
   const room=mountPoseRoom({open:id=>(id==='m1'?solver:{keys:[]}) as unknown as PoseSolver,close:id=>{if(id==='m1')x=0;},dirty:()=>{}});
   try{

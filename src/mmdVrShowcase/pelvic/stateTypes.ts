@@ -1,8 +1,9 @@
 import type { PelvicCalibration, PelvicXYZ } from './contract';
+import type {RailTechnique} from './railTechnique';
 
 export const PELVIC_LIMITS = {
   offsetM:[-.5,.5], pitchDeg:[-90,90], yawDeg:[-180,180], radiusM:[.008,.08], lengthM:[.035,.20],
-  unitsPerMeter:[.01,10000], speedHz:[.1,2], stroke:[.05,1], position:[-.2,1], capacity:[1,100], dose:1,
+  unitsPerMeter:[.01,10000], speedHz:[.1,2], stroke:[.05,1], position:[-.2,1], replayRate:[.5,2], capacity:[1,100], dose:1,
 } as const;
 
 /** Relative game units, not physiological measurements. Each bottle has its own
@@ -19,19 +20,23 @@ export type PelvicProfile = {
   responseMorph?:string|null;
   fluid:Record<PelvicContainer,number>; capacity:Record<PelvicContainer,number>;
   overflow:number; drained:number; speedHz:number; stroke:number;
+  technique?:RailTechnique; replayRate?:number; replayLoop?:boolean;
 };
-export type PelvicPatch = Partial<Pick<PelvicProfile,'clothingClear'|'clothed'|'container'|'speedHz'|'stroke'|'showAdapter'>> & {
+export type PelvicPatch = Partial<Pick<PelvicProfile,'clothingClear'|'clothed'|'container'|'speedHz'|'stroke'|'showAdapter'|'replayRate'|'replayLoop'>> & {
   calibration?:Partial<PelvicCalibration>;
 };
 export type PelvicActive = {
   assetId:string; runtimeId:string; mode:PelvicMode; source:'screen'|'xr';
   token:number; running:boolean; awaitingWorld:boolean; position:number;
+  take?:{kind:'record';seconds:number;canSave:boolean}|{kind:'replay'};
 };
 /** UI evidence in calibrated local WORLD metres; +Z outward. Null sample means
  * no current geometry, never a nozzle implied by a slider or a saved depth. */
 export type PelvicSample = {
   depth:number; outletInside:boolean; outletVisible?:boolean; exteriorCovered?:boolean; aligned:boolean; atCervix:boolean;
   tip:PelvicXYZ; tail:PelvicXYZ; shaft?:readonly PelvicXYZ[]; angleDeg:number; radiusM:number; lengthM:number;
+  /** A measured, fully retracted stand, not the slider target or an admission flag. */
+  railHome?:boolean;
 };
 export type PelvicSupport = {
   runtimeId:string; kind:'bones'|'manual'|'missing'; anchorName:string;
