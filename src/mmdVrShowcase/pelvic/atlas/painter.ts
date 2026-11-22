@@ -1,6 +1,7 @@
 import {useLanguageStore} from '../../../languageStore';
 import {useBodyState} from '../../bodyState/store';
 import {BODY_DAY_SECONDS,sampleBody} from '../../bodyState/data';
+import {semenColor} from '../../play/semenAppearance';
 import {usePelvic} from '../store';
 import {drawPelvicSection,sectionLayout,SECTION_W as W,SECTION_H as H} from '../sectionPaint';
 import {organOutput} from './organOutput';
@@ -68,7 +69,7 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
         ctx.font='550 14px system-ui,sans-serif';ctx.fillStyle='#fbe2d8';ctx.textAlign='left';ctx.textBaseline='middle';
         const text=profile?`${state}   ·   ${zh?'深度':'Depth'} ${depth}`:body?`${zh?'周期第 ':'Cycle day '}${+(body.day+body.daySeconds/BODY_DAY_SECONDS).toFixed(1)}${zh?' 天':''}   ·   ${zh?'内膜':'Lining'} ${Math.round(100*(daily?.lining??0))}%`:state;
         ctx.strokeStyle='#674450';ctx.beginPath();ctx.moveTo(9,H-31.5);ctx.lineTo(W-9,H-31.5);ctx.stroke();ctx.fillText(text,10,H-15,profile?W*.60:W-20);
-        let right='';if(profile){right=`${fantasy?(zh?'虚构宫腔':'Fantasy'):(zh?'阴道':'Vaginal')} ${volume} / ${capacity}`;ctx.textAlign='right';ctx.fillStyle='#a0e0d0';ctx.fillText(right,W-10,H-15,W*.36);}
+        let right='';if(profile){right=`${fantasy?(zh?'宫腔精液':'Uterine semen'):(zh?'阴道精液':'Vaginal semen')} ${volume} / ${capacity}`;ctx.textAlign='right';ctx.fillStyle=semenColor;ctx.fillText(right,W-10,H-15,W*.38);}
         ctx.restore();publish(`${text}${right?' · '+right:''}`);
       }});
     }

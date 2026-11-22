@@ -57,7 +57,7 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:Source)
   notes.push(note(sourceText,!canAssign));
   if(obstruction)notes.push(note(obstruction==='garment'?l('衣物遮住入口。隐藏或移开衣物后重试。','Clothing covers the opening. Hide or move it before starting.'):
     l('无法验证遮挡。请隐藏相关衣物材质，再重试。','Coverage is unresolved. Hide the relevant clothing material and retry.'),true));
-  tabs.push(...(['tool','fit','fluid'] as const).map((t,i)=>key([l('道具','Rod'),l('校准','Fit'),l('液量','Fluid')][i],()=>setTab(t),{active:tab===t})));
+  tabs.push(...(['tool','fit','fluid'] as const).map((t,i)=>key([l('道具','Rod'),l('校准','Fit'),l('精液','Semen')][i],()=>setTab(t),{active:tab===t})));
   function assign(m:PelvicMode,label:string,h?:'left'|'right'){
     const current=mode===m&&(!h||hand===h);
     return key(label,()=>{if(!current)assignPelvic(assetId,m,source,h);},{active:current,disabled:!canAssign});
@@ -86,7 +86,7 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:Source)
       rows.push(field(l('往复频率','Cycle rate'),profile.speedHz,' Hz',lim.speedHz,.1,n=>patchPelvic(assetId,{speedHz:n})),
         field(l('支架行程上限','Stroke limit'),profile.stroke*100,'%',cmRange(lim.stroke),5,n=>patchPelvic(assetId,{stroke:n/100})),
         note(l('行程为滑轨指令；1 Hz 表示每秒往返一次。','Stroke is a rail command. 1 Hz is one round trip per second.')));
-    }else if(mode==='xrManual')rows.push(note(l('启动后收起面板。移动持棒手控制杆身，按握键释放一剂；剖面留在角色旁。','Start to close the panel. Move the holding hand to guide the rod. Squeeze the grip for one dose; the section stays beside the actor.')));
+    }else if(mode==='xrManual')rows.push(note(l('启动后收起面板。移动持棒手控制杆身，按一次侧握射出一份精液；剖面留在角色旁。','Start to close the panel. Move the holding hand to guide the rod. Squeeze once to release semen; the section stays beside the actor.')));
   }else if(tab==='fit'){
     rows.push(buttons(...(['offset','rotation','size','anchor'] as const).map((k,i)=>key([l('位置','Offset'),l('方向','Angle'),l('尺寸','Size'),l('适配','Rig')][i],()=>setFit(k),{active:k===fit||(k==='anchor'&&fit==='morph')}))));
     if(fit==='offset'){
@@ -125,15 +125,15 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:Source)
     }
   }else{
     const c=profile.container, fantasy=c==='fantasyUterine', empty=profile.fluid[c]<=0;
-    rows.push(buttons(key(l('阴道容器','Vaginal'),()=>patchPelvic(assetId,{container:'vaginal'}),{active:!fantasy}),
-      key(l('虚构宫腔','Fantasy uterus'),()=>patchPelvic(assetId,{container:'fantasyUterine'}),{active:fantasy})),
-      note(fantasy?l('宫腔储液为虚构玩法；道具仍限位在宫颈。','Uterine storage is fictional. The physical rod still stops at the cervix.'):
-        l('喷口在内时计入此容器，在外且可见时外喷；位置未验证时不释放。','An inside outlet fills this container. A visible outside outlet sprays out. An unverified position releases nothing.')),
-      field(l('游戏容量','Game capacity'),profile.capacity[c],l(' 单位',' u.'),lim.capacity,1,n=>setPelvicCapacity(assetId,n)),
-      buttons(key(l('释放 1 剂','Release 1 dose'),()=>requestPelvicDose(assetId),{disabled:!mode||!running||!hasSample||mode==='xrManual'})),
+    rows.push(buttons(key(l('阴道','Vagina'),()=>patchPelvic(assetId,{container:'vaginal'}),{active:!fantasy}),
+      key(l('宫腔','Uterus'),()=>patchPelvic(assetId,{container:'fantasyUterine'}),{active:fantasy})),
+      note(fantasy?l('精液计入宫腔；道具的行程仍止于宫颈。','Semen counts toward the uterine total. The rod still stops at the cervix.'):
+        l('喷口在内时，精液计入阴道；喷口在外且可见时，精液向外喷出。','An inside outlet adds semen to the vaginal total. A visible outside outlet sprays outward.')),
+      field(fantasy?l('宫腔容量','Uterine capacity'):l('阴道容量','Vaginal capacity'),profile.capacity[c],l(' 单位',' units'),lim.capacity,1,n=>setPelvicCapacity(assetId,n)),
+      buttons(key(l('射出精液','Release semen'),()=>requestPelvicDose(assetId),{disabled:!mode||!running||!hasSample||mode==='xrManual'})),
       buttons(key(l('排出 1 单位','Drain 1 unit'),()=>drainPelvic(assetId,1),{disabled:empty}),
-        key(l('清空此容器','Empty container'),()=>clearPelvicFluid(assetId),{disabled:empty,danger:!empty})),
-      note(l('每剂 1 游戏单位。喷口未确认或越限时，本次指令作废，不补喷。清空保留累计量；切换容器不转移液体。','One dose is one game unit. Unverified or past the stop: the command is spent without a later spray. Emptying keeps totals; switching containers keeps both balances.')));
+        key(l('清空精液','Clear semen'),()=>clearPelvicFluid(assetId),{disabled:empty,danger:!empty})),
+      note(l('每次 1 游戏单位。喷口未确认或越限时不射出，也不补发。切换部位不会转移精液。','Each release is one game unit. Unverified or past the stop: nothing is released or queued. Changing the selected site does not transfer semen.')));
   }
   return result;
 }

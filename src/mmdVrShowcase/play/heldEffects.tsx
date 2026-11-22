@@ -2,6 +2,7 @@ import { useImperativeHandle, useMemo, useRef } from 'react';
 import { DynamicDrawUsage, InstancedMesh, Mesh, Object3D, Vector3 } from 'three';
 import { markAt, POST_MARKS, POST_Z, stamp, useLunarCard } from './lunarCard';
 import type { FrameEffectProps, GripFrame } from './propView';
+import {semenColor} from './semenAppearance';
 
 export function StampAim({ref}:FrameEffectProps) {
   const mesh=useRef<Mesh>(null);
@@ -45,7 +46,7 @@ export function LiquidSpray({ref}:FrameEffectProps){
     if(count||batch.count){batch.count=count;batch.instanceMatrix.needsUpdate=true;}
   },[s]);
   return <instancedMesh name="play:liquid-spray" ref={mesh} args={[undefined,undefined,CAP]} count={0} frustumCulled={false} onUpdate={m=>m.instanceMatrix.setUsage(DynamicDrawUsage)}>
-    <sphereGeometry args={[1,8,6]}/><meshStandardMaterial color="#e3f3fa" roughness={.21} transparent opacity={.83} depthWrite={false}/>
+    <sphereGeometry args={[1,8,6]}/><meshStandardMaterial color={semenColor} roughness={.21} transparent opacity={.94} depthWrite={false}/>
   </instancedMesh>;
 }
 export function BubbleStream({ref}:FrameEffectProps) {

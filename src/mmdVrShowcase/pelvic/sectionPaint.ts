@@ -1,11 +1,12 @@
 import { rod, rodRadii } from './path';
+import {semenColor,semenFill,semenHighlight} from '../play/semenAppearance';
 import { plot, SECTION_H, SECTION_W, sectionEvidence, type Point, type SectionLayout, type Slice } from './sectionProjection';
 import type { PelvicProfile, PelvicSample } from './stateTypes';
 export { sectionLayout, SECTION_H, SECTION_W, type SectionAngle } from './sectionProjection';
 
 type Ctx = CanvasRenderingContext2D;
 type Evidence = ReturnType<typeof sectionEvidence>;
-const ink={paper:'#211722',pearl:'#fff1e9',muted:'#cfb9c2',rule:'#694957',gold:'#ebc68e',fluid:'#66e1ca',
+const ink={paper:'#211722',pearl:'#fff1e9',muted:'#cfb9c2',rule:'#694957',gold:'#ebc68e',fluid:semenColor,
   tip:'#90bcff',exterior:'#c7a5ff',warning:'#ffba9f'};
 export const fmtUnits=(v:number)=>String(+v.toFixed(2));
 const cm=(v:number)=>`${(100*v).toFixed(1)} cm`;
@@ -174,8 +175,8 @@ function background(ctx:Ctx,v:SectionLayout,zh:boolean){
 }
 
 function liquid(ctx:Ctx,shape:Path2D,y:number){
-  ctx.save();ctx.clip(shape);ctx.fillStyle='rgba(66,182,170,.88)';ctx.fillRect(0,y,SECTION_W,SECTION_H-y);
-  line(ctx,[{x:0,y},{x:SECTION_W,y}],ink.fluid,2);ctx.restore();
+  ctx.save();ctx.clip(shape);ctx.fillStyle=semenFill;ctx.fillRect(0,y,SECTION_W,SECTION_H-y);
+  line(ctx,[{x:0,y},{x:SECTION_W,y}],semenHighlight,2);ctx.restore();
 }
 function marker(ctx:Ctx,p:Point,state:Evidence['state'],r:number){
   if(state==='absent')return;
@@ -218,7 +219,7 @@ export function drawPelvicSection(ctx:Ctx,layout:SectionLayout,profile:PelvicPro
     state==='outside'?t('喷口在外','Outlet outside'):e.atCervix?t('越限 · 不释放','Past stop · no dose'):t('未确认 · 不释放','Unverified · no dose');
   const deg=Math.round(layout.yaw*180/Math.PI),view=deg===0?t('正面','Front'):deg===90?t('侧面','Side'):deg===38?t('斜前','Oblique'):`${deg}°`;
   const depth=e.depth===null?'—':cm(e.depth),angle=e.angle===null?'—':`${Math.round(e.angle)}°`,lat=e.lateral===null?'—':signedCm(e.lateral);
-  const vessel=fantasy?t('虚构宫腔液位','Fantasy uterine level'):t('阴道液位','Vaginal level');
+  const vessel=fantasy?t('宫腔精液量','Semen · uterus'):t('阴道精液量','Semen · vagina');
   ctx.save();ctx.scale(ctx.canvas.width/SECTION_W,ctx.canvas.height/SECTION_H);ctx.lineJoin=ctx.lineCap='round';
   const g=background(ctx,layout,zh);
   if(e.vaginal>0)liquid(ctx,g.canalLiquid,layout.levelY('canal',e.vaginal));if(e.uterine>0)liquid(ctx,g.uterus,layout.levelY('uterus',e.uterine));

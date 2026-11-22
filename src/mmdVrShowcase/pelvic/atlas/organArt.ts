@@ -1,5 +1,6 @@
 import { Vector3 } from 'three';
 import type { PelvicSample } from '../stateTypes';
+import {semenColor,semenRGB} from '../../play/semenAppearance';
 import type { PelvicXYZ } from '../contract';
 import { pelvicCenterline, projectDepth, tangent } from '../path';
 import { canalY, clamp, ENTRY, organMeshes, smooth, STOP, stride } from './model';
@@ -12,7 +13,7 @@ export interface OrganArtOptions {
   /** Selected balance / its OWN capacity. Optional second balance is vaginal. */
   fluid:number; fantasy:boolean; vaginalFluid?:number; sample?:PelvicSample|null;
 }
-export const organPigments={endometrium:'#f4b396',myometrium:'#d28177',ovary:'#e0c1a0',liquid:'#84c4be'} as const;
+export const organPigments={endometrium:'#f4b396',myometrium:'#d28177',ovary:'#e0c1a0',liquid:semenColor} as const;
 const {sin,cos,abs,PI,sqrt}=Math;
 const mix=(a:number,b:number,t:number)=>a+(b-a)*t;
 const sane=(x:number)=>Number.isFinite(x)?clamp(x):0;
@@ -93,7 +94,8 @@ function projectMesh(mesh:Mesh,out:Float32Array,l:Lens,o:OrganArtOptions,vag:boo
         // inferred flow, or retained fantasy balance in ordinary-mode uterus.
         const coverage=vag?smooth(.8,1.72,lum):smooth(.60,.92,lum);
         if(fill>0&&coverage>0){const wet=(1-smooth(level-.025,level+.025,z))*coverage;
-          const rim=clamp(1-abs(z-level)/.085)*wet;r=mix(r,113+72*rim,wet*.88);g=mix(g,191+38*rim,wet*.88);bl=mix(bl,184+40*rim,wet*.88);}
+          const rim=clamp(1-abs(z-level)/.085)*wet,alpha=wet*.96;
+          r=mix(r,semenRGB[0]+8*rim,alpha);g=mix(g,semenRGB[1]+9*rim,alpha);bl=mix(bl,semenRGB[2]+10*rim,alpha);}
       }
       out[j+3]=r*light+shine+edge*11;out[j+4]=g*(light-.017)+shine*.93+edge*7;out[j+5]=bl*(light+.015)+shine*.79+edge*13;
     }
