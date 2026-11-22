@@ -20,10 +20,10 @@ const parts=['breast','vulva','vagina','uterus'] as const;
 const presets=['front','oblique','side'] as const;
 const words={
   zh:{title:'身体观察',back:'返回角色',breast:'乳房',vulva:'外阴',vagina:'阴道',uterus:'子宫',part:'观察部位',angle:'观察角度',front:'正面',oblique:'斜面',side:'侧面',
-    freeze:'定格图像',play:'播放图像',drag:'横拖图面旋转',labels:'结构标注',cut:'剖面',source:'身体状态',standard:'默认示意',preview:'当前预览',saved:'角色设定',day:'周期日',
+    freeze:'定格图像',play:'播放图像',drag:'横拖图面旋转',labels:'结构标注',cut:'剖面',source:'数据来源',standard:'默认示意',preview:'当前预览',saved:'角色设定',day:'周期日',
     fullness:'饱满度',milk:'存量（左 / 右）',rod:'杆位',none:'无杆位采样',depth:'在内深度',vaginal:'阴道精液',uterine:'宫腔精液',unit:'游戏单位',lining:'内膜'},
   en:{title:'Body observation',back:'Back to actor',breast:'Breast',vulva:'Vulva',vagina:'Vagina',uterus:'Uterus',part:'Body part',angle:'View angle',front:'Front',oblique:'Oblique',side:'Side',
-    freeze:'Freeze figure',play:'Animate figure',drag:'Drag across the figure to rotate',labels:'Labels',cut:'Cutaway',source:'Body state',standard:'Default study',preview:'Current preview',saved:'Actor settings',day:'Cycle day',
+    freeze:'Freeze figure',play:'Animate figure',drag:'Drag across the figure to rotate',labels:'Labels',cut:'Cutaway',source:'Source',standard:'Default study',preview:'Current preview',saved:'Actor settings',day:'Cycle day',
     fullness:'Fullness',milk:'Stored (L / R)',rod:'Rod',none:'No rod sample',depth:'Inside depth',vaginal:'Vaginal semen',uterine:'Uterine semen',unit:'game u.',lining:'Lining'},
 };
 function useView({assetId,initialPart='breast'}:ObservationProps){

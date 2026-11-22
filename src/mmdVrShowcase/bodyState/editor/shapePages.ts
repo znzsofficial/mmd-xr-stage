@@ -1,9 +1,9 @@
 import {actions,destination,line,type Row} from '../controlRows';
 import {sampleBody} from '../data';
 import type {BodySupport} from '../store';
-import {action,atDay,milkFill,percent,type EditorControls} from './controls';
+import {action,percent,type EditorControls} from './controls';
 
-type ShapePage = 'chest'|'breast'|'fit'|'morphs'|'contact'|'sensitivity';
+type ShapePage = 'chest'|'fit'|'morphs'|'contact'|'sensitivity';
 type MorphBrowser = {page:number;setPage:(page:number)=>void};
 const morphsPerPage = 3;
 
@@ -20,22 +20,15 @@ export function shapeRows(page:ShapePage,ui:EditorControls,support:BodySupport|u
         if(!support)return l('正在检查角色能否改变胸型。','Checking the model’s shape controls.');
         if(missing)return l('之前的形态键已缺失，请重新选择。','The saved shape is missing. Choose another.');
         if(needsMorph)return names.length?l('先选择模型自带的胸型，角色才会变化。','Choose a model morph to change the actor’s shape.'):
-          l('这个模型不会变形，可在乳房观察里预览。','This model cannot deform. Use Breast view to preview.');
-        if(inDraft)return l(`原来 ${percent(sampleBody(base).fullness)} · 现在 ${percent(effective.fullness)}`,`Original ${percent(sampleBody(base).fullness)} · Now ${percent(effective.fullness)}`);
+          l('此模型只记录数值。示意图在角色的「身体观察」。','This model stores the value only. See Body observation for the figure.');
+        if(inDraft)return `${saved?l('已存','Saved'):l('默认','Default')} ${percent(sampleBody(base).fullness)} · ${l('预览','Preview')} ${percent(effective.fullness)}`;
         return saved?l(`角色当前外观：${percent(effective.fullness)}`,`Current shape on actor: ${percent(effective.fullness)}`):
           l('拖动滑杆，直接看角色的轮廓变化。','Drag the slider to see the change on the actor.');
       }
       return [field(l('胸部饱满度','Chest fullness'),'fullness',.05,percent),line(status()),
         ...(needsMorph&&(names.length||missing)?[actions(link('fit',l('选择模型胸型','Choose model morph')))]:[]),
-        destination(link('breast'),l('转动外观，或切换剖面','Rotate the figure or see inside')),
         destination(link('more'),l('调整按压反应，选择模型胸型','Adjust pressure response or choose a model morph'))];
     }
-    case 'breast':
-      return [{kind:'breast',caption:l('角色状态预览','Character preview'),detail:l('结构示意，非 PMX 扫描','Illustration, not a PMX scan'),
-        readings:[{label:l('当前饱满度','Current fullness'),value:percent(effective.fullness)}, {label:l('周期','Cycle'),value:day(atDay(p))},
-          ...(p.lactating?[{label:l('左侧充盈','Left fill'),value:milkFill(p.left)},{label:l('右侧充盈','Right fill'),value:milkFill(p.right)}]:
-            [{label:l('泌乳','Lactation'),value:l('关','Off')}])],
-        fullness:field(l('基础饱满度','Base fullness'),'fullness',.05,percent)}];
     case 'fit':
       return [{kind:'morph',label:l('用什么改变胸型','Shape control'),names,value:selected,none:bone,choose,
         browse:()=>{browser.setPage(Math.max(0,Math.floor(names.indexOf(selected??'')/morphsPerPage)));go('morphs');}},

@@ -235,8 +235,11 @@ export function recomputeEntryAnimation(entry: RuntimeEntry, work?: import('../r
   // Single layer: reuse original ThreeMmdAnimation wrapper when possible.
   if (body && !face && !camera && entry.bodyAnimation) {
     entry.appliedAnimation = entry.bodyAnimation;
-  } else if (face && !body && !camera && entry.faceAnimation) {
-    entry.appliedAnimation = entry.faceAnimation;
+  } else if (face && !body && !camera) {
+    // The native VMD byte path solves leg IK even for update({ik:false}).
+    // Evaluate the surviving face tracks without turning rest-pose IK back
+    // on; keep the original decoded VMD intact for a future body binding.
+    entry.appliedAnimation = wrapMergedAnimation({ ...face, bytes: new Uint8Array(0) });
   } else if (camera && !body && !face && entry.cameraAnimation) {
     entry.appliedAnimation = entry.cameraAnimation;
   } else {

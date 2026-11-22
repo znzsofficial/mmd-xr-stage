@@ -8,9 +8,9 @@ import { siliconeOutlet } from '../play/siliconeProfile';
 import { createPelvicSolver, pelvicRailMatrix } from './geometry';
 import {prepareFirstStand} from './firstStand';
 import {
-  advancePelvic, assignPelvic, clearPelvicFluid, clearPelvicSupport, consumePelvicDose, disablePelvic, drainPelvic,
+  advancePelvic, assignPelvic, cancelStrokeDose, clearPelvicFluid, clearPelvicSupport, consumePelvicDose, disablePelvic, drainPelvic,
   enablePelvic, endPelvic, interruptPelvic, nudgePelvic, patchPelvic, PELVIC_LIMITS, publishPelvicSample,
-  publishPelvicSupport, requestPelvicDose, setPelvicCapacity, setPelvicGarmentVisible, startPelvic, stopPelvic, usePelvic, type PelvicSupport,
+  publishPelvicSupport, requestPelvicDose, requestStrokeDose, setPelvicCapacity, setPelvicGarmentVisible, startPelvic, stopPelvic, usePelvic, type PelvicSupport,
 } from './store';
 
 const get=usePelvic.getState,bag=useBackpack.getState,play=useStagePlay.getState;
@@ -133,6 +133,33 @@ it('never substitutes another destination when the nozzle crosses or the player 
   reading(inside);expect(requestPelvicDose('a','vaginal')).toBe(true);expect(consumePelvicDose(t,external)).toBe('none');
   requestPelvicDose('a','vaginal');patchPelvic('a',{container:'fantasyUterine'});expect(requestPelvicDose('a','vaginal')).toBe(false);
   expect(consumePelvicDose(t,inside)).toBe('none');expect(get().byAsset.a.fluid).toEqual({vaginal:0,fantasyUterine:0});
+});
+
+it('distinguishes the actual current admission from a queued inward pass and never carries a dispatched dose past withdrawal',()=>{
+  opted();assignPelvic('a','standAuto','screen');startPelvic('a');const t=token(),ask=()=>requestStrokeDose('a',t,'vaginal');
+  const frame=(outlet:typeof inside,motion:'outside'|'withdraw'|'inside'|'enter')=>{advancePelvic(t,.015);return consumePelvicDose(t,{...outlet,motion});};
+  reading(inside);frame(external,'outside');expect(ask()).toBe(true);const first=get().strokeOrder!;expect(first.phase).toBe('waiting');
+  expect(ask()).toBe(false);expect(requestPelvicDose('a','external')).toBe(false);expect(cancelStrokeDose(first.id)).toBe(true);
+  expect(ask()).toBe(true);expect(cancelStrokeDose(first.id)).toBe(false);expect(frame(external,'outside')).toBe('none');
+  // Crossing the plane can precede the first physically usable nozzle by a frame.
+  expect(frame(occluded,'enter')).toBe('none');expect(frame(inside,'inside')).toBe('internal');expect(get().strokeOrder).toBeNull();
+  reading(external);expect(ask()).toBe(true);expect(get().strokeOrder?.phase).toBe('dispatched');
+  expect(frame(external,'withdraw')).toBe('none');expect(get().strokeReceipt).toBe('missed');expect(frame(inside,'enter')).toBe('none');
+  expect(get().byAsset.a.fluid).toEqual({vaginal:1,fantasyUterine:0});
+});
+
+it.each(['missed pass','deadline','slowed motor'] as const)('retires a single automatic pass at its %s, even when the HUD keeps reporting inside',cause=>{
+  opted();assignPelvic('a','standAuto','screen');patchPelvic('a',{speedHz:1});startPelvic('a');const t=token();
+  advancePelvic(t,.01);reading(inside);expect(requestStrokeDose('a',t,'vaginal')).toBe(true);const q=get().strokeOrder!;
+  if(cause==='deadline'){
+    const clock=vi.spyOn(performance,'now').mockReturnValue(q.deadline+1);
+    try{expect(consumePelvicDose(t,{...inside,motion:'enter'})).toBe('none');}finally{clock.mockRestore();}
+  }else{
+    if(cause==='slowed motor')patchPelvic('a',{speedHz:.1});
+    for(let i=0;i<150&&get().strokeOrder;i++){advancePelvic(t,.01);expect(consumePelvicDose(t,{...external,motion:'outside'})).toBe('none');}
+  }
+  expect(get().strokeReceipt).toBe(cause==='missed pass'?'missed':'expired');expect(get().strokeOrder).toBeNull();
+  advancePelvic(t,.01);expect(consumePelvicDose(t,{...inside,motion:'enter'})).toBe('none');expect(get().byAsset.a.fluid.vaginal).toBe(0);
 });
 
 it('consumes but never dispenses an unverified or over-stop trigger, including on two subsequent confirmed frames',()=>{

@@ -2,11 +2,14 @@ import { useEffect, useLayoutEffect, useMemo, useRef, type CSSProperties } from 
 import { createPanelTexture } from '../../shared/panelTexture';
 import type { PelvicActor } from './Section';
 import { AtlasHudPanel, AtlasScreenPanel } from './atlas/AtlasPanel';
+import { LivePelvicHudView, LivePelvicScreenView } from '../observation/LivePelvicView';
+import {StrokeHudReadout,StrokeScreenReadout,strokeReadoutHeight} from './StrokeReadout';
 import { PrivateButton, PrivateLine, PrivateSheet, PrivateSlider } from './HudPrivateControls';
 import { PRIVATE_COLORS } from './palette';
 import { usePelvicControls, type PelvicNavigation } from './usePelvicControls';
 import type {Row,Key} from './controlRows';
 import './controls.css';
+import './workbench.css';
 
 export { PelvicLiveSection } from './Section';
 const formatted=(v:number,unit:string)=>`${+v.toFixed(2)}${unit}`;
@@ -16,7 +19,8 @@ function ScreenKeys({items,blocked,stop=false}:{items:Key[];blocked:boolean;stop
   return <div className="pelvic-keys">{items.map(k=><button type="button" className="pelvic-key" key={k.id??k.label} disabled={blocked||k.disabled}
     aria-pressed={k.active} data-primary={k.primary||undefined} data-danger={k.danger||undefined} data-stop={stop||undefined} onClick={k.press}><span>{k.label}</span></button>)}</div>;
 }
-function ScreenRow({row,blocked}:{row:Row;blocked:boolean}) {
+function ScreenRow({row,blocked,actor}:{row:Row;blocked:boolean;actor:PelvicActor}) {
+  if(row.kind==='strokeReading')return <StrokeScreenReadout {...actor}/>;
   if(row.kind==='buttons')return <ScreenKeys items={row.keys} blocked={blocked}/>;
   if(row.kind==='note')return <p className="pelvic-note" data-warn={row.warn||undefined}>{row.text}</p>;
   if(row.kind==='choose')return <label className="pelvic-field">{row.label}<select value={row.chosen??''} aria-label={row.label}
@@ -36,11 +40,14 @@ function ScreenEditor({assetId,runtimeId,onBack,...navigation}:ScreenProps) {
   },[]);
   return <div className="pelvic-screen" ref={page} role="group" aria-label={vm.title}>
     <header className="pelvic-heading"><h3>{vm.title}</h3>{vm.stop&&<ScreenKeys items={[vm.stop]} blocked={vm.blocked} stop/>}{onBack&&<button type="button" className="pelvic-key pelvic-back" onClick={onBack}>{vm.back}</button>}</header>
-    <div className="pelvic-body" data-chart={vm.chart}>
-      {vm.enabled&&<nav className="pelvic-nav" aria-label={vm.title}><ScreenKeys items={vm.tabs} blocked={false}/></nav>}
-      <p className="pelvic-note pelvic-state" data-warn={vm.warn||undefined} role="status">{vm.status}</p>
-      {vm.chart&&<div className="pelvic-plate"><AtlasScreenPanel assetId={assetId} runtimeId={runtimeId}/></div>}
-      <div className="pelvic-fields">{vm.rows.map((row,i)=><ScreenRow key={`${row.kind}:${i}`} row={row} blocked={vm.blocked}/>)}</div>
+    <div className="pelvic-body" data-chart={vm.chart} data-live={vm.live}>
+      {vm.live?<div className="pelvic-live-plate"><LivePelvicScreenView assetId={assetId} runtimeId={runtimeId}/></div>:
+        vm.chart&&<div className="pelvic-plate"><AtlasScreenPanel assetId={assetId} runtimeId={runtimeId}/></div>}
+      <div className="pelvic-operation">
+        {vm.enabled&&<nav className="pelvic-nav" aria-label={vm.title}><ScreenKeys items={vm.tabs} blocked={false}/></nav>}
+        {!vm.motorReadout&&<p className="pelvic-note pelvic-state" data-warn={vm.warn||undefined} role="status">{vm.status}</p>}
+        <div className="pelvic-fields">{vm.rows.map((row,i)=><ScreenRow key={`${row.kind}:${i}`} row={row} blocked={vm.blocked} actor={{assetId,runtimeId}}/>)}</div>
+      </div>
     </div>
   </div>;
 }
@@ -50,7 +57,7 @@ export function PelvicScreenControls(props:ScreenProps) {
 
 // The body sheet is read in front of the selected actor. Put the moving
 // section beside the controls, so the stop button never moves with a sample.
-const panelW=2.02, chartW=1.04, editorW=.83, leftX=-.44, rightX=.545, top=.69;
+const panelW=2.46, chartW=1.03, editorW=1.28, leftX=-.666, rightX=.54, top=.69;
 const chartH=chartW*1.30;
 const spacing=.03, rowGap=.025, noteFont=26, density=560;
 function HudKeys({items,w,blocked,tabs=false,stop=false}:{items:Key[];w:number;blocked:boolean;tabs?:boolean;stop?:boolean}) {
@@ -86,15 +93,15 @@ function HudNote({lines,w,warn}:{lines:string[];w:number;warn?:boolean}) {
 type HudRow={row:Row;h:number;lines:string[]};
 function measureRows(rows:Row[],w:number):HudRow[] {
   return rows.map(row=>{const lines=row.kind==='note'?noteLines(row.text,w):[];return {row,lines,
-    h:row.kind==='buttons'?.135:row.kind==='field'?.226:(lines.length*35+5)/density};});
+    h:row.kind==='buttons'?.135:row.kind==='field'?.226:row.kind==='strokeReading'?strokeReadoutHeight:(lines.length*35+5)/density};});
 }
-function HudColumn({items,from,w,blocked}:{items:HudRow[];from:number;w:number;blocked:boolean}) {
+function HudColumn({items,from,w,blocked,actor}:{items:HudRow[];from:number;w:number;blocked:boolean;actor:PelvicActor}) {
   let y=from;
   return <>{items.map(({row,h,lines},i)=>{
     const center=y-h/2;y-=h+rowGap;
     if(row.kind==='choose')return null; // XR uses the paged actor morph browser instead.
     return <group position-y={center} key={`${i}:${row.kind}`}>
-      {row.kind==='note'?<HudNote lines={lines} w={w} warn={row.warn}/>:row.kind==='buttons'?<HudKeys items={row.keys} blocked={blocked} w={w}/>:
+      {row.kind==='strokeReading'?<StrokeHudReadout {...actor} width={w}/>:row.kind==='note'?<HudNote lines={lines} w={w} warn={row.warn}/>:row.kind==='buttons'?<HudKeys items={row.keys} blocked={blocked} w={w}/>:
         <><PrivateLine position={[0,.069,0]} width={w} text={row.label} value={formatted(row.value,row.unit)}/>
           <PrivateSlider position={[0,-.046,0]} width={w-.375} value={(row.value-row.range[0])/(row.range[1]-row.range[0])} disabled={blocked||row.disabled}
             onChange={v=>row.change(+(row.range[0]+Math.round(v*(row.range[1]-row.range[0])/row.step)*row.step).toFixed(4))}/>
@@ -105,27 +112,29 @@ function HudColumn({items,from,w,blocked}:{items:HudRow[];from:number;w:number;b
   })}</>;
 }
 function HudEditor({assetId,runtimeId,onBack,...navigation}:HudProps) {
-  const vm=usePelvicControls({assetId,runtimeId},'xr',navigation), width=vm.chart?panelW:1.34;
-  const cw=vm.chart?editorW:width-.1;
+  const vm=usePelvicControls({assetId,runtimeId},'xr',navigation), split=vm.chart||vm.live,width=split?panelW:1.34;
+  const cw=split?editorW:width-.1;
   // Note wrapping must not allocate a measurement canvas on each sampling or
   // slider tick; rows only need new metrics when their content/layout changes.
   const rowKey=vm.rows.map(r=>r.kind==='note'?r.text:r.kind).join('|');
   const metrics=useMemo(()=>measureRows(vm.rows,cw),[rowKey,cw]);
-  const statusLines=useMemo(()=>noteLines(vm.status,cw),[vm.status,cw]);
+  const statusLines=useMemo(()=>vm.motorReadout?[]:noteLines(vm.status,cw),[vm.motorReadout,vm.status,cw]);
   const rows=metrics.map((m,i)=>({...m,row:vm.rows[i]}));
-  const contentTop=vm.enabled?top-.365:top-.21,stopH=vm.stop?.label ? .135+rowGap : 0,statusH=(statusLines.length*35+5)/density;
+  const plateTop=top-.21,contentTop=vm.enabled?top-.365:plateTop,stopH=vm.stop?.label ? .135+rowGap : 0;
+  const statusH=vm.motorReadout?0:((vm.live?Math.max(3,statusLines.length):statusLines.length)*35+5)/density;
   const columnHeight=(a:HudRow[])=>a.reduce((sum,r)=>sum+r.h+rowGap,0);
-  const h=top-contentTop+Math.max(stopH+statusH+rowGap+columnHeight(rows),vm.chart?chartH:0)+.036;
+  const h=Math.max(top-contentTop+stopH+statusH+rowGap+columnHeight(rows),top-plateTop+(vm.live?1.36:vm.chart?chartH:0))+.036;
   return <group name="pelvic:controls" pointerEventsOrder={1} pointerEventsType={{allow:['ray']}}>
     <group position-y={top-h/2}><PrivateSheet size={[width,h]}/></group>
     <PrivateLine position={[-.20,top-.087,0]} width={width-.51} title text={vm.title}/>
     <PrivateButton position={[width/2-.218,top-.087,0]} size={[.337,.135]} label={vm.back} variant="quiet" onPress={onBack}/>
-    {vm.enabled&&<group position-y={top-.253}><HudKeys items={vm.tabs} blocked={false} w={width-.1} tabs/></group>}
-    {vm.chart&&<group position={[leftX,contentTop-chartH/2,0]}><AtlasHudPanel assetId={assetId} runtimeId={runtimeId} widthM={chartW}/></group>}
-    <group position-x={vm.chart?rightX:0}>
+    {vm.enabled&&<group position={[split?rightX:0,top-.253,0]}><HudKeys items={vm.tabs} blocked={false} w={cw} tabs/></group>}
+    {vm.live?<group position={[leftX,plateTop-1.36/2,0]}><LivePelvicHudView assetId={assetId} runtimeId={runtimeId} widthM={chartW}/></group>:
+      vm.chart&&<group position={[leftX,plateTop-chartH/2,0]}><AtlasHudPanel assetId={assetId} runtimeId={runtimeId} widthM={chartW}/></group>}
+    <group position-x={split?rightX:0}>
       {vm.stop&&<group position-y={contentTop-.0675}><HudKeys items={[vm.stop]} w={cw} blocked={vm.blocked} stop/></group>}
-      <group position-y={contentTop-stopH-statusH/2}><HudNote lines={statusLines} w={cw} warn={vm.warn}/></group>
-      <HudColumn items={rows} from={contentTop-stopH-statusH-rowGap} w={cw} blocked={vm.blocked}/>
+      {!vm.motorReadout&&<group position-y={contentTop-stopH-statusH/2}><HudNote lines={statusLines} w={cw} warn={vm.warn}/></group>}
+      <HudColumn items={rows} from={contentTop-stopH-statusH-rowGap} w={cw} blocked={vm.blocked} actor={{assetId,runtimeId}}/>
     </group>
   </group>;
 }

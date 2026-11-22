@@ -99,7 +99,7 @@ export function advanceLiveBodies(ids:Iterable<string>, seconds:number) {
   const s=useBodyState.getState(); let byAsset=s.byAsset,draft=s.draft;
   for(const id of ids){
     if(draft?.assetId===id){
-      const value=advanceBody(draft.value,seconds); if(value!==draft.value){clockValues.add(value);draft={assetId:id,value};}
+      const value=advanceBody(draft.value,seconds,'preview'); if(value!==draft.value){clockValues.add(value);draft={assetId:id,value};}
     }else if(byAsset[id]){
       const value=advanceBody(byAsset[id],seconds);
       if(value!==byAsset[id]){clockValues.add(value);if(byAsset===s.byAsset)byAsset={...byAsset}; byAsset[id]=value;}

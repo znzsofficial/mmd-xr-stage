@@ -114,7 +114,9 @@ export function mountPoseRoom(host:Room){
   });
   const stopBag=useBackpack.subscribe((b,p)=>{
     if(room!==host)return;
-    const gone=(asset:string,id:string)=>b.busy||b.draft||!b.live[asset]?.visible||b.live[asset].runtimeId!==id||b.entries!==p.entries&&!b.entries.some(e=>e.id===asset);
+    // Clearing a different actor's slot neither restarts the clock nor rebinds this rig.
+    const unbinding=b.command?.type==='motion' && !b.command.file ? b.command.runtimeId : null;
+    const gone=(asset:string,id:string)=>b.busy&&(!unbinding||unbinding===id)||b.draft||!b.live[asset]?.visible||b.live[asset].runtimeId!==id||b.entries!==p.entries&&!b.entries.some(e=>e.id===asset);
     if(suspended&&gone(suspended.asset,suspended.id))suspended=null;
     if(suspended&&b.selected!==p.selected&&b.selected!==suspended.asset)suspended.editing=false;
     if(!active)return;

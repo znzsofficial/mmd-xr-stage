@@ -3,6 +3,7 @@ import {
   syncMmdSpecularDirection,
   ThreeMmdLoader,
   type MmdAnimation,
+  type ThreeMmdAnimation,
   type ThreeMmdModel,
 } from "@yohawing/three-mmd-loader";
 import type { MmdPhysicsBackend } from "@yohawing/three-mmd-loader/physics";
@@ -121,6 +122,7 @@ export type MmdRuntimeHandle = {
   /** When true, update() will not overwrite root TRS from entry.transform (gizmo drag). */
   setModelGizmoLock: (id: string, locked: boolean) => void;
   loadMotion: (file: File, slot?: MmdMotionSlot, modelId?: string | null, isStale?: () => boolean, work?: import('../roomRestoreTiming').RestoreMotionWork) => Promise<void>;
+  clearMotion: (modelId: string, slot: MmdMotionSlot) => void;
   setMorphWeight: (modelId: string, morphName: string, weight: number) => void;
   setMaterialVisible: (modelId: string, materialName: string, visible: boolean) => void;
   setMaterialOverride: (modelId: string, materialName: string, patch: Partial<MaterialOverride>) => void;
@@ -145,6 +147,7 @@ export type MmdRuntimeHandle = {
 };
 
 type RuntimeEntryWithPhysics = RuntimeEntry & {
+  motionEpoch: Record<MmdMotionSlot, number>;
   editor?:PoseSolver;
   chest?:ReturnType<typeof fitChestCompression>;
   bodyDisplay?:ReturnType<typeof createBodyDisplay>;
@@ -182,6 +185,20 @@ function restoreBindPose(entry: RuntimeEntryWithPhysics) {
   mesh.morphTargetInfluences?.fill(0);
   for (const body of mesh.userData.mmdMorphSplitBodyMeshes ?? []) body.morphTargetInfluences?.fill(0);
   root.updateMatrixWorld(true);
+}
+
+function bindNoMotion(entry: RuntimeEntryWithPhysics) {
+  if (entry.physicsBackend) {
+    restoreBindPose(entry);
+    bindStaticMmdPhysicsRuntime(entry.model);
+  } else {
+    const evaluator = entry.model.runtime;
+    evaluator.clearAnimation();
+    // The native adapter stays attached to this mesh after its first VMD.
+    // Consume its dirty rest-IK result before restoring the cold, unposed PMX.
+    evaluator.resetPose();
+    restoreBindPose(entry);
+  }
 }
 
 // Rebinding or reseeding discards display history; ordinary frames keep it.
@@ -387,6 +404,33 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
     lastPhysicsSeconds.delete(id);
   }
 
+  function commitMotion(entry: RuntimeEntryWithPhysics, slot: MmdMotionSlot, file: File | null, animation: ThreeMmdAnimation | null, work?: import('../roomRestoreTiming').RestoreMotionWork) {
+    endPose(entry.id);
+    const candidate = { ...entry };
+    candidate[`${slot}Animation`] = animation;
+    candidate[`${slot}MotionName`] = file?.name ?? null;
+    candidate[`${slot}MotionFile`] = file;
+    clearPoseForRebind(entry);
+    // A composed clip may allocate a fresh parsed-track evaluator, which
+    // captures its rest transforms from the mesh at setAnimation time.
+    restoreBindPose(entry);
+    restoreDraws(entry.model.mesh);
+    try {
+      recomputeEntryAnimation(candidate, work);
+      if (!candidate.appliedAnimation) bindNoMotion(entry);
+    } catch (error) {
+      restoreBindPose(entry);
+      if (entry.appliedAnimation) entry.model.setAnimation(entry.appliedAnimation);
+      else bindNoMotion(entry);
+      throw error;
+    } finally {
+      presentDraws(entry.model.mesh);
+      lastPhysicsSeconds.delete(entry.id);
+    }
+    Object.assign(entry, candidate);
+    recomputeGlobal();
+  }
+
   function removeEntry(id: string) {
     const entry = entries.get(id);
     if (!entry) return;
@@ -560,6 +604,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       id,
       name: modelFile.name,
       model,
+      motionEpoch: { body: 0, face: 0, camera: 0 },
       bodyAnimation: null,
       faceAnimation: null,
       cameraAnimation: null,
@@ -911,7 +956,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       if (!id) throw new Error("No model selected");
       const entry = entries.get(id);
       if (!entry) throw new Error("Model not found");
-      endPose(id);
+      const epoch = ++entry.motionEpoch[slot];
       const at = work ? performance.now() : 0;
       const request = options.motionCache?.acquire(file, slot);
       if (work) {
@@ -922,26 +967,16 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       try { animation = await (request?.promise ?? new ThreeMmdLoader().loadAnimation(file)); }
       finally { if (work) work.loadWallMs = performance.now() - at; }
       assertActive();
-      if (entries.get(id) !== entry || isStale?.()) throw new DOMException("MMD model changed", "AbortError");
-      // Validate/merge on a candidate. A malformed VMD (or failed bind) must
-      // not change the exportable files, duration or the previous motion.
-      const candidate = { ...entry };
-      candidate[`${slot}Animation`] = animation;
-      candidate[`${slot}MotionName`] = file.name;
-      candidate[`${slot}MotionFile`] = file;
-      clearPoseForRebind(entry);
-      try {
-        recomputeEntryAnimation(candidate, work);
-      } catch (error) {
-        if (entry.appliedAnimation) entry.model.setAnimation(entry.appliedAnimation);
-        else if (entry.physicsBackend) bindStaticMmdPhysicsRuntime(entry.model);
-        throw error;
-      }
-      Object.assign(entry, candidate);
+      if (entries.get(id) !== entry || epoch !== entry.motionEpoch[slot] || isStale?.()) throw new DOMException("MMD model changed", "AbortError");
+      commitMotion(entry, slot, file, animation, work);
       request?.bound(animation);
-      // setAnimation resets physics state; clear clock so next step is "seeking".
-      lastPhysicsSeconds.delete(entry.id);
-      recomputeGlobal();
+    },
+    clearMotion(modelId, slot) {
+      assertActive();
+      const entry = entries.get(modelId);
+      if (!entry) throw new Error("Model not found");
+      ++entry.motionEpoch[slot];
+      if (entry[`${slot}Animation`]) commitMotion(entry, slot, null, null);
     },
     setMorphWeight(modelId, morphName, weight) {
       const entry = entries.get(modelId);

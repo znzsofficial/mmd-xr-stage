@@ -163,7 +163,7 @@ export function mountPelvicRig(o:Options):PelvicRigHandle&{dispose:()=>void}{
           // a fresh token inside) never admits a new contact on a long frame.
           if(!tracked||rebound||!validStand()||currentRoomToken()!==token||bag.selected&&bag.selected!==a.assetId||
              typeof document!=='undefined'&&document.hidden||!hold.matches(f,piece)){interrupt();return;}
-           discardPelvicDoses(token);
+           discardPelvicDoses(token,true);
            if(a.take?.kind==='record')presentRailTechnique(token,delta,null);
            if(!exposed){b.port.draw(f,false,bag.selected===a.assetId);
              if(state.sample?.outletVisible)publishPelvicSample(token,{...state.sample,outletVisible:false,exteriorCovered:true});
@@ -198,6 +198,7 @@ export function mountPelvicRig(o:Options):PelvicRigHandle&{dispose:()=>void}{
       const amount=b.port.draw(f,exposed&&profile.showAdapter,bag.selected===a.assetId,exposed?contact:undefined);
       if(amount>0)aperture={assetId:a.assetId,runtimeId:a.runtimeId,amount};
       if(!publishPelvicSample(a.token,reading)){interrupt();return;}
+      if(a.mode==='standAuto'&&((!rebound&&!contact.continuous)||!reading.aligned||(!contact.outletInside&&contact.outletLocal.z < -1e-6)))discardPelvicDoses(a.token);
       if(contact.motion){response=b.responseFrame;response.motion=contact.motion;response.token=a.token;response.dt=delta;response.depthM=contact.depthM/f.scale;}
       if(!manual)hold.record(f,piece);
       observer.setFromMatrixPosition(f.world);hasObserver=true;

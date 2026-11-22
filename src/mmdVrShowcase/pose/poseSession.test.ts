@@ -54,6 +54,9 @@ it('holds a suspended editor on unmount and preserves that pose when the next ac
     expect(pose.begin('a','m1')).toBe(false); // old panel is no longer the selection
     expect(pose.begin('b','m2')).toBe(false);expect(x).toBe(1);
     expect(usePoseSession.getState()).toMatchObject({assetId:'a',editing:false,canUndo:true});
+    useBackpack.setState({bindings:{b:{face:new File([],'blink.vmd')}}});
+    bag.applyMotion('b',null,'face');bag.finishCommand(useBackpack.getState().command!);
+    expect(x).toBe(1);expect(usePoseSession.getState()).toMatchObject({assetId:'a',editing:false,canUndo:true});
     useBackpack.getState().select('a');expect(pose.begin('a','m1')).toBe(true);
     expect(pose.undo()).toBe(true);expect(x).toBe(0);pose.end();
     expect(useMmdVrStore.getState().playing).toBe(true);

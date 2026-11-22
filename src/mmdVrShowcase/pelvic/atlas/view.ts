@@ -5,7 +5,9 @@ import type {FoldStyle} from '../vulvaForm';
 // Camera and illustration transport are presentation only. They must never
 // call the contact solver, change a ledger or advance the character's day.
 export const atlasAngles = {front:0,oblique:38,side:90} as const;
-export type AtlasMode='entry'|'organ'|'measure';
+/** The fitting sheet only selects measurements. Body illustrations use
+ * their named, read-only scope independently of the instrument panel. */
+export type AtlasMode='entry'|'measure';
 export type AtlasView={mode:AtlasMode;degrees:number;motion:boolean;labels:boolean;foldStyle:FoldStyle};
 const initial:AtlasView={mode:'entry',degrees:atlasAngles.oblique,motion:true,labels:false,foldStyle:'natural'};
 const reduced:AtlasView={...initial,motion:false};

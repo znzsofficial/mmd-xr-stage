@@ -118,7 +118,7 @@ function loadedCharacter() {
   mesh.position.y = 1;
   mesh.bind(new THREE.Skeleton([]));
   const root = new THREE.Group(); root.add(mesh);
-  return { root, mesh, runtime: { dispose: vi.fn() }, setAnimation: vi.fn(), update: vi.fn(), diagnostics: {textures: []},
+  return { root, mesh, runtime: { dispose: vi.fn(), clearAnimation: vi.fn(), resetPose: vi.fn() }, setAnimation: vi.fn(), update: vi.fn(), diagnostics: {textures: []},
     outlineMeshes: [], renderOrderMeshes: [] } as unknown as ThreeMmdModel & { runtime: { dispose: () => void } };
 }
 function deferred<T>() {
@@ -322,6 +322,31 @@ it('reuses the last large body on room return, and releases it on library remova
     await act(async()=>syncBackpackFiles([a,vmd]));
     await act(async()=>store().setPrefs({scenery:'floor'}));expect(motion).toHaveBeenCalledTimes(2);
   } finally {xrRoomRestoreTiming.cancel();await exit();}
+});
+
+it('preserves the other actor and clock when unbinding, restores per-room choices, and reuses the imported motion', async () => {
+  const a=file('a.pmx'), b=file('b.pmx'), body=file('body.vmd'), face=file('face.vmd');
+  const {motion,place,exit,store,bag,id}=await setupBag([a,b,body,face],true);
+  const bind=(actor:File, clip:File|null, slot:'body'|'face')=>act(async()=>bag().applyMotion(id(actor),clip,slot));
+  const switchTo=(scenery:'floor'|'lawn')=>act(async()=>store().setPrefs({scenery}));
+  try {
+    await place(a);await place(b);await bind(a,body,'body');await bind(a,face,'face');await bind(b,body,'body');
+    const neighbor=bag().live[id(b)],clock=store().duration/2;
+    await act(async()=>{store().setPlaying(false);store().requestSeek(clock);});
+    await bind(a,null,'body');expect(getMmdVrClock().time).toBe(clock);expect(store().playing).toBe(false);
+    await act(async()=>store().setPlaying(true));await bind(a,null,'face');
+    expect(getMmdVrClock().time).toBe(clock);expect(store().playing).toBe(true);
+    expect(bag().live[id(b)].runtimeId).toBe(neighbor.runtimeId);expect(bag().bindings[id(b)].body).toBe(body);
+    await switchTo('lawn');await place(a);await bind(a,face,'face');await switchTo('floor');
+    expect(bag().bindings[id(a)]).toEqual({body:undefined,face:undefined});
+    expect(runtimeWith(a).exportProjectModels().find(m=>m.modelFile===a)).toMatchObject({bodyMotionFile:null,faceMotionFile:null});
+    await bind(b,null,'body');expect(getMmdVrClock()).toMatchObject({time:0,duration:0});expect(store().playing).toBe(false);
+    expect(bag().layouts.floor).toMatchObject({time:0,playing:false});expect(bag().files).toContain(body);
+    await bind(b,body,'body');expect(store().playing).toBe(true);expect(motion).toHaveBeenCalledTimes(2);
+    await switchTo('lawn');expect(bag().bindings[id(a)].face).toBe(face);expect(bag().bindings[id(a)].body).toBeUndefined();
+    await bind(a,null,'face');
+  } finally {await exit();}
+  expect(store().savedStage).toMatchObject({scenery:'lawn',time:0,playing:false,assets:[{bodyMotionFile:null,faceMotionFile:null}]});
 });
 
 it('arms idle Bullet only after the next frame of a successful fresh manual character placement', async () => {

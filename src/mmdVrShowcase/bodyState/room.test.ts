@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { clearBackpack, useBackpack } from '../backpack';
 import { createBodyRoom } from './room';
 import type { BodyProfile } from './data';
-import { beginBodyPreview, cancelBodyPreview, commitBodyPreview, debitActorMilk, disableBodyState, drainBodySide, inspectBody, patchBodyPreview, setActorMilk, stepBodyDay, useBodyState, type BodySupport } from './store';
+import { beginBodyPreview, cancelBodyPreview, commitBodyPreview, debitActorMilk, disableBodyState, inspectBody, patchBodyPreview, setActorMilk, stepBodyDay, useBodyState, type BodySupport } from './store';
 
 const live=(runtimeId:string,visible=true)=>({runtimeId,visible,position:[0,0,0] as [number,number,number]});
 const unsupported:BodySupport={bones:false,sides:{left:false,right:false},morphs:[],clothing:'authored-only'};
@@ -45,11 +45,11 @@ it('targets only an explicitly enabled live adult actor; preview, elapsed stores
     expect(beginBodyPreview('assetA',true)).toBe(true);
     expect(state().support.assetA).toMatchObject({runtimeId:'rt-1',morphs:[],bones:false});
     patchBodyPreview('assetA',{day:9,lactating:true,left:.3,right:.7,refillSeconds:20});
-    drainBodySide('assetA','left',.2);room.advance(1);
-    expect(state().draft?.value.left).toBeCloseTo(.15);expect(state().draft?.value.right).toBeCloseTo(.75);
-    expect(state().byAsset.assetA).toBeUndefined();commitBodyPreview('assetA');
+    room.advance(1);expect(state().draft?.value).toMatchObject({left:.3,right:.7});
+    expect(state().byAsset.assetA).toBeUndefined();commitBodyPreview('assetA');room.advance(1);
     const committed=state().byAsset.assetA;expect(committed).toMatchObject({day:9,locked:true});
-    expect(beginBodyPreview('assetA')).toBe(true);stepBodyDay('assetA');drainBodySide('assetA','right');room.advance(.5);
+    expect(committed.left).toBeCloseTo(.35);expect(committed.right).toBeCloseTo(.75);
+    expect(beginBodyPreview('assetA')).toBe(true);stepBodyDay('assetA');patchBodyPreview('assetA',{right:.4});room.advance(.5);
     expect(state().byAsset.assetA).toBe(committed);expect(state().draft?.value.day).toBe(10);
     expect(beginBodyPreview('assetB',true)).toBe(false);useBackpack.getState().select('assetB');expect(state().draft).toBeNull();
     expect(beginBodyPreview('assetB',true)).toBe(true);commitBodyPreview('assetA');patchBodyPreview('assetA',{day:18}); // stale callbacks

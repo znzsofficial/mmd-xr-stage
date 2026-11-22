@@ -3,14 +3,17 @@ import { useBackpack } from '../backpack';
 import { useHudWorldInput } from '../components/hudWorldInput';
 import { useMmdVrStore } from '../mmdVrStore';
 import { useStagePlay, type Hand } from '../play/stagePlay';
-import { defaultPelvicCalibration, type PelvicCalibration, type PelvicContact, type PelvicXYZ } from './contract';
-import { canStartAtOpening, PELVIC_LIMITS as limits, type PelvicActive, type PelvicDoseTarget, type PelvicMode, type PelvicPatch, type PelvicProfile, type PelvicSample, type PelvicSupport } from './stateTypes';
+import { defaultPelvicCalibration, type ContactMotion, type PelvicCalibration, type PelvicContact, type PelvicXYZ } from './contract';
+import { canStartAtOpening, PELVIC_LIMITS as limits, type PelvicActive, type PelvicContainer, type PelvicDoseTarget, type PelvicMode, type PelvicPatch, type PelvicProfile, type PelvicSample, type PelvicSupport } from './stateTypes';
 import {createRailRecorder,createRailReplay} from './railTechnique';
 
 export * from './stateTypes';
 
-type State = { byAsset:Record<string,PelvicProfile>; active:PelvicActive|null; sample:PelvicSample|null; parkedSample:PelvicSample|null; support:Record<string,PelvicSupport> };
-export const usePelvic = create<State>(()=>({byAsset:{},active:null,sample:null,parkedSample:null,support:{}}));
+type StrokeOrder={id:number;token:number;target:PelvicContainer;phase:'waiting'|'dispatched';deadline:number;driveDeadline:number;lastEnd:number};
+type Receipt='delivered'|'cancelled'|'missed'|'expired';
+type State = { byAsset:Record<string,PelvicProfile>; active:PelvicActive|null; sample:PelvicSample|null; parkedSample:PelvicSample|null; support:Record<string,PelvicSupport>;
+  strokeOrder:StrokeOrder|null;strokeReceipt:Receipt|null };
+export const usePelvic = create<State>(()=>({byAsset:{},active:null,sample:null,parkedSample:null,support:{},strokeOrder:null,strokeReceipt:null}));
 const state=usePelvic.getState;
 const outside=limits.position[0];
 let sequence=0;
@@ -18,6 +21,8 @@ let sequence=0;
 // copy with measured geometry, never a notification per controller frame.
 let position:number=outside, direction=1, doseCount=0, publishIn=0, seed=true, dispensed=false;
 let doseTarget:PelvicDoseTarget='vaginal';
+let lastInside=false,entering=false,driveSeconds=0,forwardEnds=0;
+function settleOrder(receipt:Receipt){if(state().strokeOrder)usePelvic.setState({strokeOrder:null,strokeReceipt:receipt});}
 let recorder:ReturnType<typeof createRailRecorder>|null=null,replay:ReturnType<typeof createRailReplay>|null=null;
 const clamp=(x:number,[lo,hi]:readonly [number,number])=>Math.min(hi,Math.max(lo,x));
 function limited(n:number|undefined, fallback:number, range:readonly [number,number]) {
@@ -70,12 +75,14 @@ export function patchPelvic(assetId:string,patch:PelvicPatch){
   const geometryChanged=!!patch.calibration||p.clothingClear!==clothingClear||!!p.clothed!==clothed;
   const active=state().active;
   if(geometryChanged&&active?.assetId===assetId)park(active);
-  if(patch.container&&patch.container!==p.container&&active?.assetId===assetId)doseCount=0;
-  writeProfile(assetId,{...p,calibration:patch.calibration?calibrate(p.calibration,patch.calibration):p.calibration,
+  const targetChanged=!!patch.container&&patch.container!==p.container&&active?.assetId===assetId;
+  if(targetChanged)doseCount=0;
+  const next:PelvicProfile={...p,calibration:patch.calibration?calibrate(p.calibration,patch.calibration):p.calibration,
     clothingClear,clothed,showAdapter:patch.showAdapter??p.showAdapter,
     container:patch.container==='vaginal'||patch.container==='fantasyUterine'?patch.container:p.container,
     speedHz:limited(patch.speedHz,p.speedHz,limits.speedHz),stroke:limited(patch.stroke,p.stroke,limits.stroke),
-    replayRate:limited(patch.replayRate,p.replayRate??1,limits.replayRate),replayLoop:patch.replayLoop??p.replayLoop});
+    replayRate:limited(patch.replayRate,p.replayRate??1,limits.replayRate),replayLoop:patch.replayLoop??p.replayLoop};
+  usePelvic.setState(s=>({byAsset:{...s.byAsset,[assetId]:next},...(targetChanged?{strokeOrder:null,strokeReceipt:s.strokeOrder?'cancelled' as const:null}:{})}));
   return true;
 }
 export function publishPelvicSupport(assetId:string,support:PelvicSupport){
@@ -83,6 +90,7 @@ export function publishPelvicSupport(assetId:string,support:PelvicSupport){
   if(!live?.visible||live.runtimeId!==support.runtimeId||state().support[assetId]===support)return;
   const a=state().active;
   if(a?.assetId===assetId&&(support.kind==='missing'||a.take&&!canStartAtOpening(state().byAsset[assetId],support)))interruptPelvic(a.token);
+  else if(a?.assetId===assetId&&a.mode==='standAuto'&&!canStartAtOpening(state().byAsset[assetId],support))discardPelvicDoses(a.token);
   usePelvic.setState(s=>({support:{...s.support,[assetId]:support}}));
 }
 /** Apply the ordinary actor material setting (including outlines/proxies).
@@ -105,14 +113,15 @@ function blocked(a:Pick<PelvicActive,'assetId'|'source'>){
   const bag=useBackpack.getState();
   return !ready(a.assetId)||!!bag.selected&&bag.selected!==a.assetId||a.source==='xr'&&useHudWorldInput.getState().blocked;
 }
-function resetDrive(){recorder=null;replay=null;doseCount=0;publishIn=0;seed=true;dispensed=false;}
+function resetDrive(){recorder=null;replay=null;doseCount=0;publishIn=0;seed=true;dispensed=false;lastInside=entering=false;driveSeconds=forwardEnds=0;}
 function park(a:PelvicActive){
   position=outside;direction=1;resetDrive();
-  usePelvic.setState({active:{...a,token:++sequence,running:false,awaitingWorld:false,position,take:undefined},sample:null,parkedSample:null});
+  usePelvic.setState({active:{...a,token:++sequence,running:false,awaitingWorld:false,position,take:undefined},sample:null,parkedSample:null,strokeOrder:null,
+    strokeReceipt:state().strokeOrder?.token===a.token?'cancelled':null});
 }
 function dropBinding(){
   position=outside;direction=1;resetDrive();
-  usePelvic.setState({active:null,sample:null,parkedSample:null});
+  usePelvic.setState({active:null,sample:null,parkedSample:null,strokeOrder:null,strokeReceipt:null});
 }
 /** Explicit command only; neither wearing, selecting, nor calibrating takes a toy. */
 export function assignPelvic(assetId:string,mode:PelvicMode,source:PelvicActive['source'],hand:Hand='right'){
@@ -132,7 +141,7 @@ export function startPelvic(assetId:string){
   const p=state().byAsset[assetId];if(!p||!canStartAtOpening(p,s))return false;
   const awaitingWorld=a.mode==='xrManual'&&!!useBackpack.getState().selected;
   doseCount=0;publishIn=0;
-  usePelvic.setState({active:{...a,token:++sequence,awaitingWorld,running:!awaitingWorld},sample:null,parkedSample:null});return true;
+  usePelvic.setState({active:{...a,token:++sequence,awaitingWorld,running:!awaitingWorld},sample:null,parkedSample:null,strokeOrder:null,strokeReceipt:null});return true;
 }
 export function interruptPelvic(token:number){
   const a=state().active;
@@ -150,7 +159,7 @@ export function stopPelvic(assetId:string){
   freeze(a);return true;
 }
 function freeze(a:PelvicActive,profile?:PelvicProfile){
-  resetDrive();usePelvic.setState(s=>({active:{...a,position,token:++sequence,running:false,awaitingWorld:false,take:undefined},sample:null,parkedSample:null,
+  resetDrive();usePelvic.setState(s=>({active:{...a,position,token:++sequence,running:false,awaitingWorld:false,take:undefined},sample:null,parkedSample:null,strokeOrder:null,strokeReceipt:s.strokeOrder?'cancelled':null,
     byAsset:profile?{...s.byAsset,[a.assetId]:profile}:s.byAsset}));
 }
 export function endPelvic(token:number){
@@ -185,13 +194,14 @@ export function advancePelvic(token:number,dtSeconds:number){
     position=Math.abs(delta)<=dt*2?a.position:position+Math.sign(delta)*dt*2;
   }else if(a.mode==='standAuto'){
     const {speedHz,stroke}=state().byAsset[a.assetId];
+    driveSeconds+=dtSeconds;
     // Reflect a continuous position at the two ends. A live stroke reduction
     // retracts at the motor speed rather than snapping to the new end point.
     const distance=dt*2*speedHz*(stroke-outside);
-    if(position>stroke){direction=-1;position=Math.max(stroke,position-distance);}
+    if(position>stroke){if(direction===1)forwardEnds++;direction=-1;position=Math.max(stroke,position-distance);}
     else{
       position+=direction*distance;
-      if(position>=stroke){position=stroke-(position-stroke);direction=-1;}
+      if(position>=stroke){position=stroke-(position-stroke);direction=-1;forwardEnds++;}
       else if(position<=outside){position=outside+(outside-position);direction=1;}
     }
   }
@@ -255,16 +265,49 @@ export function publishPelvicSample(token:number,sample:PelvicSample){
 export function requestPelvicDose(assetId:string,target:PelvicDoseTarget){
   const {active:a,sample,byAsset}=state();
   if(a?.assetId!==assetId||!a.running||a.mode==='xrManual'||blocked(a)||!sample)return false;
+  if(a.mode==='standAuto'&&(state().strokeOrder||doseCount))return false;
   if(target==='external'?sample.outletInside||!sample.outletVisible:target!==byAsset[assetId].container||!sample.outletInside)return false;
   if(doseTarget!==target)doseCount=0;
   doseTarget=target;doseCount++;return true;
 }
-export function discardPelvicDoses(token:number){if(state().active?.token===token)doseCount=0;}
+/** One motor gesture owns at most the current/next inward pass. The HUD does
+ * not dispatch a dose. Only the previous post-pose outlet can already have
+ * qualified it; that named dose then gets exactly ONE delivery frame. */
+export function requestStrokeDose(assetId:string,token:number,target:PelvicContainer){
+  const {active:a,byAsset,support,strokeOrder}=state(),p=byAsset[assetId];
+  if(!a||a.token!==token||a.assetId!==assetId||a.mode!=='standAuto'||!a.running||blocked(a)||!selected(assetId)||
+    !p||p.container!==target||!canStartAtOpening(p,support[assetId])||strokeOrder||doseCount)return false;
+  const ttl=1/p.speedHz+.12;
+  usePelvic.setState({strokeOrder:{id:++sequence,token,target,phase:lastInside?'dispatched':'waiting',deadline:performance.now()+1000*ttl,
+    driveDeadline:driveSeconds+ttl,lastEnd:forwardEnds},strokeReceipt:null});return true;
+}
+export function cancelStrokeDose(id:number){if(state().strokeOrder?.id!==id)return false;settleOrder('cancelled');return true;}
+export function discardPelvicDoses(token:number,poseHeld=false){if(state().active?.token===token){doseCount=0;if(!poseHeld)lastInside=entering=false;settleOrder('cancelled');}}
 /** One post-pose invocation per frame. The input is the solver's CURRENT outlet,
  * never the visual readout, target depth, or the selected model's last dose. */
-export function consumePelvicDose(token:number,outlet:Pick<PelvicContact,'outletInside'|'outletVisible'>,gripStart=false):'none'|'internal'|'external'{
+export function consumePelvicDose(token:number,outlet:Pick<PelvicContact,'outletInside'|'outletVisible'>&{motion?:ContactMotion|null},gripStart=false):'none'|'internal'|'external'{
   const a=state().active;
   if(a?.token!==token||!a.running||blocked(a)||dispensed)return 'none';
+  if(a.mode==='standAuto'){
+    lastInside=outlet.outletInside;
+    // A valid crossing can land exactly on the plane, then acquire usable
+    // depth on a subsequent frame. The player may click between those two.
+    const atEntry=outlet.motion==='enter'||entering&&outlet.motion==='inside';
+    entering=atEntry&&!lastInside;
+    const {strokeOrder:q,byAsset,support}=state();
+    if(q){
+      const p=byAsset[a.assetId];
+      if(q.token!==token||q.target!==p.container||!canStartAtOpening(p,support[a.assetId])){settleOrder('cancelled');return 'none';}
+      if(performance.now()>=q.deadline||driveSeconds>=q.driveDeadline){settleOrder('expired');return 'none';}
+      if(!outlet.outletInside||(q.phase==='waiting'&&!atEntry)){
+        if(q.phase==='dispatched'||forwardEnds!==q.lastEnd)settleOrder('missed');
+        return 'none';
+      }
+      // Transfer the intent to the ordinary one-dose delivery path *now*,
+      // using this very frame's measured outlet. No queued future delivery.
+      doseTarget=q.target;doseCount=1;
+    }
+  }
   if(a.mode==='xrManual'){if(!gripStart||useBackpack.getState().selected)return 'none';}
   else {
     if(!doseCount)return 'none';doseCount--;
@@ -278,7 +321,8 @@ export function consumePelvicDose(token:number,outlet:Pick<PelvicContact,'outlet
     doseCount=0;return 'none'; // No pending request from an unverified frame can fire on recovery.
   }
   const p=state().byAsset[a.assetId],k=p.container,amount=Math.min(limits.dose,p.capacity[k]-p.fluid[k]);
-  writeProfile(a.assetId,{...p,fluid:{...p.fluid,[k]:p.fluid[k]+amount},overflow:p.overflow+(limits.dose-amount)});return 'internal';
+  const next={...p,fluid:{...p.fluid,[k]:p.fluid[k]+amount},overflow:p.overflow+(limits.dose-amount)};
+  usePelvic.setState(s=>({byAsset:{...s.byAsset,[a.assetId]:next},...(s.strokeOrder?{strokeOrder:null,strokeReceipt:'delivered' as const}:{})}));return 'internal';
 }
 export function setPelvicCapacity(assetId:string,capacity:number){
   const p=state().byAsset[assetId];if(!selected(assetId)||!p||!Number.isFinite(capacity))return false;

@@ -116,11 +116,12 @@ export function moveDay(p:BodyProfile, days:number):BodyProfile {
   return {...p,day:1+((p.day-1+Math.trunc(days))%p.length+p.length)%p.length};
 }
 
-/** Caller supplies elapsed, bounded active-stage simulation only; editing a
- * draft advances that working copy alone so Cancel restores the exact baseline. */
-export function advanceBody(p:BodyProfile, seconds:number):BodyProfile {
-  if(!(seconds>0) || !Number.isFinite(seconds) || (p.locked&&(!p.lactating||(p.left===1&&p.right===1))))return p;
+/** The working date can run in preview, but starting levels are literal settings.
+ * The actor starts refilling from those amounts only after Save. */
+export function advanceBody(p:BodyProfile, seconds:number, mode:'stage'|'preview'='stage'):BodyProfile {
+  const canRefill=mode==='stage'&&p.lactating&&(p.left<1||p.right<1);
+  if(!(seconds>0) || !Number.isFinite(seconds) || (p.locked&&!canRefill))return p;
   const elapsed=p.daySeconds+(p.locked?0:seconds), days=Math.floor(elapsed/BODY_DAY_SECONDS);
-  const refill=p.lactating?seconds/p.refillSeconds:0;
+  const refill=canRefill?seconds/p.refillSeconds:0;
   return {...p,day:1+(p.day-1+days)%p.length,daySeconds:elapsed%BODY_DAY_SECONDS,left:unit(p.left+refill),right:unit(p.right+refill)};
 }

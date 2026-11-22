@@ -53,7 +53,7 @@ export interface PelvicInput {
 }
 export interface PelvicSolver {
   /** Results/scratch are solver-owned until next step; pass actual PlayPiece parent.matrixWorld. */
-  step(frame: PelvicFrame | null, pieceWorld: Matrix4 | null, input: PelvicInput): PelvicContact & { motion: ContactMotion | null };
+  step(frame: PelvicFrame | null, pieceWorld: Matrix4 | null, input: PelvicInput): PelvicContact & { continuous:boolean; motion: ContactMotion | null };
   reset(): void;
 }
 /** Only a continuous, admitted crossing starts a response. Losing admission

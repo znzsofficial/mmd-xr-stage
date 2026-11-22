@@ -24,7 +24,7 @@ function ScreenPage({page,children}:{page:Page;children:ReactNode}){
 
 /** A short actor-local trail. Returning from clothing or a diagram goes back
  * to the initiating interaction; the mounted room still owns its simulation. */
-export function ActorActivities({entry,onBack,onCloseUp,hud=false,...actor}:Props){
+function ActivityTrail({entry,onBack,onCloseUp,hud=false,...actor}:Props){
   const t=useLanguageStore(s=>s.t),[trail,setTrail]=useState<readonly Page[]>([entry]);
   const page=trail[trail.length-1],previous=trail[trail.length-2];
   const go=(next:Page)=>setTrail(old=>old.at(-1)===next?old:[...old,next]);
@@ -34,8 +34,8 @@ export function ActorActivities({entry,onBack,onCloseUp,hud=false,...actor}:Prop
   let content:ReactNode;
   switch(page){
     case 'wardrobe': {const View=hud?WardrobeHudControls:WardrobeScreenControls;content=<View {...child}/>;break;}
-    case 'observe': {const View=hud?ObservationHudControls:ObservationScreenControls;content=<View {...child} initialPart={previous==='insert'?'vagina':'breast'}/>;break;}
-    case 'insert': {const View=hud?PelvicHudControls:PelvicScreenControls;content=<View {...child} onObserve={()=>go('observe')} onClothing={()=>go('wardrobe')} onFace={onCloseUp&&(()=>onCloseUp('face'))}/>;break;}
+    case 'observe': {const View=hud?ObservationHudControls:ObservationScreenControls;content=<View {...child}/>;break;}
+    case 'insert': {const View=hud?PelvicHudControls:PelvicScreenControls;content=<View {...child} onClothing={()=>go('wardrobe')} onFace={onCloseUp&&(()=>onCloseUp('face'))}/>;break;}
     case 'milk': {const View=hud?MilkHudControls:MilkScreenControls;content=<View {...child} onObserve={()=>go('observe')} onClothing={()=>go('wardrobe')} onCloseUp={onCloseUp}/>;break;}
     case 'interact': content=hud?<group name="actor:interaction">
       <HudSheet size={[1.45,.49]}/><HudLine position={[-.27,.12,0]} width={.79} role="title" text={t('actorInteraction')}/>
@@ -46,4 +46,7 @@ export function ActorActivities({entry,onBack,onCloseUp,hud=false,...actor}:Prop
       <div className="screen-actor-primary"><button onClick={()=>go('insert')}>{t('actorInsert')}</button><button onClick={()=>go('milk')}>{t('actorMilk')}</button></div></div>;
   }
   return hud?content:<ScreenPage page={page}>{content}</ScreenPage>;
+}
+export function ActorActivities(props:Props){
+  return <ActivityTrail key={JSON.stringify([props.assetId,props.runtimeId,props.entry])} {...props}/>;
 }

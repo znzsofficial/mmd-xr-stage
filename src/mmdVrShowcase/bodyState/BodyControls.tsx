@@ -2,10 +2,8 @@ import {useId,useLayoutEffect,useRef} from 'react';
 import {useLanguageStore} from '../../languageStore';
 import { HudButton, HudLine, HudSheet } from '../components/PorcelainControls';
 import { HudSlider } from '../components/HudValues';
-import { PrivateButton, PrivateLine, PrivateSheet } from '../pelvic/HudPrivateControls';
 import { bodySpan as span, HudActions, ScreenActions } from './BodyActions';
-import { breastRowHeight, breastSpan, HudBreastPanel, ScreenBreastPanel } from './breast/BreastPanel';
-import { cycleRowHeight, HudCycleReading, ScreenCycleReading } from './CycleReading';
+import { HudLiningDiagram, ScreenLiningDiagram } from './LiningDiagram';
 import type { Row } from './controlRows';
 import { useBodyEditor, type BodyActor } from './useBodyEditor';
 import './body-controls.css';
@@ -16,20 +14,15 @@ function ScreenDestination({row,blocked}:{row:Extract<Row,{kind:'destination'}>;
     <span><strong>{row.action.label}</strong><small id={detail}>{row.detail}</small></span>
     <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><path d="m7.5 4.5 5.5 5.5-5.5 5.5" fill="none" stroke="currentColor" strokeWidth="1.5"/></svg></button>;
 }
-function ScreenRow({ actor, row, blocked }: { actor: BodyActor; row: Row; blocked: boolean }) {
+type RowProps={row:Row;blocked:boolean};
+function ScreenRow({ row, blocked }:RowProps) {
   switch (row.kind) {
     case 'actions': return <ScreenActions items={row.items} blocked={blocked}/>;
     case 'text': return <p className="body-note">{row.text}</p>;
     case 'destination': return <ScreenDestination row={row} blocked={blocked}/>;
-    case 'milkSide': return <div className="body-milk-side" role="group" aria-label={row.label}>
-      <div className="body-milk-reading"><span>{row.label}</span><strong>{row.value}</strong></div>
-      <ScreenActions items={[row.drain]} blocked={blocked}/>
-      <small aria-live="polite" aria-atomic="true">{row.feedback}</small></div>;
-    case 'skinConfirmation': return <fieldset className="body-skin-confirm" disabled={blocked}>
-      <legend>{row.title}</legend><small>{row.instruction} {row.note}</small>
-      <div>{row.choices.map(a=><label key={a.label}><input type="checkbox" checked={!!a.active} onChange={a.run}/>{a.label}</label>)}</div></fieldset>;
-    case 'breast': return <ScreenBreastPanel actor={actor} row={row} blocked={blocked}/>;
-    case 'cycle': return <ScreenCycleReading actor={actor} row={row} blocked={blocked}/>;
+    case 'reading': return <p className="body-reading"><span>{row.label}</span><strong>{row.value}</strong></p>;
+    case 'dayGrid': return <div className="body-day-grid"><ScreenActions items={row.items} blocked={blocked}/></div>;
+    case 'liningPair': return <ScreenLiningDiagram {...row.pair}/>;
     case 'morph': return <label className="body-select">{row.label}<select disabled={blocked||(!row.names.length&&!row.value)}
       value={row.value??''} onChange={e=>row.choose(e.currentTarget.value||null)}><option value="">{row.none}</option>
       {row.value&&!row.names.includes(row.value)&&<option value={row.value} disabled>{row.value}</option>}
@@ -56,7 +49,7 @@ function ScreenEditor({onBack,suspended,...props}: BodyActor & {onBack?:()=>void
     <header className="body-page"><div className="body-page-name"><h4 ref={heading} tabIndex={-1}>{editor.title}</h4><small title={editor.name}>{editor.name}</small></div>
       {back&&<ScreenActions items={[back]} blocked={false}/>}</header>
     {!!editor.nav.length&&<nav aria-label={editor.sectionLabel} className="body-sections"><ScreenActions items={editor.nav} blocked={false}/></nav>}
-    <div className="body-fields" key={editor.page}>{editor.rows.map((row,i)=><ScreenRow key={`${row.kind}:${i}`} actor={props} row={row} blocked={editor.blocked}/>)}</div>
+    <div className="body-fields" key={editor.page}>{editor.rows.map((row,i)=><ScreenRow key={`${row.kind}:${i}`} row={row} blocked={editor.blocked}/>)}</div>
     {editor.status&&<footer className="body-footer" data-preview={editor.inDraft||undefined}>
       <span className="body-edit-status" role="status">{editor.status}</span>
       {!!editor.footer.length&&<ScreenActions items={editor.footer} blocked={editor.blocked}/>}</footer>}
@@ -69,32 +62,25 @@ export function BodyScreenControls(props: BodyActor & {onBack?:()=>void;suspende
 }
 
 const stableSliderInteraction = () => {}; // The actor anchor stays still while pointing.
+const dayColumns=5,dayPitch=.18;
 function rowHeight(row: Row) {
-  if (row.kind === 'breast') return breastRowHeight;
-  if (row.kind === 'cycle') return cycleRowHeight(row.organ);
+  if (row.kind === 'liningPair') return .52;
+  if (row.kind === 'dayGrid') return dayPitch*Math.ceil(row.items.length/dayColumns);
   if (row.kind === 'text') return .105;
   if (row.kind === 'destination') return .245;
-  if (row.kind === 'milkSide') return .24;
-  if (row.kind === 'skinConfirmation') return .49;
   return row.kind === 'field' && row.scrub ? .26 : .175;
 }
-function HudRow({ actor, row, blocked }: { actor: BodyActor; row: Row; blocked: boolean }) {
+function HudRow({ row, blocked }: RowProps) {
   switch(row.kind) {
     case 'actions': return <HudActions items={row.items} blocked={blocked}/>;
     case 'text': return <HudLine position={[0,0,0]} role="muted" width={span} center text={row.text}/>;
     case 'destination': return <><HudButton position={[0,.042,0]} size={[span,.14]} label={row.action.label} onPress={row.action.run} disabled={blocked||row.action.disabled}/>
       <HudLine position={[0,-.076,0]} role="muted" width={span} center text={row.detail}/></>;
-    case 'milkSide': return <>
-      <HudLine position={[-.255,.05,0]} width={span-.51} role="title" text={`${row.label} · ${row.value}`}/>
-      <HudButton position={[(span-.47)/2,.045,0]} size={[.47,.14]} label={row.drain.label} disabled={blocked||row.drain.disabled} onPress={row.drain.run}/>
-      <HudLine position={[0,-.067,0]} width={span} text={row.feedback}/></>;
-    case 'skinConfirmation': return <>
-      <HudLine position={[0,.184,0]} width={span} role="title" text={row.title}/>
-      <HudLine position={[0,.087,0]} width={span} role="muted" text={row.instruction}/>
-      <group position-y={-.038}><HudActions items={row.choices} label={a=>`${a.label} · ${a.active?row.yes:row.no}`} blocked={blocked}/></group>
-      <HudLine position={[0,-.172,0]} width={span} role="muted" text={row.note}/></>;
-    case 'breast': return <HudBreastPanel actor={actor} row={row} blocked={blocked}/>;
-    case 'cycle': return <HudCycleReading actor={actor} row={row} blocked={blocked}/>;
+    case 'reading': return <HudLine position={[0,0,0]} role="title" width={span} center text={`${row.label} · ${row.value}`}/>;
+    case 'dayGrid': return <>{row.items.map((a,i)=><HudButton key={a.label} label={a.label} active={a.active} disabled={blocked} onPress={a.run}
+      position={[(i%dayColumns-(dayColumns-1)/2)*span/dayColumns,rowHeight(row)/2-(Math.floor(i/dayColumns)+.5)*dayPitch,0]}
+      size={[span/dayColumns-.025,.14]}/>)}</>;
+    case 'liningPair': return <HudLiningDiagram {...row.pair}/>;
     case 'morph': return <HudButton position={[0,0,0]} size={[span,.14]} label={`${row.label}: ${row.value??row.none}`}
       disabled={blocked||(!row.names.length&&!row.value)} onPress={row.browse}/>;
     case 'field': return <>
@@ -112,10 +98,6 @@ function HudEditor({onBack,suspended,onPeek,...actor}: HudEditorProps) {
   const editor = useBodyEditor(actor);
   const t=useLanguageStore(s=>s.t);
   if(suspended)return null;
-  const cycle = editor.rows.find(row=>row.kind==='cycle');
-  const breast = editor.rows.some(row=>row.kind==='breast'), gallery = !!cycle || breast;
-  const contentWidth=breast?breastSpan:span, extra=contentWidth-span;
-  const Sheet = gallery ? PrivateSheet : HudSheet, Back = gallery ? PrivateButton : HudButton;
   const name = Array.from(editor.name), shortName=name.length>18 ? `${name.slice(0,9).join('')}…${name.slice(-6).join('')}` : editor.name;
   // One short receipt beside Undo; reserve two rows only for an editable draft.
   const compactReceipt=!!editor.status&&!editor.inDraft;
@@ -126,24 +108,22 @@ function HudEditor({onBack,suspended,onPeek,...actor}: HudEditorProps) {
   const contentTop = top-.23;
   let y = contentTop-navHeight;
   return <group name="body:actor-tools">
-    <group position-y={top-h/2}><Sheet size={[contentWidth+.1,h]}/></group>
-    {gallery ? <PrivateLine position={[-.25-extra/4,top-.115,0]} width={.94+extra/2} title text={`${editor.title} · ${shortName}`}/>
-      : <HudLine position={[-.25,top-.115,0]} width={.94} role="title" text={`${editor.title} · ${shortName}`}/>}
-    <Back key={`${editor.page}:${editor.back}`} position={[.48,top-.115,0]} size={[.47,.14]} label={editor.back} variant="quiet" onPress={editor.backAction?.run??onBack}/>
-    {!!editor.nav.length&&<group position-y={contentTop-.075}><HudActions items={editor.nav} blocked={false} tabs gallery={gallery} width={contentWidth}/></group>}
+    <group position-y={top-h/2}><HudSheet size={[span+.1,h]}/></group>
+    <HudLine position={[-.25,top-.115,0]} width={.94} role="title" text={`${editor.title} · ${shortName}`}/>
+    <HudButton key={`${editor.page}:${editor.back}`} position={[.48,top-.115,0]} size={[.47,.14]} label={editor.back} variant="quiet" onPress={editor.backAction?.run??onBack}/>
+    {!!editor.nav.length&&<group position-y={contentTop-.075}><HudActions items={editor.nav} blocked={false} tabs/></group>}
     {editor.rows.map((row,i)=>{
       const height=rowHeight(row),center=y-height/2; y-=height;
-      return <group key={`${editor.page}:${row.kind}:${i}`} position-y={center}><HudRow actor={actor} row={row} blocked={editor.blocked}/></group>;
+      return <group key={`${editor.page}:${row.kind}:${i}`} position-y={center}><HudRow row={row} blocked={editor.blocked}/></group>;
     })}
     {editor.inDraft&&onPeek?<group position-y={y-.069}>
-      {gallery?<PrivateLine position={[-.30,0,0]} width={.83} title text={editor.status??''}/>:<HudLine position={[-.30,0,0]} width={.83} text={editor.status??''} center/>}
-      <Back position={[.44,0,0]} size={[.52,.13]} label={t('bodyPeek')} variant="quiet" onPress={onPeek}/>
+      <HudLine position={[-.30,0,0]} width={.83} text={editor.status??''} center/>
+      <HudButton position={[.44,0,0]} size={[.52,.13]} label={t('bodyPeek')} variant="quiet" onPress={onPeek}/>
     </group>:editor.status&&<group position={[compactReceipt&&editor.footer.length?-.24:0,y-(compactReceipt ? .10 : .069),0]}>
-      {gallery?<PrivateLine position={[0,0,0]} width={compactReceipt&&editor.footer.length?contentWidth-.52:contentWidth} title text={editor.status}/>:
-        <HudLine position={[0,0,0]} width={compactReceipt&&editor.footer.length?contentWidth-.52:contentWidth} role="title" text={editor.status}/>}
+      <HudLine position={[0,0,0]} width={compactReceipt&&editor.footer.length?span-.52:span} role="title" text={editor.status}/>
     </group>}
-    {editor.footer.length>0&&<group key={`footer:${editor.page}`} position={[compactReceipt?contentWidth/2-.25:0,compactReceipt?y-.10:y-statusHeight-.105,0]} scale={1.25}>
-      <HudActions items={editor.footer} blocked={editor.blocked} gallery={gallery} width={(compactReceipt ? .50 : contentWidth)/1.25}/></group>}
+    {editor.footer.length>0&&<group key={`footer:${editor.page}`} position={[compactReceipt?span/2-.25:0,compactReceipt?y-.10:y-statusHeight-.105,0]} scale={1.25}>
+      <HudActions items={editor.footer} blocked={editor.blocked} width={(compactReceipt ? .50 : span)/1.25}/></group>}
   </group>;
 }
 

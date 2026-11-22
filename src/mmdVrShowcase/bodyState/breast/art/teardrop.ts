@@ -7,7 +7,10 @@ import { smooth } from './mesh';
 // A horizontal section of each lobe is an ellipse. The egg and the cage
 // contribute to a single implicit field; the visible skin is its zero set.
 export const middle=(f:number)=>.116-.021*f, height=(f:number)=>.559+.031*f;
-export const sideFullness=(baseline:number,fill:number)=>baseline+.31*fill;
+// Keep the unfilled approved silhouette. A side's relative milk store adds
+// fullness only to that side, including at the high base setting.
+export const MILK_FULLNESS_GAIN=.76;
+export const sideFullness=(baseline:number,fill:number)=>baseline+MILK_FULLNESS_GAIN*fill;
 const sq=(x:number)=>x*x;
 export function egg(y:number,f:number,settle=0){
   let h=(y-middle(f))/height(f);

@@ -19,6 +19,16 @@ export interface BreastArtFrame {
 }
 
 const PLUM='#211722';
+// The figure faces the viewer: actor-right is on the left of a frontal
+// portrait. At profile both readings remain labelled, even for the far side.
+function milkKey(ctx:Ink,zh:boolean,right:number,left:number){
+  ctx.font='600 13px system-ui, sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';
+  for(const [x,title,value] of [[4,zh?'右乳':'R milk',right],[304,zh?'左乳':'L milk',left]] as const){
+    ctx.fillStyle=PLUM;ctx.fillRect(x,237,92,23);
+    ctx.fillStyle='#fff1df';ctx.fillText(`${title} ${Math.round(unit(value)*100)}%`,x+5,246);
+    ctx.fillStyle='#634352';ctx.fillRect(x+5,256,80,3);ctx.fillStyle='#edb5c2';ctx.fillRect(x+5,256,80*unit(value),3);
+  }
+}
 function buffer(w:number,h:number,owner:Ink):Bitmap|null {
   if(typeof OffscreenCanvas!=='undefined'){
     const canvas=new OffscreenCanvas(w,h),ctx=canvas.getContext('2d');if(ctx)return {canvas,ctx};
@@ -71,6 +81,7 @@ export function createBreastArt() {
     const breath=1+.006*Math.sin((Number.isFinite(f.time)?f.time:0)*1.40);
     ctx.save();ctx.translate(0,218*(1-breath));ctx.scale(1,breath);
     if(plate)ctx.drawImage(plate.canvas,0,0,400,260);else draw(ctx);
-    ctx.restore();if(f.section&&f.labels&&marks)annotate(ctx,marks,f.zh,breath);ctx.restore();
+    ctx.restore();if(f.section&&f.labels&&marks)annotate(ctx,marks,f.zh,breath);
+    if(f.lactating)milkKey(ctx,f.zh,f.right,f.left);ctx.restore();
   },dispose(){plate=null;model=null;lastKey='';marks=null;}};
 }

@@ -16,7 +16,6 @@ import './milk-interaction.css';
 
 type Props=MilkPanel & {onBack:()=>void;onObserve:()=>void;onClothing?:()=>void;onCloseUp?:()=>void};
 const sides=['left','right'] as const,modes=['left','right','both'] as const;
-const refillTimes=[30,60,180] as const;
 type Hold=NonNullable<ReturnType<typeof pressMilk>>;
 
 function useMilkPage({assetId,runtimeId}:Props){
@@ -40,9 +39,9 @@ function useMilkPage({assetId,runtimeId}:Props){
   return {panel,p,settings,l,held,sideName,holdLabel,change,disabled,locked:!stage||!live||draft,stop,
     setSettings:(next:boolean)=>{stop();setSettings(next);},
     status:(s:typeof sides[number])=>p[s]<=0?l('已空 · 回充中','Empty · refilling'):status(snapshot?.[s]),
-    title:l('泌乳互动','Milk interaction'),back:l('返回互动','Back to interaction'),observe:l('乳房观察','Breast view'),
-    settingsLabel:l('裸露与回充','Exposure & refill'),enable:l('开启泌乳','Enable lactation'),
-    hint:draft?l('先保存或放弃身体草稿。','Save or discard the body draft first.'):l('用量与设置即时保存到本页角色。','Amount and settings save to this actor in this tab.'),
+    title:l('泌乳互动','Milk interaction'),back:l('返回互动','Back to interaction'),observe:l('看乳房','View breasts'),
+    settingsLabel:l('确认露出','Confirm exposure'),enable:l('开启泌乳','Enable lactation'),
+    hint:draft?l('先保存或放弃身体草稿。','Save or discard the body draft first.'):l('按住排出，松开停止；用量立即记入角色。','Hold to express, release to stop. The amount is saved immediately.'),
     fill:(s:typeof sides[number])=>`${Math.round(p[s]*100)}%`,
     begin:(mode:MilkMode,valid:Hold['valid'],source?:XRInputSource)=>!disabled(mode)&&allowed()?pressMilk(panel,mode,valid,source):null};
 }
@@ -83,15 +82,14 @@ export function MilkScreenControls(props:Props){
       <div className="milk-controls">{modes.map(mode=><ScreenHold key={mode} mode={mode} page={page}/>)}</div>
     </>:<button type="button" className="milk-enable" disabled={page.locked} onClick={()=>page.change({lactating:true})}>{page.enable}</button>}
     <div className="milk-links">{props.onCloseUp&&<button type="button" onClick={()=>go(props.onCloseUp!)}>{l('近看角色','Close-up')}</button>}
-      <button type="button" onClick={()=>go(props.onObserve)}>{page.observe}</button>
+      {p.lactating&&<button type="button" onClick={()=>go(props.onObserve)}>{page.observe}</button>}
       {props.onClothing&&<button type="button" onClick={()=>go(props.onClothing!)}>{l('服装','Clothing')}</button>}
       {p.lactating&&<button type="button" aria-expanded={page.settings} onClick={()=>page.setSettings(!page.settings)}>{page.settingsLabel}</button>}</div>
     {p.lactating&&page.settings&&<fieldset disabled={page.locked}><legend>{l('仅勾选能看见裸露乳头的一侧','Confirm only visibly bare nipples')}</legend>
       <div className="milk-checks">{sides.map(s=>{const key=s==='left'?'bareLeft':'bareRight';return <label key={key}><input type="checkbox" checked={p[key]} onChange={e=>page.change({[key]:e.target.checked})}/>{l(s==='left'?'左侧裸露':'右侧裸露',s==='left'?'Left bare':'Right bare')}</label>;})}</div>
-      <label className="milk-refill">{l('从空到满','Refill time')}<select value={p.refillSeconds} onChange={e=>page.change({refillSeconds:Number(e.target.value)})}>
-        {[...new Set([...refillTimes,p.refillSeconds])].sort((a,b)=>a-b).map(t=><option key={t} value={t}>{Math.round(t)} {l('秒','s')}</option>)}</select></label>
-      <button type="button" onClick={()=>{page.change({lactating:false});page.setSettings(false);}}>{l('关闭泌乳','Disable lactation')}</button></fieldset>}
+      </fieldset>}
     <small className="milk-save-note">{page.hint}</small>
+    {p.lactating&&<button type="button" disabled={page.locked} onClick={()=>{page.change({lactating:false});page.setSettings(false);}}>{l('关闭泌乳','Disable lactation')}</button>}
   </div>;
 }
 
@@ -127,17 +125,16 @@ export function MilkHudControls(props:Props){
       <HudLine position={[0,.245,0]} width={1.42} text={l('仅确认能看见裸露乳头的一侧','Confirm only visibly bare nipples')}/>
       {sides.map((s,i)=>{const k=s==='left'?'bareLeft':'bareRight';return <HudButton key={s} position={[(i-.5)*.72,.095,0]} size={[.68,.14]}
         label={`${page.sideName(s)} · ${p[k]?l('已确认裸露','Bare confirmed'):l('确认裸露','Confirm bare')}`} active={p[k]} disabled={page.locked} onPress={()=>page.change({[k]:!p[k]})}/>;})}
-      <HudLine position={[0,-.065,0]} width={1.42} text={l(`从空到满 · ${Math.round(p.refillSeconds)} 秒`,`Refill time · ${Math.round(p.refillSeconds)} s`)}/>
-      {refillTimes.map((t,i)=><HudButton key={t} position={[(i-1)*.48,-.21,0]} size={[.45,.14]} label={`${t} ${l('秒','s')}`} active={t===p.refillSeconds} disabled={page.locked} onPress={()=>page.change({refillSeconds:t})}/>)}
-      <HudButton position={[0,-.392,0]} size={[1.42,.14]} variant="quiet" label={l('关闭泌乳','Disable lactation')} disabled={page.locked} onPress={()=>{page.change({lactating:false});page.setSettings(false);}}/>
+      <HudLine position={[0,-.13,0]} width={1.42} role="muted" text={l('仍有遮挡或缺少出口时，仅更新存量。','Covered or missing outlets only change the stored amount.')}/>
     </>:<>
       {p.lactating?<>{sides.map((s,i)=><group key={s} position-x={(i-.5)*.72}><HudLine position={[0,.275,0]} width={.69} text={`${page.sideName(s)} ${page.fill(s)}`}/>
         <HudLine position={[0,.195,0]} width={.69} role="muted" text={page.status(s)}/></group>)}
         {modes.map((mode,i)=><HudHold key={mode} mode={mode} x={(i-1)*.48} page={page}/>)}</>:<HudButton position={[0,.13,0]} size={[1.42,.16]} variant="primary" label={page.enable} disabled={page.locked} onPress={()=>page.change({lactating:true})}/>}
-      <HudButton position={[-.48,-.175,0]} size={[.45,.14]} label={page.observe} onPress={()=>go(props.onObserve)}/>
+      {p.lactating&&<HudButton position={[-.48,-.175,0]} size={[.45,.14]} label={page.observe} onPress={()=>go(props.onObserve)}/>}
       {props.onClothing&&<HudButton position={[0,-.175,0]} size={[.45,.14]} label={l('服装','Clothing')} onPress={()=>go(props.onClothing!)}/>}
       {p.lactating&&<HudButton position={[.48,-.175,0]} size={[.45,.14]} label={page.settingsLabel} onPress={()=>page.setSettings(true)}/>}
-      <HudLine position={[0,-.382,0]} width={1.42} role="muted" text={page.hint}/>
+      <HudLine position={[p.lactating?-.20:0,-.382,0]} width={p.lactating?.97:1.42} role="muted" text={page.hint}/>
+      {p.lactating&&<HudButton position={[.52,-.382,0]} size={[.39,.14]} variant="quiet" label={l('关闭泌乳','Disable lactation')} disabled={page.locked} onPress={()=>page.change({lactating:false})}/>}
     </>}
   </group>;
 }

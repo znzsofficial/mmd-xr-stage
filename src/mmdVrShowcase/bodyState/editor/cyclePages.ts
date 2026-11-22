@@ -2,7 +2,8 @@ import {actions, line, type Row} from '../controlRows';
 import {BODY_DAY_SECONDS, sampleBody, type BodyProfile, type BodySample} from '../data';
 import {action, atDay, clamp, percent, type EditorControls, type Localize} from './controls';
 
-type CyclePage = 'cycle'|'organ'|'rhythm'|'lining'|'secretions';
+type CyclePage = 'cycle'|'compare'|'calendar'|'rhythm'|'lining'|'secretions';
+export const daysPerPage=15;
 
 function describe(s:BodySample,p:BodyProfile,l:Localize) {
   if(s.phase==='bleed' && s.shedding>.02 && s.lining>.02)return l('内膜正在脱落','Lining is shedding');
@@ -15,34 +16,42 @@ function describe(s:BodySample,p:BodyProfile,l:Localize) {
   return l('内膜在变化','Lining is changing');
 }
 
-export function cycleRows(page: CyclePage, ui: EditorControls, stepDay: (days:number)=>void): Row[] {
+type Calendar = {index:number;setIndex:(index:number)=>void;choose:(day:number)=>void};
+export function cycleRows(page: CyclePage, ui: EditorControls, stepDay: (days:number)=>void, calendar:Calendar): Row[] {
   const {l,p,base,saved,inDraft,effective,day,link,field,toggle,patch} = ui;
+  const phases = {bleed:l('经期','Menstrual'),follicular:l('经后期','Follicular'),ovulatory:l('排卵前后','Ovulatory'),luteal:l('黄体期','Luteal')};
+  const chooseDate=actions(action(l('上一天','Previous day'),()=>stepDay(-1)),link('calendar',l('选择日期','Choose day')),action(l('下一天','Next day'),()=>stepDay(1)));
   switch(page){
-    case 'cycle':
-    case 'organ': {
-      const phases = {bleed:l('经期','Menstrual'),follicular:l('经后期','Follicular'),ovulatory:l('排卵前后','Ovulatory'),luteal:l('黄体期','Luteal')};
+    case 'cycle': {
+      const source=inDraft?l('模拟日期 · 草稿预览','Simulation day · preview'):saved?l('当前模拟日期','Current simulation day'):l('模拟日期 · 默认','Simulation day · default');
+      const dayMode=(label:string,locked:boolean)=>action(label,()=>patch({locked}),{active:p.locked===locked});
+      return [{kind:'reading',label:source,value:l(`第 ${p.day} 天 / 共 ${p.length} 天`,`Day ${p.day} of ${p.length}`)},
+        line(`${phases[effective.phase]} · ${describe(effective,p,l)}`),chooseDate,
+        actions(dayMode(l('固定日期','Fixed day'),true),dayMode(l('自动过日','Auto-advance'),false)),
+        line(l(`固定时只手动改日；自动时每 ${BODY_DAY_SECONDS} 秒舞台时间过一天。`,`Fixed: change days by hand. Auto: one day per ${BODY_DAY_SECONDS} s on stage.`)),
+        actions(link('compare'),link('rhythm'))];
+    }
+    case 'calendar': {
+      const lastIndex=Math.floor((p.length-1)/daysPerPage), index=clamp(calendar.index,0,lastIndex);
+      const first=index*daysPerPage+1,last=Math.min(first+daysPerPage-1,p.length);
+      return [line(l(`当前第 ${p.day} 天 · 点选目标日期`,`Currently day ${p.day} · Choose a day`)),
+        ...(lastIndex>0?[actions(...Array.from({length:lastIndex+1},(_,i)=>action(`${i*daysPerPage+1}–${Math.min((i+1)*daysPerPage,p.length)}`,
+          ()=>calendar.setIndex(i),{active:index===i})))]:[]),
+        {kind:'dayGrid',items:Array.from({length:last-first+1},(_,i)=>action(day(first+i),()=>calendar.choose(first+i),{active:p.day===first+i,short:String(first+i)}))}];
+    }
+    case 'compare': {
       const reading = (profile:BodyProfile,s:BodySample,label:string) => ({tissue:s.tissue,caption:`${label} · ${day(atDay(profile))}`,
         phase:phases[s.phase],change:describe(s,profile,l)});
-      const previewDay=atDay(p);
-      const dayMode=(label:string, locked:boolean)=>action(label,()=>{if(p.locked!==locked)patch({locked});},{active:p.locked===locked});
-      return [{kind:'cycle',organ:page==='organ',
-        views:[link('cycle',l('两日对照','Compare days'),page==='cycle'),link('organ',undefined,page==='organ')],
-        pair:{samples:[reading(base,sampleBody(base),saved?l('已保存','Saved'):l('默认','Default')),
-          reading(p,effective,inDraft?l('预览','Preview'):l('当前','Current'))]},
-        date:{label:l('预览周期日','Preview cycle day'),value:previewDay,max:p.length,
-          formatted:l(`第 ${previewDay} 天 / 共 ${p.length} 天`,`Day ${previewDay} of ${p.length}`),
-          modes:[dayMode(l('固定日期','Fixed day'),true),dayMode(l('自动前进','Auto-advance'),false)],
-          change:n=>patch({day:Math.floor(n),daySeconds:Math.round((n%1)*BODY_DAY_SECONDS)})},
-        previous:action(l('上一天','Previous day'),()=>stepDay(-1)),next:action(l('下一天','Next day'),()=>stepDay(1)),
-        settings:[link('rhythm'),link('lining')],
-      }];
+      return [{kind:'liningPair',pair:{samples:[reading(base,sampleBody(base),saved?l('角色已存','Actor’s saved day'):l('角色默认','Actor default')),
+        reading(p,effective,inDraft?l('草稿预览','Draft preview'):l('当前日期','Current day'))]}},chooseDate,
+        line(l('选择日期，右图会预览同一角色当天的内膜。','Choose a day to preview this actor’s lining on the right.'))];
     }
     case 'rhythm': {
       const rows:Row[] = [field(l('周期天数','Cycle length (days)'),'length',1),field(l('经期天数','Bleeding days'),'bleedDays',1),
         actions(toggle(p.ovulation?l('模拟排卵：开','Ovulation: on'):l('模拟排卵：关','Ovulation: off'),'ovulation'))];
       if(p.ovulation)rows.push(field(l('排卵段天数','Ovulatory days'),'peakDays',1),field(l('黄体期天数','Luteal days'),'lutealDays',1),
         field(l('胸型随周期变化','Cyclic chest variation'),'cycleGain',.05,percent));
-      rows.push(line(l(`自动前进：每 ${BODY_DAY_SECONDS} 秒模拟时间过一天。`,`Auto-advance: one day per ${BODY_DAY_SECONDS} s of stage time.`)));
+      rows.push(actions(link('lining')));
       return rows;
     }
     case 'lining':

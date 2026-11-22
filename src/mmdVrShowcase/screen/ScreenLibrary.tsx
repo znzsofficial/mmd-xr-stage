@@ -117,10 +117,19 @@ function SelectedItem({entry,locked,frame,closeUp,move,choice,setChoice,suspende
     {detail?<section className="screen-tools" data-focus-actor>
       {editor==='body'?<BodyScreenControls {...actor} suspended={suspended}/>:editor==='pose'?<PoseScreenControls {...actor}/>:<ActorActivities entry={editor} {...actor} onCloseUp={closeUp}/>}
     </section>:editor==='motion'||editor==='position'?<section className="screen-tool-detail"><div className="screen-library-head"><h3>{t(editor==='position'?'watchArrange':'hudMotions')}</h3><button onClick={onBack}>{t('actorBack')}</button></div>
-      {editor==='position'?positioning:!motions.length?<p>{t('hudNoMotion')}</p>:(['body','face'] as const).map(kind=><label className="screen-field" key={kind}>{t(kind==='body'?'hudApplyBody':'hudApplyFace')}
-      <select disabled={locked} value={motions.find(e=>e.file===b.bindings[entry.id]?.[kind])?.id??''} onChange={e=>{const motion=motions.find(m=>m.id===e.target.value);if(motion)b.applyMotion(entry.id,motion.file,kind);}}>
-        <option value="" disabled>{t('screenPickMotion')}</option>{motions.map(m=><option key={m.id} value={m.id}>{m.path}</option>)}
-       </select></label>)}
+      {editor==='position'?positioning:<>
+        {(['body','face'] as const).map(kind=>{
+          const bound=b.bindings[entry.id]?.[kind], item=motions.find(m=>m.file===bound);
+          return <div key={kind}><label className="screen-field">{t(kind==='body'?'hudBodyMotion':'hudFaceMotion')}
+            <select disabled={locked||!motions.length} value={item?.id??(bound?'current':'')} onChange={e=>{const motion=motions.find(m=>m.id===e.target.value);if(motion)b.applyMotion(entry.id,motion.file,kind);}}>
+              <option value="" disabled>{t('hudMotionUnbound')}</option>{bound&&!item&&<option value="current" disabled>{bound.name}</option>}
+              {motions.map(m=><option key={m.id} value={m.id}>{m.path}</option>)}
+            </select></label>
+            <button disabled={locked||!bound} onClick={()=>b.applyMotion(entry.id,null,kind)}>{t(kind==='body'?'hudClearBodyMotion':'hudClearFaceMotion')}</button>
+          </div>;
+        })}
+        {!motions.length&&<p>{t('hudNoMotion')}</p>}
+      </>}
     </section>:<section className="screen-tools screen-actor-home">
     {entry.kind==='model'?<><nav className="screen-actor-activities" aria-label={actorName}>
       {([['wardrobe','actorWardrobe'],['interact','actorInteraction'],['observe','actorObservation']] as const).map(([id,key])=><button key={id} data-main={id==='interact'||undefined} disabled={locked||!live.visible} onClick={()=>setEditor(id)}>{t(key)}</button>)}

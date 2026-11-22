@@ -8,13 +8,13 @@ export const entryClearance=(radiusM:number)=>Math.min(.004,radiusM*.14);
 /** Owner-local history: never share a solver across actors, hands or rails. */
 export function createPelvicSolver(): PelvicSolver {
   const shaft = rod.map(() => new Vector3());
-  const contact: ReturnType<PelvicSolver['step']> = { motion:null, inside:false, outletInside:false, outletVisible:false, atCervix:false, depthM:0, shaftLocal:[], outletLocal:new Vector3() };
+  const contact: ReturnType<PelvicSolver['step']> = { continuous:false, motion:null, inside:false, outletInside:false, outletVisible:false, atCervix:false, depthM:0, shaftLocal:[], outletLocal:new Vector3() };
   const local = new Matrix4(), dir = new Vector3(), nearest = new Vector3(), t = new Vector3(), delta = new Vector3();
   const worldTip = new Vector3(), anchor = new Vector3(), angle = new Quaternion();
   const prevTip = new Vector3(), prevDir = new Vector3(), prevWorld = new Vector3(), prevAnchor = new Vector3(), prevAngle = new Quaternion();
   let prevLength = 0, prevRadius = 0, valid = false, armed = false;
   function clearContact() { contact.motion = null; contact.inside = contact.outletInside = contact.outletVisible = contact.atCervix = false; contact.depthM = 0; }
-  function reset() { valid = armed = false; clearContact(); contact.shaftLocal = []; contact.outletLocal.set(0,0,0); }
+  function reset() { valid = armed = contact.continuous = false; clearContact(); contact.shaftLocal = []; contact.outletLocal.set(0,0,0); }
 
   // The centre of the shaft, not the holder origin, must still pass through
   // the opening. Verify the inserted arc as well: tilting in through the side
@@ -42,6 +42,7 @@ export function createPelvicSolver(): PelvicSolver {
   }
 
   return { reset, step(f, pieceWorld, input) {
+    contact.continuous=false;
     if (!f || !pieceWorld || !pieceWorld.elements.every(Number.isFinite) || !(pieceWorld.determinant() > 0)) { reset(); return contact; }
     local.multiplyMatrices(f.inverse,pieceWorld);
     shaft.forEach((p,i) => p.copy(rod[i]).applyMatrix4(local));
@@ -55,6 +56,7 @@ export function createPelvicSolver(): PelvicSolver {
       && anchor.distanceTo(prevAnchor) <= stepM && Math.abs(angle.dot(prevAngle)) >= .94 && dir.dot(prevDir) >= .72
       && Math.abs(f.lengthM-prevLength) < 1e-6 && Math.abs(f.radiusM-prevRadius) < 1e-6;
     if (!continuous) { armed = false; clearContact(); }
+    contact.continuous=continuous;
 
     const wasInside = contact.inside;
     const d = projectDepth(f,tip), inLine = dir.dot(tangent(f,d,t));

@@ -513,13 +513,14 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
         saveRoom();
         const freshModel = command.type === 'place' && !command.moveRuntimeId && useBackpack.getState().placement?.kind === 'model';
         const work = freshModel ? createPlacementWork() : undefined;
+        if (command.type === 'motion' && !command.file) propDisplay.restore();
         const warning = await actors.execute(command, stale, work, floorY);
         if (stale()) return;
         staticSettleElapsed.current = 0;
         lastEvaluatedTimeRef.current = -Infinity;
         timeRef.current = restoreStageTime(timeRef.current, runtime.duration);
         syncModelList(); syncMaterialModels(); syncObjects();
-        if (command.type === "motion" && runtime.duration > 0) { timeRef.current = 0; pendingSeekSeed.current = true; setPlaying(true); }
+        if (command.type === "motion" && command.file && runtime.duration > 0) { timeRef.current = 0; pendingSeekSeed.current = true; setPlaying(true); }
         setMmdVrClockTime(timeRef.current, true);
         if (!runtime.duration) setPlaying(false);
         updateProgress(useMmdVrStore.getState().assetLoad);
@@ -529,7 +530,10 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
         // Only a completed fresh manual model drop (not a move/restore/import).
         if (freshModel && !warning && !useMmdVrStore.getState().physicsEnabled) warmAfterPlacement.current = true;
       } catch (error) {
-        if (!stale()) useBackpack.getState().finishCommand(command, error instanceof Error ? error.message : String(error));
+        if (!stale()) {
+          if (command.type === 'motion') lastEvaluatedTimeRef.current = -Infinity;
+          useBackpack.getState().finishCommand(command, error instanceof Error ? error.message : String(error));
+        }
       }
     })();
   }, [actors, command, physicsBusy, assetLoading]);

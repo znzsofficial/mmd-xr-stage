@@ -1,6 +1,6 @@
 /** Synthetic PMX 2.0 / VMD: articulated actor, native leg IK, append-driven
  * sleeve, grouped bone morph, wrist-weighted triangle and two Bullet bodies. */
-export function poseFixture(partial = false) {
+export function poseFixture(partial = false, layer: 'both' | 'body' | 'face' = 'both') {
   const enc = new TextEncoder(), bytes: number[] = [], scratch = new DataView(new ArrayBuffer(4));
   const u8 = (v: number) => { bytes.push(v & 255); };
   const u16 = (v: number) => { u8(v); u8(v >> 8); };
@@ -37,15 +37,16 @@ export function poseFixture(partial = false) {
   }
   i32(0); const pmx = Uint8Array.from(bytes); bytes.length = 0;
   fixed('Vocaloid Motion Data 0002',30); fixed('Actor',20);
-  i32(6);
-  for (const [name,frame,x,y,z,angle] of [
+  i32(layer === 'face' ? 0 : 6);
+  if (layer !== 'face') for (const [name,frame,x,y,z,angle] of [
     ['Pelvis',0,0,0,0,0], ['Pelvis',60,.18,.07,.04,.2], ['RightArm',0,0,0,0,-.12], ['RightArm',60,0,0,0,.55],
     ['RightHand',0,0,0,0,.05], ['RightHand',60,0,0,0,.28],
   ] as const) {
     fixed(name,15); i32(frame); vec(x,y,z, 0,0,Math.sin(angle/2),Math.cos(angle/2));
     for(let j=0;j<64;j++) u8(j%16<8?20:107);
   }
-  i32(2); for(const [frame,w] of [[0,.12],[60,.83]]) { fixed('Gesture',15); i32(frame); vec(w); }
+  i32(layer === 'body' ? 0 : 2);
+  if (layer !== 'body') for(const [frame,w] of [[0,.12],[60,.83]]) { fixed('Gesture',15); i32(frame); vec(w); }
   for(let j=0;j<4;j++) i32(0);
   return { pmx, vmd: Uint8Array.from(bytes) };
 }

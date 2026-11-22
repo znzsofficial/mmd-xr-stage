@@ -14,7 +14,7 @@ export type BackpackLive = { runtimeId: string; position: [number, number, numbe
 export type BackpackCommand =
   | { token: number; type: "place"; id: string; moveRuntimeId?: string; x: number; z: number; yaw: number; supportY?: number }
   | { token: number; type: "remove"; id: string }
-  | { token: number; type: "motion"; id: string; file: File; kind: "body" | "face" };
+  | { token: number; type: "motion"; id: string; runtimeId: string; file: File | null; kind: "body" | "face" };
 export type BackpackPlacementTiming = { token: number; kind: "model" | "object"; confirmedAt: number; wasMove: boolean; previewDelayMs: number | null; work?: import('./placementWork').PlacementWork };
 
 type State = {
@@ -26,7 +26,7 @@ type State = {
   placement: BackpackPlacementTiming | null; lastCompletedPlacement: BackpackPlacementTiming | null;
   select(id: string | null): void; beginPlace(id: string): void; cancelPlace(): void;
   confirmPlace(id: string, x: number, z: number, yaw: number, supportY?:number): void;
-  putAway(id: string): void; applyMotion(id: string, file: File, kind: "body" | "face"): void;
+  putAway(id: string): void; applyMotion(id: string, file: File | null, kind: "body" | "face"): void;
   finishCommand(command: BackpackCommand, error?: string, work?: BackpackPlacementTiming['work']): void; publishLive(map: State["live"]): void; dismissError(): void;
 };
 
@@ -71,8 +71,9 @@ export const useBackpack = create<State>((set, get) => ({
   },
   applyMotion: (id, file, kind) => {
     const s = get();
-    if (s.busy || !s.live[id] || !s.entries.some(e => e.id === id && e.kind === "model") || !s.entries.some(e => e.kind === "motion" && e.file === file)) return;
-    set({ busy: true, draft: null, error: null, command: { token: ++token, type: "motion", id, file, kind } });
+    if (s.busy || !s.live[id] || !s.entries.some(e => e.id === id && e.kind === "model")) return;
+    if (file ? !s.entries.some(e => e.kind === "motion" && e.file === file) : !s.bindings[id]?.[kind]) return;
+    set({ busy: true, draft: null, error: null, command: { token: ++token, type: "motion", id, runtimeId: s.live[id].runtimeId, file, kind } });
   },
   finishCommand: (command, error, work) => {
     const s = get();

@@ -41,13 +41,13 @@ afterEach(async()=>{await act(()=>root.unmount());host.remove();clearBackpack();
 it('opens the chosen actor directly and lets the bag show every item independently of that selection',async()=>{
   expect(activeSheet()).toBeNull();await click('背包');expect(activeSheet()?.querySelectorAll('.screen-item')).toHaveLength(2);
   await click('pick b');expect(activeSheet()?.querySelector('h2')?.textContent).toBe('Blue');
-  expect(['服装','互动','身体观察','摆位置','动作','摆姿势','身体状态'].filter(x=>button(x)?.disabled!==false)).toEqual([]);
+  expect(['服装','互动','身体观察','摆位置','动作','摆姿势','身体设置'].filter(x=>button(x)?.disabled!==false)).toEqual([]);
   expect(activeSheet()?.querySelector('.screen-item, .screen-toy-guide')).toBeNull();
   await click('动作');expect(activeSheet()?.textContent).toContain('请先在准备页导入 VMD');
   await click('pick b');await click('摆位置');await click('移动');expect(useBackpack.getState().draft).toBe('b');
   await click('背包');expect(useBackpack.getState().draft).toBeNull();expect(activeSheet()?.querySelectorAll('.screen-item')).toHaveLength(2);
   await act(()=>activeSheet()!.querySelector<HTMLButtonElement>('.screen-item')!.click());expect(activeSheet()?.querySelector('h2')?.textContent).toBe('Amber');
-  await click('全部背包');expect(activeSheet()?.querySelectorAll('.screen-item')).toHaveLength(2);expect(button('身体状态')).toBeUndefined();
+  await click('全部背包');expect(activeSheet()?.querySelectorAll('.screen-item')).toHaveLength(2);expect(button('身体设置')).toBeUndefined();
 });
 
 it('does not replace an explicitly opened bag when placement finishes in the background',async()=>{
@@ -55,6 +55,14 @@ it('does not replace an explicitly opened bag when placement finishes in the bac
   const command=useBackpack.getState().command!;
   await click('背包');await act(()=>useBackpack.getState().finishCommand(command));
   expect(useBackpack.getState().selected).toBe('b');expect(activeSheet()?.querySelector('h2')?.textContent).toBe('背包');
+});
+
+it('shows each bound file even with duplicate basenames and unbinds the selected actor’s face',async()=>{
+  const motions=['dance','smile'].map(id=>({id,kind:'motion' as const,file:new File([],'take.vmd'),path:`${id}/take.vmd`}));
+  await act(()=>useBackpack.setState(s=>({entries:[...s.entries,...motions],bindings:{b:{body:motions[0].file,face:motions[1].file}}})));
+  await click('pick b');await click('动作');
+  const selects=activeSheet()!.querySelectorAll('select');expect([...selects].map(s=>s.selectedOptions[0].textContent)).toEqual(motions.map(m=>m.path));
+  await click('解除表情动作');expect(useBackpack.getState().command).toMatchObject({id:'b',runtimeId:'r2',kind:'face',file:null});
 });
 
 it('can inspect a fresh actor without enabling an attachment or creating a body draft',async()=>{
@@ -68,7 +76,7 @@ it('can inspect a fresh actor without enabling an attachment or creating a body 
 });
 
 async function startPreview(){
-  await click('pick a');await click('身体状态');
+  await click('pick a');await click('身体设置');
   await act(()=>{expect(beginBodyPreview('a',true)).toBe(true);patchBodyPreview('a',{fullness:.7});});
   await click('触碰与适配');
 }

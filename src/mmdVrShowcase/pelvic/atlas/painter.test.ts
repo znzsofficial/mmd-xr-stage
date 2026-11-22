@@ -18,11 +18,10 @@ const calibrated={calibration:defaultPelvicCalibration,clothingClear:true,contai
   fluid:{vaginal:1,fantasyUterine:3},capacity:{vaginal:4,fantasyUterine:12},drained:0,overflow:0,stroke:.5,speedHz:1};
 it('freezes only illustrative motion: camera and actual dose data stay live without starting a simulated rod or changing the day',()=>{
   const assetId='actor',runtimeId='instance';
-  setAtlasView(assetId,{mode:'organ'});
   const body={...DEFAULT_BODY_PROFILE,day:3};useBodyState.setState({byAsset:{[assetId]:body}});
   const p=calibrated;
   usePelvic.setState({byAsset:{[assetId]:p}});const wake=vi.fn();
-  const driver=atlasPainter(paper(),{assetId,runtimeId},'pelvic',wake,()=>{}),last=()=>art.draw.mock.lastCall![1];
+  const driver=atlasPainter(paper(),{assetId,runtimeId},'uterus',wake,()=>{}),last=()=>art.draw.mock.lastCall![1];
   try{
     driver.tick(100);driver.tick(200);expect(last().time).toBeGreaterThan(0);
     setAtlasView(assetId,{motion:false,degrees:90});expect(driver.tick(220)).toBe(false);
@@ -56,9 +55,9 @@ it('does not display a late worker frame from an old cycle preview after the use
 });
 
 it('publishes the frozen first frame of A even if B acquires the active socket before the worker replies',()=>{
-  const worker=slowWorker(),upload=vi.fn();setAtlasView('a',{mode:'organ',motion:false});
+  const worker=slowWorker(),upload=vi.fn();setAtlasView('a',{motion:false});
   usePelvic.setState({byAsset:{a:calibrated}});
-  const driver=atlasPainter(paper(),{assetId:'a',runtimeId:'ra'},'pelvic',()=>{},upload);
+  const driver=atlasPainter(paper(),{assetId:'a',runtimeId:'ra'},'uterus',()=>{},upload);
   try{
     expect(driver.tick(0)).toBe(false);
     usePelvic.setState({active:{assetId:'b',runtimeId:'rb',token:1,mode:'standAuto',source:'xr',running:true,awaitingWorld:false,position:0}});
@@ -104,7 +103,7 @@ it('does not rasterize a frozen, locked cycle diagram for unrelated refill ticks
 
 it('repaints a fixed-thickness frozen section when its gland and vessel architecture changes',()=>{
   const worker=slowWorker(),start={...DEFAULT_BODY_PROFILE,day:23,liningOverride:.55};
-  setAtlasView('a',{mode:'organ',motion:false});useBodyState.setState({byAsset:{a:start}});
+  setAtlasView('a',{motion:false});useBodyState.setState({byAsset:{a:start}});
   const driver=atlasPainter(paper(),{assetId:'a',runtimeId:'r'},'body',()=>{},()=>{});
   try{
     driver.tick(0);const first=worker.current.postMessage.mock.lastCall![0].options,oldBitmap=worker.reply();
@@ -117,19 +116,19 @@ it('repaints a fixed-thickness frozen section when its gland and vessel architec
   }finally{driver.dispose();}
 });
 
-it('invalidates a ready bitmap on a stop-limit crossing or a mode round trip between drawing frames',()=>{
-  const worker=slowWorker(),upload=vi.fn();setAtlasView('a',{mode:'organ',motion:false});
+it('invalidates a ready bitmap on a stop-limit crossing but keeps the body view independent of the measurement selector',()=>{
+  const worker=slowWorker(),upload=vi.fn();setAtlasView('a',{motion:false});
   const sample={tip:[0,0,-.1] as const,tail:[0,0,.1] as const,depth:.1,angleDeg:0,radiusM:.02,lengthM:.1,
     aligned:false,outletInside:false,outletVisible:false,atCervix:false};
   usePelvic.setState({byAsset:{a:calibrated},active:{assetId:'a',runtimeId:'r',token:1,mode:'standAuto',source:'xr',running:true,awaitingWorld:false,position:0},sample});
-  const driver=atlasPainter(paper(),{assetId:'a',runtimeId:'r'},'pelvic',()=>{},upload);
+  const driver=atlasPainter(paper(),{assetId:'a',runtimeId:'r'},'uterus',()=>{},upload);
   try{
     driver.tick(0);const first=worker.reply();usePelvic.setState({sample:{...sample,atCervix:true}});
     driver.tick(10);expect(first.close).toHaveBeenCalledOnce();expect(upload).not.toHaveBeenCalled();
-    const second=worker.reply(),old=worker.current;setAtlasView('a',{mode:'measure'});setAtlasView('a',{mode:'organ'});
-    driver.tick(20);expect(old.terminate).toHaveBeenCalledOnce();expect(second.close).toHaveBeenCalledOnce();expect(upload).not.toHaveBeenCalled();
+    const second=worker.reply(),old=worker.current;setAtlasView('a',{mode:'measure'});setAtlasView('a',{mode:'entry'});
+    driver.tick(20);expect(old.terminate).not.toHaveBeenCalled();expect(second.close).toHaveBeenCalledOnce();expect(upload).toHaveBeenCalledOnce();
     expect(worker.current.postMessage.mock.lastCall![0].options.sample.atCervix).toBe(true);
-    worker.reply();driver.tick(30);expect(upload).toHaveBeenCalledOnce();
+    driver.tick(30);expect(upload).toHaveBeenCalledOnce();
   }finally{driver.dispose();}
 });
 

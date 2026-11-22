@@ -81,6 +81,7 @@ export function createStageActors(scene: THREE.Scene, runtime: MmdRuntimeHandle,
   const repairs = new Map<File, AssetLoadFailure>();
   let nextRepair = 0;
   const forgotten = new Set<File>(); // Retired restore tasks cannot resurrect a put-away item on retry.
+  const editedSlots = new WeakMap<File, Set<'body'|'face'>>();
   const models = () => runtime.exportProjectModels().filter(m => committedModels.has(m.id));
   let nextObject = 0;
 
@@ -224,7 +225,7 @@ export function createStageActors(scene: THREE.Scene, runtime: MmdRuntimeHandle,
       for (const [phase, file] of [["body", slot.bodyMotionFile], ["face", slot.faceMotionFile]] as const) {
         if (file) tasks.push({ id: `${id}:${phase}`, requires: id, phase, fileName: `${relativePath(slot.modelFile)} → ${relativePath(file)}`,
           run: async () => {
-            if (skip()) return;
+            if (skip() || editedSlots.get(slot.modelFile)?.has(phase)) return;
             const target = models().find(m => m.modelFile === slot.modelFile);
             if (!target) throw new Error("Model not loaded");
             const motionWork = trace ? { slot: phase } : undefined;
@@ -250,9 +251,13 @@ export function createStageActors(scene: THREE.Scene, runtime: MmdRuntimeHandle,
       return;
     }
     if (command.type === "motion") {
-      if (!model) throw new Error("Model not loaded");
-      await runtime.loadMotion(command.file, command.kind, model.id, stale);
+      if (!model || model.id !== command.runtimeId) throw abort();
+      if (command.file) await runtime.loadMotion(command.file, command.kind, model.id, stale);
+      else runtime.clearMotion(model.id, command.kind);
       if (stale()) throw abort();
+      // A retry from the initial restore queue must not put a superseded VMD back.
+      const edited = editedSlots.get(model.modelFile) ?? new Set<'body'|'face'>();
+      edited.add(command.kind); editedSlots.set(model.modelFile, edited);
       return;
     }
     const {x, z, yaw} = command;

@@ -5,6 +5,7 @@ import {DEFAULT_BODY_PROFILE,sampleBody} from '../data';
 import {fromBodyClock,fromMilkInteraction,useBodyState} from '../store';
 import {createBreastArt,type BreastArtFrame} from './art';
 import {areolaNames} from './art/areola';
+import {MILK_FULLNESS_GAIN} from './art/teardrop';
 import {breastViews,readBreastView,resolveBreastView} from './view';
 import {lowerPoleLag} from './settling';
 
@@ -43,7 +44,7 @@ export function breastPainter(canvas:HTMLCanvasElement,{assetId}:DiagramActor,wa
           !fromBodyClock(value)&&(next.left<sample.left||next.right<sample.right);
         if(!sameOwner||!view.motion||view.section||next.lactating!==sample.lactating)reset();
         else if(scrubbing)lag.adjust(next.fullness-sample.fullness);
-        else if(debit){leftLag.adjust(.31*Math.min(0,next.left-sample.left));rightLag.adjust(.31*Math.min(0,next.right-sample.right));}
+         else if(debit){leftLag.adjust(MILK_FULLNESS_GAIN*Math.min(0,next.left-sample.left));rightLag.adjust(MILK_FULLNESS_GAIN*Math.min(0,next.right-sample.right));}
         else if(!fromBodyClock(value))reset();
         sample=next;changed(!sameOwner||!(scrubbing||fromBodyClock(value)||fromMilkInteraction(value)));
       }
@@ -62,7 +63,8 @@ export function breastPainter(canvas:HTMLCanvasElement,{assetId}:DiagramActor,wa
       const view=options.section?(zh?'乳房剖面':'Breast cutaway'):(zh?'乳房外观':'Breast appearance');
       const state=`${view} · ${zh?'饱满度':'Fullness'} ${Math.round(options.fullness*100)}%`;
        const style=v.areolaStyle;
-       canvas.setAttribute('aria-label',`${state} · ${options.degrees}°${options.section?'':` · ${areolaNames[zh?'zh':'en'][style]}`}`);
+        const stock=options.lactating?` · ${zh?'乳量（左／右）':'Milk (L/R)'} ${Math.round(options.left*100)}% / ${Math.round(options.right*100)}%`:'';
+        canvas.setAttribute('aria-label',`${state} · ${options.degrees}°${options.section?'':` · ${areolaNames[zh?'zh':'en'][style]}`}${stock}`);
        canvas.dataset.view='breast';canvas.dataset.angle=String(options.degrees);canvas.dataset.areolaStyle=style;upload();
     }});painted=now;dirty=false;return v.motion;
   },suspend(){if(last!==null){last=null;reset();dirty=true;painted=-Infinity;output.discard();}},dispose(){dead=true;off.forEach(f=>f());output.dispose();}};

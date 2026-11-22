@@ -12,7 +12,7 @@ import type { GripFrame } from '../play/propView';
 import { mountPelvicRig } from './rig';
 import { queuePelvicGrip } from './input';
 import { pelvicRailMatrix, registerPelvicSocket, samplePelvicFrame } from './geometry';
-import { assignPelvic, clearRailTechnique, enablePelvic, nudgePelvic, patchPelvic, requestPelvicDose, saveRailTechnique,
+import { assignPelvic, clearRailTechnique, enablePelvic, nudgePelvic, patchPelvic, requestPelvicDose, requestStrokeDose, saveRailTechnique,
   setActorResponse, startPelvic, startRailTechnique, stopPelvic, usePelvic } from './store';
 
 const st=usePelvic.getState,initialStage=useMmdVrStore.getState();
@@ -72,6 +72,40 @@ it('cuts an exterior pulse even when stop and restart both happen between two re
   expect(emissions.at(-1)).toMatchObject({action:'off',usable:false});
   requestPelvicDose('a','external');tick();expect(emissions.at(-1)).toMatchObject({action:'start',usable:true});
 });
+
+it.each(['screen','xr'] as const)('delivers one motor order at the physical nozzle on %s, never spraying, while VMD is paused',source=>{
+  const {root,piece,tick,emissions}=fixture(source);patchPelvic('a',{clothed:true,container:'fantasyUterine'});tick();
+  assignPelvic('a','standAuto',source);tick();startPelvic('a');tick();const token=st().active!.token;
+  const order=()=>requestStrokeDose('a',token,'fantasyUterine');
+  const part=piece.getObjectByName('play:piece:dildo')!,c=st().byAsset.a.calibration,f=samplePelvicFrame(registerPelvicSocket(root,c),c)!;
+  const tip=()=>part.localToWorld(new Vector3(0,tipHeight,centerZ(tipHeight))).applyMatrix4(f.inverse);
+  expect(tip().z).toBeGreaterThan(.04);expect(order()).toBe(true);expect(order()).toBe(false);expect(st().strokeOrder?.phase).toBe('waiting');
+  for(let i=0;i<80&&st().strokeOrder;i++){
+    tick();expect(st().byAsset.a.fluid.fantasyUterine).toBe(st().sample?.outletInside?1:0);
+  }
+  expect(tip().z).toBeLessThan(0);expect(st().strokeReceipt).toBe('delivered');
+  expect(order()).toBe(true);expect(st().strokeOrder?.phase).toBe('dispatched');tick();expect(st().byAsset.a.fluid.fantasyUterine).toBe(2);
+  for(let i=0;i<400;i++)tick();expect(emissions.some(e=>e.action==='start')).toBe(false);expect(st().byAsset.a.fluid).toEqual({vaginal:0,fantasyUterine:2});
+});
+
+it.each(['lost tracking','obstructed','long frame','target','selection','room','stop','actor jump'] as const)(
+  'drops an outside motor order on %s; a future valid crossing cannot spend it',cause=>{
+    const {root,viewer,session,tick,driver,emissions}=fixture('xr');
+    const skirt=new Mesh(new BoxGeometry(.14,.14,.004),new MeshBasicMaterial({name:'Pleated Skirt',visible:false}));
+    skirt.position.z=.022;root.add(skirt);cleanup.push(()=>{skirt.geometry.dispose();skirt.material.dispose();});tick();
+    assignPelvic('a','standAuto','xr');tick();startPelvic('a');tick();const token=st().active!.token;
+    expect(requestStrokeDose('a',token,'vaginal')).toBe(true);
+    if(cause==='lost tracking'){viewer.tracked=false;tick();viewer.tracked=true;}
+    if(cause==='obstructed'){skirt.material.visible=true;for(let i=0;i<4;i++)tick();expect(st().support.a.obstruction).toBe('garment');skirt.material.visible=false;}
+    if(cause==='long frame')driver.advance(.18,{session} as XRFrame);
+    if(cause==='target'){patchPelvic('a',{container:'fantasyUterine'});patchPelvic('a',{container:'vaginal'});}
+    if(cause==='selection'){useBackpack.setState({selected:'other'});useBackpack.setState({selected:'a'});}
+    if(cause==='room'){const stage=useMmdVrStore.getState();stage.setPrefs({scenery:stage.prefs.scenery==='pool'?'floor':'pool'});}
+    if(cause==='stop')stopPelvic('a');
+    if(cause==='actor jump'){root.position.x+=.25;tick();} // a discontinuity, even if the rail stays aligned
+    expect(st().strokeOrder).toBeNull();tick();if(!st().active)assignPelvic('a','standAuto','xr');startPelvic('a');
+    for(let i=0;i<200;i++)tick();expect(st().byAsset.a.fluid).toEqual({vaginal:0,fantasyUterine:0});expect(emissions.some(e=>e.action==='start')).toBe(false);
+  });
 
 it('holds a verified XR stand through slow chart frames without spending elapsed travel or queued doses; tracking loss retires it',()=>{
   const {driver,tick,piece,session,viewer,emissions}=fixture('xr');tick();assignPelvic('a','standManual','xr');startPelvic('a');tick();

@@ -142,9 +142,9 @@ it('folds only the actor sheet, and resumes its unsaved section even after B rec
   await render();await click(t('actorBodyState'));await click('泌乳');await click('开启泌乳');
   await click(t('bodyPeek'));expect(button('放弃改动')).toBeUndefined();
   expect(useBodyState.getState().draft?.value.lactating).toBe(true);
-  await click(t('bodyResume'));expect(button('排出左侧')).toBeDefined();
+  await click(t('bodyResume'));expect(button('关闭泌乳')).toBeDefined();expect(button('排出左侧')).toBeUndefined();
   await recall();expect(button(t('hudBackpack'))).toBeDefined();expect(button(t('bodyResume'))).toBeUndefined();
-  await click(t('hudBack'));await click(t('bodyResume'));expect(button('排出左侧')).toBeDefined();
+  await click(t('hudBack'));await click(t('bodyResume'));expect(button('关闭泌乳')).toBeDefined();
   await click(t('bodyPeek'));await act(async()=>bag().select('a1'));
   expect(useBodyState.getState().draft).toBeNull();expect(button(t('bodyResume'))).toBeUndefined();
 });
@@ -159,6 +159,10 @@ it("targets the selected runtime for transforms, but the stable character and ex
   await act(async () => bag().finishCommand(bag().command!));
   await click(t("loadNext")); await click(t("hudApplyFace"));
   expect(bag().command).toMatchObject({ type: "motion", id: "a0", file: entries[6].file, kind: "face" });
+  await act(async () => { bag().finishCommand(bag().command!); useBackpack.setState({bindings:{a0:{body:entries[5].file,face:entries[6].file}}}); });
+  expect(labels()).toContain(`${t('hudBodyMotion')} · body/Wave.vmd`);expect(labels()).toContain(`${t('hudFaceMotion')} · face/Blink.vmd`);
+  await click(t('hudClearBodyMotion')); // The picker is still browsing Blink, not Wave.
+  expect(bag().command).toMatchObject({type:'motion',runtimeId:'runtime:77',file:null,kind:'body'});
   await act(async () => { bag().finishCommand(bag().command!); bag().select("obj"); });
   expect(button(t("hudChangeMotion"))).toBeUndefined();
   await click(t("hudSmaller")); expect(store().takeModelTransformRequests()).toEqual([{ id: "runtime:88", scale: 0.8 }]);

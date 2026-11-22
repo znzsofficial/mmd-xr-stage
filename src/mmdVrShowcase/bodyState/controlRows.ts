@@ -1,20 +1,15 @@
 import type { LiningPair } from './LiningDiagram';
 
-export type Action = { label: string; run: () => void; active?: boolean; primary?: boolean; disabled?: boolean; quiet?: boolean; danger?:boolean };
+export type Action = { label: string; short?:string; run: () => void; active?: boolean; primary?: boolean; disabled?: boolean; quiet?: boolean; danger?:boolean };
 export type Field = { kind: 'field'; label: string; formatted: string; value: number; min: number; max: number; step: number; change: (n: number) => void; disabled?: boolean; scrub?: boolean };
 export type BreastReading = {
   kind: 'breast'; caption: string; detail: string; readings: {label: string; value: string}[]; fullness: Field;
 };
-export type CycleReading = {
-  kind: 'cycle'; organ: boolean; views: [Action, Action]; pair: LiningPair;
-  date: { label: string; formatted:string; modes:[Action,Action]; value: number; max: number; change: (n: number) => void };
-  previous: Action; next: Action; settings: Action[];
-};
 export type Row = { kind: 'actions'; items: Action[] } | Field | { kind: 'text'; text: string }
   | {kind:'destination';action:Action;detail:string}
-  | {kind:'milkSide';label:string;value:string;feedback:string;drain:Action}
-  | {kind:'skinConfirmation';title:string;instruction:string;note:string;choices:Action[];yes:string;no:string}
-  | CycleReading | BreastReading
+  | {kind:'reading';label:string;value:string}
+  | {kind:'dayGrid';items:Action[]}
+  | {kind:'liningPair';pair:LiningPair}
   | { kind: 'morph'; label: string; names: readonly string[]; value: string|null; none: string; choose: (name: string|null) => void; browse: () => void };
 
 export const actions = (...items: Action[]): Row => ({ kind:'actions',items });

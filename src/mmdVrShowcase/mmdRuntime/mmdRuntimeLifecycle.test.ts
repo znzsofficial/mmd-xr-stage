@@ -9,6 +9,7 @@ import { bindCompanion } from "../../mmdImport/assetPaths";
 import { createModelLoadTask } from "../modelLoadTask";
 import { createAssetLoadQueue } from "../mmdAssetLoadQueue";
 import { createRoomMotionCache } from './roomMotionCache';
+import { poseFixture } from '../pose/poseFixture.testSupport';
 
 vi.mock("./mmdPhysics", async (original) => ({
   ...await original<typeof import("./mmdPhysics")>(),
@@ -168,7 +169,47 @@ describe("runtime asynchronous lifecycle", () => {
     expect(model.setAnimation).not.toHaveBeenCalled();
   });
 
-  it("rolls back a failed motion bind on the raw solver pose, not the displayed hem", async () => {
+  it.each([false, true])('unbinds VMD layers on a skinned PMX and restores its cold pose through editing and rebinding (physics world: %s)', async physics => {
+    const f = poseFixture(false, 'body'), pmx = new File([f.pmx], 'actor.pmx');
+    const body = new File([f.vmd], 'arm.vmd'), face = new File([poseFixture(false, 'face').vmd], 'expression.vmd');
+    const step = vi.fn(() => ({simulated: false}));
+    if (physics) vi.mocked(createBulletPhysicsBackend).mockResolvedValueOnce({name:'test', disabled:false, disposed:false, step});
+    const runtime = createMmdRuntimeHandle(new THREE.Scene(), {motionCache:createRoomMotionCache()});
+    const camera = new THREE.PerspectiveCamera(), at = (t: number) => runtime.update(t, false, camera, 1, false);
+    try {
+      const {modelId:id} = await runtime.addModel(pmx, [], {physics});
+      const mesh = runtime.getModelSurface(id)!.mesh, foot = mesh.skeleton.getBoneByName('LeftFoot')!;
+      const toe = () => foot.getWorldPosition(new THREE.Vector3()), wristVertex = () => mesh.getVertexPosition(0, new THREE.Vector3());
+      const weight = () => mesh.morphTargetInfluences![mesh.morphTargetDictionary!.Gesture];
+      at(0); const neutral = wristVertex(), planted = toe();
+      await runtime.loadMotion(body, 'body', id); at(1.5); const armOnly = wristVertex();
+      expect(armOnly.distanceTo(neutral)).toBeGreaterThan(.05);
+      await runtime.loadMotion(face, 'face', id); at(1.5);
+      const expressive = weight(); expect(expressive).toBeGreaterThan(.5);
+      runtime.clearMotion(id, 'face'); at(1.5);
+      expect(weight()).toBe(0); expect(wristVertex().distanceTo(armOnly)).toBeLessThan(1e-5);
+      await runtime.loadMotion(face, 'face', id); at(1.5);
+      runtime.clearMotion(id, 'body'); at(1.5);
+      expect(weight()).toBeCloseTo(expressive); expect(toe().distanceTo(planted)).toBeLessThan(1e-5);
+      expect(runtime.exportProjectModels()[0]).toMatchObject({bodyMotionFile:null,faceMotionFile:face});
+      const withFace = wristVertex(); expect(withFace.distanceTo(armOnly)).toBeGreaterThan(.05);
+
+      const posing = runtime.beginPose(id, 1.5)!;
+      expect(posing.rotate('rightHand', 'z', .8)).toBe(true); at(1.5);
+      expect(wristVertex().distanceTo(withFace)).toBeGreaterThan(.005);
+      runtime.clearMotion(id, 'face'); at(0); at(1.5);
+      expect(posing.rotate('rightHand', 'z', .8)).toBe(false); expect(weight()).toBe(0);
+      expect(runtime.duration).toBe(0); expect(runtime.listModels()[0]).toMatchObject({bodyMotionName:null,faceMotionName:null});
+      expect(wristVertex().distanceTo(neutral)).toBeLessThan(1e-5); expect(toe().distanceTo(planted)).toBeLessThan(1e-5);
+      expect(runtime.beginPose(id, 0)!.rotate('rightHand','x',.6)).toBe(true); at(0); runtime.endPose(id); at(0);
+      expect(wristVertex().distanceTo(neutral)).toBeLessThan(1e-5); expect(toe().distanceTo(planted)).toBeLessThan(1e-5);
+      if (physics) { runtime.update(0, true, camera, 1, false, 1/90); expect(step).toHaveBeenCalled(); }
+      await runtime.loadMotion(body, 'body', id); at(1.5);
+      expect(wristVertex().distanceTo(armOnly)).toBeLessThan(1e-5); expect(runtime.duration).toBe(2);
+    } finally { runtime.dispose(); }
+  });
+
+  it("rolls back a failed motion bind from the original rest pose, not the simulated or displayed hem", async () => {
     const model = modelFixture(), hem = new THREE.Bone();
     hem.position.y = 1; model.mesh.add(hem); model.mesh.bind(new THREE.Skeleton([hem]));
     vi.spyOn(ThreeMmdLoader.prototype, "loadModel").mockResolvedValue(model);
@@ -197,7 +238,7 @@ describe("runtime asynchronous lifecycle", () => {
       expect(hem.position.y).toBeGreaterThan(rawY);
 
       const bind = vi.mocked(model.setAnimation).mockClear().mockImplementation(clip => {
-        expect(hem.position.y).toBe(rawY);
+        expect(hem.position.y).toBe(1);
         if (clip === second) throw Error("rejected motion");
       });
       await expect(rt.loadMotion(replacement, "body", modelId)).rejects.toThrow("rejected motion");

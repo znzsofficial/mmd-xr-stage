@@ -48,7 +48,7 @@ it('keeps the two approved poles and only shifts the free pole on the debited si
 });
 
 it('maps the tissue key to the actual moving lateral section, with both edges on the same ovate lobe',()=>{
-  for(const f of [0,1.31])for(const side of [-1,1] as const){
+  for(const f of [0,sideFullness(1,1)])for(const side of [-1,1] as const){
     const cut=cutMap(f,side);
     for(const s of [.16,.42,.72,.94]){
       const [top,bottom]=cutBounds(s);

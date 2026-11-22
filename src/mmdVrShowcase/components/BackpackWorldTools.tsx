@@ -5,7 +5,7 @@ import { useLanguageStore } from "../../languageStore";
 import { useBackpack, type BackpackEntry, type BackpackLive } from "../backpack";
 import { formatMmdVrModelScale, nextMmdVrModelScale, previousMmdVrModelScale } from "../mmdVrAdjustments";
 import { useMmdVrStore } from "../mmdVrStore";
-import { fileSource, PageControls } from "./BackpackPanels";
+import { PageControls } from "./BackpackPanels";
 import { HudButton, HudLine, HudSheet } from "./PorcelainControls";
 import { useHudWorldInput } from "./hudWorldInput";
 import { isStoryRoom, STORIES, toyLabel } from '../play/propCatalog';
@@ -77,8 +77,9 @@ function SelectedTools({ entry, instance, blocked, preview }: { entry: BackpackE
         page==='pose'?<PoseHudControls assetId={entry.id} runtimeId={instance.runtimeId} onBack={()=>setPage('tools')}/>:
         <ActorActivities hud entry={page} assetId={entry.id} runtimeId={instance.runtimeId} onBack={()=>setPage('tools')}/>}</group>;
   }
+  const tallDetail=cues||eggPage||page==='wand'||page==='motions';
   return <group ref={group} name="backpack-world-tools" scale={0.86} pointerEventsOrder={1} pointerEventsType={{ deny: ["touch", "grab"] }}>
-    <group position-y={page==='tools' ? ((holding||carries||wandOut) ? -.11 : -.01) : cues||eggPage||page==='wand' ? -.10 : 0}><HudSheet size={[1.34, page==='tools' ? ((holding||carries||wandOut) ? 1.2 : .98) : cues||eggPage||page==='wand' ? 1.20 : 1.0]} /></group>
+    <group position-y={page==='tools' ? ((holding||carries||wandOut) ? -.11 : -.01) : tallDetail ? -.10 : 0}><HudSheet size={[1.34, page==='tools' ? ((holding||carries||wandOut) ? 1.2 : .98) : tallDetail ? 1.20 : 1.0]} /></group>
     <HudLine position={[-0.16, 0.37, 0]} text={entry.file.name} width={0.93} role="title" />
     <HudButton position={[0.47, 0.37, 0]} label={t(page !== 'tools' && entry.kind==='model' ? "hudTools" : "hudDone")} size={[0.31, 0.13]} variant="quiet" onPress={() => {
       if (page !== 'tools' && entry.kind==='model') setPage('tools'); else useBackpack.getState().select(null);
@@ -131,12 +132,21 @@ function MotionPicker({ id, locked }: { id: string; locked: boolean }) {
   const [index, setIndex] = useState(0), page = Math.min(index, Math.max(0, list.length - 1));
   const entry = list[page];
   const binding = useBackpack(s => s.bindings[id]);
-  return entry ? <>
-    <HudLine position={[0, 0.18, 0]} text={entry.file.name} width={1.24} />
-    <HudLine position={[0, 0.075, 0]} text={fileSource(entry) || t("hudLooseFile")} width={1.24} role="muted" />
-    {(["body", "face"] as const).map((kind, i) => <HudButton key={kind} position={[(i - 0.5) * 0.63, -0.1, 0]} size={[0.59, 0.15]}
+  return <>
+    {(['body','face'] as const).map((kind,i)=>{
+      const bound=binding?.[kind], name=list.find(e=>e.file===bound)?.path ?? bound?.name ?? t('hudMotionUnbound');
+      return <group key={kind} position-y={.16-i*.175}>
+        <HudLine position={[-.23,0,0]} width={.79} text={`${t(kind==='body'?'hudBodyMotion':'hudFaceMotion')} · ${name}`} />
+        <HudButton position={[.405,0,0]} size={[.43,.14]} variant="quiet" label={t(kind==='body'?'hudClearBodyMotion':'hudClearFaceMotion')} disabled={locked||!bound}
+          onPress={()=>useBackpack.getState().applyMotion(id,null,kind)} />
+      </group>;
+    })}
+    {entry ? <>
+    <HudLine position={[0, -.205, 0]} text={entry.path} width={1.24} />
+    {(["body", "face"] as const).map((kind, i) => <HudButton key={kind} position={[(i - 0.5) * 0.63, -.365, 0]} size={[0.59, 0.15]}
       label={t(kind === "body" ? "hudApplyBody" : "hudApplyFace")} active={binding?.[kind] === entry.file} disabled={locked}
       onPress={() => useBackpack.getState().applyMotion(id, entry.file, kind)} />)}
-    <PageControls page={page} count={list.length} onPage={setIndex} y={-0.34} spread={0.41} />
-  </> : <HudLine position={[0, 0, 0]} text={t("hudNoMotion")} width={1.24} center />;
+    <PageControls page={page} count={list.length} onPage={setIndex} y={-.565} spread={0.41} />
+    </> : <HudLine position={[0, -.27, 0]} text={t('hudNoMotion')} width={1.24} center />}
+  </>;
 }

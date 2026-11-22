@@ -48,7 +48,6 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
     if(s.actors[assetId]===p.actors[assetId])return;
     const prev=view;view=readAtlasView(assetId);
     if(scope==='pelvic'&&view.mode!==prev.mode){
-      if(view.mode!=='organ'){art?.dispose();art=undefined;}
       if(prev.mode==='entry')lettering.dispose();
       changed();
     }else if(view.motion!==prev.motion||view.labels!==prev.labels||(scope==='vulva'||scope==='pelvic'&&view.mode==='entry')&&view.foldStyle!==prev.foldStyle||!view.motion&&view.degrees!==prev.degrees)changed();
@@ -56,7 +55,7 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
   }),
     useLanguageStore.subscribe((s,p)=>{if(s.language!==p.language)changed();}),
     useBodyState.subscribe((s,p)=>{
-      if(scope==='vagina'||scope==='vulva'||scope==='pelvic'&&readAtlasView(assetId).mode!=='organ')return;
+      if(scope==='vagina'||scope==='vulva'||scope==='pelvic')return;
       const a=currentBody(s),b=currentBody(p);
       if(!sameCycle(a,b))changed();
       else if(a&&b&&a.daySeconds!==b.daySeconds){
