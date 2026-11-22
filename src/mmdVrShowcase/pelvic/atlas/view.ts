@@ -4,9 +4,9 @@ import {useBackpack} from '../../backpack';
 // Camera and illustration transport are presentation only. They must never
 // call the contact solver, change a ledger or advance the character's day.
 export const atlasAngles = {front:0,oblique:38,side:90} as const;
-export type AtlasMode='organ'|'measure';
+export type AtlasMode='entry'|'organ'|'measure';
 export type AtlasView={mode:AtlasMode;degrees:number;motion:boolean};
-const initial:AtlasView={mode:'organ',degrees:atlasAngles.oblique,motion:true};
+const initial:AtlasView={mode:'entry',degrees:atlasAngles.oblique,motion:true};
 const reduced:AtlasView={...initial,motion:false};
 let preference:MediaQueryList|undefined;
 const defaults=()=>{

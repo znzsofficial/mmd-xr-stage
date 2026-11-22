@@ -83,19 +83,22 @@ function SelectedItem({entry,locked,frame,move,choice,setChoice}:{entry:Backpack
   const stage=useMmdVrStore.getState(), prop=useStagePlay(s=>s.character), motions=b.entries.filter(e=>e.kind==='motion');
   const room=useMmdVrStore(s=>s.prefs.scenery),localToy=isStoryRoom(room)?STORIES[room].toy:null;
   const wearing=useRemoteEgg(s=>s.assetId===entry.id);
-  const [editor,setEditor]=useState<'pose'|'pelvic'|null>(null);
+  const [editor,setEditor]=useState<'pose'|'body'|'pelvic'|null>(null);
   const toy=choice??(wearing?'remoteEgg':prop?.assetId===entry.id?prop.toy:localToy??'saber');
-  if(!live||!transform)return null;
-  if(editor&&!locked&&live.visible){const Editor=editor==='pose'?PoseScreenControls:PelvicScreenControls;return <section className="screen-tools"><h3>{entry.file.name}</h3>
+  if(!live)return null;
+  // A physics rebuild briefly removes the transform record. Keeping the same
+  // actor editor mounted preserves its unsaved preview while controls lock.
+  if(editor&&(editor!=='pose'||!locked)&&live.visible){const Editor=editor==='pose'?PoseScreenControls:editor==='body'?BodyScreenControls:PelvicScreenControls;return <section className="screen-tools" data-focus-actor={editor!=='pose'||undefined}><h3>{entry.file.name}</h3>
     <Editor assetId={entry.id} runtimeId={live.runtimeId} onBack={()=>setEditor(null)}/></section>;}
+  if(!transform)return null;
   return <section className="screen-tools"><h3>{entry.file.name}</h3>
     <div className="screen-buttons"><button onClick={frame}>{t('screenFit')}</button><button disabled={locked} onClick={move}>{t('hudMove')}</button>
       {(['hudTurnLeft','hudTurnRight','hudSmaller','hudLarger'] as const).map((key,i)=><button key={key} disabled={locked} onClick={()=>i<2?stage.requestModelRotation(live.runtimeId,transform.rotationY+(i?15:-15)):stage.requestModelScale(live.runtimeId,(i===2?previousMmdVrModelScale:nextMmdVrModelScale)(transform.scale))}>{t(key)}</button>)}
       <button disabled={locked} onClick={()=>stage.enqueueVisibilityToggle(live.runtimeId)}>{t(live.visible?'screenHideAsset':'screenShowAsset')}</button>
     </div>
-    {entry.kind==='model'&&<><div className="screen-buttons"><button disabled={locked||!live.visible} onClick={()=>setEditor('pose')}>{t('actorPose')}</button>
-      <button disabled={locked||!live.visible} onClick={()=>setEditor('pelvic')}>{t('actorPelvic')}</button></div>
-      {live.visible&&<BodyScreenControls assetId={entry.id} runtimeId={live.runtimeId}/>}</>}
+    {entry.kind==='model'&&<div className="screen-buttons"><button disabled={locked||!live.visible} onClick={()=>setEditor('pose')}>{t('actorPose')}</button>
+      <button disabled={locked||!live.visible} onClick={()=>setEditor('body')}>{t('actorBodyState')}</button>
+      <button disabled={locked||!live.visible} onClick={()=>setEditor('pelvic')}>{t('actorPelvic')}</button></div>}
     {entry.kind==='model'&&motions.length>0&&(['body','face'] as const).map(kind=><label className="screen-field" key={kind}>{t(kind==='body'?'hudApplyBody':'hudApplyFace')}
       <select disabled={locked} value={motions.find(e=>e.file===b.bindings[entry.id]?.[kind])?.id??''} onChange={e=>{const motion=motions.find(m=>m.id===e.target.value);if(motion)b.applyMotion(entry.id,motion.file,kind);}}>
         <option value="" disabled>{t('screenPickMotion')}</option>{motions.map(m=><option key={m.id} value={m.id}>{m.path}</option>)}

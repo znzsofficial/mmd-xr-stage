@@ -1,6 +1,7 @@
 /** Chinese (zh) UI strings — source of truth for TranslationKey keys. */
 export const zh = {
   actorPelvic:'骨盆附件',
+  screenInspectStand:'近看支架',
   actorPose:'摆姿势', actorBodyState:'身体状态',
   emberWind:'起飞风道 · 赭砾星',frostWind:'起飞风道 · 霜岬星',emberReturn:'赭砾星 · 回望母星',frostReturn:'霜岬星 · 回望母星',
   saltWind:'起飞风道 · 棱盐星',glazeWind:'起飞风道 · 玄釉星',saltReturn:'棱盐星 · 回望母星',glazeReturn:'玄釉星 · 回望母星',
@@ -41,7 +42,7 @@ export const zh = {
   watchDetails:'详情',
   watchMenu:'菜单',watchArrange:'摆位置',watchExperiments:'实验功能',watchStart:'先选场景，再从背包放角色。',watchRecall:'右手 B 呼出菜单；手追可抬起左腕或低头点「菜单」。',
   toyClubName:'Live House',toyStudioName:'简易地台',
-  toyDildo:'硅胶假阳具',allSets:'所有布景',guideDildoVr:'按侧握射出精液，开物理可托衣。选成年角色的「骨盆附件」可校准入口和查看剖面。',guideDildoScreen:'可递给手腕；也可在「骨盆附件」内装到手动滑轨或自动支架。',guideDildoEnd:'支架可停机或卸下。失追后须从入口外重新接近。',
+  toyDildo:'硅胶假阳具',allSets:'所有布景',guideDildoVr:'按侧握射出精液，开物理可托衣。选角色的「骨盆附件 → 观察图」看外阴和阴道。',guideDildoScreen:'选「骨盆附件 → 把假阳具放到入口外」。看清入口后点「向内推一段」。',guideDildoEnd:'点「停止」停在原位。「换拿法或收起」可改用自动支架，VR 中也可换到手柄。',
   toyWand:'无线按摩棒',guideWandVr:'侧握切低档、高档、关。持棒手随棒头振动，低档轻缓，高档更密；初触加重一拍。',guideWandScreen:'递给手腕后用动作或握姿接触；低／高档可压软头、叠加表情。',guideWandEnd:'开启角色物理，棒头或握柄都能托动活动衣摆，停机也有效。',
   wandMotor:'棒头档位',wandLow:'低速',wandHigh:'高速',
   toyRemoteEgg:'遥控跳蛋',guideEggVr:'拿遥控器，选成年角色 → 佩戴跳蛋。收起菜单后侧握切换节律。',guideEggScreen:'佩戴后可逐厘米调位置。开角色物理，让外壳从外侧贴靠活动裙片。',guideEggEnd:'若起始位置已在衣物里，先移开再靠回。收回或切景即停。',

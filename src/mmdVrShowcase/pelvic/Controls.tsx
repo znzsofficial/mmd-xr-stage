@@ -4,16 +4,17 @@ import type { PelvicActor } from './Section';
 import { AtlasHudPanel, AtlasScreenPanel } from './atlas/AtlasPanel';
 import { PrivateButton, PrivateLine, PrivateSheet, PrivateSlider } from './HudPrivateControls';
 import { PRIVATE_COLORS, privateVars } from './palette';
-import { usePelvicControls, type Row, type Key } from './usePelvicControls';
+import { usePelvicControls } from './usePelvicControls';
+import type {Row,Key} from './controlRows';
 import './controls.css';
 
 export { PelvicLiveSection } from './Section';
 const formatted=(v:number,unit:string)=>`${+v.toFixed(2)}${unit}`;
 type ScreenProps=PelvicActor&{onBack?:()=>void};
 type HudProps=PelvicActor&{onBack:()=>void};
-function ScreenKeys({items,blocked,transport=false}:{items:Key[];blocked:boolean;transport?:boolean}) {
-  return <div className="pelvic-keys">{items.map((k,i)=><button type="button" className="pelvic-key" key={k.id??k.label} disabled={blocked||k.disabled}
-    aria-pressed={k.active} data-danger={k.danger||undefined} data-stop={transport&&i===1||undefined} onClick={k.press}><span>{k.label}</span></button>)}</div>;
+function ScreenKeys({items,blocked,stop=false}:{items:Key[];blocked:boolean;stop?:boolean}) {
+  return <div className="pelvic-keys">{items.map(k=><button type="button" className="pelvic-key" key={k.id??k.label} disabled={blocked||k.disabled}
+    aria-pressed={k.active} data-primary={k.primary||undefined} data-danger={k.danger||undefined} data-stop={stop||undefined} onClick={k.press}><span>{k.label}</span></button>)}</div>;
 }
 function ScreenRow({row,blocked}:{row:Row;blocked:boolean}) {
   if(row.kind==='buttons')return <ScreenKeys items={row.keys} blocked={blocked}/>;
@@ -27,30 +28,19 @@ function ScreenRow({row,blocked}:{row:Row;blocked:boolean}) {
       style={{'--progress':`${(row.value-row.range[0])/(row.range[1]-row.range[0])*100}%`} as CSSProperties}
       disabled={blocked||row.disabled} onChange={e=>row.change(e.currentTarget.valueAsNumber)}/></label>;
 }
-// The first action group in the status column is transport. Keep it above
-// every changing warning and physically independent of the live projection.
-function splitTransport(notes:Row[]) {
-  const transport=notes.find(r=>r.kind==='buttons');
-  return {transport,other:notes.filter(r=>r!==transport)};
-}
 function ScreenEditor({assetId,runtimeId,onBack}:ScreenProps) {
   const vm=usePelvicControls({assetId,runtimeId},'screen');
-  const page=useRef<HTMLDivElement>(null), {transport,other}=splitTransport(vm.notes);
+  const page=useRef<HTMLDivElement>(null);
   useLayoutEffect(()=>{
-    const el=page.current,sidebar=el?.closest('.screen-library');if(!el||!sidebar)return;
-    // The long backpack and actor lists stay reachable above the active editor.
-    sidebar.scrollTop+=el.getBoundingClientRect().top-sidebar.getBoundingClientRect().top;
+    const sidebar=page.current?.closest('.screen-library');if(sidebar)sidebar.scrollTop=0;
   },[]);
   return <div className="pelvic-screen" style={privateVars} ref={page} role="group" aria-label={vm.title}>
-    <header className="pelvic-heading"><h3>{vm.title}</h3>{onBack&&<button type="button" className="pelvic-key pelvic-back" onClick={onBack}>{vm.back}</button>}</header>
-    <div className="pelvic-body" data-enabled={vm.enabled}>
-      {vm.enabled&&<><nav className="pelvic-nav" aria-label={vm.title}><ScreenKeys items={vm.tabs} blocked={false}/></nav>
-        <div className="pelvic-plate"><AtlasScreenPanel assetId={assetId} runtimeId={runtimeId}/></div></>}
-      {transport&&<div className="pelvic-transport"><ScreenKeys items={transport.keys} blocked={vm.blocked} transport/></div>}
-      <div className="pelvic-fields">
-        {!!other.length&&<div className="pelvic-status">{other.map((row,i)=><ScreenRow key={`${row.kind}:${i}`} row={row} blocked={vm.blocked}/>)}</div>}
-        {vm.rows.map((row,i)=><ScreenRow key={`${row.kind}:${i}`} row={row} blocked={vm.blocked}/>)}
-      </div>
+    <header className="pelvic-heading"><h3>{vm.title}</h3>{vm.stop&&<ScreenKeys items={[vm.stop]} blocked={vm.blocked} stop/>}{onBack&&<button type="button" className="pelvic-key pelvic-back" onClick={onBack}>{vm.back}</button>}</header>
+    <div className="pelvic-body" data-chart={vm.chart}>
+      {vm.enabled&&<nav className="pelvic-nav" aria-label={vm.title}><ScreenKeys items={vm.tabs} blocked={false}/></nav>}
+      <p className="pelvic-note pelvic-state" data-warn={vm.warn||undefined} role="status">{vm.status}</p>
+      {vm.chart&&<div className="pelvic-plate"><AtlasScreenPanel assetId={assetId} runtimeId={runtimeId}/></div>}
+      <div className="pelvic-fields">{vm.rows.map((row,i)=><ScreenRow key={`${row.kind}:${i}`} row={row} blocked={vm.blocked}/>)}</div>
     </div>
   </div>;
 }
@@ -63,10 +53,10 @@ export function PelvicScreenControls(props:ScreenProps) {
 const panelW=2.02, chartW=.88, editorW=.99, leftX=-.52, rightX=.465, top=.69;
 const chartH=chartW*1.30;
 const spacing=.03, rowGap=.025, noteFont=26, density=560;
-function HudKeys({items,w,blocked,tabs=false,transport=false}:{items:Key[];w:number;blocked:boolean;tabs?:boolean;transport?:boolean}) {
+function HudKeys({items,w,blocked,tabs=false,stop=false}:{items:Key[];w:number;blocked:boolean;tabs?:boolean;stop?:boolean}) {
   const bw=(w-spacing*(items.length-1))/items.length;
   return <>{items.map((k,i)=><PrivateButton key={k.id??k.label} position={[(i-(items.length-1)/2)*(bw+spacing),0,0]}
-    size={[bw,.135]} label={k.label} onPress={k.press} active={k.active} disabled={blocked||k.disabled} danger={k.danger} variant={transport&&i===1?'stop':tabs?'tab':'button'}/>)}</>;
+    size={[bw,.135]} label={k.label} onPress={k.press} active={k.active} disabled={blocked||k.disabled} danger={k.danger} variant={stop?'stop':tabs?'tab':k.primary?'primary':'button'}/>)}</>;
 }
 
 // Keep CJK glyphs intact and avoid truncating the clothing/registration
@@ -115,28 +105,27 @@ function HudColumn({items,from,w,blocked}:{items:HudRow[];from:number;w:number;b
   })}</>;
 }
 function HudEditor({assetId,runtimeId,onBack}:HudProps) {
-  const vm=usePelvicControls({assetId,runtimeId},'xr'), width=vm.enabled?panelW:1.34;
-  const {transport,other}=splitTransport(vm.notes);
-  const cw=vm.enabled?editorW:width-.1;
+  const vm=usePelvicControls({assetId,runtimeId},'xr'), width=vm.chart?panelW:1.34;
+  const cw=vm.chart?editorW:width-.1;
   // Note wrapping must not allocate a measurement canvas on each sampling or
   // slider tick; rows only need new metrics when their content/layout changes.
-  const rowKey=vm.rows.map(r=>r.kind==='note'?r.text:r.kind).join('|'),noteKey=other.map(r=>r.kind==='note'?r.text:r.kind).join('|');
+  const rowKey=vm.rows.map(r=>r.kind==='note'?r.text:r.kind).join('|');
   const metrics=useMemo(()=>measureRows(vm.rows,cw),[rowKey,cw]);
-  const noteMetrics=useMemo(()=>measureRows(other,chartW),[noteKey]);
-  const rows=metrics.map((m,i)=>({...m,row:vm.rows[i]})), notes=noteMetrics.map((m,i)=>({...m,row:other[i]}));
-  const contentTop=vm.enabled?top-.365:top-.21,transportH=transport ? .135+rowGap : 0;
+  const statusLines=useMemo(()=>noteLines(vm.status,cw),[vm.status,cw]);
+  const rows=metrics.map((m,i)=>({...m,row:vm.rows[i]}));
+  const contentTop=vm.enabled?top-.365:top-.21,stopH=vm.stop?.label ? .135+rowGap : 0,statusH=(statusLines.length*35+5)/density;
   const columnHeight=(a:HudRow[])=>a.reduce((sum,r)=>sum+r.h+rowGap,0);
-  const h=top-contentTop+Math.max(transportH+columnHeight(rows),vm.enabled?chartH+.04+columnHeight(notes):0)+.036;
+  const h=top-contentTop+Math.max(stopH+statusH+rowGap+columnHeight(rows),vm.chart?chartH:0)+.036;
   return <group name="pelvic:controls" pointerEventsOrder={1} pointerEventsType={{allow:['ray']}}>
     <group position-y={top-h/2}><PrivateSheet size={[width,h]}/></group>
     <PrivateLine position={[-.20,top-.087,0]} width={width-.51} title text={vm.title}/>
     <PrivateButton position={[width/2-.218,top-.087,0]} size={[.337,.135]} label={vm.back} variant="quiet" onPress={onBack}/>
-    {vm.enabled&&<><group position-y={top-.253}><HudKeys items={vm.tabs} blocked={false} w={width-.1} tabs/></group>
-      <group position={[leftX,contentTop-chartH/2,0]}><AtlasHudPanel assetId={assetId} runtimeId={runtimeId} widthM={chartW}/></group>
-      <group position-x={leftX}><HudColumn items={notes} from={contentTop-chartH-.035} w={chartW} blocked={vm.blocked}/></group></>}
-    <group position-x={vm.enabled?rightX:0}>
-      {transport&&<group position-y={contentTop-.0675}><HudKeys items={transport.keys} w={cw} blocked={vm.blocked} transport/></group>}
-      <HudColumn items={rows} from={contentTop-transportH} w={cw} blocked={vm.blocked}/>
+    {vm.enabled&&<group position-y={top-.253}><HudKeys items={vm.tabs} blocked={false} w={width-.1} tabs/></group>}
+    {vm.chart&&<group position={[leftX,contentTop-chartH/2,0]}><AtlasHudPanel assetId={assetId} runtimeId={runtimeId} widthM={chartW}/></group>}
+    <group position-x={vm.chart?rightX:0}>
+      {vm.stop&&<group position-y={contentTop-.0675}><HudKeys items={[vm.stop]} w={cw} blocked={vm.blocked} stop/></group>}
+      <group position-y={contentTop-stopH-statusH/2}><HudNote lines={statusLines} w={cw} warn={vm.warn}/></group>
+      <HudColumn items={rows} from={contentTop-stopH-statusH-rowGap} w={cw} blocked={vm.blocked}/>
     </group>
   </group>;
 }

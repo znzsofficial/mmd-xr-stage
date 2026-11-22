@@ -13,12 +13,13 @@ import {screenStreetTravel} from './streetTravel';
 import {RoomGate} from '../scenery/connections';
 import {usePoseSession} from '../pose/poseSession';
 import {screenWindTravel} from './screenWindTravel';
+import {usePelvic} from '../pelvic/store';
 
 type Point = [number,number,number];
 const storyViews:Record<StoryRoom,[Point,Point]>={
   lawn:[[3,1.75,5],[3,2.05,-5]], pool:[[1.15,1.72,-2],[0,.32,-9.3]], liveHouse:[[.2,1.7,4.8],[0,1.90,-5.1]]
 };
-export type CameraActions = { reset():void; frame():void; center():void; story():void; tour(index:number):void };
+export type CameraActions = { reset():void; frame():void; inspectStand():void; center():void; story():void; tour(index:number):void };
 
 export function ScreenCamera({actions,onReady,viewport}:{actions:RefObject<CameraActions|null>;onReady:(ready:boolean)=>void;viewport:RefObject<HTMLDivElement|null>}) {
   const {camera,gl,scene}=useThree(); const scenery=useMmdVrStore(s=>s.prefs.scenery);
@@ -67,8 +68,23 @@ export function ScreenCamera({actions,onReady,viewport}:{actions:RefObject<Camer
       const dist=Math.min(20,Math.max(.4, .68*Math.max(h,Math.max(w,d)/Math.max(.15,camera.aspect))/Math.tan(camera.fov*Math.PI/360)+Math.max(w,d)*.5));
       const dir=camera.position.clone().sub(orbit.target).normalize();orbit.target.copy(target);camera.position.copy(target).addScaledVector(dir,dist);orbit.update();
     };
+    // An explicit close look uses the two world objects the player can see.
+    // A saved fit, a guessed fraction of actor height or a rail command can
+    // all point at the wrong place when the actor is posed or the stand stows.
+    const inspectStand=()=>{
+      const {selected,live}=useBackpack.getState(),{active}=usePelvic.getState();
+      if(!selected||active?.assetId!==selected||active.runtimeId!==live[selected]?.runtimeId||active.mode==='xrManual')return;
+      const rig=scene.getObjectByName('pelvic:rig'),port=rig?.getObjectByName(`pelvic:adapter:${selected}`),piece=rig?.getObjectByName('pelvic:stand-piece');
+      if(!rig?.visible||!port?.visible||!piece?.visible)return;
+      wind?.dispose();align();
+      const at=port.getWorldPosition(new Vector3()),base=piece.getWorldPosition(new Vector3());
+      const dir=new Vector3(.85,0,1).transformDirection(port.matrixWorld);dir.y=.16;dir.normalize();
+      orbit.target.copy(at).lerp(base,.45);setLens(46);
+      const distance=Math.max(.52,at.distanceTo(base)*1.7)/Math.min(1,Math.max(.35,camera.aspect));
+      camera.position.copy(orbit.target).addScaledVector(dir,distance);orbit.update();
+    };
     let releaseHints:(()=>void)|undefined;
-    actions.current={reset,frame,tour(index){const shot=tourShots(scenery)[index];if(!shot)return;
+    actions.current={reset,frame,inspectStand,tour(index){const shot=tourShots(scenery)[index];if(!shot)return;
       wind?.dispose();
       if(shot.link){arrival.current={room:shot.link.to,eye:shot.eye,aim:shot.aim};if(!walkBetweenZones(shot.link))arrival.current=null;return;}
       if(shot.preloadLawn&&!releaseHints)releaseHints=hintLawnPrints();

@@ -31,4 +31,6 @@ export type PelvicSample = {
 export type PelvicSupport = {
   runtimeId:string; kind:'bones'|'manual'|'missing'; anchorName:string;
   obstruction?:'garment'|'unverified'; manualSeed?:NonNullable<PelvicCalibration['manual']>;
+  /** Named garment layers on this drawable; blockerName requires a current triangle hit. */
+  garmentNames?:readonly string[]; blockerName?:string;
 };

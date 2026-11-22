@@ -1,6 +1,7 @@
 import { Matrix4, Vector3 } from 'three';
 import { centerZ, siliconeMount, siliconeOutlet, siliconeTilt, tipHeight } from '../play/siliconeProfile';
 import type { PelvicFrame } from './contract';
+import { PELVIC_LIMITS } from './stateTypes';
 
 // A circular sagittal arc has an exact distance parameter and inverse. The
 // exterior rail is its tangent; projection beyond the stop uses the end tangent.
@@ -36,6 +37,13 @@ const at = new Vector3(), axis = new Vector3(), normal = new Vector3();
 
 /** A fixed-size tool cannot travel past the rolled flange on a large actor. */
 export const pelvicRailLimit = (f: Pick<PelvicFrame, 'lengthM'>) => Math.min(f.lengthM, tipHeight+.024);
+
+/** The negative handle range is the approach, not part of the canal. Leave
+ * room for the visible tip on a clothed actor. The bounded 4.5–6 cm run-up
+ * also keeps the fastest rail within the solver's continuous stroke budget. */
+export function pelvicRailTravel(f:PelvicFrame,command:number){
+  return command>=0?command*pelvicRailLimit(f):command/-PELVIC_LIMITS.position[0]*Math.min(.06,Math.max(.045,.07*f.scale));
+}
 
 /** Transform the real PlayPiece PARENT (not the mesh, grip or decoration).
  * The inverse nozzle socket supplies both the bore offset and its tangent;

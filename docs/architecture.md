@@ -15,7 +15,7 @@
 
 | 要改什么 | 负责的模块 |
 |---|---|
-| 角色工具里的动态解剖图 | [`pelvic/atlas/`](../src/mmdVrShowcase/pelvic/atlas/) 的器官动态按需使用本地 Worker；测量剖面直接在 Canvas 上画[标定投影](../src/mmdVrShowcase/pelvic/sectionProjection.ts)。显示按资产隔离，只读周期、接触、存量；切换角度或图像定格不驱动玩法。 |
+| 角色工具里的动态解剖图 | [`pelvic/atlas/`](../src/mmdVrShowcase/pelvic/atlas/) 的子宫动态按需使用本地 Worker；入口对位和测量剖面在 Canvas 上画[标定投影](../src/mmdVrShowcase/pelvic/sectionProjection.ts)。入口图的文字表独立异步准备，实杆不等字体。运转实测和静止实杆分开发布；待命杆位不能触发开合、计量、外喷或触觉。 |
 | 骨盆附件的手持／支架、剖面与计量 | [`pelvic/rig.ts`](../src/mmdVrShowcase/pelvic/rig.ts) 在角色求值后检查当帧真实喷口：有效在内计量、确认在外只外喷、其余情况消费触发但不释放。支架与剖面共用校准轨道，不从滑块推断接触。[玩家操作](./gameplay/pelvic-attachment.md) |
 | 道具引起的临时模型形变 | [`roomPropDisplay.ts`](../src/mmdVrShowcase/stage/roomPropDisplay.ts) 管开合形态、软头接触和持棒触觉的订阅与清理。帧末先叠开合形态，再叠道具接触；下次 VMD／Bullet 求值、姿势编辑或房间退出前逆序还原。同名顶点形态也不能把显示权重留进原动作。 |
 | 摆姿势、身体状态及局部剖面 | [`pose/`](../src/mmdVrShowcase/pose/) 管编辑手势、单帧动作和命名姿势；[`bodyState/`](../src/mmdVrShowcase/bodyState/) 管每个资产的虚构时间线、预览及显示适配。只有当房间挂载演员时，才关联其骨架／形态。屏幕和 VR 使用同一套命令。[操作与验证](./gameplay/pose-and-body-states.md) |

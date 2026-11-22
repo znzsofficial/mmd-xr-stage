@@ -1,6 +1,3 @@
-import { useState } from 'react';
-import { useLanguageStore } from '../../languageStore';
-import { useBackpack } from '../backpack';
 import { HudButton, HudLine, HudSheet } from '../components/PorcelainControls';
 import { HudSlider } from '../components/HudValues';
 import { PrivateButton, PrivateLine, PrivateSheet } from '../pelvic/HudPrivateControls';
@@ -25,23 +22,19 @@ function ScreenRow({ actor, row, blocked }: { actor: BodyActor; row: Row; blocke
   }
 }
 
-function ScreenEditor(props: BodyActor) {
+function ScreenEditor({onBack,...props}: BodyActor & {onBack?:()=>void}) {
   const editor = useBodyEditor(props);
-  return <div className="body-editor">
-    {editor.tabs.length>0&&<nav className="body-tabs" aria-label={editor.title}><ScreenActions items={editor.tabs} blocked={false}/></nav>}
+  const back = editor.backAction ?? (onBack && {label:editor.back,run:onBack});
+  return <div className="body-screen body-editor">
+    <header className="body-page"><h4>{editor.title}</h4>{back&&<ScreenActions items={[back]} blocked={false}/>}</header>
     <div className="body-fields">{editor.rows.map((row,i)=><ScreenRow key={`${row.kind}:${i}`} actor={props} row={row} blocked={editor.blocked}/>)}</div>
     {editor.footer.length>0&&<div className="body-footer"><ScreenActions items={editor.footer} blocked={editor.blocked}/></div>}
   </div>;
 }
 
-/** Mounted inside the selected actor's screen tools; folding it discards a pending preview. */
-export function BodyScreenControls(props: BodyActor) {
-  const title = useLanguageStore(s=>s.language==='zh'?'身体状态':'Body state');
-  const name = useBackpack(s=>s.entries.find(e=>e.id===props.assetId)?.file.name ?? '');
-  const [open,setOpen] = useState(false);
-  return <details className="body-screen" onToggle={e=>setOpen(e.currentTarget.open)}><summary>{title}{open&&<span className="body-identity" title={name}>{name}</span>}</summary>
-    {open&&<ScreenEditor key={`${props.assetId}:${props.runtimeId}`} {...props}/>}
-  </details>;
+/** The actor sheet owns entry/exit and already identifies the selected file. */
+export function BodyScreenControls(props: BodyActor & {onBack?:()=>void}) {
+  return <ScreenEditor key={`${props.assetId}:${props.runtimeId}`} {...props}/>;
 }
 
 const stableSliderInteraction = () => {}; // The actor anchor stays still while pointing.
@@ -70,20 +63,18 @@ function HudRow({ actor, row, blocked }: { actor: BodyActor; row: Row; blocked: 
 function HudEditor({onBack,...actor}: BodyActor & { onBack: () => void }) {
   const editor = useBodyEditor(actor);
   const cycle = editor.rows.find(row=>row.kind==='cycle');
-  const showTabs = editor.tabs.length>0 && !cycle?.organ;
   const Sheet = cycle ? PrivateSheet : HudSheet, Back = cycle ? PrivateButton : HudButton;
   const name = Array.from(editor.name), galleryName=name.length>24 ? `${name.slice(0,12).join('')}…${name.slice(-9).join('')}` : editor.name;
-  const h = .24+(showTabs ? .185:0)+editor.rows.reduce((sum,row)=>sum+rowHeight(row),0)+(editor.footer.length ? .19 : 0)+.06;
-  // Align the top edge throughout editing. Header and tabs do not jump while navigating.
+  const h = .24+editor.rows.reduce((sum,row)=>sum+rowHeight(row),0)+(editor.footer.length ? .19 : 0)+.06;
+  // Keep the header and back target still when the working page changes.
   const top = .69;
   const contentTop = top-.23;
-  let y = contentTop-(showTabs ? .185:0);
+  let y = contentTop;
   return <group name="body:actor-tools">
     <group position-y={top-h/2}><Sheet size={[1.55,h]}/></group>
     {cycle ? <PrivateLine position={[-.175,top-.115,0]} width={1.08} title text={`${cycle.organ?cycle.views[1].label:editor.title} · ${galleryName}`}/>
       : <HudLine position={[-.175,top-.115,0]} width={1.08} role="title" text={`${editor.title} · ${editor.name}`}/>}
-    <Back position={[.55,top-.115,0]} size={[.33,.14]} label={editor.back} variant="quiet" onPress={onBack}/>
-    {showTabs&&<group position-y={contentTop-.085}><HudActions items={editor.tabs} blocked={false} tabs gallery={!!cycle}/></group>}
+    <Back position={[.55,top-.115,0]} size={[.33,.14]} label={editor.back} variant="quiet" onPress={editor.backAction?.run??onBack}/>
     {editor.rows.map((row,i)=>{
       const height=rowHeight(row),center=y-height/2; y-=height;
       return <group key={`${row.kind}:${i}`} position-y={center}><HudRow actor={actor} row={row} blocked={editor.blocked}/></group>;

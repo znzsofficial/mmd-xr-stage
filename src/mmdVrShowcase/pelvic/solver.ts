@@ -2,6 +2,9 @@ import { Matrix4, Quaternion, Vector3 } from 'three';
 import type { PelvicContact, PelvicFrame, PelvicSolver } from './contract';
 import { nozzle, nozzleDir, pelvicCenterline, projectDepth, rod, rodRadii, tangent } from './path';
 
+/** Distance outside the entrance needed to arm a fresh, continuous crossing. */
+export const entryClearance=(radiusM:number)=>Math.min(.004,radiusM*.14);
+
 /** Owner-local history: never share a solver across actors, hands or rails. */
 export function createPelvicSolver(): PelvicSolver {
   const shaft = rod.map(() => new Vector3());
@@ -54,7 +57,7 @@ export function createPelvicSolver(): PelvicSolver {
     if (!continuous) { armed = false; clearContact(); }
 
     const d = projectDepth(f,tip), inLine = dir.dot(tangent(f,d,t));
-    const rim = Math.min(.004, f.radiusM*.14), pieceScale = pieceWorld.getMaxScaleOnAxis();
+    const rim = entryClearance(f.radiusM), pieceScale = pieceWorld.getMaxScaleOnAxis();
     if (contact.inside) {
       if (tip.z > rim || inLine < .67 || (tip.z >= 0 && Math.hypot(tip.x,tip.y) > f.radiusM) || !fits(f,pieceScale)) clearContact();
     } else if (continuous && armed && prevTip.z >= 0 && tip.z <= 0 && prevTip.z > tip.z) {

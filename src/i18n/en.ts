@@ -3,6 +3,7 @@ import type { ZhMessages } from "./zh";
 /** English UI strings — must cover every key in zh. */
 export const en: Record<keyof ZhMessages, string> = {
   actorPelvic:'Pelvic attachment',
+  screenInspectStand:'Look at stand',
   actorPose:'Pose actor', actorBodyState:'Body state',
   emberWind:'Launch collar · Ember',frostWind:'Launch collar · Frost',emberReturn:'Ember · homeward view',frostReturn:'Frost · homeward view',
   saltWind:'Launch collar · Halite',glazeWind:'Launch collar · Obsidian',saltReturn:'Halite · homeward view',glazeReturn:'Obsidian · homeward view',
@@ -43,7 +44,7 @@ export const en: Record<keyof ZhMessages, string> = {
   watchDetails:'Details',
   watchMenu:'Menu',watchArrange:'Arrange',watchExperiments:'Experiments',watchStart:'Choose a set, then place a character from your backpack.',watchRecall:'Press right B for controls. With hands, raise your left wrist or look down for Menu.',
   toyClubName:'Live House',toyStudioName:'Studio plinth',
-  toyDildo:'Silicone dildo',allSets:'All sets',guideDildoVr:'Squeeze to release semen. Use Pelvic attachment on an adult actor to fit the opening and see the section.',guideDildoScreen:'Give it to a wrist or mount it on the manual slider or motor in Pelvic attachment.',guideDildoEnd:'Stop or remove the rod at the stand. Approach from outside again after tracking loss.',
+  toyDildo:'Silicone dildo',allSets:'All sets',guideDildoVr:'Squeeze to release semen. Select Pelvic attachment → Anatomy to see the vulva and vagina.',guideDildoScreen:'Choose Pelvic attachment → Place rod outside opening. Check the opening, then select Advance the rod.',guideDildoEnd:'Stop holds the current position. Use Change holder or put away for the motor stand or a VR controller.',
   toyWand:'Cordless massage wand',guideWandVr:'Squeeze for low, high, then off. Feel the beat in the holding hand; the first touch accents one beat.',guideWandScreen:'Give it to a wrist. Use a pose or motion for contact; choose low or high for the soft head.',guideWandEnd:'With physics on, the head or grip can lift cloth even with the motor off.',
   wandMotor:'Wand motor',wandLow:'Low',wandHigh:'High',
   toyRemoteEgg:'Remote vibrating egg',guideEggVr:'Take the remote, select an adult character and choose Fit egg. Close the menu and squeeze to change pattern.',guideEggScreen:'Adjust the receiver in centimetres. With character physics on, bring its shell up against dynamic cloth.',guideEggEnd:'If it starts inside cloth, move it clear first. Stow or change sets to stop.',

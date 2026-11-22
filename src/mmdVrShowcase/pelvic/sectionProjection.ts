@@ -1,5 +1,5 @@
 import { Vector3 } from 'three';
-import { pelvicCenterline, tangent } from './path';
+import { pelvicCenterline, projectDepth, tangent } from './path';
 import type { PelvicXYZ } from './contract';
 import type { PelvicProfile, PelvicSample } from './stateTypes';
 
@@ -7,6 +7,7 @@ export type SectionAngle = 'front'|'side'|'oblique'|number;
 export const sectionYaw = { front:0, oblique:.66, side:Math.PI/2 } as const;
 export const SECTION_W = 344, SECTION_H = 282;
 export const plot = { left:74, right:338, top:28, bottom:195 } as const;
+export const canalPlot = { left:174, right:338, top:39, bottom:215 } as const;
 export type Point = { x:number; y:number };
 const mix = (a:number,b:number,t:number) => a+(b-a)*t;
 // Upright illustration of the calibrated socket. X stays lateral, +Z is OUT.
@@ -41,7 +42,7 @@ function loft(center:(t:number)=>Vector3, normal:(t:number)=>Vector3, keys:Key[]
  * lofts share the same section at the stop and isthmus; only the canal has a
  * calibrated traversable centreline. Outer wall, cut face and lumen have
  * independent transverse and AP dimensions. */
-function anatomy(l:number,r:number) {
+function anatomy(l:number,r:number,entryFocus:boolean) {
   const frame={lengthM:l}, stop=pelvicCenterline(frame,l), axis=tangent(frame,l,new Vector3()), n=new Vector3(0,-axis.z,axis.y);
   const distal=(axial:number,x:number,forward:number)=>stop.clone().addScaledVector(axis,axial).addScaledVector(n,forward).setX(x);
   const canal=loft(t=>pelvicCenterline(frame,l*t),t=>{const v=tangent(frame,l*t,new Vector3());return new Vector3(0,-v.z,v.y);},[
@@ -55,7 +56,7 @@ function anatomy(l:number,r:number) {
   ]);
   const bodyLength=.94*l, breadth=.415*l+.68*r, thickness=.15*l+.41*r;
   const bodyAt=(t:number)=>distal(neck+bodyLength*t,0,.29*l*t*t);
-  const body=loft(bodyAt,t=>{
+  const body=entryFocus?[]:loft(bodyAt,t=>{
     const dir=axis.clone().multiplyScalar(bodyLength).addScaledVector(n,.58*l*t).normalize();
     return new Vector3(0,-dir.z,dir.y);
   },[
@@ -69,7 +70,7 @@ function anatomy(l:number,r:number) {
   for(const r of body){const k=Math.min(1,Math.max(0,(r.t-.46)/.43));r.sag=.15*l*k*k*(3-2*k);r.crownX=.70*breadth;}
   const root=bodyAt(.77), tubeAt=(side:number,x:number,h:number,f:number)=>root.clone().addScaledVector(axis,h*l)
     .addScaledVector(n,f*l).setX(side*x*breadth);
-  const adnexa=[-1,1].map(side=>{
+  const adnexa=entryFocus?[]:[-1,1].map(side=>{
     const p=(x:number,h:number,f:number)=>tubeAt(side,x,h,f);
     // Tubal isthmus → rising ampulla → recurved infundibulum and fimbriae.
     const tube=[p(.76,0,0),p(1.20,.018,-.018),p(1.27,.26,-.06),p(1.63,.18,-.10),
@@ -83,22 +84,25 @@ function anatomy(l:number,r:number) {
   });
   // Fit the full turn once, rather than resizing the ruler as the view turns
   // or a tracked tool leaves the chart. Include a little of the exterior.
-  const bounds=[new Vector3(0,0,Math.min(.033,l*.27))];
+  const bounds=[new Vector3(0,0,entryFocus?l*.38:Math.min(.033,l*.27))];
   for(const ring of [...canal,...cervix,...body])for(const u of [-1,1])for(const v of [-1,1])
     bounds.push(ring.center.clone().addScaledVector(ring.normal,v*ring.thick).setX(u*ring.width));
   for(const a of adnexa){bounds.push(...a.tube,...a.fringe.flat());for(const v of a.axes)bounds.push(a.ovary.clone().add(v),a.ovary.clone().sub(v));}
-  const zs=bounds.map(anterior),ys=bounds.map(up),az=(Math.min(...zs)+Math.max(...zs))/2,lo=Math.min(...ys),hi=Math.max(...ys);
-  const extent=Math.max(...bounds.map(p=>Math.hypot(p.x,anterior(p)-az)));
-  const scale=Math.min((plot.right-plot.left-12)/(2*extent),(plot.bottom-plot.top-10)/(hi-lo));
+  function fit(points:Vector3[],box:typeof plot|typeof canalPlot){
+    const zs=points.map(anterior),ys=points.map(up),az=(Math.min(...zs)+Math.max(...zs))/2,lo=Math.min(...ys),hi=Math.max(...ys);
+    const extent=Math.max(...points.map(p=>Math.hypot(p.x,anterior(p)-az)));
+    return {az,uy:(lo+hi)/2,scale:Math.min((box.right-box.left-12)/(2*extent),(box.bottom-box.top-10)/(hi-lo))};
+  }
   const yrange=(rings:Ring[])=>{
     const edges:number[]=[];for(const r of rings){
+      if(!r.sag){const center=up(r.center),half=Math.abs(up(r.normal)*r.openN);edges.push(center-half,center+half);if(!r.openX)break;continue;}
       for(let i=0;i<64;i++){const a=i*Math.PI/32;edges.push(up(r.center)+up(r.normal)*r.openN*Math.sin(a)-
         (s*r.normal.y+c*r.normal.z)*fundalInset(r,r.openX*Math.cos(a)));}
       if(!r.openX)break;
     }
     return [Math.min(...edges),Math.max(...edges)] as const;
   };
-  return {canal,cervix,body,adnexa,stop,scale,az,uy:(lo+hi)/2,canalLevel:yrange(canal),bodyLevel:yrange(body)};
+  return {canal,cervix,body,adnexa,stop,fit:fit(bounds,entryFocus?canalPlot:plot),canalLevel:yrange(canal),bodyLevel:entryFocus?[0,0] as const:yrange(body)};
 }
 // Bounded to the handful of actors in a room. A turn reuses the 3-D lofts;
 // no image buffers or per-angle frames accumulate here.
@@ -107,15 +111,16 @@ const models=new Map<string,ReturnType<typeof anatomy>>();
 // despite identical scale. Ignore sub-nanometre fit noise in the art cache;
 // never quantise the observed coordinates or the continuous heading.
 const dimensionKey=(l:number,r:number)=>`${l.toPrecision(10)}/${r.toPrecision(10)}`;
-function model(l:number,r:number){
-  const key=dimensionKey(l,r);let m=models.get(key);
-  if(!m){m=anatomy(l,r);if(models.size>=4)models.delete(models.keys().next().value!);models.set(key,m);}
+function model(l:number,r:number,entryFocus:boolean){
+  const key=`${dimensionKey(l,r)}/${+entryFocus}`;let m=models.get(key);
+  if(!m){m=anatomy(l,r,entryFocus);if(models.size>=4)models.delete(models.keys().next().value!);models.set(key,m);}
   return m;
 }
 
-function buildLayout(lengthM:number,radiusM:number,yaw:number) {
-  const co=Math.cos(yaw),si=Math.sin(yaw),m=model(lengthM,radiusM);
-  const pxPerM=m.scale, cx=(plot.left+plot.right)/2-si*m.az*pxPerM,cy=(plot.top+plot.bottom)/2+m.uy*pxPerM;
+function buildLayout(lengthM:number,radiusM:number,yaw:number,entryFocus:boolean) {
+  const co=Math.cos(yaw),si=Math.sin(yaw),m=model(lengthM,radiusM,entryFocus);
+  const fit=m.fit,box=entryFocus?canalPlot:plot;
+  const pxPerM=fit.scale, cx=(box.left+box.right)/2-si*fit.az*pxPerM,cy=(box.top+box.bottom)/2+fit.uy*pxPerM;
   const project=(x:number,y:number,z:number):Point=>({x:cx+pxPerM*(co*x+si*(s*y+c*z)),y:cy-pxPerM*(c*y-s*z)});
   const depth=(p:Vector3)=>co*anterior(p)-si*p.x;
   const screen=(p:Vector3)=>project(p.x,p.y,p.z);
@@ -145,25 +150,51 @@ function buildLayout(lengthM:number,radiusM:number,yaw:number) {
       rx:Math.sqrt((xx+yy+d)/2),ry:Math.sqrt(Math.max(0,(xx+yy-d)/2)),roll:Math.atan2(2*xy,xx-yy)/2};
   }).sort((a,b)=>a.depth-b.depth);
   const levelY=(vessel:'canal'|'uterus',fraction:number)=>{const [lo,hi]=vessel==='canal'?m.canalLevel:m.bodyLevel;return cy-pxPerM*mix(lo,hi,fraction);};
-  return {project,levelY,pxPerM,lengthM,radiusM,yaw,canal:m.canal.map(slice),cervix:m.cervix.map(slice),uterus:m.body.map(slice),adnexa,
+  return {project,levelY,pxPerM,lengthM,radiusM,yaw,box,entryFocus,canal:m.canal.map(slice),cervix:m.cervix.map(slice),uterus:m.body.map(slice),adnexa,
     entry:project(0,0,0),stop:screen(m.stop)};
 }
 export type SectionLayout = ReturnType<typeof buildLayout>;
 const layouts=new Map<string,SectionLayout>();
-export function sectionLayout(lengthM:number,radiusM:number,angle:SectionAngle='side') {
-  const yaw=typeof angle==='number'?angle:sectionYaw[angle],key=`${dimensionKey(lengthM,radiusM)}/${yaw}`;
-  let v=layouts.get(key);if(!v){v=buildLayout(lengthM,radiusM,yaw);if(layouts.size>=4)layouts.delete(layouts.keys().next().value!);layouts.set(key,v);}return v;
+export function sectionLayout(lengthM:number,radiusM:number,angle:SectionAngle='side',entryFocus=false) {
+  const yaw=typeof angle==='number'?angle:sectionYaw[angle],key=`${dimensionKey(lengthM,radiusM)}/${yaw}/${+entryFocus}`;
+  let v=layouts.get(key);if(!v){v=buildLayout(lengthM,radiusM,yaw,entryFocus);if(layouts.size>=4)layouts.delete(layouts.keys().next().value!);layouts.set(key,v);}return v;
 }
 export type Slice = SectionLayout['canal'][number];
+
+// Location relative to a real entrance or stop is useful even before admission.
+// Only the solver can verify insertion. In particular an on-axis tip behind
+// the plane after reacquisition is neither "inside" nor necessarily off-axis.
+const observed=new Vector3(),center=new Vector3();
+export function outletObservation(s:PelvicSample|null){
+  if(!s)return 'waiting';
+  if(s.outletInside)return s.atCervix?'stop':'inside';
+  const [x,y,z]=s.tip;
+  if(s.outletVisible){
+    if(!s.aligned)return 'outsideOffset';
+    return z<=Math.min(.004,s.radiusM*.14)&&Math.hypot(x,y)<=s.radiusM?'approach':'outside';
+  }
+  const d=projectDepth(s,observed.fromArray(s.tip));
+  if(s.atCervix||d>s.lengthM+1e-6)return 'past';
+  if(Math.abs(z)<=1e-6&&Math.hypot(x,y)<=s.radiusM)return 'plane';
+  if(d>=0&&observed.distanceTo(pelvicCenterline(s,d,center))>s.radiusM)return 'offset';
+  return 'unknown';
+}
+export const observationText={waiting:['等待杆位采样','Waiting for sample'],outside:['外侧 · 已对准','Outside · aligned'],outsideOffset:['外侧 · 未对准','Outside · off axis'],
+  approach:['入口前 · 已对准','At rim · outside'],plane:['入口平面 · 未确认','At entry · unverified'],inside:['喷口在内','Outlet inside'],stop:['在内 · 抵达限位','Inside · at stop'],
+  past:['越过限位 · 未确认','Past stop · unverified'],offset:['偏离通道 · 未确认','Off axis · unverified'],unknown:['未确认进入','Entry unverified']} as const;
+export const outletLabel=(s:PelvicSample|null,zh:boolean,parked=false)=>s&&parked?(zh?'待命 · 实测杆位':'Parked · measured position'):observationText[outletObservation(s)][zh?0:1];
 
 /** Projection is deliberately downstream of the solver and ledger. A
  * physically sampled but unverified nozzle is a point, not an admitted rod.
  * No inference from location, depth, an old sample or a slider. */
-export function sectionEvidence(layout:SectionLayout,profile:PelvicProfile,sample:PelvicSample|null){
-  const state=!sample?'absent':sample.outletInside?'inside':sample.outletVisible?'outside':'unverified';
+export function sectionEvidence(layout:SectionLayout,profile:PelvicProfile,sample:PelvicSample|null,parked=false){
+  const state=!sample?'absent':parked?'parked':sample.outletInside?'inside':sample.outletVisible?'outside':'unverified';
   const point=(p:PelvicXYZ)=>layout.project(...p);
   const level=(k:keyof PelvicProfile['fluid'])=>Math.min(1,Math.max(0,profile.fluid[k]/profile.capacity[k]));
-  return {state,tip:sample&&point(sample.tip),shaft:state==='inside'||state==='outside'?sample?.shaft?.map(point)??[]:[],
-    depth:sample?.depth??null,lateral:sample?.tip[0]??null,angle:sample?.angleDeg??null,atCervix:sample?.atCervix??false,
+  const shaft=sample?.shaft;
+  // A visible nozzle can face backwards; its exterior status does not verify
+  // any of the mould sampled behind the plane. Only draw an all-exterior run.
+  return {state,tip:sample&&point(sample.tip),shaft:shaft&&(state==='parked'||state==='inside'||state==='outside'&&shaft.every(p=>p[2]>=0))?shaft.map(point):[],
+    depth:state==='inside'?sample!.depth:null,lateral:sample?.tip[0]??null,angle:sample?.angleDeg??null,atCervix:!parked&&(sample?.atCervix??false),
     vaginal:level('vaginal'),uterine:profile.container==='fantasyUterine'?level('fantasyUterine'):0};
 }

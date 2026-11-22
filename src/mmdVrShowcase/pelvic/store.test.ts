@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, it } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { Matrix4, Vector3 } from 'three';
 import { clearBackpack, useBackpack } from '../backpack';
 import { useHudWorldInput } from '../components/hudWorldInput';
@@ -9,7 +9,7 @@ import { createPelvicSolver, pelvicRailMatrix } from './geometry';
 import {
   advancePelvic, assignPelvic, clearPelvicFluid, clearPelvicSupport, consumePelvicDose, disablePelvic, drainPelvic,
   enablePelvic, endPelvic, interruptPelvic, nudgePelvic, patchPelvic, PELVIC_LIMITS, publishPelvicSample,
-  publishPelvicSupport, requestPelvicDose, setPelvicCapacity, startPelvic, stopPelvic, usePelvic, type PelvicSupport,
+  publishPelvicSupport, requestPelvicDose, setPelvicCapacity, setPelvicGarmentVisible, startPelvic, stopPelvic, usePelvic, type PelvicSupport,
 } from './store';
 
 const get=usePelvic.getState,bag=useBackpack.getState,play=useStagePlay.getState;
@@ -83,6 +83,20 @@ it('gates clothing and tracks measured geometry separately from commands, includ
   const moving=advancePelvic(clock,.04);stopPelvic('a');expect(advancePelvic(token(),.03)).toBe(moving);
   expect(nudgePelvic('a',.2)).toBe(false);startPelvic('a');const restarted=token();advancePelvic(restarted,1);expect(get().active?.running).toBe(false);
   expect(advancePelvic(restarted,.01)).toBe(PELVIC_LIMITS.position[0]);
+});
+
+it('forwards only the selected actor’s real clothing layers to material visibility and never treats hiding as admission',()=>{
+  opted();const setMaterialVisible=vi.fn();
+  const layer={name:'skirt',visible:true,opacity:1,metallic:0,roughness:1,occlusion:1,emission:0,emissionColor:'#000',envInfluence:0,
+    lightingModel:'toon' as const,specularMode:'mmd' as const,aoMapFile:null,emissionMapFile:null,maskMapFile:null};
+  useMmdVrStore.setState({materialModels:{'1':[layer]},runtimeRef:{setMaterialVisible,setMaterialOverride:vi.fn()}});
+  publishPelvicSupport('a',{...support('1'),garmentNames:['skirt'],obstruction:'garment',blockerName:'skirt'});
+  assignPelvic('a','standAuto','screen');expect(setPelvicGarmentVisible('a','face',false)).toBe(false);expect(setPelvicGarmentVisible('b','skirt',false)).toBe(false);
+  expect(setPelvicGarmentVisible('a','skirt',false)).toBe(true);expect(setMaterialVisible).toHaveBeenLastCalledWith('1','skirt',false);
+  expect(get().byAsset.a.clothingClear).toBe(false);expect(get().support.a.obstruction).toBe('garment');
+  publishPelvicSupport('a',{...support('1'),garmentNames:['skirt']});expect(startPelvic('a')).toBe(false);
+  patchPelvic('a',{clothingClear:true});expect(startPelvic('a')).toBe(true);expect(setPelvicGarmentVisible('a','skirt',true)).toBe(true);
+  expect(setMaterialVisible).toHaveBeenLastCalledWith('1','skirt',true);expect(get().active?.running).toBe(false);expect(get().byAsset.a.clothingClear).toBe(false);
 });
 
 it('routes each dose from the actual outlet once; containers, overflow, draining and clearing conserve their own balances',()=>{

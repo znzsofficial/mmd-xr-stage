@@ -2,6 +2,8 @@ import { BufferGeometry, Color, DynamicDrawUsage, Float32BufferAttribute, Matrix
 import { ball, box, PaintedParts, ring, rod, turn } from '../play/modelParts';
 import { siliconeMount, siliconeTilt } from '../play/siliconeProfile';
 import { pelvicRailLimit, pelvicRailMatrix, type PelvicFrame, type PelvicSeal } from './geometry';
+import { pelvicRailTravel } from './path';
+import { PELVIC_LIMITS } from './stateTypes';
 
 // Cross section of the free-standing moulding, from back outer edge around
 // the rolled bead to the return down its inner wall. No disc masks the hole.
@@ -44,7 +46,7 @@ const railPoint=(x:number)=>new Vector3(x,-.062,0).applyMatrix4(partMount);
 /** Two measured rails travel through the actual sliding shoes over the full
  * drive range. Build in the port's rigid local system; translation/rotation
  * during a dance changes the mount matrix, not the geometry allocation. */
-export function makeTracks(frame:PelvicFrame){const p=new PaintedParts(),m=new Matrix4(),lo=pelvicRailLimit(frame)*-.2,hi=pelvicRailLimit(frame);
+export function makeTracks(frame:PelvicFrame){const p=new PaintedParts(),m=new Matrix4(),lo=pelvicRailTravel(frame,PELVIC_LIMITS.position[0]),hi=pelvicRailLimit(frame);
   const ends=new Vector3(),base=new Vector3();
   for(const x of [-.045,.045]){const local=railPoint(x),prev=new Vector3(),next=new Vector3();
     for(let i=0;i<=12;i++){

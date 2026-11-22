@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { Vector3 } from 'three';
 import { defaultPelvicCalibration } from './contract';
 import { pelvicCenterline } from './path';
-import { sectionEvidence, sectionLayout, sectionYaw } from './sectionProjection';
+import { canalPlot, outletObservation, sectionEvidence, sectionLayout, sectionYaw } from './sectionProjection';
+import {exteriorLens} from './atlas/vulvaSurface';
 import type { PelvicProfile, PelvicSample } from './stateTypes';
 
 const length=.092,radius=.024;
@@ -68,5 +69,23 @@ describe('socket-local metre projection',()=>{
     expect(unverified.tip).not.toEqual(v.stop);
     const outside=sectionEvidence(v,profile,{...sample,outletInside:false,outletVisible:true,tip:[.02,.003,.011],shaft:undefined});
     expect(outside).toMatchObject({state:'outside',tip:v.project(.02,.003,.011),shaft:[]});
+  });
+
+  it('registers both close-ups at the same physical opening; a turn changes their bearing, never a crossing',()=>{
+    for(const yaw of [0,.66,Math.PI/2,-Math.PI/2]){
+      const v=sectionLayout(length,radius,yaw,true),face=exteriorLens(yaw,radius),center=face(0,0,0),x=face(radius,0,0),z=face(0,0,radius);
+      const front=exteriorLens(0,radius);
+      expect(Math.hypot(x.x-center.x,z.x-center.x)).toBeCloseTo(front(radius,0,0).x-front(0,0,0).x);
+      expect(v.canal[0].center).toEqual(v.project(0,0,0));expect(v.stop).toEqual(v.cervix[0].center);
+      expect(v.stop.y).toBeGreaterThan(canalPlot.top);expect(v.entry.y).toBeLessThan(canalPlot.bottom);
+      const parked=sectionEvidence(v,profile,sample,true);expect(parked).toMatchObject({state:'parked',tip:v.project(...sample.tip),shaft:sample.shaft!.map(p=>v.project(...p)),depth:null,atCervix:false});
+    }
+    const unknown={...sample,outletInside:false,outletVisible:false,depth:0};
+    expect(outletObservation(null)).toBe('waiting');expect(outletObservation(unknown)).toBe('unknown');
+    expect(outletObservation({...unknown,tip:[0,0,-.17]})).toBe('past');
+    expect(outletObservation({...unknown,tip:[.055,0,-.01]})).toBe('offset');
+    expect(outletObservation({...unknown,tip:[0,0,0]})).toBe('plane');
+    expect(outletObservation({...unknown,tip:[0,0,.002],outletVisible:true})).toBe('approach');
+    expect(outletObservation({...unknown,tip:[0,0,.002],outletVisible:true,aligned:false})).toBe('outsideOffset');
   });
 });

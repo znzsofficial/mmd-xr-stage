@@ -36,10 +36,10 @@ export function createStandDrawing(host:Object3D){
     carrier=new Mesh(makeCarriage(),track.material),foot=new Mesh(makeStandFoot(),track.material),
     mast=new Mesh(new CylinderGeometry(1,1,1,12),new MeshStandardMaterial({color:'#75858a',metalness:.5,roughness:.33}));
   body.name='pelvic:stand';track.name='pelvic:rails';carrier.name='pelvic:carriage';body.visible=false;host.add(body);body.add(track,carrier,foot,mast);
-  const up=new Vector3(0,1,0),post=new Vector3(),at=new Vector3(),ground=new Vector3();let length=-1;
+  const up=new Vector3(0,1,0),post=new Vector3(),at=new Vector3(),ground=new Vector3();let length=-1,ruler=-1;
   return {body,draw(f:PelvicFrame,pieceWorld:Matrix4,floorY:number){
     body.visible=true;
-    if(Math.abs(length-f.lengthM)>1e-6){const built=makeTracks(f);track.geometry.dispose();track.geometry=built.geometry;post.copy(built.post);length=f.lengthM;}
+    if(Math.abs(length-f.lengthM)>1e-6||Math.abs(ruler-f.scale)>1e-6){const built=makeTracks(f);track.geometry.dispose();track.geometry=built.geometry;post.copy(built.post);length=f.lengthM;ruler=f.scale;}
     placeWorld(track,f.world);placeWorld(carrier,pieceWorld);
     at.copy(post).applyMatrix4(f.world);ground.set(at.x,Math.min(floorY,at.y-.025),at.z);
     body.worldToLocal(at);body.worldToLocal(ground);foot.position.copy(ground);mast.position.lerpVectors(ground,at,.5);

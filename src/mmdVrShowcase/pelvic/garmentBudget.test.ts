@@ -2,6 +2,9 @@ import { Bone, Box3, BufferGeometry, Float32BufferAttribute, Group, Matrix4, Mes
 import { afterEach, expect, it, vi } from 'vitest';
 import type { PelvicFrame } from './contract';
 import { createGarmentGuard, type Obstruction } from './garment';
+import {applyMaterialVisibility} from '../mmdRuntime/mmdRuntimeMaterials';
+import {extractMaterialNames} from '../mmdRuntime/mmdRuntimeEntry';
+import type {ThreeMmdModel} from '@yohawing/three-mmd-loader';
 
 afterEach(()=>vi.restoreAllMocks());
 const frame=():PelvicFrame=>({world:new Matrix4(),inverse:new Matrix4(),scale:1,radiusM:.02,lengthM:.09});
@@ -29,6 +32,30 @@ it('never stitches different moving samples into clearance and drops completed e
   }
   expect(settle(()=>probe(f))).toBeUndefined();f.radiusM=NaN;expect(probe(f)).toBe('unverified');
   f.radiusM=.02;expect(probe(f)).toBe('unverified');expect(settle(()=>probe(f))).toBeUndefined();
+});
+
+it('does not clear a malformed garment, and covers the entire stationary run-up even on a small actor',()=>{
+  const f=frame();f.scale=.4;f.radiusM=.01;f.lengthM=.04;
+  const mesh=new Mesh(geometry([-.01,-.01,.042,.01,-.01,.042,0,.01,.042]),cloth());
+  const scan=createGarmentGuard(mesh);expect(settle(()=>scan(f))).toBe('garment');
+  mesh.geometry.getAttribute('position').setX(1,NaN);const guard=createGarmentGuard(mesh);
+  for(let i=0;i<10;i++)expect(guard(f)).toBe('unverified');
+});
+
+it.each(['padded','unnamed'] as const)('controls a %s garment by the original slot across proxies, outlines and a restore',kind=>{
+  const g=geometry([-.02,-.01,.02,.02,-.01,.02,0,.02,.02]),layer=new MeshBasicMaterial({name:kind==='padded'?'  Silk lining  ':'  '});
+  layer.userData.mmdMaterial={englishName:'pantyhose'};const root=new Group(),source=new SkinnedMesh(g,[new MeshBasicMaterial({name:'unrelated'}),layer]);
+  const draw=new SkinnedMesh(g.clone(),layer),outline=new SkinnedMesh(g.clone(),new MeshBasicMaterial({name:'custom edge'}));root.add(source,draw,outline);
+  source.geometry.setDrawRange(0,0);draw.geometry.setDrawRange(0,3);draw.userData.mmdMaterialRenderProxy={materialIndex:1};outline.userData.mmdOutlineProxy={sourceMaterialIndex:1};
+  const model={root,mesh:source,outlineMeshes:[outline],renderOrderMeshes:[draw]} as unknown as ThreeMmdModel,names=extractMaterialNames(model),key=kind==='padded'?'Silk lining':'Material 2';
+  const flags:Record<string,boolean>={},entry={id:'actor',visible:true,materialNames:names,materialVisible:flags,materialOverrides:{},model};
+  const probe=createGarmentGuard(root,model),f=frame();expect(names[1]).toBe(key);expect(probe.garmentNames).toEqual([key]);
+  expect(settle(()=>probe(f))).toBe('garment');expect(probe.blockerName()).toBe(key);
+  flags[key]=false;applyMaterialVisibility(entry);expect(settle(()=>probe(f))).toBeUndefined();expect(draw.material.visible||outline.material.visible).toBe(false);
+  expect(source.material[0].visible).toBe(true);flags[key]=true;applyMaterialVisibility(entry);expect(settle(()=>probe(f))).toBe('garment');expect(outline.material.visible).toBe(true);
+  // A compact split carries its authored material index, not its own slot 0.
+  draw.userData={mmdMorphSplitBody:{materialIndex:1,morphTargetIndices:[]}};source.userData.mmdMorphSplitBodyMeshes=[draw];
+  const split=createGarmentGuard(root,model);expect(split.garmentNames).toEqual([key]);expect(settle(()=>split(f))).toBe('garment');
 });
 
 it.each(['bone','mesh world','mapped morph','visibility','query transform','query radius'] as const)(

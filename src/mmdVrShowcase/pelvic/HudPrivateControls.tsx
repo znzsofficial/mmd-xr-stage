@@ -6,7 +6,7 @@ import { PRIVATE_COLORS as c, PRIVATE_TITLE_FACE } from './palette';
 
 type Point = [number, number, number];
 type Size = [number, number];
-type Variant = 'button' | 'tab' | 'quiet' | 'stop';
+type Variant = 'button' | 'tab' | 'quiet' | 'stop' | 'primary';
 const material = { transparent: true, toneMapped: false, fog: false, depthTest: false, depthWrite: false } as const;
 const noRay = () => null;
 const density = 600;
@@ -57,13 +57,14 @@ export function PrivateButton({position,size=[.36,.135],label,onPress,active=fal
   const geom=useMemo(()=>cutGeometry(w,h,.014,stop),[w,h,stop]);
   const px=Math.round(w*density),py=Math.round(h*density);
   const texture=useMemo(()=>createPanelTexture(px,py,({ctx,width,height})=>{
-    const ink=disabled?c.disabled:tinted?c.danger:active?c.gold:c.ink;
-    const fill=disabled?c.inset:pressed?c.selected:hover?c.raised:tinted?c.dangerFill:active?c.selected:variant==='quiet'||variant==='tab'?c.paper:c.control;
+    const primary=variant==='primary';
+    const ink=disabled?c.disabled:primary?c.paper:tinted?c.danger:active?c.gold:c.ink;
+    const fill=disabled?c.inset:primary?c.gold:tinted?c.dangerFill:active?c.selected:variant==='quiet'||variant==='tab'?c.paper:c.control;
     path(ctx,width,height,.014*density,stop,1);
-    ctx.fillStyle=fill;ctx.fill();ctx.lineWidth=hover&&!disabled?3:2;
-    ctx.strokeStyle=disabled?'#6d5a68':tinted?c.rouge:active||hover?c.gold:c.rule;
+    ctx.fillStyle=fill;ctx.fill();ctx.lineWidth=2;
+    ctx.strokeStyle=disabled?'#6d5a68':tinted?c.rouge:active?c.gold:c.rule;
     if(disabled)ctx.setLineDash([6,4]);ctx.stroke();ctx.setLineDash([]);
-    if(active||pressed){ctx.fillStyle=pressed?c.ink:c.gold;ctx.fillRect(width*.28,height-6,width*.44,3);}
+    if(active){ctx.fillStyle=c.gold;ctx.fillRect(width*.28,height-6,width*.44,3);}
     const icon=stop||variant==='quiet',iconSize=Math.min(13,width*.095),inset=icon?iconSize+12:0;
     if(icon){
       ctx.fillStyle=ink;ctx.strokeStyle=ink;ctx.lineWidth=2.6;
@@ -71,12 +72,12 @@ export function PrivateButton({position,size=[.36,.135],label,onPress,active=fal
       if(stop)ctx.fillRect(x-iconSize/2,y-iconSize/2,iconSize,iconSize);
       else{ctx.beginPath();ctx.moveTo(x+iconSize/3,y-iconSize/2);ctx.lineTo(x-iconSize/4,y);ctx.lineTo(x+iconSize/3,y+iconSize/2);ctx.stroke();}
     }
-    ctx.fillStyle=ink;labelText(ctx,label,(width+inset)/2,height/2+(pressed?2:0),Math.max(1,width-inset-13),Math.min(28,height*.35),active||stop?650:550);
-  },'en'),[px,py,label,active,disabled,tinted,pressed,hover,stop,variant]);
+    ctx.fillStyle=ink;labelText(ctx,label,(width+inset)/2,height/2,Math.max(1,width-inset-13),Math.min(28,height*.35),active||stop?650:550);
+  },'en'),[px,py,label,active,disabled,tinted,stop,variant]);
   useEffect(()=>()=>geom.dispose(),[geom]);useEffect(()=>()=>texture.dispose(),[texture]);
   function cancel(id:number|null){if(id!==null&&id===pointer.current){handled.current.add(id);lastUp.current=id;pointer.current=null;setPressed(false);}}
   useLayoutEffect(()=>{if(disabled){cancel(pointer.current);setHover(false);}},[disabled]);
-  return <mesh name={`hud:${label}`} position={position} renderOrder={30}
+  return <mesh name={`hud:${label}`} position={position} renderOrder={30} scale={pressed && !disabled ? .985 : 1}
     onPointerEnter={e=>{e.stopPropagation();if(!disabled)setHover(true);}}
     onPointerLeave={e=>{e.stopPropagation();setHover(false);cancel(e.pointerId);}}
     onPointerCancel={e=>{e.stopPropagation();cancel(e.pointerId);}}
@@ -85,21 +86,22 @@ export function PrivateButton({position,size=[.36,.135],label,onPress,active=fal
     onPointerUp={e=>{e.stopPropagation();if(pointer.current!==e.pointerId)return;cancel(e.pointerId);if(!disabled)onPress();}}
     onClick={e=>{e.stopPropagation();const id='pointerId' in e&&typeof e.pointerId==='number'?e.pointerId:lastUp.current;
       if(id!==null&&handled.current.delete(id))return;if(pointer.current===null&&!disabled)onPress();}}>
-    <primitive attach="geometry" object={geom}/><meshBasicMaterial map={texture} {...material}/>
+    <primitive attach="geometry" object={geom}/><meshBasicMaterial map={texture} color={!disabled&&(pressed||hover)?'#ffe6ca':'#ffffff'} {...material}/>
   </mesh>;
 }
 
 export function PrivateSheet({size}:{size:Size}) {
-  const [w,h]=size,px=Math.round(w*400),py=Math.round(h*400);
-  const texture=useMemo(()=>createPanelTexture(px,py,({ctx})=>{
-    path(ctx,px,py,14);ctx.fillStyle=c.paper;ctx.fill();
-    path(ctx,px,py,13,false,1);ctx.strokeStyle=c.rule;ctx.lineWidth=2;ctx.stroke();
-    path(ctx,px,py,10,false,5);ctx.strokeStyle='#705a4a';ctx.lineWidth=1;ctx.stroke();
-  },'en'),[px,py]);
+  const [w,h]=size;
   const geom=useMemo(()=>cutGeometry(w,h,14/400),[w,h]);
-  useEffect(()=>()=>geom.dispose(),[geom]);useEffect(()=>()=>texture.dispose(),[texture]);
-  return <mesh position-z={-.018} renderOrder={10} onPointerDown={e=>e.stopPropagation()} onPointerUp={e=>e.stopPropagation()} onClick={e=>e.stopPropagation()}>
-    <primitive attach="geometry" object={geom}/><meshBasicMaterial map={texture} {...material}/></mesh>;
+  useEffect(()=>()=>geom.dispose(),[geom]);
+  // The resizable sheet is two flat colours. Never upload a full-page canvas
+  // to the headset just because a note wrapped or the chart opened.
+  return <group position-z={-.018}>
+    <mesh geometry={geom} renderOrder={10} onPointerDown={e=>e.stopPropagation()} onPointerUp={e=>e.stopPropagation()} onClick={e=>e.stopPropagation()}>
+      <meshBasicMaterial color={c.rule} {...material}/></mesh>
+    <mesh geometry={geom} scale={[(w-.008)/w,(h-.008)/h,1]} renderOrder={11} pointerEvents="none" raycast={noRay}>
+      <meshBasicMaterial color={c.paper} {...material}/></mesh>
+  </group>;
 }
 
 export function PrivateLine({position,width,text,value,title=false}:{position:Point;width:number;text:string;value?:string;title?:boolean}) {

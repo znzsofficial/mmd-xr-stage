@@ -1,6 +1,7 @@
 import type { ThreeMmdModel } from "@yohawing/three-mmd-loader";
 import * as THREE from "three";
 import { attachMmdMaterialEnhance, syncMmdMaterialEnhance, type MmdMaterialEnhanceState } from "./mmdMaterialEnhance";
+import {materialSlotKey,sourceMaterialSlot} from './materialSlotKey';
 
 export type MaterialOverride = {
   opacity: number;
@@ -167,10 +168,11 @@ export function applyMaterialVisibility(entry: MaterialPipelineEntry) {
 
   for (const proxy of [...entry.model.outlineMeshes, ...entry.model.renderOrderMeshes]) {
     const mats = Array.isArray(proxy.material) ? proxy.material : [proxy.material];
-    mats.forEach((material) => {
+    mats.forEach((material,localIndex) => {
       if (!material) return;
-      const name = material.name || entry.materialNames[0];
-      const visible = !name || entry.materialVisible[name] !== false;
+      const i=sourceMaterialSlot(proxy,materials,material,localIndex);
+      const name = entry.materialNames[i]??materialSlotKey(material,i);
+      const visible = entry.materialVisible[name] !== false;
       material.visible = visible && entry.visible;
     });
     proxy.visible = entry.visible;

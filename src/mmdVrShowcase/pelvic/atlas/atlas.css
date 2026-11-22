@@ -1,14 +1,23 @@
 .anatomy-atlas { color:#f5dfe1;background:#211722;border:1px solid #71525b;min-width:0;overflow:hidden;font-variant-numeric:tabular-nums }
-.anatomy-atlas-head,.anatomy-atlas-modes,.anatomy-angles,.anatomy-orbit { display:flex;align-items:center }
+.anatomy-atlas-head,.anatomy-mode,.anatomy-angles,.anatomy-orbit { display:flex;align-items:center }
 .anatomy-atlas-head { justify-content:space-between;gap:.25rem;padding:.18rem .38rem;background:#2f202c;border-bottom:1px solid #533943 }
 .anatomy-atlas-head strong {font:600 1rem/1.2 Georgia,'Songti SC','SimSun',serif;color:#f9dfd8}
+.anatomy-mode {gap:.45rem;color:#cfb9c2;font-size:.84rem;min-width:0}
+.screen-stage .anatomy-mode select {min-width:0;max-width:100%;padding:.36rem .2rem;min-height:2.4rem;border:0;border-radius:0;background:#2f202c;color:#fff1e9;font:600 .93rem/1.2 system-ui,sans-serif;cursor:pointer}
+.anatomy-mode select option {background:#2f202c;color:#fff1e9}
 .screen-stage .anatomy-atlas button { background:transparent;color:#ddc5cf;font:550 .85rem/1.2 var(--font-ui,system-ui);border:0;border-radius:0;min-height:2.3rem;padding:.35rem .43rem;box-shadow:none }
 .screen-stage .anatomy-atlas button:not(:disabled):hover { background:#422b3b;color:#fff1e7 }
 .screen-stage .anatomy-atlas button[aria-pressed=true] {background:#462c3b;color:#ffe1a6;box-shadow:inset 0 -2px #d1a36f}
-.screen-stage .anatomy-atlas button:focus-visible,.screen-stage .anatomy-orbit input:focus-visible {outline:2px solid #f7ce95;outline-offset:-3px}
+.screen-stage .anatomy-atlas :is(button,select,input,summary):focus-visible {outline:2px solid #f7ce95;outline-offset:-3px}
 .screen-stage .anatomy-atlas button.anatomy-freeze {font-size:.79rem;display:flex;gap:.3rem;align-items:center;color:#e9c1bb}
 .atlas-artboard {display:block;width:100%;height:auto;touch-action:pan-y;cursor:ew-resize;background:#211722}
-.anatomy-angles { gap:.28rem;border-top:1px solid #573e47;justify-content:stretch;padding:.2rem .4rem 0; }
+.anatomy-orbit-tools {border-top:1px solid #573e47}
+.anatomy-orbit-tools summary {display:flex;align-items:center;gap:.4rem;min-height:2.4rem;padding:0 .65rem;cursor:pointer;color:#dac4ca;font:500 .8rem/1.3 system-ui,sans-serif}
+.anatomy-orbit-tools summary span:first-child {margin-inline-end:auto}
+.anatomy-orbit-tools summary::after {content:'';width:.4rem;height:.4rem;border-right:1.5px solid #ebc68e;border-bottom:1.5px solid #ebc68e;transform:translateY(-.1rem) rotate(45deg)}
+.anatomy-orbit-tools[open] summary::after {transform:translateY(.1rem) rotate(225deg)}
+.anatomy-orbit-tools summary:hover {background:#342430;color:#fff1e9}
+.anatomy-angles { gap:.28rem;justify-content:stretch;padding:.2rem .4rem 0; }
 .anatomy-angles button { flex:1; }
 .anatomy-orbit { font-size:.78rem;gap:.55rem;padding:.12rem .7rem .24rem;color:#d6bbc2 }
 .anatomy-orbit output {min-width:2.6em;text-align:right;color:#f1cf9a}

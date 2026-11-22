@@ -1,139 +1,155 @@
-import { useState } from 'react';
-import { useLanguageStore } from '../../languageStore';
-import { useBackpack } from '../backpack';
-import { useMmdVrStore } from '../mmdVrStore';
-import { useStagePlay } from '../play/stagePlay';
-import type { PelvicActor } from './Section';
-import { defaultPelvicCalibration, type PelvicCalibration } from './contract';
-import { setApertureMorph, useApertureMorph } from './apertureConfig';
-import { assignPelvic, clearPelvicFluid, disablePelvic, drainPelvic, enablePelvic, nudgePelvic, patchPelvic, PELVIC_LIMITS as lim,
-  releasePelvic, requestPelvicDose, setPelvicCapacity, startPelvic, stopPelvic, usePelvic, type PelvicMode } from './store';
+import {useState} from 'react';
+import {useLanguageStore} from '../../languageStore';
+import {useBackpack} from '../backpack';
+import {useMmdVrStore} from '../mmdVrStore';
+import {useStagePlay} from '../play/stagePlay';
+import type {PelvicActor} from './Section';
+import {useApertureMorph} from './apertureConfig';
+import {buttons,field,key,note,percentRange,type Key,type Row} from './controlRows';
+import {fitRows,type Fit} from './fitRows';
+import {entryClearance} from './solver';
+import {assignPelvic,clearPelvicFluid,disablePelvic,drainPelvic,enablePelvic,nudgePelvic,patchPelvic,PELVIC_LIMITS as lim,
+  releasePelvic,requestPelvicDose,setPelvicCapacity,setPelvicGarmentVisible,startPelvic,stopPelvic,usePelvic,type PelvicMode} from './store';
 
-type Tab='tool'|'fit'|'fluid';
-type Fit='offset'|'rotation'|'size'|'anchor'|'morph';
-type Source='screen'|'xr';
-export type Key = { label:string; press:()=>void; id?:string; active?:boolean; disabled?:boolean; danger?:boolean };
-export type Row = {kind:'buttons';keys:Key[]}|{kind:'note';text:string;warn?:boolean}|
-  {kind:'choose';label:string;names:readonly string[];chosen:string|null;none:string;pick:(name:string|null)=>void}|
-  {kind:'field';label:string;value:number;unit:string;range:readonly [number,number];step:number;change:(n:number)=>void;disabled:boolean};
-const buttons=(...keys:Key[]):Row=>({kind:'buttons',keys});
-const note=(text:string,warn=false):Row=>({kind:'note',text,warn});
-const key=(label:string,press:()=>void,options:Partial<Omit<Key,'label'|'press'>>={}):Key=>({label,press,...options});
-const field=(label:string,value:number,unit:string,range:readonly [number,number],step:number,change:(n:number)=>void,disabled=false):Row=>
-  ({kind:'field',label,value,unit,range,step,change,disabled});
-const cmRange=([a,b]:readonly [number,number])=>[a*100,b*100] as const;
+type Page='use'|'view'|'fit'|'clothes'|'holder'|'fluid';
+const main=(label:string,press:()=>void,disabled=false)=>buttons(key(label,press,{primary:true,disabled}));
+const link=(label:string,press:()=>void)=>buttons(key(label,press));
 
-export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:Source) {
+export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen'|'xr') {
   const zh=useLanguageStore(s=>s.language==='zh'),l=(a:string,b:string)=>zh?a:b;
-  const [tab,setTab]=useState<Tab>('tool'),[fit,setFit]=useState<Fit>('offset');
-  const [morphPage,setMorphPage]=useState(0),morph=useApertureMorph(assetId);
-  const names=useBackpack(s=>s.live[assetId]?.propMorphs);
+  const [page,go]=useState<Page>('use'),[fit,setFit]=useState<Fit>('position');
+  const [listPage,setListPage]=useState(0),[morphPage,setMorphPage]=useState(0);
+  const morph=useApertureMorph(assetId),names=useBackpack(s=>s.live[assetId]?.propMorphs);
   const profile=usePelvic(s=>s.byAsset[assetId]);
   const support=usePelvic(s=>s.support[assetId]?.runtimeId===runtimeId?s.support[assetId]:undefined);
+  const materials=useMmdVrStore(s=>page==='clothes'?s.materialModels[runtimeId]:undefined);
   const selected=useBackpack(s=>s.selected===assetId&&s.live[assetId]?.runtimeId===runtimeId&&s.live[assetId]?.visible&&!s.draft&&!s.busy);
   const blocked=useMmdVrStore(s=>!s.overlayOpen||s.physicsBusy||s.physicsFatal||s.assetLoad.running)||!selected;
+  const active=(s:ReturnType<typeof usePelvic.getState>)=>s.active?.assetId===assetId&&s.active.runtimeId===runtimeId?s.active:null;
   const hand=useStagePlay(s=>s.held?.toy==='dildo'?s.held.hand:null);
-  // Automatic rail samples redraw only the chart. They never invalidate the
-  // editable fields or produce new text textures in the rest of the HUD.
-  const mode=usePelvic(s=>s.active?.assetId===assetId&&s.active.runtimeId===runtimeId?s.active.mode:null);
-  const running=usePelvic(s=>s.active?.assetId===assetId&&s.active.running);
-  const manualPosition=usePelvic(s=>s.active?.assetId===assetId&&s.active.mode==='standManual'?s.active.position:lim.position[0]);
-  const hasSample=usePelvic(s=>s.active?.assetId===assetId&&!!s.sample);
-  const title=l('骨盆附件','Pelvic attachment'), back=l('返回','Back');
-  const tabs:Key[]=[],rows:Row[]=[],notes:Row[]=[];
-  const result={title,back,tabs,rows,notes,enabled:!!profile,blocked};
+  const mode=usePelvic(s=>active(s)?.mode),running=usePelvic(s=>!!active(s)?.running);
+  const target=usePelvic(s=>active(s)?.mode==='standManual'?s.active!.position:lim.position[0]);
+  const withdrawFirst=usePelvic(s=>active(s)?.mode==='standManual'&&!!s.parkedSample&&s.parkedSample.tip[2]<entryClearance(s.parkedSample.radiusM));
+  // The diagram owns continuous samples. Rebuild the controls only when the
+  // player's *next action* changes, not on each millimetre of a stroke.
+  const signal=usePelvic(s=>{
+    if(!active(s))return 'none';
+    if(!s.sample)return s.parkedSample?'parked':'waiting';
+    return s.sample.outletInside?'inside':s.sample.outletVisible?'outside':'unverified';
+  });
+  const tabs:Key[]=[],rows:Row[]=[],stop=running?key(l('停止','Stop'),()=>stopPelvic(assetId),{danger:true}):null;
+  const result={title:l('骨盆附件','Pelvic attachment'),back:l('返回角色','Back to actor'),tabs,rows,stop,
+    status:'',warn:false,chart:page==='view',blocked,enabled:!!profile};
   if(!profile){
-    rows.push(note(l('开启后可为此角色校准入口、操作硅胶件并查看剖面。','Enable the attachment for this actor to calibrate the opening, operate the rod and view its section.')),
-      buttons(key(l('为此成年角色启用','Enable for this adult'),()=>enablePelvic(assetId,true))));
+    result.status=l('此角色还没有启用骨盆附件。','The attachment is off for this actor.');
+    rows.push(main(l('为此成年角色启用','Enable for this adult'),()=>enablePelvic(assetId,true)));
     return result;
   }
-  const toFit=(sub:Fit)=>{setFit(sub);setTab('fit');};
-  const canAssign=!!support&&support.kind!=='missing';
-  const cal=profile.calibration, patchCal=(calibration:Partial<PelvicCalibration>)=>patchPelvic(assetId,{calibration});
-  const obstruction=support?.obstruction;
-  const sourceText=!support?l('正在读取角色锚点','Checking actor anchor'):
-    support.kind==='missing'?l('缺少骨骼锚点，请手动定位。','No bone anchor. Set a manual origin.'):
-    `${support.kind==='bones'?l('骨骼锚点','Bone anchor'):l('手动锚点','Manual anchor')}${support.anchorName?` · ${support.anchorName}`:''}`;
-  notes.push(note(sourceText,!canAssign));
-  if(obstruction)notes.push(note(obstruction==='garment'?l('衣物遮住入口。隐藏或移开衣物后重试。','Clothing covers the opening. Hide or move it before starting.'):
-    l('无法验证遮挡。请隐藏相关衣物材质，再重试。','Coverage is unresolved. Hide the relevant clothing material and retry.'),true));
-  tabs.push(...(['tool','fit','fluid'] as const).map((t,i)=>key([l('道具','Rod'),l('校准','Fit'),l('精液','Semen')][i],()=>setTab(t),{active:tab===t})));
-  function assign(m:PelvicMode,label:string,h?:'left'|'right'){
-    const current=mode===m&&(!h||hand===h);
-    return key(label,()=>{if(!current)assignPelvic(assetId,m,source,h);},{active:current,disabled:!canAssign});
-  }
-  if(mode){
-    const start=()=>{if(startPelvic(assetId)&&mode==='xrManual')useBackpack.getState().select(null);};
-    notes.push(buttons(key(mode==='xrManual'?l('启动并收起面板','Start & close panel'):l('启动','Start'),start,{disabled:running||!profile.clothingClear||!canAssign||!!obstruction}),
-      key(l('停机','Stop'),()=>stopPelvic(assetId),{disabled:!running,danger:running})),
-      buttons(key(l('卸下硅胶件','Remove rod'),()=>releasePelvic(assetId))));
-  }
-  const garment=key(profile.clothingClear?l('已确认入口露出','Opening confirmed clear'):l('确认入口已露出','Confirm opening is clear'),()=>patchPelvic(assetId,{clothingClear:!profile.clothingClear}),{id:'garment',active:profile.clothingClear});
-  if(tab==='tool'){
-    if(!canAssign)rows.push(buttons(key(l('设置锚点','Set anchor'),()=>toFit('anchor'))));
-    rows.push(buttons(assign('standManual',l('装到手动滑轨','Mount on slider')),assign('standAuto',l('装到自动支架','Mount on motor'))));
-    if(source==='xr')rows.push(buttons(assign('xrManual',l('交给左手','Give to left hand'),'left'),assign('xrManual',l('交给右手','Give to right hand'),'right')));
-    if(!profile.clothingClear){
-      rows.push(note(l('请确认入口已露出且校准正确。合并材质或未知衣物须手动核实。附件不会打开 PMX 表面。',
-        'Verify the opening is exposed and calibrated. Check merged or unknown clothing yourself. The attachment does not open the PMX surface.')));
+  const section=page==='holder'||page==='clothes'?'use':page==='fluid'?'view':page;
+  for(const [id,label] of [['use',l('操作','Use')],['view',l('观察图','Anatomy')],['fit',l('调整入口','Fit opening')]] as const)
+    tabs.push(key(label,()=>go(id),{id,active:section===id}));
+  const known=!!support&&support.kind!=='missing',covered=support?.obstruction;
+  const clothes=()=>{
+    const all=support?.garmentNames??[],mats=useMmdVrStore.getState().materialModels[runtimeId];
+    const selectable=all.filter(n=>mats?.some(m=>m.name===n));
+    // Jump to the intersecting layer, but keep row order stable after hiding
+    // one. The same spot on the next frame must not hide a different garment.
+    const i=support?.blockerName?selectable.indexOf(support.blockerName):-1;
+    setListPage(Math.max(0,Math.floor(i/3)));go('clothes');
+  }, relocate=()=>{setFit('model');go('fit');};
+  const assign=(m:PelvicMode,h?:'left'|'right')=>{if(assignPelvic(assetId,m,source,h))go('use');};
+  const start=()=>{
+    if(!startPelvic(assetId))return;
+    if(mode==='xrManual'){useBackpack.getState().select(null);return;}
+    // It is the physical rail that crosses the opening in later frames. A
+    // restart from a stopped interior pose first withdraws to re-arm outside.
+    if(mode==='standManual')nudgePelvic(assetId,(withdrawFirst?lim.position[0]:.5)-target);
+  };
+  const setTarget=(n:number)=>{const a=active(usePelvic.getState());if(a?.mode==='standManual')nudgePelvic(assetId,n-a.position);};
+  const jog=()=>buttons(key(l('退到入口外','Withdraw'),()=>setTarget(lim.position[0]),{disabled:target<=lim.position[0]}),
+    key(l('向内推一段','Advance'),()=>setTarget(Math.min(1,target+.25)),{disabled:target>=1}));
+  const dose=()=>buttons(key(l('射出精液','Release semen'),()=>requestPelvicDose(assetId),{disabled:signal!=='inside'&&signal!=='outside'}));
+  const site=profile.container==='vaginal'?l('阴道','Vagina'):l('宫腔','Uterus');
+  const balance=()=>note(`${site} ${profile.fluid[profile.container]} / ${profile.capacity[profile.container]}${profile.overflow?l(` · 已溢出 ${profile.overflow}`,` · Overflow ${profile.overflow}`):''}`);
+  const clothesLabel=l('调整衣物','Manage clothing');
+  const coverage=covered==='garment'?(support?.blockerName?l(`「${support.blockerName}」挡住了入口。`,`The opening is covered by ${support.blockerName}.`):l('衣物挡住了入口。','Clothing covers the opening.')):
+    covered?l('还没看清入口。可暂停动作，或调整衣物。','The opening is not verified. Pause the motion or check clothing.'):'';
+  const rigName=mode==='xrManual'?(hand==='left'?l('左手持棒','Left hand'):l('右手持棒','Right hand')):
+    mode==='standAuto'?l('自动支架','Motor stand'):l('手动支架','Manual stand');
+  const waiting=mode==='xrManual'?l('已交给手柄。','The rod is in your hand.'):
+    signal==='parked'?l('支架已摆好，棒身静止。','Stand in place. The rod is stationary.'):
+    l('正在摆放支架…','Placing the stand…');
+  const openFit=()=>{setFit('position');go('fit');};
+  if(page==='clothes'){
+    result.status=coverage||l('点衣物名称可隐藏或重新显示。','Hide or show a clothing material.');result.warn=!!covered;
+    const candidates=(support?.garmentNames??[]).filter(n=>materials?.some(m=>m.name===n));
+    const pages=Math.max(1,Math.ceil(candidates.length/3)),at=Math.min(listPage,pages-1);
+    if(!candidates.length)rows.push(note(l('没有可单独开关的衣物材质。可换姿势，或使用衣物分层的模型。','No separate clothing material is available. Change pose or use a model with separate clothing.')));
+    for(const n of candidates.slice(at*3,at*3+3)){
+      const visible=!!materials?.find(m=>m.name===n)?.visible;
+      rows.push(buttons(key(visible?l(`隐藏：${n}`,`Hide: ${n}`):l(`显示：${n}`,`Show: ${n}`),()=>setPelvicGarmentVisible(assetId,n,!visible),{id:n})));
     }
-    rows.push(buttons(garment));
-    if(mode==='standManual'){
-      rows.push(field(l('滑轨指令','Slider command'),manualPosition*100,'%',[-20,100],5,p=>{
-        const a=usePelvic.getState().active;if(a?.assetId===assetId&&a.mode==='standManual')nudgePelvic(assetId,p/100-a.position);
-      },!running),note(l('0% 为入口，100% 为滑轨限位。实际深度见剖面。','0% is the opening; 100% is the rail limit. See the section for measured depth.')));
-    }else if(mode==='standAuto'){
-      rows.push(field(l('往复频率','Cycle rate'),profile.speedHz,' Hz',lim.speedHz,.1,n=>patchPelvic(assetId,{speedHz:n})),
-        field(l('支架行程上限','Stroke limit'),profile.stroke*100,'%',cmRange(lim.stroke),5,n=>patchPelvic(assetId,{stroke:n/100})),
-        note(l('行程为滑轨指令；1 Hz 表示每秒往返一次。','Stroke is a rail command. 1 Hz is one round trip per second.')));
-    }else if(mode==='xrManual')rows.push(note(l('启动后收起面板。移动持棒手控制杆身，按一次侧握射出一份精液；剖面留在角色旁。','Start to close the panel. Move the holding hand to guide the rod. Squeeze once to release semen; the section stays beside the actor.')));
-  }else if(tab==='fit'){
-    rows.push(buttons(...(['offset','rotation','size','anchor'] as const).map((k,i)=>key([l('位置','Offset'),l('方向','Angle'),l('尺寸','Size'),l('适配','Rig')][i],()=>setFit(k),{active:k===fit||(k==='anchor'&&fit==='morph')}))));
-    if(fit==='offset'){
-      for(const [i,label] of [l('X · 左右','X · lateral'),l('Y · 高低','Y · vertical'),l('Z · 里外','Z · outward')].entries())rows.push(
-        field(label,cal.offsetM[i]*100,' cm',cmRange(lim.offsetM),.5,n=>{
-          const xyz:[number,number,number]=[...cal.offsetM];xyz[i]=n/100;patchCal({offsetM:xyz});
-        }));
-      rows.push(note(l('参考厘米随角色缩放；调整时道具会停机。','Reference cm scale with the actor. Changing fit stops the rod.')));
-    }else if(fit==='rotation')rows.push(field(l('俯仰','Pitch'),cal.pitchDeg,'°',lim.pitchDeg,1,n=>patchCal({pitchDeg:n})),
-      field(l('偏航','Yaw'),cal.yawDeg,'°',lim.yawDeg,1,n=>patchCal({yawDeg:n})),note(l('俯仰为正时，向内的轴抬高。','Positive pitch raises the inward axis.')));
-    else if(fit==='size')rows.push(field(l('通道长度','Canal length'),cal.lengthM*100,' cm',cmRange(lim.lengthM),.1,n=>patchCal({lengthM:n/100})),
-      field(l('入口半径','Opening radius'),cal.radiusM*100,' cm',cmRange(lim.radiusM),.1,n=>patchCal({radiusM:n/100})),
-      note(l('这里是附件参考尺寸；剖面的深度是舞台实测厘米。','Reference dimensions scale with the actor. Section depth is in measured stage centimetres.')));
-    else if(fit==='anchor'){
-      rows.push(buttons(key(l('显示独立开口附件（适配模型）','Show separate opening on fitted model'),()=>patchPelvic(assetId,{showAdapter:!profile.showAdapter}),{active:profile.showAdapter})),
-        buttons(key(l('映射开合形态','Map opening morph'),()=>{setMorphPage(Math.max(0,Math.floor((names?.indexOf(morph??'')??0)/3)));setFit('morph');})),
-        note(l('手动起点仅根据模型外形估算。请用位置、方向与尺寸对准此角色。','A manual origin is estimated from the model bounds. Adjust offset, angle and size to fit this actor.')),
-        buttons(key(l('以模型估算点手动注册','Use model estimate as origin'),()=>{if(support?.manualSeed){patchCal({manual:support.manualSeed});setFit('offset');}},{disabled:!support?.manualSeed})),
-        buttons(key(l('恢复骨骼注册','Use bone registration'),()=>patchCal({manual:null}),{disabled:!cal.manual})),
-        buttons(key(l('还原尺寸、角度与偏移','Reset fit dimensions & pose'),()=>patchCal({...defaultPelvicCalibration,manual:cal.manual}))),
-        buttons(key(l('关闭并清除本角色附件','Disable & clear actor data'),()=>{disablePelvic(assetId);setTab('tool');},{danger:true})));
-    }else{
-      const none=l('不映射','No mapping'), label=l('开合形态','Opening morph');
-      const pick=(name:string|null)=>setApertureMorph(assetId,name);
-      rows.push(note(l('仅映射作者为入口开合制作的形态。选择“不映射”仍可使用剖面。','Map only a morph authored for the opening. The section also works without a mapping.')));
-      if(!names?.length)rows.push(note(l('此模型无可选形态。','No available morphs on this model.')));
-      if(morph&&!names?.includes(morph))rows.push(note(l('之前的映射已不可用。','Previous mapping is unavailable.'),true));
-      if(source==='screen')rows.push({kind:'choose',label,names:names??[],chosen:morph,none,pick});
-      else{
-        const pages=Math.max(1,Math.ceil((names?.length??0)/3)),page=Math.min(morphPage,pages-1);
-        rows.push(note(`${label} · ${morph??none}`),buttons(key(none,()=>pick(null),{active:!morph})),
-          ...(names??[]).slice(page*3,page*3+3).map(n=>buttons(key(n,()=>pick(n),{active:morph===n}))));
-        if(pages>1)rows.push(buttons(key(l('上一页','Prev'),()=>setMorphPage(page-1),{disabled:!page}),
-          key(`${page+1} / ${pages}`,()=>{}, {disabled:true}),key(l('下一页','Next'),()=>setMorphPage(page+1),{disabled:page>=pages-1})));
-      }
+    if(pages>1)rows.push(buttons(key(l('上一页','Previous'),()=>setListPage(at-1),{disabled:!at}),key(l('下一页','Next'),()=>setListPage(at+1),{disabled:at===pages-1})));
+    rows.push(link(l('返回操作','Back to controls'),()=>go('use')));
+  }else if(page==='holder'){
+    result.status=mode?l(`当前：${rigName}`,`Using: ${rigName}`):l('选择谁来拿假阳具。','Choose how to hold the rod.');
+    for(const [m,label,h] of [['standManual',l('手动支架','Manual stand')],['standAuto',l('自动支架','Motor stand')],
+      ...(source==='xr'?[['xrManual',l('交给左手','Left hand'),'left'],['xrManual',l('交给右手','Right hand'),'right']] as const:[])] as const){
+      const current=mode===m&&(!h||h===hand);
+      rows.push(buttons(key(label,()=>current?go('use'):assign(m,h),{active:current,disabled:!known})));
     }
+    if(mode)rows.push(link(l('收起假阳具','Put rod away'),()=>{releasePelvic(assetId);go('use');}));
+  }else if(page==='fit'){
+    result.status=!known?l('没有找到入口。到「模型」手动指定起点。','Opening not found. Set an origin under Model.'):
+      fit==='model'?l('只影响当前角色。','Changes apply to this actor only.'):
+      l('看角色身上的入口标记调整；改动后需重新确认。','Fit the marker on the actor, then confirm the opening again.');
+    rows.push(...fitRows({assetId,source,l,profile,support,fit,setFit,morph,names:names??[],page:morphPage,setPage:setMorphPage,clear:()=>{disablePelvic(assetId);go('use');}}));
+  }else if(page==='fluid'){
+    const c=profile.container,uterine=c==='fantasyUterine',amount=profile.fluid[c];
+    result.status=`${uterine?l('宫腔','Uterus'):l('阴道','Vagina')} · ${amount} / ${profile.capacity[c]} ${l('单位','units')}`;
+    rows.push(buttons(key(l('阴道','Vagina'),()=>patchPelvic(assetId,{container:'vaginal'}),{active:!uterine}),
+      key(l('宫腔','Uterus'),()=>patchPelvic(assetId,{container:'fantasyUterine'}),{active:uterine})),
+      note(l('喷口在内时计入所选部位；棒头仍止于宫颈。','An inside release fills the selected site. The rod still stops at the cervix.')),
+      field(l('容量','Capacity'),profile.capacity[c],l(' 单位',' units'),lim.capacity,1,n=>setPelvicCapacity(assetId,n)),
+      buttons(key(l('排出 1 单位','Drain 1 unit'),()=>drainPelvic(assetId,1),{disabled:!amount}),key(l('清空此处','Empty site'),()=>clearPelvicFluid(assetId),{disabled:!amount,danger:!!amount})),
+      link(l('返回观察图','Back to anatomy'),()=>go('view')));
+  }else if(page==='view'){
+    result.status=!mode?l('还没有放置假阳具。','No rod placed.'):
+      covered?coverage:!running?waiting:signal==='inside'?l('棒头已进入阴道。','The tip is inside the vagina.'):
+      signal==='outside'?l('棒头在入口外。','The tip is outside the opening.'):l('尚未确认杆位。','Rod position not verified.');
+    result.warn=!!covered;
+    if(running&&mode==='standManual')rows.push(jog());
+    if(running&&mode!=='xrManual')rows.push(dose());
+    rows.push(link(l('精液存量与容量','Semen amount and capacity'),()=>go('fluid')));
+    if(!mode)rows.push(link(l('去放置假阳具','Place the rod'),()=>go('use')));
   }else{
-    const c=profile.container, fantasy=c==='fantasyUterine', empty=profile.fluid[c]<=0;
-    rows.push(buttons(key(l('阴道','Vagina'),()=>patchPelvic(assetId,{container:'vaginal'}),{active:!fantasy}),
-      key(l('宫腔','Uterus'),()=>patchPelvic(assetId,{container:'fantasyUterine'}),{active:fantasy})),
-      note(fantasy?l('精液计入宫腔；道具的行程仍止于宫颈。','Semen counts toward the uterine total. The rod still stops at the cervix.'):
-        l('喷口在内时，精液计入阴道；喷口在外且可见时，精液向外喷出。','An inside outlet adds semen to the vaginal total. A visible outside outlet sprays outward.')),
-      field(fantasy?l('宫腔容量','Uterine capacity'):l('阴道容量','Vaginal capacity'),profile.capacity[c],l(' 单位',' units'),lim.capacity,1,n=>setPelvicCapacity(assetId,n)),
-      buttons(key(l('射出精液','Release semen'),()=>requestPelvicDose(assetId),{disabled:!mode||!running||!hasSample||mode==='xrManual'})),
-      buttons(key(l('排出 1 单位','Drain 1 unit'),()=>drainPelvic(assetId,1),{disabled:empty}),
-        key(l('清空精液','Clear semen'),()=>clearPelvicFluid(assetId),{disabled:empty,danger:!empty})),
-      note(l('每次 1 游戏单位。喷口未确认或越限时不射出，也不补发。切换部位不会转移精液。','Each release is one game unit. Unverified or past the stop: nothing is released or queued. Changing the selected site does not transfer semen.')));
+    if(!support){result.status=l('正在寻找角色的入口…','Locating the opening…');}
+    else if(!known){result.warn=true;result.status=l('未找到可用的骨盆骨骼。','No usable pelvic bones found.');rows.push(main(l('手动定位入口','Locate opening manually'),relocate));}
+    else if(!mode){
+      result.status=l('此角色还没有放置假阳具。先放到入口外，再推进。','No rod placed for this actor. Position it outside the opening first.');
+      rows.push(main(l('把假阳具放到入口外','Place rod outside opening'),()=>assign('standManual')));
+    }else if(covered){
+      result.status=`${waiting} ${coverage}`;result.warn=true;
+      rows.push(main(clothesLabel,clothes),link(l('重调入口位置','Refit opening'),openFit));
+    }else if(!profile.clothingClear){
+      result.status=`${waiting} ${l('看看入口是否露出。','Check that the opening is exposed.')}`;
+      rows.push(main(l('我看到了入口','I can see the opening'),()=>patchPelvic(assetId,{clothingClear:true})),link(clothesLabel,clothes));
+    }else if(!running){
+      result.status=waiting;
+      rows.push(main(mode==='xrManual'?l('开始手持并收起面板','Start hand control'):mode==='standAuto'?l('开始自动往复','Start motor'):
+        withdrawFirst?l('先退回入口外','Withdraw to re-align'):l('向内推一段','Advance the rod'),start,mode!=='xrManual'&&signal!=='parked'));
+    }else{
+      result.status=signal==='inside'?l('棒头已进入阴道。','The tip is inside the vagina.'):
+        signal==='outside'?l('棒头在入口外。','The tip is outside the opening.'):
+        signal==='unverified'?l('未确认进入。退回入口外再对准。','Entry not verified. Withdraw and re-align.'):
+        l('正在读取棒头位置…','Reading the tip position…');
+      if(mode==='standManual')rows.push(field(l('支架位置','Rail position'),Math.round(target*100),'%',[-20,100],5,p=>setTarget(p/100)),jog());
+      if(mode==='standAuto')rows.push(field(l('每秒往复','Cycles per second'),profile.speedHz,' Hz',lim.speedHz,.1,n=>patchPelvic(assetId,{speedHz:n})),
+        field(l('往复幅度','Stroke length'),profile.stroke*100,'%',percentRange(lim.stroke),5,n=>patchPelvic(assetId,{stroke:n/100})));
+      if(mode!=='xrManual')rows.push(dose(),balance());
+    }
+    if(known)rows.push(link(mode?l('换拿法或收起','Change holder or put away'):l('其他拿法','Other holders'),()=>go('holder')));
+    if(mode&&known&&!covered&&profile.clothingClear)rows.push(link(clothesLabel,clothes));
   }
   return result;
 }

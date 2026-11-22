@@ -18,6 +18,7 @@ const calibrated={calibration:defaultPelvicCalibration,clothingClear:true,contai
   fluid:{vaginal:1,fantasyUterine:3},capacity:{vaginal:4,fantasyUterine:12},drained:0,overflow:0,stroke:.5,speedHz:1};
 it('freezes only illustrative motion: camera and actual dose data stay live without starting a simulated rod or changing the day',()=>{
   const assetId='actor',runtimeId='instance';
+  setAtlasView(assetId,{mode:'organ'});
   const body={...DEFAULT_BODY_PROFILE,day:3};useBodyState.setState({byAsset:{[assetId]:body}});
   const p=calibrated;
   usePelvic.setState({byAsset:{[assetId]:p}});const wake=vi.fn();
@@ -55,7 +56,7 @@ it('does not display a late worker frame from an old cycle preview after the use
 });
 
 it('publishes the frozen first frame of A even if B acquires the active socket before the worker replies',()=>{
-  const worker=slowWorker(),upload=vi.fn();setAtlasView('a',{motion:false});
+  const worker=slowWorker(),upload=vi.fn();setAtlasView('a',{mode:'organ',motion:false});
   usePelvic.setState({byAsset:{a:calibrated}});
   const driver=atlasPainter(paper(),{assetId:'a',runtimeId:'ra'},'pelvic',()=>{},upload);
   try{
@@ -63,6 +64,21 @@ it('publishes the frozen first frame of A even if B acquires the active socket b
     usePelvic.setState({active:{assetId:'b',runtimeId:'rb',token:1,mode:'standAuto',source:'xr',running:true,awaitingWorld:false,position:0}});
     worker.reply();driver.tick(1000);expect(upload).toHaveBeenCalledOnce();expect(worker.current.postMessage).toHaveBeenCalledOnce();
     expect(worker.current.postMessage.mock.lastCall![0].options.sample).toBeNull();
+  }finally{driver.dispose();}
+});
+
+it('opens an unsaved cycle at the read-only defaults and discards a cancelled first preview before it can reach the canvas',()=>{
+  const worker=slowWorker(),upload=vi.fn();setAtlasView('a',{motion:false});
+  const driver=atlasPainter(paper(),{assetId:'a',runtimeId:'ra'},'body',()=>{},upload);
+  const options=()=>worker.current.postMessage.mock.lastCall![0].options;
+  try{
+    driver.tick(0);const initial=options();expect(initial.lining).toBe(sampleBody(DEFAULT_BODY_PROFILE).lining);
+    worker.reply();driver.tick(1);expect(upload).toHaveBeenCalledOnce();
+    useBodyState.setState({draft:{assetId:'a',value:{...DEFAULT_BODY_PROFILE,day:11,liningOverride:.05}}});
+    driver.tick(2);expect(options().lining).toBe(.05);const obsolete=worker.reply();
+    useBodyState.setState({draft:null});driver.tick(3);
+    expect(obsolete.close).toHaveBeenCalledOnce();expect(upload).toHaveBeenCalledOnce();expect(options()).toEqual(initial);
+    worker.reply();driver.tick(4);expect(upload).toHaveBeenCalledTimes(2);expect(useBodyState.getState().byAsset).toEqual({});
   }finally{driver.dispose();}
 });
 
@@ -87,7 +103,7 @@ it('does not rasterize a frozen, locked cycle diagram for unrelated refill ticks
 });
 
 it('invalidates a ready bitmap on a stop-limit crossing or a mode round trip between drawing frames',()=>{
-  const worker=slowWorker(),upload=vi.fn();setAtlasView('a',{motion:false});
+  const worker=slowWorker(),upload=vi.fn();setAtlasView('a',{mode:'organ',motion:false});
   const sample={tip:[0,0,-.1] as const,tail:[0,0,.1] as const,depth:.1,angleDeg:0,radiusM:.02,lengthM:.1,
     aligned:false,outletInside:false,outletVisible:false,atCervix:false};
   usePelvic.setState({byAsset:{a:calibrated},active:{assetId:'a',runtimeId:'r',token:1,mode:'standAuto',source:'xr',running:true,awaitingWorld:false,position:0},sample});

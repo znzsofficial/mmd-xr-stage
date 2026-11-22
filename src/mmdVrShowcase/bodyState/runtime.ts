@@ -50,7 +50,10 @@ export function createBodyDisplay(mesh:SkinnedMesh,chest:Chest){
     // For incomplete rigs fall back to the bind segment's own length.
     const extent=chest?.width??(inv&&boneInverses[i]?new Vector3().setFromMatrixPosition(boneInverses[i].clone().invert()).applyMatrix4(inv).length()*2:0);
     const shift=new Vector3(0,0,1);if(inv)shift.transformDirection(inv);
-    shift.multiplyScalar(Number.isFinite(extent)?extent*.035:0);
+    // Full travel is expressed in bind-space shoulder widths, not in scene
+    // metres. Move the root forward and expand its weighted skin around it;
+    // apply once per branch so nested pads never double the excursion.
+    shift.multiplyScalar(Number.isFinite(extent)?extent*.10:0);
     return {b,shift,pos:new Vector3(),scale:new Vector3()};
   });
   const sides={left:false,right:false};
@@ -95,7 +98,7 @@ export function createBodyDisplay(mesh:SkinnedMesh,chest:Chest){
         return false; // no bone palette upload
       }
       for(const p of pads){p.pos.copy(p.b.position);p.scale.copy(p.b.scale);
-        p.b.position.addScaledVector(p.shift,current.fullness);p.b.scale.multiplyScalar(1+.08*current.fullness);p.b.updateWorldMatrix(false,true);}
+        p.b.position.addScaledVector(p.shift,current.fullness);p.b.scale.multiplyScalar(1+.32*current.fullness);p.b.updateWorldMatrix(false,true);}
       appliedBones=pads.length>0; return appliedBones;
     },
   };

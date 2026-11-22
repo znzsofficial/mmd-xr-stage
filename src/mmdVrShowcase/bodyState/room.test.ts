@@ -2,11 +2,24 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { clearBackpack, useBackpack } from '../backpack';
 import { createBodyRoom } from './room';
 import type { BodyProfile } from './data';
-import { beginBodyPreview, cancelBodyPreview, commitBodyPreview, disableBodyState, drainBodySide, patchBodyPreview, stepBodyDay, useBodyState, type BodySupport } from './store';
+import { beginBodyPreview, cancelBodyPreview, commitBodyPreview, disableBodyState, drainBodySide, inspectBody, patchBodyPreview, stepBodyDay, useBodyState, type BodySupport } from './store';
 
 const live=(runtimeId:string,visible=true)=>({runtimeId,visible,position:[0,0,0] as [number,number,number]});
 const unsupported:BodySupport={bones:false,sides:{left:false,right:false},morphs:[],clothing:'authored-only'};
-afterEach(()=>{clearBackpack();useBodyState.setState({byAsset:{},draft:null,support:{}});});
+afterEach(()=>{clearBackpack();useBodyState.setState({byAsset:{},draft:null,support:{},inspection:null});});
+
+it('can inspect a fresh actor before moving its slider without applying a shape; a replaced editor cannot cancel the new preview',()=>{
+  useBackpack.setState({entries:['a','b'].map(id=>({id,kind:'model',file:new File([],'same.pmx'),path:'same.pmx'})),live:{a:live('m'),b:live('n')},selected:'a'});
+  const fit=vi.fn((_id:string)=>unsupported),set=vi.fn((_id:string,_profile:BodyProfile|null)=>true),room=createBodyRoom({getBodySupport:fit,setBodyProfile:set},()=>{});
+  try{
+    const closeOld=inspectBody('a','m');expect(fit.mock.calls).toEqual([['m']]);room.advance(360);
+    expect(useBodyState.getState()).toMatchObject({support:{a:{runtimeId:'m'}},byAsset:{},draft:null});
+    expect(set.mock.calls.every(([,profile])=>profile===null)).toBe(true);
+    const close=inspectBody('a','m');beginBodyPreview('a',true);patchBodyPreview('a',{fullness:.65});closeOld();
+    expect(useBodyState.getState().draft?.value.fullness).toBe(.65);close();expect(useBodyState.getState().support).toEqual({});
+    expect(set).toHaveBeenLastCalledWith('m',null);expect(useBodyState.getState().byAsset).toEqual({});
+  }finally{room.dispose();}
+});
 
 it('targets only an explicitly enabled live adult actor; preview, elapsed stores, switching, remounting and forgetting use separate lifetimes',()=>{
   useBackpack.setState({entries:['assetA','assetB','prop'].map((id,i)=>({id,kind:i===2?'object':'model',file:new File(['x'],'same.pmx'),path:'same.pmx'})),

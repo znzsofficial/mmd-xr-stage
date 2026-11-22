@@ -7,6 +7,7 @@ import {
 import * as THREE from "three";
 import { disposeEntryEnhancementTextures, type MaterialOverride } from "./mmdRuntimeMaterials";
 import { getMmdAnimationDurationSeconds, mergeMotionAnimations } from "./mmdUtils";
+import {materialSlotKey} from './materialSlotKey';
 
 export type MmdModelTransform = {
   positionX: number;
@@ -98,10 +99,7 @@ export function extractMorphNames(model: ThreeMmdModel) {
 
 export function extractMaterialNames(model: ThreeMmdModel) {
   const materials = Array.isArray(model.mesh.material) ? model.mesh.material : [model.mesh.material];
-  return materials.map((material, index) => {
-    const named = material?.name?.trim();
-    return named || `Material ${index + 1}`;
-  });
+  return materials.map(materialSlotKey);
 }
 
 export function disposeModelObject(entry: RuntimeEntry) {

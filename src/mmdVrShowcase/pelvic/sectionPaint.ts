@@ -1,6 +1,8 @@
 import { rod, rodRadii } from './path';
 import {semenColor,semenFill,semenHighlight} from '../play/semenAppearance';
-import { plot, SECTION_H, SECTION_W, sectionEvidence, type Point, type SectionLayout, type Slice } from './sectionProjection';
+import { plot, SECTION_H, SECTION_W, outletLabel, sectionEvidence, type Point, type SectionLayout, type Slice } from './sectionProjection';
+import {drawVulva,exteriorBox,exteriorLens} from './atlas/vulvaSurface';
+import type {EntryType} from './atlas/entryLettering';
 import type { PelvicProfile, PelvicSample } from './stateTypes';
 export { sectionLayout, SECTION_H, SECTION_W, type SectionAngle } from './sectionProjection';
 
@@ -12,7 +14,7 @@ export const fmtUnits=(v:number)=>String(+v.toFixed(2));
 const cm=(v:number)=>`${(100*v).toFixed(1)} cm`;
 const signedCm=(v:number)=>`${v>0?'+':''}${cm(v)}`;
 function label(ctx:Ctx,text:string,x:number,y:number,color=ink.pearl,size=14,weight=550,align:CanvasTextAlign='left'){
-  ctx.font=`${weight} ${size}px system-ui,sans-serif`;ctx.fillStyle=color;ctx.textAlign=align;ctx.textBaseline='middle';ctx.fillText(text,x,y);
+  ctx.font=`${weight} ${size}px system-ui,"Microsoft YaHei","PingFang SC","Noto Sans CJK SC",sans-serif`;ctx.fillStyle=color;ctx.textAlign=align;ctx.textBaseline='middle';ctx.fillText(text,x,y);
 }
 function path(points:readonly Point[],close=false){
   const p=new Path2D();for(const [i,q] of points.entries())if(i)p.lineTo(q.x,q.y);else p.moveTo(q.x,q.y);
@@ -45,14 +47,14 @@ function apertureLoop(basal:Slice,inside:boolean){
   return path(Array.from({length:48},(_,i)=>{const a=i*Math.PI/24;return basal.at(Math.cos(a),Math.sin(a),inside);}),true);
 }
 function contours(v:SectionLayout){
-  const rings=[...v.canal,...v.cervix.slice(1),...v.uterus.slice(1)];
+  const rings=[...v.canal,...v.cervix.slice(1),...(v.entryFocus?[]:v.uterus.slice(1))];
   const end=v.uterus.findIndex(r=>!r.open),body=v.uterus.slice(0,end<0?undefined:end+1);
   const canal=contour(v.canal,'lumen'),aperture=apertureLoop(v.canal[0],true),canalLiquid=new Path2D(canal);
   // The longitudinal cut meets the near lip; a low dose is still visible
   // through the exposed end face when looking in from the exterior.
   if(Math.cos(v.yaw)>.015)canalLiquid.addPath(aperture);
   return {skin:contour(rings,'skin'),face:contour(rings,'face'),canal,canalLiquid,aperture,
-    cervix:contour(v.cervix,'lumen'),uterus:contour(body,'lumen'),body};
+    cervix:contour(v.cervix,'lumen'),uterus:body.length?contour(body,'lumen'):new Path2D(),body};
 }
 type Shapes=ReturnType<typeof contours>;
 
@@ -80,7 +82,7 @@ function drawAdnexa(ctx:Ctx,v:SectionLayout){
 }
 
 function tissue(ctx:Ctx,v:SectionLayout,g:Shapes){
-  const fundus=ringAt(v.uterus,.7),ls=fundus.at(-1,0),rs=fundus.at(1,0);
+  const fundus=ringAt(v.entryFocus?v.canal:v.uterus,.7),ls=fundus.at(-1,0),rs=fundus.at(1,0);
   ctx.save();ctx.translate(1.5,2);stroke(ctx,g.skin,'#301d2e',3);ctx.restore();
   fill(ctx,g.skin,gradient(ctx,ls,rs,[[0,'#6a3b53'],[.15,'#aa6078'],[.31,'#eaa49d'],[.66,'#ad667a'],[1,'#69394f']]));
   stroke(ctx,g.skin,'#e29b9b',1.12);
@@ -89,7 +91,7 @@ function tissue(ctx:Ctx,v:SectionLayout,g:Shapes){
   // Fine fascicles on the oblique cut surface. Varying width and curvature
   // around the fundus follow the loft instead of a screen-space hatch.
   ctx.save();ctx.clip(g.face);
-  for(const sign of [-1,1])for(let j=0;j<4;j++){
+  if(!v.entryFocus)for(const sign of [-1,1])for(let j=0;j<4;j++){
     const begin=.08+j*.11,end=.96-j*.014,points=v.uterus.flatMap((r,i)=>{
       const t=i/(v.uterus.length-1);if(t<begin||t>end)return [];
       const k=(t-begin)/(end-begin),u=.34+.115*j+.18*Math.sin(Math.PI*k)-.19*k;
@@ -100,6 +102,7 @@ function tissue(ctx:Ctx,v:SectionLayout,g:Shapes){
   for(const t of [.18,.73]){const r=ringAt(v.cervix,t);line(ctx,[r.at(-.8,.28),r.at(-.36,.22),r.at(0,.26),r.at(.47,.27),r.at(.89,.22)],'#bd7683',.9);}
   ctx.restore();
   for(const [p,r] of [[g.uterus,fundus],[g.canal,ringAt(v.canal,.49)],[g.cervix,ringAt(v.cervix,.39)]] as const){
+    if(v.entryFocus&&p===g.uterus)continue;
     const wash=gradient(ctx,r.at(-1,0,true),r.at(1,0,true),[[0,'#925a70'],[.15,'#77465b'],[.53,'#482c41'],[.88,'#663e52'],[1,'#a36776']]);
     stroke(ctx,p,'#b97483',3.8);fill(ctx,p,wash);stroke(ctx,p,'#ffcfb2',1.24);
   }
@@ -112,7 +115,7 @@ function tissue(ctx:Ctx,v:SectionLayout,g:Shapes){
     stroke(ctx,p,'#543247',1.75);stroke(ctx,p,'#b07783',.76);
   }
   ctx.restore();
-  for(const sign of [-1,1])line(ctx,g.body.map(r=>r.at(sign*.89,-.04,true)),'#db998e',.75);
+  if(!v.entryFocus)for(const sign of [-1,1])line(ctx,g.body.map(r=>r.at(sign*.89,-.04,true)),'#db998e',.75);
   // The true aperture ellipse closes the open end of the longitudinal cut.
   // Edge-on it reduces to a lip; from the exterior the viewer sees its bore.
   const basal=v.canal[0];
@@ -148,8 +151,25 @@ function callouts(ctx:Ctx,v:SectionLayout,zh:boolean){
   line(ctx,[{x:x-w,y:y-3},{x:x-w,y},{x,y},{x,y:y-3}],ink.gold,1.1);label(ctx,`${fmtUnits(distance*100)} cm`,x,y-10,ink.gold,11.5,550,'right');
 }
 
-function paintPlate(ctx:Ctx,v:SectionLayout,g:Shapes,zh:boolean){
+function paintPlate(ctx:Ctx,v:SectionLayout,g:Shapes,zh:boolean,type?:EntryType|null){
   ctx.fillStyle=ink.paper;ctx.fillRect(0,0,SECTION_W,SECTION_H);ctx.lineJoin=ctx.lineCap='round';
+  if(v.entryFocus){
+    drawVulva(ctx,v.yaw);tissue(ctx,v,g);
+    const exterior=exteriorLens(v.yaw,v.radiusM),rim=exterior(-.4*v.radiusM,-.92*v.radiusM,0);
+    function leader(name:string,from:Point,x:number,y:number,right=false){
+      const w=right?(zh?56:77):(zh?40:49);
+      type?.draw(ctx,name,right?x-w:x,y);
+      const end=x+(right?-1:1)*(w+5);line(ctx,[from,{x:end+(right?-6:6),y},{x:end,y}],ink.muted,.85);dot(ctx,from,1.65,ink.gold);
+    }
+    // At a full lateral view the near fold occludes the external opening.
+    // The cutaway remains available; don't label the outer skin as the bore.
+    if(Math.abs(Math.cos(v.yaw))>.30)leader(zh?'阴道口':'Opening',rim,9,201);
+    leader(zh?'宫颈限位':'Cervical stop',v.canal.at(-1)!.at(.72,0),335,34,true);
+    type?.draw(ctx,zh?'外阴':'Vulva',9,15);type?.draw(ctx,zh?'阴道剖面':'Vaginal canal',181,15);
+    line(ctx,[{x:171,y:10},{x:171,y:214}],ink.rule,.8);
+    line(ctx,[{x:9,y:223},{x:335,y:223}],ink.rule,1);
+    return;
+  }
   const a=v.stop,glow=ctx.createRadialGradient(a.x,a.y,0,a.x,a.y,92);glow.addColorStop(0,'rgba(134,71,86,.20)');glow.addColorStop(1,'rgba(134,71,86,0)');
   ctx.fillStyle=glow;ctx.fillRect(plot.left,plot.top,plot.right-plot.left,plot.bottom-plot.top);
   drawAdnexa(ctx,v);tissue(ctx,v,g);callouts(ctx,v,zh);
@@ -157,21 +177,21 @@ function paintPlate(ctx:Ctx,v:SectionLayout,g:Shapes,zh:boolean){
 }
 // Reuse a single backing canvas *per destination*, even through animated
 // yaw. During tracking, the only work is one blit plus liquid, probe and text.
-type Plate={canvas:HTMLCanvasElement;v?:SectionLayout;zh?:boolean;g?:Shapes};
+type Plate={canvas:HTMLCanvasElement;v?:SectionLayout;zh?:boolean;g?:Shapes;type?:EntryType|null};
 const plates=new WeakMap<Ctx,Plate>();
-function background(ctx:Ctx,v:SectionLayout,zh:boolean){
+function background(ctx:Ctx,v:SectionLayout,zh:boolean,type?:EntryType|null){
   let b=plates.get(ctx);const {width,height}=ctx.canvas;
   if(!b&&typeof document!=='undefined'){b={canvas:document.createElement('canvas')};plates.set(ctx,b);}
   if(b){
-    if(v!==b.v||zh!==b.zh||width!==b.canvas.width||height!==b.canvas.height||!b.g){
+    if(v!==b.v||zh!==b.zh||type!==b.type||width!==b.canvas.width||height!==b.canvas.height||!b.g){
       if(width!==b.canvas.width)b.canvas.width=width;if(height!==b.canvas.height)b.canvas.height=height;
       const c=b.canvas.getContext('2d');if(c){
-        b.g=contours(v);c.setTransform(width/SECTION_W,0,0,height/SECTION_H,0,0);paintPlate(c,v,b.g,zh);b.v=v;b.zh=zh;
+        b.g=contours(v);c.setTransform(width/SECTION_W,0,0,height/SECTION_H,0,0);paintPlate(c,v,b.g,zh,type);b.v=v;b.zh=zh;b.type=type;
       }
     }
     if(b.v===v&&b.g){ctx.drawImage(b.canvas,0,0,SECTION_W,SECTION_H);return b.g;}
   }
-  const g=contours(v);paintPlate(ctx,v,g,zh);return g;
+  const g=contours(v);paintPlate(ctx,v,g,zh,type);return g;
 }
 
 function liquid(ctx:Ctx,shape:Path2D,y:number){
@@ -181,6 +201,9 @@ function liquid(ctx:Ctx,shape:Path2D,y:number){
 function marker(ctx:Ctx,p:Point,state:Evidence['state'],r:number){
   if(state==='absent')return;
   const {x,y}=p;
+  if(state==='parked'){
+    ctx.fillStyle=ink.paper;ctx.fillRect(x-r,y-r,2*r,2*r);ctx.strokeStyle=ink.gold;ctx.lineWidth=1.6;ctx.strokeRect(x-r,y-r,2*r,2*r);return;
+  }
   if(state==='inside'){dot(ctx,p,r+1,'#342c46');dot(ctx,p,r,ink.tip);dot(ctx,p,r*.40,'#eef7ff');return;}
   if(state==='outside'){
     const d=path([{x:x-r,y},{x,y:y-r},{x:x+r,y},{x,y:y+r}],true);fill(ctx,d,ink.paper);stroke(ctx,d,ink.exterior,2);return;
@@ -189,43 +212,58 @@ function marker(ctx:Ctx,p:Point,state:Evidence['state'],r:number){
   line(ctx,[{x:x-r*.65,y:y+r*.65},{x:x+r*.65,y:y-r*.65}],ink.warning,2.1);
 }
 function drawProbe(ctx:Ctx,v:SectionLayout,e:Evidence,sample:PelvicSample){
-  const tip=e.tip!;ctx.save();ctx.beginPath();ctx.rect(plot.left,plot.top,plot.right-plot.left,plot.bottom-plot.top);ctx.clip();
+  const tip=e.tip!,plot=v.box;ctx.save();ctx.beginPath();ctx.rect(plot.left,plot.top,plot.right-plot.left,plot.bottom-plot.top);ctx.clip();
   const inside=e.state==='inside',points=e.shaft,src=sample.shaft;
   if(points.length>1){
-    const color=inside?ink.tip:ink.exterior;
+    const parked=e.state==='parked',color=stateInk(e.state);
     if(src&&points.length===rod.length){
       const a=src[0],b=src[1],scale=Math.hypot(b[0]-a[0],b[1]-a[1],b[2]-a[2])/rod[1].distanceTo(rod[0]);
       const left:Point[]=[],right:Point[]=[];
       points.forEach((p,i)=>{const prev=points[Math.max(0,i-1)],next=points[Math.min(i+1,points.length-1)];
         const dx=next.x-prev.x,dy=next.y-prev.y,h=Math.hypot(dx,dy)||1,r=rodRadii[i]*scale*v.pxPerM;
         left.push({x:p.x-r*dy/h,y:p.y+r*dx/h});right.push({x:p.x+r*dy/h,y:p.y-r*dx/h});});
-      const shape=path([...left,...right.reverse()],true);fill(ctx,shape,inside?'rgba(113,155,255,.39)':'rgba(174,141,232,.30)');stroke(ctx,shape,color,.95);
+      const shape=path([...left,...right.reverse()],true);if(!parked)fill(ctx,shape,inside?'rgba(113,155,255,.39)':'rgba(174,141,232,.30)');else ctx.setLineDash([3,3]);stroke(ctx,shape,color,.95);ctx.setLineDash([]);
     }
     if(!inside)ctx.setLineDash([4,3]);const linePath=path(points);stroke(ctx,linePath,'#372b48',4);stroke(ctx,linePath,color,2);ctx.setLineDash([]);
   }
+  bearingOrMarker(ctx,plot,v.entry,tip,e.state);ctx.restore();
+}
+function bearingOrMarker(ctx:Ctx,plot:{left:number;right:number;top:number;bottom:number},o:Point,tip:Point,state:Evidence['state']){
   if(tip.x<plot.left||tip.x>plot.right||tip.y<plot.top||tip.y>plot.bottom){
     // This is a bearing, not a clamped tip. Its terminal glyph is an arrow.
-    const o=v.entry,dx=tip.x-o.x,dy=tip.y-o.y,m=Math.min(dx>0?(plot.right-5-o.x)/dx:dx<0?(plot.left+5-o.x)/dx:Infinity,
+    const dx=tip.x-o.x,dy=tip.y-o.y,m=Math.min(dx>0?(plot.right-5-o.x)/dx:dx<0?(plot.left+5-o.x)/dx:Infinity,
       dy>0?(plot.bottom-5-o.y)/dy:dy<0?(plot.top+5-o.y)/dy:Infinity);
-    ctx.translate(o.x+m*dx,o.y+m*dy);ctx.rotate(Math.atan2(dy,dx));line(ctx,[{x:-7,y:-4},{x:0,y:0},{x:-7,y:4}],e.state==='unverified'?ink.warning:inside?ink.tip:ink.exterior,2.2);
-  }else marker(ctx,tip,e.state,4.25);
-  ctx.restore();
+    ctx.save();ctx.translate(o.x+m*dx,o.y+m*dy);ctx.rotate(Math.atan2(dy,dx));line(ctx,[{x:-7,y:-4},{x:0,y:0},{x:-7,y:4}],stateInk(state),2.2);ctx.restore();
+  }else marker(ctx,tip,state,4.25);
 }
+const stateInk=(s:Evidence['state'])=>s==='parked'?ink.gold:s==='unverified'?ink.warning:s==='inside'?ink.tip:s==='outside'?ink.exterior:ink.muted;
 
-export function drawPelvicSection(ctx:Ctx,layout:SectionLayout,profile:PelvicProfile,sample:PelvicSample|null,zh:boolean){
-  const t=(z:string,e:string)=>zh?z:e,e=sectionEvidence(layout,profile,sample);
+export function drawPelvicSection(ctx:Ctx,layout:SectionLayout,profile:PelvicProfile,sample:PelvicSample|null,zh:boolean,parked=false,type?:EntryType|null){
+  const t=(z:string,e:string)=>zh?z:e,e=sectionEvidence(layout,profile,sample,parked);
   const mode=profile.container,fantasy=mode==='fantasyUterine',amount=profile.fluid[mode],capacity=profile.capacity[mode];
-  const state=e.state,status=state==='absent'?t('无杆位采样','No rod sample'):state==='inside'?(e.atCervix?t('限位 · 在内','Stop · inside'):t('喷口在内','Outlet inside')):
-    state==='outside'?t('喷口在外','Outlet outside'):e.atCervix?t('越限 · 不释放','Past stop · no dose'):t('未确认 · 不释放','Unverified · no dose');
+  const state=e.state,status=outletLabel(sample,zh,parked);
   const deg=Math.round(layout.yaw*180/Math.PI),view=deg===0?t('正面','Front'):deg===90?t('侧面','Side'):deg===38?t('斜前','Oblique'):`${deg}°`;
   const depth=e.depth===null?'—':cm(e.depth),angle=e.angle===null?'—':`${Math.round(e.angle)}°`,lat=e.lateral===null?'—':signedCm(e.lateral);
   const vessel=fantasy?t('宫腔精液量','Semen · uterus'):t('阴道精液量','Semen · vagina');
   ctx.save();ctx.scale(ctx.canvas.width/SECTION_W,ctx.canvas.height/SECTION_H);ctx.lineJoin=ctx.lineCap='round';
-  const g=background(ctx,layout,zh);
-  if(e.vaginal>0)liquid(ctx,g.canalLiquid,layout.levelY('canal',e.vaginal));if(e.uterine>0)liquid(ctx,g.uterus,layout.levelY('uterus',e.uterine));
+  const g=background(ctx,layout,zh,type);
+  if(e.vaginal>0)liquid(ctx,g.canalLiquid,layout.levelY('canal',e.vaginal));if(!layout.entryFocus&&e.uterine>0)liquid(ctx,g.uterus,layout.levelY('uterus',e.uterine));
   if(sample)drawProbe(ctx,layout,e,sample);
+  if(layout.entryFocus){
+    if(sample&&sample.tip[2]>=0&&state!=='inside'){
+      const project=exteriorLens(layout.yaw,layout.radiusM);bearingOrMarker(ctx,exteriorBox,project(0,0,0),project(...sample.tip),state);
+    }
+    if(sample)marker(ctx,{x:14,y:242},state,4.2);
+    const name=!sample?t('入口半径','Opening radius'):state==='inside'?t('在内深度','Insertion depth'):t('距入口平面','From entry plane');
+    const value=!sample?cm(layout.radiusM):state==='inside'?depth:signedCm(sample.tip[2]),metric=`${name}  ${value}`;
+    const offset=sample?`${t('侧偏','Lateral')}  ${lat}`:'';
+    if(type){type.draw(ctx,status,sample?27:9,242);type.draw(ctx,name,9,265);type.number(ctx,value,zh?146:179,265);
+      if(sample){type.draw(ctx,t('侧偏','Lateral'),223,265);type.number(ctx,lat,335,265);}}
+    ctx.restore();
+    return `${t('外阴、阴道口及阴道剖面','Vulva, opening and vaginal canal')} · ${status} · ${metric}${offset?' · '+offset:''}`;
+  }
   label(ctx,`${t('测量剖面','Section')} · ${view}`,9,12,ink.pearl,15.5,650);
-  const key=state==='unverified'?ink.warning:state==='inside'?ink.tip:state==='outside'?ink.exterior:ink.muted;
+  const key=stateInk(state);
   label(ctx,status,SECTION_W-9,12,key,14.5,600,'right');const w=ctx.measureText(status).width;marker(ctx,{x:SECTION_W-18-w,y:12},state,3.6);
   for(const [x,name,value] of [[10,t('进入深度','Depth'),depth],[133,t('轴角','Angle'),angle],[225,t('侧偏','Lateral'),lat]] as const){
     label(ctx,name,x,208,ink.muted,12.5,520);label(ctx,value,x,224,ink.pearl,16,650);

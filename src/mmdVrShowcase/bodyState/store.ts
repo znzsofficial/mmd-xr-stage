@@ -5,8 +5,16 @@ import { advanceBody, DEFAULT_BODY_PROFILE, moveDay, normalizeBody, type BodyPro
 export type BodySupport = { morphs:readonly string[]; bones:boolean; sides:{left:boolean;right:boolean}; clothing:'authored-only' };
 type LiveSupport = BodySupport & {runtimeId:string};
 type Draft = { assetId:string; value:BodyProfile };
-type State = {byAsset:Record<string,BodyProfile>; draft:Draft|null; support:Record<string,LiveSupport>};
-export const useBodyState = create<State>(()=>({byAsset:{},draft:null,support:{}}));
+type Inspection = {assetId:string;runtimeId:string};
+type State = {byAsset:Record<string,BodyProfile>; draft:Draft|null; support:Record<string,LiveSupport>; inspection:Inspection|null};
+export const useBodyState = create<State>(()=>({byAsset:{},draft:null,support:{},inspection:null}));
+
+/** Opening tools asks the mounted room what this model can display. It does
+ * not create a profile, start its clock, or apply a default shape. */
+export function inspectBody(assetId:string,runtimeId:string){
+  const inspection={assetId,runtimeId}; useBodyState.setState({inspection});
+  return ()=>{if(useBodyState.getState().inspection===inspection){cancelBodyPreview(assetId);useBodyState.setState({inspection:null});}};
+}
 
 export function beginBodyPreview(assetId:string, confirmedAdult=false):boolean {
   const bag=useBackpack.getState(), s=useBodyState.getState(), saved=s.byAsset[assetId];

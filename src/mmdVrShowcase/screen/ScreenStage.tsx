@@ -16,6 +16,7 @@ import { ScreenCamera, type CameraActions } from './ScreenCamera';
 import {planetTourGroups,tourShots} from '../scenery/roomViews';
 import { ScreenLibrary } from './ScreenLibrary';
 import { ScreenMusic } from '../music/ScreenMusic';
+import {usePelvic} from '../pelvic/store';
 import './screen-stage.css';
 
 function timecode(t:number){return `${Math.floor(t/60)}:${String(Math.floor(t)%60).padStart(2,'0')}`;}
@@ -41,6 +42,7 @@ export function ScreenStage(){
   const busy=useBackpack(s=>s.busy),draft=useBackpack(s=>s.draft),err=useBackpack(s=>s.error),selected=useBackpack(s=>s.selected);
   const [library,setLibrary]=useState(false),dialog=useRef<HTMLDialogElement>(null),actions=useRef<CameraActions|null>(null),life=useRef(0);
   const viewport=useRef<HTMLDivElement>(null);
+  const inspectStand=usePelvic(s=>!!selected&&s.active?.assetId===selected&&s.active.mode!=='xrManual'&&!!(s.parkedSample||s.sample));
   const [cameraReady,setCameraReady]=useState(false),locked=!cameraReady||busy||load.running||physicsBusy||fatal;
   useLayoutEffect(()=>{const el=dialog.current!;el.showModal();viewport.current?.focus({preventScroll:true});return ()=>el.close();},[]);
   useEffect(()=>{const generation=++life.current,epoch=useMmdVrStore.getState().entryEpoch;
@@ -60,12 +62,13 @@ export function ScreenStage(){
       </Canvas>
       <div className="screen-corner"><button aria-expanded={library&&!draft} onClick={()=>{if(draft){useBackpack.getState().cancelPlace();setLibrary(true);}else setLibrary(v=>!v);}}><PrepIcon name="bag"/>{t('hudBackpack')}</button><button onClick={()=>actions.current?.reset()}>{t('settingsMmdVrResetView')}</button>
          {tourShots(prefs.scenery).length>0&&<select aria-label={t('courtTour')} value="" onChange={e=>actions.current?.tour(Number(e.target.value))}><option value="" disabled>{t('courtTour')}</option>{prefs.scenery==='glassPlanet'?planetTourGroups.map(g=><optgroup key={g.label} label={t(g.label)}>{g.items.map(s=><option key={s.key} value={s.index}>{t(s.key)}</option>)}</optgroup>):tourShots(prefs.scenery).map((s,i)=><option key={s.key} disabled={!!s.link&&(locked||!!draft||load.failures.length>0)} value={i}>{t(s.key)}</option>)}</select>}
+         {library&&inspectStand&&!draft&&<button disabled={locked} onClick={()=>actions.current?.inspectStand()}>{t('screenInspectStand')}</button>}
          {isPortalRoom(prefs.scenery)&&<button disabled={locked||!!draft} onClick={()=>stage.setPrefs({scenery:portalHall})}>{t('returnPortalHall')}</button>}
        </div>
        {prefs.scenery===portalHall&&!draft&&<div className="screen-arcade-hint">{t('portalHint')}</div>}
        {prefs.scenery==='arcadeHall'&&!draft&&<div className="screen-arcade-hint">{t('arcPassHint')}</div>}
        {prefs.scenery==='glassPlanet'&&!draft&&<div className="screen-arcade-hint">{t('planetWindHint')}</div>}
-       <div id="screen-camera-hint" className="screen-caption" role="status">{message?<><span>{message}</span>{load.failures.length>0&&<button disabled={locked} onClick={stage.retryFailedAssets}>{t('loadRetry')}</button>}{err&&<button onClick={()=>useBackpack.getState().dismissError()}>{t('hudDone')}</button>}</>:locked?t('hudWorking'):draft?<><span>{t('screenAim')}</span>{prefs.scenery!=='arcadeHall'&&<button onClick={()=>actions.current?.center()}>{t('screenCenter')}</button>}<button onClick={()=>useBackpack.getState().cancelPlace()}>{t('hudCancelPlace')}</button></>:<>{t('screenOrbit')}<span className="screen-key-hint">{t('screenCameraKeys')}</span></>}</div>
+       <div id="screen-camera-hint" className="screen-caption" data-camera-help={!message&&!locked&&!draft||undefined} role="status">{message?<><span>{message}</span>{load.failures.length>0&&<button disabled={locked} onClick={stage.retryFailedAssets}>{t('loadRetry')}</button>}{err&&<button onClick={()=>useBackpack.getState().dismissError()}>{t('hudDone')}</button>}</>:locked?t('hudWorking'):draft?<><span>{t('screenAim')}</span>{prefs.scenery!=='arcadeHall'&&<button onClick={()=>actions.current?.center()}>{t('screenCenter')}</button>}<button onClick={()=>useBackpack.getState().cancelPlace()}>{t('hudCancelPlace')}</button></>:<>{t('screenOrbit')}<span className="screen-key-hint">{t('screenCameraKeys')}</span></>}</div>
     </div>{library&&!draft&&<ScreenLibrary locked={locked} frame={()=>actions.current?.frame()} storyView={isStoryRoom(prefs.scenery)?()=>actions.current?.story():undefined} close={()=>setLibrary(false)}/>}</div>
     <div><ScreenMusic/><Transport locked={locked}/></div>
   </dialog>;

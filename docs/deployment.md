@@ -30,6 +30,8 @@ git -c http.proxy=http://127.0.0.1:7897 -c https.proxy=http://127.0.0.1:7897 pus
 
 旧标签页首次打开器官动态图也会按需取 Worker。发布后从主域名 GET `/assets/organ.worker-dQG0D6Ad.js`（加新查询参数），对响应正文计算 SHA-256，与[保留清单](../scripts/retain-legacy-scene.mjs)中固定部署 `41ef223b` 的 `3d6c4a49afc3d6a435d5fe81cdfc7cf8b92b00989efc15cda6b2bb548e8e13cb` 比对。HTTP 200 或回退绘图正常都不能证明旧 Worker 内容正确。
 
+入口观察图还会按需加载 `entryLettering.worker-*.js`。从包含它的版本升级时，也要核对并保留旧标签页使用的字表 Worker。图形本身、实际杆位和计量不依赖这个 Worker。
+
 ## wrangler ≥4.130 的代理委托坑（PR #15004）
 
 wrangler 检测到命令由 AI 代理执行时，以下操作会被**委托成 Workers 静态资产向导**：

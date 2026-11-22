@@ -66,8 +66,15 @@ it('weighted skin and clothing return to the day’s fuller pose after release; 
   const {m,c,t,bones}=rig(),chest=fitChestCompression(m)!,display=createBodyDisplay(m,chest);
   const vert=(i:number)=>m.getVertexPosition(i,new Vector3()),origin=c.position.clone(),skin=vert(0),fabric=vert(2),torso=t.matrixWorld.clone();
   expect(display.support).toMatchObject({bones:true,sides:{left:true,right:false}});
+  display.configure({...defaults,fullness:.5,cycleGain:0});display.apply();
+  const half=vert(2);
   display.configure({...defaults,fullness:1,cycleGain:0});display.apply();
-  const daily=vert(0),cloth=vert(2);expect(daily.z).toBeGreaterThan(skin.z);expect(cloth.z).toBeGreaterThan(fabric.z);
+  const daily=vert(0),cloth=vert(2);
+  // Check the rendered surface travel in shoulder-width units, not the scale
+  // on an unweighted bone. Half travel remains a useful intermediate result.
+  expect((daily.z-skin.z)/chest.width).toBeGreaterThan(.08);
+  expect((cloth.z-fabric.z)/chest.width).toBeGreaterThan(.08);
+  expect(half.distanceTo(fabric)).toBeCloseTo(cloth.distanceTo(fabric)/2,8);
   bones[2].rotation.y=Math.PI;m.updateMatrixWorld(true);const arms=bones.slice(1,7).map(b=>b.matrixWorld.clone());
   expect(chest.apply(0)).toBe(true);expect(vert(0).distanceTo(daily)).toBeGreaterThan(.01);
   expect(bones.slice(1,7).map(b=>b.matrixWorld)).toEqual(arms);expect(t.matrixWorld).toEqual(torso);

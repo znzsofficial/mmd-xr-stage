@@ -11,7 +11,7 @@ export interface OrganArtOptions {
   /** Illustrative normalized tissue inputs, not physical measurements. */
   lining:number; shedding:number; pressure:number; zh:boolean;
   /** Selected balance / its OWN capacity. Optional second balance is vaginal. */
-  fluid:number; fantasy:boolean; vaginalFluid?:number; sample?:PelvicSample|null;
+  fluid:number; fantasy:boolean; vaginalFluid?:number; sample?:PelvicSample|null; parked?:boolean;
 }
 export const organPigments={endometrium:'#f4b396',myometrium:'#d28177',ovary:'#e0c1a0',liquid:semenColor} as const;
 const {sin,cos,abs,PI,sqrt}=Math;
@@ -131,6 +131,7 @@ function sampleMark(ctx:CanvasRenderingContext2D,l:Lens,o:OrganArtOptions){
   const tip=map(s.tip),k=Math.min(o.width/344,o.height/250),uncertain=!s.outletInside&&!s.outletVisible;
   if(!Number.isFinite(tip[0]+tip[1])||tip[0]<0||tip[1]<0||tip[0]>o.width||tip[1]>o.height)return;
   ctx.save();ctx.lineCap='round';ctx.lineJoin='round';
+  if(o.parked){ctx.fillStyle='#211722';ctx.fillRect(tip[0]-3*k,tip[1]-3*k,6*k,6*k);ctx.strokeStyle='#ebc68e';ctx.lineWidth=1.5*k;ctx.strokeRect(tip[0]-3*k,tip[1]-3*k,6*k,6*k);ctx.restore();return;}
   if(s.outletInside&&s.shaft?.length){
     // Only the last, actual mould samples inside the calibrated region. Never
     // invent a shaft axis from the control slider or join to a remote tail.

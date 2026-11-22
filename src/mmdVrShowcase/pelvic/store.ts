@@ -8,8 +8,8 @@ import { PELVIC_LIMITS as limits, type PelvicActive, type PelvicMode, type Pelvi
 
 export * from './stateTypes';
 
-type State = { byAsset:Record<string,PelvicProfile>; active:PelvicActive|null; sample:PelvicSample|null; support:Record<string,PelvicSupport> };
-export const usePelvic = create<State>(()=>({byAsset:{},active:null,sample:null,support:{}}));
+type State = { byAsset:Record<string,PelvicProfile>; active:PelvicActive|null; sample:PelvicSample|null; parkedSample:PelvicSample|null; support:Record<string,PelvicSupport> };
+export const usePelvic = create<State>(()=>({byAsset:{},active:null,sample:null,parkedSample:null,support:{}}));
 const state=usePelvic.getState;
 const outside=limits.position[0];
 let sequence=0;
@@ -60,7 +60,7 @@ export function patchPelvic(assetId:string,patch:PelvicPatch){
   if(geometryChanged&&active?.assetId===assetId)park(active);
   if(patch.container&&patch.container!==p.container&&active?.assetId===assetId)doseCount=0;
   writeProfile(assetId,{...p,calibration:patch.calibration?calibrate(p.calibration,patch.calibration):p.calibration,
-    clothingClear:patch.clothingClear??p.clothingClear,showAdapter:patch.showAdapter??p.showAdapter,
+    clothingClear:patch.clothingClear??(patch.calibration?false:p.clothingClear),showAdapter:patch.showAdapter??p.showAdapter,
     container:patch.container==='vaginal'||patch.container==='fantasyUterine'?patch.container:p.container,
     speedHz:limited(patch.speedHz,p.speedHz,limits.speedHz),stroke:limited(patch.stroke,p.stroke,limits.stroke)});
   return true;
@@ -71,6 +71,17 @@ export function publishPelvicSupport(assetId:string,support:PelvicSupport){
   const a=state().active;
   if((support.kind==='missing'||support.obstruction)&&a?.assetId===assetId)interruptPelvic(a.token);
   usePelvic.setState(s=>({support:{...s.support,[assetId]:support}}));
+}
+/** Apply the ordinary actor material setting (including outlines/proxies).
+ * It is reversible even with the motor off. Only a later scan of the actual
+ * drawable can confirm clearance after changing the visible clothing. */
+export function setPelvicGarmentVisible(assetId:string,materialName:string,visible:boolean){
+  const live=useBackpack.getState().live[assetId],s=state().support[assetId],stage=useMmdVrStore.getState();
+  if(!selected(assetId)||!state().byAsset[assetId]||s?.runtimeId!==live?.runtimeId||!s?.garmentNames?.includes(materialName)||!stage.runtimeRef||
+     !stage.materialModels[live.runtimeId]?.some(m=>m.name===materialName&&m.visible!==visible))return false;
+  patchPelvic(assetId,{clothingClear:false});
+  const a=state().active;if(a?.assetId===assetId)interruptPelvic(a.token);
+  stage.setMaterialVisible(live.runtimeId,materialName,visible);return true;
 }
 export function clearPelvicSupport(assetId:string,support:PelvicSupport){
   if(state().support[assetId]!==support)return;
@@ -84,11 +95,11 @@ function blocked(a:Pick<PelvicActive,'assetId'|'source'>){
 }
 function park(a:PelvicActive){
   position=outside;direction=1;doseCount=0;publishIn=0;seed=true;dispensed=false;
-  usePelvic.setState({active:{...a,token:++sequence,running:false,awaitingWorld:false,position},sample:null});
+  usePelvic.setState({active:{...a,token:++sequence,running:false,awaitingWorld:false,position},sample:null,parkedSample:null});
 }
 function dropBinding(){
   position=outside;direction=1;doseCount=0;publishIn=0;seed=true;dispensed=false;
-  usePelvic.setState({active:null,sample:null});
+  usePelvic.setState({active:null,sample:null,parkedSample:null});
 }
 /** Explicit command only; neither wearing, selecting, nor calibrating takes a toy. */
 export function assignPelvic(assetId:string,mode:PelvicMode,source:PelvicActive['source'],hand:Hand='right'){
@@ -107,12 +118,13 @@ export function startPelvic(assetId:string){
   if(a.running||a.awaitingWorld)return true;
   const awaitingWorld=a.mode==='xrManual'&&!!useBackpack.getState().selected;
   doseCount=0;publishIn=0;
-  usePelvic.setState({active:{...a,token:++sequence,awaitingWorld,running:!awaitingWorld},sample:null});return true;
+  usePelvic.setState({active:{...a,token:++sequence,awaitingWorld,running:!awaitingWorld},sample:null,parkedSample:null});return true;
 }
 export function interruptPelvic(token:number){
   const a=state().active;
   if(a?.token!==token)return false;
   if(a.running||a.awaitingWorld||state().sample||position!==outside)park(a);
+  else if(state().parkedSample)usePelvic.setState({parkedSample:null});
   return true;
 }
 /** User emergency stop freezes the actual rail, even mid-travel. Discard any
@@ -122,7 +134,7 @@ export function stopPelvic(assetId:string){
   const a=state().active;if(a?.assetId!==assetId)return false;
   if(!a.running&&!a.awaitingWorld)return true;
   doseCount=0;publishIn=0;seed=true;dispensed=false;
-  usePelvic.setState({active:{...a,position,token:++sequence,running:false,awaitingWorld:false},sample:null});return true;
+  usePelvic.setState({active:{...a,position,token:++sequence,running:false,awaitingWorld:false},sample:null,parkedSample:null});return true;
 }
 export function endPelvic(token:number){
   const a=state().active;if(a?.token!==token)return false;
@@ -166,6 +178,18 @@ export function advancePelvic(token:number,dtSeconds:number){
   }
   return position;
 }
+const snapshot=(sample:PelvicSample)=>({...sample,tip:copyXYZ(sample.tip),tail:copyXYZ(sample.tail),shaft:sample.shaft?.map(copyXYZ)});
+/** Idle geometry is read from the mounted mesh. It deliberately has no
+ * crossing history and cannot authorize motor, aperture, physics or dosing. */
+export function publishParkedSample(token:number,sample:PelvicSample){
+  const a=state().active;if(a?.token!==token||a.running||a.awaitingWorld||a.mode==='xrManual')return;
+  const prev=state().parkedSample;
+  // The rail is rigid relative to the socket. A dancing actor should not
+  // rerender every diagram merely due to floating point roundoff in that fit.
+  if(prev&&Math.abs(prev.radiusM-sample.radiusM)<1e-6&&Math.abs(prev.lengthM-sample.lengthM)<1e-6&&
+    sample.tip.every((n,i)=>Math.abs(prev.tip[i]-n)<1e-6)&&sample.tail.every((n,i)=>Math.abs(prev.tail[i]-n)<1e-6))return;
+  usePelvic.setState({parkedSample:{...snapshot(sample),atCervix:false,depth:0,outletInside:false,outletVisible:false}});
+}
 export function publishPelvicSample(token:number,sample:PelvicSample){
   const a=state().active;if(a?.token!==token||!a.running||blocked(a))return false;
   if(![sample.depth,sample.angleDeg,sample.radiusM,sample.lengthM].every(Number.isFinite)||!finiteXYZ(sample.tip)||!finiteXYZ(sample.tail)||
@@ -173,7 +197,7 @@ export function publishPelvicSample(token:number,sample:PelvicSample){
   const prev=state().sample;
   if(prev&&publishIn>0&&prev.outletInside===sample.outletInside&&prev.outletVisible===sample.outletVisible&&prev.atCervix===sample.atCervix&&prev.aligned===sample.aligned)return true;
   publishIn=.1;
-  usePelvic.setState({active:a.mode==='standAuto'&&a.position!==position?{...a,position}:a,sample:{...sample,tip:copyXYZ(sample.tip),tail:copyXYZ(sample.tail),shaft:sample.shaft?.map(copyXYZ)}});return true;
+  usePelvic.setState({active:a.mode==='standAuto'&&a.position!==position?{...a,position}:a,sample:snapshot(sample)});return true;
 }
 
 export function requestPelvicDose(assetId:string){
