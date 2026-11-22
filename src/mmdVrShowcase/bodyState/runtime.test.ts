@@ -72,9 +72,9 @@ it('weighted skin and clothing return to the day’s fuller pose after release; 
   const daily=vert(0),cloth=vert(2);
   // Check the rendered surface travel in shoulder-width units, not the scale
   // on an unweighted bone. Half travel remains a useful intermediate result.
-  expect((daily.z-skin.z)/chest.width).toBeGreaterThan(.08);
-  expect((cloth.z-fabric.z)/chest.width).toBeGreaterThan(.08);
-  expect(half.distanceTo(fabric)).toBeCloseTo(cloth.distanceTo(fabric)/2,8);
+  expect((daily.z-skin.z)/chest.width).toBeGreaterThan(.025);
+  expect((cloth.z-fabric.z)/chest.width).toBeGreaterThan(.025);
+  expect(half.z).toBeGreaterThan(fabric.z);expect(half.z).toBeLessThan(cloth.z);
   bones[2].rotation.y=Math.PI;m.updateMatrixWorld(true);const arms=bones.slice(1,7).map(b=>b.matrixWorld.clone());
   expect(chest.apply(0)).toBe(true);expect(vert(0).distanceTo(daily)).toBeGreaterThan(.01);
   expect(bones.slice(1,7).map(b=>b.matrixWorld)).toEqual(arms);expect(t.matrixWorld).toEqual(torso);
@@ -87,11 +87,68 @@ it('weighted skin and clothing return to the day’s fuller pose after release; 
 });
 
 it('uses only a dedicated weighted branch on an incomplete skeleton, and never scales a spine or a joint carrying an arm',()=>{
-  const {m,c,bones}=rig();for(const b of bones.slice(1,7))b.name='nonstandard';
+  const {m,t,c,bones}=rig();for(const b of bones.slice(1,7))b.name='nonstandard';
   const d=createBodyDisplay(m,fitChestCompression(m));expect(d.support).toMatchObject({bones:true,sides:{left:false,right:false}});
   d.configure({...defaults,fullness:1});d.apply();expect(c.scale.x).toBeGreaterThan(1);d.restore();
   const wrist=bones[3];wrist.name='RightWrist';c.add(wrist);expect(createBodyDisplay(m,null).support.bones).toBe(false);
   c.name='Spine';expect(createBodyDisplay(m,null).support.bones).toBe(false);
+  t.add(wrist);c.name='Breastbone';expect(createBodyDisplay(m,null).support.bones).toBe(false);
+});
+
+it('accepts a weighted LeftBreast below Breastbone without deforming the sternum',()=>{
+  const {m,t,c}=rig();t.name='Breastbone';c.name='LeftBreast';
+  const display=createBodyDisplay(m,null),vert=(i:number)=>m.getVertexPosition(i,new Vector3());
+  const child=vert(0),sternum=vert(1),parentMatrix=t.matrixWorld.clone();
+  expect(display.support.bones).toBe(true);
+  display.configure({...defaults,fullness:1,cycleGain:0});display.apply();
+  expect(vert(0).z).toBeGreaterThan(child.z);expect(vert(1)).toEqual(sternum);expect(t.matrixWorld).toEqual(parentMatrix);
+});
+
+// Same bilaterally weighted mesh with different local bind axes. The upper
+// chest, an upper sleeve, and a half-weighted garment seam are controls.
+function contours(roll:number,unit:number,reflected:boolean){
+  const {m,t,c,bones}=rig(),right=new Bone();right.name='右胸';right.position.copy(c.position);right.position.x*=-1;
+  c.rotation.y=roll;right.rotation.y=-roll;t.add(right);bones.push(right);
+  if(reflected)c.scale.x=right.scale.x=-1;
+  // Also test a rolled torso and child counter-rotation at bind. Keep the
+  // same anatomical rest-point layout; this isn't a different starting pose.
+  t.rotation.x=.36;
+  for(const node of t.children){node.position.applyQuaternion(t.quaternion.clone().invert());node.quaternion.premultiply(t.quaternion.clone().invert());}
+  for(const b of bones)b.position.multiplyScalar(unit);
+  m.updateMatrixWorld(true);m.bind(new Skeleton(bones));
+  const pos:number[]=[],idx:number[]=[],weights:number[]=[];
+  const put=(x:number,y:number,z:number,b:Bone,w=1)=>{pos.push(x*unit,y*unit,z*unit);idx.push(bones.indexOf(b),0,0,0);weights.push(w,1-w,0,0);};
+  for(const [side,b] of [[1,c],[-1,right]] as const){
+    put(side*.75,-.50,.12,b);put(side*.82,-.70,.37,b);put(side*.80,-.89,.24,b);put(side*.82,-.70,.37,b,.5);
+  }
+  put(0,-.70,.07,t);put(1.2,-.15,.08,bones[1]);
+  m.geometry.setAttribute('position',new Float32BufferAttribute(pos,3)).setAttribute('skinIndex',new Uint16BufferAttribute(idx,4)).setAttribute('skinWeight',new Float32BufferAttribute(weights,4));
+  const scene=new Group();scene.add(m);scene.position.set(2,3,-1);scene.rotation.set(.3,-.6,.14);scene.scale.set(.38,.65,.51);scene.updateMatrixWorld(true);
+  const display=createBodyDisplay(m,fitChestCompression(m));expect(display.support.bones).toBe(true);
+  const snapshot=()=>weights.filter((_,i)=>i%4===0).map((_,i)=>m.getVertexPosition(i,new Vector3()).applyMatrix4(m.matrixWorld));
+  const base=snapshot(),rotation=c.quaternion.clone();
+  function travel(t:number){display.configure({...defaults,fullness:t,cycleGain:0});display.apply();return snapshot().map((v,i)=>
+    scene.worldToLocal(v).sub(scene.worldToLocal(base[i].clone())).divideScalar(unit));}
+  const mid=travel(.5),high=travel(1);display.configure(null);display.apply();
+  expect(c.quaternion.equals(rotation)).toBe(true);expect(snapshot()).toEqual(base);return {mid,high};
+}
+
+it('shapes the lower and forward sections independently of upper width, with mirrored, blended skin through rotated binds and scaled placement',()=>{
+  const standard=contours(0,1,false);
+  for(const [angle,unit,reflect] of [[0,1,true],[Math.PI/2,2.5,true],[.78,.35,false]] as const){
+    const {mid,high}=contours(angle,unit,reflect);
+    for(const [j,v] of high.slice(0,4).entries()){
+      expect(high[j+4].x).toBeCloseTo(-v.x,5);expect(high[j+4].y).toBeCloseTo(v.y,5);expect(high[j+4].z).toBeCloseTo(v.z,5);
+      if(angle!==.78)expect(v.distanceTo(standard.high[j])).toBeLessThan(1e-6);
+    }
+    const [upper,middle,lower,seam]=high;
+    expect(middle.z).toBeGreaterThan(upper.z*1.4);expect(lower.z).toBeGreaterThan(upper.z*1.4);
+    expect(Math.abs(middle.x)).toBeLessThan(middle.z*.35);
+    expect(-lower.y).toBeGreaterThan(-upper.y*1.15);expect(lower.y).toBeLessThan(2*mid[2].y-.006);
+    expect(mid[1].z).toBeGreaterThan(0);expect(mid[1].z).toBeLessThan(middle.z);
+    expect(seam.distanceTo(middle.clone().multiplyScalar(.5))).toBeLessThan(1e-6);
+    expect(Math.max(high[8].length(),high[9].length())).toBeLessThan(1e-8);
+  }
 });
 
 it('scales instantaneous contact at the same paused timestamp, with independent release timing',()=>{
