@@ -1,6 +1,6 @@
 # MMD XR Stage 文档
 
-**接手或查未完事项，先读[短交接](./HANDOFF.md)。** [正式舞台](https://mmd-xr-stage.pages.dev) · [发布版本与验证证据](./release-history.md) · [舞台可见泌乳提案（未实现）](./gameplay/stage-lactation-proposal.md)
+**会话压缩后接续：先读[交接页](./HANDOFF.md)。** 查某项是否已经上线，看[发布记录](./release-history.md)；查实际测过什么，看[角色工具回归](./performance/actor-tools-regression.md)；拿到头显报告后按[分趟验收说明](./performance/next-quest-export.md)分析。[舞台可见泌乳](./gameplay/stage-lactation-proposal.md)是待讨论草案，不是本轮功能。
 
 | 要做什么 | 入口 |
 |---|---|

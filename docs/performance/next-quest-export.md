@@ -18,10 +18,26 @@
 
 验持续 72 FPS 时，简易地台、草坪**各 15 分钟，各一份 JSON**。用同一角色、动作、机位、物理与画质；收菜单、收回手上／腕上／支架道具，不混入切景或拨衣。核对实际会话 Hz，比较前后段窗口。20 秒短测不能替代长测。
 
+## 有时间再做
+
+- **礼拜堂阴影：**同机位、物理开、空手收菜单，只切阴影；开／关各播约 30 秒，记下顺序和转头手感。
+- **回场与近眼画面：**走[校园电玩环线](../scenery/campus-arcade-loop.md)的洞沿和二楼平台，或从[喜院过桥到秦淮](../scenery/jiangnan-river-street.md)，看尺度、等待和角色摆位恢复；在[中世纪石室](../scenery/medieval-chamber.md)侧移看窗和柜后是否闪。多次往返比较资源增长要保持同一布局。
+- **手和道具：**拨衣已有「还可以」的反馈；尚可用实模试逐指拨裙／头发、掌托撤手、失追恢复、道具左右腕换手，以及斜视浅色按钮和滑轨时的准星。暂停舞蹈、不看灯辨认低／高档，试初触、移开、换手、收回；佩戴件用相容裙片对照开机／关机。问题要附操作顺序，JSON 不能替代手感描述。
+
 ## 星球：跨跳与深空观感（可选）
 
 正常步行已获真机反馈，不必专项复测。游玩时可看[双星跨跳](../scenery/opal-planet.md#双星引力海峡)和深空侧移；若复发只能按 B，再导出查 `windows[].planetMovement`。其他可选回访：[校园过门](./campus-passage.md)、[材质与准星](../gameplay/vr-controls.md)、[道具手感](../gameplay/prop-authoring.md#按摩棒电机同步)。
 
+若专测跨跳：03 环 → 棱盐星，先试普通 A 跳，再从赤道踏印跳到玄釉星、从北端 X 返航。`twinDepartures`／`twinLandings` 是两星间跨跳，不与风道起降合计。
+
 ## 收到报告后怎么读
 
-11 月 20 日 14:43Z 是**修复前**真机报告。首开查 `physicsRebuilds[].work`；回教室查成功的 `roomRestores[]` 和 `motionWork[].cache`。稳定播放窗只比教室单角色、阴影关、播放中、玩家空手的片段，物理开时须有实际步进。排除起播、切换、拨衣和回场首窗；`heldToy: null` 不排除腕持或支架。分项已含在总耗时里。[旧值与缓存判读](./physics-warm-start.md) · [性能字段](./viewing-and-diagnostics.md) · [角色工具本机对照](./actor-tools-regression.md)
+最近分析的是 **11 月 20 日 14:43Z、`37a0ef3` 的改前 Quest 3S 报告**。空场首个可见回调 745 ms、首次确认放置至就绪 2,219 ms；它们不能拿来当新版耗时。
+
+| 问题 | 取哪条记录 | 怎样比较 |
+|---|---|---|
+| 教室首开物理还慢吗？ | `physicsRebuilds[]` 中教室第一次成功开启。 | 对照旧 `work.moduleAtFirstRequest = cold`、`work.bulletModuleMs = 892.8`、`durationWallMs = 949`。也看放置后是否把停顿提前了。 |
+| 物理开关影响播放吗？ | `windows[]` 中教室、单角色、阴影关、`playing: true`、`heldToy: null` 的完整播放窗；按开关分组，开启组须有实际步进。 | 排除起播、切换、播种、拨衣、回场首窗。比窗口 FPS、`modelUpdateCpuMs`、`bulletStepWork.worldStepMs`。全场 P95 不是分段值；玩家空手不排除腕持或支架。 |
+| 回教室有没有命中大动作缓存？ | `roomRestores[]` 中成功的泳池 → 教室；分别看 `motionWork[]` 的 `cache`、`loadWallMs`、`setAnimationMs` 和整房 `entryToVisibleFrameMs`。 | 旧回场 8,737 ms，动作读／解析等待 6,264.5 ms、绑定 7.2 ms。相同 `File`、符合大槽条件且未被其他身体动作替换时，预期 `body`／`hit`／`js`；>32 MiB 仍按需读。保留未命中记录。子阶段已含在总量内，不再相加。 |
+
+[旧值与缓存条件](./physics-warm-start.md) · [性能字段](./viewing-and-diagnostics.md) · [角色工具本机对照](./actor-tools-regression.md)
