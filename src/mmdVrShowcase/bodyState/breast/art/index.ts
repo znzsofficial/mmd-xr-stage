@@ -1,5 +1,6 @@
 import { camera, ellipse, line, unit, type Ink, type P } from './geometry';
-import { exterior, type Bitmap, type Marks } from './exterior';
+import type { Marks } from './brushwork';
+import { createPortraitRenderer, type Bitmap } from './exterior';
 
 export interface BreastArtFrame {
   width:number; height:number;
@@ -44,7 +45,7 @@ function annotate(ctx:Ink,m:Marks,zh:boolean,breath:number) {
 /** One local depth-rendered portrait, its cut tissues, and one cached plate
  * per owner. A visible, held angle only blits through the breathing transform. */
 export function createBreastArt() {
-  let plate:Bitmap|null=null,model:ReturnType<typeof exterior>=null,lastKey='',marks:Marks|null=null;
+  let plate:Bitmap|null=null,model:ReturnType<typeof createPortraitRenderer>=null,lastKey='',marks:Marks|null=null;
   return {draw(ctx:Ink,f:BreastArtFrame){
     if(!(f.width>0&&f.height>0&&Number.isFinite(f.width+f.height)))return;
     const degrees=Math.max(-90,Math.min(90,Number.isFinite(f.degrees)?f.degrees:0)),fullness=unit(f.fullness),
@@ -54,8 +55,10 @@ export function createBreastArt() {
     const scale=Math.min(f.width/400,f.height/260),m=ctx.getTransform(),dpr=Math.min(2,Math.max(.5,scale*Math.max(Math.hypot(m.a,m.b),Math.hypot(m.c,m.d))));
     const w=Math.ceil(400*dpr),h=Math.ceil(260*dpr);
     if(!plate||plate.canvas.width!==w||plate.canvas.height!==h){plate=buffer(w,h,ctx);lastKey='';}
-    const draw=(out:Ink)=>{model??=exterior((w,h)=>buffer(w,h,ctx));marks=model?.draw(out,camera(degrees),
-      fullness+.31*left,fullness+.31*right,f.section,f.lactating,left,right,settle)??null;};
+    const draw=(out:Ink)=>{
+      model??=createPortraitRenderer((w,h)=>buffer(w,h,ctx));
+      marks=model?.draw(out,{camera:camera(degrees),fullness,leftFill:left,rightFill:right,section:f.section,lactating:f.lactating,settle})??null;
+    };
     if(plate&&lastKey!==key){const c=plate.ctx;c.setTransform(w/400,0,0,h/260,0,0);c.clearRect(0,0,400,260);draw(c);lastKey=key;}
     ctx.save();ctx.fillStyle=PLUM;ctx.fillRect(0,0,f.width,f.height);ctx.beginPath();ctx.rect(0,0,f.width,f.height);ctx.clip();
     ctx.translate((f.width-400*scale)/2,(f.height-260*scale)/2);ctx.scale(scale,scale);

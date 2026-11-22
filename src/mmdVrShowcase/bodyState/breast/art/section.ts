@@ -12,6 +12,22 @@ const lobes = [ // anterior fraction, height, long and short radii in plate unit
   [.37,-.73,16,9],[.58,-.65,13,8],[.69,-.48,12,7],
 ];
 
+// Painted backing of the cutaway, sampled in authored UV coordinates.
+export const WALL_WIDTH=128, WALL_HEIGHT=196;
+export function drawChestWall(ctx:Ink){
+  const g=ctx.createLinearGradient(0,0,128,90);g.addColorStop(0,'#d27e80');g.addColorStop(.52,'#e9a391');g.addColorStop(1,'#a65f76');
+  ctx.fillStyle=g;ctx.fillRect(0,0,WALL_WIDTH,WALL_HEIGHT);ctx.lineJoin='round';ctx.lineCap='round';
+  for(let j=0;j<21;j++){ctx.beginPath();ctx.moveTo(-2,j*10);ctx.bezierCurveTo(26,j*9+2,54,j*5+6,80,j*3-4);
+    ctx.strokeStyle=j%3?'#de9590':'#f6ba9e';ctx.lineWidth=j%3?1.1:2;ctx.stroke();}
+  ctx.beginPath();ctx.moveTo(77,-1);ctx.bezierCurveTo(85,55,62,146,78,197);ctx.lineTo(128,197);ctx.lineTo(128,-1);ctx.closePath();ctx.fillStyle='#b7717d';ctx.fill();ctx.lineWidth=2.8;ctx.strokeStyle='#f6b49c';ctx.stroke();
+  for(let j=0;j<8;j++){
+    const y=j*27+3,x=101+3*Math.sin(j*1.3);ctx.beginPath();ctx.ellipse(x,y,17,6,-.27,0,TAU);ctx.fillStyle='#f3cfab';ctx.fill();ctx.strokeStyle='#bd8581';ctx.lineWidth=1.3;ctx.stroke();
+    ctx.beginPath();ctx.ellipse(x,y,11,2.9,-.27,0,TAU);ctx.fillStyle='#d99792';ctx.fill();
+    for(let k=0;k<4;k++){ctx.beginPath();ctx.ellipse(x-7+k*4,y+2-k,.8,.65,0,0,TAU);ctx.fillStyle='#ffe4bb';ctx.fill();}
+  }
+  ctx.fillStyle='#f4c8b2';ctx.fillRect(0,0,3,WALL_HEIGHT);
+}
+
 function outline(ctx:Ink) {
   ctx.beginPath();
   // Sample more densely at the curved anterior tip.
