@@ -1,10 +1,10 @@
 # 会话交接｜2026-11-22
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `5bc0d37`](https://24f5de9c.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `e26b03a`](https://774038d4.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
 
-**当前发布。** `5bc0d37` 已上线，679 项测试通过；主域名入口及 229 份资源 SHA-256 与验证构建一致。所有舞台 HUD 统一深梅紫、象牙字和金色边线。角色入口仍是[服装、互动、身体观察](./gameplay/actor-tools.md)。屏幕与模拟双眼的[实际验证范围](./performance/actor-tools-regression.md)不等于 Quest 3S 光学和手感验收。
+**当前发布。** `e26b03a` 已上线，692 项测试通过；主域名入口及 233 份资源 SHA-256 与验证构建一致。首次放支架合并为一步，泌乳可往返衣柜；演员按实际接触、移动、停留和退出改变表情。乳晕／乳头在原水滴形上支持「轻柔／圆隆」。所有舞台 HUD 沿用深梅紫、象牙字和旧金。角色入口为[服装、互动、身体观察](./gameplay/actor-tools.md)；[实模与模拟双眼对照](./performance/actor-tools-regression.md)不等于 Quest 3S 光学和手感验收。
 
-**压缩后的第一步：**读[下一轮角色工具](./gameplay/next-actor-tools.md)。摆姿势增强、乳头与乳晕样式加强是用户明确要做的两项，具体姿势难点、样式款数和实施顺序待定。本轮停在整理文档；角色回应、手法回放是流程评审建议，并非已批准的下一版范围。
+**接下来：**今晚等玩家导出一份[新版 Quest JSON](./performance/next-quest-export.md)再判断优化优先级。摆姿势增强留到明天讨论难摆的动作；手法回放等候选也不在今晚范围。[角色工具续接页](./gameplay/next-actor-tools.md)
 
 **角色工具已交付：** [摆姿、胸型、周期、泌乳](./gameplay/pose-and-body-states.md)与[骨盆附件](./gameplay/pelvic-attachment.md)共用屏幕／XR 舞台。三主栏共用当前角色草稿，切栏不保存；「保存到角色」只存本页背包。乳房观察默认正面二次元外观，剖面和标注按需；图可在不支持胸型变形的 PMX 上使用。已确认的美术方向看 [PRODUCT](../PRODUCT.md) 和 [DESIGN](../DESIGN.md)，实现入口看[舞台架构](./architecture.md)。
 
