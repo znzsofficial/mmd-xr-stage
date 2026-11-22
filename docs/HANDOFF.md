@@ -1,8 +1,8 @@
 # 会话交接｜2026-11-22
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `f080d97`](https://e608eec7.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `28771c5`](https://38574cc8.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
 
-**当前发布。** `f080d97` 已上线；主域名入口及 240 份资源与验证构建一致。「互动 → 插入」左侧看实时图、右侧选支架或单次往复释放；乳房图直接显示分侧乳量；VMD 可分别解绑。手动支架仍可[录一段手法并回放](./gameplay/pelvic-attachment.md#用手动支架录下自己的节奏)，摆姿可固定双腕。角色入口为[服装、互动、身体观察](./gameplay/actor-tools.md)，改参数另进「身体设置」。
+**当前发布。** `28771c5` 已上线；主域名入口及 243 份资源与验证构建一致。「互动 → 插入」左侧看实时图、右侧选支架或单次往复释放。新版阴道 38° 斜剖面显示贴合的前后壁、局部横褶与封闭穹隆；仅已验证的杆身截面撑开相应区域，停留时不反复上传相同图。乳房图显示分侧乳量；VMD 可分别解绑；手动支架可[录制回放](./gameplay/pelvic-attachment.md#用手动支架录下自己的节奏)，摆姿可固定双腕。角色入口为[服装、互动、身体观察](./gameplay/actor-tools.md)，改参数另进「身体设置」。
 
 **性能优先级：**11 月 22 日 14:41Z [真机报告](./performance/viewing-and-diagnostics.md#已有测量)确认预热与动作缓存命中。先查开物理播放与关物理重读 PMX；新操作面板和新画笔的头显开销不能回推自这份报告。
 
