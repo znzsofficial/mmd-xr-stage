@@ -6,21 +6,22 @@ import {BODY_DAY_SECONDS, DEFAULT_BODY_PROFILE, bodyRanges, sampleBody, type Bod
 const pages = {
   chest: ['胸型', 'Chest shape', null],
   breast: ['乳房观察', 'Breast view', 'chest'],
-  more: ['更多设置', 'More settings', 'chest'],
+  more: ['触碰与适配', 'Touch & model fit', 'chest'],
   fit: ['模型适配', 'Shape source', 'more'],
   morphs: ['选择形态键', 'Choose a morph', 'fit'],
-  cycle: ['周期', 'Cycle', 'more'],
+  cycle: ['周期', 'Cycle', null],
   organ: ['子宫动态', 'Uterus in motion', 'cycle'],
   rhythm: ['周期设置', 'Cycle settings', 'cycle'],
   lining: ['内膜与分泌物', 'Lining & secretions', 'cycle'],
   secretions: ['内膜与分泌物', 'Lining & secretions', 'cycle'],
   contact: ['触碰', 'Touch', 'more'],
   sensitivity: ['触痛', 'Tenderness', 'contact'],
-  milk: ['泌乳', 'Lactation', 'more'],
-  milkLevel: ['分侧设置', 'Left & right', 'milk'],
+  milk: ['泌乳', 'Lactation', null],
+  milkLevel: ['回充设置', 'Refill settings', 'milk'],
 } as const;
 
 export type Page = keyof typeof pages;
+export const mainPages = ['chest','cycle','milk'] as const;
 export type Localize = (zh: string, en: string) => string;
 export const pageTitle = (page: Page, l: Localize) => l(pages[page][0], pages[page][1]);
 export const parentPage = (page: Page, fitBack: Page): Page|null => page === 'fit' ? fitBack : pages[page][2];

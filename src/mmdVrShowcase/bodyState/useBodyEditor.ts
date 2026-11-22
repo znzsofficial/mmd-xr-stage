@@ -2,9 +2,9 @@ import {useLayoutEffect,useState} from 'react';
 import {useLanguageStore} from '../../languageStore';
 import {useBackpack} from '../backpack';
 import {useMmdVrStore} from '../mmdVrStore';
-import {actions,line,type Action,type Row} from './controlRows';
-import type {BodyProfile} from './data';
-import {action,editorControls,pageTitle,parentPage,type Page} from './editor/controls';
+import {actions,destination,line,type Action,type Row} from './controlRows';
+import {DEFAULT_BODY_PROFILE,type BodyProfile} from './data';
+import {action,editorControls,mainPages,pageTitle,parentPage,type Page} from './editor/controls';
 import {cycleRows} from './editor/cyclePages';
 import {lactationRows} from './editor/lactationPages';
 import {shapeRows} from './editor/shapePages';
@@ -17,7 +17,8 @@ export function useBodyEditor({assetId,runtimeId}:BodyActor) {
   const l=(cn:string,en:string)=>zh?cn:en;
   const [page,setPage]=useState<Page>('chest'),[fitBack,setFitBack]=useState<Page>('more');
   const [morphPage,setMorphPage]=useState(0);
-  const [undo,setUndo]=useState<{previous:BodyProfile|undefined}|null>(null);
+  const [undo,setUndo]=useState<{kind:'save'|'clear';previous:BodyProfile|undefined}|null>(null);
+  const [feedback,setFeedback]=useState<'discarded'|'restored'|null>(null);
   const saved=useBodyState(s=>s.byAsset[assetId]);
   const draft=useBodyState(s=>s.draft?.assetId===assetId?s.draft.value:null);
   const support=useBodyState(s=>s.support[assetId]?.runtimeId===runtimeId?s.support[assetId]:undefined);
@@ -28,22 +29,39 @@ export function useBodyEditor({assetId,runtimeId}:BodyActor) {
   useLayoutEffect(()=>inspectBody(assetId,runtimeId),[assetId,runtimeId]);
 
   function go(to:Page){if(to==='fit')setFitBack(page);setPage(to);}
-  const up=parentPage(page,fitBack),back=l('返回','Back');
-  const header={name,title:pageTitle(page,l),back,backAction:up?action(back,()=>setPage(up),{quiet:true}):null,blocked,inDraft:!!draft};
+  const up=parentPage(page,fitBack),sectionLabel=l('身体状态','Body state');
+  const parentName=up==='more'?l('设置','settings'):up?pageTitle(up,l):'';
+  const back=up?l(`返回${parentName}`,`Back to ${parentName}`):draft?l('不保存并退出','Exit without saving'):l('返回角色','Back to actor');
+  const nav=up||hidden?[]:mainPages.map(to=>action(pageTitle(to,l),()=>go(to),{active:to===page}));
+  const status=draft?l('预览中 · 尚未保存','Preview · not saved'):
+    feedback==='discarded'?l('已放弃改动','Changes discarded'):feedback==='restored'?l('已恢复原设置','Previous settings restored'):
+    undo?.kind==='clear'?l('已清除本角色设置','Actor settings cleared'):undo?l('已保存到角色','Saved to actor'):null;
+  const header={name,page,title:up?pageTitle(page,l):sectionLabel,sectionLabel,nav,status:hidden?null:status,back,
+    backAction:up?action(back,()=>setPage(up),{quiet:true}):null,blocked,inDraft:!!draft};
   const footer:Action[]=[];
   if(hidden)return {...header,rows:[line(l('请先显示此角色，再编辑身体状态。','Show this actor on stage to edit body state.'))],footer};
 
   // Browsing only inspects the model. All pages edit the same actor draft,
   // and returning to a parent page does not commit or cancel it.
-  const start=()=>!blocked&&useBackpack.getState().live[assetId]?.runtimeId===runtimeId&&beginBodyPreview(assetId,true);
-  const patch=(change:Partial<BodyProfile>)=>{if(start())patchBodyPreview(assetId,change);};
+  function canEditNow(){
+    const b=useBackpack.getState(),s=useMmdVrStore.getState(),live=b.live[assetId],owner=useBodyState.getState().inspection;
+    return !blocked&&b.selected===assetId&&live?.visible&&live.runtimeId===runtimeId&&owner?.assetId===assetId&&owner.runtimeId===runtimeId&&
+      !b.busy&&!b.draft&&!s.physicsBusy&&!s.physicsFatal&&!s.assetLoad.running;
+  }
+  const start=()=>canEditNow()&&beginBodyPreview(assetId,true);
+  const patch=(change:Partial<BodyProfile>)=>{
+    const s=useBodyState.getState(),current=s.draft?.assetId===assetId?s.draft.value:s.byAsset[assetId]??DEFAULT_BODY_PROFILE;
+    // Selecting the current mode or reselecting the current model morph is browsing.
+    if((Object.keys(change) as (keyof BodyProfile)[]).some(k=>current[k]!==change[k])&&start())patchBodyPreview(assetId,change);
+  };
   const ui=editorControls(l,saved,draft,go,patch);
-  const disable=()=>{disableBodyState(assetId);setUndo(null);setPage('chest');};
+  const disable=()=>{if(!canEditNow()||!saved)return;disableBodyState(assetId);setUndo({kind:'clear',previous:saved});setFeedback(null);setPage('chest');};
   function rows():Row[]{
     switch(page){
       case 'more':
-        return [actions(ui.link('cycle'),ui.link('milk')),actions(ui.link('contact'),ui.link('fit')),
-          ...(saved&&!draft?[actions(action(l('关闭身体状态','Turn off body state'),disable,{quiet:true}))]:[])];
+        return [destination(ui.link('contact'),l('调整按压幅度和回弹时间','Adjust compression and recovery')),
+          destination(ui.link('fit'),l('选择角色自带的胸型','Choose a shape from this model')),
+          ...(saved&&!draft?[actions(action(l('清除本角色设置','Clear actor settings'),disable,{danger:true}))]:[])];
       case 'chest': case 'breast': case 'fit': case 'morphs': case 'contact': case 'sensitivity':
         return shapeRows(page,ui,support,{page:morphPage,setPage:setMorphPage});
       case 'cycle': case 'organ': case 'rhythm': case 'lining': case 'secretions':
@@ -54,16 +72,16 @@ export function useBodyEditor({assetId,runtimeId}:BodyActor) {
   }
 
   if(draft){
-    footer.push(action(l('取消预览','Cancel preview'),()=>cancelBodyPreview(assetId)),action(l('保存','Save'),()=>{
-      if(blocked)return;
-      setUndo({previous:saved});commitBodyPreview(assetId);
+    footer.push(action(l('放弃改动','Discard changes'),()=>{if(canEditNow()){cancelBodyPreview(assetId);setFeedback('discarded');}}),action(l('保存到角色','Save to actor'),()=>{
+      if(!canEditNow())return;
+      setUndo({kind:'save',previous:saved});setFeedback(null);commitBodyPreview(assetId);
     },{primary:true}));
   }else if(undo){
-    footer.push(action(l('撤销保存','Undo save'),()=>{
-      if(blocked)return;
+    footer.push(action(undo.kind==='clear'?l('撤销清除','Undo clear'):l('撤销保存','Undo save'),()=>{
+      if(!canEditNow())return;
       if(!undo.previous)disableBodyState(assetId);
       else if(start()){patchBodyPreview(assetId,undo.previous);commitBodyPreview(assetId);}
-      setUndo(null);
+      setUndo(null);setFeedback('restored');
     },{quiet:true}));
   }
   return {...header,rows:rows(),footer};

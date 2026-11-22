@@ -4,29 +4,31 @@ import { bodySpan, HudActions, ScreenActions } from './BodyActions';
 import type { CycleReading } from './controlRows';
 import { HudLiningDiagram, ScreenLiningDiagram } from './LiningDiagram';
 import type { BodyActor } from './useBodyEditor';
+import './cycle-controls.css';
 
 type Props = { actor: BodyActor; row: CycleReading; blocked: boolean };
 
 function ScreenDate({row, blocked}: Omit<Props,'actor'>) {
   const {date, previous, next} = row;
-  return <div className="body-calendar">
-    <button type="button" onClick={previous.run} disabled={blocked}>{previous.label}</button>
-    <label className="body-range"><span>{date.label}<output>{date.value} / {date.max}</output></span>
-      <input aria-label={date.label} type="range" min={1} max={date.max+.9} step={.1} value={date.value} disabled={blocked}
+  return <div className="body-cycle-date" role="group" aria-label={date.label}>
+    <div className="body-cycle-date-head"><strong>{date.formatted}</strong>
+      <ScreenActions items={date.modes} blocked={blocked}/></div>
+    <div className="body-calendar">
+      <button type="button" onClick={previous.run} disabled={blocked}>{previous.label}</button>
+      <label className="body-range"><input aria-label={date.label} aria-valuetext={date.formatted} type="range"
+        min={1} max={date.max+.9} step={.1} value={date.value} disabled={blocked}
         onChange={e=>date.change(e.currentTarget.valueAsNumber)}/></label>
-    <button type="button" onClick={next.run} disabled={blocked}>{next.label}</button>
+      <button type="button" onClick={next.run} disabled={blocked}>{next.label}</button>
+    </div>
   </div>;
 }
 
 export function ScreenCycleReading({actor,row,blocked}: Props) {
   return <div className="body-reading">
+    <ScreenDate row={row} blocked={blocked}/>
     <div className="body-views"><ScreenActions items={row.views} blocked={false}/></div>
-    {row.organ ? <div className="body-organ-reading">
-      <ScreenDate row={row} blocked={blocked}/>
-      <OrganScreenPanel {...actor}/>
-    </div> : <>
+    {row.organ ? <OrganScreenPanel {...actor}/> : <>
       <ScreenLiningDiagram {...row.pair}/>
-      <ScreenDate row={row} blocked={blocked}/>
       <div className="body-cycle-settings"><ScreenActions items={row.settings} blocked={blocked}/></div>
     </>}
   </div>;
@@ -34,7 +36,7 @@ export function ScreenCycleReading({actor,row,blocked}: Props) {
 
 // OrganHudPanel is centred on its own origin, including its view/freeze controls.
 const organWidth = .98, organHeight = organWidth * 1.30;
-export const cycleRowHeight = (organ: boolean) => organ ? organHeight+.035 : 1.01;
+export const cycleRowHeight = (organ: boolean) => organ ? organHeight+.035 : 1.26;
 
 function DateSlider({date, blocked, width, x=0, y=0}: {date: CycleReading['date']; blocked: boolean; width: number; x?: number; y?: number}) {
   const span = date.max-.1;
@@ -49,23 +51,25 @@ export function HudCycleReading({actor,row,blocked}: Props) {
       <group position-x={(bodySpan-organWidth)/2}><OrganHudPanel {...actor} widthM={organWidth}/></group>
       <group position-x={-(bodySpan-rail)/2}>
         <PrivateButton position={[0,organHeight/2-.08,0]} size={[rail,.14]} label={row.views[0].label} variant="quiet" onPress={row.views[0].run}/>
-        <PrivateLine position={[0,.245,0]} width={rail} text={row.date.label}/>
-        <PrivateLine position={[0,.13,0]} width={rail} title text={`${row.date.value} / ${row.date.max}`}/>
-        <DateSlider date={row.date} blocked={blocked} width={rail} y={-.02}/>
-        <PrivateButton position={[0,-.235,0]} size={[rail,.15]} label={row.previous.label} disabled={blocked} onPress={row.previous.run}/>
-        <PrivateButton position={[0,-.42,0]} size={[rail,.15]} label={row.next.label} disabled={blocked} onPress={row.next.run}/>
+        <PrivateLine position={[0,.385,0]} width={rail} text={row.date.formatted}/>
+        <DateSlider date={row.date} blocked={blocked} width={rail} y={.245}/>
+        <PrivateButton position={[0,.065,0]} size={[rail,.14]} label={row.previous.label} disabled={blocked} onPress={row.previous.run}/>
+        <PrivateButton position={[0,-.105,0]} size={[rail,.14]} label={row.next.label} disabled={blocked} onPress={row.next.run}/>
+        {row.date.modes.map((mode,i)=><PrivateButton key={mode.label} position={[0,-.345-i*.175,0]} size={[rail,.14]}
+          label={mode.label} active={mode.active} disabled={blocked} onPress={mode.run}/>)}
       </group>
     </>;
   }
   return <>
-    <group position-y={.418}><HudActions items={row.views} blocked={false} tabs gallery/></group>
-    <group position-y={.085}><HudLiningDiagram {...row.pair}/></group>
-    <group position-y={-.245}>
-      <PrivateButton position={[-.589,0,0]} size={[.27,.14]} label={row.previous.label} disabled={blocked} onPress={row.previous.run}/>
-      <PrivateLine position={[-.285,0,0]} width={.285} text={`${row.date.value} / ${row.date.max}`}/>
-      <DateSlider date={row.date} blocked={blocked} width={.54} x={.152}/>
-      <PrivateButton position={[.589,0,0]} size={[.27,.14]} label={row.next.label} disabled={blocked} onPress={row.next.run}/>
+    <PrivateLine position={[-.375,.545,0]} width={.70} title text={row.date.formatted}/>
+    <group position={[.355,.545,0]}><HudActions items={row.date.modes} blocked={blocked} width={.74} gallery/></group>
+    <group position-y={.365}>
+      <PrivateButton position={[-.54,0,0]} size={[.37,.14]} label={row.previous.label} disabled={blocked} onPress={row.previous.run}/>
+      <DateSlider date={row.date} blocked={blocked} width={.64}/>
+      <PrivateButton position={[.54,0,0]} size={[.37,.14]} label={row.next.label} disabled={blocked} onPress={row.next.run}/>
     </group>
-    <group position-y={-.418}><HudActions items={row.settings} blocked={blocked} gallery/></group>
+    <group position-y={.16}><HudActions items={row.views} blocked={false} tabs gallery/></group>
+    <group position-y={-.17}><HudLiningDiagram {...row.pair}/></group>
+    <group position-y={-.535}><HudActions items={row.settings} blocked={blocked} gallery/></group>
   </>;
 }

@@ -10,8 +10,8 @@ import './breast-panel.css';
 
 type Props = { actor: BodyActor; row: BreastReading; blocked: boolean };
 const copy = {
-  zh: {outside:'外观', cut:'剖面', labels:'标注', angle:'观察角度', drag:'横拖旋转', freeze:'定格预览', resume:'继续预览'},
-  en: {outside:'Exterior', cut:'Cutaway', labels:'Labels', angle:'View angle', drag:'Drag to rotate', freeze:'Freeze preview', resume:'Resume preview'},
+  zh: {outside:'外观', cut:'剖面', labels:'标注', angle:'观察角度', freeze:'定格图像', resume:'播放图像'},
+  en: {outside:'Exterior', cut:'Cutaway', labels:'Labels', angle:'View angle', freeze:'Freeze figure', resume:'Animate figure'},
 };
 
 function useFigureControls(assetId: string) {
@@ -43,7 +43,7 @@ export function ScreenBreastPanel({actor,row,blocked}: Props) {
       <input aria-label={f.label} aria-valuetext={f.formatted} type="range" min={f.min} max={f.max} step={f.step}
         value={f.value} disabled={blocked} onChange={e=>f.change(e.currentTarget.valueAsNumber)}/></label>
     <div className="breast-view-actions">
-      <label className="body-range"><span>{view.t.drag}<output>{view.degrees}°</output></span>
+      <label className="body-range"><span>{view.t.angle}<output>{view.degrees}°</output></span>
         <input aria-label={view.t.angle} type="range" min={-90} max={90} step={1} value={view.degrees}
           onChange={e=>view.rotate(e.currentTarget.valueAsNumber)}/></label>
       <div className="body-actions"><button type="button" aria-pressed={!view.motion} onClick={view.toggle}>{view.motionLabel}</button></div>
