@@ -7,12 +7,12 @@
 .wardrobe-pieces { list-style:none; padding:0; margin:0; }
 .wardrobe-pieces li+li { border-top:1px solid var(--line); }
 .wardrobe-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:.4rem; align-items:center; padding:.16rem 0; }
-.screen-stage .wardrobe-piece { justify-content:start; text-align:left; padding-inline:.3rem; border-color:transparent; background:transparent; }
+.screen-stage .wardrobe-piece { justify-content:start; text-align:left; padding-inline:.3rem; --edge:transparent; --face:var(--pelvic-paper); }
 .wardrobe-piece span { min-width:0; overflow-wrap:anywhere; }
 .wardrobe-piece svg { flex:none; }
 .wardrobe-piece[aria-expanded=true] svg { transform:rotate(90deg); }
 .wardrobe-range { display:grid; padding:.25rem .5rem .25rem 1.6rem; }
-.wardrobe-range input { width:100%; min-width:0; min-height:2.75rem; margin:0; accent-color:var(--green); }
+.wardrobe-range input { width:100%; min-width:0; min-height:2.75rem; margin:0; }
 .wardrobe-range output { font-weight:650; font-variant-numeric:tabular-nums; }
 .wardrobe-screen footer { border-top:1px solid var(--line); padding-top:.65rem; flex-wrap:wrap; justify-content:start; }
 .wardrobe-screen p { margin:0; }

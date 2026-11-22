@@ -8,10 +8,12 @@ import type { Mesh, V } from './model';
 import type {EndometrialTissue} from '../../bodyState/data';
 import {createWallStudy,wallStride} from './uterineWall';
 import {createExteriorStudy} from './exteriorStudy';
+import type {FoldStyle} from '../vulvaForm';
 
 export interface OrganArtOptions {
   x:number; y:number; width:number; height:number; yaw:number; time:number;
   focus?:'uterus'|'vagina'|'vulva';
+  foldStyle?:FoldStyle;
   /** Illustrative normalized tissue inputs, not physical measurements. */
   lining:number; shedding:number; pressure:number; zh:boolean; tissue?:EndometrialTissue; labels?:boolean;
   /** Selected balance / its OWN capacity. Optional second balance is vaginal. */

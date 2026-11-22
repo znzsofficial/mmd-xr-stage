@@ -17,6 +17,7 @@ import {planetTourGroups,tourShots} from '../scenery/roomViews';
 import { ScreenLibrary } from './ScreenLibrary';
 import { ScreenMusic } from '../music/ScreenMusic';
 import {usePelvic} from '../pelvic/store';
+import {stageHudVars} from '../pelvic/palette';
 import {useScreenPanels} from './useScreenPanels';
 import './screen-stage.css';
 
@@ -28,7 +29,7 @@ function Transport({locked}:{locked:boolean}) {
   const [time,setTime]=useState(0);
   useEffect(()=>{const read=()=>setTime(getMmdVrClock().time);read();if(duration>0){const timer=window.setInterval(read,125);return ()=>clearInterval(timer);}},[duration]);
   const stage=useMmdVrStore.getState();
-  return <footer className="screen-transport"><button className="screen-play" disabled={locked||duration<=0} onClick={()=>{if(!playing&&getMmdVrClock().time>=duration)stage.requestSeek(0);stage.setPlaying(!playing);}}>
+  return <footer className="screen-transport"><button className="screen-play" data-primary={!playing||undefined} data-playing={playing||undefined} disabled={locked||duration<=0} onClick={()=>{if(!playing&&getMmdVrClock().time>=duration)stage.requestSeek(0);stage.setPlaying(!playing);}}>
     <PrepIcon name={playing?'pause':'play'} size={16}/>{t(playing?'settingsMmdVrPause':'settingsMmdVrPlay')}</button>
     <output>{timecode(time)}</output><input aria-label={t('screenSeek')} type="range" min={0} max={duration||1} step={.01} value={Math.min(time,duration)} disabled={locked||duration<=0} onChange={e=>{const n=e.target.valueAsNumber;stage.requestSeek(n);setTime(n);}}/><output>{timecode(duration)}</output>
     <label><input type="checkbox" checked={loop} onChange={e=>stage.setLoop(e.target.checked)}/>{t('screenLoop')}</label>
@@ -52,7 +53,7 @@ export function ScreenStage(){
   useLayoutEffect(()=>{if(library.suspended&&!library.bag)resume.current?.focus({preventScroll:true});},[library.suspended,library.bag]);
   const close=()=>stage.closeOverlay();
   const message=err||physicsError||load.failures.map(f=>`${f.fileName}: ${f.message}`).join(' · ');
-  return <dialog ref={dialog} className="screen-stage" aria-label={t('screenWatch')} onCancel={e=>{e.preventDefault();if(draft)useBackpack.getState().cancelPlace();else if(library.visible)library.close();else close();}}>
+  return <dialog ref={dialog} className="screen-stage" style={stageHudVars} aria-label={t('screenWatch')} onCancel={e=>{e.preventDefault();if(draft)useBackpack.getState().cancelPlace();else if(library.visible)library.close();else close();}}>
     <header className="screen-header"><h1><PrepIcon name="screen"/>{t('screenWatch')}</h1>
       <select aria-label={t('sceneryPicker')} value={prefs.scenery} disabled={locked} onChange={e=>stage.setPrefs({scenery:resolveScenery(e.target.value)})}>
         <SceneryOptions current={prefs.scenery}/>

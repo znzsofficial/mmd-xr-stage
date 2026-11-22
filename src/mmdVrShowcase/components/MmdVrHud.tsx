@@ -9,6 +9,7 @@ import {PlayerSettings, CharacterSettings, EnvironmentSettings, settingsSections
 import {ValueLabel,HudSlider} from "./HudValues";
 import { useMmdVrStore, type MmdVrModelEntry, type MmdVrObjectEntry } from "../mmdVrStore";
 import { HUD_COLORS } from "../hudAppearance";
+import { PRIVATE_TITLE_FACE } from "../pelvic/palette";
 import { HudButton, HudLine, HudSheet } from "./PorcelainControls";
 import { BackpackPanel, SceneryPanel } from "./BackpackPanels";
 import { useBackpack } from "../backpack";
@@ -77,7 +78,7 @@ function LoadRecoveryPanel({ onExit, onContinue }: { onExit: () => void; onConti
     ctx.fillStyle = HUD_COLORS.surface;
     ctx.fillRect(0, 0, width, 420);
     ctx.fillStyle = HUD_COLORS.ink;
-    ctx.font = "600 34px system-ui, sans-serif";
+    ctx.font = `600 34px ${PRIVATE_TITLE_FACE}`;
     ctx.fillText(title, 32, 50);
     ctx.font = "28px system-ui, sans-serif";
     pages[current].forEach((line, index) => ctx.fillText(line, 32, 112 + index * 48));
@@ -87,7 +88,7 @@ function LoadRecoveryPanel({ onExit, onContinue }: { onExit: () => void; onConti
   return <group>
     <mesh position={[0, 0.13, 0.02]} renderOrder={35}>
       <planeGeometry args={[3.2, 1.05]} />
-      <meshBasicMaterial map={texture} transparent depthTest={false} depthWrite={false} toneMapped={false} />
+      <meshBasicMaterial map={texture} transparent depthTest={false} depthWrite={false} toneMapped={false} fog={false} />
     </mesh>
     <HudButton position={[-1.25, -0.5, 0.03]} size={[0.42, 0.13]} label={t("loadPrevious")} disabled={current === 0} onPress={() => setPage(current - 1)} />
     <HudButton position={[-0.78, -0.5, 0.03]} size={[0.42, 0.13]} label={t("loadNext")} disabled={current === pages.length - 1} onPress={() => setPage(current + 1)} />
@@ -106,7 +107,7 @@ function TextPanel({ title, text, onClose, onExit }: { title: string; text: stri
     ctx.fillStyle = HUD_COLORS.surface;
     ctx.fillRect(0, 0, 1280, 420);
     ctx.fillStyle = HUD_COLORS.ink;
-    ctx.font = "600 34px system-ui, sans-serif";
+    ctx.font = `600 34px ${PRIVATE_TITLE_FACE}`;
     ctx.fillText(title, 32, 50);
     ctx.font = "28px system-ui, sans-serif";
     pages[current].forEach((line, index) => ctx.fillText(line, 32, 112 + index * 48));
@@ -157,7 +158,7 @@ export function CompactPlaybackControls({ onExpand, onExit, onTransport, busy, p
       <HudButton position={[.59, 0, 0]} size={[.55, .17]} label={t("hudScenery")} onPress={nav.onScenery} disabled={busy} />
       <HudButton position={[0, 0, 0]} size={[.55, .17]} label={t("hudBackpack")} onPress={nav.onBackpack} disabled={busy} />
     </>}
-    <HudButton position={[nav.expanded ? -.55 : -.59, 0, 0]} size={[.55, .17]} label={t(playing ? "settingsMmdVrPause" : "settingsMmdVrPlay")} active={playing}
+    <HudButton position={[nav.expanded ? -.55 : -.59, 0, 0]} size={[.55, .17]} label={t(playing ? "settingsMmdVrPause" : "settingsMmdVrPlay")} active={playing} variant={playing ? 'button' : 'primary'}
       disabled={busy || playbackLocked || modelCount === 0 || duration<=0} onPress={() => {const s=useMmdVrStore.getState();if(!s.playing&&getMmdVrClock().time>=duration)s.requestSeek(0);s.setPlaying(!s.playing);onTransport?.();}} />
     <HudButton position={[!nav.expanded&&inPortalRoom?.225:0, nav.expanded?0:-.24, 0]} label={t(nav.expanded ? "hudBack" : "hudMore")} size={[!nav.expanded&&inPortalRoom?.415:.5,.14]} variant="quiet" disabled={busy} onPress={onExpand} />
     <HudButton position={[!nav.expanded&&inPortalRoom?.675:.55, nav.expanded?0:-.24, 0]} label={t("settingsVrDesktopExit")} size={[!nav.expanded&&inPortalRoom?.415:.5,.14]} variant="quiet" disabled={busy} onPress={onExit} />
@@ -167,10 +168,12 @@ export function CompactPlaybackControls({ onExpand, onExit, onTransport, busy, p
 function PanelBackdrop({ sidebar }: { sidebar: boolean }) {
   const texture = useMemo(
     () => createPanelTexture(1320, 1120, ({ ctx, width, height }) => {
-      roundRectPath(ctx, 0, 0, width, height, 32);
+      roundRectPath(ctx, 1.5, 1.5, width-3, height-3, 32);
       ctx.fillStyle = HUD_COLORS.surface;
       ctx.fill();
       ctx.strokeStyle = HUD_COLORS.border;
+      ctx.lineWidth = 3;
+      ctx.stroke();
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(40, 155); ctx.lineTo(width - 40, 155);
@@ -630,9 +633,9 @@ function FpsBadge() {
         64,
         ({ ctx, width, height }) => {
           ctx.clearRect(0, 0, width, height);
-          ctx.fillStyle = "rgba(0,0,0,0.55)";
+          ctx.fillStyle = HUD_COLORS.surface;
           ctx.fillRect(0, 0, width, height);
-          ctx.fillStyle = "#9fe870";
+          ctx.fillStyle = HUD_COLORS.primary;
           ctx.font = "700 28px system-ui, sans-serif";
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
@@ -657,9 +660,9 @@ function FpsBadge() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     ctx.clearRect(0, 0, 160, 64);
-    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    ctx.fillStyle = HUD_COLORS.surface;
     ctx.fillRect(0, 0, 160, 64);
-    ctx.fillStyle = "#9fe870";
+    ctx.fillStyle = HUD_COLORS.primary;
     ctx.font = "700 28px system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";

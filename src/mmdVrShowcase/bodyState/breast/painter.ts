@@ -2,7 +2,7 @@ import {useLanguageStore} from '../../../languageStore';
 import type {DiagramActor,DiagramDriver} from '../../components/ActorDiagram';
 import {diagramOutput} from '../../components/diagramOutput';
 import {DEFAULT_BODY_PROFILE,sampleBody} from '../data';
-import {fromBodyClock,useBodyState} from '../store';
+import {fromBodyClock,fromMilkInteraction,useBodyState} from '../store';
 import {createBreastArt,type BreastArtFrame} from './art';
 import {breastViews,readBreastView} from './view';
 import {lowerPoleLag} from './settling';
@@ -18,14 +18,15 @@ const same=(a:ReturnType<typeof parameters>,b:ReturnType<typeof parameters>)=>a.
 
 export function breastPainter(canvas:HTMLCanvasElement,{assetId}:DiagramActor,wake:()=>void,upload:()=>void):DiagramDriver{
   const ctx=canvas.getContext('2d');let dirty=true,dead=false,time=0,last:number|null=null,painted=-Infinity;
-  const lag=lowerPoleLag();
+  const lag=lowerPoleLag(),leftLag=lowerPoleLag(),rightLag=lowerPoleLag();
+  const reset=()=>{lag.reset();leftLag.reset();rightLag.reset();};
   const output=diagramOutput<BreastArtFrame>(()=>new Worker(new URL('./breast.worker.ts',import.meta.url),{type:'module'}),createBreastArt,
     reason=>{if(reason==='retry')dirty=true;wake();});
   let sample=parameters(useBodyState.getState(),assetId);
   function changed(discard=true){dirty=true;if(discard)output.discard();wake();}
   const off=[breastViews.subscribe((s,p)=>{const a=s.actors[assetId],b=p.actors[assetId];if(a!==b){
     const transport=a?.motion!==b?.motion;if(transport)last=null;
-    if(a?.section!==b?.section)lag.reset();
+    if(a?.section!==b?.section)reset();
     // During a continuous orbit, show completed angles in order. Dropping a
     // bitmap on every pointermove can keep the figure blank for a whole drag.
     changed(transport||a?.section!==b?.section||a?.labels!==b?.labels);
@@ -37,19 +38,23 @@ export function breastPainter(canvas:HTMLCanvasElement,{assetId}:DiagramActor,wa
       if(!same(next,sample)||!sameOwner){
         const scrubbing=draft&&sameOwner&&value.fullness!==profile(p,assetId).fullness&&next.lactating===sample.lactating;
         const view=readBreastView(assetId);
-        if(scrubbing&&view.motion&&!view.section)lag.adjust(next.fullness-sample.fullness);
-        else if(!sameOwner||!view.motion||!fromBodyClock(value))lag.reset();
-        sample=next;changed(!sameOwner||!(scrubbing||fromBodyClock(value)));
+        const debit=sameOwner&&sample.lactating&&next.lactating&&(draft||fromMilkInteraction(value))&&
+          !fromBodyClock(value)&&(next.left<sample.left||next.right<sample.right);
+        if(!sameOwner||!view.motion||view.section||next.lactating!==sample.lactating)reset();
+        else if(scrubbing)lag.adjust(next.fullness-sample.fullness);
+        else if(debit){leftLag.adjust(.31*Math.min(0,next.left-sample.left));rightLag.adjust(.31*Math.min(0,next.right-sample.right));}
+        else if(!fromBodyClock(value))reset();
+        sample=next;changed(!sameOwner||!(scrubbing||fromBodyClock(value)||fromMilkInteraction(value)));
       }
     })];
   return {tick(now){
     if(!ctx||dead)return false;
     output.flush();const v=readBreastView(assetId),dt=last===null?0:Math.min(.10,Math.max(0,(now-last)/1000));last=now;
-    if(v.motion){time+=dt;lag.step(dt);}
+    if(v.motion){time+=dt;lag.step(dt);leftLag.step(dt);rightLag.step(dt);}
     if(output.inFlight)return false; // Reply wakes the painter; no idle DOM RAF while the worker is busy.
-    if(!dirty&&(!v.motion||now-painted<(lag.value===0?100:42))||dirty&&now-painted<32)return v.motion||dirty;
+    if(!dirty&&(!v.motion||now-painted<(lag.value||leftLag.value||rightLag.value?42:100))||dirty&&now-painted<32)return v.motion||dirty;
     const zh=useLanguageStore.getState().language==='zh',options:BreastArtFrame&{settle:number}={width:BREAST_WIDTH,height:BREAST_HEIGHT,degrees:v.degrees,
-      section:v.section,labels:v.section&&v.labels,settle:lag.value,time,zh,...sample};
+      section:v.section,labels:v.section&&v.labels,settle:lag.value,leftSettle:leftLag.value,rightSettle:rightLag.value,time,zh,...sample};
     const scale=canvas.width/BREAST_WIDTH;
     output.submit({options,scale,paint:draw=>{
       ctx.save();ctx.scale(scale,scale);try{draw(ctx);}finally{ctx.restore();}
@@ -57,5 +62,5 @@ export function breastPainter(canvas:HTMLCanvasElement,{assetId}:DiagramActor,wa
       const state=`${view} · ${zh?'饱满度':'Fullness'} ${Math.round(options.fullness*100)}%`;
       canvas.setAttribute('aria-label',`${state} · ${options.degrees}°`);canvas.dataset.view='breast';canvas.dataset.angle=String(options.degrees);upload();
     }});painted=now;dirty=false;return v.motion;
-  },suspend(){if(last!==null){last=null;lag.reset();dirty=true;painted=-Infinity;output.discard();}},dispose(){dead=true;off.forEach(f=>f());output.dispose();}};
+  },suspend(){if(last!==null){last=null;reset();dirty=true;painted=-Infinity;output.discard();}},dispose(){dead=true;off.forEach(f=>f());output.dispose();}};
 }

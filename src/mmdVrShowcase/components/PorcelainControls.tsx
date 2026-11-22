@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { createPanelTexture, roundRectPath } from "../../shared/panelTexture";
 import { HUD_COLORS, paintHudButton } from "../hudAppearance";
+import { PRIVATE_TITLE_FACE } from "../pelvic/palette";
+import { useHudKeyTexture, type KeyPainter } from "./useHudKeyTexture";
 
 type Point = [number, number, number];
 type Size = [number, number];
@@ -22,17 +24,16 @@ function roundedPlane(width: number, height: number) {
 
 export function HudButton({ position, label, disabled, onPress, size = [0.36, 0.13], active = false, danger = false, variant = "button" }: {
   position: Point; label: string; disabled?: boolean; onPress: () => void; size?: Size;
-  active?: boolean; danger?: boolean; variant?: "button" | "tab" | "quiet";
+  active?: boolean; danger?: boolean; variant?: "button" | "tab" | "quiet" | "primary";
 }) {
   const [hovered, setHovered] = useState(false), [pressed, setPressed] = useState(false);
   const pointer = useRef<number | null>(null), suppressClick = useRef(false);
   const width = size[0], height = Math.max(0.13, size[1]);
   const geometry = useMemo(() => roundedPlane(width, height), [width, height]);
   const px = Math.max(256, Math.round(88 * width / height));
-  const texture = useMemo(() => createPanelTexture(px, 88,
-    ctx => paintHudButton(ctx, label, { active, danger, disabled, variant }), "en"), [px, label, active, danger, disabled, variant]);
+  const texture = useHudKeyTexture(px, 88, useCallback<KeyPainter>(ctx =>
+    paintHudButton(ctx, label, { active, danger, disabled, variant, hovered }), [label, active, danger, disabled, variant, hovered]));
   useEffect(() => () => geometry.dispose(), [geometry]);
-  useEffect(() => () => texture.dispose(), [texture]);
   function cancel() {
     if (pointer.current !== null) suppressClick.current = true;
     pointer.current = null; setPressed(false);
@@ -55,8 +56,7 @@ export function HudButton({ position, label, disabled, onPress, size = [0.36, 0.
       if (!disabled) onPress();
     }}>
     <primitive object={geometry} attach="geometry" />
-    <meshBasicMaterial map={texture} transparent toneMapped={false} fog={false} depthTest={false} depthWrite={false}
-      color={!disabled && (hovered || pressed) ? HUD_COLORS.selected : HUD_COLORS.control} />
+    <meshBasicMaterial map={texture} transparent toneMapped={false} fog={false} depthTest={false} depthWrite={false} />
   </mesh>;
 }
 
@@ -64,7 +64,8 @@ export function HudButton({ position, label, disabled, onPress, size = [0.36, 0.
 export function HudSheet({ size }: { size: Size }) {
   const w = Math.round(size[0] * 320), h = Math.round(size[1] * 320);
   const texture = useMemo(() => createPanelTexture(w, h, ({ ctx }) => {
-    roundRectPath(ctx, 0, 0, w, h, 12); ctx.fillStyle = HUD_COLORS.surface; ctx.fill();
+    roundRectPath(ctx, 1, 1, w-2, h-2, 12); ctx.fillStyle = HUD_COLORS.surface; ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = HUD_COLORS.border; ctx.stroke();
   }, "en"), [w, h]);
   useEffect(() => () => texture.dispose(), [texture]);
   return <mesh position-z={-0.018} renderOrder={10} onPointerDown={e => e.stopPropagation()} onPointerUp={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
@@ -88,7 +89,7 @@ export function HudLine({ position, text, width, role = "body", center = false }
   const px = Math.round(width * 560);
   const texture = useMemo(() => createPanelTexture(px, 64, ({ ctx }) => {
     ctx.fillStyle = role === "warning" ? HUD_COLORS.danger : role === "muted" ? HUD_COLORS.muted : HUD_COLORS.ink;
-    ctx.font = `${role === "title" ? "650 34" : role === "muted" ? "450 24" : "550 28"}px system-ui, sans-serif`;
+    ctx.font = role === "title" ? `650 34px ${PRIVATE_TITLE_FACE}` : `${role === "muted" ? "450 24" : "550 28"}px system-ui, sans-serif`;
     ctx.textBaseline = "middle"; ctx.textAlign = center ? "center" : "left";
     ctx.fillText(fit(ctx, text, px - 8), center ? px / 2 : 4, 32);
   }, "en"), [px, text, role, center]);

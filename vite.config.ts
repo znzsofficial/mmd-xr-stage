@@ -45,9 +45,12 @@ export default defineConfig(({mode}) => ({
   // experiments/ has standalone apps with their own React and Fiber. Scanning
   // their HTML into the product dev cache splits the Rapier/Fiber contexts.
   optimizeDeps:{entries:['index.html']},
+  // Review artifacts are local files, not a second asset tree for the dev server.
+  server:{watch:{ignored:['**/local-review/**','**/.openchamber/**']},fs:{deny:['.env','.env.*','*.{crt,pem}','**/.git/**','**/local-review/**','**/.openchamber/**']}},
   resolve: { dedupe: ['react','react-dom','three','@react-three/fiber','@react-three/rapier'], ...(mode === 'test' && {mainFields:['module','main']}) },
   ...(mode === 'test' && {ssr: {resolve: {mainFields:['module','main']}}}),
   test: {
+    maxWorkers:1,
     // Use these packages' published ESM entries in Node/jsdom too. Native
     // external resolution selects meshline/fiber's CJS main and a second Three.
     server: {deps:{inline:['@react-three/xr','@pmndrs/xr','@react-three/fiber','meshline']}},

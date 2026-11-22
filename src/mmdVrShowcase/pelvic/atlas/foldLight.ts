@@ -1,4 +1,4 @@
-import {fitSite,formColors,junctionColor,slitHalfLength,vulvaHalves,type CutBasis} from '../vulvaForm';
+import {fitSite,formColors,junctionColor,slitHalfLength,vulvaHalves,type CutBasis,type FoldStyle} from '../vulvaForm';
 
 // The diagram exposes a reference cut. No measurement is inferred from it.
 // Slice the SAME fitted sheets at constant anatomical Y before projection:
@@ -10,8 +10,8 @@ const satinWeight=pigment.map((_,k)=>.22*Math.sin(Math.PI*k/last)**2*Math.max(0,
 const mix=(a:number,b:number,t:number)=>a+(b-a)*t;
 const clamp=(v:number)=>Math.min(1,Math.max(0,v));
 
-function makeColumns(cut:CutBasis){return vulvaHalves.map(({side,rows})=>{
-  const points=rows.map(r=>r.sites.map(site=>fitSite(site,1,cut,{x:0,y:0,z:0})));
+function makeColumns(cut:CutBasis,style:FoldStyle){return vulvaHalves.map(({side,rows})=>{
+  const points=rows.map(r=>r.sites.map(site=>fitSite(site,1,cut,{x:0,y:0,z:0},style)));
   const columns=pigment.map((color,k)=>points.map((row,j)=>{
     const p=row[k],l=row[Math.max(0,k-1)],r=row[Math.min(last,k+1)];
     const bottom=points[Math.max(0,j-1)][k],top=points[Math.min(rows.length-1,j+1)][k];
@@ -32,8 +32,8 @@ function cutAt(col:Knot[],y:number){
 type Cut=ReturnType<typeof cutAt>;
 type Row={left:Cut[];right:Cut[];y:number;joined:boolean};
 // Store only projection-independent sections, never a cache of rotated images.
-const sectionsByCut=new WeakMap<CutBasis,Row[]>();
-function sample(unit:number,oy:number,cut:CutBasis){const [left,right]=makeColumns(cut),result:Row[]=[];
+const sectionsByCut=new WeakMap<CutBasis,{style:FoldStyle;rows:Row[]}>();
+function sample(unit:number,oy:number,cut:CutBasis,style:FoldStyle){const [left,right]=makeColumns(cut,style),result:Row[]=[];
   const lo=left.columns[0][0].y,hi=left.columns[0].at(-1)!.y;
   for(let py=Math.floor((oy-hi*unit)*2);py<Math.ceil((oy-lo*unit)*2);py++){
     const y=(oy-(py+.5)*.5)/unit;if(y<=lo||y>=hi)continue;
@@ -45,8 +45,9 @@ function sample(unit:number,oy:number,cut:CutBasis){const [left,right]=makeColum
 /** Orthographic transverse sections. Front-facing runs are already in pixel
  * order; project their depth for occlusion. Canvas interpolates the shaded
  * stops. No triangle raster, extra GL context, readback or ImageData upload. */
-export function paintFoldLight(c:CanvasRenderingContext2D,yaw:number,ox:number,oy:number,unit:number,cut=studyCut){
-  let sections=sectionsByCut.get(cut);if(!sections){sections=sample(unit,oy,cut);sectionsByCut.set(cut,sections);}
+export function paintFoldLight(c:CanvasRenderingContext2D,yaw:number,ox:number,oy:number,unit:number,cut=studyCut,style:FoldStyle='natural'){
+  let cached=sectionsByCut.get(cut);if(cached?.style!==style){cached={style,rows:sample(unit,oy,cut,style)};sectionsByCut.set(cut,cached);}
+  const sections=cached.rows;
   const co=Math.cos(yaw),si=Math.sin(yaw);
   const xx=new Float64Array(2*(last+1)),depth=new Float64Array(xx.length),col:string[]=Array(xx.length);
   const stride=last+1,runs:{from:number;to:number;depth:number}[]=[];

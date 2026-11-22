@@ -1,6 +1,6 @@
 .body-cycle-date {
   padding-bottom: .45rem;
-  border-bottom: 1px solid var(--body-line);
+  border-bottom: 1px solid var(--pelvic-rule);
 }
 .body-cycle-date-head {
   display: flex;
@@ -15,8 +15,7 @@
 }
 .body-cycle-date-head .body-actions { flex: 1 1 auto; min-width: 0; }
 .body-cycle-date-head button { flex: 1 0 auto; }
-.screen-stage .body-cycle-date-head [aria-pressed=true] {
-  border-color: var(--body-rose);
+.screen-stage .body-cycle-date-head [aria-pressed=true]:enabled {
   font-weight: 700;
 }
 .body-cycle-date .body-calendar {

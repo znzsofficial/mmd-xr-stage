@@ -1,6 +1,8 @@
 import { BufferGeometry, CylinderGeometry, DataTexture, Group, LinearFilter, Matrix4, Mesh, MeshStandardMaterial, TorusGeometry, Vector3, type Object3D } from 'three';
 import { createSealShell, makeCarriage, makeStandFoot, makeTracks } from './rigArt';
 import { pelvicSeal, type PelvicContact, type PelvicFrame } from './geometry';
+import {readAtlasView} from './atlas/view';
+import type {FoldStyle} from './vulvaForm';
 
 const closed:PelvicContact={inside:false,depthM:0,atCervix:false,outletInside:false,outletVisible:false,outletLocal:new Vector3(),shaftLocal:[]};
 const parentInverse=new Matrix4();
@@ -23,13 +25,14 @@ export function createPortDrawing(host:Object3D,assetId:string){
   const molded=new Mesh(shell.geom,shellMaterial);molded.name='pelvic:seal';group.add(molded);
   const mark=new Mesh(new TorusGeometry(1,.055,8,40),new MeshStandardMaterial({color:'#6dc6bd',roughness:.64,wireframe:false}));
   mark.visible=false;mark.name='pelvic:calibration-guide';group.add(mark);
-  let lastRadius=-1,wasOpen=false;
+  let lastRadius=-1,wasOpen=false,lastStyle:FoldStyle|undefined;
   return {group,draw(f:PelvicFrame,showShell:boolean,preview:boolean,contact:PelvicContact=closed){
     placeWorld(group,f.world);group.visible=showShell||preview;mark.visible=preview&&!showShell;molded.visible=showShell;
     if(mark.visible)mark.scale.set(f.radiusM*1.62,f.radiusM*1.72,f.radiusM);
-    if(!contact.inside&&(!showShell||(!wasOpen&&Math.abs(lastRadius-f.radiusM)<=1e-8)))return 0;
+    const style=showShell?readAtlasView(assetId).foldStyle:undefined;
+    if(!contact.inside&&(!showShell||(!wasOpen&&lastStyle===style&&Math.abs(lastRadius-f.radiusM)<=1e-8)))return 0;
     const opening=pelvicSeal(f,contact,true,seal)!;
-    if(showShell){shell.fit(opening,f.radiusM);lastRadius=f.radiusM;wasOpen=opening.openness>0;}
+    if(showShell){shell.fit(opening,f.radiusM,style);lastRadius=f.radiusM;lastStyle=style;wasOpen=opening.openness>0;}
     return opening.openness;
   },dispose(){group.removeFromParent();shell.geom.dispose();finish.dispose();shellMaterial.dispose();mark.geometry.dispose();mark.material.dispose();}};
 }

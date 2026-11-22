@@ -3,7 +3,7 @@
 .actor-observation button { touch-action:manipulation;-webkit-tap-highlight-color:transparent }
 .observation-presets { padding-block:.4rem }
 .actor-observation figure { margin:0 0 .45rem }
-.observation-art { position:relative;display:grid;place-items:center;background:#211722;min-width:0 }
+.observation-art { position:relative;display:grid;place-items:center;background:var(--pelvic-inset);min-width:0 }
 .observation-loading { position:absolute;inset:0;display:grid;place-items:center;color:var(--pelvic-muted);pointer-events:none }
 .observation-art canvas { display:block;width:auto;height:auto;max-width:100%;max-height:17rem;touch-action:pan-y;cursor:ew-resize }
 .actor-observation figcaption,.actor-observation dl div { display:flex;align-items:baseline;justify-content:space-between;gap:.5rem }

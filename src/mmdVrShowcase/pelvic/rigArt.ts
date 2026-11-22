@@ -4,7 +4,7 @@ import { siliconeMount, siliconeTilt } from '../play/siliconeProfile';
 import { pelvicRailLimit, pelvicRailMatrix, type PelvicFrame, type PelvicSeal } from './geometry';
 import { pelvicRailTravel } from './path';
 import { PELVIC_LIMITS } from './stateTypes';
-import { fitSite, formColors, junctionColor, readCut, vulvaHalves } from './vulvaForm';
+import { fitSite, formColors, junctionColor, readCut, vulvaHalves, type FoldStyle } from './vulvaForm';
 
 const sites=vulvaHalves.flatMap(h=>h.rows.flatMap(r=>r.sites));
 const columns=formColors.length,colors=formColors.map(c=>new Color(c));
@@ -22,15 +22,16 @@ export function createSealShell(){
   geom.setAttribute('uv',new Float32BufferAttribute(finish,2));
   geom.setAttribute('normal',new Float32BufferAttribute(pos.count*3,3).setUsage(DynamicDrawUsage));
   const last={x:0,y:0,xx:0,xy:0,yx:0,yy:0},cut={...last},point=new Vector3();let fittedRadius=-1;
-  function fit(seal:PelvicSeal,radius:number){
+  let fittedStyle:FoldStyle|undefined;
+  function fit(seal:PelvicSeal,radius:number,style:FoldStyle='natural'){
     // An admitted, stationary tool is just as static as an empty slit. A
     // lateral or oblique change at the same openness must still move the lip.
     readCut(seal.lip,radius,cut);
-    if(Math.abs(radius-fittedRadius)+Math.abs(cut.x-last.x)+Math.abs(cut.y-last.y)+Math.abs(cut.xx-last.xx)+
+    if(style===fittedStyle&&Math.abs(radius-fittedRadius)+Math.abs(cut.x-last.x)+Math.abs(cut.y-last.y)+Math.abs(cut.xx-last.xx)+
       Math.abs(cut.xy-last.xy)+Math.abs(cut.yx-last.yx)+Math.abs(cut.yy-last.yy)<1e-8)return;
-    Object.assign(last,cut);fittedRadius=radius;
+    Object.assign(last,cut);fittedRadius=radius;fittedStyle=style;
     for(let i=0;i<sites.length;i++){
-      fitSite(sites[i],radius,cut,point);pos.setXYZ(i,point.x,point.y,point.z);
+      fitSite(sites[i],radius,cut,point,style);pos.setXYZ(i,point.x,point.y,point.z);
     }
     pos.needsUpdate=true;geom.computeVertexNormals();geom.computeBoundingSphere();if(geom.boundingBox)geom.computeBoundingBox();
   }

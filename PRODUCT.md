@@ -32,7 +32,7 @@ Breast modelling in Body state means a rotatable HUD study with current actor st
 
 The player wants the breast figure to look like an anime adult-game portrait, not a medical specimen or a diffuse-shaded plastic torso. Design the shoulder, underarm and breast silhouette as one figure; use tapered linework, warm cel shadows and selective highlights that follow the surface as it turns. Open on external appearance, movement and the character's current state. Let the player uncover internal views and labels on request; keep measured feedback accessible where it guides an action.
 
-The desired silhouette is a flowing teardrop: narrow above, widest in the lower half, with a rounded lower arc returning into the chest. The first revised six-view study was rejected as too square and rigid. Inspect unshaded front, oblique and true side silhouettes in both fullness states before polishing light or replacing the runtime art; the player approves the study first.
+The desired silhouette is a flowing teardrop: narrow above, widest in the lower half, with a rounded lower arc returning into the chest. Study 01 was rejected as too square and rigid; the player approved study 02 for the dynamic figure. Compare that same shape frontally, obliquely and from the side in both fullness states. Review images stay in the ignored `local-review/art/breast/` directory.
 
 ## Product Purpose
 
@@ -50,7 +50,7 @@ The existing implementation uses React Three Fiber, Three.js and WebGL/WebXR wit
 
 ## Brand Commitments
 
-The product name is MMD XR Stage. The selected VR control palette is 浅瓷与墨蓝 (porcelain and ink blue); the preparation page and the stage use their own palettes.
+The product name is MMD XR Stage. The whole in-stage HUD uses the adult visual-novel style: deep plum, ivory lettering, brass rules and rose selection. Switching an actor tab, opening the backpack or adjusting playback must not switch visual worlds. The preparation page retains its studio palette; neither UI changes the lighting of the scene or the imported model.
 
 ## Product Principles
 

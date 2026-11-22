@@ -15,7 +15,7 @@ function Line({ y, text, muted = false }: { y: number; text: string; muted?: boo
   return <HudLine position={[0,y,0]} text={text} width={full} role={muted ? 'muted' : 'body'}/>;
 }
 
-/** Porcelain sheet local bounds: x ±.67, y ±.775. All naming is operable inside XR. */
+/** Actor sheet local bounds: x ±.67, y ±.775. All naming is operable inside XR. */
 export function PoseHudControls(props: PoseControlsProps & { onBack: () => void }) {
   const s = usePoseEditor(props), t = usePoseText(), axis = usePoseTool(s => s.axis);
   const [tab, setTab] = useState<'joints' | 'library' | 'keyboard'>('joints');

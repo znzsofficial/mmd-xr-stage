@@ -19,7 +19,9 @@ const section=[
 export const formColors=section.map(k=>k[2]);
 export const junctionColor='#edb4b0';
 export type FormPoint={x:number;y:number;z:number};
-type Site=FormPoint & {cos:number;sin:number;weight:number;blend:number;gloss:number;contactShade:number};
+export const foldStyles=['natural','soft','defined'] as const;
+export type FoldStyle=typeof foldStyles[number];
+type Site=FormPoint & {cos:number;sin:number;side:number;weight:number;roll:number;pad:number;scallop:number;blend:number;gloss:number;contactShade:number};
 export type CutBasis={x:number;y:number;xx:number;xy:number;yx:number;yy:number};
 type Row={sites:Site[]};
 const sq=(x:number)=>x*x,gauss=(x:number)=>Math.exp(-x*x);
@@ -61,7 +63,12 @@ function makeHalf(side:1|-1){
       const blend=(1-Math.exp(-(((y-.08)/1.22)**4)))*gauss(width/.92);
       const gloss=gauss((k-5.93)/.77)*(.025+.975*(.5+.5*Math.sin(4.45*y+side*.91))**3)*(1-blend);
       const contactShade=gauss((k-9.65)/1.83)*gauss((y-.06)/1.54);
-      return {x,y,z:width===0?(ext?(hood+fourchette)*envelope-.22*(1-envelope)*ext:0):z,cos,sin,weight,blend,gloss,contactShade};
+      // Neither the calibrated rim nor the attachment margin follows the
+      // surrounding fold's roll. The inner crest and outer pad move differently.
+      const taper=(k===section.length-1?0:Math.sin(Math.PI*width/1.83))*(1-ext)**2;
+      const roll=taper*inner*labial,pad=taper*gauss((width-1.18)/.42)*(.75+.25*labial);
+      const scallop=roll*(Math.sin(3.6*y+.81*side)+.32*Math.sin(6.7*y-.94*side));
+      return {x,y,z:width===0?(ext?(hood+fourchette)*envelope-.22*(1-envelope)*ext:0):z,cos,sin,side,weight,roll,pad,scallop,blend,gloss,contactShade};
     });rows.push({sites});
   }
   return {side,rows};
@@ -75,9 +82,15 @@ export function readCut(rim:FormPoint[],radius:number,out:CutBasis){
   out.x=(a.x+b.x)*.5;out.y=(a.y+b.y)*.5;
   out.xx=a.x-out.x;out.xy=a.y-out.y;out.yx=c.x-out.x;out.yy=c.y-out.y-radius*slitHalfLength;
 }
-export function fitSite(site:Site,radius:number,cut:CutBasis,out:FormPoint){
-  out.x=radius*site.x+site.weight*(cut.x+cut.xx*site.cos+cut.yx*site.sin);
-  out.y=radius*site.y+site.weight*(cut.y+cut.xy*site.cos+cut.yy*site.sin);
-  out.z=radius*site.z;
+export function fitSite(site:Site,radius:number,cut:CutBasis,out:FormPoint,style:FoldStyle='natural'){
+  const dx=cut.x+cut.xx*site.cos+cut.yx*site.sin,dy=cut.y+cut.xy*site.cos+cut.yy*site.sin;
+  const load=Math.min(1.35,Math.max(0,(dx*site.side+.22*dy*site.sin)/radius));
+  const roll=site.roll,pad=site.pad,ripple=site.scallop;
+  const fold=style==='defined'?1.45:style==='soft'?.58:1,fullness=style==='soft'?1.42:style==='defined'?.70:1;
+  out.x=radius*(site.x+site.side*(.14*fold*ripple+.19*(fullness-1)*pad+.14*load*roll))+site.weight*dx;
+  out.y=radius*site.y+site.weight*dy;
+  // Shallow contact raises the loaded lip; a fuller crossing rolls it outward
+  // and compresses the cushion. A still pose stays still.
+  out.z=radius*(site.z+.28*fold*ripple+.30*(fold-1)*roll+.34*(fullness-1)*pad+roll*load*(.54-.64*load)-pad*.21*load);
   return out;
 }

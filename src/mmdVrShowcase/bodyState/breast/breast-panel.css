@@ -8,8 +8,7 @@
 .breast-figure dd { margin: 0; font-weight: 650; font-variant-numeric: tabular-nums; color: var(--pelvic-gold); }
 .breast-modes { display: grid; grid-template-columns: minmax(0,2fr) minmax(0,1fr); gap: .5rem; align-items: center; }
 .breast-labels { display: flex; justify-content: center; align-items: center; gap: .35rem; min-height: 2.65rem; cursor: pointer; }
-.screen-stage .breast-labels input { margin: 0; accent-color: var(--body-rose); }
-.screen-stage .breast-labels input:focus-visible { outline: 2px solid var(--body-rose); outline-offset: 2px; }
+.screen-stage .breast-labels input { margin: 0; }
 .breast-view-actions { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: .8rem; align-items: center; }
 @media (min-width: 651px) {
   .screen-library:has(.breast-reading) { width: min(27rem, 46%); }

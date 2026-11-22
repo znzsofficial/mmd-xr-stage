@@ -66,3 +66,14 @@ it('settles the illustrated lower contour after a manual change, never after can
     expect(prev).toBe(0);useBodyState.setState({draft:null});w.reply();d.tick(1300);expect(w.frame.settle).toBe(0);expect(w.frame.fullness).toBe(0);
   }finally{d.dispose();}
 });
+
+it('sends a left debit to the left pole only and drops that transient on cancel',()=>{
+  const w=slowWorker();setBreastView('a',{motion:true});const value={...DEFAULT_BODY_PROFILE,lactating:true,left:.8,right:.7};
+  useBodyState.setState({byAsset:{a:value},draft:{assetId:'a',value}});
+  const d=breastPainter(canvas(),{assetId:'a',runtimeId:'r'},()=>{},()=>{});
+  try{d.tick(0);w.reply();
+    useBodyState.setState({draft:{assetId:'a',value:{...value,left:.25}}});d.tick(50);
+    expect(w.frame.leftSettle).toBeLessThan(0);expect(w.frame).toMatchObject({left:.25,right:.7,rightSettle:0,settle:0});w.reply();
+    useBodyState.setState({draft:null});d.tick(100);expect(w.frame).toMatchObject({left:.8,right:.7,leftSettle:0,rightSettle:0,settle:0});
+  }finally{d.dispose();}
+});

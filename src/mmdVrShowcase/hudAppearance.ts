@@ -1,36 +1,35 @@
 import { roundRectPath, type PanelPaintContext } from "../shared/panelTexture";
+import { PRIVATE_COLORS as c, buttonInks, type ButtonState } from "./pelvic/palette";
 
 export const HUD_COLORS = Object.freeze({
-  surface: "#edf1f6",
-  control: "#ffffff",
-  border: "#ccd5e2",
-  ink: "#172638",
-  muted: "#52627a",
-  primary: "#244fc5",
-  selected: "#dce7ff",
-  track: "#a6b5ca",
-  danger: "#a52b3d",
-  dangerSurface: "#fbe7eb",
-  disabled: "#5d6b7f",
+  surface: c.paper, control: c.control, border: c.rule, ink: c.ink, muted: c.muted,
+  primary: c.gold, selected: c.selected, track: c.rule, fill: c.rouge,
+  danger: c.danger, dangerSurface: c.dangerFill, disabled: c.disabled,
 });
 
 export function paintHudButton(
   { ctx, width, height }: Pick<PanelPaintContext, "ctx" | "width" | "height">,
   label: string,
-  options: { active?: boolean; danger?: boolean; disabled?: boolean; variant?: "button" | "tab" | "quiet" } = {},
+  options: ButtonState = {},
 ) {
-  const { active, danger, disabled, variant = "button" } = options;
+  const { face, letters, edge } = buttonInks(options);
   ctx.clearRect(0, 0, width, height);
-  ctx.fillStyle = disabled ? HUD_COLORS.surface : active ? HUD_COLORS.selected
-    : danger ? HUD_COLORS.dangerSurface : variant === "button" ? HUD_COLORS.control : HUD_COLORS.surface;
-  ctx.fillRect(0, 0, width, height);
-  if (variant === "tab" && active) {
+  // Inset the chamfered rule inside the existing rounded hit geometry.
+  const cut = height * .16, pad = 2;
+  ctx.beginPath(); ctx.moveTo(cut, pad); ctx.lineTo(width-cut, pad);
+  ctx.quadraticCurveTo(width-pad, pad, width-pad, cut); ctx.lineTo(width-pad, height-cut);
+  ctx.lineTo(width-cut, height-pad); ctx.lineTo(cut, height-pad);
+  ctx.quadraticCurveTo(pad, height-pad, pad, height-cut); ctx.lineTo(pad, cut); ctx.closePath();
+  ctx.fillStyle = face; ctx.fill(); ctx.strokeStyle = edge; ctx.lineWidth = 2;
+  if (options.disabled) ctx.setLineDash([6, 4]);
+  ctx.stroke(); ctx.setLineDash([]);
+  if (options.variant === "tab" && options.active && !options.disabled) {
     ctx.fillStyle = HUD_COLORS.primary;
     roundRectPath(ctx, width * 0.25, height - 6, width * 0.5, 4, 2);
     ctx.fill();
   }
-  ctx.fillStyle = disabled ? HUD_COLORS.disabled : danger ? HUD_COLORS.danger : active ? HUD_COLORS.primary : HUD_COLORS.ink;
-  ctx.font = `${active ? 650 : 550} 31px system-ui, sans-serif`;
+  ctx.fillStyle = letters;
+  ctx.font = `${options.active || options.variant === 'primary' ? 650 : 550} 31px system-ui, sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(label, width / 2, height / 2, width - 28);

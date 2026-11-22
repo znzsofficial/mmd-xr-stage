@@ -1,6 +1,5 @@
 import { useLanguageStore } from '../../../languageStore';
 import { PrivateButton, PrivateLine, PrivateSlider } from '../../pelvic/HudPrivateControls';
-import { privateVars } from '../../pelvic/palette';
 import { ScreenActions } from '../BodyActions';
 import type { BreastReading } from '../controlRows';
 import type { BodyActor } from '../useBodyEditor';
@@ -27,7 +26,7 @@ function useFigureControls(assetId: string) {
 
 export function ScreenBreastPanel({actor,row,blocked}: Props) {
   const view=useFigureControls(actor.assetId), f=row.fullness;
-  return <div className="breast-reading" style={privateVars}>
+  return <div className="breast-reading">
     <figure className="breast-figure">
       <BreastScreenGraphic {...actor}/>
       <figcaption>

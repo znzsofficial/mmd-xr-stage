@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { PRIVATE_COLORS as hud } from "../mmdVrShowcase/pelvic/palette";
 
 export type PanelPaintContext = {
   ctx: CanvasRenderingContext2D;
@@ -61,13 +62,6 @@ export function hitTestByUv<T extends { rect: { x: number; y: number; w: number;
   );
 }
 
-/** Quiet secondary control (exit / reset / HUD buttons). Colors match VR shell. */
-const SECONDARY_BTN = {
-  fill: "#211d20",
-  border: "#51454b",
-  ink: "#eee6e9",
-} as const;
-
 export function paintSecondaryButton(
   p: Pick<PanelPaintContext, "ctx" | "width" | "height">,
   label: string,
@@ -75,12 +69,12 @@ export function paintSecondaryButton(
   const { ctx, width: w, height: h } = p;
   const r = Math.min(20, h / 2);
   roundRectPath(ctx, 1, 1, w - 2, h - 2, r);
-  ctx.fillStyle = SECONDARY_BTN.fill;
+  ctx.fillStyle = hud.paper;
   ctx.fill();
-  ctx.strokeStyle = SECONDARY_BTN.border;
+  ctx.strokeStyle = hud.rule;
   ctx.lineWidth = 1.5;
   ctx.stroke();
-  ctx.fillStyle = SECONDARY_BTN.ink;
+  ctx.fillStyle = hud.ink;
   ctx.font = "600 32px system-ui, sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
@@ -96,9 +90,9 @@ export function paintFpsBadge(
   const { ctx, width: w, height: h } = p;
   ctx.clearRect(0, 0, w, h);
   roundRectPath(ctx, 0, 0, w, h, 12);
-  ctx.fillStyle = "rgba(12, 16, 24, 0.72)";
+  ctx.fillStyle = hud.paper;
   ctx.fill();
-  ctx.fillStyle = fps >= 72 ? "#7dcea0" : fps >= 50 ? "#e0b84a" : "#e07a7a";
+  ctx.fillStyle = fps >= 72 ? hud.ink : fps >= 50 ? hud.gold : hud.danger;
   ctx.font = "700 36px system-ui, sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";

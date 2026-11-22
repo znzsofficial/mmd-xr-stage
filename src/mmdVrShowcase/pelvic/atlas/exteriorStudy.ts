@@ -32,7 +32,7 @@ export function createExteriorStudy(){
     // markers. It never opens the rim or changes a measured coordinate.
     ctx.translate(w/2,h/2+Math.sin(o.time*1.55)*h*.005);ctx.scale(zoom,zoom);
     ctx.translate(-(box.left+box.right)/2,-(box.top+box.bottom)/2);
-    drawVulva(ctx,yaw,cut);
+    drawVulva(ctx,yaw,cut,o.foldStyle);
     if(s&&s.radiusM>0){
       const point=exteriorLens(yaw,s.radiusM),state=o.parked?'#ebc68e':s.outletInside?'#c3d9fa':s.outletVisible?'#c7a5ff':'#ffba9f';
       const shaft=s.shaft;

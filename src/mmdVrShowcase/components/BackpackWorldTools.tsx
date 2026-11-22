@@ -73,7 +73,7 @@ function SelectedTools({ entry, instance, blocked, preview }: { entry: BackpackE
   if(page==='pose'||page==='body'||page==='wardrobe'||page==='interact'||page==='observe'){
     return <group ref={group} name="backpack-world-tools" scale={.86} pointerEventsOrder={1} pointerEventsType={{deny:['touch','grab']}}>
       {page==='body'?<><BodyHudControls assetId={entry.id} runtimeId={instance.runtimeId} suspended={blocked||peek} onPeek={()=>setPeek(true)} onBack={()=>setPage('tools')}/>
-        {peek&&!blocked&&<HudButton position={[0,-.32,0]} size={[.78,.15]} label={t('bodyResume')} onPress={()=>setPeek(false)}/>}</>:
+        {peek&&!blocked&&<HudButton position={[0,-.32,0]} size={[.78,.15]} variant="primary" label={t('bodyResume')} onPress={()=>setPeek(false)}/>}</>:
         page==='pose'?<PoseHudControls assetId={entry.id} runtimeId={instance.runtimeId} onBack={()=>setPage('tools')}/>:
         <ActorActivities hud entry={page} assetId={entry.id} runtimeId={instance.runtimeId} onBack={()=>setPage('tools')}/>}</group>;
   }
@@ -84,7 +84,7 @@ function SelectedTools({ entry, instance, blocked, preview }: { entry: BackpackE
       if (page !== 'tools' && entry.kind==='model') setPage('tools'); else useBackpack.getState().select(null);
     }} disabled={busy} />
     {page==='wand'?<WandControls live={instance} locked={locked||!instance.visible}/>:eggPage?<EggControls id={entry.id} locked={locked||!instance.visible}/>:page==='motions' ? <MotionPicker id={entry.id} locked={locked} /> : page==='prop' ? <CharacterPropTools id={entry.id} instance={instance} locked={locked}/> : page==='tools'?<>
-      {([['wardrobe','actorWardrobe'],['interact','actorInteraction'],['observe','actorObservation']] as const).map(([id,key],i)=><HudButton key={id} position={[(i-1)*.418,.115,0]} size={[.39,.16]} label={t(key)} disabled={locked||!instance.visible} onPress={()=>setPage(id)}/>)}
+      {([['wardrobe','actorWardrobe'],['interact','actorInteraction'],['observe','actorObservation']] as const).map(([id,key],i)=><HudButton key={id} position={[(i-1)*.418,.115,0]} size={[.39,.16]} label={t(key)} variant={id==='interact'?'primary':'button'} disabled={locked||!instance.visible} onPress={()=>setPage(id)}/>)}
       <HudButton position={[-.315,-.11,0]} size={[.59,.16]} label={t('hudChangeMotion')} disabled={locked} onPress={()=>setPage('motions')}/>
       <HudButton position={[.315,-.11,0]} size={[.59,.16]} label={t('watchArrange')} disabled={locked} onPress={()=>setPage('arrange')}/>
       <HudButton position={[-.315,-.325,0]} size={[.59,.16]} label={t('actorPose')} disabled={locked||!instance.visible} onPress={()=>setPage('pose')}/>

@@ -3,7 +3,19 @@ import { Bone, BufferAttribute, Float32BufferAttribute, Group, Matrix4, Mesh, Me
 import { createPortDrawing } from './drawing';
 import { createPelvicSolver, pelvicRailMatrix, type PelvicFrame } from './geometry';
 import { rod, rodRadii } from './path';
-import { formColors, rimSamples, vulvaHalves } from './vulvaForm';
+import { fitSite, foldStyles, formColors, rimSamples, vulvaHalves } from './vulvaForm';
+
+it('changes the cushion and inner relief independently, keeping every style on the measured rim',()=>{
+  const zero={x:0,y:0,xx:0,xy:0,yx:0,yy:0}, load={...zero,x:.5,xx:.56,yy:.25};
+  const at=(h:number,k:number,cut=zero,style:typeof foldStyles[number]='natural')=>{
+    const row=vulvaHalves[h].rows.find(r=>Math.abs(r.sites[0].y)<1e-8)!;
+    return fitSite(row.sites[k],1,cut,new Vector3(),style);
+  };
+  expect(at(1,13,zero,'soft').z-at(1,13,zero,'defined').z).toBeGreaterThan(.12);
+  expect(at(1,6,zero,'defined').z-at(1,6,zero,'soft').z).toBeGreaterThan(.08);
+  for(const style of foldStyles)for(const h of [0,1])expect(at(h,0,load,style)).toEqual(at(h,0,load));
+  expect(at(1,13,load).z-at(1,13).z).toBeLessThan(at(0,13,load).z-at(0,13).z-.08);
+});
 
 it('forms distinct paired crests and returns the actual mesh buffers to their resting folds after a crossing',()=>{
   const f:PelvicFrame={world:new Matrix4(),inverse:new Matrix4(),radiusM:.024,lengthM:.092,scale:1};

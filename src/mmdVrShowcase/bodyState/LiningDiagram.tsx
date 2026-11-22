@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPanelTexture, roundRectPath } from '../../shared/panelTexture';
+import { PRIVATE_COLORS as c } from '../pelvic/palette';
 import type { EndometrialTissue } from './data';
 import { drawBodySection } from './section';
 
@@ -28,10 +29,10 @@ export function ScreenLiningDiagram({ samples: [a,b] }: LiningPair) {
 }
 
 function paintSample(ctx:CanvasRenderingContext2D, x:number, sample:LiningSample, ink:string) {
-  ctx.fillStyle = '#e5c8cf'; ctx.font = '500 23px system-ui, sans-serif'; ctx.fillText(sample.caption,x,23,352);
+  ctx.fillStyle = c.muted; ctx.font = '500 23px system-ui, sans-serif'; ctx.fillText(sample.caption,x,23,352);
   ctx.fillStyle = ink; ctx.font = '650 32px system-ui, sans-serif'; ctx.fillText(sample.phase,x,61,352);
   drawBodySection(ctx,x,86,352,108,sample.tissue);
-  ctx.fillStyle = '#fff0e8'; ctx.font = '550 27px system-ui, sans-serif'; ctx.fillText(sample.change,x,224,352);
+  ctx.fillStyle = c.ink; ctx.font = '550 27px system-ui, sans-serif'; ctx.fillText(sample.change,x,224,352);
 }
 
 export function HudLiningDiagram({ samples: [a,b] }: LiningPair) {
@@ -39,11 +40,11 @@ export function HudLiningDiagram({ samples: [a,b] }: LiningPair) {
   const left=useIllustration(a), right=useIllustration(b);
   useLayoutEffect(()=>{
     const ctx=(texture.image as HTMLCanvasElement).getContext('2d'); if(!ctx)return;
-    roundRectPath(ctx,0,0,768,252,12); ctx.fillStyle='#392331'; ctx.fill();
+    roundRectPath(ctx,0,0,768,252,12); ctx.fillStyle=c.inset; ctx.fill();
     ctx.textAlign='left'; ctx.textBaseline='middle';
-    paintSample(ctx,20,left,'#f4e5de');
-    paintSample(ctx,396,right,'#f9cd9b');
-    ctx.fillStyle='#795464'; ctx.fillRect(384,17,1,220);
+    paintSample(ctx,20,left,c.ink);
+    paintSample(ctx,396,right,c.gold);
+    ctx.fillStyle=c.rule; ctx.fillRect(384,17,1,220);
     texture.needsUpdate=true;
   },[texture,left,right]);
   useEffect(() => () => texture.dispose(), [texture]);

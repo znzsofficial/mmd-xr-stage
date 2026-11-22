@@ -3,7 +3,7 @@ import { createPanelTexture } from '../../shared/panelTexture';
 import type { PelvicActor } from './Section';
 import { AtlasHudPanel, AtlasScreenPanel } from './atlas/AtlasPanel';
 import { PrivateButton, PrivateLine, PrivateSheet, PrivateSlider } from './HudPrivateControls';
-import { PRIVATE_COLORS, privateVars } from './palette';
+import { PRIVATE_COLORS } from './palette';
 import { usePelvicControls, type PelvicNavigation } from './usePelvicControls';
 import type {Row,Key} from './controlRows';
 import './controls.css';
@@ -34,7 +34,7 @@ function ScreenEditor({assetId,runtimeId,onBack,...navigation}:ScreenProps) {
   useLayoutEffect(()=>{
     const sidebar=page.current?.closest('.screen-library');if(sidebar)sidebar.scrollTop=0;
   },[]);
-  return <div className="pelvic-screen" style={privateVars} ref={page} role="group" aria-label={vm.title}>
+  return <div className="pelvic-screen" ref={page} role="group" aria-label={vm.title}>
     <header className="pelvic-heading"><h3>{vm.title}</h3>{vm.stop&&<ScreenKeys items={[vm.stop]} blocked={vm.blocked} stop/>}{onBack&&<button type="button" className="pelvic-key pelvic-back" onClick={onBack}>{vm.back}</button>}</header>
     <div className="pelvic-body" data-chart={vm.chart}>
       {vm.enabled&&<nav className="pelvic-nav" aria-label={vm.title}><ScreenKeys items={vm.tabs} blocked={false}/></nav>}

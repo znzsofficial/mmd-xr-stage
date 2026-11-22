@@ -51,7 +51,7 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
       if(view.mode!=='organ'){art?.dispose();art=undefined;}
       if(prev.mode==='entry')lettering.dispose();
       changed();
-    }else if(view.motion!==prev.motion||view.labels!==prev.labels||!view.motion&&view.degrees!==prev.degrees)changed();
+    }else if(view.motion!==prev.motion||view.labels!==prev.labels||(scope==='vulva'||scope==='pelvic'&&view.mode==='entry')&&view.foldStyle!==prev.foldStyle||!view.motion&&view.degrees!==prev.degrees)changed();
     else if(view.degrees!==prev.degrees)wake(); // a continuous orbit still honours the turn rate limit
   }),
     useLanguageStore.subscribe((s,p)=>{if(s.language!==p.language)changed();}),
@@ -93,7 +93,7 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
     if(mode!=='organ'&&profile){
       const l=sample?.lengthM??profile.calibration.lengthM,r=sample?.radiusM??profile.calibration.radiusM;
       if(!geometry||l!==lastL||r!==lastR||yaw!==lastYaw||geometry.entryFocus!==(mode==='entry')){geometry=sectionLayout(l,r,yaw,mode==='entry');lastL=l;lastR=r;lastYaw=yaw;}
-      publish(drawPelvicSection(ctx,geometry,profile,sample,zh,parked,mode==='entry'?lettering.get(zh):undefined));
+      publish(drawPelvicSection(ctx,geometry,profile,sample,zh,parked,mode==='entry'?lettering.get(zh):undefined,v.foldStyle));
     }else{
       const daily=body?sampleBody(body):null,fantasy=profile?.container==='fantasyUterine';
       const volume=profile?.fluid[profile.container]??0,capacity=profile?.capacity[profile.container]??1;
@@ -102,7 +102,7 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
       // A shared normalized art region leaves space for an honest live caption.
       // With body state disabled the neutral illustration is not a measured lining.
       art??=organOutput(result=>{if(result==='retry')dirty=true;wake();});
-       art.submit({scale:canvas.width/W,options:{x:0,y:0,width:W,height:observation?H:H-32,focus:observation?scope:undefined,yaw,time,lining:daily?.lining??.44,shedding:daily?.shedding??0,tissue:daily?.tissue,labels:v.labels,
+        art.submit({scale:canvas.width/W,options:{x:0,y:0,width:W,height:observation?H:H-32,focus:observation?scope:undefined,foldStyle:v.foldStyle,yaw,time,lining:daily?.lining??.44,shedding:daily?.shedding??0,tissue:daily?.tissue,labels:v.labels,
          fluid:volume/capacity,fantasy,vaginalFluid:profile?profile.fluid.vaginal/profile.capacity.vaginal:0,
          uterineFluid:scope==='uterus'&&profile?profile.fluid.fantasyUterine/profile.capacity.fantasyUterine:undefined,
          pressure:!parked&&sample?.outletInside?Math.min(1,sample.depth/Math.max(.0001,sample.lengthM)):0,sample,parked,zh},paint:draw=>{

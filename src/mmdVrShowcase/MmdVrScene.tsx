@@ -16,6 +16,7 @@ import { MmdVrDiagnostics } from "./components/MmdVrDiagnostics";
 import { BackpackPlacement } from "./components/BackpackPlacement";
 import { BackpackWorldTools } from "./components/BackpackWorldTools";
 import { StagePlay } from './play/HeldPlay';
+import { stageHudVars } from './pelvic/palette';
 
 export function MmdVrScene() {
   const closeOverlay = useMmdVrStore((state) => state.closeOverlay);
@@ -40,6 +41,7 @@ export function MmdVrScene() {
   return (
     <div
       className="xr-stage-overlay"
+      style={stageHudVars}
       role="dialog"
       aria-modal="true"
       aria-label={t("settingsMmdVrShowcase")}

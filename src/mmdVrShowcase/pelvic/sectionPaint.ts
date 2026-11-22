@@ -2,6 +2,7 @@ import { rod, rodRadii } from './path';
 import {semenColor,semenFill,semenHighlight} from '../play/semenAppearance';
 import { plot, SECTION_H, SECTION_W, outletLabel, sectionEvidence, type Point, type SectionLayout, type Slice } from './sectionProjection';
 import {drawVulva,exteriorBox,exteriorLens} from './atlas/vulvaSurface';
+import type {FoldStyle} from './vulvaForm';
 import type {EntryType} from './atlas/entryLettering';
 import type { PelvicProfile, PelvicSample } from './stateTypes';
 export { sectionLayout, SECTION_H, SECTION_W, type SectionAngle } from './sectionProjection';
@@ -151,10 +152,10 @@ function callouts(ctx:Ctx,v:SectionLayout,zh:boolean){
   line(ctx,[{x:x-w,y:y-3},{x:x-w,y},{x,y},{x,y:y-3}],ink.gold,1.1);label(ctx,`${fmtUnits(distance*100)} cm`,x,y-10,ink.gold,11.5,550,'right');
 }
 
-function paintPlate(ctx:Ctx,v:SectionLayout,g:Shapes,zh:boolean,type?:EntryType|null){
+function paintPlate(ctx:Ctx,v:SectionLayout,g:Shapes,zh:boolean,type?:EntryType|null,style?:FoldStyle){
   ctx.fillStyle=ink.paper;ctx.fillRect(0,0,SECTION_W,SECTION_H);ctx.lineJoin=ctx.lineCap='round';
   if(v.entryFocus){
-    drawVulva(ctx,v.yaw);tissue(ctx,v,g);
+    drawVulva(ctx,v.yaw,undefined,style);tissue(ctx,v,g);
     const exterior=exteriorLens(v.yaw,v.radiusM),rim=exterior(-.4*v.radiusM,-.92*v.radiusM,0);
     function leader(name:string,from:Point,x:number,y:number,right=false){
       const w=right?(zh?56:77):(zh?40:49);
@@ -177,21 +178,21 @@ function paintPlate(ctx:Ctx,v:SectionLayout,g:Shapes,zh:boolean,type?:EntryType|
 }
 // Reuse a single backing canvas *per destination*, even through animated
 // yaw. During tracking, the only work is one blit plus liquid, probe and text.
-type Plate={canvas:HTMLCanvasElement;v?:SectionLayout;zh?:boolean;g?:Shapes;type?:EntryType|null};
+type Plate={canvas:HTMLCanvasElement;v?:SectionLayout;zh?:boolean;g?:Shapes;type?:EntryType|null;style?:FoldStyle};
 const plates=new WeakMap<Ctx,Plate>();
-function background(ctx:Ctx,v:SectionLayout,zh:boolean,type?:EntryType|null){
+function background(ctx:Ctx,v:SectionLayout,zh:boolean,type?:EntryType|null,style?:FoldStyle){
   let b=plates.get(ctx);const {width,height}=ctx.canvas;
   if(!b&&typeof document!=='undefined'){b={canvas:document.createElement('canvas')};plates.set(ctx,b);}
   if(b){
-    if(v!==b.v||zh!==b.zh||type!==b.type||width!==b.canvas.width||height!==b.canvas.height||!b.g){
+    if(v!==b.v||zh!==b.zh||type!==b.type||style!==b.style||width!==b.canvas.width||height!==b.canvas.height||!b.g){
       if(width!==b.canvas.width)b.canvas.width=width;if(height!==b.canvas.height)b.canvas.height=height;
       const c=b.canvas.getContext('2d');if(c){
-        b.g=contours(v);c.setTransform(width/SECTION_W,0,0,height/SECTION_H,0,0);paintPlate(c,v,b.g,zh,type);b.v=v;b.zh=zh;b.type=type;
+        b.g=contours(v);c.setTransform(width/SECTION_W,0,0,height/SECTION_H,0,0);paintPlate(c,v,b.g,zh,type,style);b.v=v;b.zh=zh;b.type=type;b.style=style;
       }
     }
     if(b.v===v&&b.g){ctx.drawImage(b.canvas,0,0,SECTION_W,SECTION_H);return b.g;}
   }
-  const g=contours(v);paintPlate(ctx,v,g,zh,type);return g;
+  const g=contours(v);paintPlate(ctx,v,g,zh,type,style);return g;
 }
 
 function liquid(ctx:Ctx,shape:Path2D,y:number){
@@ -238,7 +239,7 @@ function bearingOrMarker(ctx:Ctx,plot:{left:number;right:number;top:number;botto
 }
 const stateInk=(s:Evidence['state'])=>s==='parked'?ink.gold:s==='unverified'?ink.warning:s==='inside'?ink.tip:s==='outside'?ink.exterior:ink.muted;
 
-export function drawPelvicSection(ctx:Ctx,layout:SectionLayout,profile:PelvicProfile,sample:PelvicSample|null,zh:boolean,parked=false,type?:EntryType|null){
+export function drawPelvicSection(ctx:Ctx,layout:SectionLayout,profile:PelvicProfile,sample:PelvicSample|null,zh:boolean,parked=false,type?:EntryType|null,style?:FoldStyle){
   const t=(z:string,e:string)=>zh?z:e,e=sectionEvidence(layout,profile,sample,parked);
   const mode=profile.container,fantasy=mode==='fantasyUterine',amount=profile.fluid[mode],capacity=profile.capacity[mode];
   const state=e.state,status=outletLabel(sample,zh,parked);
@@ -246,7 +247,7 @@ export function drawPelvicSection(ctx:Ctx,layout:SectionLayout,profile:PelvicPro
   const depth=e.depth===null?'—':cm(e.depth),angle=e.angle===null?'—':`${Math.round(e.angle)}°`,lat=e.lateral===null?'—':signedCm(e.lateral);
   const vessel=fantasy?t('宫腔精液量','Semen · uterus'):t('阴道精液量','Semen · vagina');
   ctx.save();ctx.scale(ctx.canvas.width/SECTION_W,ctx.canvas.height/SECTION_H);ctx.lineJoin=ctx.lineCap='round';
-  const g=background(ctx,layout,zh,type);
+  const g=background(ctx,layout,zh,type,style);
   if(e.vaginal>0)liquid(ctx,g.canalLiquid,layout.levelY('canal',e.vaginal));if(!layout.entryFocus&&e.uterine>0)liquid(ctx,g.uterus,layout.levelY('uterus',e.uterine));
   if(sample)drawProbe(ctx,layout,e,sample);
   if(layout.entryFocus){

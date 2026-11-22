@@ -7,9 +7,9 @@ import {useBodyState} from '../bodyState/store';
 import {actorBinding,actorRodSample,type ObservationAtlasPart} from '../pelvic/atlas/painter';
 import {atlasAngles,setAtlasView,useAtlasView} from '../pelvic/atlas/view';
 import {PrivateButton,PrivateLine,PrivateSheet,PrivateSlider} from '../pelvic/HudPrivateControls';
-import {privateVars} from '../pelvic/palette';
 import {outletLabel} from '../pelvic/sectionProjection';
 import {usePelvic} from '../pelvic/store';
+import {foldStyles} from '../pelvic/vulvaForm';
 import '../pelvic/controls.css';
 import './observation.css';
 
@@ -32,8 +32,10 @@ function useView({assetId,initialPart='breast'}:ObservationProps){
   const view=breast?chest:atlas;
   const set=breast?setBreastView:setAtlasView;
   const {degrees,motion}=view;
+  const foldNames=zh?{natural:'自然',soft:'柔和',defined:'层次'}:{natural:'Natural',soft:'Soft',defined:'Defined'};
   return {part,choose,t,zh,degrees,motion,turn:(degrees:number)=>set(assetId,{degrees}),
     transport:{label:motion?t.freeze:t.play,active:!motion,press:()=>set(assetId,{motion:!motion})},
+    shapes:part==='vulva'?foldStyles.map(f=>({label:foldNames[f],active:f===atlas.foldStyle,press:()=>setAtlasView(assetId,{foldStyle:f})})):[],
     options:[...(breast?[{label:t.cut,active:chest.section,press:()=>setBreastView(assetId,{section:!chest.section})}]:[]),
       ...(part==='uterus'||breast&&chest.section?[{label:t.labels,active:view.labels,press:()=>set(assetId,{labels:!view.labels})}]:[])],
   };
@@ -67,7 +69,7 @@ function Screen(props:ObservationProps){
   const view=useView(props),{t,part,degrees,turn}=view,readings=useReadings(assetId,runtimeId,view);
   const sheet=useRef<HTMLDivElement>(null);
   useLayoutEffect(()=>{const sidebar=sheet.current?.closest('.screen-library');if(sidebar)sidebar.scrollTop=0;},[]);
-  return <div ref={sheet} className="pelvic-screen actor-observation" style={privateVars} role="group" aria-label={t.title}>
+  return <div ref={sheet} className="pelvic-screen actor-observation" role="group" aria-label={t.title}>
     <div className="observation-navigation">
       <header className="pelvic-heading"><h3>{t.title}</h3><button type="button" className="pelvic-key pelvic-back" onClick={onBack}>{backLabel??t.back}</button></header>
       <div className="pelvic-nav"><div className="pelvic-keys" role="group" aria-label={t.part}>{parts.map(k=><button className="pelvic-key" type="button" key={k} aria-pressed={part===k} onClick={()=>view.choose(k)}>{t[k]}</button>)}</div></div>
@@ -76,6 +78,7 @@ function Screen(props:ObservationProps){
     <figure><ObservationDiagram key={part} {...actor} part={part} loading={view.zh?'正在绘制图像…':'Drawing figure…'}/>
       <figcaption>{t.drag}<output aria-label={t.angle}>{degrees}°</output></figcaption></figure>
     <div className="pelvic-keys">{[view.transport,...view.options].map(a=><button type="button" className="pelvic-key" key={a===view.transport?'transport':a.label} aria-pressed={a.active} onClick={a.press}>{a.label}</button>)}</div>
+    {view.shapes.length>0&&<div role="group" aria-label={view.zh?'外阴外形':'Fold shape'} className="pelvic-keys observation-presets">{view.shapes.map(s=><button type="button" key={s.label} className="pelvic-key" aria-pressed={s.active} onClick={s.press}>{s.label}</button>)}</div>}
     <dl>{readings.map(r=><div key={r.label}><dt>{r.label}</dt><dd>{r.value}</dd></div>)}</dl>
   </div>;
 }
@@ -90,7 +93,7 @@ function Hud(props:ObservationProps){
   // sheet close to the width of the actor menu; long rod verdicts get a full
   // line under the figure, not a narrow rail at the outside edge of one eye.
   const rod=readings.find(r=>r.label===t.rod),fields=readings.filter(r=>r!==rod);
-  const firstY=rod?-.696:-.592,bottom=firstY-Math.floor((fields.length-1)/2)*.11-.08;
+  const rodY=part==='vulva'?-.67:-.592,firstY=rod?rodY-.104:-.592,bottom=firstY-Math.floor((fields.length-1)/2)*.11-.08;
   return <group name="observation:controls" pointerEventsOrder={1} pointerEventsType={{allow:['ray']}}>
     <group position-y={(.69+bottom)/2}><PrivateSheet size={[1.51,.69-bottom]}/></group>
     <PrivateLine position={[-.265,.586,0]} width={.90} title text={t.title}/>
@@ -102,7 +105,8 @@ function Hud(props:ObservationProps){
     <PrivateLine position={[right,.04,0]} width={rail} text={t.angle} value={`${degrees}°`}/>
     <PrivateSlider position={[right,-.088,0]} width={rail} disabled={false} value={(degrees+90)/180} onChange={v=>turn(v*180-90)}/>
     {view.options.map((a,i)=><PrivateButton key={a.label} position={[right,-.26-i*.17,0]} size={[rail,.14]} label={a.label} active={a.active} onPress={a.press}/>)}
-    {rod&&<PrivateLine position={[0,-.592,0]} width={1.41} text={rod.label} value={rod.value}/>}
+    {view.shapes.map((a,i)=><PrivateButton key={a.label} position={[right,-.22-i*.15,0]} size={[rail,.135]} label={a.label} active={a.active} onPress={a.press}/>)}
+    {rod&&<PrivateLine position={[0,rodY,0]} width={1.41} text={rod.label} value={rod.value}/>}
     {fields.map((r,i)=><PrivateLine key={r.label} position={[(i%2-.5)*.736,firstY-Math.floor(i/2)*.11,0]} width={.68} text={r.label} value={r.value}/>)}
   </group>;
 }

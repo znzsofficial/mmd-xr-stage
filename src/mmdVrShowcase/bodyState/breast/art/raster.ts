@@ -13,12 +13,12 @@ export const portraitY = (y: number, depth: number) => originY - scale * (y - .0
 
 // Projected vertex: screen x/y, depth, and either RGB or cutaway texture coordinates.
 const STRIDE = 6;
-function project(mesh: Mesh, cam: Camera, out: Float32Array, flip: number, settle: number) {
+function project(mesh: Mesh, cam: Camera, out: Float32Array, flip: number, settle: number, level:boolean) {
   const v = mesh.data, {s,c} = cam, {radii,cols} = mesh;
   for (let i=0,k=0; i<v.length; i+=VERTEX_STRIDE,k+=STRIDE) {
     const x=v[i], z=v[i+2], depth=x*s+z*c, index=i/VERTEX_STRIDE;
     const r=radii ? radii[Math.floor(index/cols)] : 1;
-    const y=v[i+1]+(settle && radii ? settle*settleWeight(r,r*Math.sin(TAU*(index%cols)/(cols-1))) : 0);
+    const y=level?Math.fround(v[i+1]+.057*depth):v[i+1]+(settle && radii ? settle*settleWeight(r,r*Math.sin(TAU*(index%cols)/(cols-1))) : 0);
     out[k]=portraitX(cam,x,z)*RASTER_SCALE;
     out[k+1]=portraitY(y,depth)*RASTER_SCALE;
     out[k+2]=depth+y*.057;
@@ -74,12 +74,12 @@ function triangles(indices: Uint16Array, v: Float32Array, z: Float32Array, color
 
 /** One scratch buffer per live painter. Retessellating a surface must not
  * depend on the torso happening to have the most vertices in the scene. */
-export function meshRenderer(depths: Float32Array, color: Uint8ClampedArray) {
+export function meshRenderer(depths: Float32Array, color: Uint8ClampedArray, level=false) {
   let work=new Float32Array(0);
   return (mesh: Mesh, cam: Camera, flip: number, settle: number, tile?: ImageData) => {
     const length=mesh.data.length/VERTEX_STRIDE*STRIDE;
     if (work.length<length) work=new Float32Array(length);
-    project(mesh,cam,work,flip,settle);
+    project(mesh,cam,work,flip,settle,level);
     triangles(mesh.indices,work,depths,color,tile);
   };
 }

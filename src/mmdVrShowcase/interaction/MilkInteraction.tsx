@@ -1,8 +1,8 @@
-import {useLayoutEffect,useMemo,useRef,useState} from 'react';
+import {useCallback,useLayoutEffect,useMemo,useRef,useState} from 'react';
 import {useThree,type ThreeEvent} from '@react-three/fiber';
 import type {Mesh} from 'three';
 import {useLanguageStore} from '../../languageStore';
-import {createPanelTexture} from '../../shared/panelTexture';
+import {useHudKeyTexture,type KeyPainter} from '../components/useHudKeyTexture';
 import {useBackpack} from '../backpack';
 import {DEFAULT_BODY_PROFILE} from '../bodyState/data';
 import {openMilkPanel,pressMilk,releaseMilk,useMilkInteraction,type MilkMode,type MilkPanel,type OutletState} from '../bodyState/lactation/interaction';
@@ -99,19 +99,19 @@ const rayTypes={allow:['ray']};
 function HudHold({mode,page,x}:{mode:MilkMode;page:Page;x:number}){
   const {gl}=useThree(),mesh=useRef<Mesh>(null),owner=useRef<{id:number;hold:Hold}|null>(null);
   const disabled=page.disabled(mode),label=page.holdLabel(mode),active=page.held===mode;
-  const tex=useMemo(()=>createPanelTexture(286,88,c=>paintHudButton(c,label,{active,disabled}),'en'),[label,active,disabled]);
-  useLayoutEffect(()=>()=>tex.dispose(),[tex]);
+  const [hovered,setHovered]=useState(false);
+  const tex=useHudKeyTexture(286,88,useCallback<KeyPainter>(c=>paintHudButton(c,label,{active,disabled,hovered}),[label,active,disabled,hovered]));
   useLayoutEffect(()=>()=>releaseMilk(owner.current?.hold??null),[]);
   const end=(e:XRPointer)=>{e.stopPropagation();if(owner.current?.id===e.pointerId){releaseMilk(owner.current.hold);owner.current=null;}};
   return <mesh ref={mesh} name={`hud:${label}`} position={[x,.08,.002]} renderOrder={30} pointerEventsType={rayTypes}
-    onPointerDown={(e:XRPointer)=>{e.stopPropagation();const source=e.pointerState?.inputSource,node=mesh.current,session=gl.xr.getSession();
+    onPointerEnter={()=>setHovered(true)} onPointerDown={(e:XRPointer)=>{e.stopPropagation();const source=e.pointerState?.inputSource,node=mesh.current,session=gl.xr.getSession();
       if(!session||!node||source?.targetRayMode!=='tracked-pointer'||e.button!==0||e.pointerType!=='ray')return;
       const valid=milkRayGuard(gl,session,source,node);
       const eventFrame=(e.nativeEvent as unknown as Partial<XRInputSourceEvent>).frame;
       if(!valid(eventFrame))return;
       const hold=page.begin(mode,valid,source);if(hold)owner.current={id:e.pointerId,hold};
-    }} onPointerLeave={end} onPointerUp={end} onPointerCancel={end} onLostPointerCapture={end} onClick={e=>e.stopPropagation()}>
-    <planeGeometry args={[.45,.15]}/><meshBasicMaterial map={tex} fog={false} toneMapped={false} depthTest={false} depthWrite={false}/>
+    }} onPointerLeave={e=>{setHovered(false);end(e);}} onPointerUp={end} onPointerCancel={end} onLostPointerCapture={end} onClick={e=>e.stopPropagation()}>
+    <planeGeometry args={[.45,.15]}/><meshBasicMaterial map={tex} transparent fog={false} toneMapped={false} depthTest={false} depthWrite={false}/>
   </mesh>;
 }
 
@@ -132,7 +132,7 @@ export function MilkHudControls(props:Props){
     </>:<>
       {p.lactating?<>{sides.map((s,i)=><group key={s} position-x={(i-.5)*.72}><HudLine position={[0,.275,0]} width={.69} text={`${page.sideName(s)} ${page.fill(s)}`}/>
         <HudLine position={[0,.195,0]} width={.69} role="muted" text={page.status(s)}/></group>)}
-        {modes.map((mode,i)=><HudHold key={mode} mode={mode} x={(i-1)*.48} page={page}/>)}</>:<HudButton position={[0,.13,0]} size={[1.42,.16]} label={page.enable} disabled={page.locked} onPress={()=>page.change({lactating:true})}/>}
+        {modes.map((mode,i)=><HudHold key={mode} mode={mode} x={(i-1)*.48} page={page}/>)}</>:<HudButton position={[0,.13,0]} size={[1.42,.16]} variant="primary" label={page.enable} disabled={page.locked} onPress={()=>page.change({lactating:true})}/>}
       <HudButton position={[p.lactating?-.36:0,-.175,0]} size={[p.lactating?.68:1.42,.14]} label={page.observe} onPress={()=>go(props.onObserve)}/>
       {p.lactating&&<HudButton position={[.36,-.175,0]} size={[.68,.14]} label={page.settingsLabel} onPress={()=>page.setSettings(true)}/>}
       <HudLine position={[0,-.382,0]} width={1.42} role="muted" text={page.hint}/>

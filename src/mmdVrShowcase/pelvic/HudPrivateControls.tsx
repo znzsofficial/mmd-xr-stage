@@ -1,12 +1,12 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ThreeEvent } from '@react-three/fiber';
 import { Shape, ShapeGeometry } from 'three';
 import { createPanelTexture } from '../../shared/panelTexture';
-import { PRIVATE_COLORS as c, PRIVATE_TITLE_FACE } from './palette';
+import { PRIVATE_COLORS as c, PRIVATE_TITLE_FACE, buttonInks, type ButtonVariant } from './palette';
+import { useHudKeyTexture, type KeyPainter } from '../components/useHudKeyTexture';
 
 type Point = [number, number, number];
 type Size = [number, number];
-type Variant = 'button' | 'tab' | 'quiet' | 'stop' | 'primary';
 const material = { transparent: true, toneMapped: false, fog: false, depthTest: false, depthWrite: false } as const;
 const noRay = () => null;
 const density = 600;
@@ -49,22 +49,20 @@ function labelText(ctx:CanvasRenderingContext2D,label:string,x:number,y:number,w
 }
 
 export function PrivateButton({position,size=[.36,.135],label,onPress,active=false,disabled=false,danger=false,variant='button'}:{
-  position:Point;size?:Size;label:string;onPress:()=>void;active?:boolean;disabled?:boolean;danger?:boolean;variant?:Variant;
+  position:Point;size?:Size;label:string;onPress:()=>void;active?:boolean;disabled?:boolean;danger?:boolean;variant?:ButtonVariant;
 }) {
-  const [w,h]=size,stop=variant==='stop',tinted=stop||danger;
+  const [w,h]=size,stop=variant==='stop';
   const [hover,setHover]=useState(false),[pressed,setPressed]=useState(false);
   const pointer=useRef<number|null>(null), handled=useRef(new Set<number>()), lastUp=useRef<number|null>(null);
   const geom=useMemo(()=>cutGeometry(w,h,.014,stop),[w,h,stop]);
   const px=Math.round(w*density),py=Math.round(h*density);
-  const texture=useMemo(()=>createPanelTexture(px,py,({ctx,width,height})=>{
-    const primary=variant==='primary';
-    const ink=disabled?c.disabled:primary?c.paper:tinted?c.danger:active?c.gold:c.ink;
-    const fill=disabled?c.inset:primary?c.gold:tinted?c.dangerFill:active?c.selected:variant==='quiet'||variant==='tab'?c.paper:c.control;
+  const texture=useHudKeyTexture(px,py,useCallback<KeyPainter>(({ctx,width,height})=>{
+    const {face:fill,letters:ink,edge}=buttonInks({variant,active,disabled,danger,hovered:hover});
     path(ctx,width,height,.014*density,stop,1);
     ctx.fillStyle=fill;ctx.fill();ctx.lineWidth=2;
-    ctx.strokeStyle=disabled?'#6d5a68':tinted?c.rouge:active?c.gold:c.rule;
+    ctx.strokeStyle=edge;
     if(disabled)ctx.setLineDash([6,4]);ctx.stroke();ctx.setLineDash([]);
-    if(active){ctx.fillStyle=c.gold;ctx.fillRect(width*.28,height-6,width*.44,3);}
+    if(active&&!disabled){ctx.fillStyle=ink;ctx.fillRect(width*.28,height-6,width*.44,3);}
     const icon=stop||variant==='quiet',iconSize=Math.min(13,width*.095),inset=icon?iconSize+12:0;
     if(icon){
       ctx.fillStyle=ink;ctx.strokeStyle=ink;ctx.lineWidth=2.6;
@@ -73,8 +71,8 @@ export function PrivateButton({position,size=[.36,.135],label,onPress,active=fal
       else{ctx.beginPath();ctx.moveTo(x+iconSize/3,y-iconSize/2);ctx.lineTo(x-iconSize/4,y);ctx.lineTo(x+iconSize/3,y+iconSize/2);ctx.stroke();}
     }
     ctx.fillStyle=ink;labelText(ctx,label,(width+inset)/2,height/2,Math.max(1,width-inset-13),Math.min(28,height*.35),active||stop?650:550);
-  },'en'),[px,py,label,active,disabled,tinted,stop,variant]);
-  useEffect(()=>()=>geom.dispose(),[geom]);useEffect(()=>()=>texture.dispose(),[texture]);
+  },[label,active,disabled,danger,hover,stop,variant]));
+  useEffect(()=>()=>geom.dispose(),[geom]);
   function cancel(id:number|null){if(id!==null&&id===pointer.current){handled.current.add(id);lastUp.current=id;pointer.current=null;setPressed(false);}}
   useLayoutEffect(()=>{if(disabled){cancel(pointer.current);setHover(false);}},[disabled]);
   return <mesh name={`hud:${label}`} position={position} renderOrder={30} scale={pressed && !disabled ? .985 : 1}
@@ -86,7 +84,7 @@ export function PrivateButton({position,size=[.36,.135],label,onPress,active=fal
     onPointerUp={e=>{e.stopPropagation();if(pointer.current!==e.pointerId)return;cancel(e.pointerId);if(!disabled)onPress();}}
     onClick={e=>{e.stopPropagation();const id='pointerId' in e&&typeof e.pointerId==='number'?e.pointerId:lastUp.current;
       if(id!==null&&handled.current.delete(id))return;if(pointer.current===null&&!disabled)onPress();}}>
-    <primitive attach="geometry" object={geom}/><meshBasicMaterial map={texture} color={!disabled&&(pressed||hover)?'#ffe6ca':'#ffffff'} {...material}/>
+    <primitive attach="geometry" object={geom}/><meshBasicMaterial map={texture} {...material}/>
   </mesh>;
 }
 

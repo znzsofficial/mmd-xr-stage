@@ -15,6 +15,6 @@ export function HudActions({ items, blocked, tabs=false, gallery=false, width=bo
     const common={position:[(i-(items.length-1)/2)*(w+gap),0,0] as [number,number,number],size:[w,.14] as [number,number],
       label:label?.(a)??a.label,onPress:a.run,disabled:blocked||a.disabled,danger:a.danger};
     return gallery?<PrivateButton key={a.label} {...common} active={a.active} variant={tabs?'tab':a.primary?'primary':'button'}/>:
-      <HudButton key={a.label} {...common} active={a.active||a.primary} variant={tabs?'tab':a.quiet?'quiet':'button'}/>;
+      <HudButton key={a.label} {...common} active={a.active} variant={tabs?'tab':a.primary?'primary':a.quiet?'quiet':'button'}/>;
   });
 }

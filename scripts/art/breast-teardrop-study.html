@@ -1,0 +1,39 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>水滴形 · 静态试样 02</title>
+<style>body{margin:0;background:#211722;color:#eddbcf;font:1rem system-ui,sans-serif}main{max-width:1340px;margin:auto}canvas{display:block;width:100%}a{display:inline-block;color:inherit;margin:.8rem}</style>
+<main><canvas width="1340" height="712" aria-label="水滴形试样 02：默认和饱满的正面、斜前、侧面"></canvas><nav><a id="save" download="breast-teardrop-study.webp">保存 WebP</a><a href="?mode=clay">无色素模</a><a href="?mode=silhouette">轮廓</a><a href="?">着色稿</a><a href="?mode=runtime">正式画笔 · 同一帧</a><a id="comparison" download="breast-shape-comparison.webp" hidden>保存 01 / 02 对照</a></nav></main>
+<script type="module">
+import {teardrop,envelope} from './breast-teardrop-study.ts';
+const canvas=document.querySelector('canvas'),ctx=canvas.getContext('2d'),which=new URLSearchParams(location.search).get('mode');
+const mode=['clay','silhouette'].includes(which)?which:'colour';
+const live=which==='runtime'?(await import('../../src/mmdVrShowcase/bodyState/breast/art/index.ts')).createBreastArt():null;
+const text=(s,x,y,size,ink,bold=false)=>{ctx.font=`${bold?600:400} ${size}px system-ui,"Microsoft YaHei",sans-serif`;ctx.fillStyle=ink;ctx.fillText(s,x,y);};
+const rule=(y)=>{ctx.fillStyle='#58434d';ctx.fillRect(24,y,1292,1);};
+ctx.fillStyle='#211722';ctx.fillRect(0,0,canvas.width,canvas.height);
+text('水滴形',24,42,28,'#fae8da',true);text('外观候选  02',159,40,17,'#d4adb5');ctx.textAlign='right';text(mode==='colour'?'同一姿态   /   平视轮廓研究':mode==='clay'?'素模   /   无色无纹理':'实心剪影   /   细线为单侧自由曲面',1316,40,16,'#ccafb8');ctx.textAlign='left';rule(61);
+const angles=[0,35,90];angles.forEach((d,i)=>{const x=99+i*410;text(['正面','斜前','侧面'][i],x+2,94,18,'#f0d7cc',true);text(`${d}°`,x+58,93,16,'#ba9aa7');});
+for(const [row,full] of [0,1].entries()){
+ const y=111+row*293;text(row?'饱满':'默认',24,y+117,19,'#f3e1d2',true);text(row?'100%':'0%',24,y+144,16,'#ceadb9');
+ for(const [i,a] of angles.entries()){
+   const x=99+i*410;
+   if(live){ctx.save();ctx.translate(x,y);live.draw(ctx,{width:400,height:260,degrees:a,time:0,fullness:full,lactating:false,left:0,right:0,zh:true,section:false,labels:false,settle:0});ctx.restore();}
+   else ctx.drawImage(teardrop(full,a,mode),x,y,400,260);
+   if(mode==='silhouette'){
+     ctx.beginPath();for(let j=0;j<=360;j++){const [h,v]=envelope(j*Math.PI/180,full,a),xx=x+200+147*(h+.21*Math.sin(a*Math.PI/180)),yy=y+165-147*v;j?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy);}ctx.strokeStyle='#604759';ctx.lineWidth=1.1;ctx.stroke();
+   }
+ }rule(y+275);
+}
+live?.dispose();if(live)document.querySelector('#save').download='breast-teardrop-runtime.webp';
+text(live?'正式画笔 · 定格对照':'原创静态试样',24,701,14,'#be9fa9');canvas.toBlob(b=>{document.querySelector('#save').href=URL.createObjectURL(b)},'image/webp',.97);
+if(mode==='colour'&&!live){
+ const {portrait}=await import('./breast-shape-study.ts');
+ const cmp=document.createElement('canvas');cmp.width=910;cmp.height=657;const g=cmp.getContext('2d');g.fillStyle='#211722';g.fillRect(0,0,910,657);
+ g.fillStyle='#f2d9cc';g.font='600 20px system-ui,sans-serif';g.fillText('默认档  /  同尺寸',18,33);g.fillText('正面',88,64);g.fillText('侧面',497,64);
+ for(const j of [0,1]){
+   const y=76+j*280;g.fillStyle='#edcfc6';g.font='600 23px system-ui,sans-serif';g.fillText(j?'02':'01',22,y+134);
+   for(const [i,col] of [0,2].entries())if(j===0)g.drawImage(portrait(0,angles[col]),87+i*410,y,400,260);else g.drawImage(canvas,99+410*col,111,400,260,87+i*410,y,400,260);
+   g.fillStyle='#58434d';g.fillRect(18,y+270,871,1);
+ }
+ cmp.toBlob(b=>{const link=document.querySelector('#comparison');link.href=URL.createObjectURL(b);link.hidden=false},'image/webp',.97);
+}
+</script></html>

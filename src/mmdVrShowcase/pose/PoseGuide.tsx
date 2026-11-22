@@ -18,8 +18,9 @@ export function PoseGuide({ref}: {ref: Ref<PoseGuideUpdate>}) {
     return { texture, paint(text:string) {
       ctx.clearRect(0,0,c.width,c.height); ctx.font='550 48px system-ui, sans-serif';
       const w=Math.min(380,ctx.measureText(text).width+28);
-      ctx.fillStyle=color.ink; ctx.beginPath(); ctx.roundRect((384-w)/2,4,w,72,12); ctx.fill();
-      ctx.fillStyle=color.control; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(text,192,40,354);
+      ctx.fillStyle=color.surface; ctx.beginPath(); ctx.roundRect((384-w)/2,4,w,72,12); ctx.fill();
+      ctx.lineWidth=2;ctx.strokeStyle=color.border;ctx.stroke();
+      ctx.fillStyle=color.ink; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(text,192,40,354);
       texture.needsUpdate=true;
     }};
   },[]);
@@ -49,7 +50,7 @@ export function PoseGuide({ref}: {ref: Ref<PoseGuideUpdate>}) {
     <mesh ref={origin} name="pose:start" visible={false} raycast={noPick} renderOrder={9}><ringGeometry args={[.22,.35,20]}/><meshBasicMaterial color={color.ink} depthWrite={false} depthTest={false} toneMapped={false}/></mesh>
     <mesh ref={stem} name="pose:reach-gap" visible={false} raycast={noPick} renderOrder={10}><cylinderGeometry args={[1,1,1,5]}/><meshBasicMaterial color={color.primary} depthWrite={false} depthTest={false} toneMapped={false}/></mesh>
     <group ref={goal} name="pose:target" visible={false}>
-      <mesh raycast={noPick} renderOrder={12}><ringGeometry args={[.87,1.21,4]}/><meshBasicMaterial color="white" depthWrite={false} depthTest={false} toneMapped={false}/></mesh>
+      <mesh raycast={noPick} renderOrder={12}><ringGeometry args={[.87,1.21,4]}/><meshBasicMaterial color={color.surface} depthWrite={false} depthTest={false} toneMapped={false}/></mesh>
       <mesh raycast={noPick} renderOrder={13}><ringGeometry args={[.94,1.11,4]}/><meshBasicMaterial color={color.primary} depthWrite={false} depthTest={false} toneMapped={false}/></mesh>
     </group>
   </group>;

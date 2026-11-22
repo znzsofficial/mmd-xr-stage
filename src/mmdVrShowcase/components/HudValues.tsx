@@ -25,7 +25,7 @@ export function ValueLabel({
       ctx.textBaseline = "middle";
       ctx.fillText(label, centered ? width / 2 : 12, height / 2, centered ? width - 24 : width - 105);
       if (!centered) {
-        ctx.fillStyle = HUD_COLORS.ink;
+        ctx.fillStyle = HUD_COLORS.primary;
         ctx.font = "650 30px system-ui, sans-serif";
         ctx.textAlign = "right";
         ctx.fillText(value, width - 20, height / 2);
@@ -116,17 +116,17 @@ export function HudSlider({
     <group position={position}>
       <mesh position={[0, 0, -0.004]} renderOrder={30} raycast={() => null}>
         <planeGeometry args={[width, 0.012]} />
-        <meshBasicMaterial color={HUD_COLORS.track} transparent opacity={disabled ? 0.45 : 1} toneMapped={false} depthWrite={false} depthTest={false} />
+        <meshBasicMaterial color={HUD_COLORS.track} transparent fog={false} toneMapped={false} depthWrite={false} depthTest={false} />
       </mesh>
       {ratio > 0 ? (
         <mesh position={[-width / 2 + (width * ratio) / 2, 0, 0]} renderOrder={31} raycast={() => null}>
           <planeGeometry args={[width * ratio, 0.012]} />
-          <meshBasicMaterial color={HUD_COLORS.primary} transparent opacity={disabled ? 0.45 : 1} toneMapped={false} depthWrite={false} depthTest={false} />
+          <meshBasicMaterial color={disabled ? HUD_COLORS.disabled : HUD_COLORS.fill} transparent fog={false} toneMapped={false} depthWrite={false} depthTest={false} />
         </mesh>
       ) : null}
       <mesh position={[-width / 2 + width * ratio, 0, 0.006]} renderOrder={32} raycast={() => null}>
         <circleGeometry args={[0.036, 24]} />
-        <meshBasicMaterial color={HUD_COLORS.primary} transparent opacity={disabled ? 0.45 : 1} toneMapped={false} depthWrite={false} depthTest={false} />
+        <meshBasicMaterial color={disabled ? HUD_COLORS.disabled : HUD_COLORS.primary} transparent fog={false} toneMapped={false} depthWrite={false} depthTest={false} />
       </mesh>
       <mesh
         position={[0, 0, 0.012]}

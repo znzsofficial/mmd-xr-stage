@@ -14,7 +14,6 @@
   color-scheme:dark; color:var(--pelvic-ink); background:var(--pelvic-paper);
   border:1px solid var(--pelvic-rule);
   --pelvic-cut:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);
-  --pelvic-title-face:"Yu Mincho","Songti SC",SimSun,Georgia,serif;
 }
 .pelvic-screen ::selection { background:var(--pelvic-selected); color:var(--pelvic-ink); }
 .pelvic-heading { display:flex; align-items:center; justify-content:space-between; gap:.5rem; padding-block:.3rem .55rem; border-bottom:1px solid var(--pelvic-rule);position:sticky;top:0;z-index:3;background:var(--pelvic-paper); }
@@ -28,7 +27,6 @@
 .pelvic-keys { display:flex; align-items:stretch; gap:.3rem; }
 .pelvic-keys .pelvic-key { flex:1 1 0; min-width:0; }
 .screen-stage .pelvic-screen .pelvic-key {
-  --face:var(--pelvic-control); --edge:var(--pelvic-rule); --letters:var(--pelvic-ink);
   position:relative; isolation:isolate; border:0; border-radius:0; clip-path:var(--pelvic-cut);
   min-height:2.75rem; padding:.45rem .44rem; overflow-wrap:anywhere; line-height:1.25;
   background:var(--edge); color:var(--letters); font-size:.89rem; font-weight:550; text-align:center;
@@ -36,38 +34,25 @@
 .pelvic-key::before {
   content:""; position:absolute; inset:1px; z-index:-1; clip-path:inherit; background:var(--face); pointer-events:none;
 }
-.screen-stage .pelvic-screen .pelvic-key[data-primary=true]:enabled { --face:var(--pelvic-gold); --edge:var(--pelvic-gold); --letters:var(--pelvic-paper);font-weight:700; }
-.screen-stage .pelvic-screen .pelvic-key[data-primary=true]:enabled:is(:hover,:focus-visible) { --face:var(--pelvic-ink); }
 .screen-stage .pelvic-screen .pelvic-back {
-  --face:var(--pelvic-paper); min-height:2.5rem; flex-shrink:0; padding-inline:.7rem .6rem; color:var(--pelvic-muted);
+  min-height:2.5rem; flex-shrink:0; padding-inline:.7rem .6rem;
 }
+.screen-stage .pelvic-back { --face:var(--key-quiet-face); --letters:var(--pelvic-muted); }
 .pelvic-back::after {
   content:""; display:inline-block; width:.39rem; height:.39rem; margin-left:.4rem; vertical-align:.1em;
   border-left:1.5px solid currentColor; border-bottom:1.5px solid currentColor; transform:rotate(45deg);
 }
 .pelvic-nav .pelvic-keys { gap:0; border-bottom:1px solid var(--pelvic-rule); }
-.screen-stage .pelvic-nav .pelvic-key { --edge:transparent; --face:var(--pelvic-paper); --letters:var(--pelvic-muted); clip-path:none; }
-.screen-stage .pelvic-screen .pelvic-key[aria-pressed=true] {
-  --edge:var(--pelvic-gold); --face:var(--pelvic-selected); --letters:var(--pelvic-gold); font-weight:650;
-}
-.screen-stage .pelvic-nav .pelvic-key[aria-pressed=true] { --edge:transparent; --face:var(--pelvic-paper); }
-.pelvic-key[aria-pressed=true]::after {
-  content:""; position:absolute; bottom:3px; left:35%; width:30%; height:2px; background:var(--pelvic-gold);
-}
-.screen-stage .pelvic-screen .pelvic-key:is([data-stop=true],[data-danger=true]) {
-  --edge:var(--pelvic-rouge); --face:var(--pelvic-danger-fill); --letters:var(--pelvic-danger);
+.screen-stage .pelvic-nav .pelvic-key { clip-path:none; }
+.screen-stage :where(.pelvic-nav) .pelvic-key { --edge:transparent; --face:var(--key-quiet-face); --letters:var(--pelvic-muted); }
+.pelvic-key[aria-pressed=true]:enabled::after {
+  content:""; position:absolute; bottom:3px; left:35%; width:30%; height:2px; background:currentColor;
 }
 .screen-stage .pelvic-screen .pelvic-key[data-stop=true] {
   clip-path:polygon(7px 0,calc(100% - 7px) 0,100% 7px,100% calc(100% - 7px),calc(100% - 7px) 100%,7px 100%,0 calc(100% - 7px),0 7px);
 }
 .pelvic-key[data-stop=true] span::before { content:""; display:inline-block; width:.65em; height:.65em; margin-inline-end:.5em; vertical-align:.035em; background:currentColor; }
-.screen-stage .pelvic-screen .pelvic-key:hover:not(:disabled) { --face:var(--pelvic-raised); --edge:var(--pelvic-gold); }
-.screen-stage .pelvic-screen .pelvic-key:active:not(:disabled) { --face:var(--pelvic-selected); --edge:var(--pelvic-ink); }
 .pelvic-key:active:not(:disabled) span { position:relative; top:1px; }
-.screen-stage .pelvic-screen .pelvic-key:disabled {
-  --face:var(--pelvic-inset); --letters:var(--pelvic-disabled);
-  --edge:var(--pelvic-rule); opacity:1;
-}
 .screen-stage .pelvic-screen .pelvic-key:focus-visible { outline:none; --edge:var(--pelvic-gold); }
 .pelvic-key:focus-visible::before { inset:3px; }
 .screen-library .pelvic-screen .pelvic-note { margin:0; color:var(--pelvic-muted); font-size:.9rem; line-height:1.58; overflow-wrap:anywhere; }
@@ -76,15 +61,16 @@
 .pelvic-field { display:grid; gap:.1rem; min-width:0; color:var(--pelvic-muted); font-size:.89rem; }
 .pelvic-field>span { display:flex; justify-content:space-between; align-items:baseline; gap:.55rem; }
 .pelvic-field output { color:var(--pelvic-gold); font-weight:650; font-variant-numeric:tabular-nums; white-space:nowrap; }
-.screen-stage .pelvic-field select { width:100%; min-width:0; min-height:2.75rem; color:var(--pelvic-ink); background:var(--pelvic-control); border-color:var(--pelvic-rule); border-radius:0; }
-.screen-stage .pelvic-field select:hover:not(:disabled) { color:var(--pelvic-ink); background:var(--pelvic-raised); border-color:var(--pelvic-gold); }
+.screen-stage .pelvic-field select { width:100%; min-width:0; min-height:2.75rem; border-radius:0; }
 .screen-stage .pelvic-field :is(input,select):focus-visible { outline:2px solid var(--pelvic-gold); outline-offset:2px; }
 .pelvic-field input[type=range] {
   appearance:none; display:block; box-sizing:border-box; width:100%; height:2.5rem; margin:0; padding-inline:4px;
   background:transparent; accent-color:var(--pelvic-rouge); cursor:pointer;
-  --track:linear-gradient(to right,var(--pelvic-rouge) var(--progress),var(--pelvic-rule) var(--progress));
+  --range-fill:var(--pelvic-rouge); --thumb:var(--pelvic-gold);
+  --track:linear-gradient(to right,var(--range-fill) var(--progress),var(--pelvic-rule) var(--progress));
 }
+.pelvic-field input[type=range]:disabled { --range-fill:var(--pelvic-disabled); --thumb:var(--pelvic-disabled);cursor:default; }
 .pelvic-field input[type=range]::-webkit-slider-runnable-track { height:3px; background:var(--track); }
 .pelvic-field input[type=range]::-moz-range-track { height:3px; background:var(--track); }
-.pelvic-field input[type=range]::-webkit-slider-thumb { appearance:none; width:.77rem; height:.77rem; margin-top:calc(1.5px - .385rem); background:var(--pelvic-gold); transform:rotate(45deg); }
-.pelvic-field input[type=range]::-moz-range-thumb { width:.77rem; height:.77rem; border:0; border-radius:0; background:var(--pelvic-gold); transform:rotate(45deg); }
+.pelvic-field input[type=range]::-webkit-slider-thumb { appearance:none; width:.77rem; height:.77rem; margin-top:calc(1.5px - .385rem); background:var(--thumb); transform:rotate(45deg); }
+.pelvic-field input[type=range]::-moz-range-thumb { width:.77rem; height:.77rem; border:0; border-radius:0; background:var(--thumb); transform:rotate(45deg); }

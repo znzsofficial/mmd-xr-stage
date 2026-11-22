@@ -1,12 +1,13 @@
 import {create} from 'zustand';
 import {useBackpack} from '../../backpack';
+import type {FoldStyle} from '../vulvaForm';
 
 // Camera and illustration transport are presentation only. They must never
 // call the contact solver, change a ledger or advance the character's day.
 export const atlasAngles = {front:0,oblique:38,side:90} as const;
 export type AtlasMode='entry'|'organ'|'measure';
-export type AtlasView={mode:AtlasMode;degrees:number;motion:boolean;labels:boolean};
-const initial:AtlasView={mode:'entry',degrees:atlasAngles.oblique,motion:true,labels:false};
+export type AtlasView={mode:AtlasMode;degrees:number;motion:boolean;labels:boolean;foldStyle:FoldStyle};
+const initial:AtlasView={mode:'entry',degrees:atlasAngles.oblique,motion:true,labels:false,foldStyle:'natural'};
 const reduced:AtlasView={...initial,motion:false};
 let preference:MediaQueryList|undefined;
 const defaults=()=>{
@@ -20,7 +21,7 @@ export function setAtlasView(id:string,patch:Partial<AtlasView>){
   const old=readAtlasView(id),next={...old,...patch};
   if(!Number.isFinite(next.degrees))return;
   next.degrees=Math.min(90,Math.max(-90,Math.round(next.degrees)));
-  if(next.mode===old.mode&&next.motion===old.motion&&next.degrees===old.degrees&&next.labels===old.labels)return;
+  if(next.mode===old.mode&&next.motion===old.motion&&next.degrees===old.degrees&&next.labels===old.labels&&next.foldStyle===old.foldStyle)return;
   useAtlasSettings.setState(s=>({actors:{...s.actors,[id]:next}}));
 }
 useBackpack.subscribe((s,p)=>{if(s.entries===p.entries)return;
