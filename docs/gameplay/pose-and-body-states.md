@@ -35,6 +35,8 @@
 
 泌乳页可直接打开「乳房观察」，看对应侧的示意轮廓和腺叶变化，再点「返回泌乳」。这张图不依赖 PMX 是否支持液滴。拖滑杆、回充、保存或撤销不会触发排出；PMX 本体不会随分侧存量缩小，触碰和周期也不会自动开启泌乳。
 
+手机先用双指拉近到上半身，电脑可滚轮拉近，再点排出。液滴体积小，手机全身远景不容易看清；「上次已排出」和「上次仅更新充盈度」可区分是机位太远，还是该次操作没有舞台效果。
+
 ## 工程与复验入口
 
 [测试证据](../performance/actor-tools-regression.md) · [冻结动作源](../../src/mmdVrShowcase/pose/poseClip.ts) · [姿势与撤销栈](../../src/mmdVrShowcase/pose/poseSession.ts) · [身体状态采样](../../src/mmdVrShowcase/bodyState/data.ts) · [房间与模型绑定](../../src/mmdVrShowcase/bodyState/room.ts) · [模型显示层](../../src/mmdVrShowcase/bodyState/runtime.ts)。结构参考：[NCI 乳腺](https://training.seer.cancer.gov/breast/anatomy.html)、[SIU 子宫内膜](https://histology.siu.edu/erg/uterus.htm)、[利兹大学组织切片](https://histology.leeds.ac.uk/home/female/uterus/)。

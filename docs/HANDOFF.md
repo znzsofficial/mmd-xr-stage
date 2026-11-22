@@ -1,8 +1,8 @@
 # 会话交接｜2026-11-22
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `5c24a0d`](https://30572523.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `4b5e0a7`](https://7e23da7d.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
 
-**压缩会话后从这里接。** `master` 的线上功能基线是 `5c24a0d`；`b756c7f` 为发布记录，`6c0bb19` 起的本轮交接整理只改文档。没有等着发布的角色工具代码。该正式包 634 项测试通过，主域名入口与 185 份文件哈希一致。详细数值按[对应发布](./release-history.md)读，不当作真机成绩。
+**当前发布。** `4b5e0a7` 已上线，653 项测试通过；主域名入口及 220 份资源的 SHA-256 均与验证构建一致。真实裸模的按钮出液已在手机近景和 IWER 双眼验证，着装反例无液滴。手机全身机位不保证看得清，Quest 3S 手感和光学可读性仍待验证。详细条件见[角色工具回归](./performance/actor-tools-regression.md)。
 
 **角色工具已交付：** [摆姿、胸型、周期、泌乳](./gameplay/pose-and-body-states.md)与[骨盆附件](./gameplay/pelvic-attachment.md)共用屏幕／XR 舞台。三主栏共用当前角色草稿，切栏不保存；「保存到角色」只存本页背包。乳房观察默认正面二次元外观，剖面和标注按需；图可在不支持胸型变形的 PMX 上使用。已确认的美术方向看 [PRODUCT](../PRODUCT.md) 和 [DESIGN](../DESIGN.md)，实现入口看[舞台架构](./architecture.md)。
 
