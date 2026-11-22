@@ -4,12 +4,14 @@ import {createRoot} from 'react-dom/client';
 import {afterEach,expect,it,vi} from 'vitest';
 import {useLanguageStore} from '../../languageStore';
 import {DEFAULT_BODY_PROFILE} from '../bodyState/data';
+import {breastViews,readBreastView} from '../bodyState/breast/view';
 import {useBodyState} from '../bodyState/store';
 import {defaultPelvicCalibration} from '../pelvic/contract';
 import {usePelvic} from '../pelvic/store';
 import {ObservationScreenControls} from './ActorObservation';
 
 afterEach(()=>{useBodyState.setState(useBodyState.getInitialState());usePelvic.setState(usePelvic.getInitialState());
+  breastViews.setState({actors:{}});
   useLanguageStore.setState(useLanguageStore.getInitialState());vi.restoreAllMocks();vi.unstubAllGlobals();});
 
 it('opens the requested part directly, shows each organ’s own balance, and leaves the simulation and caller’s draft alone on return',async()=>{
@@ -32,6 +34,23 @@ it('opens the requested part directly, shows each organ’s own balance, and lea
     expect(el.textContent).toContain('25% / 75%');await act(async()=>button('返回插入').click());expect(onBack).toHaveBeenCalledOnce();
   }finally{await act(async()=>root.unmount());}
   expect(useBodyState.getState()).toBe(body);expect(usePelvic.getState()).toBe(pelvis);
+});
+
+it('remembers the exterior brush by actor through cutaway and re-entry without editing the body profile',async()=>{
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);vi.stubGlobal('requestAnimationFrame',()=>1);vi.stubGlobal('cancelAnimationFrame',()=>{});
+  vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValue(null);useLanguageStore.setState({language:'zh'});
+  const body=useBodyState.getState(),rootEl=document.createElement('div'),root=createRoot(rootEl);
+  const button=(s:string)=>Array.from(rootEl.querySelectorAll('button')).find(b=>b.textContent===s)!;
+  const show=(id:string)=>act(async()=>root.render(<ObservationScreenControls assetId={id} runtimeId="r" onBack={()=>{}}/>));
+  try{
+    await show('a');expect(button('轻柔').getAttribute('aria-pressed')).toBe('true');
+    await act(async()=>button('圆隆').click());await act(async()=>button('侧面').click());
+    await act(async()=>button('剖面').click());expect(button('圆隆')).toBeUndefined();expect(button('结构标注')).toBeDefined();
+    await act(async()=>button('剖面').click());expect(button('圆隆').getAttribute('aria-pressed')).toBe('true');
+    await show('b');expect(button('轻柔').getAttribute('aria-pressed')).toBe('true');expect(button('正面').getAttribute('aria-pressed')).toBe('true');
+    await show('a');expect(button('圆隆').getAttribute('aria-pressed')).toBe('true');expect(button('侧面').getAttribute('aria-pressed')).toBe('true');
+    expect(readBreastView('b').areolaStyle).toBe('soft');expect(useBodyState.getState()).toBe(body);
+  }finally{await act(async()=>root.unmount());}
 });
 
 it('keeps a fresh actor’s loading message until the current part actually paints; a retired worker cannot clear it',async()=>{

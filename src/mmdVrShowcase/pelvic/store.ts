@@ -44,6 +44,13 @@ function ready(assetId:string){
 function selected(assetId:string){return useBackpack.getState().selected===assetId&&ready(assetId);}
 function writeProfile(assetId:string,p:PelvicProfile){usePelvic.setState(s=>({byAsset:{...s.byAsset,[assetId]:p}}));}
 function omit<T>(map:Record<string,T>,id:string){const next={...map};delete next[id];return next;}
+export function setActorResponse(assetId:string,runtimeId:string,choice:string|null|undefined){
+  const {byAsset,support}=state(),p=byAsset[assetId];
+  if(!selected(assetId)||useBackpack.getState().live[assetId]?.runtimeId!==runtimeId||!p||support[assetId]?.runtimeId!==runtimeId)return false;
+  if(typeof choice==='string'&&!support[assetId].responseMorphs?.includes(choice))return false;
+  if(p.responseMorph!==choice)writeProfile(assetId,{...p,responseMorph:choice});
+  return true;
+}
 export function enablePelvic(assetId:string,confirmedAdult=false){
   if(!selected(assetId)||!useBackpack.getState().entries.some(e=>e.kind==='model'&&e.id===assetId))return false;
   if(state().byAsset[assetId])return true;

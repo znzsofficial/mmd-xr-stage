@@ -10,10 +10,11 @@ import {consumePelvicDose,publishParkedSample,publishPelvicSample,publishPelvicS
 const stage=useMmdVrStore.getState(),pelvic=usePelvic.getState;
 const actor={assetId:'a',runtimeId:'r'},initial:PelvicSample={tip:[0,0,.06],tail:[0,0,.18],depth:0,angleDeg:0,aligned:true,
   atCervix:false,outletInside:false,outletVisible:false,radiusM:.024,lengthM:.092};
-afterEach(()=>{clearBackpack();useMmdVrStore.setState(stage);vi.unstubAllGlobals();});
+afterEach(()=>{clearBackpack();useMmdVrStore.setState(stage);vi.restoreAllMocks();vi.unstubAllGlobals();});
 
 it('keeps the named release on the controls, waits for room evidence and resumes the same rig after either navigation callback',async()=>{
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);
+  vi.spyOn(document,'hidden','get').mockReturnValue(false);
   useMmdVrStore.setState({overlayOpen:true,presentation:'screen'});
   useBackpack.setState({selected:'a',entries:[{id:'a',kind:'model',file:new File([],'a.pmx'),path:'a.pmx'}],live:{a:{runtimeId:'r',visible:true,position:[0,0,0]}}});
   function Parent(){const [page,go]=useState('insert');return page==='insert'?<PelvicScreenControls {...actor} backLabel="返回互动" onBack={()=>go('main')}
@@ -22,11 +23,12 @@ it('keeps the named release on the controls, waits for room evidence and resumes
   const button=(label:string)=>[...host.querySelectorAll('button')].find(b=>b.textContent===label)!;
   const click=async(label:string)=>{expect(button(label)?.disabled).toBe(false);await act(()=>button(label).click());};
   try{
-    await act(()=>root.render(<Parent/>));await click('为此成年角色启用');
+    await act(()=>root.render(<Parent/>));await click('为此成年角色放置支架');
     await act(()=>publishPelvicSupport('a',{runtimeId:'r',kind:'bones',anchorName:'hips',obstruction:'garment'}));
-    await click('宫腔');expect(button('射入宫腔').disabled).toBe(true);await click('把假阳具放到入口外');
+    expect(pelvic().active).toMatchObject({assetId:'a',running:false,mode:'standManual'});expect(button('推进')).toBeUndefined();
+    expect(button('保持穿衣继续')).toBeUndefined();await act(()=>publishParkedSample(pelvic().active!.token,initial));
     expect(button('我看到了入口')).toBeUndefined();await click('保持穿衣继续');
-    await act(()=>publishParkedSample(pelvic().active!.token,initial));expect(button('射入宫腔').disabled).toBe(true);
+    await act(()=>publishParkedSample(pelvic().active!.token,initial));await click('宫腔');expect(button('射入宫腔').disabled).toBe(true);
     await click('推进');const token=pelvic().active!.token;expect(button('射入宫腔').disabled).toBe(true);
     await act(()=>{publishPelvicSample(token,{...initial,exteriorCovered:true});});
     expect(host.querySelector('[role=status]')?.textContent).toContain('先推进才能射入');expect(button('向外释放').disabled).toBe(true);

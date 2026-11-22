@@ -4,13 +4,15 @@ import { clearBackpack, useBackpack } from '../backpack';
 import { useMmdVrStore } from '../mmdVrStore';
 import { useHudWorldInput } from '../components/hudWorldInput';
 import { useStagePlay } from '../play/stagePlay';
+import {faceFixture} from '../play/faceFixture.testSupport';
+import {createRoomPropDisplay} from '../stage/roomPropDisplay';
 import { makeSilicone } from '../play/workshopModels';
 import { siliconeMount, siliconeOutlet, siliconeTilt, centerZ, tipHeight } from '../play/siliconeProfile';
 import type { GripFrame } from '../play/propView';
 import { mountPelvicRig } from './rig';
 import { queuePelvicGrip } from './input';
 import { pelvicRailMatrix, registerPelvicSocket, samplePelvicFrame } from './geometry';
-import { assignPelvic, enablePelvic, nudgePelvic, patchPelvic, requestPelvicDose, startPelvic, stopPelvic, usePelvic } from './store';
+import { assignPelvic, enablePelvic, nudgePelvic, patchPelvic, requestPelvicDose, setActorResponse, startPelvic, stopPelvic, usePelvic } from './store';
 
 const st=usePelvic.getState,initialStage=useMmdVrStore.getState();
 const cleanup:(()=>void)[]=[];
@@ -18,8 +20,8 @@ afterEach(()=>{while(cleanup.length)cleanup.pop()!();clearBackpack();useStagePla
 const grip=():GripFrame=>({at:new Vector3(4,5,6),dir:new Vector3(1,0,0),usable:true,action:'off',dt:1/90});
 function actualPiece(){const piece=new Group(),part=new Mesh(makeSilicone(),new MeshBasicMaterial());part.name='play:piece:dildo';
   part.position.fromArray(siliconeMount);part.rotation.x=siliconeTilt;piece.add(part);cleanup.push(()=>{part.geometry.dispose();part.material.dispose();});return piece;}
-function fixture(source:'screen'|'xr'){
-  const scene=new Scene(),host=new Group(),root=new Group(),piece=actualPiece();scene.add(host,root);host.add(piece);
+function fixture(source:'screen'|'xr',face?:ReturnType<typeof faceFixture>){
+  const scene=new Scene(),host=new Group(),root=face?.root??new Group(),piece=actualPiece();scene.add(host,root);host.add(piece);
   root.position.set(-.5,1,-.94);root.rotation.y=.63;root.scale.setScalar(1.1);
   const file=new File(['m'],'fixture.pmx');
   useMmdVrStore.setState({overlayOpen:true,presentation:source,physicsBusy:false,physicsFatal:false,playing:false});
@@ -27,7 +29,7 @@ function fixture(source:'screen'|'xr'){
   const session=Object.assign(new EventTarget(),{visibilityState:'visible'}) as unknown as XRSession;
   const emissions:{at:Vector3;dir:Vector3;usable:boolean;action:string}[]=[];
   const emit=(f:GripFrame)=>emissions.push({at:f.at.clone(),dir:f.dir.clone(),usable:f.usable,action:f.action});
-  const viewer={tracked:true};const driver=mountPelvicRig({scene,host,getRoot:()=>root,standPiece:()=>piece,standSpray:()=>emit,tracked:()=>viewer.tracked});cleanup.push(driver.dispose);
+  const viewer={tracked:true};const driver=mountPelvicRig({scene,host,getRoot:()=>root,getSurface:()=>face??null,standPiece:()=>piece,standSpray:()=>emit,tracked:()=>viewer.tracked});cleanup.push(driver.dispose);
   const tick=()=>driver.advance(1/90,source==='xr'?{session} as XRFrame:undefined);
   enablePelvic('a',true);tick();expect(st().support.a.kind).toBe('missing');expect(st().support.a.manualSeed!.unitsPerMeter).toBeCloseTo(1);
   patchPelvic('a',{calibration:{manual:{origin:[0,0,0],unitsPerMeter:1},pitchDeg:0},clothingClear:true});
@@ -186,4 +188,39 @@ it('draws an unconfirmed mount, measures its physical nozzle and carriage, and c
   for(let i=0;i<4;i++){root.position.z+=.04;tick();}expect(new Vector3(...st().parkedSample!.tip).distanceTo(tip())).toBeLessThan(1e-6);
   expect(startPelvic('a')).toBe(false);useStagePlay.getState().stow();tick();expect(stand.visible||piece.visible).toBe(false);
   expect(st().parkedSample).toBeNull();
+});
+
+it.each(['stop/restart','tracking','actor','room','off/on','swap'] as const)('restores the actual clothed stand actor on %s without forwarding the last admitted frame',cause=>{
+  const face=faceFixture(), {scene,session,viewer,driver,tick}=fixture('xr',face);
+  const display=createRoomPropDisplay(),stage=useMmdVrStore.getState(),unmount=display.subscribe(stage.prefs.scenery);
+  cleanup.push(face.dispose,unmount);
+  face.root.updateMatrixWorld(true);
+  face.mesh.morphTargetInfluences![0]=.2;face.body.morphTargetInfluences![2]=.2;
+  const baseline=[0,1,2,3].map(face.z),unchanged=()=>expect([0,1,2,3].map(face.z)).toEqual(baseline);
+  let time=0;
+  const frame=()=>{display.restore();unchanged();tick();time+=1000/90;display.present({getModelSurface:()=>face},scene,null,driver,{session} as XRFrame,{oldTime:time});};
+  patchPelvic('a',{clothed:true});frame();expect(st().support.a.responseMorphs).toEqual(['Blink','MouthOpen','なごみ','Smile']);
+  expect(assignPelvic('a','standManual','xr')).toBe(true);frame();unchanged();expect(driver.getActorContact()).toBeNull();
+  startPelvic('a');nudgePelvic('a',.9);
+  let entered=false,belowHudRate=false;
+  for(let i=0;i<54;i++){const last=st().sample;frame();const c=driver.getActorContact();
+    if(c?.motion==='enter'){entered=true;expect(face.z(0)).toBeGreaterThan(.095);}
+    if(c?.motion==='inside'&&last===st().sample&&last&&Math.abs(c.depthM*1.1-last.depth)>.0003)belowHudRate=true;
+  }
+  expect(entered&&belowHudRate).toBe(true);expect(face.z(1)+face.z(2)).toBeGreaterThan(.025);expect(driver.getAperture()).toBeNull();
+  if(cause==='stop/restart'){stopPelvic('a');unchanged();startPelvic('a');}
+  if(cause==='tracking'){viewer.tracked=false;frame();viewer.tracked=true;}
+  if(cause==='actor')useBackpack.setState({selected:'other'});
+  if(cause==='room')useMmdVrStore.setState({prefs:{...stage.prefs,scenery:stage.prefs.scenery==='pool'?'floor':'pool'}});
+  if(cause==='off/on'){setActorResponse('a','m',null);unchanged();setActorResponse('a','m',undefined);}
+  if(cause==='swap')expect(setActorResponse('a','m','Smile')).toBe(true);
+  unchanged();
+  for(let i=0;i<4;i++){frame();unchanged();} // no withdrawal animation or delayed tap
+  if(cause==='swap'){
+    nudgePelvic('a',-2);for(let i=0;i<55;i++){frame();unchanged();}
+    nudgePelvic('a',.9);let seen=false;
+    for(let i=0;i<35;i++){frame();if(driver.getActorContact()?.motion==='enter'){
+      expect(face.z(3)).toBeCloseTo(.095);expect(face.z(0)).toBe(baseline[0]);seen=true;
+    }}expect(seen).toBe(true);
+  }
 });

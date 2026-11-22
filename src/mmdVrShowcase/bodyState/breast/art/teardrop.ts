@@ -1,4 +1,5 @@
 import { chest, torsoWidth } from './figure';
+import { areolaBand,localLift,type AreolaStyle } from './areola';
 import type { Camera } from './geometry';
 import { smooth } from './mesh';
 
@@ -18,13 +19,20 @@ export function egg(y:number,f:number,settle=0){
   return {h,rx,rz,ix:1/rx,iz:1/rz,x:.443-.039*h,z:.263+.018*f-.115*h-.019*h*h,blend:15+13*(.5+.5*Math.tanh((h+.54)*4))};
 }
 export type Egg=ReturnType<typeof egg>;
-export function slice(y:number,lf:number,rf:number,ls=0,rs=0){
-  const l=egg(y,lf,ls),r=lf===rf&&ls===rs?l:egg(y,rf,rs),w=torsoWidth(y),b=chest(0,y)[2];
+export function slice(y:number,lf:number,rf:number,ls=0,rs=0,style?:AreolaStyle){
+  const make=(f:number,settle:number)=>{const e=egg(y,f,settle);return {...e,band:style?areolaBand(e,style):null};};
+  const l=make(lf,ls),r=lf===rf&&ls===rs?l:make(rf,rs),w=torsoWidth(y),b=chest(0,y)[2];
   return {l,r,w,b,iw:1/w,ib:1/b};
 }
 export type Slice=ReturnType<typeof slice>;
 export const eggNorm=(e:Egg,x:number,z:number)=>Math.sqrt(e.h*e.h+sq((x-e.x)*e.ix)+sq((z-e.z)*e.iz));
-const lobe=(e:Egg,x:number,z:number)=>Math.exp(-e.blend*.416*(eggNorm(e,x,z)-1));
+const lobe=(e:Slice['l'],x:number,z:number)=>{
+  // Inverse anterior stretch: the zero set itself has a rounded shoulder
+  // and crown. Back-facing skin and all rows outside this band stay exact.
+  const b=e.band,extra=b&&z>e.z&&Math.abs(x-b.cx)<b.width?localLift(b,x):0;
+  const n=extra?Math.sqrt(e.h*e.h+sq((x-e.x)*e.ix)+sq((z-e.z)/(e.rz+extra))):eggNorm(e,x,z);
+  return Math.exp(-e.blend*.416*(n-1));
+};
 const rib=(s:Slice,x:number,z:number)=>{
   const beta=s.l===s.r?s.l.blend:s.r.blend+(s.l.blend-s.r.blend)*smooth((x+.10)/.20);
   return Math.exp(-beta*.42*(Math.sqrt(sq(x*s.iw)+sq(z*s.ib))-1));
@@ -43,8 +51,11 @@ function rayEllipse(cam:Camera,x:number,z:number,rx:number,rz:number,h:number,sc
     extent:rx*rz/Math.sqrt(hh),limit:(1+Math.log(3)/(scale*beta))**2-h*h};
 }
 export function bounds(s:Slice,c:Camera){
+  // The original slice ellipse could clip a displaced profile. The largest
+  // possible local stretch gives a conservative bound for the whole row.
   return [rayEllipse(c,0,0,s.w,s.b,0,.42,Math.min(s.l.blend,s.r.blend)),
-    rayEllipse(c,s.l.x,s.l.z,s.l.rx,s.l.rz,s.l.h,.416,s.l.blend),rayEllipse(c,-s.r.x,s.r.z,s.r.rx,s.r.rz,s.r.h,.416,s.r.blend)];
+    rayEllipse(c,s.l.x,s.l.z,s.l.rx,s.l.rz+(s.l.band?.extra??0),s.l.h,.416,s.l.blend),
+    rayEllipse(c,-s.r.x,s.r.z,s.r.rx,s.r.rz+(s.r.band?.extra??0),s.r.h,.416,s.r.blend)];
 }
 export function frontBound(row:ReturnType<typeof bounds>,h:number){
   let front=-Infinity;

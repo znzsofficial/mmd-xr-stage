@@ -20,6 +20,7 @@ export function PelvicRig({getRoot,getSurface,ref}:PelvicRigProps&{ref?:Ref<Pelv
   },[scene,gl,getRoot,getSurface]);
   useImperativeHandle(ref,()=>({advance:(dt,frame,blocked)=>room.current?.advance(dt,frame,blocked),interrupt:()=>room.current?.interrupt(),
     getAperture:()=>room.current?.getAperture()??null,getStandRoot:()=>room.current?.getStandRoot()??null,getStandBinding:()=>room.current?.getStandBinding()??null,
+    getActorContact:()=>room.current?.getActorContact()??null,
     getObserverAnchor:out=>room.current?.getObserverAnchor(out)??false}),[]);
   return <group ref={host} name="pelvic:rig" pointerEvents="none">
     {owner&&target===owner&&<group key={owner}><group ref={piece} visible={false} name="pelvic:stand-piece"><SiliconePiece/></group><LiquidSpray ref={spray}/></group>}

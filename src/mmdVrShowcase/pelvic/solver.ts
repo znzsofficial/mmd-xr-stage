@@ -1,5 +1,5 @@
 import { Matrix4, Quaternion, Vector3 } from 'three';
-import type { PelvicContact, PelvicFrame, PelvicSolver } from './contract';
+import type { PelvicFrame, PelvicSolver } from './contract';
 import { nozzle, nozzleDir, pelvicCenterline, projectDepth, rod, rodRadii, tangent } from './path';
 
 /** Distance outside the entrance needed to arm a fresh, continuous crossing. */
@@ -8,12 +8,12 @@ export const entryClearance=(radiusM:number)=>Math.min(.004,radiusM*.14);
 /** Owner-local history: never share a solver across actors, hands or rails. */
 export function createPelvicSolver(): PelvicSolver {
   const shaft = rod.map(() => new Vector3());
-  const contact: PelvicContact = { inside:false, outletInside:false, outletVisible:false, atCervix:false, depthM:0, shaftLocal:[], outletLocal:new Vector3() };
+  const contact: ReturnType<PelvicSolver['step']> = { motion:null, inside:false, outletInside:false, outletVisible:false, atCervix:false, depthM:0, shaftLocal:[], outletLocal:new Vector3() };
   const local = new Matrix4(), dir = new Vector3(), nearest = new Vector3(), t = new Vector3(), delta = new Vector3();
   const worldTip = new Vector3(), anchor = new Vector3(), angle = new Quaternion();
   const prevTip = new Vector3(), prevDir = new Vector3(), prevWorld = new Vector3(), prevAnchor = new Vector3(), prevAngle = new Quaternion();
   let prevLength = 0, prevRadius = 0, valid = false, armed = false;
-  function clearContact() { contact.inside = contact.outletInside = contact.outletVisible = contact.atCervix = false; contact.depthM = 0; }
+  function clearContact() { contact.motion = null; contact.inside = contact.outletInside = contact.outletVisible = contact.atCervix = false; contact.depthM = 0; }
   function reset() { valid = armed = false; clearContact(); contact.shaftLocal = []; contact.outletLocal.set(0,0,0); }
 
   // The centre of the shaft, not the holder origin, must still pass through
@@ -56,6 +56,7 @@ export function createPelvicSolver(): PelvicSolver {
       && Math.abs(f.lengthM-prevLength) < 1e-6 && Math.abs(f.radiusM-prevRadius) < 1e-6;
     if (!continuous) { armed = false; clearContact(); }
 
+    const wasInside = contact.inside;
     const d = projectDepth(f,tip), inLine = dir.dot(tangent(f,d,t));
     const rim = entryClearance(f.radiusM), pieceScale = pieceWorld.getMaxScaleOnAxis();
     if (contact.inside) {
@@ -82,6 +83,9 @@ export function createPelvicSolver(): PelvicSolver {
     // the canal behind the opening is not evidence of being outside the actor.
     // Only positive clearance on the exposed side counts as visible here.
     contact.outletVisible = !contact.outletInside && tip.z > 1e-6;
+    contact.motion = !continuous ? null : contact.inside ? (d > f.lengthM+1e-6 ? null : wasInside ? 'inside' : 'enter') :
+      tip.z <= rim ? null : !wasInside ? 'outside' :
+      tip.z > prevTip.z && Math.hypot(tip.x,tip.y) <= f.radiusM && -dir.z >= .67 ? 'withdraw' : null;
     valid = true; prevTip.copy(tip); prevWorld.copy(worldTip); prevAnchor.copy(anchor); prevAngle.copy(angle); prevDir.copy(dir);
     prevLength = f.lengthM; prevRadius = f.radiusM;
     return contact;

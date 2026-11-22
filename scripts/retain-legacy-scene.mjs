@@ -4,6 +4,11 @@ import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 
 const files = [
+  ['24f5de9c','index-Cz_8LX8g.js','1d47c43d67aa465e5d20e39dae6ff5ceb29a5dd0bf879f4cb747e7219b119012'],
+  ['24f5de9c','index-Dcs-4bzg.css','e5064db2100974024e3bc9eea72c040d705d34f73e513bbe400d72473613c6ac'],
+  ['24f5de9c','PlanetPhysics-BF-hgzu3.js','73a07802dc73585dc330449d14c7ec449ad74eaf2e4f28f90990f254027d195f'],
+  ['24f5de9c','breast.worker-ClxudjGp.js','c5fbe501423eeb2874f00a77e9c2d22464ccbefa0df096069b39bc0799a517e4'],
+  ['24f5de9c','organ.worker-CxfpNv0U.js','131b2c16ab6c97969e4af1aa6dea9b591a4fc3de2f62f26f3ec56a1ab0f645c8'],
   ['820d2df4','index-D-joKrRr.js','ee94e1fbd0fb53083ffe97b1f3018c3c09e18ae6d37fbb6a34a2b0458c48b2fb'],
   ['820d2df4','PlanetPhysics-C18n72RP.js','69412ba35e71dc189f052a3a788b5949889a567c466fa92fc00757a0bcc607d8'],
   ['820d2df4','index-C0xf0S3f.css','fbc818e207c84801c44312b5a5e272bbf75efa45687073f6ce21cb7c3e4f0ae1'],

@@ -1,4 +1,5 @@
 import { camera, ellipse, line, unit, type Ink, type P } from './geometry';
+import { defaultAreolaStyle,type AreolaStyle } from './areola';
 import type { Marks } from './teardropCut';
 import { createPortraitRenderer, type Bitmap } from './exterior';
 
@@ -10,6 +11,7 @@ export interface BreastArtFrame {
   time:number;
   fullness:number; lactating:boolean; left:number; right:number; zh:boolean;
   section:boolean; labels:boolean;
+  areolaStyle?:AreolaStyle;
   /** Signed transient excursion of free lower tissue; neutral at rest. */
   settle?:number;
   /** Local excursions after a one-side debit; not part of stored fullness. */
@@ -54,13 +56,14 @@ export function createBreastArt() {
       left=f.lactating?Math.round(unit(f.left)*128)/128:0,right=f.lactating?Math.round(unit(f.right)*128)/128:0;
     const excursion=(side:number|undefined)=>{const n=(f.settle??0)+(side??0);return f.section||!Number.isFinite(n)?0:Math.round(24*Math.max(-1,Math.min(1,n)))/24;};
     const leftSettle=excursion(f.leftSettle),rightSettle=excursion(f.rightSettle);
-    const key=`${degrees}/${fullness}/${+f.lactating}/${left}/${right}/${+f.section}/${leftSettle}/${rightSettle}`;
+    const areolaStyle=f.areolaStyle??defaultAreolaStyle;
+    const key=`${degrees}/${fullness}/${+f.lactating}/${left}/${right}/${+f.section}/${leftSettle}/${rightSettle}/${areolaStyle}`;
     const scale=Math.min(f.width/400,f.height/260),m=ctx.getTransform(),dpr=Math.min(2,Math.max(.5,scale*Math.max(Math.hypot(m.a,m.b),Math.hypot(m.c,m.d))));
     const w=Math.ceil(400*dpr),h=Math.ceil(260*dpr);
     if(!plate||plate.canvas.width!==w||plate.canvas.height!==h){plate=buffer(w,h,ctx);lastKey='';}
     const draw=(out:Ink)=>{
       model??=createPortraitRenderer((w,h)=>buffer(w,h,ctx));
-      marks=model?.draw(out,{camera:camera(degrees),fullness,leftFill:left,rightFill:right,section:f.section,lactating:f.lactating,leftSettle,rightSettle})??null;
+      marks=model?.draw(out,{camera:camera(degrees),fullness,leftFill:left,rightFill:right,section:f.section,lactating:f.lactating,leftSettle,rightSettle,areolaStyle})??null;
     };
     if(plate&&lastKey!==key){const c=plate.ctx;c.setTransform(w/400,0,0,h/260,0,0);c.clearRect(0,0,400,260);draw(c);lastKey=key;}
     ctx.save();ctx.fillStyle=PLUM;ctx.fillRect(0,0,f.width,f.height);ctx.beginPath();ctx.rect(0,0,f.width,f.height);ctx.clip();

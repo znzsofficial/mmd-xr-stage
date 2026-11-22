@@ -6,6 +6,7 @@ import { useMmdVrStore } from '../mmdVrStore';
 import { giveScreenToy, useStagePlay } from '../play/stagePlay';
 import { siliconeOutlet } from '../play/siliconeProfile';
 import { createPelvicSolver, pelvicRailMatrix } from './geometry';
+import {prepareFirstStand} from './firstStand';
 import {
   advancePelvic, assignPelvic, clearPelvicFluid, clearPelvicSupport, consumePelvicDose, disablePelvic, drainPelvic,
   enablePelvic, endPelvic, interruptPelvic, nudgePelvic, patchPelvic, PELVIC_LIMITS, publishPelvicSample,
@@ -63,6 +64,12 @@ it('waits for the target controls to close for a real tracked hand; B and tracki
   interruptPelvic(t);advancePelvic(t,.015);expect(get().active?.running).toBe(false);expect(get().byAsset.a.fluid.vaginal).toBe(1);
   // Another tool can take this same controller while its old frame is pending.
   play().equip('saber','left');expect(get().active).toBeNull();expect(endPelvic(t)).toBe(false);expect(play().held?.toy).toBe('saber');
+});
+
+it('cancels first placement if selection leaves and returns before the room publishes its fit',()=>{
+  setup();usePelvic.setState({support:{}});prepareFirstStand('a','1','screen');
+  bag().select('b');bag().select('a');publishPelvicSupport('a',support('1'));
+  expect(get().active).toBeNull();expect(play().stand).toBeNull();expect(get().byAsset.a).toBeDefined();
 });
 
 it('gates clothing and tracks measured geometry separately from commands, including on a paused screen clock',()=>{

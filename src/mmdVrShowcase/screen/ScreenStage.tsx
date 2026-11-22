@@ -75,7 +75,7 @@ export function ScreenStage(){
        {prefs.scenery==='glassPlanet'&&!draft&&<div className="screen-arcade-hint">{t('planetWindHint')}</div>}
        <div id="screen-camera-hint" className="screen-caption" data-camera-help={!message&&!locked&&!draft||undefined} role="status">{message?<><span>{message}</span>{load.failures.length>0&&<button disabled={locked} onClick={stage.retryFailedAssets}>{t('loadRetry')}</button>}{err&&<button onClick={()=>useBackpack.getState().dismissError()}>{t('hudDone')}</button>}</>:locked?t('hudWorking'):draft?<><span>{t('screenAim')}</span>{prefs.scenery!=='arcadeHall'&&<button onClick={()=>actions.current?.center()}>{t('screenCenter')}</button>}<button onClick={()=>useBackpack.getState().cancelPlace()}>{t('hudCancelPlace')}</button></>:<>{t('screenOrbit')}<span className="screen-key-hint">{t('screenCameraKeys')}</span></>}</div>
     </div>{!draft&&(library.visible||library.suspended)&&<ScreenLibrary key={prefs.scenery} view={library.bag?'backpack':'item'} visit={library.visit} suspended={library.suspended} locked={locked}
-      frame={()=>actions.current?.frame()} closeUp={()=>actions.current?.upperBody()} storyView={isStoryRoom(prefs.scenery)?()=>actions.current?.story():undefined} close={library.close} openItem={library.openItem} openBackpack={library.openBackpack}/>}</div>
+      frame={()=>actions.current?.frame()} closeUp={focus=>actions.current?.upperBody(focus)} storyView={isStoryRoom(prefs.scenery)?()=>actions.current?.story():undefined} close={library.close} openItem={library.openItem} openBackpack={library.openBackpack}/>}</div>
     <div><ScreenMusic/><Transport locked={locked}/></div>
   </dialog>;
 }

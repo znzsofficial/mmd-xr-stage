@@ -3,6 +3,8 @@ import { useEffect, useRef } from "react";
 import { runtimeTiming } from "../runtimeTiming";
 import {xrRoomRestoreTiming} from '../roomRestoreTiming';
 import {samplePlanetMovement} from '../movement/planetDiagnostics';
+import {takeFigureWork} from '../diagramTiming';
+import {usePelvic} from '../pelvic/store';
 import { useBackpack } from "../backpack";
 import { useStagePlay } from '../play/stagePlay';
 import { createPerformanceRecording, useLastPerformanceReport } from "../performanceReport";
@@ -40,6 +42,7 @@ export function MmdVrDiagnostics({ requested }: { requested: RenderRequest }) {
       runtimeTiming.readAndReset();
       lastSession.current = session;
       if (session) {
+        takeFigureWork(session);
         recording.current = createPerformanceRecording(requested, useMmdVrStore.getState().entryStartedAt);
         session.addEventListener("visibilitychange", recording.current.interrupt);
       }
@@ -57,6 +60,7 @@ export function MmdVrDiagnostics({ requested }: { requested: RenderRequest }) {
     else recording.current?.interrupt();
     if (!visibleFrame || !Number.isFinite(delta) || delta <= 0 || delta > 0.5) {
       cadence.current.reset();
+      takeFigureWork(session);
       runtimeTiming.readAndReset();
       if (useRenderDiagnostics.getState().current?.fps != null) useRenderDiagnostics.getState().set(readRenderDiagnostics(gl, requested, null));
       return;
@@ -65,8 +69,9 @@ export function MmdVrDiagnostics({ requested }: { requested: RenderRequest }) {
     if (measured) {
       const data = readRenderDiagnostics(gl, requested, measured, runtimeTiming.readAndReset());
       useRenderDiagnostics.getState().set(data);
-      const s = useMmdVrStore.getState();
+      const s = useMmdVrStore.getState(),figureWork=takeFigureWork(session),rod=usePelvic.getState();
       recording.current?.sample(data, { models: s.models.length, objects: s.objects.length, playing: s.playing,
+        ...(figureWork&&{figureWork}),...(rod.active&&{rodState:!rod.active.running?'parked':rod.sample?.outletInside?'inside':'running'}),
         physics: s.physicsEnabled, scenery: s.prefs.scenery, liveHouse: s.prefs.scenery === "liveHouse", shadows: gl.shadowMap.enabled,
         ...(s.prefs.scenery==='glassPlanet'&&{planetMovement:samplePlanetMovement()}),
         actorPalmClothRequested:s.prefs.actorPalmCloth, heldToy: useStagePlay.getState().held?.toy ?? null });

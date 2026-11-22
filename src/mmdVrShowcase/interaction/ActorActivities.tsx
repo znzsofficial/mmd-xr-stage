@@ -8,7 +8,7 @@ import {MilkScreenControls,MilkHudControls} from './MilkInteraction';
 
 export type ActivityEntry='wardrobe'|'interact'|'observe';
 type Page=ActivityEntry|'insert'|'milk';
-type Props={assetId:string;runtimeId:string;entry:ActivityEntry;onBack:()=>void;onCloseUp?:()=>void;hud?:boolean};
+type Props={assetId:string;runtimeId:string;entry:ActivityEntry;onBack:()=>void;onCloseUp?:(focus?:'face')=>void;hud?:boolean};
 
 function ScreenPage({page,children}:{page:Page;children:ReactNode}){
   const host=useRef<HTMLDivElement>(null);
@@ -35,8 +35,8 @@ export function ActorActivities({entry,onBack,onCloseUp,hud=false,...actor}:Prop
   switch(page){
     case 'wardrobe': {const View=hud?WardrobeHudControls:WardrobeScreenControls;content=<View {...child}/>;break;}
     case 'observe': {const View=hud?ObservationHudControls:ObservationScreenControls;content=<View {...child} initialPart={previous==='insert'?'vagina':'breast'}/>;break;}
-    case 'insert': {const View=hud?PelvicHudControls:PelvicScreenControls;content=<View {...child} onObserve={()=>go('observe')} onClothing={()=>go('wardrobe')}/>;break;}
-    case 'milk': {const View=hud?MilkHudControls:MilkScreenControls;content=<View {...child} onObserve={()=>go('observe')} onCloseUp={onCloseUp}/>;break;}
+    case 'insert': {const View=hud?PelvicHudControls:PelvicScreenControls;content=<View {...child} onObserve={()=>go('observe')} onClothing={()=>go('wardrobe')} onFace={onCloseUp&&(()=>onCloseUp('face'))}/>;break;}
+    case 'milk': {const View=hud?MilkHudControls:MilkScreenControls;content=<View {...child} onObserve={()=>go('observe')} onClothing={()=>go('wardrobe')} onCloseUp={onCloseUp}/>;break;}
     case 'interact': content=hud?<group name="actor:interaction">
       <HudSheet size={[1.45,.49]}/><HudLine position={[-.27,.12,0]} width={.79} role="title" text={t('actorInteraction')}/>
       <HudButton position={[.46,.12,0]} size={[.43,.14]} variant="quiet" label={backLabel} onPress={back}/>

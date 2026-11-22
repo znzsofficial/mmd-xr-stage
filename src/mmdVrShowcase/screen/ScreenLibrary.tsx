@@ -31,7 +31,7 @@ function ScreenToyGuide({toy,room,locked,close}:{toy:Toy;room:SceneryId;locked:b
 
 type LibraryProps = {
   view:'backpack'|'item'; suspended?:boolean; visit:number; locked:boolean;
-  close:()=>void; openBackpack:()=>void; openItem:()=>void; frame:()=>void; closeUp?:()=>void; storyView?:()=>void;
+  close:()=>void; openBackpack:()=>void; openItem:()=>void; frame:()=>void; closeUp?:(focus?:'face')=>void; storyView?:()=>void;
 };
 
 export function ScreenLibrary({view,suspended=false,visit,locked,close,openBackpack,openItem,frame,closeUp,storyView}:LibraryProps) {
@@ -88,7 +88,7 @@ function ScreenCues({room,locked,view}:{room:StoryRoom;locked:boolean;view?:()=>
     </div></section>;
 }
 
-function SelectedItem({entry,locked,frame,closeUp,move,choice,setChoice,suspended,close,openBackpack}:{entry:BackpackEntry;locked:boolean;frame:()=>void;closeUp?:()=>void;move:()=>void;choice:Toy|null;setChoice:(toy:Toy)=>void;suspended:boolean;close:()=>void;openBackpack:()=>void}) {
+function SelectedItem({entry,locked,frame,closeUp,move,choice,setChoice,suspended,close,openBackpack}:{entry:BackpackEntry;locked:boolean;frame:()=>void;closeUp?:(focus?:'face')=>void;move:()=>void;choice:Toy|null;setChoice:(toy:Toy)=>void;suspended:boolean;close:()=>void;openBackpack:()=>void}) {
   const t=useLanguageStore(s=>s.t),b=useBackpack(),live=b.live[entry.id];
   const transform=useMmdVrStore(s=>(entry.kind==='model'?s.models:s.objects).find(e=>e.id===live?.runtimeId));
   const stage=useMmdVrStore.getState(), prop=useStagePlay(s=>s.character), motions=b.entries.filter(e=>e.kind==='motion');

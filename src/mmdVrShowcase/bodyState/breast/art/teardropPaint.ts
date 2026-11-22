@@ -1,9 +1,10 @@
 import { chest, torsoWidth } from './figure';
+import { pigment,type AreolaStyle } from './areola';
 import { camera,type Camera,type Ink } from './geometry';
 import { clamp,smooth } from './mesh';
 import { portraitX,portraitY,RASTER_WIDTH as W,RASTER_HEIGHT as H,RASTER_SCALE as S } from './raster';
 import { R as tileR,Y as tileY } from './section';
-import { bounds,field,frontBound,slice,tissueWeight,type Egg } from './teardrop';
+import { bounds,field,frontBound,slice,tissueWeight,type Slice } from './teardrop';
 import { cutSlope,type Cut } from './teardropCut';
 
 const px=portraitX(camera(0),1,0)-portraitX(camera(0),0,0),y0=portraitY(0,0),sq=(x:number)=>x*x;
@@ -12,7 +13,7 @@ export type Faces=readonly [Face,Face]; // left (+x), right (-x)
 
 // The pigment, lighting, lower fold and painted marks of approved study 02.
 // Use the local lobe coordinates at this hit, not the screen-side fill.
-function shade(rgb:Uint8ClampedArray,k:number,weight:number,e:Egg,x:number,z:number,ny:number,lateral:number,eye:number){
+function shade(rgb:Uint8ClampedArray,k:number,weight:number,e:Slice['l'],x:number,z:number,ny:number,lateral:number,eye:number){
   const light=-.42*lateral+.62*ny+.52*eye;
   const shade=1-smooth((light+.12)/.57),dark=1-smooth((light+.64)/.55),cream=smooth((light-.42)/.51);
   const contact=4*weight*(1-weight)*smooth((-.21-e.h)/.57),lift=smooth((-ny-.65)/.32)*weight;
@@ -20,16 +21,12 @@ function shade(rgb:Uint8ClampedArray,k:number,weight:number,e:Egg,x:number,z:num
   let R=249-21*shade-15*dark+4*cream-9*contact+5*lift-19*fold;
   let G=211-43*shade-17*dark+11*cream-18*contact+7*lift-24*fold;
   let B=190-24*shade-11*dark+13*cream-12*contact+8*lift-18*fold;
-  const hmark=-.39,ax=Math.atan2((Math.abs(x)-e.x)/e.rx,(z-e.z)/e.rz);
-  const radius=Math.hypot((ax-.17)/.170,(e.h-hmark)/.106);
-  const disk=(.52*Math.exp(-1.33*radius*radius)+.48*(1-smooth((radius-.43)/.68)))*weight;
-  const dot=Math.exp(-sq((ax-.174)/.046)-sq((e.h-hmark+.009)/.032))*weight;
-  const flick=Math.exp(-sq((ax-.15)/.026)-sq((e.h-hmark-.017)/.008))*weight;
   const hi=Math.exp(-sq((lateral+.23)/.12)-sq((ny-.32)/.18))*weight;
   const stroke=(1-smooth((Math.hypot((lateral+.28+.12*ny)/.024,(ny-.35)/.085)-.44)/.67))*weight;
-  R+=3*hi+7*stroke-13*disk-9*dot+14*flick;G+=10*hi+12*stroke-34*disk-14*dot+19*flick;B+=13*hi+14*stroke-22*disk-9*dot+17*flick;
+  R+=3*hi+7*stroke;G+=10*hi+12*stroke;B+=13*hi+14*stroke;
   const mix=rgb[k+3]?smooth((weight-.004)/.24):1;
   rgb[k]+=(R-rgb[k])*mix;rgb[k+1]+=(G-rgb[k+1])*mix;rgb[k+2]+=(B-rgb[k+2])*mix;
+  if(e.band&&z>e.z)pigment(rgb,k,e.band,Math.abs(x),ny,lateral,eye,weight*mix);
 }
 function sectionColour(face:Face,rgb:Uint8ClampedArray,k:number,y:number,z:number){
   const [s,h]=face.cut.uv(y,z),tile=face.tile;
@@ -38,11 +35,19 @@ function sectionColour(face:Face,rgb:Uint8ClampedArray,k:number,y:number,z:numbe
   else{rgb[k]=249;rgb[k+1]=204;rgb[k+2]=177;}
 }
 
-export function paintTeardrop(rgb:Uint8ClampedArray,d:Float32Array,cam:Camera,lf:number,rf:number,ls:number,rs:number,faces:Faces|null){
+export function paintTeardrop(rgb:Uint8ClampedArray,d:Float32Array,cam:Camera,lf:number,rf:number,ls:number,rs:number,faces:Faces|null,style:AreolaStyle){
   const {s,c}=cam,offset=portraitX(cam,0,0),eps=.0008;
   for(let iy=0;iy<H;iy++){
     const y=(y0-iy/S)/px;if(y>.78||y<-.68)continue;
-    const sl=slice(y,lf,rf,ls,rs),up=slice(y+eps,lf,rf,ls,rs),dn=slice(y-eps,lf,rf,ls,rs),row=bounds(sl,cam);
+    const sl=slice(y,lf,rf,ls,rs,style),up=slice(y+eps,lf,rf,ls,rs,style),dn=slice(y-eps,lf,rf,ls,rs,style),row=bounds(sl,cam);
+    // At a grazing angle the end of the crown may be thinner along a ray
+    // than the normal march step. Supersample only its projected interval.
+    const interval=(e:Slice['l'],side:number)=>{
+      if(!e.band||Math.abs(s)<.5)return null;
+      const z=e.z+e.rz*Math.sqrt(1-e.h*e.h),h=side*e.band.cx*c-z*s;
+      return {h,r:e.band.width*c+(.08+e.band.extra)*Math.abs(s)};
+    };
+    const li=interval(sl.l,1),ri=interval(sl.r,-1);
     for(let ix=0;ix<W;ix++){
       const h=(ix/S-offset)/px;if(Math.abs(h)>1.35)continue;
       const bound=frontBound(row,h);if(bound<-.74)continue;
@@ -58,14 +63,14 @@ export function paintTeardrop(rgb:Uint8ClampedArray,d:Float32Array,cam:Camera,lf
         }
         if(near<far)continue;
       }
-      // Keep the original .031 sampling lattice. Empty space outside the
-      // analytic bound cannot contain skin, including at the grazing rays.
-      let v=Math.min(near,1.42-Math.max(0,Math.floor((1.42-bound)/.031))*.031);
+      const detail=(li&&Math.abs(h-li.h)<li.r)||(ri&&Math.abs(h-ri.h)<ri.r);
+      const step=detail ? .008 : .031;
+      let v=Math.min(near,1.42-Math.max(0,Math.floor((1.42-bound)/step))*step);
       if(v<far)continue;
       const clipped=face!==null&&v===near&&field(sl,X+v*s,Z+v*c)>=0;
       if(!clipped){
         let outside=v,hit=false;
-        for(;v>=far;v-=.031){if(field(sl,X+v*s,Z+v*c)>=0){hit=true;break;}outside=v;}
+        for(;v>=far;v-=step){if(field(sl,X+v*s,Z+v*c)>=0){hit=true;break;}outside=v;}
         // A thin strip seen from the reverse side can terminate at the far
         // clipping plane between two samples. Retain the uncut entrance.
         if(!hit){if(!faces||field(sl,X+far*s,Z+far*c)<0)continue;v=far;}

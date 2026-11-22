@@ -1,4 +1,4 @@
-import {useState} from 'react';
+import {useLayoutEffect,useRef,useState} from 'react';
 import {useLanguageStore} from '../../languageStore';
 import {useBackpack} from '../backpack';
 import {useMmdVrStore} from '../mmdVrStore';
@@ -8,6 +8,8 @@ import {useApertureMorph} from './apertureConfig';
 import {buttons,field,key,note,percentRange,type Key,type Row} from './controlRows';
 import {fitRows,type Fit} from './fitRows';
 import {entryClearance} from './solver';
+import {prepareFirstStand} from './firstStand';
+import {responseRows} from './responseRows';
 import {assignPelvic,canStartAtOpening,clearPelvicFluid,disablePelvic,drainPelvic,enablePelvic,nudgePelvic,patchPelvic,PELVIC_LIMITS as lim,
   releasePelvic,requestPelvicDose,setPelvicCapacity,setPelvicGarmentVisible,startPelvic,stopPelvic,usePelvic,type PelvicMode} from './store';
 
@@ -15,10 +17,12 @@ type Page='use'|'view'|'fit'|'clothes'|'holder'|'fluid';
 const main=(label:string,press:()=>void,disabled=false)=>buttons(key(label,press,{primary:true,disabled}));
 const link=(label:string,press:()=>void)=>buttons(key(label,press));
 
-export type PelvicNavigation={onClothing?:()=>void;onObserve?:()=>void;backLabel?:string};
-export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen'|'xr',{onClothing,onObserve,backLabel}:PelvicNavigation) {
+export type PelvicNavigation={onClothing?:()=>void;onObserve?:()=>void;onFace?:()=>void;backLabel?:string};
+export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen'|'xr',{onClothing,onObserve,onFace,backLabel}:PelvicNavigation) {
   const zh=useLanguageStore(s=>s.language==='zh'),l=(a:string,b:string)=>zh?a:b;
   const [page,go]=useState<Page>('use'),[fit,setFit]=useState<Fit>('position');
+  const pending=useRef<(()=>void)|null>(null);
+  useLayoutEffect(()=>()=>{pending.current?.();pending.current=null;},[assetId,runtimeId,source,page]);
   const [listPage,setListPage]=useState(0),[morphPage,setMorphPage]=useState(0);
   const [clothesBack,setClothesBack]=useState<'fit'|'use'>('use');
   const morph=useApertureMorph(assetId),names=useBackpack(s=>s.live[assetId]?.propMorphs);
@@ -39,12 +43,13 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen
     if(!s.sample)return s.parkedSample?'parked':'waiting';
     return s.sample.outletInside?'inside':s.sample.outletVisible?'outside':s.sample.exteriorCovered?'coveredOutside':'unverified';
   });
-  const tabs:Key[]=[],rows:Row[]=[],stop=running||profile&&page==='use'?key(l('停止','Stop'),()=>stopPelvic(assetId),{danger:true,disabled:!running}):null;
+  const tabs:Key[]=[],rows:Row[]=[],stop=running||mode&&page==='use'?key(l('停止','Stop'),()=>stopPelvic(assetId),{danger:true,disabled:!running}):null;
   const result={title:l('插入','Insertion'),back:backLabel??l('返回互动','Back to interaction'),tabs,rows,stop,
     status:'',warn:false,chart:page==='view',blocked,enabled:!!profile};
   if(!profile){
-    result.status=l('先为当前角色启用插入互动。','Enable insertion for this actor first.');
-    rows.push(main(l('为此成年角色启用','Enable for this adult'),()=>enablePelvic(assetId,true)));
+    result.status=l('支架会停在入口外。看好位置和衣着后，再点推进。','The stand waits outside. Check its position and clothing before advancing.');
+    rows.push(main(l('为此成年角色放置支架','Place stand for this adult'),()=>{pending.current?.();pending.current=prepareFirstStand(assetId,runtimeId,source);}));
+    rows.push(link(l('仅设置成年角色入口','Fit adult opening only'),()=>{if(enablePelvic(assetId,true))go('fit');}));
     if(onClothing||onObserve)rows.push(buttons(...(onClothing?[key(l('服装','Clothing'),onClothing)]:[]),...(onObserve?[key(l('身体观察','Body observation'),onObserve)]:[])));
     return result;
   }
@@ -105,6 +110,7 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen
     rows.push(link(clothesBack==='fit'?l('返回模型设置','Back to model settings'):l('返回操作','Back to controls'),()=>go(clothesBack)));
   }else if(page==='holder'){
     result.status=mode?l(`当前：${rigName}`,`Using: ${rigName}`):l('选择谁来拿假阳具。','Choose how to hold the rod.');
+    rows.push(...responseRows(assetId,runtimeId,profile,support,l));
     if(mode==='standManual')rows.push(field(l('支架目标位置','Target rail position'),Math.round(target*100),'%',[-20,100],5,p=>setTarget(p/100),!running));
     if(mode==='standAuto')rows.push(field(l('每秒往复','Cycles per second'),profile.speedHz,' Hz',lim.speedHz,.1,n=>patchPelvic(assetId,{speedHz:n})),
       field(l('往复幅度','Stroke length'),profile.stroke*100,'%',percentRange(lim.stroke),5,n=>patchPelvic(assetId,{stroke:n/100})));
@@ -139,6 +145,8 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen
     else if(!mode){
       result.status=l('此角色还没有放置假阳具。先放到入口外，再推进。','No rod placed for this actor. Position it outside the opening first.');
       rows.push(main(l('把假阳具放到入口外','Place rod outside opening'),()=>assign('standManual')));
+    }else if(!running&&mode!=='xrManual'&&signal==='waiting'){
+      result.status=waiting;
     }else if(!running&&!ready){
       result.status=coverage||l('入口未确认露出。可以穿衣继续。','Exposure is unconfirmed. You can continue clothed.');
       rows.push(main(l('保持穿衣继续','Continue clothed'),()=>patchPelvic(assetId,{clothed:true})));
@@ -152,9 +160,12 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen
       result.status=`${profile.clothed?l('穿衣互动 · ','Clothed · '):''}${running?reading:signal==='waiting'&&mode!=='xrManual'?waiting:idle}`;
       if(mode!=='standManual'&&!running)rows.push(main(mode==='xrManual'?l('开始手持并收起面板','Start hand control'):l('开始自动往复','Start motor'),start,mode!=='xrManual'&&signal!=='parked'));
     }
-    if(!mode||mode==='standManual')rows.push(jogKeys());
-    rows.push(balance(),targetKeys(),doseKeys());
-    if(profile.container==='fantasyUterine')rows.push(note(l('宫腔是释放目标，棒头仍止于宫颈。','The uterus is the release target. The rod still stops at the cervix.')));
+    if(mode&&(running||ready)){
+      if(mode==='standManual')rows.push(jogKeys());
+      if(onFace)rows.push(link(l('近看表情','Frame face'),onFace));
+      rows.push(balance(),targetKeys(),doseKeys());
+      if(profile.container==='fantasyUterine')rows.push(note(l('宫腔是释放目标，棒头仍止于宫颈。','The uterus is the release target. The rod still stops at the cervix.')));
+    }
     rows.push(buttons(key(clothesLabel,onClothing??clothes),key(onObserve?l('身体观察','Body observation'):l('观察图','Anatomy'),onObserve??(()=>go('view')))));
     if(known)rows.push(link(l('拿法与支架设置','Holder and rail settings'),()=>go('holder')));
   }

@@ -15,6 +15,8 @@ export type PelvicProfile = {
    * belong to this fit and are cleared when its calibration changes. */
   calibration:PelvicCalibration; clothingClear:boolean; clothed?:boolean; container:PelvicContainer;
   apertureMorph?:string|null; showAdapter:boolean;
+  /** Auto from the mounted face by default; null turns actor response off. */
+  responseMorph?:string|null;
   fluid:Record<PelvicContainer,number>; capacity:Record<PelvicContainer,number>;
   overflow:number; drained:number; speedHz:number; stroke:number;
 };
@@ -36,6 +38,7 @@ export type PelvicSupport = {
   obstruction?:'garment'|'unverified'; manualSeed?:NonNullable<PelvicCalibration['manual']>;
   /** Named garment layers on this drawable; blockerName requires a current triangle hit. */
   garmentNames?:readonly string[]; blockerName?:string;
+  responseMorphs?:readonly string[];
 };
 
 export function canStartAtOpening(p:PelvicProfile,s:PelvicSupport|undefined){

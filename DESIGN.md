@@ -127,6 +127,8 @@ Put **服装 / 互动 / 身体观察** on the first actor sheet. Wardrobe change
 
 **Actor status, appearance first.** The breast view opens as a warm, softly lit external figure against the actor panel's plum field. Breathing and the lower silhouette are legible without text on the figure. Cutaway and labels are separate choices. Reserve relative left/right readouts for enabled lactation. On the cycle page let the date and visible change lead; the tissue comparison and anatomical references belong one level down in the experience or in the guide.
 
+Keep the soft and raised nipple/areola choices together beneath the external figure; the cutaway uses that space for anatomy. Inspect the same frozen front, oblique and profile view on both settings. On the interaction sheet the first placement shows a stationary stand; show the operating and release controls after the clothing choice. Screen players can explicitly frame the actor's expression while continuing to use the controls. Never move the headset to a reaction shot.
+
 For the external vulva, the user prefers soft cherry and peach highlights, with rose shadows separating the inner and outer folds. Preserve saturated midtones and the measured entrance. Judge the effect at the size of the actual HUD and in a nearly side-on view: highlights should turn with the folds, not outline a hard ring.
 
 The optional XR FPS readout uses gold text over plum. The neutral scene background and grid keep their stage colors. The placement stamp and pose markers use dark/light contrast plus their existing footprint, cross and joint shapes; validity must not depend on color alone.

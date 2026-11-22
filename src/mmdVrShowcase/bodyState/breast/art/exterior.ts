@@ -1,4 +1,5 @@
 import { figure,wallMeshes } from './figure';
+import type { AreolaStyle } from './areola';
 import type { Camera,Ink,Side } from './geometry';
 import { inkContours,meshRenderer,PORTRAIT_HEIGHT,PORTRAIT_WIDTH,RASTER_HEIGHT,RASTER_WIDTH } from './raster';
 import { drawChestWall,drawSection,H,W,WALL_HEIGHT,WALL_WIDTH } from './section';
@@ -8,7 +9,7 @@ import { collarInk,paintTeardrop,type Face,type Faces } from './teardropPaint';
 
 export type Bitmap={canvas:HTMLCanvasElement|OffscreenCanvas;ctx:Ink};
 type Allocate=(width:number,height:number)=>Bitmap|null;
-type View={camera:Camera;fullness:number;leftFill:number;rightFill:number;lactating:boolean;section:boolean;leftSettle:number;rightSettle:number};
+type View={camera:Camera;fullness:number;leftFill:number;rightFill:number;lactating:boolean;section:boolean;leftSettle:number;rightSettle:number;areolaStyle:AreolaStyle};
 type Cache={full?:number;cut?:Cut;fill?:number;tile?:ImageData};
 
 export function createPortraitRenderer(allocate:Allocate){
@@ -40,7 +41,7 @@ export function createPortraitRenderer(allocate:Allocate){
     let cuts:Faces|null=null;
     if(v.section){const l=face(left,1,lf,v.leftFill,v.lactating),r=face(right,-1,rf,v.rightFill,v.lactating);if(l&&r)cuts=[l,r];}
     background(cam,v.section);
-    paintTeardrop(image.data,depths,cam,lf,rf,v.leftSettle,v.rightSettle,cuts);
+    paintTeardrop(image.data,depths,cam,lf,rf,v.leftSettle,v.rightSettle,cuts,v.areolaStyle);
     for(let i=1;i<outfit.length;i++)render(outfit[i][0],cam,outfit[i][1],0);
     inkContours(depths,image.data);bitmap.ctx.putImageData(image,0,0);collarInk(bitmap.ctx,cam,depths);
     ctx.drawImage(bitmap.canvas,0,0,PORTRAIT_WIDTH,PORTRAIT_HEIGHT);

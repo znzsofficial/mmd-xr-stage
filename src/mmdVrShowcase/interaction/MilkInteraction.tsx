@@ -14,7 +14,7 @@ import {useMmdVrStore} from '../mmdVrStore';
 import {milkRayGuard} from './milkRay';
 import './milk-interaction.css';
 
-type Props=MilkPanel & {onBack:()=>void;onObserve:()=>void;onCloseUp?:()=>void};
+type Props=MilkPanel & {onBack:()=>void;onObserve:()=>void;onClothing?:()=>void;onCloseUp?:()=>void};
 const sides=['left','right'] as const,modes=['left','right','both'] as const;
 const refillTimes=[30,60,180] as const;
 type Hold=NonNullable<ReturnType<typeof pressMilk>>;
@@ -84,6 +84,7 @@ export function MilkScreenControls(props:Props){
     </>:<button type="button" className="milk-enable" disabled={page.locked} onClick={()=>page.change({lactating:true})}>{page.enable}</button>}
     <div className="milk-links">{props.onCloseUp&&<button type="button" onClick={()=>go(props.onCloseUp!)}>{l('近看角色','Close-up')}</button>}
       <button type="button" onClick={()=>go(props.onObserve)}>{page.observe}</button>
+      {props.onClothing&&<button type="button" onClick={()=>go(props.onClothing!)}>{l('服装','Clothing')}</button>}
       {p.lactating&&<button type="button" aria-expanded={page.settings} onClick={()=>page.setSettings(!page.settings)}>{page.settingsLabel}</button>}</div>
     {p.lactating&&page.settings&&<fieldset disabled={page.locked}><legend>{l('仅勾选能看见裸露乳头的一侧','Confirm only visibly bare nipples')}</legend>
       <div className="milk-checks">{sides.map(s=>{const key=s==='left'?'bareLeft':'bareRight';return <label key={key}><input type="checkbox" checked={p[key]} onChange={e=>page.change({[key]:e.target.checked})}/>{l(s==='left'?'左侧裸露':'右侧裸露',s==='left'?'Left bare':'Right bare')}</label>;})}</div>
@@ -133,8 +134,9 @@ export function MilkHudControls(props:Props){
       {p.lactating?<>{sides.map((s,i)=><group key={s} position-x={(i-.5)*.72}><HudLine position={[0,.275,0]} width={.69} text={`${page.sideName(s)} ${page.fill(s)}`}/>
         <HudLine position={[0,.195,0]} width={.69} role="muted" text={page.status(s)}/></group>)}
         {modes.map((mode,i)=><HudHold key={mode} mode={mode} x={(i-1)*.48} page={page}/>)}</>:<HudButton position={[0,.13,0]} size={[1.42,.16]} variant="primary" label={page.enable} disabled={page.locked} onPress={()=>page.change({lactating:true})}/>}
-      <HudButton position={[p.lactating?-.36:0,-.175,0]} size={[p.lactating?.68:1.42,.14]} label={page.observe} onPress={()=>go(props.onObserve)}/>
-      {p.lactating&&<HudButton position={[.36,-.175,0]} size={[.68,.14]} label={page.settingsLabel} onPress={()=>page.setSettings(true)}/>}
+      <HudButton position={[-.48,-.175,0]} size={[.45,.14]} label={page.observe} onPress={()=>go(props.onObserve)}/>
+      {props.onClothing&&<HudButton position={[0,-.175,0]} size={[.45,.14]} label={l('服装','Clothing')} onPress={()=>go(props.onClothing!)}/>}
+      {p.lactating&&<HudButton position={[.48,-.175,0]} size={[.45,.14]} label={page.settingsLabel} onPress={()=>page.setSettings(true)}/>}
       <HudLine position={[0,-.382,0]} width={1.42} role="muted" text={page.hint}/>
     </>}
   </group>;

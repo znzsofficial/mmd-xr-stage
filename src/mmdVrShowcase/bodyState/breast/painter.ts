@@ -4,7 +4,8 @@ import {diagramOutput} from '../../components/diagramOutput';
 import {DEFAULT_BODY_PROFILE,sampleBody} from '../data';
 import {fromBodyClock,fromMilkInteraction,useBodyState} from '../store';
 import {createBreastArt,type BreastArtFrame} from './art';
-import {breastViews,readBreastView} from './view';
+import {areolaNames} from './art/areola';
+import {breastViews,readBreastView,resolveBreastView} from './view';
 import {lowerPoleLag} from './settling';
 
 export const BREAST_WIDTH=400,BREAST_HEIGHT=260;
@@ -24,12 +25,12 @@ export function breastPainter(canvas:HTMLCanvasElement,{assetId}:DiagramActor,wa
     reason=>{if(reason==='retry')dirty=true;wake();});
   let sample=parameters(useBodyState.getState(),assetId);
   function changed(discard=true){dirty=true;if(discard)output.discard();wake();}
-  const off=[breastViews.subscribe((s,p)=>{const a=s.actors[assetId],b=p.actors[assetId];if(a!==b){
-    const transport=a?.motion!==b?.motion;if(transport)last=null;
-    if(a?.section!==b?.section)reset();
+  const off=[breastViews.subscribe((s,p)=>{const a=resolveBreastView(s,assetId),b=resolveBreastView(p,assetId);if(a!==b){
+    const transport=a.motion!==b.motion;if(transport)last=null;
+    if(a.section!==b.section)reset();
     // During a continuous orbit, show completed angles in order. Dropping a
     // bitmap on every pointermove can keep the figure blank for a whole drag.
-    changed(transport||a?.section!==b?.section||a?.labels!==b?.labels);
+    changed(transport||a.section!==b.section||a.labels!==b.labels||a.areolaStyle!==b.areolaStyle);
   }}),
     useLanguageStore.subscribe((s,p)=>{if(s.language!==p.language)changed();}),
     useBodyState.subscribe((s,p)=>{
@@ -54,13 +55,15 @@ export function breastPainter(canvas:HTMLCanvasElement,{assetId}:DiagramActor,wa
     if(output.inFlight)return false; // Reply wakes the painter; no idle DOM RAF while the worker is busy.
     if(!dirty&&(!v.motion||now-painted<(lag.value||leftLag.value||rightLag.value?42:100))||dirty&&now-painted<32)return v.motion||dirty;
     const zh=useLanguageStore.getState().language==='zh',options:BreastArtFrame&{settle:number}={width:BREAST_WIDTH,height:BREAST_HEIGHT,degrees:v.degrees,
-      section:v.section,labels:v.section&&v.labels,settle:lag.value,leftSettle:leftLag.value,rightSettle:rightLag.value,time,zh,...sample};
+      section:v.section,labels:v.section&&v.labels,areolaStyle:v.areolaStyle,settle:lag.value,leftSettle:leftLag.value,rightSettle:rightLag.value,time,zh,...sample};
     const scale=canvas.width/BREAST_WIDTH;
     output.submit({options,scale,paint:draw=>{
       ctx.save();ctx.scale(scale,scale);try{draw(ctx);}finally{ctx.restore();}
       const view=options.section?(zh?'乳房剖面':'Breast cutaway'):(zh?'乳房外观':'Breast appearance');
       const state=`${view} · ${zh?'饱满度':'Fullness'} ${Math.round(options.fullness*100)}%`;
-      canvas.setAttribute('aria-label',`${state} · ${options.degrees}°`);canvas.dataset.view='breast';canvas.dataset.angle=String(options.degrees);upload();
+       const style=v.areolaStyle;
+       canvas.setAttribute('aria-label',`${state} · ${options.degrees}°${options.section?'':` · ${areolaNames[zh?'zh':'en'][style]}`}`);
+       canvas.dataset.view='breast';canvas.dataset.angle=String(options.degrees);canvas.dataset.areolaStyle=style;upload();
     }});painted=now;dirty=false;return v.motion;
   },suspend(){if(last!==null){last=null;reset();dirty=true;painted=-Infinity;output.discard();}},dispose(){dead=true;off.forEach(f=>f());output.dispose();}};
 }

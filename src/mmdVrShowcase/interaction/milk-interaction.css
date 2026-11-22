@@ -7,6 +7,7 @@
 .milk-side small,.milk-save-note { color:var(--quiet);line-height:1.35; }
 .screen-stage .milk-controls .milk-hold { min-height:2.85rem;padding-inline:.25rem;user-select:none;touch-action:none;-webkit-touch-callout:none; }
 .screen-stage .milk-links button { min-width:0;padding-inline:.2rem; }
+.milk-links { grid-auto-flow:row;grid-template-columns:repeat(2,minmax(0,1fr)); }
 .milk-interaction fieldset { border:0;border-top:1px solid var(--line);margin:0;padding:.35rem 0 0;min-width:0; }
 .milk-interaction legend { padding:0 .4rem 0 0;color:var(--quiet);font-size:.87rem; }
 .milk-checks,.milk-refill { display:flex;align-items:center;gap:.75rem;flex-wrap:wrap; }

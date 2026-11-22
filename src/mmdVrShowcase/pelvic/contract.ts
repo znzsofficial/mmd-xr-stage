@@ -53,9 +53,12 @@ export interface PelvicInput {
 }
 export interface PelvicSolver {
   /** Results/scratch are solver-owned until next step; pass actual PlayPiece parent.matrixWorld. */
-  step(frame: PelvicFrame | null, pieceWorld: Matrix4 | null, input: PelvicInput): PelvicContact;
+  step(frame: PelvicFrame | null, pieceWorld: Matrix4 | null, input: PelvicInput): PelvicContact & { motion: ContactMotion | null };
   reset(): void;
 }
+/** Only a continuous, admitted crossing starts a response. Losing admission
+ * through the side, overtravel or a tracking gap is not a withdrawal. */
+export type ContactMotion = 'enter' | 'inside' | 'withdraw' | 'outside';
 
 /** Sagittal contours for both UIs. X is zero, +Y up, -Z inward.
  * All paths are ordered boundary vertices (close each path in your renderer).

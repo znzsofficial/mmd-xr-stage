@@ -20,7 +20,7 @@ type Point = [number,number,number];
 const storyViews:Record<StoryRoom,[Point,Point]>={
   lawn:[[3,1.75,5],[3,2.05,-5]], pool:[[1.15,1.72,-2],[0,.32,-9.3]], liveHouse:[[.2,1.7,4.8],[0,1.90,-5.1]]
 };
-export type CameraActions = { reset():void; frame():void; upperBody():void; inspectStand():void; center():void; story():void; tour(index:number):void };
+export type CameraActions = { reset():void; frame():void; upperBody(focus?:'face'):void; inspectStand():void; center():void; story():void; tour(index:number):void };
 
 export function ScreenCamera({actions,onReady,viewport}:{actions:RefObject<CameraActions|null>;onReady:(ready:boolean)=>void;viewport:RefObject<HTMLDivElement|null>}) {
   const {camera,gl,scene}=useThree(); const scenery=useMmdVrStore(s=>s.prefs.scenery);
@@ -85,10 +85,10 @@ export function ScreenCamera({actions,onReady,viewport}:{actions:RefObject<Camer
       camera.position.copy(orbit.target).addScaledVector(dir,distance);orbit.update();
     };
     let releaseHints:(()=>void)|undefined;
-    actions.current={reset,frame,inspectStand,upperBody(){
+    actions.current={reset,frame,inspectStand,upperBody(focus){
       const b=useBackpack.getState(),live=b.selected&&b.live[b.selected];if(!live||!live.visible)return;
       const root=scene.children.find(o=>o.userData.mmdModelId===live.runtimeId);if(!root?.visible)return;
-      const {eye,target}=upperBodyView(root,live,camera.aspect);wind?.dispose();align();setLens(40);
+      const {eye,target}=upperBodyView(root,live,camera.aspect,focus);wind?.dispose();align();setLens(40);
       orbit.target.copy(target);camera.position.copy(eye);orbit.update();
     },tour(index){const shot=tourShots(scenery)[index];if(!shot)return;
       wind?.dispose();

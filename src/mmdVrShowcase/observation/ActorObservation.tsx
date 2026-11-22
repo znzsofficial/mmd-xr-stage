@@ -2,6 +2,7 @@ import {useLayoutEffect,useRef,useState} from 'react';
 import {useLanguageStore} from '../../languageStore';
 import {ObservationDiagram} from './ObservationDiagram';
 import {setBreastView,useBreastView} from '../bodyState/breast/view';
+import {areolaNames,areolaStyles} from '../bodyState/breast/art/areola';
 import {BODY_DAY_SECONDS,sampleBody} from '../bodyState/data';
 import {useBodyState} from '../bodyState/store';
 import {actorBinding,actorRodSample,type ObservationAtlasPart} from '../pelvic/atlas/painter';
@@ -35,6 +36,8 @@ function useView({assetId,initialPart='breast'}:ObservationProps){
   const foldNames=zh?{natural:'自然',soft:'柔和',defined:'层次'}:{natural:'Natural',soft:'Soft',defined:'Defined'};
   return {part,choose,t,zh,degrees,motion,turn:(degrees:number)=>set(assetId,{degrees}),
     transport:{label:motion?t.freeze:t.play,active:!motion,press:()=>set(assetId,{motion:!motion})},
+    areola:breast&&!chest.section?areolaStyles.map(style=>({label:areolaNames[zh?'zh':'en'][style],active:style===chest.areolaStyle,
+      press:()=>setBreastView(assetId,{areolaStyle:style})})):[],areolaLabel:zh?'乳晕与乳头':'Areola & nipple',
     shapes:part==='vulva'?foldStyles.map(f=>({label:foldNames[f],active:f===atlas.foldStyle,press:()=>setAtlasView(assetId,{foldStyle:f})})):[],
     options:[...(breast?[{label:t.cut,active:chest.section,press:()=>setBreastView(assetId,{section:!chest.section})}]:[]),
       ...(part==='uterus'||breast&&chest.section?[{label:t.labels,active:view.labels,press:()=>set(assetId,{labels:!view.labels})}]:[])],
@@ -78,6 +81,7 @@ function Screen(props:ObservationProps){
     <figure><ObservationDiagram key={part} {...actor} part={part} loading={view.zh?'正在绘制图像…':'Drawing figure…'}/>
       <figcaption>{t.drag}<output aria-label={t.angle}>{degrees}°</output></figcaption></figure>
     <div className="pelvic-keys">{[view.transport,...view.options].map(a=><button type="button" className="pelvic-key" key={a===view.transport?'transport':a.label} aria-pressed={a.active} onClick={a.press}>{a.label}</button>)}</div>
+    {view.areola.length>0&&<fieldset className="observation-areola"><legend>{view.areolaLabel}</legend><div className="pelvic-keys">{view.areola.map(a=><button type="button" key={a.label} className="pelvic-key" aria-pressed={a.active} onClick={a.press}>{a.label}</button>)}</div></fieldset>}
     {view.shapes.length>0&&<div role="group" aria-label={view.zh?'外阴外形':'Fold shape'} className="pelvic-keys observation-presets">{view.shapes.map(s=><button type="button" key={s.label} className="pelvic-key" aria-pressed={s.active} onClick={s.press}>{s.label}</button>)}</div>}
     <dl>{readings.map(r=><div key={r.label}><dt>{r.label}</dt><dd>{r.value}</dd></div>)}</dl>
   </div>;
@@ -86,14 +90,14 @@ function Screen(props:ObservationProps){
 function Hud(props:ObservationProps){
   const {assetId,runtimeId,onBack,backLabel}=props,actor={assetId,runtimeId};
   const view=useView(props),{t,part,degrees,turn}=view,readings=useReadings(assetId,runtimeId,view);
-  // Back, part and angle targets stay at fixed coordinates across every view.
-  // Only the measure list changes height when there's a real incoming sample.
+  // Back, part, angle and artwork stay fixed. The exterior style row has its
+  // own space between the bottom of the picture and the first measurement.
   const left=-.284,art=.86,right=.452,rail=.506;
   // The actor anchor can sit near either edge of the forward view. Keep the
   // sheet close to the width of the actor menu; long rod verdicts get a full
   // line under the figure, not a narrow rail at the outside edge of one eye.
   const rod=readings.find(r=>r.label===t.rod),fields=readings.filter(r=>r!==rod);
-  const rodY=part==='vulva'?-.67:-.592,firstY=rod?rodY-.104:-.592,bottom=firstY-Math.floor((fields.length-1)/2)*.11-.08;
+  const rodY=part==='vulva'?-.67:-.592,firstY=rod?rodY-.104:view.areola.length?-.735:-.592,bottom=firstY-Math.floor((fields.length-1)/2)*.11-.08;
   return <group name="observation:controls" pointerEventsOrder={1} pointerEventsType={{allow:['ray']}}>
     <group position-y={(.69+bottom)/2}><PrivateSheet size={[1.51,.69-bottom]}/></group>
     <PrivateLine position={[-.265,.586,0]} width={.90} title text={t.title}/>
@@ -106,6 +110,10 @@ function Hud(props:ObservationProps){
     <PrivateSlider position={[right,-.088,0]} width={rail} disabled={false} value={(degrees+90)/180} onChange={v=>turn(v*180-90)}/>
     {view.options.map((a,i)=><PrivateButton key={a.label} position={[right,-.26-i*.17,0]} size={[rail,.14]} label={a.label} active={a.active} onPress={a.press}/>)}
     {view.shapes.map((a,i)=><PrivateButton key={a.label} position={[right,-.22-i*.15,0]} size={[rail,.135]} label={a.label} active={a.active} onPress={a.press}/>)}
+    {view.areola.length>0&&<group name="observation:areola" position-y={-.574}>
+      <PrivateLine position={[-.455,0,0]} width={.50} text={view.areolaLabel}/>
+      {view.areola.map((a,i)=><PrivateButton key={a.label} position={[.028+i*.462,0,0]} size={[.43,.14]} label={a.label} active={a.active} onPress={a.press}/>)}
+    </group>}
     {rod&&<PrivateLine position={[0,rodY,0]} width={1.41} text={rod.label} value={rod.value}/>}
     {fields.map((r,i)=><PrivateLine key={r.label} position={[(i%2-.5)*.736,firstY-Math.floor(i/2)*.11,0]} width={.68} text={r.label} value={r.value}/>)}
   </group>;

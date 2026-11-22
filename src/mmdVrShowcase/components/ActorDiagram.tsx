@@ -2,6 +2,7 @@ import {useLayoutEffect,useRef} from 'react';
 import {useFrame} from '@react-three/fiber';
 import type {Mesh,MeshBasicMaterial,Object3D} from 'three';
 import {createPanelTexture} from '../../shared/panelTexture';
+import {recordFigureTick} from '../diagramTiming';
 
 export type DiagramActor={assetId:string;runtimeId:string};
 export type DiagramDriver={tick(now:number):boolean;suspend():void;dispose():void};
@@ -44,7 +45,9 @@ export function ActorHudDiagram({assetId,runtimeId,spec,widthM}:Props&{widthM:nu
     const p=driver.current;if(!p)return;
     if(document.hidden||(gl.xr.isPresenting&&frame?.session.visibilityState!=='visible')){p.suspend();return;}
     for(let node:Object3D|null=mesh.current;node;node=node.parent)if(!node.visible){p.suspend();return;}
-    p.tick(performance.now());
+    const now=performance.now(),map=material.current?.map,version=map?.version;
+    p.tick(now);
+    if(frame&&gl.xr.isPresenting)recordFigureTick(frame.session,performance.now()-now,map?.version!==version);
   });
   return <mesh ref={mesh} name={spec.meshName} pointerEvents="none" raycast={()=>null} renderOrder={30}>
     <planeGeometry args={[widthM,widthM*spec.height/spec.width]}/><meshBasicMaterial ref={material} transparent depthTest={false} depthWrite={false} toneMapped={false} fog={false}/></mesh>;

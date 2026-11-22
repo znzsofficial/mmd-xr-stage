@@ -42,6 +42,20 @@ it('does not let a late labelled cutaway overwrite the external view, even on an
   try{b.tick(0);expect(w.frame).toMatchObject({section:false,labels:false});expect(useBodyState.getState().draft).toBeNull();}finally{b.dispose();}
 });
 
+it('discards an obsolete brush result on a frozen actor and updates its presentation only on the next visible tick',()=>{
+  const w=slowWorker(),upload=vi.fn(),plate=canvas();setBreastView('a',{degrees:38,motion:false});
+  const d=breastPainter(plate,{assetId:'a',runtimeId:'r'},()=>{},upload);
+  try{
+    d.tick(0);expect(w.frame.areolaStyle).toBe('soft');
+    setBreastView('a',{areolaStyle:'rounded'});const stale=w.reply();d.tick(50);
+    expect(stale.close).toHaveBeenCalledOnce();expect(upload).not.toHaveBeenCalled();
+    expect(w.frame).toMatchObject({areolaStyle:'rounded',degrees:38,time:0,fullness:0,section:false});
+    w.reply();expect(plate.dataset.areolaStyle).toBeUndefined();d.tick(100);
+    expect(plate.dataset.areolaStyle).toBe('rounded');expect(upload).toHaveBeenCalledOnce();
+    setBreastView('b',{areolaStyle:'rounded',degrees:90});d.tick(150);expect(w.current.postMessage).toHaveBeenCalledTimes(2);
+  }finally{d.dispose();}
+});
+
 it('displays same-actor results between automatic refill ticks even when each raster takes longer than a tick',()=>{
   const w=slowWorker(),upload=vi.fn();setBreastView('a',{motion:false});
   useBodyState.setState({byAsset:{a:{...DEFAULT_BODY_PROFILE,lactating:true,left:.1,right:1}}});
