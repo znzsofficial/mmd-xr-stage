@@ -2,6 +2,7 @@ import type { ZhMessages } from "./zh";
 
 /** English UI strings — must cover every key in zh. */
 export const en: Record<keyof ZhMessages, string> = {
+  actorPelvic:'Pelvic attachment',
   actorPose:'Pose actor', actorBodyState:'Body state',
   emberWind:'Launch collar · Ember',frostWind:'Launch collar · Frost',emberReturn:'Ember · homeward view',frostReturn:'Frost · homeward view',
   saltWind:'Launch collar · Halite',glazeWind:'Launch collar · Obsidian',saltReturn:'Halite · homeward view',glazeReturn:'Obsidian · homeward view',
@@ -42,10 +43,10 @@ export const en: Record<keyof ZhMessages, string> = {
   watchDetails:'Details',
   watchMenu:'Menu',watchArrange:'Arrange',watchExperiments:'Experiments',watchStart:'Choose a set, then place a character from your backpack.',watchRecall:'Press right B for controls. With hands, raise your left wrist or look down for Menu.',
   toyClubName:'Live House',toyStudioName:'Studio plinth',
-  toyDildo:'Silicone dildo',allSets:'All sets',guideDildoVr:'Touch the tip to a character or squeeze to spray. With physics on, sweep under dynamic cloth.',guideDildoScreen:'Give it to a wrist. The tip yields on contact; the shaft can move dynamic cloth with physics on.',guideDildoEnd:'Withdraw to release the soft tip. After tracking loss, move clear before touching again.',
+  toyDildo:'Silicone dildo',allSets:'All sets',guideDildoVr:'Squeeze to release a dose. Use Pelvic attachment on an adult actor to fit the opening and see the section.',guideDildoScreen:'Give it to a wrist or mount it on the manual slider or motor in Pelvic attachment.',guideDildoEnd:'Stop or remove the rod at the stand. Approach from outside again after tracking loss.',
   toyWand:'Cordless massage wand',guideWandVr:'Squeeze for low, high, then off. Feel the beat in the holding hand; the first touch accents one beat.',guideWandScreen:'Give it to a wrist. Use a pose or motion for contact; choose low or high for the soft head.',guideWandEnd:'With physics on, the head or grip can lift cloth even with the motor off.',
   wandMotor:'Wand motor',wandLow:'Low',wandHigh:'High',
-  toyRemoteEgg:'Remote vibrating egg',guideEggVr:'Take the remote, select an adult character and choose Fit egg. Close the menu and squeeze to change pattern.',guideEggScreen:'Select a character, choose the remote egg and fit it. Adjust its position and vibration pattern.',guideEggEnd:'Changing hands keeps the pattern. Stowing, hiding the wearer or leaving the set stops it.',
+  toyRemoteEgg:'Remote vibrating egg',guideEggVr:'Take the remote, select an adult character and choose Fit egg. Close the menu and squeeze to change pattern.',guideEggScreen:'Adjust the receiver in centimetres. With character physics on, bring its shell up against dynamic cloth.',guideEggEnd:'If it starts inside cloth, move it clear first. Stow or change sets to stop.',
   eggWear:'Fit egg',eggFit:'Adjust fit',eggReset:'Reset fit',eggMode:'Pattern',eggOff:'Off',eggSteady:'Steady',eggRamp:'Rising',eggPulse:'Intermittent',
   eggX:'Side',eggY:'Height',eggZ:'Depth',
   wandResponse:'Contact response',wandEnabled:'Enable contact response',wandDisabled:'Contact response off',wandMorph:'Contact expression',wandNone:'No expression',wandStrength:'Expression strength',wandNoMorph:'No supported vertex expressions on this model',

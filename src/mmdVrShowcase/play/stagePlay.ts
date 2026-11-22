@@ -6,8 +6,9 @@ import { TOYS, shelfToys, type Hand, type Toy } from './propCatalog';
 export type { Hand, Toy, StoryRoom } from './propCatalog';
 export { isStoryRoom } from './propCatalog';
 export type CharacterToy = { assetId:string; toy:Toy; hand:Hand; tilt:number; inset:number; turn:number };
-type Owners = { held:{toy:Toy; hand:Hand}|null; character:CharacterToy|null };
-export const ownerOf = (s:Owners) => s.held ?? s.character;
+export type StandToy = { assetId:string; toy:'dildo' };
+type Owners = { held:{toy:Toy; hand:Hand}|null; character:CharacterToy|null; stand:StandToy|null };
+export const ownerOf = (s:Owners) => s.held ?? s.character ?? s.stand;
 export const canUseGrip = (s:Owners,toy:Toy,hand:Hand,room:SceneryId) =>
   s.held?.toy===toy && s.held.hand===hand && (TOYS[toy].portable===true || TOYS[toy].home===room);
 /** Grip starts the portable prop, but a room-specific interaction (e.g. ferry
@@ -19,31 +20,35 @@ export const canGiveTo = (actor:{visible:boolean; wrists?:Partial<Record<Hand,bo
   !!actor?.visible && !!actor.wrists?.[hand];
 
 type Play = Owners & {
-  equip:(toy:Toy,hand:Hand)=>void; stow:()=>void; reset:()=>void;
+  equip:(toy:Toy,hand:Hand)=>void; mountStand:(assetId:string)=>void; stow:()=>void; reset:()=>void;
   give:(assetId:string,hand:Hand)=>void; adjust:(tilt:number,inset:number,turn?:number)=>void;
 };
 export const useStagePlay = create<Play>((set,get)=>{
   const release = () => {const old=ownerOf(get()); if(old)TOYS[old.toy].onStow?.();};
   return {
-    held:null, character:null,
+    held:null, character:null, stand:null,
     equip:(toy,hand)=>{
       if(ownerOf(get())?.toy!==toy)release();
       TOYS[toy].onEquip?.();
-      set({held:{toy,hand},character:null});
+      set({held:{toy,hand},character:null,stand:null});
+    },
+    mountStand:(assetId)=>{
+      if(!assetId||get().stand?.assetId===assetId)return;
+      release();set({held:null,character:null,stand:{assetId,toy:'dildo'}});
     },
     give:(assetId,hand)=>{
       const {held,character}=get();
       const toy=held?.toy??(character?.assetId===assetId?character.toy:null);
       // Its player keeps the transmitter. bindRemoteEgg assigns the separate receiver.
-      if(toy && toy!=='remoteEgg')set({held:null,character:{assetId,hand,toy,tilt:0,inset:0,turn:0}});
+      if(toy && toy!=='remoteEgg')set({held:null,stand:null,character:{assetId,hand,toy,tilt:0,inset:0,turn:0}});
     },
     adjust:(tilt,inset,turn=0)=>{const c=get().character;if(c)set({character:{...c,turn:(c.turn+turn+360)%360,
       tilt:Math.max(-90,Math.min(90,c.tilt+tilt)),inset:Math.max(-5,Math.min(5,c.inset+inset))}});},
-    stow:()=>{release();set({held:null,character:null});},
+    stow:()=>{release();set({held:null,character:null,stand:null});},
     reset:()=>{
       release(); // End the active hand effect, then clear even unowned room artwork.
       for(const toy of shelfToys)TOYS[toy].onLeave?.();
-      set({held:null,character:null});
+      set({held:null,character:null,stand:null});
     },
   };
 });

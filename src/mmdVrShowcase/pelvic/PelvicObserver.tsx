@@ -1,0 +1,37 @@
+import {useFrame} from '@react-three/fiber';
+import {useMemo,useRef,type RefObject} from 'react';
+import {Group,Vector3} from 'three';
+import {useBackpack} from '../backpack';
+import {useHudWorldInput} from '../components/hudWorldInput';
+import {useMmdVrStore} from '../mmdVrStore';
+import {usePelvic} from './store';
+import {PelvicLiveSection} from './Section';
+import type {PelvicRigHandle} from './PelvicRig';
+
+// Closing the controls frees the holding hand's grip. Leave the section beside
+// that actor: it can be read while moving the tool and never consumes a ray.
+type ObserverProps={rig:RefObject<PelvicRigHandle|null>};
+export function PelvicObserver({rig}:ObserverProps){
+  const id=usePelvic(s=>s.active?.assetId??null),xr=useMmdVrStore(s=>s.presentation==='xr');
+  const live=useBackpack(s=>id?s.live[id]:undefined),panel=useBackpack(s=>!!s.selected||!!s.draft||s.busy);
+  const blocked=useHudWorldInput(s=>s.blocked);
+  return xr&&id&&live?.visible&&!panel&&!blocked?<SectionStand rig={rig} assetId={id} runtimeId={live.runtimeId}/>:null;
+}
+function SectionStand({assetId,runtimeId,rig}:{assetId:string;runtimeId:string}&ObserverProps){
+  const group=useRef<Group>(null),s=useMemo(()=>({eye:new Vector3(),look:new Vector3(),right:new Vector3(),up:new Vector3(0,1,0)}),[]);
+  useFrame(({gl})=>{
+    const live=useBackpack.getState().live[assetId],node=group.current;if(!node)return;
+    node.visible=!!live?.visible&&live.runtimeId===runtimeId&&gl.xr.isPresenting&&!!rig.current?.getObserverAnchor(node.position);if(!node.visible)return;
+    gl.xr.getCamera().getWorldPosition(s.eye);
+    const b=live.bounds;
+    node.position.y+=.14;
+    s.look.subVectors(node.position,s.eye).setY(0);if(s.look.lengthSq()<1e-6)s.look.set(0,0,-1);s.look.normalize();
+    s.right.crossVectors(s.look,s.up);
+    // Reserve space for the figure even when it has been scaled up. The panel
+    // stays upright and actor-relative instead of following the hand or head.
+    node.position.addScaledVector(s.right,.32+Math.max(.12,(b?.size[0]??.5)*.5));
+    node.lookAt(s.eye);
+  });
+  return <group ref={group} visible={false} name="pelvic:observer" pointerEvents="none">
+    <PelvicLiveSection assetId={assetId} runtimeId={runtimeId}/></group>;
+}

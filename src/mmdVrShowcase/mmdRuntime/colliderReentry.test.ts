@@ -24,3 +24,13 @@ it("guards both discontinuous hands with one native read but passes through ongo
   read.mockClear(); expect(tick(.04,.05)).toEqual([expect.closeTo(.04),expect.closeTo(.05)]);
   expect(read).not.toHaveBeenCalled();
 });
+
+it('requires two independent clearance observations for props even after a delayed render frame',()=>{
+  const read=(_:readonly number[],out:Float32Array)=>{out.fill(0);return true;}, guard=new ColliderReentry(read,()=>1);
+  const shape={type:'sphere',size:[.02,0,0]} as const;
+  const rigidBodies=[{index:0,boneIndex:0,motionType:'dynamic' as const,shape},{index:1,boneIndex:1,motionType:'static' as const,shape,[syntheticColliderBody]:'prop'}];
+  const matrices=new Float32Array(32), c:MmdPhysicsStepContext={seconds:0,deltaSeconds:0,frame:0,frameRate:30,rigidBodies,inputWorldMatricesColumnMajor:matrices};
+  for(const [y,dt,expected] of [[PARK_Y,.05,PARK_Y],[.3,.05,PARK_Y],[.03,.05,PARK_Y],[.3,.05,PARK_Y],[.3,0,PARK_Y],[.3,1/60,.3]]){
+    matrices[29]=y;guard.apply(c,dt);expect(matrices[29]).toBeCloseTo(expected,6);
+  }
+});

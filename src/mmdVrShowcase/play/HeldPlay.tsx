@@ -10,6 +10,7 @@ import type { GripFrame } from './propView';
 import * as views from './propViews';
 import { StoryStations } from './StoryStations';
 import { isContactTool, mountHeldColliderSource } from './propColliders';
+import {queuePelvicGrip} from '../pelvic/input';
 
 export function PlayPiece({toy}:{toy:Toy}) {
   const {Piece}=views[TOYS[toy].view];
@@ -20,7 +21,7 @@ function InHand({toy,hand}:{toy:Toy;hand:Hand}) {
   const item=TOYS[toy], {HeldEffect,outlet}=views[item.view];
   const body=useRef<Group>(null), effect=useRef<((frame:GripFrame)=>void)|null>(null);
   const {gl,scene}=useThree();
-  useLayoutEffect(()=>{if(isContactTool(toy)&&body.current)return mountHeldColliderSource(scene,body.current,gl.xr.getSession());},[scene,gl,toy]);
+  useLayoutEffect(()=>{if((isContactTool(toy)||toy==='remoteEgg')&&body.current)return mountHeldColliderSource(scene,body.current,gl.xr.getSession());},[scene,gl,toy]);
   const scratch=useMemo(()=>({latch:gripLatch(),pose:new Matrix4(),ray:new Matrix4(),source:null as XRInputSource|null,
     frame:{at:new Vector3(),dir:new Vector3(),action:'off',dt:0,usable:false} as GripFrame}),[]);
   useFrame(({gl},delta,frame)=>{
@@ -53,6 +54,7 @@ function InHand({toy,hand}:{toy:Toy;hand:Hand}) {
       f.dir.applyQuaternion(prop.quaternion);f.at.applyQuaternion(prop.quaternion).add(prop.position);
       if(f.action==='start')handleGripStart(toy,stage.prefs.scenery,f.at,f.dir);
     }
+    if(toy==='dildo'&&frame&&effect.current&&queuePelvicGrip(scene,prop,frame,f,effect.current))return;
     effect.current?.(f);
   },-1); // After XR locomotion (-2), before the room samples this frame's tool pose.
   return <group pointerEvents="none"><group ref={body} visible={false}><PlayPiece toy={toy}/></group>

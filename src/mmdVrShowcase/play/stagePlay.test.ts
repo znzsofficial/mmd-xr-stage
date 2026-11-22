@@ -33,6 +33,14 @@ describe('shared prop catalog and ownership',()=>{
     get().equip('saber','right');expect(saberLit()).toBe(false);
     TOYS.saber.onGrip!(new Vector3(),forward);get().equip('post','right');expect(saberLit()).toBe(false);
   });
+  it('transfers one tool to an explicit stand and never silently gives its piece to a wrist',()=>{
+    get().equip('wand','left');handleGripStart('wand','floor',new Vector3(),forward);
+    get().mountStand('actor');expect(get()).toMatchObject({stand:{assetId:'actor',toy:'dildo'},held:null,character:null});
+    expect(useWandMotor.getState().speed).toBe(0);
+    get().give('other','right');expect(get().stand?.assetId).toBe('actor');expect(get().character).toBeNull();
+    get().equip('dildo','right');expect(get().stand).toBeNull();expect(get().held?.hand).toBe('right');
+    get().mountStand('actor');get().stow();expect(get().stand).toBeNull();
+  });
   it('lights a freshly equipped screen saber in any set; switching wrists preserves the blade',()=>{
     giveScreenToy('actor','saber','left','chapel');expect(saberLit()).toBe(true);
     get().reset();giveScreenToy('actor','saber','left','astralCourt');expect(saberLit()).toBe(true);

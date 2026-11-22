@@ -3,6 +3,8 @@ import type { MmdPhysicsRigidBodyShape } from '@yohawing/three-mmd-loader/physic
 import { PARK_Y } from '../mmdRuntime/colliderReentry';
 import { centerZ } from './siliconeProfile';
 import type { Hand, Toy } from './propCatalog';
+import { eggUnitSize } from './remote/eggSocket';
+import { eggCapsule, wearableIn, type WearableCollider } from './remote/wearableCollider';
 
 type Tool = 'wand'|'dildo';
 type Part = {tool:Tool; node:string; local:Matrix4; shape:MmdPhysicsRigidBodyShape};
@@ -26,9 +28,11 @@ const parts:readonly Part[]=[
   {tool:'wand',node:'wand:flex',local:at(.0468),shape:{type:'capsule',size:[.0255,.0028,0]}},
 ];
 
-export function propColliderShape(slot:number,inverseModelScale:number):MmdPhysicsRigidBodyShape {
-  const {type,size:[x,y,z]}=parts[slot].shape;
-  return {type,size:[x*inverseModelScale,y*inverseModelScale,z*inverseModelScale]};
+export const EGG_SLOT=parts.length;
+export function propColliderShape(slot:number,inverseModelScale:number,wearer?:Object3D|null):MmdPhysicsRigidBodyShape {
+  const egg=slot===EGG_SLOT, {type,size:[x,y,z]}=egg?eggCapsule:parts[slot].shape;
+  const k=egg&&wearer?eggUnitSize(wearer):inverseModelScale;
+  return {type,size:[x*k,y*k,z*k]};
 }
 
 const heldByScene=new WeakMap<Scene,Object3D>();
@@ -44,22 +48,46 @@ export function mountHeldColliderSource(scene:Scene,root:Object3D,session:XRSess
 }
 
 type Owner={toy:Toy;hand:Hand};
+export type StandCollider={pieceWorld:Matrix4;binding:object};
 export const isContactTool=(toy:Toy|undefined):toy is Tool=>toy==='wand'||toy==='dildo';
+
+function trackedRoot(scene:Scene,owner:Owner,frame:XRFrame|undefined,requireUsable=true){
+  const root=heldByScene.get(scene),d=root?.userData;
+  return root?.visible&&frame?.session.visibilityState==='visible'&&d?.propFrame===frame&&(!requireUsable||d.propUsable)&&
+    d.heldToy===owner.toy&&d.propSource?.handedness===owner.hand?root:null;
+}
+
 export function createPropColliderFeed(){
-  const matrices=parts.map(()=>parked.clone());
-  let prevOwner:Owner|null=null, prevRoot:Object3D|null=null, prevSource:XRInputSource|null=null, epoch=0;
-  function park(){for(const m of matrices)m.copy(parked);}
-  function clear(){if(prevRoot)park();prevRoot=null;prevOwner=null;prevSource=null;}
-  function sample(scene:Scene,wrist:Object3D|null,held:Owner|null,character:Owner|null,frame?:XRFrame){
-    const owner=held??character;
-    if(!owner||!isContactTool(owner.toy)){clear();return false;}
-    const root=held?heldByScene.get(scene):wrist, data=root?.userData;
-    if(!root?.visible || (held&&(!frame||frame.session.visibilityState!=='visible'||data!.propFrame!==frame||!data!.propUsable||
-      data!.heldToy!==held.toy||data!.propSource?.handedness!==held.hand))){clear();return false;}
-    const source=held?data!.propSource:null, currentEpoch=held?data!.trackingEpoch??0:0;
-    if(owner!==prevOwner||root!==prevRoot||source!==prevSource||epoch!==currentEpoch){
-      park();prevOwner=owner;prevRoot=root;prevSource=source;epoch=currentEpoch;return false;
+  const matrices=Array.from({length:EGG_SLOT+1},()=>parked.clone()), hidden=matrices.map(()=>parked);
+  let prevOwner:object|null=null,prevRoot:Object3D|null=null,prevTracked:Object3D|null=null,prevSource:XRInputSource|null=null,epoch=0;
+  let egg:WearableCollider|undefined, placement=-1, revision=0,tick=0;
+  const delivered=new WeakMap<Object3D,{revision:number;parkTick:number}>();
+  function clear(){if(prevOwner){for(const m of matrices)m.copy(parked);revision++;}
+    prevRoot=null;prevOwner=null;prevTracked=null;prevSource=null;egg=undefined;}
+  function select(owner:object,root:Object3D|null,tracked:Object3D|null,receiver?:WearableCollider){
+    const source=tracked?.userData.propSource??null, boundary=tracked?.userData.trackingEpoch??0, at=receiver?.epoch??-1;
+    if(owner===prevOwner&&root===prevRoot&&tracked===prevTracked&&source===prevSource&&boundary===epoch&&receiver===egg&&at===placement)return true;
+    clear();revision++;prevOwner=owner;prevRoot=root;prevTracked=tracked;prevSource=source;epoch=boundary;egg=receiver;placement=at;return false;
+  }
+  function sample(scene:Scene,wrist:Object3D|null,held:Owner|null,character:Owner|null,frame?:XRFrame,stand?:StandCollider|null){
+    tick++;
+    if(stand&&!held&&!character){
+      if(!select(stand.binding,null,null))return false;
+      for(let i=0;i<4;i++)matrices[i].multiplyMatrices(stand.pieceWorld,parts[i].local);
+      return true;
     }
+    const owner=held??character;
+    if(held?.toy==='remoteEgg'){
+      // A panel may own the trigger while the user nudges the receiver. The
+      // shell remains worn; a missing actual grip/ray must still park it.
+      const receiver=wearableIn(scene),hand=frame?trackedRoot(scene,held,frame,false):null;
+      if(!receiver?.wearer?.visible||((receiver.xr||frame)&&!hand)){clear();return false;}
+      return select(held,receiver.wearer,hand,receiver);
+    }
+    if(!owner||!isContactTool(owner.toy)){clear();return false;}
+    const root=held?trackedRoot(scene,held,frame):wrist;
+    if(!root?.visible){clear();return false;}
+    if(!select(owner,root,held?root:null))return false;
     let active=false;
     for(let i=0;i<parts.length;i++){
       const part=parts[i];if(part.tool!==owner.toy)continue;
@@ -72,5 +100,16 @@ export function createPropColliderFeed(){
     }
     return active;
   }
-  return {sample,clear,getMatrices:()=>matrices};
+  function getMatrices(steppingRoot?:Object3D|null){
+    if(!steppingRoot||!prevOwner)return matrices;
+    // A sleeping model can miss an entire store transition. Deliver at least
+    // one parked physics frame to EACH world, including repeated buffer queries.
+    let seen=delivered.get(steppingRoot);
+    if(!seen){seen={revision:-1,parkTick:-1};delivered.set(steppingRoot,seen);}
+    if(seen.revision!==revision){seen.revision=revision;seen.parkTick=tick;}
+    if(seen.parkTick===tick)return hidden;
+    if(egg&&(steppingRoot!==egg.wearer||!egg.write(matrices[EGG_SLOT])))return hidden;
+    return matrices;
+  }
+  return {sample,clear,getMatrices};
 }

@@ -693,7 +693,7 @@ export function MmdVrControlBar({onExit,busy,onDragChange:reportInteraction}:{on
   const [page, setPage] = useState<"watch" | "bag" | "scenery" | "advanced">("watch");
   const physicsFatal = useMmdVrStore(s => s.physicsFatal);
   const bagBusy = useBackpack(s => s.busy), bagError = useBackpack(s => s.error);
-  const toy = useStagePlay(s => s.held?.toy);
+  const toy = useStagePlay(s => s.held?.toy??s.stand?.toy);
   const selected = useBackpack(s => s.selected), draft = useBackpack(s => s.draft);
   const selectedLive = useBackpack(s => s.selected ? s.live[s.selected] : null);
   const draftName = useBackpack(s => s.entries.find(e => e.id === s.draft)?.file.name);

@@ -51,7 +51,7 @@ async function run(scene,camera,group){
       const heel0=vertex();for(let i=0;i<=75;i++){heelTo(rest.clone().add(new Vector3(0,-.34+.35*i/75,0)));step();}
       const heelLift=vertex().y-heel0.y, tipBelowHem=pos(hem).y-targetNode.localToWorld(local.clone()).y;
       const extraSeeds=seeds-seed0, row={toy,scale,wristGrip,lift,skinLift,heelLift,tipBelowHem,armDrift,controllerManifolds,extraSeeds,reentry,fall:before.y+lift-rest.y,bodies:rt.getRigidBodyCount()};rows.push(row);
-      check(lift>.06&&skinLift>.06&&heelLift>.06&&tipBelowHem>.12*scale+.03&&row.fall>.055&&armDrift<1e-6&&controllerManifolds===0&&extraSeeds===0&&reentry<.005&&row.bodies===23,'cloth/diagnostic regression',row);
+      check(lift>.06&&skinLift>.06&&heelLift>.06&&tipBelowHem>.12*scale+.03&&row.fall>.055&&armDrift<1e-6&&controllerManifolds===0&&extraSeeds===0&&reentry<.005&&row.bodies===24,'cloth/diagnostic regression',row);
 
       // Actual animated wrist on screen: give the same piece to the carrier
       // and put a second independent garment in the path of its VMD upstroke.

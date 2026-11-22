@@ -281,8 +281,9 @@ export type MmdRuntimeOptions = {
   handCollidersEnabled?: () => boolean;
   handColliderRadius?: () => number;
   handShape?: ColliderShapeFactory;
-  propColliders?: () => readonly THREE.Matrix4[];
-  propShape?: ColliderShapeFactory;
+  /** No root requests the immutable slot layout; a stepping root selects its own wearable. */
+  propColliders?: (steppingRoot?: THREE.Object3D | null) => readonly THREE.Matrix4[];
+  propShape?: (slot: number, inverseScale: number, steppingRoot?: THREE.Object3D | null) => ReturnType<ColliderShapeFactory>;
   physicsQuality?: () => MmdPhysicsQuality;
   physicsDynamicSelfCollision?: () => boolean;
   prepareModel?: (root: THREE.Object3D) => void;
@@ -461,7 +462,8 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       handCollidersEnabled,
       handColliders?.().length ?? 0,
     );
-    const propColliderProvider=createMappedColliderProvider(options.propColliders,undefined,options.propColliders?.().length??0);
+    const readProps = options.propColliders, shape = options.propShape;
+    const propColliderProvider = createMappedColliderProvider(readProps ? () => readProps(colliderRoot) : undefined, undefined, readProps?.().length ?? 0);
     // One Bullet world per model (library world holds a single uploaded model identity).
     const physicsDisplay = withPhysics ? new PhysicsPoseDisplay() : undefined;
     const handEligibility={mask:0};
@@ -474,7 +476,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
            handColliders: handColliderProvider,
            onEligibleColliders:handColliderProvider ? mask=>{handEligibility.mask=(mask >>> (colliderProvider?2:0)) & 0xfff;} : undefined,
            propColliders:propColliderProvider,
-           propShape:options.propShape,
+           propShape: shape ? (slot, inverseScale) => shape(slot, inverseScale, colliderRoot) : undefined,
           handShape: options.handShape,
           simulationDelta: () => stepDelta,
           modelScale: () => Math.min(10, Math.max(0.01, Number(colliderRoot?.userData.mmdVisualScale) || transform.scale)),

@@ -1,6 +1,6 @@
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useImperativeHandle, useMemo, useRef } from 'react';
-import { Color, type Group, type MeshBasicMaterial } from 'three';
+import { Color, type MeshBasicMaterial } from 'three';
 import { useMmdVrStore } from '../../mmdVrStore';
 import { TOYS } from '../propCatalog';
 import type { FrameEffectProps } from '../propView';
@@ -14,7 +14,7 @@ const tints=['#705c67','#8ff5d8','#ffc26e','#ceaaff'].map(c=>new Color(c));
 // on the receiver. Number and cadence both work without discriminating colours.
 function LitIndicator({receiver=false}:{receiver?:boolean}) {
   const mode=useRemoteEgg(s=>s.mode), mat=useRef<MeshBasicMaterial>(null);
-  useFrame(()=>{if(mat.current)mat.current.color.copy(tints[mode]).multiplyScalar(.26+1.04*eggPowerAt(performance.now()));});
+  useFrame(({clock})=>{if(mat.current)mat.current.color.copy(tints[mode]).multiplyScalar(.26+1.04*eggPowerAt(clock.oldTime));});
   return <group name="egg:indicator">
     {receiver?<mesh rotation-x={Math.PI/2} position-y={-.019} scale={[1,.88,1]}><torusGeometry args={[.0181,.0014,6,32]}/>
       <meshBasicMaterial ref={mat} toneMapped={false}/></mesh>:
@@ -37,22 +37,17 @@ export function EggHandset() {
 }
 
 export function EggReceiver() {
-  const shell=useMemo(makeEggReceiver,[]), joint=useRef<Group>(null), on=useRemoteEgg(s=>s.mode!==0);
+  const shell=useMemo(makeEggReceiver,[]), on=useRemoteEgg(s=>s.mode!==0);
   useEffect(()=>()=>shell.dispose(),[shell]);
-  useFrame(()=>{if(!joint.current)return;
-    const now=performance.now(),power=eggPowerAt(now);
-    joint.current.rotation.z=.042*power*Math.sin(now*.047);
-    joint.current.position.x=.0016*power*Math.cos(now*.047);
-  });
-  return <group ref={joint} name="egg:silicone">
+  return <group name="egg:silicone">
     <mesh geometry={shell}><meshStandardMaterial vertexColors roughness={.72}/></mesh>
     {on&&<LitIndicator receiver/>}
   </group>;
 }
 
 export function EggHandFeedback({ref}:FrameEffectProps) {
-  const driver=useMemo(createEggFeedback,[]);
+  const driver=useMemo(createEggFeedback,[]),clock=useThree(s=>s.clock);
   useEffect(()=>()=>driver.reset(),[driver]);
-  useImperativeHandle(ref,()=>frame=>driver.update(frame,useMmdVrStore.getState().prefs.physicsHapticLevel,performance.now()),[driver]);
+  useImperativeHandle(ref,()=>frame=>driver.update(frame,useMmdVrStore.getState().prefs.physicsHapticLevel,clock.oldTime),[driver,clock]);
   return null;
 }

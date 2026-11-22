@@ -59,7 +59,9 @@ export class ColliderReentry {
         clear = (x-this.centers[3*j])**2 + (y-this.centers[3*j+1])**2 + (z-this.centers[3*j+2])**2 > r*r;
       }
       if (clear) {
-        slot.cooling -= Math.max(0, dt);
+        // A long or resumed display frame is only ONE clearance observation.
+        // Never accept a parked prop on that sample alone.
+        slot.cooling -= Math.max(0,slot.prop?Math.min(dt,1/60):dt);
         if(slot.cooling<=0)accepted|=1<<n;
         else if(slot.prop){matrices[i]=0;matrices[i+1]=PARK_Y;matrices[i+2]=0;}
       } else {

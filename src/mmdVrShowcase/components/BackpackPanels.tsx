@@ -92,7 +92,7 @@ export function BackpackPanel({ onClose, locked }: { onClose: () => void; locked
 function ToyShelf({locked,onClose}:{locked:boolean;onClose:()=>void}) {
   const t=useLanguageStore(s=>s.t),room=useMmdVrStore(s=>s.prefs.scenery),held=useStagePlay(s=>s.held),n=useLunarCard(s=>s.stamps.length);
   const left=useXRInputSourceState('controller','left'),right=useXRInputSourceState('controller','right');
-  const characterHasToy=useStagePlay(s=>s.character!==null);
+  const characterHasToy=useStagePlay(s=>!!(s.character||s.stand));
   const connected=(h:Hand)=>!!(h==='left'?left:right)?.inputSource.gripSpace;
   const [help,setHelp]=useState<Toy|null>(null);
   const [page,setPage]=useState(0), pages=Math.ceil(shelfToys.length/ROWS);

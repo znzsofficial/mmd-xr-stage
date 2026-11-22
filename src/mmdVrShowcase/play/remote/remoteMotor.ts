@@ -5,6 +5,13 @@ export type EggOffset = readonly [number, number, number];
 const zero:EggOffset = [0, 0, 0];
 export const useRemoteEgg = create<{assetId:string|null; mode:RemoteMode; offset:EggOffset}>(()=>({assetId:null,mode:0,offset:zero}));
 
+// A rebind / coarse reset and back between two display frames is still a
+// teleport. Small calibration commands instead move along a bounded path.
+let placementEpoch=0;
+useRemoteEgg.subscribe((s,p)=>{if(s.assetId!==p.assetId||(s.offset!==p.offset&&
+  Math.hypot(s.offset[0]-p.offset[0],s.offset[1]-p.offset[1],s.offset[2]-p.offset[2])>5))placementEpoch++;});
+export const eggPlacementEpoch=()=>placementEpoch;
+
 // The store publishes commands, not animation frames. Both LEDs and XR feedback
 // sample the same monotonic phase, including when a running remote changes hands.
 let modeStartedMs = 0;

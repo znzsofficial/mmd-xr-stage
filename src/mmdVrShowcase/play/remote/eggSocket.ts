@@ -51,14 +51,28 @@ function fit(root:Object3D):Socket {
   return {anchor:root,localPoint:mid,localAxes:new Quaternion(),size:height/typicalHeight};
 }
 
-/** Display-only world-space attachment. Bind-axis correction keeps calibration
- * horizontal/vertical/forward even on hips authored with a rolled local frame. */
-export function poseEggReceiver(group:Object3D,root:Object3D|null,offset:EggOffset) {
-  if(!root?.visible){group.visible=false;return;}
+function socketOf(root:Object3D) {
   let socket=sockets.get(root);if(!socket){socket=fit(root);sockets.set(root,socket);}
-  const {anchor,localAxes,localPoint,size}=socket;
+  return socket;
+}
+
+/** The receiver only participates in its wearer's world. Its immutable shape
+ * uses that skeleton's authored units, even before a transmitter is equipped. */
+export function eggUnitSize(root:Object3D) {
+  const {size,anchor}=socketOf(root);
+  anchor.updateWorldMatrix(true,false);
+  return size*anchor.matrixWorld.getMaxScaleOnAxis()/root.scale.x;
+}
+
+const origin=new Vector3();
+/** World-space attachment. During a solver step the actor is temporarily at
+ * unit scale: restore visual metres about its pivot BEFORE applying cm offsets. */
+export function poseEggReceiver(group:Object3D,root:Object3D|null,offset:EggOffset,visualRatio=1) {
+  if(!root?.visible){group.visible=false;return;}
+  const {anchor,localAxes,localPoint,size}=socketOf(root);
   anchor.localToWorld(group.position.copy(localPoint));
+  if(visualRatio!==1){origin.setFromMatrixPosition(root.matrixWorld);group.position.sub(origin).multiplyScalar(visualRatio).add(origin);}
   anchor.getWorldQuaternion(group.quaternion).multiply(localAxes);
   group.translateX(offset[0]*.01);group.translateY(offset[1]*.01);group.translateZ(offset[2]*.01);
-  group.scale.setScalar(size*anchor.matrixWorld.getMaxScaleOnAxis()); group.visible=true;
+  group.scale.setScalar(size*anchor.matrixWorld.getMaxScaleOnAxis()*visualRatio); group.visible=true;
 }

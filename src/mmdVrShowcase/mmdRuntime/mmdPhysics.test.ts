@@ -59,7 +59,7 @@ describe("XR collider physics regression", () => {
     const hand=createControllerColliderPhysicsBackend(prop,()=>Array(12).fill(identity)),controller=createControllerColliderPhysicsBackend(hand,()=>[identity,identity]);
     const c=context(),rigidBodies=Array.from({length:15},(_,i)=>({...c.rigidBodies![0],index:i,collisionGroup:i,collisionMask:0}));
     controller.step({...c,rigidBodies});const all=step.mock.lastCall![0].rigidBodies!;
-    expect(all).toHaveLength(36);expect(all.slice(29).map(b=>b.shape)).toEqual(m.map((_,i)=>propColliderShape(i,2)));
+    expect(all).toHaveLength(37);expect(all.slice(29).map(b=>b.shape)).toEqual(m.map((_,i)=>propColliderShape(i,2)));
     expect(all[29].collisionGroup).toBe(all[15].collisionGroup);expect(all[29].collisionMask).toBe(0x7fff);
     expect(all[0].collisionMask!&(1<<all[29].collisionGroup!)).not.toBe(0);
     expect(controller.debugControllerContactCount()).toBe(0);expect(hand.debugControllerContactCount()).toBe(0);expect(prop.debugControllerContactCount()).toBe(0);

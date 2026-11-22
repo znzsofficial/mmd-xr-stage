@@ -12,6 +12,7 @@ import { isStoryRoom, STORIES, toyLabel } from '../play/propCatalog';
 import { canGiveTo, useStagePlay } from '../play/stagePlay';
 import {EggControls,WandControls} from './ContactPropControls';
 import {BodyHudControls} from '../bodyState/BodyControls';
+import {PelvicHudControls} from '../pelvic/Controls';
 import {PoseHudControls} from '../pose/PoseHudControls';
 import {bindRemoteEgg,useRemoteEgg} from '../play/remoteEgg';
 
@@ -49,7 +50,7 @@ function SelectedTools({ entry, instance }: { entry: BackpackEntry; instance: Ba
   const t = useLanguageStore(s => s.t);
   const transform = useMmdVrStore(s => (entry.kind === "model" ? s.models : s.objects).find(e => e.id === instance.runtimeId));
   const busy = useBackpack(s => s.busy), physicsBusy = useMmdVrStore(s => s.physicsBusy);
-  const [page, setPage] = useState<'tools'|'arrange'|'motions'|'prop'|'wand'|'pose'|'body'>(entry.kind==='model'?'tools':'arrange');
+  const [page, setPage] = useState<'tools'|'arrange'|'motions'|'prop'|'wand'|'pose'|'body'|'pelvic'>(entry.kind==='model'?'tools':'arrange');
   const held=useStagePlay(s=>s.held?.toy),holding=!!held;
   const wearer=useRemoteEgg(s=>s.assetId===entry.id);
   const carries = useStagePlay(s=>s.character?.assetId===entry.id);
@@ -64,13 +65,13 @@ function SelectedTools({ entry, instance }: { entry: BackpackEntry; instance: Ba
   });
   const locked = busy || physicsBusy;
   const scale = transform?.scale ?? 1, rotation = transform?.rotationY ?? 0;
-  if(page==='pose'||page==='body'){
-    const Editor=page==='pose'?PoseHudControls:BodyHudControls;
+  if(page==='pose'||page==='body'||page==='pelvic'){
+    const Editor=page==='pose'?PoseHudControls:page==='body'?BodyHudControls:PelvicHudControls;
     return <group ref={group} name="backpack-world-tools" scale={.86} pointerEventsOrder={1} pointerEventsType={{deny:['touch','grab']}}>
       <Editor assetId={entry.id} runtimeId={instance.runtimeId} onBack={()=>setPage('tools')}/></group>;
   }
   return <group ref={group} name="backpack-world-tools" scale={0.86} pointerEventsOrder={1} pointerEventsType={{ deny: ["touch", "grab"] }}>
-    <group position-y={page==='tools' ? ((holding||carries||wandOut) ? -.01 : .08) : cues||eggPage||page==='wand' ? -.10 : 0}><HudSheet size={[1.34, page==='tools' ? ((holding||carries||wandOut) ? .98 : .76) : cues||eggPage||page==='wand' ? 1.20 : 1.0]} /></group>
+    <group position-y={page==='tools' ? ((holding||carries||wandOut) ? -.11 : -.01) : cues||eggPage||page==='wand' ? -.10 : 0}><HudSheet size={[1.34, page==='tools' ? ((holding||carries||wandOut) ? 1.2 : .98) : cues||eggPage||page==='wand' ? 1.20 : 1.0]} /></group>
     <HudLine position={[-0.16, 0.37, 0]} text={entry.file.name} width={0.93} role="title" />
     <HudButton position={[0.47, 0.37, 0]} label={t(page !== 'tools' && entry.kind==='model' ? "hudTools" : "hudDone")} size={[0.31, 0.13]} variant="quiet" onPress={() => {
       if (page !== 'tools' && entry.kind==='model') setPage('tools'); else useBackpack.getState().select(null);
@@ -80,6 +81,7 @@ function SelectedTools({ entry, instance }: { entry: BackpackEntry; instance: Ba
       <HudButton position={[.315,.09,0]} size={[.59,.16]} label={t('watchArrange')} disabled={locked} onPress={()=>setPage('arrange')}/>
       <HudButton position={[-.315,-.125,0]} size={[.59,.16]} label={t('actorPose')} disabled={locked||!instance.visible} onPress={()=>setPage('pose')}/>
       <HudButton position={[.315,-.125,0]} size={[.59,.16]} label={t('actorBodyState')} disabled={locked||!instance.visible} onPress={()=>setPage('body')}/>
+      <HudButton position={[0,holding||carries||wandOut?-.57:-.35,0]} size={[1.22,.14]} label={t('actorPelvic')} disabled={locked||!instance.visible} onPress={()=>setPage('pelvic')}/>
       {(holding||carries)&&<HudButton position={[wandOut ? -.315 : 0,-.35,0]} size={[wandOut ? .59 : 1.22,.14]} label={t(held==='remoteEgg'?(wearer?'eggFit':'eggWear'):carries?'propGrip':'propGive')} disabled={locked||(!instance.visible&&held==='remoteEgg')} onPress={()=>{if(held==='remoteEgg'&&!wearer)bindRemoteEgg(entry.id);setPage('prop');}}/>}
       {wandOut&&<HudButton position={[(holding||carries) ? .315 : 0,-.35,0]} size={[(holding||carries) ? .59 : 1.22,.14]} label={t('wandResponse')} disabled={locked||!instance.visible} onPress={()=>setPage('wand')}/>}
     </>:<>

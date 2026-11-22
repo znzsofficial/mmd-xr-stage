@@ -49,8 +49,12 @@ import { useStagePlay } from '../play/stagePlay';
 import { PlayPiece } from '../play/HeldPlay';
 import {useHudWorldInput} from '../components/hudWorldInput';
 import { RemoteWearable } from '../play/remote/RemoteWearable';
+import {presentRemoteWearable} from '../play/remote/wearableCollider';
 import {mountPoseRoom,usePoseSession} from '../pose/poseSession';
 import {PoseHandles} from '../pose/PoseHandles';
+import {PelvicRig,type PelvicRigHandle} from '../pelvic/PelvicRig';
+import {PelvicObserver} from '../pelvic/PelvicObserver';
+import {createApertureLayer} from '../pelvic/aperture';
 import {createBodyRoom} from '../bodyState/room';
 
 const noRoomLightEvents=()=>()=>{};
@@ -166,6 +170,8 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
     [scene, gl, motionCache, alphaTiles,propFeed]);
   const actors = useMemo(() => createStageActors(scene, runtime, () => appliedPhysicsEnabledRef.current, () => timeRef.current), [scene, runtime]);
   const wristGroup = useRef<THREE.Group>(null);
+  const pelvic=useRef<PelvicRigHandle>(null);
+  const standSample=useMemo(()=>({pieceWorld:new THREE.Matrix4(),binding:{} as object}),[]);
   function poseCharacterProp(rt:MmdRuntimeHandle){
     const group=wristGroup.current;if(!group)return;
     const prop=useStagePlay.getState().character, live=prop&&useBackpack.getState().live[prop.assetId];
@@ -173,17 +179,19 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
     else group.visible=false;
   }
   useLayoutEffect(()=>{
-    const stop=useStagePlay.subscribe((s,p)=>{if(s.held!==p.held||s.character!==p.character)propFeed.clear();});
+    const stop=useStagePlay.subscribe((s,p)=>{if(s.held!==p.held||s.character!==p.character||s.stand!==p.stand)propFeed.clear();});
     const stopRoom=useMmdVrStore.subscribe(s=>{if(!s.overlayOpen||s.prefs.scenery!==scenery||s.physicsBusy||!s.physicsEnabled||s.physicsFatal||s.assetLoad.running)propFeed.clear();});
     return ()=>{stop();stopRoom();propFeed.clear();};
   },[propFeed,scenery]);
   const wand = useMemo(createRoomWand,[runtime]);
+  const aperture=useMemo(createApertureLayer,[runtime]);
+  useLayoutEffect(()=>()=>{wand.restore();aperture.restore();},[wand,aperture]);
   useLayoutEffect(()=>{
     const stopMotor=useWandMotor.subscribe(s=>{if(!s.speed)wand.resetWand();});
     const stopConfig=useWandResponse.subscribe((s,prev)=>{if(!s.enabled&&prev.enabled)wand.clearWandContact();else if(s.byActor!==prev.byActor)wand.restore();});
     const stopHud=useHudWorldInput.subscribe(s=>{if(s.blocked)wand.stopDrive();});
     const stopBag=useBackpack.subscribe(s=>{if(s.busy||s.draft||s.selected)wand.stopDrive();});
-    const stopTransfer=useStagePlay.subscribe((s,p)=>{if(s.held!==p.held||s.character?.assetId!==p.character?.assetId||s.character?.hand!==p.character?.hand||s.character?.toy!==p.character?.toy)wand.reset();});
+    const stopTransfer=useStagePlay.subscribe((s,p)=>{if(s.held!==p.held||s.stand!==p.stand||s.character?.assetId!==p.character?.assetId||s.character?.hand!==p.character?.hand||s.character?.toy!==p.character?.toy)wand.reset();});
     const stopRoom=useMmdVrStore.subscribe((s,p)=>{
       if(s.models!==p.models)forgetWandResponses(p.models.filter(m=>!s.models.some(x=>x.id===m.id)).map(m=>m.id));
       if(!s.overlayOpen||s.prefs.scenery!==scenery||s.physicsBusy||s.assetLoad.running||s.physicsFatal)wand.reset();
@@ -197,14 +205,14 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
   useLayoutEffect(()=>{
     const body=createBodyRoom(runtime,()=>{lastEvaluatedTimeRef.current=-Infinity;});bodyRoom.current=body;
     poseRoom.current=mountPoseRoom({
-      open(id){if(isRoomStale())return null;wand.restore();return runtime.beginPose(id,timeRef.current);},
-      close(id){wand.restore();runtime.endPose(id);},
+      open(id){if(isRoomStale())return null;wand.restore();aperture.restore();pelvic.current?.interrupt();return runtime.beginPose(id,timeRef.current);},
+      close(id){wand.restore();aperture.restore();runtime.endPose(id);},
       dirty(reseed){lastEvaluatedTimeRef.current=-Infinity;poseSettle.current=.8;
         const id=usePoseSession.getState().runtimeId;
-        if(reseed&&id&&appliedPhysicsEnabledRef.current){wand.restore();runtime.resetPhysics(timeRef.current,id);}}
+        if(reseed&&id&&appliedPhysicsEnabledRef.current){wand.restore();aperture.restore();runtime.resetPhysics(timeRef.current,id);}}
     });
     return ()=>{poseRoom.current?.dispose();poseRoom.current=null;bodyRoom.current=null;body.dispose();};
-  },[runtime,wand]);
+  },[runtime,wand,aperture]);
 
   useLayoutEffect(() => {
     runtimeRef.current = runtime;
@@ -535,7 +543,9 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
   }, [actors, command, physicsBusy, assetLoading]);
 
   useFrame(({clock}, delta, frame) => {
-    wand.restore(); // Remove only last frame's display weight, before all VMD/Bullet work (also when paused).
+    // Reverse display order, including while paused: these two mappings may
+    // target the same PMX channel as each other or the daily shape underneath.
+    wand.restore();aperture.restore();
     applyLighting();
 
     // Let the placement-ready frame run first. An idle callback can outlive
@@ -659,13 +669,22 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
     }
     const physicsOn = store.physicsEnabled && !store.physicsBusy;
     const owners=useStagePlay.getState(), inXR=store.presentation==='xr';
+    const bag=useBackpack.getState();
+    const pelvicBlocked=isRoomStale()||store.physicsBusy||store.physicsFatal||store.assetLoad.running||bag.busy||!!bag.draft||
+      pendingSeekSeed.current||physicsResetRequested||physicsReseedNeeded||usePoseSession.getState().editing||
+      (inXR&&(frame?.session.visibilityState!=='visible'||useHudWorldInput.getState().blocked));
     let propActive=false;
     if(physicsOn&&!isRoomStale()&&!store.physicsFatal&&!store.assetLoad.running&&!useBackpack.getState().busy&&!pendingSeekSeed.current&&(!inXR||frame?.session.visibilityState==='visible')){
       // A character socket reads the last *displayed*, visually scaled wrist.
       // Never evaluate a second VMD pose to feed its own Bullet world. Refit
       // the drawn piece to the newly evaluated wrist below, after writeback.
       if(isContactTool(owners.character?.toy))poseCharacterProp(rt);
-      propActive=propFeed.sample(scene,wristGroup.current,owners.held,owners.character,frame);
+      // An attached stand, like a wrist, supplies its last displayed pose for
+      // this step. Refresh visuals against the new evaluated owner below.
+      const mount=owners.stand&&!pelvicBlocked?pelvic.current?.getStandRoot():null;
+      const binding=mount&&pelvic.current?.getStandBinding(),piece=binding&&mount.getObjectByName('play:piece:dildo');
+      if(piece){piece.updateWorldMatrix(true,false);standSample.pieceWorld.copy(piece.matrixWorld);standSample.binding=binding;}
+      propActive=propFeed.sample(scene,wristGroup.current,owners.held,owners.character,frame,piece?standSample:null);
     }else propFeed.clear();
     // Screen has no free player hand. Keep the paused solver awake for a
     // mounted wrist prop and briefly after stowing so a lifted hem can fall.
@@ -698,9 +717,13 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
       lastEvaluatedTimeRef.current = evaluationTime;
     }
     poseCharacterProp(rt);
-    const play=useStagePlay.getState(),contactToy=play.held?.toy??play.character?.toy;
+    presentRemoteWearable(scene);
+    pelvic.current?.advance(delta,frame,pelvicBlocked);
+    const opening=pelvic.current?.getAperture();
+    if(opening)aperture.apply(opening.assetId,rt.getModelSurface(opening.runtimeId),opening.amount);
+    const play=useStagePlay.getState(),contactToy=play.held?.toy??play.character?.toy??play.stand?.toy;
     if((contactToy==='wand'||contactToy==='dildo')&&!isRoomStale()&&!store.physicsBusy&&!store.physicsFatal&&!store.assetLoad.running){
-      wand.advance(scene,wristGroup.current,contactToy,play.held?.hand??null,frame,clock.oldTime,store.prefs.physicsHapticLevel,
+      wand.advance(scene,play.stand?pelvic.current?.getStandRoot()??null:wristGroup.current,contactToy,play.held?.hand??null,frame,clock.oldTime,store.prefs.physicsHapticLevel,
         useMmdVrStore.getState().models,rt.getModelSurface);
     }
     if(store.presentation!=='xr')return;
@@ -748,6 +771,8 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
     <>
       {characterToy && <group ref={wristGroup} name="play:character" pointerEvents="none" visible={false}><PlayPiece toy={characterToy}/></group>}
       <RemoteWearable getRoot={runtime.getModelRoot}/>
+      <PelvicRig ref={pelvic} getRoot={runtime.getModelRoot} getSurface={runtime.getModelSurface}/>
+      <PelvicObserver rig={pelvic}/>
       <PoseHandles/>
       <StageEnvironment scenery={scenery} prefs={mmdPrefs} profile={profile} lighting={lightCfg}
         sunRef={sunRef}/>

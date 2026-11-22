@@ -1,0 +1,14 @@
+.pelvic-screen {display:grid;gap:.52rem;min-width:0;color:var(--ink)}
+.pelvic-heading,.pelvic-field>span {display:flex;align-items:baseline;justify-content:space-between;gap:.5rem}
+.screen-library .pelvic-heading h3 {margin:0;font-size:1rem}
+.pelvic-section {display:block;width:100%;height:auto;border-radius:.3rem}
+.pelvic-keys {display:flex;align-items:stretch;gap:.3rem;flex-wrap:wrap}
+.screen-stage .pelvic-keys button {flex:1 1 0;min-width:0;min-height:2.65rem;padding:.37rem .32rem;overflow-wrap:anywhere;line-height:1.25}
+.screen-stage .pelvic-keys button[data-danger=true]:not(:disabled) {color:#873040;background:#f9ebed;border-color:#dbafb6}
+.pelvic-fields {display:grid;gap:.56rem;border-top:1px solid var(--line);padding-top:.65rem;min-width:0}
+.screen-library .pelvic-note {margin:0;color:var(--quiet);font-size:.87rem;line-height:1.45;overflow-wrap:anywhere}
+.screen-library .pelvic-note[data-warn=true] {color:#873040}
+.pelvic-field {display:grid;gap:.08rem;min-width:0;font-size:.87rem}
+.pelvic-field output {font-variant-numeric:tabular-nums;font-weight:650}
+.pelvic-field input {display:block;width:100%;min-height:2.1rem;margin:0}
+.pelvic-field select {min-width:0;max-width:100%}
