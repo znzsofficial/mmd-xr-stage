@@ -1,6 +1,6 @@
 # 会话交接｜2026-11-22
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `f4019b7`](https://41ef223b.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `af9c811`](https://227e05c1.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
 
 **线上基线：** 16 景，主列表 10 个入口，10 件道具。[母星采谱、五条风道、两座跳岛](./scenery/opal-planet.md)已上线。硅胶件和按摩棒均可在暂停时推动 PMX 活动衣物；[什么情况下手柄会震](./gameplay/README.md#道具接触与手柄震动)。
 
@@ -8,7 +8,7 @@
 
 **场内角色工具：** [手动摆姿势与身体状态](./gameplay/pose-and-body-states.md)支持定格、拖动和命名保存姿势、对照两个周期日、切换可选胸型与分侧泌乳状态。屏幕和 VR 共用当前页的角色数据。普通模式探头不再灰屏，摇杆仍不能穿墙。
 
-**[骨盆附件与佩戴件物理](./gameplay/pelvic-attachment.md)：** 跳蛋外壳可推动相容的活动衣物；硅胶件由手柄或支架互斥操控。剖面显示实测杆位，按实际喷口区分在内、可见在外、未验证／越限。校准和游戏液量按角色分开。
+**[骨盆附件与佩戴件物理](./gameplay/pelvic-attachment.md)：** 跳蛋外壳可推动相容的活动衣物；硅胶件由手柄或支架互斥操控。剖面显示实测杆位，精液以乳白色表示，阴道与宫腔单独计量。「录手法回放」、双角色持具和撤出回流仍是候选。
 
 **子宫动态图：** 骨盆附件的「器官动态／测量剖面」和身体状态的周期页使用本地旋转视图，支持正面、斜前、侧面和中间角度。图像定格不停止真实输入或计量。[转动示例](./screenshots/organ-motion.webp)
 
