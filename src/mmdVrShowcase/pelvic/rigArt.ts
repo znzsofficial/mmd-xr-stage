@@ -4,26 +4,35 @@ import { siliconeMount, siliconeTilt } from '../play/siliconeProfile';
 import { pelvicRailLimit, pelvicRailMatrix, type PelvicFrame, type PelvicSeal } from './geometry';
 import { pelvicRailTravel } from './path';
 import { PELVIC_LIMITS } from './stateTypes';
+import { fitSite, formColors, junctionColor, readCut, vulvaHalves } from './vulvaForm';
 
-// Cross section of the free-standing moulding, from back outer edge around
-// the rolled bead to the return down its inner wall. No disc masks the hole.
-const courses = [
-  [0,-.25,'#745869'],[-.055,-.13,'#846779'],[-.05,.015,'#b794a1'],[.02,.13,'#dbc0bf'],
-  [.10,.15,'#efd7cd'],[.17,.075,'#ba939e'],[.26,.08,'#b98a98'],[.57,.19,'#d7a9ae'],
-  [.83,.195,'#d6a6a9'],[.97,.12,'#ba8895'],[1,0,'#986b7d'],[1,-.20,'#765363'],
-] as const;
-export function createSealShell(count:number){
-  const geom=new BufferGeometry(),pos=new Float32BufferAttribute(new Float32Array(count*courses.length*3),3).setUsage(DynamicDrawUsage);
-  const colors=new Float32Array(pos.count*3),ix:number[]=[],v=new Vector3();
-  for(let k=0;k<courses.length;k++){const color=new Color(courses[k][2]);for(let i=0;i<count;i++){
-    const a=k*count+i,b=k*count+(i+1)%count,c=((k+1)%courses.length)*count+i,d=((k+1)%courses.length)*count+(i+1)%count;
-    ix.push(a,b,c,b,d,c);color.toArray(colors,a*3);
-  }}
-  geom.setIndex(ix);geom.setAttribute('position',pos);geom.setAttribute('color',new Float32BufferAttribute(colors,3));
+const sites=vulvaHalves.flatMap(h=>h.rows.flatMap(r=>r.sites));
+const columns=formColors.length,colors=formColors.map(c=>new Color(c));
+export function createSealShell(){
+  const geom=new BufferGeometry(),pos=new Float32BufferAttribute(sites.length*3,3).setUsage(DynamicDrawUsage);
+  const pigment=new Float32Array(sites.length*3),finish=new Float32Array(sites.length*2),ix:number[]=[],tint=new Color(),skin=new Color(junctionColor);
+  for(const [h,{rows,side}] of vulvaHalves.entries())for(let j=0;j<rows.length;j++)for(let k=0;k<columns;k++){
+    const a=(h*rows.length+j)*columns+k,b=a+1,c=a+columns,d=c+1;
+    const site=sites[a];tint.copy(colors[k]).lerp(skin,site.blend).multiplyScalar(1-.13*site.contactShade).toArray(pigment,a*3);
+    finish[2*a]=.25+.5*site.gloss;finish[2*a+1]=.5;
+    if(k+1===columns||j+1===rows.length)continue;
+    if(side===1)ix.push(a,b,c,b,d,c);else ix.push(a,c,b,b,c,d);
+  }
+  geom.setIndex(ix);geom.setAttribute('position',pos);geom.setAttribute('color',new Float32BufferAttribute(pigment,3));
+  geom.setAttribute('uv',new Float32BufferAttribute(finish,2));
+  geom.setAttribute('normal',new Float32BufferAttribute(pos.count*3,3).setUsage(DynamicDrawUsage));
+  const last={x:0,y:0,xx:0,xy:0,yx:0,yy:0},cut={...last},point=new Vector3();let fittedRadius=-1;
   function fit(seal:PelvicSeal,radius:number){
-    for(let k=0;k<courses.length;k++){const [fromOuter,raise]=courses[k];for(let i=0;i<count;i++){
-      v.lerpVectors(seal.outer[i],seal.lip[i],fromOuter);pos.setXYZ(k*count+i,v.x,v.y,v.z+raise*radius);
-    }}pos.needsUpdate=true;geom.computeVertexNormals();geom.computeBoundingSphere();
+    // An admitted, stationary tool is just as static as an empty slit. A
+    // lateral or oblique change at the same openness must still move the lip.
+    readCut(seal.lip,radius,cut);
+    if(Math.abs(radius-fittedRadius)+Math.abs(cut.x-last.x)+Math.abs(cut.y-last.y)+Math.abs(cut.xx-last.xx)+
+      Math.abs(cut.xy-last.xy)+Math.abs(cut.yx-last.yx)+Math.abs(cut.yy-last.yy)<1e-8)return;
+    Object.assign(last,cut);fittedRadius=radius;
+    for(let i=0;i<sites.length;i++){
+      fitSite(sites[i],radius,cut,point);pos.setXYZ(i,point.x,point.y,point.z);
+    }
+    pos.needsUpdate=true;geom.computeVertexNormals();geom.computeBoundingSphere();if(geom.boundingBox)geom.computeBoundingBox();
   }
   return {geom,fit};
 }

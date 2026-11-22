@@ -19,6 +19,7 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen
   const zh=useLanguageStore(s=>s.language==='zh'),l=(a:string,b:string)=>zh?a:b;
   const [page,go]=useState<Page>('use'),[fit,setFit]=useState<Fit>('position');
   const [listPage,setListPage]=useState(0),[morphPage,setMorphPage]=useState(0);
+  const [clothesBack,setClothesBack]=useState<'fit'|'use'>('use');
   const morph=useApertureMorph(assetId),names=useBackpack(s=>s.live[assetId]?.propMorphs);
   const profile=usePelvic(s=>s.byAsset[assetId]);
   const support=usePelvic(s=>s.support[assetId]?.runtimeId===runtimeId?s.support[assetId]:undefined);
@@ -45,7 +46,7 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen
     rows.push(main(l('为此成年角色启用','Enable for this adult'),()=>enablePelvic(assetId,true)));
     return result;
   }
-  const section=page==='holder'||page==='clothes'?'use':page==='fluid'?'view':page;
+  const section=page==='holder'?'use':page==='clothes'?clothesBack:page==='fluid'?'view':page;
   for(const [id,label] of [['use',l('操作','Use')],['view',l('观察图','Anatomy')],['fit',l('调整入口','Fit opening')]] as const)
     tabs.push(key(label,()=>go(id),{id,active:section===id}));
   const known=!!support&&support.kind!=='missing',covered=support?.obstruction;
@@ -55,7 +56,7 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen
     // Jump to the intersecting layer, but keep row order stable after hiding
     // one. The same spot on the next frame must not hide a different garment.
     const i=support?.blockerName?selectable.indexOf(support.blockerName):-1;
-    setListPage(Math.max(0,Math.floor(i/3)));go('clothes');
+    setClothesBack(page==='fit'?'fit':'use');setListPage(Math.max(0,Math.floor(i/3)));go('clothes');
   }, relocate=()=>{setFit('model');go('fit');};
   const assign=(m:PelvicMode,h?:'left'|'right')=>{if(assignPelvic(assetId,m,source,h))go('use');};
   const start=()=>{
@@ -90,7 +91,7 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen
       rows.push(buttons(key(visible?l(`隐藏：${n}`,`Hide: ${n}`):l(`显示：${n}`,`Show: ${n}`),()=>setPelvicGarmentVisible(assetId,n,!visible),{id:n})));
     }
     if(pages>1)rows.push(buttons(key(l('上一页','Previous'),()=>setListPage(at-1),{disabled:!at}),key(l('下一页','Next'),()=>setListPage(at+1),{disabled:at===pages-1})));
-    rows.push(link(l('返回操作','Back to controls'),()=>go('use')));
+    rows.push(link(clothesBack==='fit'?l('返回模型设置','Back to model settings'):l('返回操作','Back to controls'),()=>go(clothesBack)));
   }else if(page==='holder'){
     result.status=mode?l(`当前：${rigName}`,`Using: ${rigName}`):l('选择谁来拿假阳具。','Choose how to hold the rod.');
     for(const [m,label,h] of [['standManual',l('手动支架','Manual stand')],['standAuto',l('自动支架','Motor stand')],
@@ -101,9 +102,9 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen
     if(mode)rows.push(link(l('收起假阳具','Put rod away'),()=>{releasePelvic(assetId);go('use');}));
   }else if(page==='fit'){
     result.status=!known?l('没有找到入口。到「模型」手动指定起点。','Opening not found. Set an origin under Model.'):
-      fit==='model'?l('只影响当前角色。','Changes apply to this actor only.'):
+      fit==='model'?coverage||l('可单独看角色的外阴附件，不用放置道具。','You can inspect the attachment without placing a rod.'):
       l('看角色身上的入口标记调整；改动后需重新确认。','Fit the marker on the actor, then confirm the opening again.');
-    rows.push(...fitRows({assetId,source,l,profile,support,fit,setFit,morph,names:names??[],page:morphPage,setPage:setMorphPage,clear:()=>{disablePelvic(assetId);go('use');}}));
+    rows.push(...fitRows({assetId,source,l,profile,support,fit,setFit,morph,names:names??[],page:morphPage,setPage:setMorphPage,clothes,clear:()=>{disablePelvic(assetId);go('use');}}));
   }else if(page==='fluid'){
     const c=profile.container,uterine=c==='fantasyUterine',amount=profile.fluid[c];
     result.status=`${uterine?l('宫腔','Uterus'):l('阴道','Vagina')} · ${amount} / ${profile.capacity[c]} ${l('单位','units')}`;

@@ -2,6 +2,7 @@
    workspace remains a flex split, so the stage is resized instead of covered. */
 @media (min-width:651px) {
   .screen-library:has(.pelvic-screen) { width:min(26rem,39%); }
+  .screen-library:has(.pelvic-body[data-chart=true]) { width:min(30rem,42%); }
 }
 @media (max-width:650px) {
   .screen-library:has(.pelvic-screen) { max-height:57%; }

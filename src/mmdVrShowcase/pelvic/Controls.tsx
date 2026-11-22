@@ -50,7 +50,7 @@ export function PelvicScreenControls(props:ScreenProps) {
 
 // The body sheet is read in front of the selected actor. Put the moving
 // section beside the controls, so the stop button never moves with a sample.
-const panelW=2.02, chartW=.88, editorW=.99, leftX=-.52, rightX=.465, top=.69;
+const panelW=2.02, chartW=1.04, editorW=.83, leftX=-.44, rightX=.545, top=.69;
 const chartH=chartW*1.30;
 const spacing=.03, rowGap=.025, noteFont=26, density=560;
 function HudKeys({items,w,blocked,tabs=false,stop=false}:{items:Key[];w:number;blocked:boolean;tabs?:boolean;stop?:boolean}) {

@@ -1,4 +1,4 @@
-import { BufferGeometry, CylinderGeometry, Group, Matrix4, Mesh, MeshStandardMaterial, TorusGeometry, Vector3, type Object3D } from 'three';
+import { BufferGeometry, CylinderGeometry, DataTexture, Group, LinearFilter, Matrix4, Mesh, MeshStandardMaterial, TorusGeometry, Vector3, type Object3D } from 'three';
 import { createSealShell, makeCarriage, makeStandFoot, makeTracks } from './rigArt';
 import { pelvicSeal, type PelvicContact, type PelvicFrame } from './geometry';
 
@@ -14,8 +14,12 @@ export function placeWorld(node:Object3D,world:Matrix4){
 
 export function createPortDrawing(host:Object3D,assetId:string){
   const group=new Group();group.name=`pelvic:adapter:${assetId}`;group.visible=false;host.add(group);
-  const shellMaterial=new MeshStandardMaterial({vertexColors:true,roughness:.55});
-  const seed={radiusM:.02},seal=pelvicSeal(seed,closed,true)!,shell=createSealShell(seal.outer.length);
+  // Green is linear roughness. Only the free lip carries small glints under
+  // a stage light; the broad pad has a much wider lobe. No PMX material map.
+  const finish=new DataTexture(new Uint8Array([0,173,0,255,0,69,0,255]),2,1);
+  finish.magFilter=finish.minFilter=LinearFilter;finish.needsUpdate=true;
+  const shellMaterial=new MeshStandardMaterial({vertexColors:true,roughness:1,roughnessMap:finish});
+  const seed={radiusM:.02},seal=pelvicSeal(seed,closed,true)!,shell=createSealShell();
   const molded=new Mesh(shell.geom,shellMaterial);molded.name='pelvic:seal';group.add(molded);
   const mark=new Mesh(new TorusGeometry(1,.055,8,40),new MeshStandardMaterial({color:'#6dc6bd',roughness:.64,wireframe:false}));
   mark.visible=false;mark.name='pelvic:calibration-guide';group.add(mark);
@@ -23,12 +27,11 @@ export function createPortDrawing(host:Object3D,assetId:string){
   return {group,draw(f:PelvicFrame,showShell:boolean,preview:boolean,contact:PelvicContact=closed){
     placeWorld(group,f.world);group.visible=showShell||preview;mark.visible=preview&&!showShell;molded.visible=showShell;
     if(mark.visible)mark.scale.set(f.radiusM*1.62,f.radiusM*1.72,f.radiusM);
-    if(!showShell&&!contact.inside)return 0;
-    // The undeformed mesh is identical on every subsequent closed frame.
+    if(!contact.inside&&(!showShell||(!wasOpen&&Math.abs(lastRadius-f.radiusM)<=1e-8)))return 0;
     const opening=pelvicSeal(f,contact,true,seal)!;
-    if(showShell&&(wasOpen||opening.openness>0||Math.abs(lastRadius-f.radiusM)>1e-7)){shell.fit(opening,f.radiusM);lastRadius=f.radiusM;}
-    if(showShell)wasOpen=opening.openness>0;return opening.openness;
-  },dispose(){group.removeFromParent();shell.geom.dispose();shellMaterial.dispose();mark.geometry.dispose();mark.material.dispose();}};
+    if(showShell){shell.fit(opening,f.radiusM);lastRadius=f.radiusM;wasOpen=opening.openness>0;}
+    return opening.openness;
+  },dispose(){group.removeFromParent();shell.geom.dispose();finish.dispose();shellMaterial.dispose();mark.geometry.dispose();mark.material.dispose();}};
 }
 
 export function createStandDrawing(host:Object3D){

@@ -5,9 +5,9 @@ import {patchPelvic,PELVIC_LIMITS as lim,type PelvicProfile,type PelvicSupport} 
 
 export type Fit='position'|'angle'|'size'|'model'|'morph';
 type FitOptions={assetId:string;source:'screen'|'xr';l:Localize;profile:PelvicProfile;support?:PelvicSupport;fit:Fit;setFit:(s:Fit)=>void;
-  morph:string|null;names:readonly string[];page:number;setPage:(n:number)=>void;clear:()=>void};
+  morph:string|null;names:readonly string[];page:number;setPage:(n:number)=>void;clothes:()=>void;clear:()=>void};
 
-export function fitRows({assetId,source,l,profile,support,fit,setFit,morph,names,page,setPage,clear}:FitOptions):Row[]{
+export function fitRows({assetId,source,l,profile,support,fit,setFit,morph,names,page,setPage,clothes,clear}:FitOptions):Row[]{
   const c=profile.calibration,rows:Row[]=[],patch=(calibration:Partial<PelvicCalibration>)=>patchPelvic(assetId,{calibration,clothingClear:false});
   if(fit==='morph'){
     const none=l('不用形态键','None'),label=l('入口开合形态','Opening morph'),pick=(name:string|null)=>setApertureMorph(assetId,name);
@@ -31,7 +31,14 @@ export function fitRows({assetId,source,l,profile,support,fit,setFit,morph,names
   else if(fit==='size')rows.push(field(l('阴道长度','Vaginal length'),c.lengthM*100,' cm',percentRange(lim.lengthM),.1,n=>patch({lengthM:n/100})),
     field(l('入口半径','Opening radius'),c.radiusM*100,' cm',percentRange(lim.radiusM),.1,n=>patch({radiusM:n/100})));
   else{
-    rows.push(buttons(key(profile.showAdapter?l('隐藏外阴附件','Hide vulva attachment'):l('显示外阴附件','Show vulva attachment'),()=>patchPelvic(assetId,{showAdapter:!profile.showAdapter}))),
+    // A visible attachment has its own use case: inspecting the actor's fit.
+    // Exposing the port does not require a rod assignment or start a stand.
+    const ready=!!support&&support.kind!=='missing'&&!support.obstruction;
+    if(profile.showAdapter)rows.push(buttons(key(l('隐藏外阴附件','Hide vulva attachment'),()=>patchPelvic(assetId,{showAdapter:false}))));
+    if(!profile.showAdapter||!profile.clothingClear)rows.push(buttons(key(profile.clothingClear?l('显示外阴附件','Show vulva attachment'):
+      l('入口已露出，显示外阴附件','Opening is clear · show attachment'),()=>patchPelvic(assetId,{showAdapter:true,clothingClear:true}),{disabled:!ready})));
+    if(support?.obstruction)rows.push(buttons(key(l('调整衣物','Manage clothing'),clothes)));
+    rows.push(
       buttons(key(l('选择开合形态','Choose opening morph'),()=>{setPage(Math.max(0,Math.floor(names.indexOf(morph??'')/3)));setFit('morph');})),
       buttons(key(c.manual?l('改用骨骼定位','Use bone position'):l('手动指定起点','Set origin manually'),()=>{if(c.manual)patch({manual:null});else if(support?.manualSeed){patch({manual:support.manualSeed});setFit('position');}},{disabled:!c.manual&&!support?.manualSeed})),
       buttons(key(l('还原入口设置','Reset opening fit'),()=>patch({...defaultPelvicCalibration,manual:c.manual}))),

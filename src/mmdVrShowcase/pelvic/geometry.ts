@@ -1,6 +1,7 @@
 import { Vector3 } from 'three';
 import type { PelvicContact, PelvicFrame, PelvicSeal, PelvicSection } from './contract';
 import { pelvicCenterline, rod, rodRadii, tangent } from './path';
+import {rimSamples as count,slitHalfLength} from './vulvaForm';
 
 export * from './contract';
 export { registerPelvicSocket, samplePelvicFrame } from './socket';
@@ -28,12 +29,11 @@ export function pelvicSection<F extends Pick<PelvicFrame,'lengthM'|'radiusM'>>(f
   return { canal:a.concat(b.reverse()), entry, stop, cervix, uterus };
 }
 
-const count = 40, angles = Array.from({length:count},(_,i) => [Math.cos(i*2*Math.PI/count), Math.sin(i*2*Math.PI/count)]);
+const angles = Array.from({length:count},(_,i) => [Math.cos(i*2*Math.PI/count), Math.sin(i*2*Math.PI/count)]);
 const makeLoop = () => Array.from({length:count},() => new Vector3());
-/** A topology supplied explicitly for an adapted opening. Use a two-loop
- * triangle strip. The two resting slit edges coincide exactly; the moving lip
- * follows the ACTUAL shaft-plane intersection, including its oblique section.
- * This only emits data for the separate attachment. */
+/** Socket guides and measured entrance curve for the separate attachment.
+ * The two resting slit edges coincide; the moving edge follows the actual
+ * shaft-plane intersection, including an oblique section. */
 export function pelvicSeal(f: Pick<PelvicFrame,'radiusM'>, contact: PelvicContact, adapted: boolean, target?: PelvicSeal): PelvicSeal | null {
   if (!adapted) return null;
   const seal = target ?? { outer:makeLoop(), lip:makeLoop(), openness:0 };
@@ -55,9 +55,9 @@ export function pelvicSeal(f: Pick<PelvicFrame,'radiusM'>, contact: PelvicContac
   for (let i=0; i<count; i++) {
     const [c,s] = angles[i], extra = stretch*(c*dx+s*dy);
     seal.outer[i].set(1.62*rim*c,1.72*rim*s,0);
-    // Collapse to a vertical slit, rather than shrinking to an empty point.
-    const slit = Math.max(0, 1-radius/(rim*.62));
-    seal.lip[i].set(x+radius*(c+extra*dx),y+radius*(s+extra*dy)+slit*rim*.62*s,0);
+    // At rest the edges coincide along a vertical seam. Even a narrow tip
+    // has a physical section; do not leave a gap above and below its crown.
+    seal.lip[i].set(x+radius*(c+extra*dx),radius?y+radius*(s+extra*dy):rim*slitHalfLength*s,0);
   }
   return seal;
 }
