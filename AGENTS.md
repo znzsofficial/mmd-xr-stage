@@ -94,6 +94,9 @@ pnpm deploy
 
 ## Verification And Files
 
+- Keep user-reviewable art, comparisons, adult/anatomical screenshots and private device evidence in the ignored project directory `local-review/` (art in `art/`, screenshots in `screenshots/`). Give the user paths there. Temp is only for disposable scripts/logs. Do not publish these images from `docs/screenshots`, `public`, GitHub attachments or deployment artifacts. Keep ordinary public stage scenery and concise numerical evidence in the docs. Removing published assets from HEAD is not a history rewrite.
+- Parallel agents may edit independent code, but only the release owner schedules expensive validation. Run at most **one** browser/renderer or IWER instance; close it before the next GPU check. Never overlap a full build or Vitest suite with it. Reuse the tested build; batch screen captures in one browser, use a single Vitest worker locally, and rerun only failed/affected checks unless the release gate is still outstanding.
+
 - When filtering sensitive material from the public README, edit only the affected examples, screenshots and links. Preserve the project badges and technical sections (stack, XR and physics, diagnostics, development and deployment). Keep private asset details and internal handoff notes off the front page.
 
 - For completed product changes, finish the release for the user: after verification, merge, push normally, deploy the tested build to the existing production Pages project per `docs/deployment.md`, and verify the main domain. Report the live link instead of handing the user a release command. If a check or deployment fails, report the blocker. This routine does not authorize force pushes.

@@ -5,3 +5,13 @@ dist-ssr/
 *.local
 .DS_Store
 sample/
+# Local art reviews, adult illustrations, visual regressions and raw device evidence.
+/local-review/
+/.openchamber/
+# New documentation captures are opt-in; already tracked public scenery stays tracked.
+/docs/screenshots/**/*.webp
+/docs/screenshots/**/*.png
+/docs/screenshots/**/*.jpg
+/docs/screenshots/**/*.jpeg
+/docs/screenshots/**/*.gif
+/docs/screenshots/**/*.avif

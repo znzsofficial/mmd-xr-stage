@@ -2,7 +2,7 @@
 
 进入妇科医院后，屏幕的「游览机位」可直接选以下三处。XR 可从同一条候诊廊步行进入，过门不切换场景。
 
-[三件解剖教具](../screenshots/clinic-models.webp) · [器械盘](../screenshots/clinic-instruments.webp) · [卫生用品架](../screenshots/clinic-supplies.webp) · [产后宣教图](../screenshots/clinic-postpartum.webp) · [护士工作台](../screenshots/clinic-nurse.webp)
+[器械盘](../screenshots/clinic-instruments.webp) · [卫生用品架](../screenshots/clinic-supplies.webp) · [产后宣教图](../screenshots/clinic-postpartum.webp) · [护士工作台](../screenshots/clinic-nurse.webp)
 
 **原有护士的显隐。** 默认隐藏，沿用当前浏览器已保存的选择。屏幕选「游览机位 → 诊室工作台」，在「背包 → 环境」切换「场景人物」；VR 在「B → 更多 → 环境」。[同机位开关对照](../screenshots/clinic-people-toggle.webp)。隐藏后座椅、显示器和教具不动，护士专属的占地与射线遮挡一并移除。没有场景人物的布景不显示这个开关。
 

@@ -32,4 +32,4 @@ VR：**背包 → 玩具**，选手柄拿取。屏幕：选中已放置角色，
 ## 上手与验收
 
 - [导入与续场](./asset-workflow.md) · [屏幕操作](./screen-viewing.md) · [VR 普通与自由移动](./vr-controls.md#普通与自由移动)。本地音乐在准备页选一首，观看中可单独播放、暂停和调音量；切景不断，退出停止。
-- [道具制作与验证探针](./prop-authoring.md) · [六件外观近照](../screenshots/handheld-closeups.webp)。模拟 XR 验证输入、形变和脉冲请求；Quest 3S 的实际握感、握姿和追踪恢复仍待[真机短测](../performance/next-quest-export.md)。
+- [道具制作与验证探针](./prop-authoring.md)。模拟 XR 验证输入、形变和脉冲请求；Quest 3S 的实际握感、握姿和追踪恢复仍待[真机短测](../performance/next-quest-export.md)。
