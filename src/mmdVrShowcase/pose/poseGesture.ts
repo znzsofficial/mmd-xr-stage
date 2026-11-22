@@ -1,16 +1,23 @@
-import { Plane, type Ray, Vector3 } from 'three';
+import { MathUtils, Plane, type Ray, Vector3 } from 'three';
 
-/** The center never snaps to the surface hit. XR carries it at the acquired ray depth;
- * a screen pointer moves it in the plane parallel to the film at pointer-down. */
-export function poseTranslation(ray: Ray, hit: Vector3, center: Vector3, viewNormal: Vector3, xr: boolean) {
-  const depth = hit.distanceTo(ray.origin), offset = center.clone().sub(hit);
-  const plane = new Plane().setFromNormalAndCoplanarPoint(viewNormal,hit);
-  return (next: Ray, out: Vector3) => {
-    if (xr) next.at(depth,out);
-    else if (!next.intersectPlane(plane,out)) return false;
-    out.add(offset);
-    return true;
+/** Carry the original contact offset. Wheel travel moves the film-parallel plane
+ * before intersecting the cursor, so a depth edit doesn't slide the grab sideways. */
+export function screenPoseTranslation(ray: Ray, hit: Vector3, center: Vector3, facingEye: Vector3, metresPerPixel: number) {
+  const offset = center.clone().sub(hit), plane = new Plane().setFromNormalAndCoplanarPoint(facingEye,hit);
+  const initial = plane.constant, eyeDepth = plane.distanceToPoint(ray.origin);
+  const rate = MathUtils.clamp(metresPerPixel * .14,.0002,.0012);
+  return (next: Ray, out: Vector3, wheelPixels = 0) => {
+    plane.constant = MathUtils.clamp(plane.constant + wheelPixels*rate, initial-eyeDepth+Math.min(.12,eyeDepth), initial+50);
+    if (!next.intersectPlane(plane,out)) return false;
+    out.add(offset); return true;
   };
+}
+
+/** The ray chooses the joint; after acquisition a centre follows hand translation
+ * one-to-one. Small rotations of a remote pointer aren't long lever arms. */
+export function carryPoseCenter(grip: Vector3, center: Vector3) {
+  const offset = center.clone().sub(grip);
+  return (position: Vector3, out: Vector3) => out.copy(position).add(offset);
 }
 
 /** A camera-facing dial controls the chosen rotation axis. atan2 avoids the

@@ -3,7 +3,7 @@ import { expect, it, vi } from 'vitest';
 import { CircleGeometry, Mesh, MeshBasicMaterial, PerspectiveCamera, type Ray, Vector3 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { bindScreenPosePointer } from './screenPosePointer';
-import { poseTranslation } from './poseGesture';
+import { screenPoseTranslation } from './poseGesture';
 
 it('captures a real ray hit before OrbitControls and model click, commits only the owning release, and leaves background drags to orbit', () => {
   const canvas = document.createElement('canvas'), wrapper = document.createElement('div');
@@ -15,23 +15,24 @@ it('captures a real ray hit before OrbitControls and model click, commits only t
   const orbit = new OrbitControls(camera,canvas), eye = camera.position.clone();
   const pick = new Mesh(new CircleGeometry(.22),new MeshBasicMaterial());
   const click = vi.fn(); wrapper.addEventListener('click',click);
-  let owner: number | undefined, sample: ((r: Ray,out: Vector3) => boolean) | undefined;
+  let owner: number | undefined, sample: ((r: Ray,out: Vector3,w?:number) => boolean) | undefined;
   const pos = new Vector3(), before = new Vector3();
   const release = vi.fn((cancel: boolean) => { if (cancel) pos.copy(before); canvas.releasePointerCapture(owner!); owner = undefined; });
   const dispose = bindScreenPosePointer(canvas,camera,{
-    enabled: () => true, targets: () => [pick], owner: () => owner,
+    enabled: () => true, target: () => pick, owner: () => owner,
     begin(_mesh,ray,hit,e) {
       owner = e.pointerId; canvas.setPointerCapture(owner); before.copy(pos);
-      sample = poseTranslation(ray,hit,pos,camera.getWorldDirection(new Vector3()),false); return true;
-    }, move: r => { sample?.(r,pos); }, release,
+      sample = screenPoseTranslation(ray,hit,pos,camera.getWorldDirection(new Vector3()).negate(),.007); return true;
+    }, move: (r,w) => { sample?.(r,pos,w); }, release,
   });
   const pointer = (event: string,x: number,y: number,id = 1,buttons = 1) => canvas.dispatchEvent(new PointerEvent(event,
     { pointerId:id, pointerType:'mouse', isPrimary:true, clientX:x, clientY:y, button:0, buttons, bubbles:true, cancelable:true }));
   try {
     pointer('pointerdown',200,200); pointer('pointerup',100,100,2,0); pointer('lostpointercapture',0,0,2);
     expect(owner).toBe(1); expect(release).not.toHaveBeenCalled();
-    pointer('pointermove',290,260); pointer('pointerup',290,260,1,0); canvas.click();
-    expect(pos.x).toBeGreaterThan(.4); expect(pos.y).toBeLessThan(-.3); expect(pos.z).toBe(0);
+    pointer('pointermove',290,260); canvas.dispatchEvent(new WheelEvent('wheel',{clientX:290,clientY:260,deltaMode:1,deltaY:-3,cancelable:true,bubbles:true}));
+    pointer('pointerup',290,260,1,0); canvas.click();
+    expect(pos.x).toBeGreaterThan(.4); expect(pos.y).toBeLessThan(-.3); expect(pos.z).toBeCloseTo(.04704);
     expect(release).toHaveBeenCalledExactlyOnceWith(false); expect(click).not.toHaveBeenCalled(); expect(camera.position.distanceTo(eye)).toBe(0);
     const last = pos.clone();
     pointer('pointerdown',200,200); pointer('pointermove',100,100); pointer('lostpointercapture',100,100);

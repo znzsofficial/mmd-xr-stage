@@ -31,7 +31,7 @@ export function PoseScreenControls(props: PoseControlsProps) {
       {tab === 'joints' ? <>
         <label className="pose-field">{t.joint}<select disabled={busy || !s.keys.length} value={s.selected}
           onChange={e => poseActions.select(e.target.value as PoseKey)}>{s.keys.map(k => <option key={k} value={k}>{t.labels[k]}</option>)}</select></label>
-        <p>{movable ? t.dragScreen : t.rotateScreen}</p>
+        <p>{movable ? busy ? t.reachScreen : t.dragScreen : t.rotateScreen}</p>
         <fieldset disabled={busy || !joint}><legend>{t.rotate}</legend>
           <div className="pose-axis">{POSE_AXES.map(a => <button key={a} aria-pressed={a === axis}
             onClick={() => usePoseTool.setState({ axis: a })}>{t.axes[a]}</button>)}</div>
@@ -52,7 +52,7 @@ export function PoseScreenControls(props: PoseControlsProps) {
           {s.savedNames.map(n => <option key={n} value={n}>{n}</option>)}</select></label>
           <button disabled={busy} onClick={() => { if (poseActions.load(props.assetId, props.runtimeId, chosen)) setTab('joints'); }}>{t.load}</button></> : <p>{t.empty}</p>}
       </>}
-      <div className="pose-exit">{props.onBack && <button onClick={s.leave}>{t.keep}</button>}<button onClick={s.restore}>{t.end}</button></div>
+      <div className="pose-exit">{props.onBack && <button disabled={busy} onClick={s.leave}>{t.keep}</button>}<button disabled={busy} onClick={s.restore}>{t.end}</button></div>
     </>}
   </div>;
 }

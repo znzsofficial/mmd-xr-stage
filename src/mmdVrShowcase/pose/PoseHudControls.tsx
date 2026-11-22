@@ -33,7 +33,7 @@ export function PoseHudControls(props: PoseControlsProps & { onBack: () => void 
     <HudSheet size={[1.34,1.55]}/>
     <HudLine position={[-.33,.665,0]} width={.55} role="title" text={tab === 'keyboard' ? t.typeName : t.title}/>
     <Key x={.275} y={.665} w={.67} text={tab === 'keyboard' ? t.done : s.active ? t.keep : t.back}
-      press={tab === 'keyboard' ? () => setTab('library') : s.leave} quiet/>
+      press={tab === 'keyboard' ? () => setTab('library') : s.leave} disabled={busy} quiet/>
     {!s.active ? <><Line y={.24} text={s.held ? t.held : t.unavailable}/>
       <Key y={.02} text={s.held ? t.resume : t.retry} press={s.begin}/>
       {s.held && <Key y={-.20} text={t.end} press={s.restore}/>}</> : tab === 'keyboard' ? <>
@@ -51,7 +51,7 @@ export function PoseHudControls(props: PoseControlsProps & { onBack: () => void 
         <Key x={-.47} y={.30} w={.28} text={t.previous} disabled={busy || s.keys.length < 2} press={() => keyStep(-1)}/>
         <HudLine position={[0,.30,0]} width={.60} center text={t.labels[s.selected]}/>
         <Key x={.47} y={.30} w={.28} text={t.next} disabled={busy || s.keys.length < 2} press={() => keyStep(1)}/>
-        <Line y={.145} text={movable ? t.dragXr : t.rotateXr} muted/>
+        <Line y={.145} text={movable ? busy ? t.reachXr : t.dragXr : t.rotateXr} muted/>
         {POSE_AXES.map((a,i) => <Key key={a} x={(i-1)*.42} y={.005} w={.38} text={t.axes[a]} active={axis === a} disabled={busy || !joint}
           press={() => usePoseTool.setState({ axis: a })}/>)}
         <Key x={-half} y={-.165} w={.59} text={`${axis.toUpperCase()} −5°`} disabled={busy || !joint} press={() => poseActions.rotate(s.selected,axis,-POSE_ANGLE_STEP)}/>
@@ -72,7 +72,7 @@ export function PoseHudControls(props: PoseControlsProps & { onBack: () => void 
           <Key y={-.385} w={.60} text={t.load} disabled={busy} press={() => { if (poseActions.load(props.assetId, props.runtimeId, entry)) setTab('joints'); }}/>
           <Key x={.475} y={-.385} w={.27} text={t.next} disabled={busy || savedIndex+1 >= s.savedNames.length} press={() => setChosen(s.savedNames[savedIndex+1])}/></> : <Line y={-.20} text={t.empty} muted/>}
       </>}
-      <Key y={-.68} text={t.end} press={s.restore} quiet/>
+       <Key y={-.68} text={t.end} press={s.restore} disabled={busy} quiet/>
     </>}
   </group>;
 }

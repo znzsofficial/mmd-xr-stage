@@ -88,7 +88,7 @@ function SelectedItem({entry,locked,frame,move,choice,setChoice}:{entry:Backpack
   if(!live)return null;
   // A physics rebuild briefly removes the transform record. Keeping the same
   // actor editor mounted preserves its unsaved preview while controls lock.
-  if(editor&&(editor!=='pose'||!locked)&&live.visible){const Editor=editor==='pose'?PoseScreenControls:editor==='body'?BodyScreenControls:PelvicScreenControls;return <section className="screen-tools" data-focus-actor={editor!=='pose'||undefined}><h3>{entry.file.name}</h3>
+  if(editor&&live.visible){const Editor=editor==='pose'?PoseScreenControls:editor==='body'?BodyScreenControls:PelvicScreenControls;return <section className="screen-tools" data-focus-actor><h3>{entry.file.name}</h3>
     <Editor assetId={entry.id} runtimeId={live.runtimeId} onBack={()=>setEditor(null)}/></section>;}
   if(!transform)return null;
   return <section className="screen-tools"><h3>{entry.file.name}</h3>
