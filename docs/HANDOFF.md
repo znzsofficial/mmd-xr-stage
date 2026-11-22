@@ -1,6 +1,6 @@
 # 会话交接｜2026-11-22
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `854fad1`](https://a45a898f.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `5c24a0d`](https://30572523.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
 
 **线上：** 16 景、主列表 10 个入口、10 件道具。点已放置角色即可[摆姿势、预览身体状态](./gameplay/pose-and-body-states.md)，或用[骨盆附件、动态图与计量](./gameplay/pelvic-attachment.md)。[拨衣和触觉](./gameplay/README.md#道具接触与手柄震动)可在暂停时试；小行星[采谱、风道与跳岛](./scenery/opal-planet.md)已上线。
 
