@@ -5,6 +5,7 @@ import {afterEach,beforeEach,expect,it,vi} from 'vitest';
 import {clearBackpack,useBackpack} from '../backpack';
 import {beginBodyPreview,patchBodyPreview,useBodyState} from '../bodyState/store';
 import {useMmdVrStore} from '../mmdVrStore';
+import {usePelvic} from '../pelvic/store';
 import {ScreenStage} from './ScreenStage';
 
 // Stand in for a completed scene pick. The real ray first selects in the
@@ -15,7 +16,6 @@ vi.mock('../components/MmdVrStage',()=>({MmdVrStageContent:()=>null}));
 vi.mock('../play/StoryStations',()=>({StoryStations:()=>null}));
 vi.mock('./ScreenCamera',async()=>{const {useLayoutEffect}=await import('react');return {ScreenCamera:({onReady}:{onReady:(v:boolean)=>void})=>{useLayoutEffect(()=>onReady(true),[onReady]);return null;}};});
 vi.mock('../music/ScreenMusic',()=>({ScreenMusic:()=>null}));
-vi.mock('../pelvic/Controls',()=>({PelvicScreenControls:()=>null}));
 
 HTMLDialogElement.prototype.showModal=function(){this.open=true;};
 HTMLDialogElement.prototype.close=function(){this.open=false;};
@@ -41,7 +41,7 @@ afterEach(async()=>{await act(()=>root.unmount());host.remove();clearBackpack();
 it('opens the chosen actor directly and lets the bag show every item independently of that selection',async()=>{
   expect(activeSheet()).toBeNull();await click('背包');expect(activeSheet()?.querySelectorAll('.screen-item')).toHaveLength(2);
   await click('pick b');expect(activeSheet()?.querySelector('h2')?.textContent).toBe('Blue');
-  expect(['摆位置','动作','摆姿势','身体状态'].map(x=>button(x)?.disabled)).toEqual([false,false,false,false]);
+  expect(['服装','互动','身体观察','摆位置','动作','摆姿势','身体状态'].filter(x=>button(x)?.disabled!==false)).toEqual([]);
   expect(activeSheet()?.querySelector('.screen-item, .screen-toy-guide')).toBeNull();
   await click('动作');expect(activeSheet()?.textContent).toContain('请先在准备页导入 VMD');
   await click('pick b');await click('摆位置');await click('移动');expect(useBackpack.getState().draft).toBe('b');
@@ -55,6 +55,16 @@ it('does not replace an explicitly opened bag when placement finishes in the bac
   const command=useBackpack.getState().command!;
   await click('背包');await act(()=>useBackpack.getState().finishCommand(command));
   expect(useBackpack.getState().selected).toBe('b');expect(activeSheet()?.querySelector('h2')?.textContent).toBe('背包');
+});
+
+it('can inspect a fresh actor without enabling an attachment or creating a body draft',async()=>{
+  await click('pick b');await click('身体观察');
+  expect(['乳房','外阴','阴道','子宫'].filter(x=>!button(x))).toEqual([]);
+  await click('阴道');expect(usePelvic.getState().byAsset.b).toBeUndefined();
+  expect(useBodyState.getState().draft).toBeNull();expect(useBodyState.getState().byAsset.b).toBeUndefined();
+  await click('返回角色');await click('互动');await click('插入');
+  expect(button('返回互动')).toBeTruthy();await click('返回互动');await click('返回角色');
+  expect(button('服装')).toBeTruthy();expect(usePelvic.getState().active).toBeNull();
 });
 
 async function startPreview(){

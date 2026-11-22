@@ -41,10 +41,10 @@ function observations(){
   const axis=new Vector3(),tailToTip=new Vector3(),inward=new Vector3(0,0,-1);
   const tip:[number,number,number]=[0,0,0],tail:[number,number,number]=[0,0,0],shaft:[number,number,number][]=[];
   const data:PelvicSample={tip,tail,shaft,depth:0,angleDeg:0,aligned:false,atCervix:false,outletInside:false,outletVisible:false,radiusM:0,lengthM:0};
-  return (f:PelvicFrame,c:PelvicContact,dir:Vector3)=>{
+  return (f:PelvicFrame,c:PelvicContact,dir:Vector3,exteriorCovered=false)=>{
     c.outletLocal.toArray(tip);c.shaftLocal[0].toArray(tail);
     for(let i=0;i<c.shaftLocal.length;i++)c.shaftLocal[i].toArray(shaft[i]??=[0,0,0]);shaft.length=c.shaftLocal.length;
-    data.depth=c.depthM;data.outletInside=c.outletInside;data.outletVisible=c.outletVisible;data.atCervix=c.atCervix;
+    data.depth=c.depthM;data.outletInside=c.outletInside;data.outletVisible=c.outletVisible;data.atCervix=c.atCervix;data.exteriorCovered=exteriorCovered;
     data.radiusM=f.radiusM;data.lengthM=f.lengthM;
     axis.copy(dir).transformDirection(f.inverse);data.angleDeg=axis.angleTo(inward)*180/Math.PI;
     // Outside: does the physical nozzle point at the actual aperture? A rod
@@ -88,7 +88,7 @@ export function mountPelvicRig(o:Options):PelvicRigHandle&{dispose:()=>void}{
   function validStand(){const a=usePelvic.getState().active,b=a&&bindings.get(a.assetId),p=o.standPiece();
     return !!(standKey&&a?.running&&a.mode!=='xrManual'&&a.token===token&&useStagePlay.getState().stand===owner&&b&&p&&
       o.getRoot(a.runtimeId)===actor&&b.root===actor&&useBackpack.getState().live[a.assetId]?.visible&&b.root.visible&&
-      !b.support.obstruction&&b.c===usePelvic.getState().byAsset[a.assetId]?.calibration&&isMountedVisible(p,o.scene)&&hold.shown(p));}
+       b.c===usePelvic.getState().byAsset[a.assetId]?.calibration&&isMountedVisible(p,o.scene)&&hold.shown(p));}
 
   function advance(delta:number,frame?:XRFrame,blocked=false){
     if(disposed)return;
@@ -127,7 +127,8 @@ export function mountPelvicRig(o:Options):PelvicRigHandle&{dispose:()=>void}{
           b.support={...b.support,kind,obstruction,garmentNames,blockerName};
         if(usePelvic.getState().support[id]!==b.support)publishPelvicSupport(id,b.support);
         if(!b.frame)b.port.group.visible=false;
-        else if(!a?.running||a.assetId!==id||obstruction||!profile.clothingClear)b.port.draw(b.frame,profile.showAdapter&&profile.clothingClear&&!obstruction,bag.selected===id);
+        else if(!a?.running||a.assetId!==id)b.port.draw(b.frame,profile.showAdapter&&profile.clothingClear&&!obstruction,bag.selected===id);
+        else if(obstruction||!profile.clothingClear)b.port.group.visible=false; // also on early-return frames without a mounted piece
       }
       if(!a){if(owner)reset();token=-1;owner=actor=null;return;}
       const b=bindings.get(a.assetId),profile=state.byAsset[a.assetId],play=useStagePlay.getState(),manual=a.mode==='xrManual',currentOwner=manual?play.held:play.stand,f=b?.frame;
@@ -135,10 +136,9 @@ export function mountPelvicRig(o:Options):PelvicRigHandle&{dispose:()=>void}{
       if(rebound){reset(false);token=a.token;owner=currentOwner;actor=b?.root??null;}
       if(!b||!f||!profile||!currentOwner||currentOwner.toy!=='dildo'||!manual&&play.stand?.assetId!==a.assetId||b.runtimeId!==a.runtimeId||
         usePelvic.getState().active?.token!==a.token){cancel(a.token);return;}
-      // A blocked or unconfirmed port prevents work, not fitting an unpowered
-      // stand outside the actor. Only the running branch may feed the solver
-      // a crossing, expose a Bullet collider, open the seal or route a dose.
-      if((manual||a.running)&&(b.support.obstruction||!profile.clothingClear)){interrupt();return;}
+      // Starting requires a clothing choice. The current skin/garment check
+      // controls stage art only; admission still comes from this actor's solver.
+      const exposed=profile.clothingClear&&!b.support.obstruction;
       if(a.awaitingWorld){hideStand();return;}
       const piece=manual?queued?.root:o.standPiece();
       // React can commit the single stand mesh one render after an ownership
@@ -158,7 +158,11 @@ export function mountPelvicRig(o:Options):PelvicRigHandle&{dispose:()=>void}{
           // a fresh token inside) never admits a new contact on a long frame.
           if(!tracked||rebound||!validStand()||currentRoomToken()!==token||bag.selected&&bag.selected!==a.assetId||
              typeof document!=='undefined'&&document.hidden||!hold.matches(f,piece)){interrupt();return;}
-          discardPelvicDoses(token);aperture=lastAperture;observer.setFromMatrixPosition(f.world);hasObserver=true;return;
+           discardPelvicDoses(token);
+           if(!exposed){b.port.draw(f,false,bag.selected===a.assetId);
+             if(state.sample?.outletVisible)publishPelvicSample(token,{...state.sample,outletVisible:false,exteriorCovered:true});
+           }else aperture=lastAperture;
+           observer.setFromMatrixPosition(f.world);hasObserver=true;return;
         }
       }
       const travel=a.running?advancePelvic(a.token,delta):a.position;
@@ -170,11 +174,15 @@ export function mountPelvicRig(o:Options):PelvicRigHandle&{dispose:()=>void}{
       }
       samplePelvicNozzle(piece,spray);
       const contact=solver.step(f,piece.matrixWorld,{dt:delta,blocked:!a.running});
+      // Positive clearance alone does not prove a visible exterior outlet
+      // through a skirt or painted-on clothing. It can still arm a crossing.
+      const exteriorCovered=contact.outletVisible&&!exposed;
+      if(exteriorCovered)contact.outletVisible=false;
       if(!contact.shaftLocal.length){interrupt();return;}
       if(!a.running){publishParkedSample(a.token,sample(f,contact,spray.dir));return;}
-      const amount=b.port.draw(f,profile.showAdapter,bag.selected===a.assetId,contact);
+      const amount=b.port.draw(f,exposed&&profile.showAdapter,bag.selected===a.assetId,exposed?contact:undefined);
       if(amount>0)aperture={assetId:a.assetId,runtimeId:a.runtimeId,amount};
-      if(!publishPelvicSample(a.token,sample(f,contact,spray.dir))){interrupt();return;}
+      if(!publishPelvicSample(a.token,sample(f,contact,spray.dir,exteriorCovered))){interrupt();return;}
       if(!manual)hold.record(f,piece);
       observer.setFromMatrixPosition(f.world);hasObserver=true;
       const route=consumePelvicDose(a.token,contact,queued?.f.action==='start');

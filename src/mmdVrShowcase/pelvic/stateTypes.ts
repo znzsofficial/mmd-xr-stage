@@ -8,14 +8,17 @@ export const PELVIC_LIMITS = {
 /** Relative game units, not physiological measurements. Each bottle has its own
  * balance and capacity. Switching the section being simulated never moves liquid. */
 export type PelvicContainer = 'vaginal'|'fantasyUterine';
+export type PelvicDoseTarget = PelvicContainer|'external';
 export type PelvicMode = 'xrManual'|'standManual'|'standAuto';
 export type PelvicProfile = {
-  calibration:PelvicCalibration; clothingClear:boolean; container:PelvicContainer;
+  /** A clothed session never confirms a visibly exposed opening. Both choices
+   * belong to this fit and are cleared when its calibration changes. */
+  calibration:PelvicCalibration; clothingClear:boolean; clothed?:boolean; container:PelvicContainer;
   apertureMorph?:string|null; showAdapter:boolean;
   fluid:Record<PelvicContainer,number>; capacity:Record<PelvicContainer,number>;
   overflow:number; drained:number; speedHz:number; stroke:number;
 };
-export type PelvicPatch = Partial<Pick<PelvicProfile,'clothingClear'|'container'|'speedHz'|'stroke'|'showAdapter'>> & {
+export type PelvicPatch = Partial<Pick<PelvicProfile,'clothingClear'|'clothed'|'container'|'speedHz'|'stroke'|'showAdapter'>> & {
   calibration?:Partial<PelvicCalibration>;
 };
 export type PelvicActive = {
@@ -25,7 +28,7 @@ export type PelvicActive = {
 /** UI evidence in calibrated local WORLD metres; +Z outward. Null sample means
  * no current geometry, never a nozzle implied by a slider or a saved depth. */
 export type PelvicSample = {
-  depth:number; outletInside:boolean; outletVisible?:boolean; aligned:boolean; atCervix:boolean;
+  depth:number; outletInside:boolean; outletVisible?:boolean; exteriorCovered?:boolean; aligned:boolean; atCervix:boolean;
   tip:PelvicXYZ; tail:PelvicXYZ; shaft?:readonly PelvicXYZ[]; angleDeg:number; radiusM:number; lengthM:number;
 };
 export type PelvicSupport = {
@@ -34,3 +37,7 @@ export type PelvicSupport = {
   /** Named garment layers on this drawable; blockerName requires a current triangle hit. */
   garmentNames?:readonly string[]; blockerName?:string;
 };
+
+export function canStartAtOpening(p:PelvicProfile,s:PelvicSupport|undefined){
+  return !!s&&s.kind!=='missing'&&(!!p.clothed||p.clothingClear&&!s.obstruction);
+}

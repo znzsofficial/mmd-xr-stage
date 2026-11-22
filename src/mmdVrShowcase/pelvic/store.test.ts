@@ -27,6 +27,10 @@ function opted(source:'screen'|'xr'='screen'){
 }
 const token=()=>get().active!.token;
 const inside={outletInside:true,outletVisible:false}, external={outletInside:false,outletVisible:true}, occluded={outletInside:false,outletVisible:false};
+// Store-only fixtures: publish the last HUD reading, then pass the independent
+// current render-frame reading to consume. rig.test covers the actual meshes.
+function reading(outlet:typeof inside){publishPelvicSample(token(),{tip:[0,0,outlet.outletInside?-.02:.04],tail:[0,0,.1],depth:outlet.outletInside?.02:0,
+  shaft:[[0,0,.1],[0,0,0]],radiusM:.024,lengthM:.09,angleDeg:0,aligned:true,atCervix:false,...outlet});}
 beforeEach(()=>useHudWorldInput.setState({blocked:false}));
 afterEach(()=>{clearBackpack();play().reset();useHudWorldInput.setState({blocked:false});useMmdVrStore.setState(initialStage);});
 
@@ -52,7 +56,7 @@ it('waits for the target controls to close for a real tracked hand; B and tracki
   opted('xr');assignPelvic('a','xrManual','xr','left');expect(play().held).toEqual({hand:'left',toy:'dildo'});
   startPelvic('a');expect(get().active).toMatchObject({running:false,awaitingWorld:true});
   expect(consumePelvicDose(token(),inside,true)).toBe('none');bag().select(null);expect(get().active?.running).toBe(true);
-  expect(consumePelvicDose(token(),inside,true)).toBe('internal');expect(consumePelvicDose(token(),external,true)).toBe('none');expect(requestPelvicDose('a')).toBe(false);
+  expect(consumePelvicDose(token(),inside,true)).toBe('internal');expect(consumePelvicDose(token(),external,true)).toBe('none');expect(requestPelvicDose('a','vaginal')).toBe(false);
   const old=token();useHudWorldInput.setState({blocked:true});expect(startPelvic('a')).toBe(false);useHudWorldInput.setState({blocked:false});
   expect(consumePelvicDose(old,inside,true)).toBe('none');expect(get().active?.running).toBe(false);
   bag().select('a');startPelvic('a');bag().select(null);const t=token();expect(consumePelvicDose(t,external,true)).toBe('external');
@@ -74,8 +78,9 @@ it('gates clothing and tracks measured geometry separately from commands, includ
   tip[0]=0;expect(get().sample).toMatchObject({depth:0,tip:[.2,0,.1],shaft:[[.2,0,.1]],outletInside:false});
   const last=get().sample!;publishPelvicSample(t,{...last,...external});publishPelvicSample(t,{...last,...occluded});
   expect(get().sample?.outletVisible).toBe(false); // immediate despite the UI sampling window
-  requestPelvicDose('a');publishPelvicSupport('a',{...support('1'),obstruction:'unverified'});
-  expect(get().active?.running).toBe(false);expect(get().sample).toBeNull();expect(consumePelvicDose(t,inside)).toBe('none');
+  expect(requestPelvicDose('a','vaginal')).toBe(false);publishPelvicSupport('a',{...support('1'),obstruction:'unverified'});
+  expect(get().active?.running).toBe(true);expect(consumePelvicDose(t,inside)).toBe('none');
+  publishPelvicSupport('a',{...support('1'),kind:'missing'});expect(get().active?.running).toBe(false);expect(get().sample).toBeNull();
   publishPelvicSupport('a',support('1'));assignPelvic('a','standAuto','screen');patchPelvic('a',{speedHz:1,stroke:.6});
   expect(startPelvic('a')).toBe(true);const clock=token();advancePelvic(clock,.01);
   const positions=Array.from({length:100},()=>advancePelvic(clock,.01));
@@ -102,16 +107,25 @@ it('forwards only the selected actor’s real clothing layers to material visibi
 it('routes each dose from the actual outlet once; containers, overflow, draining and clearing conserve their own balances',()=>{
   opted();assignPelvic('a','standManual','screen');startPelvic('a');const t=token();
   // Last displayed geometry can lag: even with an external readout the new sample may be inside.
-  requestPelvicDose('a');expect(consumePelvicDose(t,external)).toBe('external');expect(consumePelvicDose(t,inside)).toBe('none');
-  advancePelvic(t,.014);requestPelvicDose('a');requestPelvicDose('a');expect(consumePelvicDose(t,occluded)).toBe('none');
+  reading(external);expect(requestPelvicDose('a','vaginal')).toBe(false);requestPelvicDose('a','external');expect(consumePelvicDose(t,external)).toBe('external');expect(consumePelvicDose(t,inside)).toBe('none');
+  advancePelvic(t,.014);requestPelvicDose('a','external');requestPelvicDose('a','external');expect(consumePelvicDose(t,occluded)).toBe('none');
   advancePelvic(t,.014);expect(consumePelvicDose(t,external)).toBe('none'); // no deferred spray on recovery
   setPelvicCapacity('a',1.5);
-  const dose=()=>{requestPelvicDose('a');advancePelvic(t,.014);expect(consumePelvicDose(t,inside)).toBe('internal');};dose();dose();
+  reading(inside);const dose=()=>{requestPelvicDose('a',get().byAsset.a.container);advancePelvic(t,.014);expect(consumePelvicDose(t,inside)).toBe('internal');};dose();dose();
   expect(get().byAsset.a).toMatchObject({fluid:{vaginal:1.5,fantasyUterine:0},overflow:.5,drained:0});
   patchPelvic('a',{container:'fantasyUterine'});dose();dose();dose();setPelvicCapacity('a',2);
   expect(get().byAsset.a).toMatchObject({fluid:{vaginal:1.5,fantasyUterine:2},overflow:1.5});
   drainPelvic('a',.6);clearPelvicFluid('a');expect(get().byAsset.a).toMatchObject({fluid:{vaginal:1.5,fantasyUterine:0},overflow:1.5,drained:.6});
-  requestPelvicDose('a');stopPelvic('a');startPelvic('a');expect(consumePelvicDose(token(),inside)).toBe('none');
+  requestPelvicDose('a','fantasyUterine');stopPelvic('a');startPelvic('a');expect(consumePelvicDose(token(),inside)).toBe('none');
+});
+
+it('never substitutes another destination when the nozzle crosses or the player changes target between click and delivery',()=>{
+  opted();assignPelvic('a','standManual','screen');startPelvic('a');const t=token();
+  expect(requestPelvicDose('a','external')).toBe(false);nudgePelvic('a',1);expect(requestPelvicDose('a','vaginal')).toBe(false);
+  reading(external);expect(requestPelvicDose('a','external')).toBe(true);expect(consumePelvicDose(t,inside)).toBe('none');
+  reading(inside);expect(requestPelvicDose('a','vaginal')).toBe(true);expect(consumePelvicDose(t,external)).toBe('none');
+  requestPelvicDose('a','vaginal');patchPelvic('a',{container:'fantasyUterine'});expect(requestPelvicDose('a','vaginal')).toBe(false);
+  expect(consumePelvicDose(t,inside)).toBe('none');expect(get().byAsset.a.fluid).toEqual({vaginal:0,fantasyUterine:0});
 });
 
 it('consumes but never dispenses an unverified or over-stop trigger, including on two subsequent confirmed frames',()=>{
@@ -138,7 +152,7 @@ it('consumes but never dispenses an unverified or over-stop trigger, including o
 });
 
 it('invalidates queued work on hide, replacement, room change and exit; page calibrations do not retain live support or tool handles',()=>{
-  opted();assignPelvic('a','standManual','screen');startPelvic('a');const t=token();requestPelvicDose('a');
+  opted();assignPelvic('a','standManual','screen');startPelvic('a');const t=token();reading(inside);requestPelvicDose('a','vaginal');
   const old=get().support.a;bag().publishLive({a:{...live('1'),visible:false}});
   expect(get().active).toBeNull();expect(get().support.a).toBeUndefined();expect(play().stand).toBeNull();
   bag().publishLive({a:live('3')});const next=support('3');publishPelvicSupport('a',next);clearPelvicSupport('a',old);
@@ -151,12 +165,12 @@ it('invalidates queued work on hide, replacement, room change and exit; page cal
 
 it('isolates balances and pending doses across actor transfers and a return to a room with reused runtime IDs',()=>{
   opted();assignPelvic('a','standManual','screen');startPelvic('a');const first=token();
-  requestPelvicDose('a');consumePelvicDose(first,inside);requestPelvicDose('a');
+  reading(inside);requestPelvicDose('a','vaginal');consumePelvicDose(first,inside);requestPelvicDose('a','vaginal');
   bag().select('b');enablePelvic('b',true);patchPelvic('b',{clothingClear:true,container:'fantasyUterine'});
   assignPelvic('b','standManual','screen');startPelvic('b');const second=token();
   expect(consumePelvicDose(second,inside)).toBe('none');
-  setPelvicCapacity('b',1);for(let i=0;i<2;i++){advancePelvic(second,.016);requestPelvicDose('b');consumePelvicDose(second,inside);}
-  requestPelvicDose('b');const oldB=get().support.b;
+  reading(inside);setPelvicCapacity('b',1);for(let i=0;i<2;i++){advancePelvic(second,.016);requestPelvicDose('b','fantasyUterine');consumePelvicDose(second,inside);}
+  requestPelvicDose('b','fantasyUterine');const oldB=get().support.b;
   const room=useMmdVrStore.getState().prefs.scenery;useMmdVrStore.getState().setPrefs({scenery:room==='pool'?'floor':'pool'});
   useMmdVrStore.getState().setPrefs({scenery:room});expect(assignPelvic('b','standManual','screen')).toBe(false);
   publishPelvicSupport('b',support('2'));assignPelvic('b','standManual','screen');startPelvic('b');clearPelvicSupport('b',oldB);

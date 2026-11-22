@@ -22,6 +22,8 @@ For future character features, the user's reference is Koikatsu's Free H mode: d
 
 When proposing adult content, describe what the player can do with a chosen adult character or prop and what responds. A wedding room, romantic lighting or themed décor alone does not meet that request.
 
+Selecting a character presents Clothing, Interact and Body view on screen and in XR. The player can choose to keep clothing on during calibrated rod interaction; visual exposure and simulated inside contact are independent. Place the release destination beside the action. Body view is reachable without equipping a prop and offers named parts and camera angles. For lactation the player should be able to look at the character while holding a side, and know before pressing when only a numerical response is possible.
+
 In the dildo controls, use the plain player-facing terms 精液 / semen, 阴道 / vagina and 宫腔 / uterus. The spray, organ view and measurement key use the same milky white. Keep quantities in game units and show the actual cervical stop; the selected destination does not need a “fantasy” prefix.
 
 An anatomical illustration here is a live game view. The player can rotate the same anatomy and see changes in tissue, instrument position and simulated liquid. Use local rendering rather than a gallery of static generated pictures or an external image API; keep illustrative motion separate from measured state.
@@ -29,6 +31,8 @@ An anatomical illustration here is a live game view. The player can rotate the s
 Breast modelling in Body state means a rotatable HUD study with current actor state, even on a PMX with no breast morphs or suitable bones. Deforming the imported character is a separate, reversible capability. Show side-specific refill only when lactation is enabled; never present the illustration as a scan of the imported mesh.
 
 The player wants the breast figure to look like an anime adult-game portrait, not a medical specimen or a diffuse-shaded plastic torso. Design the shoulder, underarm and breast silhouette as one figure; use tapered linework, warm cel shadows and selective highlights that follow the surface as it turns. Open on external appearance, movement and the character's current state. Let the player uncover internal views and labels on request; keep measured feedback accessible where it guides an action.
+
+The desired silhouette is a flowing teardrop: narrow above, widest in the lower half, with a rounded lower arc returning into the chest. The first revised six-view study was rejected as too square and rigid. Inspect unshaded front, oblique and true side silhouettes in both fullness states before polishing light or replacing the runtime art; the player approves the study first.
 
 ## Product Purpose
 

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { useBackpack } from '../backpack';
 import { advanceBody, DEFAULT_BODY_PROFILE, moveDay, normalizeBody, type BodyProfile } from './data';
 import {clearMilkEffects,offerMilkDrain} from './lactation/events';
+import type {MilkPanel, Side} from './lactation/interaction';
 
 export type BodySupport = { morphs:readonly string[]; bones:boolean; sides:{left:boolean;right:boolean}; clothing:'authored-only' };
 type LiveSupport = BodySupport & {runtimeId:string};
@@ -46,6 +47,33 @@ export function drainBodySide(assetId:string, side:'left'|'right', amount=.25) {
   useBodyState.setState({draft:{assetId,value:{...draft.value,[side]:after}}});
   const visible=offerMilkDrain({kind:'drain',assetId,runtimeId:live.runtimeId,side,amount:before-after});
   return {before,after,visible};
+}
+
+function interactionOwnsActor({assetId,runtimeId}:MilkPanel){
+  const bag=useBackpack.getState(),live=bag.live[assetId];
+  return bag.selected===assetId&&live?.runtimeId===runtimeId&&live.visible&&!bag.draft&&!bag.busy&&
+    useBodyState.getState().draft?.assetId!==assetId&&bag.entries.some(e=>e.id===assetId&&e.kind==='model');
+}
+type MilkSettings=Pick<BodyProfile,'lactating'|'bareLeft'|'bareRight'|'refillSeconds'>;
+/** Stage interaction explicitly writes to the actor. Opening/closing this UI
+ * does not create, commit or roll back an editor draft. */
+export function setActorMilk(actor:MilkPanel,patch:Partial<MilkSettings>){
+  if(!interactionOwnsActor(actor))return;
+  const {byAsset}=useBodyState.getState(),saved=byAsset[actor.assetId];
+  if(!saved&&patch.lactating!==true)return;
+  if(patch.lactating===false)clearMilkEffects(actor.assetId);
+  const profile=normalizeBody({...(saved??DEFAULT_BODY_PROFILE),...patch});
+  useBodyState.setState({byAsset:{...byAsset,[actor.assetId]:profile}});
+}
+const interactionDebits=new WeakSet<BodyProfile>();
+export const fromMilkInteraction=(p:BodyProfile)=>interactionDebits.has(p);
+export function debitActorMilk(actor:MilkPanel,sides:readonly Side[],amount:number){
+  if(!(amount>0)||!Number.isFinite(amount)||!interactionOwnsActor(actor))return null;
+  const {byAsset}=useBodyState.getState(),before=byAsset[actor.assetId];if(!before?.lactating)return null;
+  const after={...before},debit={left:0,right:0};
+  for(const side of sides){after[side]=Math.max(0,before[side]-amount);debit[side]=before[side]-after[side];}
+  if(debit.left||debit.right){interactionDebits.add(after);useBodyState.setState({byAsset:{...byAsset,[actor.assetId]:after}});}
+  return debit;
 }
 export function commitBodyPreview(assetId:string) {
   const {draft,byAsset}=useBodyState.getState();

@@ -48,7 +48,7 @@ export interface PelvicContact {
 export interface PelvicInput {
   /** Unscaled, unclamped frame seconds; loss, ownership/target changes and seeks require reset(). */
   dt: number;
-  /** Caller evaluates garment/other external obstruction. Blocks admission and invalidates contact. */
+  /** Disabled physical input (e.g. a parked stand). Clothing visibility is not a tracking signal. */
   blocked?: boolean;
 }
 export interface PelvicSolver {

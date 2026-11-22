@@ -250,6 +250,8 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
     const handle = runtimeRef.current;
     if (!handle) return;
     setRuntimeRef({
+      getWardrobe: (id,file) => isRoomStale()?null:handle.getWardrobe?.(id,file)??null,
+      invalidateWardrobe: () => { lastEvaluatedTimeRef.current=-Infinity; },
       setMaterialVisible: (modelId, materialName, visible) => handle.setMaterialVisible(modelId, materialName, visible),
       setMaterialOverride: (modelId, materialName, patch) => handle.setMaterialOverride(modelId, materialName, patch),
     });

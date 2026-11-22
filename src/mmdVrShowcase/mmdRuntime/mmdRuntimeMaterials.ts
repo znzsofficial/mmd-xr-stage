@@ -1,7 +1,7 @@
 import type { ThreeMmdModel } from "@yohawing/three-mmd-loader";
 import * as THREE from "three";
 import { attachMmdMaterialEnhance, syncMmdMaterialEnhance, type MmdMaterialEnhanceState } from "./mmdMaterialEnhance";
-import {materialSlotKey,sourceMaterialSlot} from './materialSlotKey';
+export { configureDraws as applyMaterialVisibility } from '../wardrobe/draws';
 
 export type MaterialOverride = {
   opacity: number;
@@ -155,30 +155,6 @@ function syncEnhancementTextures(material: THREE.Material, override: MaterialOve
     } finally { release(oldMaps); }
   })();
   return request.done;
-}
-
-export function applyMaterialVisibility(entry: MaterialPipelineEntry) {
-  const materials = getMeshMaterials(entry.model.mesh);
-  materials.forEach((material, index) => {
-    if (!material) return;
-    const name = entry.materialNames[index] ?? `Material ${index + 1}`;
-    const visible = entry.materialVisible[name] !== false;
-    material.visible = visible && entry.visible;
-  });
-
-  for (const proxy of [...entry.model.outlineMeshes, ...entry.model.renderOrderMeshes]) {
-    const mats = Array.isArray(proxy.material) ? proxy.material : [proxy.material];
-    mats.forEach((material,localIndex) => {
-      if (!material) return;
-      const i=sourceMaterialSlot(proxy,materials,material,localIndex);
-      const name = entry.materialNames[i]??materialSlotKey(material,i);
-      const visible = entry.materialVisible[name] !== false;
-      material.visible = visible && entry.visible;
-    });
-    proxy.visible = entry.visible;
-  }
-  entry.model.root.visible = entry.visible;
-  entry.model.mesh.visible = entry.visible;
 }
 
 function convertMaterialForWebGpu(source: THREE.Material): THREE.Material {

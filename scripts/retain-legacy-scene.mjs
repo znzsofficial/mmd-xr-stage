@@ -4,6 +4,10 @@ import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 
 const files = [
+  ['7e23da7d','index-B8UQziC0.js','ff98992d35ad5709103dbcb3e327121715b28f229cc0b8b9fe802847cbbd5e1b'],
+  ['7e23da7d','PlanetPhysics-BeCm0Vfg.js','bfedf8014813a3e58db776d271a168f72177b73fe84fc4f190943cb2014d7d83'],
+  ['7e23da7d','index-DFI60d9e.css','02a0dcc2472524e1b60ecc8bad3d5219b222d8d1573b6c0cd3c381a7b211a055'],
+  ['7e23da7d','organ.worker-CjwtkAs7.js','ce804d8760ca70b3d8fcd0066c67f4e87d761ab79d142aab6bacea4afb425526'],
   ['30572523','index-BKs_74xX.js','6df9188960bd52772123b351d896e8203ceac4d1d5de507cd11ff9daf3b82a17'],
   ['30572523','PlanetPhysics-BKN_eZUf.js','b234b5e76a2d9f7d1f81a270d4e1ef4cdfb6baea61f2535a1019091944612f5f'],
   ['30572523','index-DKK3Dlua.css','63014717ce1ad8c1e04f8fac8d5b0b73b8522bfdf8898c90953853ef2b273204'],

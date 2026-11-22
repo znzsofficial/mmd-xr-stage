@@ -3,17 +3,19 @@ import type { PelvicSample } from '../stateTypes';
 import {semenColor,semenRGB} from '../../play/semenAppearance';
 import type { PelvicXYZ } from '../contract';
 import { pelvicCenterline, projectDepth, tangent } from '../path';
-import { canalY, clamp, ENTRY, organMeshes, smooth, STOP, stride } from './model';
+import { canalY, clamp, ENTRY, organMeshes, smooth, STOP, stride, vaginalMeshes } from './model';
 import type { Mesh, V } from './model';
 import type {EndometrialTissue} from '../../bodyState/data';
 import {createWallStudy,wallStride} from './uterineWall';
+import {createExteriorStudy} from './exteriorStudy';
 
 export interface OrganArtOptions {
   x:number; y:number; width:number; height:number; yaw:number; time:number;
+  focus?:'uterus'|'vagina'|'vulva';
   /** Illustrative normalized tissue inputs, not physical measurements. */
   lining:number; shedding:number; pressure:number; zh:boolean; tissue?:EndometrialTissue; labels?:boolean;
   /** Selected balance / its OWN capacity. Optional second balance is vaginal. */
-  fluid:number; fantasy:boolean; vaginalFluid?:number; sample?:PelvicSample|null; parked?:boolean;
+  fluid:number; fantasy:boolean; vaginalFluid?:number; uterineFluid?:number; sample?:PelvicSample|null; parked?:boolean;
 }
 export const organPigments={endometrium:'#f4b396',myometrium:'#d28177',ovary:'#e0c1a0',liquid:semenColor} as const;
 const {sin,cos,abs,PI,sqrt}=Math;
@@ -26,12 +28,12 @@ function plate(w:number,h:number,base=false):Plate {
   return {w,h,color,z};
 }
 type Lens=ReturnType<typeof lens>;
-function lens(w:number,h:number,yaw:number){
+function lens(w:number,h:number,yaw:number,canal=false){
   const ca=cos(yaw),sa=sin(yaw),a=Math.acos(clamp(abs(ca),0,1));
   const cut=smooth(.72,1.54,a),angle=cut*(sa<0?-1:1)*PI/2;
-  const pitch=.095*abs(ca),cp=cos(pitch),sp=sin(pitch),scale=Math.min(w*.91/11.99,h*.88/8.78);
+  const pitch=.095*abs(ca),cp=cos(pitch),sp=sin(pitch),scale=canal?Math.min(w*.74/3.1,h*.83/3.6):Math.min(w*.91/11.99,h*.88/8.78);
   return {ca,sa,cut,cp,sp,scale,dc:cos(yaw-angle),ds:sin(yaw-angle),
-    ox:w*.5+.37*sa*scale,oy:h*.5+.45*scale,nearAlpha:1-smooth(.96,1.45,a),farAlpha:1-smooth(1.29,1.54,a)};
+    ox:w*.5+(canal?0:.37)*sa*scale,oy:h*.5+(canal?ENTRY+1.61:.45)*scale,nearAlpha:1-smooth(.96,1.45,a),farAlpha:1-smooth(1.29,1.54,a)};
 }
 function point(l:Lens,x:number,y:number,z:number):V{
   const d=l.sa*x+l.ca*y;return [l.ox+(l.ca*x-l.sa*y)*l.scale,l.oy-(z*l.cp-d*l.sp)*l.scale,d*l.cp+z*l.sp];
@@ -67,7 +69,7 @@ function triangles(p:Plate,mesh:Mesh,v:Float32Array,sectionMix=0){
 function projectMesh(mesh:Mesh,out:Float32Array,l:Lens,o:OrganArtOptions,vag:boolean,wall?:readonly [Float32Array,Float32Array]){
   const a=mesh.a,b=mesh.b,section=mesh.section,q=section?l.cut:0,iq=1-q,dc=section?l.dc:l.ca,ds=section?l.ds:l.sa;
   const lining=sane(o.lining),shed=sane(o.shedding),pressure=sane(o.pressure),time=Number.isFinite(o.time)?o.time:0;
-  const fill=vag?sane(o.vaginalFluid??(o.fantasy?0:o.fluid)):o.fantasy?sane(o.fluid):0;
+  const fill=vag?sane(o.vaginalFluid??(o.fantasy?0:o.fluid)):sane(o.uterineFluid??(o.fantasy?o.fluid:0));
   const level=vag?mix(ENTRY,STOP,fill):mix(.47,3.77,fill);
   let i=0,j=0,k=0;
   for(let row=0;row<mesh.rows;row++){
@@ -102,7 +104,7 @@ function projectMesh(mesh:Mesh,out:Float32Array,l:Lens,o:OrganArtOptions,vag:boo
           r+=wave*2.6+gland*21-vessel*31;g+=gland*25-vessel*64;bl+=gland*18-vessel*39;
         }else{r+=lw*(lining*6-shed*19)+wave*2.6;g-=lw*shed*38;bl-=lw*shed*20;}
         // Only a tagged lumen receives the actual compartment balance. No drops,
-        // inferred flow, or retained fantasy balance in ordinary-mode uterus.
+         // inferred flow, or transfer between organs when changing the view.
         const coverage=vag?smooth(.8,1.72,lum):smooth(.60,.92,lum);
         if(fill>0&&coverage>0){const wet=(1-smooth(level-.025,level+.025,z))*coverage;
           const rim=clamp(1-abs(z-level)/.085)*wet,alpha=wet*.96;
@@ -158,14 +160,15 @@ function sampleMark(ctx:CanvasRenderingContext2D,l:Lens,o:OrganArtOptions){
 /** One owner per DOM canvas / HUD texture. Reuses model topology and CPU depth
  * buffers; the caller's current canvas transform, clip and alpha are respected. */
 export function createOrganArt(){
-  const wall=createWallStudy();
+  const wall=createWallStudy(),exterior=createExteriorStudy();
   let canvas:HTMLCanvasElement|OffscreenCanvas|null=null,ic:CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D|null=null;
   let frame:Plate|undefined,back:Plate|undefined,near:Plate|undefined,img:ImageData|undefined,lastYaw=NaN;
-  let meshes:Mesh[]|undefined,work=new Float32Array(0);
+  let meshes:Mesh[]|undefined,work=new Float32Array(0),lastCanal=false;
   return {draw(ctx:CanvasRenderingContext2D,o:OrganArtOptions){
     if(!(o.width>0&&o.height>0))return;
-    meshes??=organMeshes();
-    if(!work.length)work=new Float32Array(Math.max(...meshes.map(m=>m.rows*m.cols))*N);
+    if(o.focus==='vulva'){exterior(ctx,o);return;}
+    const canal=o.focus==='vagina';
+    if(!meshes||canal!==lastCanal){meshes=canal?vaginalMeshes():organMeshes();work=new Float32Array(Math.max(...meshes.map(m=>m.rows*m.cols))*N);}
     const m=ctx.getTransform(),scale=Math.min(2.0,Math.max(1,Math.hypot(m.a,m.b),Math.hypot(m.c,m.d)),680/o.width,540/o.height);
     // Measurement-view convention: at +90 degrees anterior points RIGHT.
     const w=Math.max(1,Math.round(o.width*scale)),h=Math.max(1,Math.round(o.height*scale)),yaw=Number.isFinite(o.yaw)?-o.yaw:0;
@@ -174,26 +177,26 @@ export function createOrganArt(){
       canvas.width=w;canvas.height=h;ic=canvas.getContext('2d') as typeof ic;if(!ic)return;
       frame=plate(w,h);back=plate(w,h,true);near=undefined;img=ic.createImageData(w,h);lastYaw=NaN;
     }
-    const l=lens(w,h,yaw);
-    const sectioning=l.nearAlpha>0&&l.nearAlpha<1;
-    if(yaw!==lastYaw){new Uint32Array(back.color.buffer).fill(0xff221721);back.z.fill(-1e4);
+    const l=lens(w,h,yaw,canal);
+    const sectioning=!canal&&l.nearAlpha>0&&l.nearAlpha<1;
+    if(yaw!==lastYaw||canal!==lastCanal){new Uint32Array(back.color.buffer).fill(0xff221721);back.z.fill(-1e4);
       if(sectioning){near??=plate(w,h);near.z.fill(-1e4);}
-      for(const mesh of meshes)if(!mesh.section){const ipsi=mesh.wing===(l.sa<0?-1:1);
+      if(!canal)for(const mesh of meshes)if(!mesh.section){const ipsi=mesh.wing===(l.sa<0?-1:1);
         if((ipsi?l.nearAlpha:l.farAlpha)===0)continue;
         projectMesh(mesh,work,l,o,false);triangles(ipsi&&sectioning?near!:back,mesh,work);}
       if(l.farAlpha<1&&l.farAlpha>0){const c=back.color;for(let i=0;i<back.z.length;i++)if(back.z[i]>-999){const j=4*i;
         c[j]=mix(33,c[j],l.farAlpha);c[j+1]=mix(23,c[j+1],l.farAlpha);c[j+2]=mix(34,c[j+2],l.farAlpha);}}
-      lastYaw=yaw;
+      lastYaw=yaw;lastCanal=canal;
     }
     frame.z.set(back.z);frame.color.set(back.color);
-    for(let i=0;i<4;i++){const mesh=meshes[i],tissue=i===3&&o.tissue?wall.forDate(mesh,o.tissue):undefined;
+    for(let i=0;i<(canal?2:4);i++){const mesh=meshes[i],tissue=i===3&&o.tissue?wall.forDate(mesh,o.tissue):undefined;
       projectMesh(mesh,work,l,o,i<2,tissue);triangles(frame,mesh,work,l.cut);}
     if(sectioning&&near){const c=frame.color,n=near.color;for(let i=0;i<near.z.length;i++)if(near.z[i]>frame.z[i]){const j=4*i;
       c[j]=mix(c[j],n[j],l.nearAlpha);c[j+1]=mix(c[j+1],n[j+1],l.nearAlpha);c[j+2]=mix(c[j+2],n[j+2],l.nearAlpha);}}
     img.data.set(frame.color);ic!.putImageData(img,0,0);
     ctx.save();ctx.translate(o.x,o.y);ctx.beginPath();ctx.rect(0,0,o.width,o.height);ctx.clip();
-    ctx.drawImage(canvas,0,0,o.width,o.height);const logical=lens(o.width,o.height,yaw);
-    if(o.labels){
+    ctx.drawImage(canvas,0,0,o.width,o.height);const logical=lens(o.width,o.height,yaw,canal);
+    if(o.labels&&!canal){
       // Label endpoints follow the deformed surface, not fixed screen points.
       const m4=meshes[3],iRow=Math.round((1.94+1.618)/6.437*(m4.rows-1))*m4.cols;
       let best=0,idx=iRow+Math.floor(m4.cols*.72);

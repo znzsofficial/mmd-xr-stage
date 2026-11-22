@@ -1,17 +1,17 @@
-import {fitSite,formColors,junctionColor,slitHalfLength,vulvaHalves} from '../vulvaForm';
+import {fitSite,formColors,junctionColor,slitHalfLength,vulvaHalves,type CutBasis} from '../vulvaForm';
 
 // The diagram exposes a reference cut. No measurement is inferred from it.
 // Slice the SAME fitted sheets at constant anatomical Y before projection:
 // a single flat gradient along the whole length streaks the turning folds.
-const ref={x:0,y:0,xx:1,xy:0,yx:0,yy:1-slitHalfLength};
+export const studyCut:CutBasis={x:0,y:0,xx:1,xy:0,yx:0,yy:1-slitHalfLength};
 const rgb=(s:string)=>[1,3,5].map(i=>parseInt(s.slice(i,i+2),16));
 const skin=rgb(junctionColor),pigment=formColors.map(rgb),last=pigment.length-1;
 const satinWeight=pigment.map((_,k)=>.22*Math.sin(Math.PI*k/last)**2*Math.max(0,(k-8)/7));
 const mix=(a:number,b:number,t:number)=>a+(b-a)*t;
 const clamp=(v:number)=>Math.min(1,Math.max(0,v));
 
-function makeColumns(){return vulvaHalves.map(({side,rows})=>{
-  const points=rows.map(r=>r.sites.map(site=>fitSite(site,1,ref,{x:0,y:0,z:0})));
+function makeColumns(cut:CutBasis){return vulvaHalves.map(({side,rows})=>{
+  const points=rows.map(r=>r.sites.map(site=>fitSite(site,1,cut,{x:0,y:0,z:0})));
   const columns=pigment.map((color,k)=>points.map((row,j)=>{
     const p=row[k],l=row[Math.max(0,k-1)],r=row[Math.min(last,k+1)];
     const bottom=points[Math.max(0,j-1)][k],top=points[Math.min(rows.length-1,j+1)][k];
@@ -32,20 +32,22 @@ function cutAt(col:Knot[],y:number){
 type Cut=ReturnType<typeof cutAt>;
 type Row={left:Cut[];right:Cut[];y:number;joined:boolean};
 // Store only projection-independent sections, never a cache of rotated images.
-let rows:Row[]|undefined;
-function sample(unit:number,oy:number){const [left,right]=makeColumns(),result:Row[]=[];
+const sectionsByCut=new WeakMap<CutBasis,Row[]>();
+function sample(unit:number,oy:number,cut:CutBasis){const [left,right]=makeColumns(cut),result:Row[]=[];
   const lo=left.columns[0][0].y,hi=left.columns[0].at(-1)!.y;
   for(let py=Math.floor((oy-hi*unit)*2);py<Math.ceil((oy-lo*unit)*2);py++){
     const y=(oy-(py+.5)*.5)/unit;if(y<=lo||y>=hi)continue;
-    result.push({y:py*.5,left:left.columns.map(c=>cutAt(c,y)),right:right.columns.map(c=>cutAt(c,y)),joined:Math.abs(y)>1});
+    const l=left.columns.map(c=>cutAt(c,y)),r=right.columns.map(c=>cutAt(c,y));
+    result.push({y:py*.5,left:l,right:r,joined:Math.abs(l[0].x-r[0].x)<1e-6});
   }return result;
 }
 
 /** Orthographic transverse sections. Front-facing runs are already in pixel
  * order; project their depth for occlusion. Canvas interpolates the shaded
  * stops. No triangle raster, extra GL context, readback or ImageData upload. */
-export function paintFoldLight(c:CanvasRenderingContext2D,yaw:number,ox:number,oy:number,unit:number){
-  const co=Math.cos(yaw),si=Math.sin(yaw),sections=rows??=sample(unit,oy);
+export function paintFoldLight(c:CanvasRenderingContext2D,yaw:number,ox:number,oy:number,unit:number,cut=studyCut){
+  let sections=sectionsByCut.get(cut);if(!sections){sections=sample(unit,oy,cut);sectionsByCut.set(cut,sections);}
+  const co=Math.cos(yaw),si=Math.sin(yaw);
   const xx=new Float64Array(2*(last+1)),depth=new Float64Array(xx.length),col:string[]=Array(xx.length);
   const stride=last+1,runs:{from:number;to:number;depth:number}[]=[];
   const byte=(x:number)=>Math.max(0,Math.min(255,Math.round(x)));

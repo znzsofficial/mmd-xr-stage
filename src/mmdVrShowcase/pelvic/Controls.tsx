@@ -4,14 +4,14 @@ import type { PelvicActor } from './Section';
 import { AtlasHudPanel, AtlasScreenPanel } from './atlas/AtlasPanel';
 import { PrivateButton, PrivateLine, PrivateSheet, PrivateSlider } from './HudPrivateControls';
 import { PRIVATE_COLORS, privateVars } from './palette';
-import { usePelvicControls } from './usePelvicControls';
+import { usePelvicControls, type PelvicNavigation } from './usePelvicControls';
 import type {Row,Key} from './controlRows';
 import './controls.css';
 
 export { PelvicLiveSection } from './Section';
 const formatted=(v:number,unit:string)=>`${+v.toFixed(2)}${unit}`;
-type ScreenProps=PelvicActor&{onBack?:()=>void};
-type HudProps=PelvicActor&{onBack:()=>void};
+type ScreenProps=PelvicActor&PelvicNavigation&{onBack?:()=>void};
+type HudProps=PelvicActor&PelvicNavigation&{onBack:()=>void};
 function ScreenKeys({items,blocked,stop=false}:{items:Key[];blocked:boolean;stop?:boolean}) {
   return <div className="pelvic-keys">{items.map(k=><button type="button" className="pelvic-key" key={k.id??k.label} disabled={blocked||k.disabled}
     aria-pressed={k.active} data-primary={k.primary||undefined} data-danger={k.danger||undefined} data-stop={stop||undefined} onClick={k.press}><span>{k.label}</span></button>)}</div>;
@@ -28,8 +28,8 @@ function ScreenRow({row,blocked}:{row:Row;blocked:boolean}) {
       style={{'--progress':`${(row.value-row.range[0])/(row.range[1]-row.range[0])*100}%`} as CSSProperties}
       disabled={blocked||row.disabled} onChange={e=>row.change(e.currentTarget.valueAsNumber)}/></label>;
 }
-function ScreenEditor({assetId,runtimeId,onBack}:ScreenProps) {
-  const vm=usePelvicControls({assetId,runtimeId},'screen');
+function ScreenEditor({assetId,runtimeId,onBack,...navigation}:ScreenProps) {
+  const vm=usePelvicControls({assetId,runtimeId},'screen',navigation);
   const page=useRef<HTMLDivElement>(null);
   useLayoutEffect(()=>{
     const sidebar=page.current?.closest('.screen-library');if(sidebar)sidebar.scrollTop=0;
@@ -104,8 +104,8 @@ function HudColumn({items,from,w,blocked}:{items:HudRow[];from:number;w:number;b
     </group>;
   })}</>;
 }
-function HudEditor({assetId,runtimeId,onBack}:HudProps) {
-  const vm=usePelvicControls({assetId,runtimeId},'xr'), width=vm.chart?panelW:1.34;
+function HudEditor({assetId,runtimeId,onBack,...navigation}:HudProps) {
+  const vm=usePelvicControls({assetId,runtimeId},'xr',navigation), width=vm.chart?panelW:1.34;
   const cw=vm.chart?editorW:width-.1;
   // Note wrapping must not allocate a measurement canvas on each sampling or
   // slider tick; rows only need new metrics when their content/layout changes.

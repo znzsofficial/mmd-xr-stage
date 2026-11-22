@@ -110,13 +110,6 @@ export function attachMmdMaterialEnhance(material: THREE.Material) {
   };
   if (typed.userData.mmdEnhanceAttached === ENHANCE_SHADER_REV) return;
 
-  if (typed.userData.mmdEnhanceBaseDepthWrite == null) {
-    typed.userData.mmdEnhanceBaseDepthWrite = typed.depthWrite;
-  }
-  if (typed.userData.mmdEnhanceBaseTransparent == null) {
-    typed.userData.mmdEnhanceBaseTransparent = typed.transparent;
-  }
-
   // Keep the pre-enhance hooks so rev bumps do not stack onBeforeCompile wrappers.
   if (typeof typed.userData.mmdEnhanceOriginalOnBeforeCompile !== "function") {
     typed.userData.mmdEnhanceOriginalOnBeforeCompile = typed.onBeforeCompile.bind(typed);
@@ -133,7 +126,6 @@ export function attachMmdMaterialEnhance(material: THREE.Material) {
   typed.onBeforeCompile = (shader, renderer) => {
     prev(shader, renderer);
     const uniforms = shader.uniforms as Record<string, { value: unknown }>;
-    uniforms.mmdEnhanceOpacity = { value: 1 };
     uniforms.mmdEnhanceMetallic = { value: 0 };
     uniforms.mmdEnhanceRoughness = { value: 0.55 };
     uniforms.mmdEnhanceOcclusion = { value: 1 };
@@ -170,7 +162,6 @@ export function attachMmdMaterialEnhance(material: THREE.Material) {
       PARS_MARKER,
       [
         PARS_MARKER,
-        "uniform float mmdEnhanceOpacity;",
         "uniform float mmdEnhanceMetallic;",
         "uniform float mmdEnhanceRoughness;",
         "uniform float mmdEnhanceOcclusion;",
@@ -324,7 +315,6 @@ export function syncMmdMaterialEnhance(material: THREE.Material, state: MmdMater
   if (!shader?.uniforms) return;
 
   const override = state.override;
-  const opacity = clampRange(override.opacity, 0, 1);
   const metallic = clamp01(override.metallic);
   const roughness = clamp01(override.roughness);
   const occlusion = clamp01(override.occlusion);
@@ -343,7 +333,6 @@ export function syncMmdMaterialEnhance(material: THREE.Material, state: MmdMater
     const uniform = shader.uniforms[key];
     if (uniform) uniform.value = value;
   };
-  setNum("mmdEnhanceOpacity", opacity);
   setNum("mmdEnhanceMetallic", metallic);
   setNum("mmdEnhanceRoughness", roughness);
   setNum("mmdEnhanceOcclusion", occlusion);
@@ -398,11 +387,4 @@ export function syncMmdMaterialEnhance(material: THREE.Material, state: MmdMater
   if (lightColorU?.value instanceof THREE.Color) lightColorU.value.copy(_lightColor);
   setNum("mmdEnhanceLightIntensity", Math.max(0, state.lightIntensity ?? 0));
 
-  const baseTransparent = Boolean(mat.userData.mmdEnhanceBaseTransparent);
-  const baseDepthWrite = mat.userData.mmdEnhanceBaseDepthWrite !== false;
-  const nextTransparent = opacity < 1 || baseTransparent;
-  const nextDepthWrite = opacity < 1 ? false : baseDepthWrite;
-  if (mat.opacity !== opacity) mat.opacity = opacity;
-  if (mat.transparent !== nextTransparent) mat.transparent = nextTransparent;
-  if (mat.depthWrite !== nextDepthWrite) mat.depthWrite = nextDepthWrite;
 }

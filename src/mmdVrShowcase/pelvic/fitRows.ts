@@ -34,7 +34,8 @@ export function fitRows({assetId,source,l,profile,support,fit,setFit,morph,names
     // A visible attachment has its own use case: inspecting the actor's fit.
     // Exposing the port does not require a rod assignment or start a stand.
     const ready=!!support&&support.kind!=='missing'&&!support.obstruction;
-    if(profile.showAdapter)rows.push(buttons(key(l('隐藏外阴附件','Hide vulva attachment'),()=>patchPelvic(assetId,{showAdapter:false}))));
+    if(profile.showAdapter)rows.push(buttons(key(ready&&profile.clothingClear?l('隐藏外阴附件','Hide vulva attachment'):l('取消显示外阴附件','Turn attachment display off'),()=>patchPelvic(assetId,{showAdapter:false}))));
+    if(profile.clothed&&ready)rows.push(buttons(key(l('我看到了入口','I can see the opening'),()=>patchPelvic(assetId,{clothingClear:true,showAdapter:false}))));
     if(!profile.showAdapter||!profile.clothingClear)rows.push(buttons(key(profile.clothingClear?l('显示外阴附件','Show vulva attachment'):
       l('入口已露出，显示外阴附件','Opening is clear · show attachment'),()=>patchPelvic(assetId,{showAdapter:true,clothingClear:true}),{disabled:!ready})));
     if(support?.obstruction)rows.push(buttons(key(l('调整衣物','Manage clothing'),clothes)));

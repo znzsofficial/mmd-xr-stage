@@ -15,6 +15,8 @@ import { PARK_Y } from "./colliderReentry";
 import { configureActorPalms } from './actorPalms';
 import {fitChestCompression} from './chestCompression';
 import { createBodyDisplay } from '../bodyState/runtime';
+import { createWardrobeModel, resumeWardrobeModel, type WardrobeModel } from '../wardrobe/model';
+import { restoreDraws, presentDraws } from '../wardrobe/draws';
 import { prepareMilkOutlets, type SampleMilkOutlet } from '../bodyState/lactation/outlets';
 import type { BodyProfile } from '../bodyState/data';
 import type { BodySupport } from '../bodyState/store';
@@ -109,6 +111,7 @@ export type MmdRuntimeHandle = {
   endPose: (id:string)=>void;
   getModelSurface: (id:string) => Pick<ThreeMmdModel,'root'|'mesh'|'renderOrderMeshes'>|null;
   getBodySupport?: (id:string) => BodySupport|null;
+  getWardrobe?: (id:string,file:File) => WardrobeModel|null;
   /** Query after display evaluation. False leaves both world-space outputs untouched. */
   sampleMilkOutlet?: (runtimeId:string,...args:Parameters<SampleMilkOutlet>)=>boolean;
   /** Returns true when a paused stage needs another display evaluation. */
@@ -145,6 +148,7 @@ type RuntimeEntryWithPhysics = RuntimeEntry & {
   editor?:PoseSolver;
   chest?:ReturnType<typeof fitChestCompression>;
   bodyDisplay?:ReturnType<typeof createBodyDisplay>;
+  wardrobe?:WardrobeModel;
   bodyProfile?:BodyProfile|null;
   milkOutlet:SampleMilkOutlet;
   fingertipFit?:ReturnType<typeof beginFingertipFit>;
@@ -184,6 +188,7 @@ function restoreBindPose(entry: RuntimeEntryWithPhysics) {
 function clearPoseForRebind(entry: RuntimeEntryWithPhysics) {
   entry.chest?.restore();
   entry.bodyDisplay?.restore();
+  entry.wardrobe?.restore();
   entry.chest?.reset();
   entry.fingertip?.reset();
   entry.physicsDisplay?.restore(true);
@@ -376,8 +381,9 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
   function endPose(id:string){
     const entry=entries.get(id);if(!entry?.editor)return;
     const editor=entry.editor;entry.editor=undefined;
-    clearPoseForRebind(entry);editor.restore();
-    if(entry.physicsBackend&&!entry.appliedAnimation){restoreBindPose(entry);bindStaticMmdPhysicsRuntime(entry.model);}
+    clearPoseForRebind(entry);restoreDraws(entry.model.mesh);
+    try{editor.restore();if(entry.physicsBackend&&!entry.appliedAnimation){restoreBindPose(entry);bindStaticMmdPhysicsRuntime(entry.model);}}
+    finally{presentDraws(entry.model.mesh);}
     lastPhysicsSeconds.delete(id);
   }
 
@@ -579,6 +585,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       physicsBackend,
       physicsDisplay,
       bindPose, milkOutlet, createWorld, handEligibility,
+      wardrobe:resumeWardrobeModel(model.mesh,modelFile),
     };
     model.root.userData.mmdVisualScale = entry.transform.scale;
     // Tag root + meshes so post FX (DOF lock / selective bloom) can target a model id.
@@ -820,6 +827,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       return entries.get(id)?.model.root ?? null;
     },
     getModelSurface(id) {return entries.get(id)?.model??null;},
+    getWardrobe(id,file){const e=entries.get(id);return e?.visible&&e.modelFile===file?(e.wardrobe??=createWardrobeModel(e.model.mesh,file)):null;},
     sampleMilkOutlet(id,side,position,normal,trustedBareSkin){const e=entries.get(id);return !!e?.visible&&e.milkOutlet(side,position,normal,trustedBareSkin);},
     getBodySupport(id){const entry=entries.get(id);return entry?bodyDisplay(entry).support:null;},
     setBodyProfile(id,profile){
@@ -830,7 +838,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       const entry=entries.get(id);if(!entry?.visible)return null;
       if(entry.editor)return entry.editor;
       const original=entry.model.runtime;
-      clearPoseForRebind(entry);restoreBindPose(entry);lastPhysicsSeconds.delete(id);
+      clearPoseForRebind(entry);restoreBindPose(entry);restoreDraws(entry.model.mesh);lastPhysicsSeconds.delete(id);
       try{
         entry.editor=createPoseSolver(entry.model,entry.appliedAnimation,seconds,!!entry.bodyAnimation);return entry.editor;
       }catch(error){
@@ -842,13 +850,13 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
         else if(entry.physicsBackend)bindStaticMmdPhysicsRuntime(entry.model);
         entry.model.update(seconds,{physics:false,ik:!!entry.bodyAnimation});
         console.warn('[mmdVr] Could not edit this skeleton',error);return null;
-      }
+      }finally{presentDraws(entry.model.mesh);}
     },endPose,
     setModelVisible(id, visible) {
       const entry = entries.get(id);
       if (!entry) return;
       if (entry.visible !== visible) lastPhysicsSeconds.delete(id);
-      if (!visible) {endPose(id);entry.fingertip?.reset();entry.chest?.restore();entry.chest?.reset();entry.bodyDisplay?.restore();}
+      if (!visible) {endPose(id);entry.fingertip?.reset();entry.chest?.restore();entry.chest?.reset();entry.bodyDisplay?.restore();entry.wardrobe?.restore();}
       entry.visible = visible;
       applyMaterialVisibility(entry);
       applyMaterialOverrides(entry, lightingContext());
@@ -878,6 +886,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       const entry = entries.get(modelId);
       if (!entry) return;
       entry.materialOverrides[materialName] = mergeMaterialOverride(entry.materialOverrides[materialName], patch);
+      if (patch.opacity !== undefined) applyMaterialVisibility(entry);
       applyMaterialOverride(entry, materialName, lightingContext());
       if ("aoMapFile" in patch || "emissionMapFile" in patch || "maskMapFile" in patch) {
         refreshMaterialTextures(entry);
@@ -1001,7 +1010,9 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
           syncEntryWorldMatrix(entry, true);
           entry.physicsBackend.reset?.();
           entry.model.runtime.seek(t);
-          entry.model.update(t, { physics: true, ik: !entry.editor&&entry.bodyAnimation != null });
+          restoreDraws(entry.model.mesh);
+          try{entry.model.update(t, { physics: true, ik: !entry.editor&&entry.bodyAnimation != null });}
+          finally{presentDraws(entry.model.mesh);}
           // Restore visual scale after physics rebind.
           syncEntryWorldMatrix(entry, false);
           lastPhysicsSeconds.set(entry.id, t);
@@ -1067,6 +1078,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
         const reset = jumpedBack || jumpedFar || prev === undefined;
         entry.chest?.restore();
         entry.bodyDisplay?.restore();
+        entry.wardrobe?.restore();
         if (!physicsOn || reset || reseed) entry.fingertip?.reset();
         else entry.fingertip?.restore();
         entry.physicsDisplay?.restore(!physicsOn || reset);
@@ -1081,11 +1093,13 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
         const hasBodyMotion = entry.bodyAnimation != null;
         entry.handEligibility.mask=0;
         stepDelta = physicsOn ? physicsDelta : undefined;
+        restoreDraws(entry.model.mesh);
         try {
           entry.model.update(seconds, { physics: physicsOn, ik: !entry.editor&&hasBodyMotion });
           if (physicsOn && physicsDelta != null) entry.physicsDisplay?.present(entry.model.mesh.skeleton.bones, physicsDelta);
         } finally {
           stepDelta = undefined;
+          presentDraws(entry.model.mesh);
           if (physicsOn) syncEntryWorldMatrix(entry, false);
         }
         if (physicsOn) {
@@ -1098,6 +1112,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
         const handMask=physicsOn ? entry.handEligibility.mask : 0;
         // The authored pose and Bullet inputs are already complete.
         applyMorphOverrides(entry);
+        entry.wardrobe?.present();
         let bodyBonesChanged=entry.bodyDisplay?.apply()??false;
         const bodyParams=entry.bodyDisplay?.settings;
         // Continue the release even after all tracked slots disappeared. No

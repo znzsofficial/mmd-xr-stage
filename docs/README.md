@@ -5,7 +5,7 @@
 | 要做什么 | 入口 |
 |---|---|
 | 导入、摆角色、观看、续场 | [文件与背包](./gameplay/asset-workflow.md) · [Blender 角色包](./gameplay/blender-characters.md) · [屏幕键鼠](./gameplay/screen-viewing.md) · [VR 控制](./gameplay/vr-controls.md) |
-| 编辑已上场的角色 | [摆姿](./gameplay/pose-and-body-states.md#从站姿调成坐姿) · [胸型与观察](./gameplay/pose-and-body-states.md#先看模型上的胸型变化) · [周期](./gameplay/pose-and-body-states.md#对照两个周期日) · [泌乳效果](./gameplay/pose-and-body-states.md#泌乳目前能看到什么) · [骨盆附件](./gameplay/pelvic-attachment.md) |
+| 编辑已上场的角色 | [服装、互动与身体观察](./gameplay/actor-tools.md) · [摆姿](./gameplay/pose-and-body-states.md#从站姿调成坐姿) · [胸型与观察](./gameplay/pose-and-body-states.md#先看模型上的胸型变化) · [周期](./gameplay/pose-and-body-states.md#对照两个周期日) · [泌乳效果](./gameplay/pose-and-body-states.md#泌乳目前能看到什么) · [支架与附件](./gameplay/pelvic-attachment.md) |
 | 找道具、手柄震动或互动玩法 | [道具接触与手柄震动](./gameplay/README.md#道具接触与手柄震动) · [已上线的四幕](./gameplay/README.md#四幕玩法) · [互动提案](./gameplay/interactive-scene-studies.md) |
 | 选地图、机位或步行路线 | [布景索引](./scenery/README.md) · [深空与风道](./scenery/opal-planet.md) · [校园环线](./scenery/campus-arcade-loop.md) · [喜院到秦淮](./scenery/jiangnan-river-street.md) |
 | 验收与查卡顿 | [下次 Quest 导出](./performance/next-quest-export.md) · [角色工具本机回归](./performance/actor-tools-regression.md) · [性能优先级](./performance/README.md) · [历次真机报告](./performance/viewing-and-diagnostics.md#已有测量) |

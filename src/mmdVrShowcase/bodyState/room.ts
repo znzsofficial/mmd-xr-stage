@@ -1,6 +1,6 @@
 import { useBackpack } from '../backpack';
 import type { MmdRuntimeHandle } from '../mmdRuntime/mmdRuntime';
-import { advanceLiveBodies, cancelBodyPreview, useBodyState, type BodySupport } from './store';
+import { advanceLiveBodies, cancelBodyPreview, fromMilkInteraction, useBodyState, type BodySupport } from './store';
 import type { BodyProfile } from './data';
 
 type Binding = {runtimeId:string; profile:BodyProfile|null; draft:boolean; elapsed:number; visible:boolean;
@@ -35,7 +35,7 @@ export function createBodyRoom(runtime:Pick<MmdRuntimeHandle,'getBodySupport'|'s
         b={runtimeId:live.runtimeId,published,support:ability,profile,draft,elapsed:0,visible:live.visible};
         bindings.set(id,b); writable()[id]=published;
       }else if(b.profile===profile && b.draft===draft && b.visible===live.visible)continue;
-      if(b.draft!==draft||b.visible!==live.visible||b.profile!==profile)b.elapsed=0;
+      if(b.draft!==draft||b.visible!==live.visible||(b.profile!==profile&&!(profile&&fromMilkInteraction(profile))))b.elapsed=0;
       b.profile=profile; b.draft=draft; b.visible=live.visible;
       if(runtime.setBodyProfile?.(live.runtimeId,profile)||newlyVisible)invalidate();
     }

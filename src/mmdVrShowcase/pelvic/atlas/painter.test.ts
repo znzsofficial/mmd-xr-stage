@@ -141,3 +141,24 @@ it('keeps painting a moving orbit at a bounded cadence during a stream of pointe
     expect(art.draw.mock.calls.length).toBeGreaterThan(1);expect(art.draw.mock.calls.length).toBeLessThanOrEqual(5);
   }finally{driver.dispose();}
 });
+
+it.each(['vulva','vagina','uterus'] as const)('observes %s without enabling a socket and follows only the selected runtime while the figure is frozen',focus=>{
+  setAtlasView('a',{mode:'measure',motion:false});
+  const canvas=paper(),driver=atlasPainter(canvas,{assetId:'a',runtimeId:'r'},focus,()=>{},()=>{}),latest=()=>art.draw.mock.lastCall![1];
+  try{
+    driver.tick(0);expect(canvas.dataset.view).toBe(focus);expect(latest()).toMatchObject({focus,time:0,sample:null,pressure:0});
+    expect(useBodyState.getState()).toMatchObject({draft:null,byAsset:{}});expect(usePelvic.getState()).toMatchObject({active:null,byAsset:{}});
+    const body={...DEFAULT_BODY_PROFILE,day:22};useBodyState.setState({byAsset:{a:body}});
+    const sample={tip:[0,0,-.04] as const,tail:[0,0,.03] as const,outletInside:true,aligned:true,atCervix:false,depth:.04,radiusM:.02,lengthM:.1,angleDeg:0};
+    const a={assetId:'a',runtimeId:'previous',running:true,position:.99,token:47,mode:'standAuto' as const,source:'xr' as const,awaitingWorld:false};
+    const profile={...calibrated,container:'vaginal' as const,fluid:{vaginal:2,fantasyUterine:3}};
+    usePelvic.setState({byAsset:{a:profile},active:a,sample});driver.tick(20);expect(latest().sample).toBeNull();
+    usePelvic.setState({active:{...a,runtimeId:'r',token:48}});
+    for(const degrees of [0,38,90]){setAtlasView('a',{degrees});driver.tick(60+degrees);expect(latest()).toMatchObject({focus,time:0,sample,parked:false,
+      yaw:degrees*Math.PI/180,tissue:sampleBody(body).tissue,vaginalFluid:.5,uterineFluid:focus==='uterus'?.25:undefined});expect(latest().pressure).toBeCloseTo(.4);}
+    const parked={...sample,outletInside:false};usePelvic.setState({active:{...a,runtimeId:'r',token:49,running:false},sample:null,parkedSample:parked});driver.tick(300);
+    expect(latest()).toMatchObject({sample:parked,parked:true,pressure:0,time:0});
+    usePelvic.setState({active:null,parkedSample:null});driver.tick(500);expect(latest().sample).toBeNull();
+    expect(usePelvic.getState().byAsset.a).toBe(profile);expect(useBodyState.getState().byAsset.a).toBe(body);
+  }finally{driver.dispose();}
+});

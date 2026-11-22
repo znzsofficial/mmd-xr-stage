@@ -168,6 +168,7 @@ const observed=new Vector3(),center=new Vector3();
 export function outletObservation(s:PelvicSample|null){
   if(!s)return 'waiting';
   if(s.outletInside)return s.atCervix?'stop':'inside';
+  if(s.exteriorCovered)return 'coveredOutside';
   const [x,y,z]=s.tip;
   if(s.outletVisible){
     if(!s.aligned)return 'outsideOffset';
@@ -180,6 +181,7 @@ export function outletObservation(s:PelvicSample|null){
   return 'unknown';
 }
 export const observationText={waiting:['等待杆位采样','Waiting for sample'],outside:['外侧 · 已对准','Outside · aligned'],outsideOffset:['外侧 · 未对准','Outside · off axis'],
+  coveredOutside:['入口外 · 不外喷','Outside · no spray'],
   approach:['入口前 · 已对准','At rim · outside'],plane:['入口平面 · 未确认','At entry · unverified'],inside:['喷口在内','Outlet inside'],stop:['在内 · 抵达限位','Inside · at stop'],
   past:['越过限位 · 未确认','Past stop · unverified'],offset:['偏离通道 · 未确认','Off axis · unverified'],unknown:['未确认进入','Entry unverified']} as const;
 export const outletLabel=(s:PelvicSample|null,zh:boolean,parked=false)=>s&&parked?(zh?'待命 · 实测杆位':'Parked · measured position'):observationText[outletObservation(s)][zh?0:1];

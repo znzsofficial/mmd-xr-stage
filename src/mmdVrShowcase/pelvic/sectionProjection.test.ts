@@ -86,6 +86,7 @@ describe('socket-local metre projection',()=>{
     expect(outletObservation({...unknown,tip:[.055,0,-.01]})).toBe('offset');
     expect(outletObservation({...unknown,tip:[0,0,0]})).toBe('plane');
     expect(outletObservation({...unknown,tip:[0,0,.002],outletVisible:true})).toBe('approach');
+    expect(outletObservation({...unknown,tip:[0,0,.02],exteriorCovered:true})).toBe('coveredOutside');
     expect(outletObservation({...unknown,tip:[0,0,.002],outletVisible:true,aligned:false})).toBe('outsideOffset');
   });
 });

@@ -223,7 +223,11 @@ function adnexa(s:number,all:Mesh[]){
 // Each live rasterizer owns the topology. Share it across plates without
 // pinning all vertex/etch buffers on the page after the last fallback closes.
 let cached:WeakRef<Mesh[]>|undefined;
+let canalCache:WeakRef<Mesh[]>|undefined;
+export function vaginalMeshes(){
+  let meshes=canalCache?.deref();if(!meshes){meshes=[vagina(true),vagina(false)];canalCache=new WeakRef(meshes);}return meshes;
+}
 export function organMeshes(){
-  let meshes=cached?.deref();if(!meshes){meshes=[vagina(true),vagina(false),body(true),body(false)];adnexa(-1,meshes);adnexa(1,meshes);cached=new WeakRef(meshes);}
+  let meshes=cached?.deref();if(!meshes){meshes=[...vaginalMeshes(),body(true),body(false)];adnexa(-1,meshes);adnexa(1,meshes);cached=new WeakRef(meshes);}
   return meshes;
 }

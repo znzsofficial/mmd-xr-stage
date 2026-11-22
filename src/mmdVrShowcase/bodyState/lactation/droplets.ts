@@ -57,12 +57,14 @@ export function createMilkDroplets(scene:Scene, sample:SampleOutlet) {
   }
   return {
     get active(){return active.length>0;},
-    emit(side:Side,amount:number){
+    emit(side:Side,amount:number,singleBead=false){
       if(!(amount>0)||!Number.isFinite(amount)||!sides.includes(side))return false;
       if(!read(side)){clear(side);return false;}
-      const volume=Math.min(1,amount),count=Math.min(3,Math.ceil(volume/.10));
+      const volume=Math.min(1,amount),count=singleBead?1:Math.min(3,Math.ceil(volume/.10));
       if(active.length+count>capacity)return false; // Reject this event whole, never enqueue it.
-      const radius=Math.max(.0032,.0073*Math.cbrt(volume/(count*.10)));
+      // Held beats form one legible pendant now. Never schedule sibling beads
+      // for after release; the queued bead train is only the legacy button.
+      const radius=Math.max(.0032,(singleBead ? .0105 : .0073)*Math.cbrt(volume/(count*.10)));
       for(let i=0;i<count;i++){
         const d=free.pop()??{side,age:0,radius,center:new Vector3(),velocity:new Vector3(),pendant:new Quaternion()};
         d.side=side;d.radius=radius;d.age=-i*hang;attach(d,ports[side]);active.push(d);

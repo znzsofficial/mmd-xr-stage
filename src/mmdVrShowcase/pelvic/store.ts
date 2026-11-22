@@ -4,7 +4,7 @@ import { useHudWorldInput } from '../components/hudWorldInput';
 import { useMmdVrStore } from '../mmdVrStore';
 import { useStagePlay, type Hand } from '../play/stagePlay';
 import { defaultPelvicCalibration, type PelvicCalibration, type PelvicContact, type PelvicXYZ } from './contract';
-import { PELVIC_LIMITS as limits, type PelvicActive, type PelvicMode, type PelvicPatch, type PelvicProfile, type PelvicSample, type PelvicSupport } from './stateTypes';
+import { canStartAtOpening, PELVIC_LIMITS as limits, type PelvicActive, type PelvicDoseTarget, type PelvicMode, type PelvicPatch, type PelvicProfile, type PelvicSample, type PelvicSupport } from './stateTypes';
 
 export * from './stateTypes';
 
@@ -16,6 +16,7 @@ let sequence=0;
 // Only this clock owns the continuous rail position. React gets a decimated
 // copy with measured geometry, never a notification per controller frame.
 let position:number=outside, direction=1, doseCount=0, publishIn=0, seed=true, dispensed=false;
+let doseTarget:PelvicDoseTarget='vaginal';
 const clamp=(x:number,[lo,hi]:readonly [number,number])=>Math.min(hi,Math.max(lo,x));
 function limited(n:number|undefined, fallback:number, range:readonly [number,number]) {
   return n!==undefined&&Number.isFinite(n)?clamp(n,range):fallback;
@@ -55,12 +56,14 @@ export function disablePelvic(assetId:string){
 }
 export function patchPelvic(assetId:string,patch:PelvicPatch){
   const p=state().byAsset[assetId];if(!selected(assetId)||!p)return false;
-  const geometryChanged=!!patch.calibration||(typeof patch.clothingClear==='boolean'&&p.clothingClear!==patch.clothingClear);
+  const clothed=patch.clothingClear||patch.calibration?false:patch.clothed??!!p.clothed;
+  const clothingClear=clothed?false:patch.clothingClear??(!patch.calibration&&p.clothingClear);
+  const geometryChanged=!!patch.calibration||p.clothingClear!==clothingClear||!!p.clothed!==clothed;
   const active=state().active;
   if(geometryChanged&&active?.assetId===assetId)park(active);
   if(patch.container&&patch.container!==p.container&&active?.assetId===assetId)doseCount=0;
   writeProfile(assetId,{...p,calibration:patch.calibration?calibrate(p.calibration,patch.calibration):p.calibration,
-    clothingClear:patch.clothingClear??(patch.calibration?false:p.clothingClear),showAdapter:patch.showAdapter??p.showAdapter,
+    clothingClear,clothed,showAdapter:patch.showAdapter??p.showAdapter,
     container:patch.container==='vaginal'||patch.container==='fantasyUterine'?patch.container:p.container,
     speedHz:limited(patch.speedHz,p.speedHz,limits.speedHz),stroke:limited(patch.stroke,p.stroke,limits.stroke)});
   return true;
@@ -69,7 +72,7 @@ export function publishPelvicSupport(assetId:string,support:PelvicSupport){
   const bag=useBackpack.getState(),live=bag.live[assetId];
   if(!live?.visible||live.runtimeId!==support.runtimeId||state().support[assetId]===support)return;
   const a=state().active;
-  if((support.kind==='missing'||support.obstruction)&&a?.assetId===assetId)interruptPelvic(a.token);
+  if(support.kind==='missing'&&a?.assetId===assetId)interruptPelvic(a.token);
   usePelvic.setState(s=>({support:{...s.support,[assetId]:support}}));
 }
 /** Apply the ordinary actor material setting (including outlines/proxies).
@@ -80,7 +83,6 @@ export function setPelvicGarmentVisible(assetId:string,materialName:string,visib
   if(!selected(assetId)||!state().byAsset[assetId]||s?.runtimeId!==live?.runtimeId||!s?.garmentNames?.includes(materialName)||!stage.runtimeRef||
      !stage.materialModels[live.runtimeId]?.some(m=>m.name===materialName&&m.visible!==visible))return false;
   patchPelvic(assetId,{clothingClear:false});
-  const a=state().active;if(a?.assetId===assetId)interruptPelvic(a.token);
   stage.setMaterialVisible(live.runtimeId,materialName,visible);return true;
 }
 export function clearPelvicSupport(assetId:string,support:PelvicSupport){
@@ -114,8 +116,9 @@ export function assignPelvic(assetId:string,mode:PelvicMode,source:PelvicActive[
 }
 export function startPelvic(assetId:string){
   const a=state().active,s=state().support[assetId];
-  if(a?.assetId!==assetId||blocked(a)||!s||s.runtimeId!==a.runtimeId||s.kind==='missing'||s.obstruction||!state().byAsset[assetId]?.clothingClear)return false;
+  if(a?.assetId!==assetId||blocked(a)||!s||s.runtimeId!==a.runtimeId||s.kind==='missing')return false;
   if(a.running||a.awaitingWorld)return true;
+  const p=state().byAsset[assetId];if(!p||!canStartAtOpening(p,s))return false;
   const awaitingWorld=a.mode==='xrManual'&&!!useBackpack.getState().selected;
   doseCount=0;publishIn=0;
   usePelvic.setState({active:{...a,token:++sequence,awaitingWorld,running:!awaitingWorld},sample:null,parkedSample:null});return true;
@@ -195,14 +198,17 @@ export function publishPelvicSample(token:number,sample:PelvicSample){
   if(![sample.depth,sample.angleDeg,sample.radiusM,sample.lengthM].every(Number.isFinite)||!finiteXYZ(sample.tip)||!finiteXYZ(sample.tail)||
       sample.shaft&&!sample.shaft.every(finiteXYZ)){interruptPelvic(token);return false;}
   const prev=state().sample;
-  if(prev&&publishIn>0&&prev.outletInside===sample.outletInside&&prev.outletVisible===sample.outletVisible&&prev.atCervix===sample.atCervix&&prev.aligned===sample.aligned)return true;
+  if(prev&&publishIn>0&&prev.outletInside===sample.outletInside&&prev.outletVisible===sample.outletVisible&&prev.exteriorCovered===sample.exteriorCovered&&prev.atCervix===sample.atCervix&&prev.aligned===sample.aligned)return true;
   publishIn=.1;
   usePelvic.setState({active:a.mode==='standAuto'&&a.position!==position?{...a,position}:a,sample:snapshot(sample)});return true;
 }
 
-export function requestPelvicDose(assetId:string){
-  const a=state().active;if(a?.assetId!==assetId||!a.running||a.mode==='xrManual'||blocked(a))return false;
-  doseCount++;return true;
+export function requestPelvicDose(assetId:string,target:PelvicDoseTarget){
+  const {active:a,sample,byAsset}=state();
+  if(a?.assetId!==assetId||!a.running||a.mode==='xrManual'||blocked(a)||!sample)return false;
+  if(target==='external'?sample.outletInside||!sample.outletVisible:target!==byAsset[assetId].container||!sample.outletInside)return false;
+  if(doseTarget!==target)doseCount=0;
+  doseTarget=target;doseCount++;return true;
 }
 export function discardPelvicDoses(token:number){if(state().active?.token===token)doseCount=0;}
 /** One post-pose invocation per frame. The input is the solver's CURRENT outlet,
@@ -211,7 +217,12 @@ export function consumePelvicDose(token:number,outlet:Pick<PelvicContact,'outlet
   const a=state().active;
   if(a?.token!==token||!a.running||blocked(a)||dispensed)return 'none';
   if(a.mode==='xrManual'){if(!gripStart||useBackpack.getState().selected)return 'none';}
-  else if(doseCount>0)doseCount--;else return 'none';
+  else {
+    if(!doseCount)return 'none';doseCount--;
+    // The named button requests one particular destination. A crossing,
+    // withdrawal or loss between the click and render must not reroute it.
+    if(doseTarget==='external'?outlet.outletInside||!outlet.outletVisible:!outlet.outletInside||doseTarget!==state().byAsset[a.assetId].container){doseCount=0;return 'none';}
+  }
   dispensed=true;
   if(!outlet.outletInside){
     if(outlet.outletVisible)return 'external';

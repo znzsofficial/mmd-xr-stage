@@ -3,7 +3,8 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { Group, InstancedMesh, Matrix4, Scene, Vector3, type WebGLRenderer } from 'three';
 import { clearBackpack, syncBackpackFiles, useBackpack } from '../../backpack';
 import { useMmdVrStore } from '../../mmdVrStore';
-import { useBodyState } from '../store';
+import {advanceLiveBodies,setActorMilk,useBodyState} from '../store';
+import {openMilkPanel,pressMilk,releaseMilk,useMilkInteraction} from './interaction';
 import { DEFAULT_BODY_PROFILE } from '../data';
 import { clearMilkEffects, offerMilkDrain } from './events';
 import { mountRoomMilk } from './roomMilk';
@@ -89,4 +90,41 @@ it('requires a tracked XR frame in the current visible session; a hidden→visib
   f.tick();expect(f.emit()).toBe(true);f.gl.domElement.dispatchEvent(new Event('webglcontextlost'));f.tick();expect(f.count).toBe(0);expect(f.emit()).toBe(false);
   f.gl.domElement.dispatchEvent(new Event('webglcontextrestored'));f.tick();expect(f.emit()).toBe(true);
   f.session.dispatchEvent(new Event('end'));f.tick();expect(f.emit()).toBe(false);expect(f.count).toBe(0);
+});
+
+it('checks both displayed sides before pressing; beats debit actual stock, never schedule another bead on release, and survive observation',()=>{
+  const f=fixture(),panel={assetId:f.assetId,runtimeId:f.runtimeId},close=openMilkPanel(panel);
+  const profile=()=>useBodyState.getState().byAsset[panel.assetId];
+  f.sample.mockImplementation((_id,side,p,n,bare)=>{p.set(side==='left'?.1:-.1,1.3,.2);n.set(0,0,1);return side==='left'&&bare===true;});
+  try{
+    useBodyState.setState({inspection:null,byAsset:{[panel.assetId]:{...DEFAULT_BODY_PROFILE,lactating:true,left:.04,right:.8}}});
+    f.tick();expect(useMilkInteraction.getState().reading).toMatchObject({left:'confirm',right:'blocked'});
+    setActorMilk(panel,{bareLeft:true,bareRight:true});f.tick();expect(useMilkInteraction.getState().reading).toMatchObject({left:'ready',right:'blocked'});
+    const start=()=>pressMilk(panel,'both',()=>true),tapped=start();f.tick();releaseMilk(tapped);f.tick(.17);
+    expect(profile().left).toBe(.04);expect(f.count).toBe(0);
+    const h=start();expect(h).not.toBeNull();expect(pressMilk(panel,'right',()=>true)).toBeNull();
+    f.tick();f.tick(.17);expect(profile().left).toBeCloseTo(.006);expect(profile().right).toBeCloseTo(.766);expect(f.count).toBe(1);
+    f.tick(.16);expect(profile().left).toBe(0);expect(f.count).toBe(2);
+    advanceLiveBodies([panel.assetId],1.8);f.tick(.16);expect(profile().left).toBeCloseTo(.01);expect(profile().right).toBeCloseTo(.708);
+    releaseMilk(h);const atRelease=profile();for(let i=0;i<8;i++)f.tick(.10);
+    expect(f.count).toBe(0);expect(profile()).toBe(atRelease);expect(useBodyState.getState().draft).toBeNull();
+    close();const reopen=openMilkPanel({...panel});f.tick();expect(profile()).toBe(atRelease);expect(useMilkInteraction.getState().hold).toBeNull();reopen();
+  }finally{close();}
+});
+
+it('revokes the complete held clock on tracking/pose loss, coverage, stalls, hide, room retirement and raw XR source end',()=>{
+  const f=fixture(true),panel={assetId:f.assetId,runtimeId:f.runtimeId},close=openMilkPanel(panel),source={} as XRInputSource;
+  const stock=()=>useBodyState.getState().byAsset[panel.assetId].left;
+  let tracked=true;
+  try{
+    for(const interrupt of [()=>{tracked=false;f.tick();tracked=true;},()=>{f.track(false);f.tick();f.track(true);},()=>f.tick(.51),()=>{f.idle(500);f.tick();},
+      ()=>{f.session.dispatchEvent(Object.assign(new Event('selectend'),{inputSource:source}));},
+      ()=>{f.session.dispatchEvent(Object.assign(new Event('inputsourceschange'),{removed:[source]}));},
+      ()=>{f.sample.mockReturnValueOnce(false).mockReturnValueOnce(false);f.tick();},
+      ()=>{useBackpack.setState({live:{[f.assetId]:{...f.live,visible:false}}});useBackpack.setState({live:{[f.assetId]:f.live}});},
+      ()=>{window.dispatchEvent(new Event('blur'));},()=>f.room.dispose()]){
+      f.tick();expect(pressMilk(panel,'left',()=>tracked,source)).not.toBeNull();f.tick();f.tick(.11);const before=stock();interrupt();
+      expect(useMilkInteraction.getState().hold).toBeNull();for(let i=0;i<4;i++)f.tick(.12);expect(stock()).toBe(before);expect(f.count).toBe(0);
+    }
+  }finally{close();dispose=null;}
 });

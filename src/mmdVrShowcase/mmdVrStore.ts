@@ -40,6 +40,8 @@ export type MmdVrMaterialState = {
 };
 
 export type MmdVrRuntimeRef = {
+  getWardrobe?: (id:string,file:File)=>import('./wardrobe/model').WardrobeModel|null;
+  invalidateWardrobe?: ()=>void;
   setMaterialVisible: (modelId: string, materialName: string, visible: boolean) => void;
   setMaterialOverride: (modelId: string, materialName: string, patch: { opacity?: number; roughness?: number; metallic?: number; emission?: number }) => void;
 };

@@ -2,11 +2,24 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { clearBackpack, useBackpack } from '../backpack';
 import { createBodyRoom } from './room';
 import type { BodyProfile } from './data';
-import { beginBodyPreview, cancelBodyPreview, commitBodyPreview, disableBodyState, drainBodySide, inspectBody, patchBodyPreview, stepBodyDay, useBodyState, type BodySupport } from './store';
+import { beginBodyPreview, cancelBodyPreview, commitBodyPreview, debitActorMilk, disableBodyState, drainBodySide, inspectBody, patchBodyPreview, setActorMilk, stepBodyDay, useBodyState, type BodySupport } from './store';
 
 const live=(runtimeId:string,visible=true)=>({runtimeId,visible,position:[0,0,0] as [number,number,number]});
 const unsupported:BodySupport={bones:false,sides:{left:false,right:false},morphs:[],clothing:'authored-only'};
 afterEach(()=>{clearBackpack();useBodyState.setState({byAsset:{},draft:null,support:{},inspection:null});});
+
+it('retains fractional refill time between held beats without writing across an existing preview',()=>{
+  const actor={assetId:'a',runtimeId:'m'};
+  useBackpack.setState({entries:[{id:'a',kind:'model',file:new File([],'a.pmx'),path:'a.pmx'}],live:{a:live('m')},selected:'a'});
+  const room=createBodyRoom({getBodySupport:()=>unsupported,setBodyProfile:()=>false},()=>{});
+  try{
+    setActorMilk(actor,{lactating:true,refillSeconds:20});const before=useBodyState.getState().byAsset.a;
+    for(let i=0;i<10;i++){room.advance(.0625);if(i%2===1)debitActorMilk(actor,['left'],.01);}
+    const saved=useBodyState.getState().byAsset.a;expect(saved.left).toBeCloseTo(before.left-.05+.5/20);expect(saved.right).toBeCloseTo(before.right+.5/20);
+    beginBodyPreview('a');patchBodyPreview('a',{right:.9});expect(debitActorMilk(actor,['right'],.1)).toBe(null);setActorMilk(actor,{bareRight:true});
+    expect(useBodyState.getState().draft?.value.right).toBe(.9);cancelBodyPreview('a');expect(useBodyState.getState().byAsset.a).toBe(saved);
+  }finally{room.dispose();}
+});
 
 it('can inspect a fresh actor before moving its slider without applying a shape; a replaced editor cannot cancel the new preview',()=>{
   useBackpack.setState({entries:['a','b'].map(id=>({id,kind:'model',file:new File([],'same.pmx'),path:'same.pmx'})),live:{a:live('m'),b:live('n')},selected:'a'});

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>外观候选 · 胸廓与下缘</title>
+<!-- Replay: pnpm dev, open /scripts/art/breast-shape-study.html and use
+     下载候选图. Each panel is rendered at the HUD's 400 × 260 logical size. -->
+<style>
+body{margin:0;background:#211722;color:#eddbcf;font:1rem system-ui,sans-serif}main{max-width:1360px;margin:auto}canvas{display:block;width:100%;height:auto}a{display:inline-block;color:inherit;margin:1rem}
+</style>
+<main><canvas id="plate" width="1340" height="712" aria-label="外观候选，默认和饱满两档，各有正面、斜面、侧面"></canvas><a id="save" download="breast-shape-study.webp">下载候选图 · WebP</a></main>
+<script type="module">
+import {portrait} from './breast-shape-study.ts';
+const canvas=document.querySelector('#plate'),ctx=canvas.getContext('2d');
+const text=(s,x,y,n,c,bold=false)=>{ctx.font=`${bold?'600':'400'} ${n}px system-ui,"Microsoft YaHei",sans-serif`;ctx.fillStyle=c;ctx.fillText(s,x,y);};
+const rule=(x,y,w,color)=>{ctx.fillStyle=color;ctx.fillRect(x,y,w,1);};
+ctx.fillStyle='#211722';ctx.fillRect(0,0,canvas.width,canvas.height);
+text('胸廓与下缘',24,42,28,'#fae8da',true);text('外观候选  01',200,40,17,'#d4adb5');
+ctx.textAlign='right';text('同一姿态   /   平视轮廓研究',1316,40,16,'#ccafb8');ctx.textAlign='left';
+rule(24,61,1292,'#5c454f');
+const angles=[0,35,90],labels=['正面','斜前','侧面'];
+angles.forEach((d,i)=>{const x=99+i*410;text(labels[i],x+2,94,18,'#f0d7cc',true);text(`${d}°`,x+58,93,16,'#ba9aa7');});
+for(const [row,full] of [0,1].entries()) {
+  const y=111+row*293;
+  text(row?'饱满':'默认',24,y+117,19,'#f3e1d2',true);text(row?'100%':'0%',24,y+144,16,'#ceadb9');
+  for(const [i,angle] of angles.entries())ctx.drawImage(portrait(full,angle),99+i*410,y,400,260);
+  rule(24,y+275,1292,'#503b48');
+}
+text('静态美术稿   /   原创绘图',24,701,14,'#be9fa9');
+canvas.toBlob(blob=>{document.querySelector('#save').href=URL.createObjectURL(blob);},'image/webp',.97);
+</script></html>

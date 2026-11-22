@@ -38,14 +38,14 @@ it('moves the real stand nozzle along the calibrated curve on a frozen VMD, mete
   const {scene,root,piece,tick,driver,emissions}=fixture('screen');tick();
   expect(st().support.a.kind).toBe('manual');expect(scene.getObjectByName('pelvic:seal')!.visible).toBe(false);
   expect(assignPelvic('a','standManual','screen')).toBe(true);expect(startPelvic('a')).toBe(true);tick();
-  requestPelvicDose('a');tick();const drop=emissions.at(-1)!;
+  requestPelvicDose('a','external');tick();const drop=emissions.at(-1)!;
   const part=piece.getObjectByName('play:piece:dildo')!,nozzle=part.localToWorld(new Vector3(0,tipHeight,centerZ(tipHeight)));
   expect(drop.action).toBe('start');expect(drop.at.distanceTo(nozzle)).toBeLessThan(1e-7);expect(driver.getStandRoot()).toBe(piece);
   const key=driver.getStandBinding();expect(key).toBeTruthy();
   nudgePelvic('a',2);for(let i=0;i<90;i++)tick();
   expect(st().sample).toMatchObject({outletInside:true,atCervix:true});expect(st().sample!.depth).toBeCloseTo(.092*1.1);
   expect(driver.getAperture()!.amount).toBeGreaterThan(.4);expect(scene.getObjectByName('pelvic:seal')!.visible).toBe(false);
-  const e=emissions.filter(x=>x.action==='start').length;requestPelvicDose('a');tick();expect(st().byAsset.a.fluid.vaginal).toBe(1);
+  const e=emissions.filter(x=>x.action==='start').length;requestPelvicDose('a','vaginal');tick();expect(st().byAsset.a.fluid.vaginal).toBe(1);
   expect(emissions.filter(x=>x.action==='start')).toHaveLength(e);expect(emissions.at(-1)?.usable).toBe(false);
   patchPelvic('a',{showAdapter:true});tick();const shell=scene.getObjectByName('pelvic:seal') as Mesh;
   expect(shell.visible).toBe(true);shell.geometry.computeBoundingBox();expect(shell.geometry.boundingBox!.max.z-shell.geometry.boundingBox!.min.z).toBeGreaterThan(.007);
@@ -63,21 +63,21 @@ it('moves the real stand nozzle along the calibrated curve on a frozen VMD, mete
 
 it('cuts an exterior pulse even when stop and restart both happen between two render frames',()=>{
   const {tick,emissions}=fixture('screen');tick();assignPelvic('a','standManual','screen');startPelvic('a');
-  requestPelvicDose('a');tick();expect(emissions.at(-1)).toMatchObject({action:'start',usable:true});
-  requestPelvicDose('a');stopPelvic('a');startPelvic('a');tick();
+  tick();requestPelvicDose('a','external');tick();expect(emissions.at(-1)).toMatchObject({action:'start',usable:true});
+  requestPelvicDose('a','external');stopPelvic('a');startPelvic('a');tick();
   // An off action alone still pumps the unsent part of a LiquidSpray pulse.
   expect(emissions.at(-1)).toMatchObject({action:'off',usable:false});
-  requestPelvicDose('a');tick();expect(emissions.at(-1)).toMatchObject({action:'start',usable:true});
+  requestPelvicDose('a','external');tick();expect(emissions.at(-1)).toMatchObject({action:'start',usable:true});
 });
 
 it('holds a verified XR stand through slow chart frames without spending elapsed travel or queued doses; tracking loss retires it',()=>{
   const {driver,tick,piece,session,viewer,emissions}=fixture('xr');tick();assignPelvic('a','standManual','xr');startPelvic('a');tick();
   const slow=(dt:number)=>driver.advance(dt,{session} as XRFrame);
-  const outside=piece.matrixWorld.clone();nudgePelvic('a',1);requestPelvicDose('a');slow(.12);slow(.27);
+  const outside=piece.matrixWorld.clone();nudgePelvic('a',1);requestPelvicDose('a','external');slow(.12);slow(.27);
   expect(piece.matrixWorld.equals(outside)).toBe(true);expect(st().sample?.outletInside).toBe(false);expect(emissions.at(-1)?.usable).toBe(false);
   for(let i=0;i<60;i++)tick();const reading=st().sample!,at=piece.matrixWorld.clone(),binding=driver.getStandBinding();
   expect(reading.outletInside).toBe(true);expect(reading.depth).toBeGreaterThan(.06);expect(binding).toBeTruthy();
-  requestPelvicDose('a');slow(.12);slow(.251);slow(.36);expect(st().active?.running).toBe(true);expect(st().sample?.depth).toBe(reading.depth);
+  requestPelvicDose('a','vaginal');slow(.12);slow(.251);slow(.36);expect(st().active?.running).toBe(true);expect(st().sample?.depth).toBe(reading.depth);
   expect(piece.matrixWorld.equals(at)).toBe(true);expect(driver.getStandBinding()).toBe(binding);expect(driver.getAperture()!.amount).toBeGreaterThan(0);
   tick();expect(st().byAsset.a.fluid.vaginal).toBe(0);expect(emissions.some(x=>x.action==='start')).toBe(false);
   viewer.tracked=false;slow(.16);viewer.tracked=true;tick();expect(st().sample).toBeNull();expect(st().active?.running).toBe(false);
@@ -96,7 +96,7 @@ it.each(['anchor','drift','rod','hidden','new token'] as const)('rejects a long 
 });
 
 it('releases the stand and its queued dose on teardown, including a start after the last rendered frame',()=>{
-  const {driver,tick}=fixture('screen');tick();assignPelvic('a','standManual','screen');startPelvic('a');requestPelvicDose('a');
+  const {driver,tick}=fixture('screen');tick();assignPelvic('a','standManual','screen');startPelvic('a');expect(requestPelvicDose('a','external')).toBe(false);
   const profile=st().byAsset.a;driver.dispose();
   expect(st().active).toBeNull();expect(useStagePlay.getState().stand).toBeNull();expect(st().support.a).toBeUndefined();
   expect(st().byAsset.a).toBe(profile);
@@ -104,7 +104,7 @@ it('releases the stand and its queued dose on teardown, including a start after 
 
 it.each([false,true])('drops requests without a mounted nozzle; previously running: %s',wasRunning=>{
   const {piece,tick,emissions}=fixture('screen');tick();assignPelvic('a','standManual','screen');startPelvic('a');if(wasRunning)tick();
-  const mount=piece.parent!;piece.removeFromParent();requestPelvicDose('a');tick();mount.add(piece);tick();
+  const mount=piece.parent!;piece.removeFromParent();expect(requestPelvicDose('a','external')).toBe(wasRunning);tick();mount.add(piece);tick();
   expect(st().active?.running).toBe(!wasRunning);expect(emissions.filter(f=>f.action==='start')).toHaveLength(0);
 });
 
@@ -135,7 +135,7 @@ it('uses only the current physical grip; rejects reacquisition behind the port, 
   expect(queuePelvicGrip(scene,held,{session} as XRFrame,grip(),null)).toBe(false);expect(st().byAsset.a.fluid.vaginal).toBe(old);
 });
 
-it('checks a material against the actually skinned garment: lifting it uncovers the port, lowering it interrupts drive even after clothing was confirmed',()=>{
+it('checks live skinned clothing, suppressing surface effects without cancelling an admitted stroke when a lifted skirt drops',()=>{
   const {root,driver,tick}=fixture('screen');
   const g=new BoxGeometry(.13,.13,.006),n=g.getAttribute('position').count;
   g.setAttribute('skinIndex',new Uint16BufferAttribute(new Uint16Array(n*4),4));
@@ -147,13 +147,33 @@ it('checks a material against the actually skinned garment: lifting it uncovers 
   tick();expect(st().support.a).toMatchObject({obstruction:'garment',blockerName:'Pleated Skirt',garmentNames:['Pleated Skirt']});expect(assignPelvic('a','standManual','screen')).toBe(true);expect(startPelvic('a')).toBe(false);
   tick();const standby=st().parkedSample!;
   expect(standby.tip[2]).toBeGreaterThan(0);expect(standby).toMatchObject({aligned:true,depth:0,outletInside:false,outletVisible:false});
-  expect(driver.getStandBinding()).toBeNull();expect(driver.getAperture()).toBeNull();expect(requestPelvicDose('a')).toBe(false);
+  expect(driver.getStandBinding()).toBeNull();expect(driver.getAperture()).toBeNull();expect(requestPelvicDose('a','external')).toBe(false);
   bone.position.y+=.27;root.updateMatrixWorld(true);tick();expect(st().support.a.obstruction).toBeUndefined();expect(startPelvic('a')).toBe(true);
-  tick();expect(driver.getStandBinding()).toBeTruthy();bone.position.y-=.27;root.updateMatrixWorld(true);tick();
-  expect(st().support.a.obstruction).toBe('garment');expect(st().active?.running).toBe(false);expect(driver.getStandBinding()).toBeNull();
-  m.visible=false;tick();expect(st().support.a.obstruction).toBeUndefined();expect(st().active?.running).toBe(false);
+  tick();expect(requestPelvicDose('a','external')).toBe(true);
+  bone.position.y-=.27;root.updateMatrixWorld(true);driver.advance(.28);
+  expect(st().sample).toMatchObject({exteriorCovered:true,outletVisible:false});expect(requestPelvicDose('a','external')).toBe(false);
+  expect(st().active?.running).toBe(true);bone.position.y+=.27;root.updateMatrixWorld(true);tick();
+  patchPelvic('a',{showAdapter:true});nudgePelvic('a',.65);for(let i=0;i<60;i++)tick();
+  expect(driver.getStandBinding()).toBeTruthy();expect(driver.getAperture()).toBeTruthy();bone.position.y-=.27;root.updateMatrixWorld(true);tick();
+  expect(st().support.a.obstruction).toBe('garment');expect(st().active?.running).toBe(true);expect(st().sample?.outletInside).toBe(true);expect(driver.getAperture()).toBeNull();
+  m.visible=false;tick();expect(st().support.a.obstruction).toBeUndefined();expect(driver.getAperture()).toBeTruthy();stopPelvic('a');patchPelvic('a',{showAdapter:false});
   useStagePlay.getState().stow();useBackpack.getState().select(null);m.visible=true;tick();expect(st().support.a.obstruction).toBeUndefined();
   useBackpack.getState().select('a');tick();expect(st().support.a.obstruction).toBe('garment');g.dispose();m.dispose();
+});
+
+it.each(['Pleated Skirt','Body with painted outfit'])('supports an explicit clothed crossing with %s without opening the surface or spraying under it',name=>{
+  const {root,scene,tick,driver,viewer,emissions}=fixture('xr');const g=new BoxGeometry(.14,.14,.004),m=new MeshBasicMaterial({name});
+  root.add(new Mesh(g,m));cleanup.push(()=>{g.dispose();m.dispose();});patchPelvic('a',{clothingClear:false,showAdapter:true});tick();
+  expect(st().support.a.obstruction).toBe(name==='Pleated Skirt'?'garment':undefined);
+  assignPelvic('a','standManual','xr');tick();expect(startPelvic('a')).toBe(false);
+  patchPelvic('a',{clothed:true,container:'fantasyUterine'});expect(startPelvic('a')).toBe(true);
+  tick();nudgePelvic('a',.9);expect(requestPelvicDose('a','fantasyUterine')).toBe(false);expect(requestPelvicDose('a','external')).toBe(false);
+  expect(st().sample).toMatchObject({exteriorCovered:true,outletVisible:false,outletInside:false});
+  for(let i=0;i<60;i++)tick();expect(st().sample!.depth).toBeGreaterThan(.04);expect(requestPelvicDose('a','fantasyUterine')).toBe(true);tick();
+  expect(st().byAsset.a).toMatchObject({clothingClear:false,fluid:{vaginal:0,fantasyUterine:1}});expect(m.visible).toBe(true);
+  expect(scene.getObjectByName('pelvic:seal')!.visible).toBe(false);expect(driver.getAperture()).toBeNull();expect(emissions.some(f=>f.usable)).toBe(false);
+  requestPelvicDose('a','fantasyUterine');viewer.tracked=false;tick();viewer.tracked=true;tick();
+  expect(st().sample).toBeNull();expect(st().active?.running).toBe(false);expect(st().byAsset.a.fluid.fantasyUterine).toBe(1);
 });
 
 it('draws an unconfirmed mount, measures its physical nozzle and carriage, and clears the stationary diagram on unload',()=>{
