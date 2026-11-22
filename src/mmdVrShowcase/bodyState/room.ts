@@ -10,7 +10,7 @@ type Binding = {runtimeId:string; profile:BodyProfile; draft:boolean; elapsed:nu
  * even a cold physics rebuild can replace the underlying mesh under that ID. */
 export function createBodyRoom(runtime:Pick<MmdRuntimeHandle,'getBodySupport'|'setBodyProfile'>, invalidate:()=>void) {
   const bindings=new Map<string,Binding>(); let disposed=false;
-  function sync(){
+  function sync(livePublished=false){
     if(disposed)return;
     const bag=useBackpack.getState(), state=useBodyState.getState(); let support=state.support;
     const writable=()=>{if(support===state.support)support={...support};return support;};
@@ -22,7 +22,9 @@ export function createBodyRoom(runtime:Pick<MmdRuntimeHandle,'getBodySupport'|'s
     }
     for(const [id,live] of Object.entries(bag.live)){
       const draft=state.draft?.assetId===id, profile=draft?state.draft!.value:state.byAsset[id];
-      if(!profile)continue;
+      // A cold physics rollback restores its pre-switch snapshot. The user
+      // may have discarded the only preview while that mesh was absent.
+      if(!profile){if(livePublished && runtime.setBodyProfile?.(live.runtimeId,null))invalidate();continue;}
       const ability=runtime.getBodySupport?.(live.runtimeId);
       if(!ability)continue; // a different room owns this newly published map
       let b=bindings.get(id);
@@ -38,9 +40,9 @@ export function createBodyRoom(runtime:Pick<MmdRuntimeHandle,'getBodySupport'|'s
     }
     if(support!==state.support)useBodyState.setState({support});
   }
-  const stopBag=useBackpack.subscribe((s,p)=>{if(s.live!==p.live||s.entries!==p.entries)sync();});
+  const stopBag=useBackpack.subscribe((s,p)=>{if(s.live!==p.live||s.entries!==p.entries)sync(s.live!==p.live);});
   const stopState=useBodyState.subscribe((s,p)=>{if(s.byAsset!==p.byAsset||s.draft!==p.draft)sync();});
-  sync();
+  sync(true);
   return {
     advance(delta:number){
       if(disposed||!Number.isFinite(delta)||delta<=0)return;

@@ -10,7 +10,7 @@ import { createGarmentGuard } from './garment';
 import { createPelvicSolver, pelvicRailLimit, pelvicRailMatrix, registerPelvicSocket, samplePelvicFrame,
   type PelvicCalibration, type PelvicContact, type PelvicFrame } from './geometry';
 import { createPelvicInput, isMountedVisible, mountPelvicInput, samplePelvicNozzle } from './input';
-import { advancePelvic, clearPelvicSupport, consumePelvicDose, endPelvic, interruptPelvic,
+import { advancePelvic, clearPelvicSupport, consumePelvicDose, discardPelvicDoses, endPelvic, interruptPelvic,
   publishPelvicSample, publishPelvicSupport, usePelvic, type PelvicSample, type PelvicSupport } from './store';
 
 export type PelvicRigProps={getRoot:(runtimeId:string)=>Object3D|null;getSurface?:(runtimeId:string)=>WandModel|null};
@@ -125,14 +125,17 @@ export function mountPelvicRig(o:Options):PelvicRigHandle&{dispose:()=>void}{
       }
       if(!a){if(owner)reset();token=-1;owner=actor=null;return;}
       const b=bindings.get(a.assetId),profile=state.byAsset[a.assetId],play=useStagePlay.getState(),manual=a.mode==='xrManual',currentOwner=manual?play.held:play.stand,f=b?.frame;
-      if(token!==a.token||actor!==b?.root||owner!==currentOwner){reset(false);token=a.token;owner=currentOwner;actor=b?.root??null;}
+      const rebound=token!==a.token||actor!==b?.root||owner!==currentOwner;
+      if(rebound){reset(false);token=a.token;owner=currentOwner;actor=b?.root??null;}
       if(!b||!f||!profile||!currentOwner||currentOwner.toy!=='dildo'||!manual&&play.stand?.assetId!==a.assetId||b.runtimeId!==a.runtimeId||
         usePelvic.getState().active?.token!==a.token||b.support.obstruction||!profile.clothingClear){interrupt();return;}
       if(a.awaitingWorld){hideStand();return;}
       const piece=manual?queued?.root:o.standPiece();
       // React can commit the single stand mesh one render after an ownership
       // change. Never start/advance the motor until its actual piece is live.
-      if(!piece){if(manual&&a.running)interrupt();return;}
+      if(!piece||!manual&&(!piece.parent||!isMountedVisible(piece.parent,o.scene))){
+        if(a.running){if(manual||standKey)interrupt();else discardPelvicDoses(a.token);}return;
+      }
       if(manual){hideStand();if(!a.running||!queued)return;
         if(source&&(source!==queued.source||epoch!==queued.epoch)){interrupt();return;}source=queued.source;epoch=queued.epoch;
       }
@@ -152,7 +155,9 @@ export function mountPelvicRig(o:Options):PelvicRigHandle&{dispose:()=>void}{
       if(!publishPelvicSample(a.token,sample(f,contact,spray.dir))){interrupt();return;}
       observer.setFromMatrixPosition(f.world);hasObserver=true;
       const route=consumePelvicDose(a.token,contact,queued?.f.action==='start');
-      spray.usable=contact.outletVisible&&!contact.outletInside;
+      // A stopped/restarted motor can reuse its emitter without a stopped frame.
+      // Only a fresh external dose may start a pulse on the new binding.
+      spray.usable=contact.outletVisible&&!contact.outletInside&&(!rebound||route==='external');
       spray.action=route==='external'&&spray.usable?'start':'off';
       heldReady=manual;standReady=!manual;
     }finally{
@@ -166,5 +171,5 @@ export function mountPelvicRig(o:Options):PelvicRigHandle&{dispose:()=>void}{
     getAperture:()=>usePelvic.getState().active?.token===token?aperture:null,
     getObserverAnchor(out){if(!hasObserver||!actor?.visible||currentRoomToken()!==token)return false;out.copy(observer);return true;},
     dispose(){if(disposed)return;const last=currentRoomToken()??token;disposed=true;listen(null);if(typeof document!=='undefined')document.removeEventListener('visibilitychange',hidden);
-      unmountInput();reset();stand?.dispose();for(const [id,b] of bindings)remove(id,b);if(last!==-1)endPelvic(last);}};
+      unmountInput();reset();stand?.dispose();if(last!==-1)endPelvic(last);for(const [id,b] of bindings)remove(id,b);}};
 }

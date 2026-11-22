@@ -14,23 +14,14 @@ export function usePoseEditor({ assetId, runtimeId, onBack }: PoseControlsProps)
   };
   useLayoutEffect(() => {
     poseActions.begin(assetId, runtimeId);
-    return () => {
-      const s = usePoseSession.getState();
-      if (s.editing && s.assetId === assetId && s.runtimeId === runtimeId) {
-        if (s.dragging) poseActions.finishDrag(true);
-        poseActions.hold();
-      }
-    };
+    return () => poseActions.hold(assetId,runtimeId);
   }, [assetId, runtimeId]);
   const own = state.assetId === assetId && state.runtimeId === runtimeId;
   return {
     ...state, active: own && state.editing, held: own && !state.editing,
     savedNames: state.names[assetId] ?? empty,
     begin: () => poseActions.begin(assetId, runtimeId),
-    leave: () => { if (owns() && usePoseSession.getState().editing) {
-      if (usePoseSession.getState().dragging) poseActions.finishDrag(true);
-      poseActions.hold();
-    } onBack?.(); },
+    leave: () => { poseActions.hold(assetId,runtimeId); onBack?.(); },
     restore: () => { if (owns()) poseActions.end(); onBack?.(); },
   };
 }

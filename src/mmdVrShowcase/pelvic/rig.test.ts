@@ -10,7 +10,7 @@ import type { GripFrame } from '../play/propView';
 import { mountPelvicRig } from './rig';
 import { queuePelvicGrip } from './input';
 import { pelvicRailMatrix, registerPelvicSocket, samplePelvicFrame } from './geometry';
-import { assignPelvic, enablePelvic, nudgePelvic, patchPelvic, requestPelvicDose, startPelvic, usePelvic } from './store';
+import { assignPelvic, enablePelvic, nudgePelvic, patchPelvic, requestPelvicDose, startPelvic, stopPelvic, usePelvic } from './store';
 
 const st=usePelvic.getState,initialStage=useMmdVrStore.getState();
 const cleanup:(()=>void)[]=[];
@@ -59,6 +59,28 @@ it('moves the real stand nozzle along the calibrated curve on a frozen VMD, mete
   expect(driver.getObserverAnchor(anchor)).toBe(false);
   tick();expect(throughLip(.006)).toBeGreaterThan(0);
   patchPelvic('a',{calibration:{pitchDeg:12,offsetM:[.005,0,0]}});tick();expect(scene.getObjectByName('pelvic:seal')).toBe(shell);
+});
+
+it('cuts an exterior pulse even when stop and restart both happen between two render frames',()=>{
+  const {tick,emissions}=fixture('screen');tick();assignPelvic('a','standManual','screen');startPelvic('a');
+  requestPelvicDose('a');tick();expect(emissions.at(-1)).toMatchObject({action:'start',usable:true});
+  requestPelvicDose('a');stopPelvic('a');startPelvic('a');tick();
+  // An off action alone still pumps the unsent part of a LiquidSpray pulse.
+  expect(emissions.at(-1)).toMatchObject({action:'off',usable:false});
+  requestPelvicDose('a');tick();expect(emissions.at(-1)).toMatchObject({action:'start',usable:true});
+});
+
+it('releases the stand and its queued dose on teardown, including a start after the last rendered frame',()=>{
+  const {driver,tick}=fixture('screen');tick();assignPelvic('a','standManual','screen');startPelvic('a');requestPelvicDose('a');
+  const profile=st().byAsset.a;driver.dispose();
+  expect(st().active).toBeNull();expect(useStagePlay.getState().stand).toBeNull();expect(st().support.a).toBeUndefined();
+  expect(st().byAsset.a).toBe(profile);
+});
+
+it.each([false,true])('drops requests without a mounted nozzle; previously running: %s',wasRunning=>{
+  const {piece,tick,emissions}=fixture('screen');tick();assignPelvic('a','standManual','screen');startPelvic('a');if(wasRunning)tick();
+  const mount=piece.parent!;piece.removeFromParent();requestPelvicDose('a');tick();mount.add(piece);tick();
+  expect(st().active?.running).toBe(!wasRunning);expect(emissions.filter(f=>f.action==='start')).toHaveLength(0);
 });
 
 it('uses only the current physical grip; rejects reacquisition behind the port, cancels an exterior plume immediately inside, and invalidates a queued frame on transfer',()=>{

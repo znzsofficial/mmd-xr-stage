@@ -32,3 +32,30 @@ it('treats one real drag as one undo, cancels unfinished edits on recall, and on
     useBackpack.setState({entries:[]});expect(usePoseSession.getState().names).toEqual({});
   }finally{stop.dispose();useHudWorldInput.setState({blocked:false});useMmdVrStore.setState(stage);useBackpack.setState(bag);}
 });
+
+it('holds a suspended editor on unmount and preserves that pose when the next actor has no editable rig',()=>{
+  const bag=useBackpack.getState(),stage=useMmdVrStore.getState();
+  const entries=['a','b'].map(id=>({id,kind:'model' as const,file:new File([],`${id}.pmx`),path:id}));
+  const live=(runtimeId:string)=>({runtimeId,visible:true,position:[0,0,0] as [number,number,number]});
+  useBackpack.setState({entries,live:{a:live('m1'),b:live('m2')},selected:'a',busy:false,draft:null});
+  useMmdVrStore.setState({overlayOpen:true,duration:3,playing:true,physicsBusy:false,physicsFatal:false});
+  let x=0;
+  const solver={keys:['pelvis'],capture:():PoseSnapshot=>({bones:[x],morphs:[],poles:{},feetLocked:false}),
+    rotate:()=>{x++;return true;},apply:(s:PoseSnapshot)=>{x=s.bones[0];}};
+  const room=mountPoseRoom({open:id=>(id==='m1'?solver:{keys:[]}) as unknown as PoseSolver,close:id=>{if(id==='m1')x=0;},dirty:()=>{}});
+  try{
+    pose.begin('a','m1');pose.rotate('pelvis','x',1);
+    useMmdVrStore.setState({physicsBusy:true});
+    pose.hold('a','m1'); // editor closes before the replacement mesh commits
+    useMmdVrStore.setState({physicsBusy:false});room.afterPhysics();
+    expect(x).toBe(1);expect(usePoseSession.getState()).toMatchObject({runtimeId:'m1',editing:false});
+    useBackpack.getState().select('b');
+    expect(pose.undo()).toBe(false);expect(pose.save('stale')).toBe(false);
+    expect(pose.begin('a','m1')).toBe(false); // old panel is no longer the selection
+    expect(pose.begin('b','m2')).toBe(false);expect(x).toBe(1);
+    expect(usePoseSession.getState()).toMatchObject({assetId:'a',editing:false,canUndo:true});
+    useBackpack.getState().select('a');expect(pose.begin('a','m1')).toBe(true);
+    expect(pose.undo()).toBe(true);expect(x).toBe(0);pose.end();
+    expect(useMmdVrStore.getState().playing).toBe(true);
+  }finally{room.dispose();useMmdVrStore.setState(stage);useBackpack.setState(bag);}
+});

@@ -89,7 +89,7 @@ it('routes each dose from the actual outlet once; containers, overflow, draining
   opted();assignPelvic('a','standManual','screen');startPelvic('a');const t=token();
   // Last displayed geometry can lag: even with an external readout the new sample may be inside.
   requestPelvicDose('a');expect(consumePelvicDose(t,external)).toBe('external');expect(consumePelvicDose(t,inside)).toBe('none');
-  advancePelvic(t,.014);requestPelvicDose('a');expect(consumePelvicDose(t,occluded)).toBe('none');
+  advancePelvic(t,.014);requestPelvicDose('a');requestPelvicDose('a');expect(consumePelvicDose(t,occluded)).toBe('none');
   advancePelvic(t,.014);expect(consumePelvicDose(t,external)).toBe('none'); // no deferred spray on recovery
   setPelvicCapacity('a',1.5);
   const dose=()=>{requestPelvicDose('a');advancePelvic(t,.014);expect(consumePelvicDose(t,inside)).toBe('internal');};dose();dose();
@@ -133,4 +133,20 @@ it('invalidates queued work on hide, replacement, room change and exit; page cal
   const profile=get().byAsset.a;publishPelvicSupport('a',support('3'));assignPelvic('a','standAuto','screen');startPelvic('a');
   useMmdVrStore.setState({overlayOpen:false});expect(get().active).toBeNull();expect(play().stand).toBeNull();expect(get().byAsset.a).toBe(profile);
   clearBackpack();expect(get().byAsset).toEqual({});
+});
+
+it('isolates balances and pending doses across actor transfers and a return to a room with reused runtime IDs',()=>{
+  opted();assignPelvic('a','standManual','screen');startPelvic('a');const first=token();
+  requestPelvicDose('a');consumePelvicDose(first,inside);requestPelvicDose('a');
+  bag().select('b');enablePelvic('b',true);patchPelvic('b',{clothingClear:true,container:'fantasyUterine'});
+  assignPelvic('b','standManual','screen');startPelvic('b');const second=token();
+  expect(consumePelvicDose(second,inside)).toBe('none');
+  setPelvicCapacity('b',1);for(let i=0;i<2;i++){advancePelvic(second,.016);requestPelvicDose('b');consumePelvicDose(second,inside);}
+  requestPelvicDose('b');const oldB=get().support.b;
+  const room=useMmdVrStore.getState().prefs.scenery;useMmdVrStore.getState().setPrefs({scenery:room==='pool'?'floor':'pool'});
+  useMmdVrStore.getState().setPrefs({scenery:room});expect(assignPelvic('b','standManual','screen')).toBe(false);
+  publishPelvicSupport('b',support('2'));assignPelvic('b','standManual','screen');startPelvic('b');clearPelvicSupport('b',oldB);
+  expect(consumePelvicDose(token(),inside)).toBe('none');expect(endPelvic(first)).toBe(false);expect(endPelvic(second)).toBe(false);
+  expect(get().active?.running).toBe(true);expect(get().byAsset.a).toMatchObject({fluid:{vaginal:1,fantasyUterine:0},overflow:0});
+  expect(get().byAsset.b).toMatchObject({fluid:{vaginal:0,fantasyUterine:1},overflow:1});
 });

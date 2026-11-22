@@ -5,7 +5,7 @@
 ## 沿一次放置走读
 
 1. [准备页](../src/mmdVrShowcase/MmdVrPrepApp.tsx)把本地文件交给[背包](../src/mmdVrShowcase/backpack.ts)。此时只有目录条目，角色尚未加载，也不占上场名额。
-2. [屏幕](../src/mmdVrShowcase/screen/ScreenStage.tsx)或 [XR 场景](../src/mmdVrShowcase/MmdVrScene.tsx)挂载同一个 [MmdVrStageContent](../src/mmdVrShowcase/components/MmdVrStage.tsx)。它管理本次观看的动作／透明度采样缓存，按布景和切换代次挂载一个 [StageRoom](../src/mmdVrShowcase/stage/StageRoom.tsx)。即使 A → B → A 被合成一次 React 渲染，第一次 A 的异步加载也不能提交到第二次 A。
+2. [屏幕](../src/mmdVrShowcase/screen/ScreenStage.tsx)和 [XR 场景](../src/mmdVrShowcase/MmdVrScene.tsx)共用 [MmdVrStageContent](../src/mmdVrShowcase/components/MmdVrStage.tsx)。观看会话持有动作／透明度采样缓存；[StageRoom](../src/mmdVrShowcase/stage/StageRoom.tsx)的寿命由布景切换代次、Three 场景和渲染器身份决定。更换相机不会重建房间。过期房间的帧回调不能读取或清空新房间的待办命令。
 3. [放置射线](../src/mmdVrShowcase/components/BackpackPlacement.tsx)检查真实地面和遮挡，背包确认后发出带 token 的命令。房间检查命令有效性，通过 [stageActors](../src/mmdVrShowcase/stageActors.ts) 加载或移动实例，成功后才发布上场状态。
 
    电玩厅上下层共用 XZ；`supportY` 是射线命中面的世界高度，从预览、确认一直传到 `StageRoom`。提交时房间调用 [`resolvePlacementHeight`](../src/mmdVrShowcase/scenery/placementAreas.ts)：`null` 表示拒放，否则将返回的世界高度交给角色或物件。回访从快照的三维位置恢复。
@@ -15,8 +15,9 @@
 
 | 要改什么 | 负责的模块 |
 |---|---|
-| 角色工具里的动态解剖图 | [`pelvic/atlas/`](../src/mmdVrShowcase/pelvic/atlas/) 在本地绘制可转动的解剖模型，屏幕和 XR 共用画面；优先在按需 Worker 内绘图，旧设备可回退。视图按背包资产保存；周期、接触和液量均只读。[测量投影](../src/mmdVrShowcase/pelvic/sectionProjection.ts)将真实三维样本投到相同观察方向。 |
-| 骨盆附件的手持／支架、剖面与液量 | [`pelvic/`](../src/mmdVrShowcase/pelvic/) 将资产校准与道具所有权分开。手持用真实握姿和当帧侧握事件；房间在角色求值后检验同一喷口，决定内部计量或外喷。支架、剖面都读取同一条校准轨道；屏幕／VR 不自行从滑块推断接触。[玩家操作](./gameplay/pelvic-attachment.md) |
+| 角色工具里的动态解剖图 | [`pelvic/atlas/`](../src/mmdVrShowcase/pelvic/atlas/) 的器官动态按需使用本地 Worker；测量剖面直接在 Canvas 上画[标定投影](../src/mmdVrShowcase/pelvic/sectionProjection.ts)。显示按资产隔离，只读周期、接触、存量；切换角度或图像定格不驱动玩法。 |
+| 骨盆附件的手持／支架、剖面与计量 | [`pelvic/rig.ts`](../src/mmdVrShowcase/pelvic/rig.ts) 在角色求值后检查当帧真实喷口：有效在内计量、确认在外只外喷、其余情况消费触发但不释放。支架与剖面共用校准轨道，不从滑块推断接触。[玩家操作](./gameplay/pelvic-attachment.md) |
+| 道具引起的临时模型形变 | [`roomPropDisplay.ts`](../src/mmdVrShowcase/stage/roomPropDisplay.ts) 管开合形态、软头接触和持棒触觉的订阅与清理。帧末先叠开合形态，再叠道具接触；下次 VMD／Bullet 求值、姿势编辑或房间退出前逆序还原。同名顶点形态也不能把显示权重留进原动作。 |
 | 摆姿势、身体状态及局部剖面 | [`pose/`](../src/mmdVrShowcase/pose/) 管编辑手势、单帧动作和命名姿势；[`bodyState/`](../src/mmdVrShowcase/bodyState/) 管每个资产的虚构时间线、预览及显示适配。只有当房间挂载演员时，才关联其骨架／形态。屏幕和 VR 使用同一套命令。[操作与验证](./gameplay/pose-and-body-states.md) |
 | 默认设置、合法值、v1/v2 偏好兼容 | [`settings/preferences.ts`](../src/mmdVrShowcase/settings/preferences.ts)。首次进入、读取旧记录和场内更新共用同一套规则；[`mmdVrStore.ts`](../src/mmdVrShowcase/mmdVrStore.ts) 发布状态和操作。文件、布局和运行时句柄不属于偏好。 |
 | 某一间房的模型、入口、机位、遮挡 | [`scenery/`](../src/mmdVrShowcase/scenery/)；按[布景接入指南](./scenery/adding-a-set.md)改注册表和本景布局。菜单切景是否重置视角由 `catalog.ts` 决定；步行跨门由 `connections.ts` 的平移数据决定。 |

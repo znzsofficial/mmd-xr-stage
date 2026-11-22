@@ -26,5 +26,5 @@
 
 ## 工程与复验入口
 
-- [姿势求值与 IK](../../src/mmdVrShowcase/pose/poseSolver.ts)、[冻结动作源](../../src/mmdVrShowcase/pose/poseClip.ts)、[编辑寿命及命名姿势](../../src/mmdVrShowcase/pose/poseSession.ts)。单帧动作不用 VMD 原字节，不烘入 Bullet 衣物或显示层胸部变形。开始、退出允许重绑；拖动只改已绑定的轨道。检查脚锁、两肘膝、转腕、带物理衣物、失追与取消，以及回到原动作后下一帧。
+- [姿势求值与 IK](../../src/mmdVrShowcase/pose/poseSolver.ts)、[冻结动作源](../../src/mmdVrShowcase/pose/poseClip.ts)、[编辑寿命及命名姿势](../../src/mmdVrShowcase/pose/poseSession.ts)。[姿势回归](../../src/mmdVrShowcase/pose/poseSolver.test.ts)覆盖锁脚、旋腕、WASM／JS 原帧及后续动作恢复、发货版 Bullet 读取当前腕姿。单帧动作不烘入 Bullet 衣物或显示形变，拖动不反复重绑。
 - [身体时间线](../../src/mmdVrShowcase/bodyState/data.ts)、[每房间的角色绑定](../../src/mmdVrShowcase/bodyState/room.ts)、[可逆外观](../../src/mmdVrShowcase/bodyState/runtime.ts)。用同模型同机位切日、取消，比较原 VMD 形态权重与加权顶点，另放第二人确认状态隔离。

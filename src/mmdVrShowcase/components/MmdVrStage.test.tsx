@@ -20,7 +20,7 @@ const harness = vi.hoisted(() => ({
   frame: null as null | ((state: unknown, delta: number) => void),
 }));
 vi.mock("@react-three/fiber", () => ({
-  useThree: () => harness.three,
+  useThree: (select?:(state:typeof harness.three)=>unknown) => select ? select(harness.three) : harness.three,
   useFrame: (callback: typeof harness.frame) => { harness.frame = callback; },
 }));
 vi.mock("../mmdVrGltf", () => ({ createMmdVrGltfLoader: vi.fn() }));
@@ -146,6 +146,33 @@ async function setupBag(files: File[], useMotionCache = false) {
   return { scene, root, load, motion, id, place, exit, store, bag };
 }
 const file = (name: string) => new File([name], name);
+
+it('restores the last complete layout on a renderer replacement and releases the old committed rig exactly once',async()=>{
+  const actor=file('replace.pmx'),dance=file('replace.vmd');
+  const {place,root,exit,bag,id}=await setupBag([actor,dance]);
+  try{
+    await place(actor,2,35);await act(async()=>bag().applyMotion(id(actor),dance,'body'));
+    const old=runtimeWith(actor),dispose=vi.spyOn(old,'dispose');
+    harness.three={...harness.three,gl:{}};
+    await act(async()=>root.render(<StrictMode><LifecycleHarness/></StrictMode>));
+    expect(dispose).toHaveBeenCalledTimes(1);
+    const next=runtimeWith(actor);expect(next).not.toBe(old);
+    expect(next.exportProjectModels()[0]).toMatchObject({bodyMotionFile:dance,transform:{positionX:2,rotationY:35}});
+    expect(bag().live[id(actor)].runtimeId).toBe(next.exportProjectModels()[0].id);
+  }finally{await exit();}
+});
+
+it('a retired frame cannot drain the replacement room’s pending model commands',async()=>{
+  const actor=file('target.pmx'),{place,store,bag,id,exit}=await setupBag([actor]);
+  try{
+    await place(actor);const oldFrame=harness.frame!;
+    await act(async()=>store().setPrefs({scenery:'lawn'}));await place(actor);
+    const target=bag().live[id(actor)].runtimeId;
+    await act(async()=>{store().requestModelScale(target,.5);oldFrame({},1/90);});
+    expect(store().pendingModelTransforms).toHaveLength(1);
+    await act(async()=>harness.frame!({},1/90));expect(store().models.find(m=>m.id===target)?.scale).toBe(.5);
+  }finally{await exit();}
+});
 
 it('moves an actor between coincident XZ supports and restores the chosen floor',async()=>{
   const actor=file('arcade.pmx'),{id,store,bag,exit}=await setupBag([actor]);

@@ -5,6 +5,7 @@
 | 要做什么 | 入口 |
 |---|---|
 | 导入、摆角色、观看、续场 | [文件与背包](./gameplay/asset-workflow.md) · [Blender 角色包](./gameplay/blender-characters.md) · [屏幕键鼠](./gameplay/screen-viewing.md) · [VR 控制](./gameplay/vr-controls.md) |
+| 编辑已上场的角色 | [摆姿势与身体状态](./gameplay/pose-and-body-states.md) · [骨盆附件、剖面与计量](./gameplay/pelvic-attachment.md) |
 | 找道具、手柄震动或互动玩法 | [道具接触与手柄震动](./gameplay/README.md#道具接触与手柄震动) · [已上线的四幕](./gameplay/README.md#四幕玩法) · [互动提案](./gameplay/interactive-scene-studies.md) |
 | 选地图、机位或步行路线 | [布景索引](./scenery/README.md) · [深空与风道](./scenery/opal-planet.md) · [校园环线](./scenery/campus-arcade-loop.md) · [喜院到秦淮](./scenery/jiangnan-river-street.md) |
 | 做 Quest 验收、查卡顿 | [下次头显短测与导出](./performance/next-quest-export.md) · [性能优先级](./performance/README.md) · [历次真机报告](./performance/viewing-and-diagnostics.md#已有测量) |
@@ -14,4 +15,4 @@
 
 [产品约束](../PRODUCT.md) · [视觉约定](../DESIGN.md) · [代理指南](../AGENTS.md) · [XR 会话](./xr-session-lifecycle.md) · [loader 补丁](./three-mmd-loader-maintenance.md) · [部署](./deployment.md) · [第三方声明](./THIRD_PARTY_NOTICES.md)
 
-[五项结构审查](./structure-review-2026-11-20.md)已有修复；[拆分前路线图](./mmd-vr-showcase-roadmap.md)与 [WebGPU XR 调查](./webgpu-xr-status.md)供追溯，不作当前排期。
+[角色工具收尾审查](./structure-review-2026-11-22.md) · [前一轮五项结构审查](./structure-review-2026-11-20.md)。[拆分前路线图](./mmd-vr-showcase-roadmap.md)与 [WebGPU XR 调查](./webgpu-xr-status.md)供追溯，不作当前排期。

@@ -30,7 +30,7 @@ export function poseFixture(partial = false) {
   });
   i32(2);
   str('WristMorph'); str('WristMorph'); u8(4); u8(2); i32(1); u8(13); vec(0,.016,.01, Math.sin(.13),0,0,Math.cos(.13));
-  str('Gesture'); str('Gesture'); u8(4); u8(0); i32(1); u8(0); vec(.7);
+  str('Gesture'); str('Expression'); u8(4); u8(0); i32(1); u8(0); vec(.7);
   i32(0); i32(2);
   for (const [i,name,x,y,b] of [[13,'cuff',-.78,1.46,0],[19,'hem',-.32,1.18,1]] as const) {
     str(name); str(name); u8(i); u8(0); u16(0); u8(0); vec(.04,.04,.04, x,y,0, 0,0,0, b, .05,.1,0,.5); u8(b);

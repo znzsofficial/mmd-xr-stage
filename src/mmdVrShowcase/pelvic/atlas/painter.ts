@@ -1,6 +1,6 @@
 import {useLanguageStore} from '../../../languageStore';
 import {useBodyState} from '../../bodyState/store';
-import {BODY_DAY_SECONDS,sampleBody} from '../../bodyState/data';
+import {BODY_DAY_SECONDS,sampleBody,type BodyProfile} from '../../bodyState/data';
 import {semenColor} from '../../play/semenAppearance';
 import {usePelvic} from '../store';
 import {drawPelvicSection,sectionLayout,SECTION_W as W,SECTION_H as H} from '../sectionPaint';
@@ -10,34 +10,64 @@ import {readAtlasView,useAtlasSettings} from './view';
 export type AtlasActor={assetId:string;runtimeId:string};
 export type AtlasScope='pelvic'|'body';
 
+// Only inputs to the lining, shedding and cycle-day readout. Breast refill
+// also replaces BodyProfile every 250 ms, even on a locked day.
+function sameCycle(a:BodyProfile|undefined,b:BodyProfile|undefined){
+  return a===b||!!a&&!!b&&a.day===b.day&&a.bleedDays===b.bleedDays&&a.length===b.length&&
+    a.liningGain===b.liningGain&&a.liningOverride===b.liningOverride;
+}
+
 /** One painter for the DOM surface or one reusable XR canvas texture. Discrete
  * input/sample changes wake it; only the diagram's pulse and camera ease need
  * a clock. The UI never writes a simulation sample, even during an orbit. */
 export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasActor,scope:AtlasScope,wake:()=>void,upload:()=>void){
   const ctx=canvas.getContext('2d');
   let art:ReturnType<typeof organOutput>|undefined,geometry:ReturnType<typeof sectionLayout>|undefined;
-  let lastL=0,lastR=0,lastYaw=NaN,dirty=true,heading=readAtlasView(assetId).degrees,lastHeading=NaN;
-  let lastTime:number|null=null,lastPaint=-Infinity,time=0;
-  const changed=()=>{dirty=true;wake();};
-  function currentBody(){const s=useBodyState.getState();return s.draft?.assetId===assetId?s.draft.value:s.byAsset[assetId];}
-  const off=[useAtlasSettings.subscribe((s,p)=>{if(s.actors[assetId]!==p.actors[assetId])changed();}),
+  let view=readAtlasView(assetId),lastL=0,lastR=0,lastYaw=NaN,dirty=true,heading=view.degrees,lastHeading=NaN;
+  let lastTime:number|null=null,lastPaint=-Infinity,time=0,dead=false;
+  const changed=(invalidate=true)=>{dirty=true;if(invalidate)art?.discard();wake();};
+  function currentBody(s=useBodyState.getState()){return s.draft?.assetId===assetId?s.draft.value:s.byAsset[assetId];}
+  function binding(s:ReturnType<typeof usePelvic.getState>){return s.active?.assetId===assetId&&s.active.runtimeId===runtimeId?s.active:null;}
+  const off=[useAtlasSettings.subscribe((s,p)=>{
+    if(s.actors[assetId]===p.actors[assetId])return;
+    const prev=view;view=readAtlasView(assetId);
+    if(scope==='pelvic'&&view.mode!==prev.mode){
+      if(view.mode==='measure'){art?.dispose();art=undefined;}
+      changed();
+    }else if(view.motion!==prev.motion||!view.motion&&view.degrees!==prev.degrees)changed();
+    else if(view.degrees!==prev.degrees)wake(); // a continuous orbit still honours the turn rate limit
+  }),
     useLanguageStore.subscribe((s,p)=>{if(s.language!==p.language)changed();}),
-    useBodyState.subscribe((s,p)=>{if(s.byAsset[assetId]!==p.byAsset[assetId]||s.draft!==p.draft&&(s.draft?.assetId===assetId||p.draft?.assetId===assetId))changed();})];
-  if(scope==='pelvic')off.push(usePelvic.subscribe((s,p)=>{if(s.byAsset[assetId]!==p.byAsset[assetId]||
-    (s.active?.runtimeId===runtimeId||p.active?.runtimeId===runtimeId)&&(s.sample!==p.sample||s.active?.token!==p.active?.token))changed();}));
+    useBodyState.subscribe((s,p)=>{
+      if(scope==='pelvic'&&readAtlasView(assetId).mode==='measure')return;
+      const a=currentBody(s),b=currentBody(p);
+      if(!sameCycle(a,b))changed();
+      else if(a&&b&&a.daySeconds!==b.daySeconds){
+        // Continuous clock samples may lag one raster, but never publish a
+        // different displayed tenth of a day after a scrub or rollover.
+        changed(Math.round(a.daySeconds*10/BODY_DAY_SECONDS)!==Math.round(b.daySeconds*10/BODY_DAY_SECONDS));
+      }
+    })];
+  if(scope==='pelvic')off.push(usePelvic.subscribe((s,p)=>{
+    const a=binding(s),b=binding(p);
+    if(s.byAsset[assetId]!==p.byAsset[assetId]||a?.token!==b?.token){changed();return;}
+    if(a&&s.sample!==p.sample){const x=s.sample,y=p.sample;
+      changed(!x||!y||x.outletInside!==y.outletInside||x.outletVisible!==y.outletVisible||x.atCervix!==y.atCervix);}
+  }));
 
   function tick(now:number){
-    if(!ctx)return false;
+    if(!ctx||dead)return false;
     const v=readAtlasView(assetId),mode=scope==='body'?'organ':v.mode;
     const body=currentBody(),pelvis=usePelvic.getState(),profile=scope==='pelvic'?pelvis.byAsset[assetId]:undefined;
     if(scope==='pelvic'?!profile:!body)return false;
+    art?.flush();
     const anim=mode==='organ'&&v.motion,dt=lastTime===null?0:Math.min(.10,Math.max(0,(now-lastTime)/1000));lastTime=now;
     const remaining=v.degrees-heading;
     heading=!v.motion||Math.abs(remaining)<.15?v.degrees:heading+remaining*(-Math.expm1(-23*dt));
     const turning=heading!==v.degrees;
     if(anim)time+=dt;
-    if(!dirty&&(lastHeading===heading?(!anim||now-lastPaint<80):(turning&&now-lastPaint<32)))return anim||turning;
-    const sample=profile&&pelvis.active?.assetId===assetId&&pelvis.active.runtimeId===runtimeId?pelvis.sample:null;
+    if(art?.inFlight||!dirty&&(lastHeading===heading?(!anim||now-lastPaint<80):(turning&&now-lastPaint<32)))return anim||turning;
+    const sample=profile&&binding(pelvis)?pelvis.sample:null;
     const zh=useLanguageStore.getState().language==='zh', yaw=heading*Math.PI/180;
     const displayedHeading=heading;
     function publish(alt:string){const angle=`${Math.round(displayedHeading)}°`,caption=`${mode==='organ'?(zh?'子宫动态示意':'Uterus in motion'):(zh?'骨盆测量剖面':'Pelvic measurement')} · ${angle} · ${alt}`;
@@ -55,16 +85,10 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
       const depth=sample?`${(sample.depth*100).toFixed(1)} cm`:'—';
       // A shared normalized art region leaves space for an honest live caption.
       // With body state disabled the neutral illustration is not a measured lining.
-      art??=organOutput();
+      art??=organOutput(result=>{if(result==='retry')dirty=true;wake();});
       art.submit({scale:canvas.width/W,options:{x:0,y:0,width:W,height:H-32,yaw,time,lining:daily?.lining??.44,shedding:daily?.shedding??0,
         fluid:volume/capacity,fantasy,vaginalFluid:profile?profile.fluid.vaginal/profile.capacity.vaginal:0,
         pressure:sample?.outletInside?Math.min(1,sample.depth/Math.max(.0001,sample.lengthM)):0,sample,zh},paint:draw=>{
-        // Never let an older asynchronous picture replace a new mode, a stop,
-        // or a change in which side of the opening this sample was on.
-        const current=usePelvic.getState(),newView=readAtlasView(assetId);
-        if((scope==='pelvic'&&newView.mode!==mode)||newView.motion!==v.motion||currentBody()!==body||
-          (profile&&(current.byAsset[assetId]!==profile||current.active?.token!==pelvis.active?.token||
-            current.sample?.outletInside!==pelvis.sample?.outletInside||current.sample?.outletVisible!==pelvis.sample?.outletVisible)))return;
         ctx.save();ctx.scale(canvas.width/W,canvas.height/H);ctx.fillStyle='#211722';ctx.fillRect(0,0,W,H);draw(ctx);
         ctx.font='550 14px system-ui,sans-serif';ctx.fillStyle='#fbe2d8';ctx.textAlign='left';ctx.textBaseline='middle';
         const text=profile?`${state}   ·   ${zh?'深度':'Depth'} ${depth}`:body?`${zh?'周期第 ':'Cycle day '}${+(body.day+body.daySeconds/BODY_DAY_SECONDS).toFixed(1)}${zh?' 天':''}   ·   ${zh?'内膜':'Lining'} ${Math.round(100*(daily?.lining??0))}%`:state;
@@ -76,5 +100,6 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
     dirty=false;lastHeading=heading;lastPaint=now;
     return anim||turning;
   }
-  return {tick, suspend(){lastTime=null;}, dispose(){off.forEach(f=>f());art?.dispose?.();}};
+  return {tick, suspend(){if(lastTime!==null){lastTime=null;dirty=true;art?.discard();}},
+    dispose(){dead=true;off.forEach(f=>f());art?.dispose();}};
 }

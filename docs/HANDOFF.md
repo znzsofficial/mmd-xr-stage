@@ -2,16 +2,10 @@
 
 [正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `af9c811`](https://227e05c1.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
 
-**线上基线：** 16 景，主列表 10 个入口，10 件道具。[母星采谱、五条风道、两座跳岛](./scenery/opal-planet.md)已上线。硅胶件和按摩棒均可在暂停时推动 PMX 活动衣物；[什么情况下手柄会震](./gameplay/README.md#道具接触与手柄震动)。
+**线上：** 16 景、主列表 10 个入口、10 件道具。点已放置角色即可[摆姿势、预览身体状态](./gameplay/pose-and-body-states.md)，或用[骨盆附件、动态图与计量](./gameplay/pelvic-attachment.md)。[拨衣和触觉](./gameplay/README.md#道具接触与手柄震动)可在暂停时试；小行星[采谱、风道与跳岛](./scenery/opal-planet.md)已上线。
 
-**[按摩棒电机同步](./gameplay/prop-authoring.md#按摩棒电机同步)：** 低／高档只向持棒手按棒头节拍发脉冲，初触加重一拍。Quest 3S 待确认闭眼分档和初触的辨识度。
+**本轮收尾：** [架构审查与回归入口](./structure-review-2026-11-22.md)记录了旧房间迟到帧、道具急停和换人、物理重建后姿势／预览恢复，以及动态图旧回包的修复。
 
-**场内角色工具：** [手动摆姿势与身体状态](./gameplay/pose-and-body-states.md)支持定格、拖动和命名保存姿势、对照两个周期日、切换可选胸型与分侧泌乳状态。屏幕和 VR 共用当前页的角色数据。普通模式探头不再灰屏，摇杆仍不能穿墙。
+**待 Quest 3S：** 角色工具单独试抓点、标注可读性和持棒震感。教室用同一角色与大 VMD 分别测首开物理、泳池回教室和稳态。11 月 20 日 14:43Z 是改前报告，持续 72 FPS 尚未验收。[分趟短测与导出](./performance/next-quest-export.md)。用户已确认星球正常行走，不用专项复测。
 
-**[骨盆附件与佩戴件物理](./gameplay/pelvic-attachment.md)：** 跳蛋外壳可推动相容的活动衣物；硅胶件由手柄或支架互斥操控。剖面显示实测杆位，精液以乳白色表示，阴道与宫腔单独计量。「录手法回放」、双角色持具和撤出回流仍是候选。
-
-**子宫动态图：** 骨盆附件的「器官动态／测量剖面」和身体状态的周期页使用本地旋转视图，支持正面、斜前、侧面和中间角度。图像定格不停止真实输入或计量。[转动示例](./screenshots/organ-motion.webp)
-
-**Quest 3S 反馈：** 用户确认琉璃小行星已能正常行走，使用体验还可以。无需再专项测步行；跨跳翻转、道具初触与拨衣手感可在游玩时留意。教室用同一角色和大 VMD 查首次开物理、回场和稳态。11 月 20 日 14:43Z 是改前报告，持续 72 FPS 尚未验收。[短测与导出](./performance/next-quest-export.md)
-
-**暂缓：** 恋活卡暂不做逐卡手动导出；[Blender 转换](./gameplay/blender-characters.md)已交付。[灯影／霜岬回波](./gameplay/interactive-scene-studies.md)、新增街段与[片场候选](./scenery/next-modeling-round.md#婚礼之后的新景候选未排期)未排期；[暂停物理休眠](./performance/README.md#回场与后续验收)先取证。正式版继续用 Three。
+**未排期：** [手法录制回放、双角色持具、撤出回流](./gameplay/pelvic-attachment.md#假阳具玩法候选尚未实现)、[灯影／霜岬回波](./gameplay/interactive-scene-studies.md)、新增街段与[三个新景](./scenery/next-modeling-round.md#婚礼之后的新景候选未排期)。恋活卡仍搁置，[Blender 转换](./gameplay/blender-characters.md)可用；[暂停物理休眠](./performance/README.md#回场与后续验收)先取证。

@@ -12,8 +12,8 @@
 
 | 项目 | 位置 / 地址 | 包管理器 | 说明 |
 |------|-------------|----------|------|
-| NekoVirtOS | `E:\WebProjects\neko-virt-os` | pnpm | 使用 loader、保存临时正式补丁和项目集成代码 |
-| loader 本地 clone | `E:\WebProjects\three-mmd-loader` | npm | 上游贡献、测试和 review 修改 |
+| NekoVirtOS | `neko-virt-os` 仓库（拆分前） | pnpm | 使用 loader、保存补丁和项目集成代码 |
+| loader 本地 clone | 独立检出的 `three-mmd-loader` 仓库 | npm | 上游贡献、测试和 review 修改 |
 | upstream | <https://github.com/yohawing/three-mmd-loader> | npm | 默认分支 `main` |
 | fork | <https://github.com/znzsofficial/three-mmd-loader> | npm | remote 名为 `fork` |
 
@@ -33,7 +33,7 @@
 - 原地切换需要 `createDetachedRuntime` 沿用加载器的 WASM／兼容求值器选择规则，`exchangeRuntime` 同时切换 `setAnimation`、`update`、`updateAsync` 和释放时读取的运行时。只替换公开的 `model.runtime` 无效，旧实现的方法闭包捕获另一个引用。升级需跑[真实切换对照](./performance/physics-toggle.md)。
 - 材质加载时只复用图片 alpha 采样，不复用各材质的 UV 判定。舞台另为同一观看内的重复加载提供有界缓存（最多 8 张、合计不超过 2 MiB），只接受同一 `File` 身份、尺寸匹配的静态 PNG。核对不可读重试、退出清理及默认贴图的释放。升级后跑 `materialAlphaTileParity.test.ts`、`roomAlphaTiles.test.ts` 和[真实回场探针](./performance/load-work-room-alpha.md)。
 
-上游仓库提交了 `package-lock.json`，其开发文档和 CI 均使用 npm。不要在 `E:\WebProjects\three-mmd-loader` 中使用 pnpm 更新依赖或 lockfile。NekoVirtOS 仍使用 pnpm。
+上游仓库提交了 `package-lock.json`，开发与 CI 均用 npm；在 loader 检出目录用 npm 维护依赖和 lockfile，舞台仓库用 pnpm。
 
 ## 已解决问题
 
@@ -42,7 +42,7 @@
 #### 表现
 
 - 开启物理后缩小模型，衣服等物理骨骼向模型原始高度漂移。
-- 本地测试模型为 `sample/默认/诺诺.pmx`，此前多个模型均可复现。`sample/` 已被 Git 忽略，模型许可禁止二次分发，不得提交到仓库。
+- 本地参考 PMX 和此前多个模型均可复现。`sample/` 已被 Git 忽略；参考模型许可禁止二次分发，不得提交。
 
 #### 根因
 
@@ -152,7 +152,7 @@
 
 - 模型显示缩放小于 `1`。
 - 开启控制器碰撞。
-- 多个模型均可复现，不是 `sample/珠霜舒芙蕾` 的特例。
+- 已在多个纯动态裙摆模型上复现。
 - 主要影响裙子；身体、头发和其他可碰撞部位通常表现正常。
 - 控制器不接触裙子、远离裙子或移动到其他位置时，裙子表现基本不变。
 - 缩放停止后裙子立即稳定，不会继续堆高；关闭控制器碰撞后会恢复正常。
@@ -176,7 +176,7 @@
 | 控制器球半径过大 | 排除；最小半径及修改模型空间半径换算均未改善 |
 | 单个 PMX 模型异常 | 排除；多个模型的裙子均可复现 |
 | `dynamicWithBone` 平移覆盖 | 不能解释当前问题；问题裙子主体可由纯 `dynamic` 刚体组成 |
-| 弹簧关节参数 | 珠霜 A/B 关闭弹簧后行为几乎不变 |
+| 弹簧关节参数 | 同一密集裙摆模型 A/B，关闭弹簧后行为几乎不变 |
 | contact 查询和触觉采样 | 排除；这些路径只读取 Bullet contact，不参与求解 |
 | 瞬时控制器接触漏采样 | 排除；逐帧峰值锁存测试中 `C` 始终为 `0`，只有主动接触才变化 |
 | 控制器 proximity / 按需唤醒 | 未改善，已撤回 |
@@ -187,9 +187,9 @@
 
 复核 0.8.6 时请以[设置清查](./gameplay/settings-audit.md)为准：当前原生后端读取 `maxSubSteps`、`fixedTimeStep`，不消费舞台传入的 `solverIterations` 和 `dynamicWithBoneRotationFeedbackScale`。历史记录中的传参数值不是已在该后端生效的证据。
 
-- 珠霜裙子主要由第 6 组的 `288` 个纯动态刚体组成，PMX mask 原本禁止同组互撞。
-- 珠霜有 `78` 个弹簧关节；默认模型没有弹簧关节，但关闭弹簧未消除差异。
-- Bullet 仿真 3 秒后，珠霜 `288` 个裙子刚体中约 `238` 个向下、`28` 个小幅向上，离线环境没有复现真机中的整体上漂。
+- 密集裙摆样本主要由第 6 组的 `288` 个纯动态裙摆刚体组成，PMX mask 原本禁止同组互撞。
+- 该模型有 `78` 个弹簧关节；对照模型没有弹簧关节，但关闭弹簧未消除差异。
+- Bullet 仿真 3 秒后，这 `288` 个裙摆刚体中约 `238` 个向下、`28` 个小幅向上，离线环境没有复现真机中的整体上漂。
 - 首帧 seed 姿态与 PMX 原始姿态一致。
 - Bullet world 变换、局部骨骼回写和 Three.js world 变换闭环误差接近零。
 - 重力方向、关节索引、PMX 欧拉转换和坐标轴翻转未发现明确错误。
@@ -300,7 +300,7 @@ npm run smoke:dist
 
 ### 查询 PR 状态
 
-在 `E:\WebProjects\three-mmd-loader` 中运行：
+在 loader 检出目录运行：
 
 ```bash
 gh pr view 38 --repo yohawing/three-mmd-loader

@@ -2,37 +2,40 @@ import {createOrganArt,type OrganArtOptions} from './organArt';
 
 type Request={options:OrganArtOptions;scale:number;paint:(draw:(ctx:CanvasRenderingContext2D)=>void)=>void};
 
-/** One image in flight plus the most recent requested pose. Never queue a
- * backlog behind a slow device, and never retain transferred bitmap memory. */
-export function organOutput(){
+/** Single-slot mailbox. Only the visible destination's frame may consume a
+ * bitmap (or invoke the synchronous fallback). The next request is sampled
+ * from the stores on that frame, not queued behind a slow worker. */
+export function organOutput(wake:(result:'ready'|'retry')=>void){
   let worker:Worker|null=null, fallback:ReturnType<typeof createOrganArt>|undefined;
-  let busy:Request|null=null,next:Request|null=null,dead=false,unavailable=false;
+  let request:Request|null=null,bitmap:ImageBitmap|null=null,inFlight=false,dead=false,unavailable=false;
   function local(r:Request){r.paint(ctx=>(fallback??=createOrganArt()).draw(ctx,r.options));}
   function terminate(){if(worker){worker.onerror=null;worker.onmessageerror=null;worker.onmessage=null;worker.terminate();worker=null;}}
-  function fail(){
-    unavailable=true;terminate();
-    const r=next??busy;busy=next=null;if(r&&!dead)local(r);
+  function discard(){request=null;bitmap?.close();bitmap=null;}
+  function fail(){unavailable=true;terminate();inFlight=false;discard();}
+  function retry(){fail();if(!dead)wake('retry');}
+  function flush(){
+    if(!bitmap||!request)return;
+    const r=request,b=bitmap;request=bitmap=null;
+    try{r.paint(ctx=>ctx.drawImage(b,0,0,r.options.width,r.options.height));}finally{b.close();}
   }
   function submit(r:Request){
-    if(dead)return;
-    if(busy){next=r;return;}
+    if(dead||inFlight||request)return;
     if(!unavailable&&!worker){
       if(typeof Worker==='undefined'||typeof OffscreenCanvas==='undefined'||!OffscreenCanvas.prototype.transferToImageBitmap)unavailable=true;
       else try{
         worker=new Worker(new URL('./organ.worker.ts',import.meta.url),{type:'module'});
-        worker.onerror=e=>{e.preventDefault();fail();};
-        worker.onmessageerror=fail;
+        worker.onerror=e=>{e.preventDefault();retry();};
+        worker.onmessageerror=retry;
         worker.onmessage=(e:MessageEvent<{bitmap?:ImageBitmap}>)=>{
-          const b=e.data.bitmap;if(!b){fail();return;}
-          const done=busy;busy=null;
-          try{if(!dead&&done)done.paint(ctx=>ctx.drawImage(b,0,0,done.options.width,done.options.height));}
-          finally{b.close();}
-          const pending=next;next=null;if(pending)submit(pending);
+          const b=e.data.bitmap;if(!b){retry();return;}
+          inFlight=false;
+          if(!dead&&request)bitmap=b;else b.close();
+          if(!dead)wake('ready');
         };
       }catch{unavailable=true;}
     }
     if(!worker){local(r);return;}
-    busy=r;try{worker.postMessage({options:r.options,scale:r.scale});}catch{fail();}
+    request=r;inFlight=true;try{worker.postMessage({options:r.options,scale:r.scale});}catch{fail();local(r);}
   }
-  return {submit,dispose(){dead=true;terminate();busy=next=null;fallback?.dispose();}};
+  return {submit,flush,discard,get inFlight(){return inFlight;},dispose(){if(dead)return;dead=true;terminate();discard();fallback?.dispose();}};
 }

@@ -35,6 +35,8 @@ it.each([true, false])('freezes a fractional native IK/morph/grant pose, sits wi
   const pose = createPoseSolver(model, orig, seconds), bind = vi.spyOn(model, 'setAnimation');
   expect(pose.keys).toHaveLength(6);
   compare(model, dancing);
+  expect(expression[1]).toBeGreaterThan(.1);
+  expect(model.mesh.morphTargetDictionary!.Expression).toBe(model.mesh.morphTargetDictionary!.Gesture);
   expect(model.mesh.morphTargetInfluences![1]).toBeCloseTo(expression[1], 5);
   const standing = pose.capture(), start = pose.points();
   const soles = ['LeftFoot','RightFoot'].map(n => at(model, n).getWorldQuaternion(new Quaternion()));

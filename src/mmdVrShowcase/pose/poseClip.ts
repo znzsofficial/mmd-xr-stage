@@ -123,8 +123,14 @@ function makeEditClip(live: SkinnedMesh, rest: ReturnType<typeof bindLocals>, so
   });
   // Freeze *direct* expression inputs, not expanded group weights (which would
   // apply a group twice). A template can be recalled against a different VMD.
-  const morphs = Object.keys(live.morphTargetDictionary ?? {}).map(name => {
-    const src = source?.morphTracks[name];
+  // A bilingual PMX can publish several names for the same influence. Match
+  // the evaluator's last *present* source track, and emit just one per index.
+  const channels = new Map<number, string>();
+  for (const [name, i] of Object.entries(live.morphTargetDictionary ?? {})) {
+    if (!channels.has(i) || source && Object.hasOwn(source.morphTracks, name)) channels.set(i, name);
+  }
+  const morphs = Array.from(channels.values(), name => {
+    const src = source && Object.hasOwn(source.morphTracks, name) ? source.morphTracks[name] : null;
     let w = 0;
     if (src?.frames.length) {
       const i = lastKey(src.frames, frame), a = src.frames[i], b = src.frames[i + 1];

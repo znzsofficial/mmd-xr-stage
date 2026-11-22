@@ -21,7 +21,9 @@ function SectionStand({assetId,runtimeId,rig}:{assetId:string;runtimeId:string}&
   const group=useRef<Group>(null),s=useMemo(()=>({eye:new Vector3(),look:new Vector3(),right:new Vector3(),up:new Vector3(0,1,0)}),[]);
   useFrame(({gl})=>{
     const live=useBackpack.getState().live[assetId],node=group.current;if(!node)return;
-    node.visible=!!live?.visible&&live.runtimeId===runtimeId&&gl.xr.isPresenting&&!!rig.current?.getObserverAnchor(node.position);if(!node.visible)return;
+    const {active,sample}=usePelvic.getState();
+    node.visible=active?.assetId===assetId&&active.runtimeId===runtimeId&&!!sample&&!!live?.visible&&live.runtimeId===runtimeId&&
+      gl.xr.isPresenting&&!!rig.current?.getObserverAnchor(node.position);if(!node.visible)return;
     gl.xr.getCamera().getWorldPosition(s.eye);
     const b=live.bounds;
     node.position.y+=.14;

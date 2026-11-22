@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useReducer, useRef } from 'react';
+import {useThree} from '@react-three/fiber';
 import { useBackpack } from '../backpack';
 import { createRoomAlphaTiles } from '../mmdRuntime/roomAlphaTiles';
 import { createRoomMotionCache } from '../mmdRuntime/roomMotionCache';
@@ -6,9 +7,18 @@ import { getMmdVrSessionAssets } from '../mmdVrAssets';
 import { useMmdVrStore } from '../mmdVrStore';
 import { MmdVrStageRoom } from '../stage/StageRoom';
 
+const hosts=new WeakMap<object,number>();
+let nextHost=0;
+function hostId(host:object){
+  let id=hosts.get(host);
+  if(id===undefined){id=++nextHost;hosts.set(host,id);}
+  return id;
+}
+
 /** One viewing session keeps decoded data across visits, but mounts only the
  * current room. Both screen and XR enter the stage through this component. */
 export function MmdVrStageContent() {
+  const gl=useThree(s=>s.gl), scene=useThree(s=>s.scene);
   const motionCache = useMemo(() => createRoomMotionCache(), []);
   const alphaTiles = useMemo(() => createRoomAlphaTiles(), []);
   useEffect(() => {
@@ -31,6 +41,8 @@ export function MmdVrStageContent() {
   const entry = initial.current.scenery === scenery ? initial.current : null;
   const saved = useBackpack.getState().layouts[scenery] ?? entry?.saved ?? null;
   const slots = saved?.assets ?? entry?.slots ?? [];
-  return <MmdVrStageRoom key={`${scenery}:${generation}`} scenery={scenery} saved={saved} slots={slots}
+  // Renderer or scene replacement retires *all* room-owned objects and load
+  // tasks. A camera change (including XR eye cameras) does not retire a room.
+  return <MmdVrStageRoom key={`${scenery}:${generation}:${hostId(gl)}:${hostId(scene)}`} scenery={scenery} saved={saved} slots={slots}
     motionCache={motionCache} alphaTiles={alphaTiles}/>;
 }

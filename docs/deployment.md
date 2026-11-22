@@ -8,7 +8,7 @@
 
 ```bash
 pnpm build
-# 给已打开的旧准备页保留已校验的 XR 入口和按需星球模块
+# 保留旧标签页仍会请求的 XR 入口、星球模块和器官绘图 Worker
 node scripts/retain-legacy-scene.mjs
 npx -y wrangler@4.128.0 pages deploy ./dist --project-name=mmd-xr-stage --branch=main
 ```
@@ -27,6 +27,8 @@ git -c http.proxy=http://127.0.0.1:7897 -c https.proxy=http://127.0.0.1:7897 pus
 ```
 
 小行星在进景时才取物理模块。兼容脚本保留 `37a0ef3` 的旧移动模块和内联 WASM，以及 `7acb202` 的平滑球壳物理适配器，方便已打开、尚未进星球的旧标签页。新页只在进星球时取当前适配器。
+
+旧标签页首次打开器官动态图也会按需取 Worker。发布后从主域名 GET `/assets/organ.worker-dQG0D6Ad.js`（加新查询参数），对响应正文计算 SHA-256，与[保留清单](../scripts/retain-legacy-scene.mjs)中固定部署 `41ef223b` 的 `3d6c4a49afc3d6a435d5fe81cdfc7cf8b92b00989efc15cda6b2bb548e8e13cb` 比对。HTTP 200 或回退绘图正常都不能证明旧 Worker 内容正确。
 
 ## wrangler ≥4.130 的代理委托坑（PR #15004）
 

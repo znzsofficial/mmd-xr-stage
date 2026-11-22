@@ -17,6 +17,8 @@ const library=new Map<string,Map<string,PoseSnapshot>>();
 type Room={open:(id:string)=>PoseSolver|null;close:(id:string)=>void;dirty:(reseed?:boolean)=>void};
 let room:Room|null=null;
 let active:{id:string;asset:string;solver:PoseSolver;history:PoseSnapshot[];drag:PoseSnapshot|null;moved:boolean;wasPlaying:boolean}|null=null;
+// Data only. A physics rebuild may span a selection change or closing the editor.
+let suspended:{asset:string;id:string;pose:PoseSnapshot;history:PoseSnapshot[];wasPlaying:boolean;editing:boolean;selected:PoseKey}|null=null;
 const ui=()=>usePoseSession.getState();
 function finish(resume:boolean){
   const a=active;if(!a)return;
@@ -28,20 +30,27 @@ function finish(resume:boolean){
 }
 function valid(asset:string,id:string){
   const b=useBackpack.getState(),s=useMmdVrStore.getState();
-  return !!room&&s.overlayOpen&&!s.physicsFatal&&!s.physicsBusy&&!s.assetLoad.running&&!b.busy&&!b.draft&&b.live[asset]?.visible&&b.live[asset]?.runtimeId===id;
+  return !!room&&s.overlayOpen&&!s.physicsFatal&&!s.physicsBusy&&!s.assetLoad.running&&!b.busy&&!b.draft&&b.live[asset]?.visible&&b.live[asset]?.runtimeId===id&&b.entries.some(e=>e.id===asset&&e.kind==='model');
 }
-function begin(asset:string,id:string){
+function bind(asset:string,id:string,editing:boolean){
   if(!valid(asset,id))return false;
-  if(active?.id===id&&active.asset===asset){usePoseSession.setState({editing:true});return true;}
-  const wasPlaying=active?.wasPlaying||useMmdVrStore.getState().playing;
-  finish(false);
+  if(active?.id===id&&active.asset===asset){usePoseSession.setState({editing});return true;}
+  const wasPlaying=active?.wasPlaying||suspended?.wasPlaying||useMmdVrStore.getState().playing;
   const solver=room?.open(id);if(!solver)return false;
   const keys=solver.keys;
   if(!keys.length){room?.close(id);room?.dirty();return false;}
+  finish(false);
   useMmdVrStore.getState().setPlaying(false);
   active={asset,id,solver,history:[],drag:null,moved:false,wasPlaying};
-  usePoseSession.setState({assetId:asset,runtimeId:id,editing:true,keys,selected:keys.includes('pelvis')?'pelvis':keys[0],feetLocked:solver.capture().feetLocked,canUndo:false,dragging:false});
+  usePoseSession.setState({assetId:asset,runtimeId:id,editing,keys,selected:keys.includes('pelvis')?'pelvis':keys[0],feetLocked:solver.capture().feetLocked,canUndo:false,dragging:false});
   room?.dirty();return true;
+}
+function begin(asset:string,id:string){
+  if(useBackpack.getState().selected!==asset)return false;
+  if(suspended?.asset===asset&&suspended.id===id){suspended.editing=true;return false;} // wait for afterPhysics to bind
+  if(!bind(asset,id,true))return false;
+  suspended=null;
+  return true;
 }
 function remember(before:PoseSnapshot){
   if(!active)return;
@@ -60,7 +69,10 @@ function finishDrag(cancel=false){
   a.moved=false;usePoseSession.setState({dragging:false});
 }
 export const poseActions={begin,end:()=>finish(true),
-  hold(){finishDrag();if(active)usePoseSession.setState({editing:false});},
+  hold(asset?:string,id?:string){
+    if(suspended&&(!asset||suspended.asset===asset&&suspended.id===id))suspended.editing=false;
+    if(active&&(!asset||active.asset===asset&&active.id===id)){finishDrag(true);usePoseSession.setState({editing:false});}
+  },
   select(key:PoseKey){if(ui().editing&&!ui().dragging&&ui().keys.includes(key))usePoseSession.setState({selected:key});},
   canMove(key:PoseKey){return active?.solver.canMove(key)??false;},
   canBend(key:PoseKey){return active?.solver.canBend(key)??false;},
@@ -73,9 +85,9 @@ export const poseActions={begin,end:()=>finish(true),
     if(ui().selected!==key||!active.solver.rotate(key,axis,radians))return false;active.moved=true;room?.dirty();return true;},
   bend:(key:PoseKey,radians:number)=>change(s=>s.bend(key,radians)),
   setFeetLocked(value:boolean){if(ui().feetLocked!==value&&change(s=>{s.lockFeet(value);return true;}))usePoseSession.setState({feetLocked:value});},
-  undo(){const a=active;if(!a||a.drag)return false;const snap=a.history.pop();if(!snap)return false;
+  undo(){const a=active;if(!a||a.drag||!ui().editing)return false;const snap=a.history.pop();if(!snap)return false;
     a.solver.apply(snap);usePoseSession.setState({feetLocked:snap.feetLocked,canUndo:a.history.length>0});room?.dirty(true);return true;},
-  save(name:string){const a=active,label=name.trim().slice(0,48);if(!label||!a||a.drag)return false;
+  save(name:string){const a=active,label=name.trim().slice(0,48);if(!label||!a||a.drag||!ui().editing)return false;
     const book=library.get(a.asset)??new Map<string,PoseSnapshot>();book.set(label,a.solver.capture());library.set(a.asset,book);
     usePoseSession.setState(s=>({names:{...s.names,[a.asset]:[...book.keys()]}}));return true;},
   load(asset:string,id:string,name:string){const snap=library.get(asset)?.get(name);if(!snap||!begin(asset,id))return false;
@@ -83,10 +95,9 @@ export const poseActions={begin,end:()=>finish(true),
 };
 
 export function mountPoseRoom(host:Room){
-  finish(false);room=host;
+  finish(false);suspended=null;room=host;
   // Physics switches can replace the model/evaluator. Carry data, never the
   // old rig, across that transition. Restore only after this room commits it.
-  let suspended:{asset:string;id:string;pose:PoseSnapshot;history:PoseSnapshot[];wasPlaying:boolean;editing:boolean;selected:PoseKey}|null=null;
   const stopStage=useMmdVrStore.subscribe((s,p)=>{
     if(room!==host)return;
     if(!s.overlayOpen||s.prefs.scenery!==p.prefs.scenery||s.playing||s.seekEpoch!==p.seekEpoch||s.assetLoad.running||s.physicsFatal){suspended=null;finish(false);}
@@ -96,20 +107,24 @@ export function mountPoseRoom(host:Room){
     }
   });
   const stopBag=useBackpack.subscribe((b,p)=>{
-    if(suspended&&(b.busy||b.draft||!b.live[suspended.asset]?.visible||b.live[suspended.asset].runtimeId!==suspended.id))suspended=null;
-    if(!active||room!==host)return;
-    if(b.busy||b.draft||!b.live[active.asset]?.visible||b.live[active.asset].runtimeId!==active.id)finish(false);
-    else if(b.selected!==p.selected&&b.selected!==active.asset){finishDrag(true);poseActions.hold();}
+    if(room!==host)return;
+    const gone=(asset:string,id:string)=>b.busy||b.draft||!b.live[asset]?.visible||b.live[asset].runtimeId!==id||b.entries!==p.entries&&!b.entries.some(e=>e.id===asset);
+    if(suspended&&gone(suspended.asset,suspended.id))suspended=null;
+    if(suspended&&b.selected!==p.selected&&b.selected!==suspended.asset)suspended.editing=false;
+    if(!active)return;
+    if(gone(active.asset,active.id))finish(false);
+    else if(b.selected!==p.selected&&b.selected!==active.asset)poseActions.hold(active.asset,active.id);
   });
-  const stopHud=useHudWorldInput.subscribe((s,p)=>{if(s.blocked&&!p.blocked&&room===host){finishDrag(true);poseActions.hold();}});
+  const stopHud=useHudWorldInput.subscribe((s,p)=>{if(s.blocked&&!p.blocked&&room===host)poseActions.hold();});
   return {afterPhysics(){
-    const saved=suspended;suspended=null;if(!saved||room!==host||!valid(saved.asset,saved.id))return;
+    if(room!==host)return;
+    const saved=suspended;suspended=null;if(!saved||!valid(saved.asset,saved.id))return;
     if(active&&active.id!==saved.id)return;
-    if(!begin(saved.asset,saved.id)||!active)return;
+    const editing=saved.editing&&useBackpack.getState().selected===saved.asset&&!useHudWorldInput.getState().blocked;
+    if(!bind(saved.asset,saved.id,editing)||!active)return;
     active.solver.apply(saved.pose);active.history=saved.history;active.wasPlaying=saved.wasPlaying;
-    usePoseSession.setState({editing:saved.editing&&useBackpack.getState().selected===saved.asset&&!useHudWorldInput.getState().blocked,
-      selected:saved.selected,feetLocked:saved.pose.feetLocked,canUndo:saved.history.length>0});host.dirty(true);
-  },dispose(){stopStage();stopBag();stopHud();suspended=null;if(room===host){finish(false);room=null;}}};
+    usePoseSession.setState({selected:saved.selected,feetLocked:saved.pose.feetLocked,canUndo:saved.history.length>0});host.dirty(true);
+  },dispose(){stopStage();stopBag();stopHud();if(room===host){suspended=null;finish(false);room=null;}}};
 }
 useBackpack.subscribe((b,p)=>{if(b.entries===p.entries||!library.size)return;
   const names={...ui().names};let changed=false;

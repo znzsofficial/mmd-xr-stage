@@ -1,6 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { clearBackpack, useBackpack } from '../backpack';
 import { createBodyRoom } from './room';
+import type { BodyProfile } from './data';
 import { beginBodyPreview, cancelBodyPreview, commitBodyPreview, disableBodyState, drainBodySide, patchBodyPreview, stepBodyDay, useBodyState, type BodySupport } from './store';
 
 const live=(runtimeId:string,visible=true)=>({runtimeId,visible,position:[0,0,0] as [number,number,number]});
@@ -41,5 +42,21 @@ it('targets only an explicitly enabled live adult actor; preview, elapsed stores
     expect(beginBodyPreview('assetA')).toBe(true);room.dispose();
     expect(state().draft).toBeNull();expect(state().support).toEqual({});expect(state().byAsset.assetA).toBe(committed);
     clearBackpack();expect(state().byAsset).toEqual({});
+  }finally{room.dispose();}
+});
+
+it('clears a discarded preview even when a cold physics rollback republishes its old profile under the same ID',()=>{
+  useBackpack.setState({entries:[{id:'a',kind:'model',file:new File([],'a.pmx'),path:'a.pmx'}],live:{a:live('m')},selected:'a'});
+  type Mesh={profile:BodyProfile|null};let mesh:Mesh|null={profile:null};const wake=vi.fn();
+  const room=createBodyRoom({getBodySupport:()=>mesh?unsupported:null,setBodyProfile:(_,profile)=>{
+    if(!mesh||mesh.profile===profile)return false;
+    mesh.profile=profile;return true;
+  }},wake);
+  try{
+    beginBodyPreview('a',true);patchBodyPreview('a',{fullness:1});
+    const stale={profile:mesh.profile};expect(stale.profile?.fullness).toBe(1);
+    mesh=null;cancelBodyPreview('a');expect(useBodyState.getState().support).toEqual({});
+    mesh=stale;wake.mockClear();useBackpack.getState().publishLive({a:live('m')});
+    expect(mesh.profile).toBeNull();expect(wake).toHaveBeenCalledOnce();
   }finally{room.dispose();}
 });

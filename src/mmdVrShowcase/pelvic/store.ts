@@ -180,6 +180,7 @@ export function requestPelvicDose(assetId:string){
   const a=state().active;if(a?.assetId!==assetId||!a.running||a.mode==='xrManual'||blocked(a))return false;
   doseCount++;return true;
 }
+export function discardPelvicDoses(token:number){if(state().active?.token===token)doseCount=0;}
 /** One post-pose invocation per frame. The input is the solver's CURRENT outlet,
  * never the visual readout, target depth, or the selected model's last dose. */
 export function consumePelvicDose(token:number,outlet:Pick<PelvicContact,'outletInside'|'outletVisible'>,gripStart=false):'none'|'internal'|'external'{
@@ -188,7 +189,10 @@ export function consumePelvicDose(token:number,outlet:Pick<PelvicContact,'outlet
   if(a.mode==='xrManual'){if(!gripStart||useBackpack.getState().selected)return 'none';}
   else if(doseCount>0)doseCount--;else return 'none';
   dispensed=true;
-  if(!outlet.outletInside)return outlet.outletVisible?'external':'none';
+  if(!outlet.outletInside){
+    if(outlet.outletVisible)return 'external';
+    doseCount=0;return 'none'; // No pending request from an unverified frame can fire on recovery.
+  }
   const p=state().byAsset[a.assetId],k=p.container,amount=Math.min(limits.dose,p.capacity[k]-p.fluid[k]);
   writeProfile(a.assetId,{...p,fluid:{...p.fluid,[k]:p.fluid[k]+amount},overflow:p.overflow+(limits.dose-amount)});return 'internal';
 }
