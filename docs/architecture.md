@@ -21,6 +21,7 @@
 | 骨盆附件的手持／支架、剖面与计量 | [`pelvic/rig.ts`](../src/mmdVrShowcase/pelvic/rig.ts) 在角色求值后检查当帧真实喷口：有效在内计量、确认在外只外喷、其余情况消费触发但不释放。支架与剖面共用校准轨道，不从滑块推断接触。[玩家操作](./gameplay/pelvic-attachment.md) |
 | 道具引起的临时模型形变 | [`roomPropDisplay.ts`](../src/mmdVrShowcase/stage/roomPropDisplay.ts) 管开合形态、软头接触和持棒触觉的订阅与清理。帧末先叠开合形态，再叠道具接触；下次 VMD／Bullet 求值、姿势编辑或房间退出前逆序还原。同名顶点形态也不能把显示权重留进原动作。 |
 | 摆姿势、身体状态及局部剖面 | [`pose/`](../src/mmdVrShowcase/pose/) 管编辑手势、单帧动作和命名姿势；[`bodyState/`](../src/mmdVrShowcase/bodyState/) 管每个资产的虚构时间线、预览及显示适配。只有当房间挂载演员时，才关联其骨架／形态。屏幕和 VR 使用同一套命令。[操作与验证](./gameplay/pose-and-body-states.md) |
+| 改身体状态编辑页 | [`useBodyEditor.ts`](../src/mmdVrShowcase/bodyState/useBodyEditor.ts) 负责演员归属、翻页和草稿的保存／取消／撤销。[`editor/`](../src/mmdVrShowcase/bodyState/editor/) 按 `shapePages`（胸型、观察、形态键与触碰）、`cyclePages`（周期与内膜）、`lactationPages`（泌乳）生成控件。页面共用 `controls.ts` 的标题、返回目标和字段范围；屏幕与 XR 消费同一份控件数据。 |
 | 默认设置、合法值、v1/v2 偏好兼容 | [`settings/preferences.ts`](../src/mmdVrShowcase/settings/preferences.ts)。首次进入、读取旧记录和场内更新共用同一套规则；[`mmdVrStore.ts`](../src/mmdVrShowcase/mmdVrStore.ts) 发布状态和操作。文件、布局和运行时句柄不属于偏好。 |
 | 某一间房的模型、入口、机位、遮挡 | [`scenery/`](../src/mmdVrShowcase/scenery/)；按[布景接入指南](./scenery/adding-a-set.md)改注册表和本景布局。菜单切景是否重置视角由 `catalog.ts` 决定；步行跨门由 `connections.ts` 的平移数据决定。 |
 | 让两景共用一段可走的街 | [`routes/types.ts`](../src/mmdVrShowcase/scenery/routes/types.ts) 定义扩建区域的地面、摆位和遮挡接口。两景各用本地坐标引用同一份道路布局；[`connections.ts`](../src/mmdVrShowcase/scenery/connections.ts) 判断是否真正穿过门口。XR 与[屏幕步行](../src/mmdVrShowcase/screen/streetTravel.ts)共用门线；屏幕跨门时平移相机和环绕目标，XR 跨门时平移追踪原点。 |
