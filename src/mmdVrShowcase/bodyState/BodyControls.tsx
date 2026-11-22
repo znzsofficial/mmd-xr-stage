@@ -2,6 +2,7 @@ import { HudButton, HudLine, HudSheet } from '../components/PorcelainControls';
 import { HudSlider } from '../components/HudValues';
 import { PrivateButton, PrivateLine, PrivateSheet } from '../pelvic/HudPrivateControls';
 import { bodySpan as span, HudActions, ScreenActions } from './BodyActions';
+import { breastRowHeight, breastSpan, HudBreastPanel, ScreenBreastPanel } from './breast/BreastPanel';
 import { cycleRowHeight, HudCycleReading, ScreenCycleReading } from './CycleReading';
 import type { Row } from './controlRows';
 import { useBodyEditor, type BodyActor } from './useBodyEditor';
@@ -11,6 +12,7 @@ function ScreenRow({ actor, row, blocked }: { actor: BodyActor; row: Row; blocke
   switch (row.kind) {
     case 'actions': return <ScreenActions items={row.items} blocked={blocked}/>;
     case 'text': return <p className="body-note">{row.text}</p>;
+    case 'breast': return <ScreenBreastPanel actor={actor} row={row} blocked={blocked}/>;
     case 'cycle': return <ScreenCycleReading actor={actor} row={row} blocked={blocked}/>;
     case 'morph': return <label className="body-select">{row.label}<select disabled={blocked||(!row.names.length&&!row.value)}
       value={row.value??''} onChange={e=>row.choose(e.currentTarget.value||null)}><option value="">{row.none}</option>
@@ -39,6 +41,7 @@ export function BodyScreenControls(props: BodyActor & {onBack?:()=>void}) {
 
 const stableSliderInteraction = () => {}; // The actor anchor stays still while pointing.
 function rowHeight(row: Row) {
+  if (row.kind === 'breast') return breastRowHeight;
   if (row.kind === 'cycle') return cycleRowHeight(row.organ);
   if (row.kind === 'text') return .105;
   return row.kind === 'field' && row.scrub ? .26 : .175;
@@ -47,6 +50,7 @@ function HudRow({ actor, row, blocked }: { actor: BodyActor; row: Row; blocked: 
   switch(row.kind) {
     case 'actions': return <HudActions items={row.items} blocked={blocked}/>;
     case 'text': return <HudLine position={[0,0,0]} role="muted" width={span} center text={row.text}/>;
+    case 'breast': return <HudBreastPanel actor={actor} row={row} blocked={blocked}/>;
     case 'cycle': return <HudCycleReading actor={actor} row={row} blocked={blocked}/>;
     case 'morph': return <HudButton position={[0,0,0]} size={[span,.14]} label={`${row.label}: ${row.value??row.none}`}
       disabled={blocked||(!row.names.length&&!row.value)} onPress={row.browse}/>;
@@ -63,7 +67,9 @@ function HudRow({ actor, row, blocked }: { actor: BodyActor; row: Row; blocked: 
 function HudEditor({onBack,...actor}: BodyActor & { onBack: () => void }) {
   const editor = useBodyEditor(actor);
   const cycle = editor.rows.find(row=>row.kind==='cycle');
-  const Sheet = cycle ? PrivateSheet : HudSheet, Back = cycle ? PrivateButton : HudButton;
+  const breast = editor.rows.some(row=>row.kind==='breast'), gallery = !!cycle || breast;
+  const contentWidth=breast?breastSpan:span, extra=contentWidth-span;
+  const Sheet = gallery ? PrivateSheet : HudSheet, Back = gallery ? PrivateButton : HudButton;
   const name = Array.from(editor.name), galleryName=name.length>24 ? `${name.slice(0,12).join('')}…${name.slice(-9).join('')}` : editor.name;
   const h = .24+editor.rows.reduce((sum,row)=>sum+rowHeight(row),0)+(editor.footer.length ? .19 : 0)+.06;
   // Keep the header and back target still when the working page changes.
@@ -71,15 +77,15 @@ function HudEditor({onBack,...actor}: BodyActor & { onBack: () => void }) {
   const contentTop = top-.23;
   let y = contentTop;
   return <group name="body:actor-tools">
-    <group position-y={top-h/2}><Sheet size={[1.55,h]}/></group>
-    {cycle ? <PrivateLine position={[-.175,top-.115,0]} width={1.08} title text={`${cycle.organ?cycle.views[1].label:editor.title} · ${galleryName}`}/>
+    <group position-y={top-h/2}><Sheet size={[contentWidth+.1,h]}/></group>
+    {gallery ? <PrivateLine position={[-.175-extra/4,top-.115,0]} width={1.08+extra/2} title text={`${cycle?.organ?cycle.views[1].label:editor.title} · ${galleryName}`}/>
       : <HudLine position={[-.175,top-.115,0]} width={1.08} role="title" text={`${editor.title} · ${editor.name}`}/>}
     <Back position={[.55,top-.115,0]} size={[.33,.14]} label={editor.back} variant="quiet" onPress={editor.backAction?.run??onBack}/>
     {editor.rows.map((row,i)=>{
       const height=rowHeight(row),center=y-height/2; y-=height;
       return <group key={`${row.kind}:${i}`} position-y={center}><HudRow actor={actor} row={row} blocked={editor.blocked}/></group>;
     })}
-    {editor.footer.length>0&&<group position-y={y-.10}><HudActions items={editor.footer} blocked={editor.blocked} gallery={!!cycle}/></group>}
+    {editor.footer.length>0&&<group position-y={y-.10}><HudActions items={editor.footer} blocked={editor.blocked} gallery={gallery} width={contentWidth}/></group>}
   </group>;
 }
 

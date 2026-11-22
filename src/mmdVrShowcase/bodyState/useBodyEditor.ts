@@ -7,8 +7,8 @@ import { beginBodyPreview, cancelBodyPreview, commitBodyPreview, disableBodyStat
 import { actions, line, type Action, type Field, type Row } from './controlRows';
 
 export type BodyActor = { assetId: string; runtimeId: string };
-type Page = 'chest'|'more'|'fit'|'cycle'|'organ'|'rhythm'|'lining'|'secretions'|'morphs'|'contact'|'sensitivity'|'milk'|'milkLevel';
-const parent: Partial<Record<Page,Page>> = {more:'chest',fit:'more',cycle:'more',milk:'more',contact:'more',morphs:'fit',organ:'cycle',rhythm:'cycle',lining:'cycle',secretions:'cycle',sensitivity:'contact',milkLevel:'milk'};
+type Page = 'chest'|'breast'|'more'|'fit'|'cycle'|'organ'|'rhythm'|'lining'|'secretions'|'morphs'|'contact'|'sensitivity'|'milk'|'milkLevel';
+const parent: Partial<Record<Page,Page>> = {breast:'chest',more:'chest',fit:'more',cycle:'more',milk:'more',contact:'more',morphs:'fit',organ:'cycle',rhythm:'cycle',lining:'cycle',secretions:'cycle',sensitivity:'contact',milkLevel:'milk'};
 const percent = (n: number) => `${Math.round(n*100)}%`;
 const decimal = (n: number) => String(+n.toFixed(1));
 const clamp = (n: number, min: number, max: number) => Math.min(max,Math.max(min,n));
@@ -35,7 +35,7 @@ export function useBodyEditor({ assetId, runtimeId }: BodyActor) {
   const patch = (change: Partial<BodyProfile>) => { if (start()) patchBodyPreview(assetId,change); };
   const act = (label: string, run: () => void, options: Partial<Omit<Action,'label'|'run'>> = {}): Action => ({label,run,...options});
   const navigate = (to: Page, cn: string, en: string, active?: boolean) => act(l(cn,en),() => {if(to==='fit')setFitBack(page);go(to);},{active,quiet:true});
-  const titles: Record<Page,string> = {chest:l('胸型','Chest shape'),more:l('更多设置','More settings'),fit:l('模型适配','Shape source'),morphs:l('选择形态键','Choose a morph'),cycle:l('周期','Cycle'),organ:l('子宫动态','Uterus in motion'),rhythm:l('周期设置','Cycle settings'),lining:l('内膜与分泌物','Lining & secretions'),secretions:l('内膜与分泌物','Lining & secretions'),contact:l('触碰','Touch'),sensitivity:l('触痛','Tenderness'),milk:l('泌乳','Lactation'),milkLevel:l('分侧设置','Left & right')};
+  const titles: Record<Page,string> = {breast:l('乳房观察','Breast view'),chest:l('胸型','Chest shape'),more:l('更多设置','More settings'),fit:l('模型适配','Shape source'),morphs:l('选择形态键','Choose a morph'),cycle:l('周期','Cycle'),organ:l('子宫动态','Uterus in motion'),rhythm:l('周期设置','Cycle settings'),lining:l('内膜与分泌物','Lining & secretions'),secretions:l('内膜与分泌物','Lining & secretions'),contact:l('触碰','Touch'),sensitivity:l('触痛','Tenderness'),milk:l('泌乳','Lactation'),milkLevel:l('分侧设置','Left & right')};
   const title=titles[page], back=l('返回','Back'), up=page==='fit'?fitBack:parent[page];
   const backAction=up?act(back,()=>go(up),{quiet:true}):null;
   const rows: Row[] = [], footer: Action[] = [];
@@ -65,11 +65,21 @@ export function useBodyEditor({ assetId, runtimeId }: BodyActor) {
     if(saved && !draft)rows.push(actions(act(l('关闭身体状态','Turn off body state'),()=>{disableBodyState(assetId);setUndo(null);go('chest');},{quiet:true})));
   } else if (page === 'cycle' || page === 'organ') {
     const a = sampleBody(base);
+    function describe(s:typeof effective, profile:BodyProfile) {
+      if(s.phase==='bleed' && s.shedding>.02 && s.lining>.02)return l('内膜正在脱落','Lining is shedding');
+      if(s.phase==='ovulatory' && s.secretion>.50)return l('分泌较多','More secretions');
+      if(profile.liningOverride!=null)return l('内膜厚度固定','Lining depth is set');
+      if(!profile.liningGain)return l('内膜保持不变','Lining is steady');
+      if(s.phase==='follicular')return l('内膜逐渐长回','Lining is regrowing');
+      if(s.lining>.68)return l('内膜较厚','Thicker lining');
+      if(s.lining<.3)return l('内膜较薄','Thinner lining');
+      return l('内膜在变化','Lining is changing');
+    }
     rows.push({ kind:'cycle', organ:page === 'organ',
       views:[navigate('cycle','两日对照','Compare days',page==='cycle'),navigate('organ','子宫动态','Uterus in motion',page==='organ')],
-      pair:{ legend:l('同尺度子宫壁切片：粉色为内膜，浮线为脱落。','Uterine wall, same scale. Pink: lining. Loose marks: shedding.'), samples:[
-        {...a,caption:`${saved?l('已保存','Saved'):l('起点','Start')} · ${day(atDay(base))}`,phase:languagePhase(a.phase)},
-        {...effective,caption:`${l('预览','Preview')} · ${day(atDay(p))}`,phase:languagePhase(effective.phase)}]},
+      pair:{samples:[
+        {tissue:a.tissue,caption:`${saved?l('已保存','Saved'):l('起点','Start')} · ${day(atDay(base))}`,phase:languagePhase(a.phase),change:describe(a,base)},
+        {tissue:effective.tissue,caption:`${l('预览','Preview')} · ${day(atDay(p))}`,phase:languagePhase(effective.phase),change:describe(effective,p)}]},
       date:{label:l('预览周期日','Preview cycle day'),value:atDay(p),max:p.length,change:n=>patch({day:Math.floor(n),daySeconds:Math.round((n%1)*BODY_DAY_SECONDS)})},
       previous:act(l('−1 天','−1 day'),()=>{if(start())stepBodyDay(assetId,-1);}),
       next:act(l('+1 天','+1 day'),()=>{if(start())stepBodyDay(assetId,1);}),
@@ -94,6 +104,13 @@ export function useBodyEditor({ assetId, runtimeId }: BodyActor) {
         ()=>patch({sensitivityMode:m}),{active:m===mode}))),
       field(mode==='cycle'?l('周期变化幅度','Cyclic variation'):l('手动水平','Manual level'),'sensitivity',.05,percent,mode==='off'),
       line(l('只记录感受，不改变外观。','Recorded only; does not change appearance.')));
+  } else if (page === 'breast') {
+    rows.push({kind:'breast',caption:l('角色状态预览','Character preview'),detail:l('结构示意，非 PMX 扫描','Illustration, not a PMX scan'),readings:[
+      {label:l('当前饱满度','Current fullness'),value:percent(effective.fullness)},
+      {label:l('周期','Cycle'),value:day(atDay(p))},
+      ...(p.lactating ? [{label:l('左侧充盈','Left fill'),value:percent(p.left)}, {label:l('右侧充盈','Right fill'),value:percent(p.right)}]
+        : [{label:l('泌乳','Lactation'),value:l('关','Off')}]),
+    ],fullness:field(l('基础饱满度','Base fullness'),'fullness',.05,percent)});
   } else if (page === 'chest' || page==='fit' || page === 'morphs' || page === 'contact') {
     const names = support?.morphs ?? [], selected = p.morph;
     const missing = !!selected && !names.includes(selected);
@@ -105,7 +122,7 @@ export function useBodyEditor({ assetId, runtimeId }: BodyActor) {
       inDraft ? l(`原来 ${percent(sampleBody(base).fullness)} → 预览 ${percent(effective.fullness)}`,`Before ${percent(sampleBody(base).fullness)} → Preview ${percent(effective.fullness)}`):
       saved ? l(`已保存 · 当前胸型 ${percent(effective.fullness)}`,`Saved · Current shape ${percent(effective.fullness)}`):l('拖动即可预览此成年角色。','Drag to preview on this adult actor.');
     if(page === 'chest') rows.push(field(l('胸部饱满度','Chest fullness'),'fullness',.05,percent),line(status),
-      actions(...(needsMorph&&(names.length||missing)?[navigate('fit','模型适配','Shape source')]:[]),navigate('more','更多设置','More settings')));
+      actions(navigate('breast','乳房观察','Breast view'),...(needsMorph&&(names.length||missing)?[navigate('fit','模型适配','Shape source')]:[]),navigate('more','更多设置','More settings')));
     else if(page==='fit')rows.push({kind:'morph',label:l('外观来源','Shape source'),names,value:selected,none:bone,choose:morph=>{patch({morph});go('chest');},browse:()=>{setMorphPage(Math.max(0,Math.floor(names.indexOf(selected??'')/3)));go('morphs');}},
       line(names.length?l('请选择会改变胸型的形态键。','Choose a morph that changes the chest.'):l('此模型没有可选形态键。','No vertex morphs available.')));
     else if(page === 'morphs') {

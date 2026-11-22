@@ -26,6 +26,10 @@ In the dildo controls, use the plain player-facing terms 精液 / semen, 阴道 
 
 An anatomical illustration here is a live game view. The player can rotate the same anatomy and see changes in tissue, instrument position and simulated liquid. Use local rendering rather than a gallery of static generated pictures or an external image API; keep illustrative motion separate from measured state.
 
+Breast modelling in Body state means a rotatable HUD study with current actor state, even on a PMX with no breast morphs or suitable bones. Deforming the imported character is a separate, reversible capability. Show side-specific refill only when lactation is enabled; never present the illustration as a scan of the imported mesh.
+
+The player wants the breast figure to look like an anime adult-game portrait, not a medical specimen or a diffuse-shaded plastic torso. Design the shoulder, underarm and breast silhouette as one figure; use tapered linework, warm cel shadows and selective highlights that follow the surface as it turns. Open on external appearance, movement and the character's current state. Let the player uncover internal views and labels on request; keep measured feedback accessible where it guides an action.
+
 ## Product Purpose
 
 MMD XR Stage loads local model, animation and environment assets into an immersive WebXR stage. Success means dependable entry and playback, unobstructed viewing, and settings that are easy to reach and dismiss.

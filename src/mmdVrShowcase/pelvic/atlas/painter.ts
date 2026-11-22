@@ -16,7 +16,7 @@ export type AtlasScope='pelvic'|'body';
 // also replaces BodyProfile every 250 ms, even on a locked day.
 function sameCycle(a:BodyProfile|undefined,b:BodyProfile|undefined){
   return a===b||!!a&&!!b&&a.day===b.day&&a.bleedDays===b.bleedDays&&a.length===b.length&&
-    a.liningGain===b.liningGain&&a.liningOverride===b.liningOverride;
+    a.ovulation===b.ovulation&&a.peakDays===b.peakDays&&a.lutealDays===b.lutealDays&&a.liningGain===b.liningGain&&a.liningOverride===b.liningOverride;
 }
 
 /** One painter for the DOM surface or one reusable XR canvas texture. Discrete
@@ -41,7 +41,7 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
       if(view.mode!=='organ'){art?.dispose();art=undefined;}
       if(prev.mode==='entry')lettering.dispose();
       changed();
-    }else if(view.motion!==prev.motion||!view.motion&&view.degrees!==prev.degrees)changed();
+    }else if(view.motion!==prev.motion||view.labels!==prev.labels||!view.motion&&view.degrees!==prev.degrees)changed();
     else if(view.degrees!==prev.degrees)wake(); // a continuous orbit still honours the turn rate limit
   }),
     useLanguageStore.subscribe((s,p)=>{if(s.language!==p.language)changed();}),
@@ -92,7 +92,7 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
       // A shared normalized art region leaves space for an honest live caption.
       // With body state disabled the neutral illustration is not a measured lining.
       art??=organOutput(result=>{if(result==='retry')dirty=true;wake();});
-      art.submit({scale:canvas.width/W,options:{x:0,y:0,width:W,height:H-32,yaw,time,lining:daily?.lining??.44,shedding:daily?.shedding??0,
+      art.submit({scale:canvas.width/W,options:{x:0,y:0,width:W,height:H-32,yaw,time,lining:daily?.lining??.44,shedding:daily?.shedding??0,tissue:daily?.tissue,labels:v.labels,
         fluid:volume/capacity,fantasy,vaginalFluid:profile?profile.fluid.vaginal/profile.capacity.vaginal:0,
          pressure:!parked&&sample?.outletInside?Math.min(1,sample.depth/Math.max(.0001,sample.lengthM)):0,sample,parked,zh},paint:draw=>{
         ctx.save();ctx.scale(canvas.width/W,canvas.height/H);ctx.fillStyle='#211722';ctx.fillRect(0,0,W,H);draw(ctx);

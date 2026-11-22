@@ -1,0 +1,26 @@
+.breast-reading { display: grid; min-width: 0; gap: .55rem; }
+.breast-figure { margin: 0; overflow: hidden; border-radius: .4rem; color: var(--pelvic-ink); background: var(--pelvic-inset); }
+.breast-artboard { display: block; margin-inline: auto; width: 100%; height: auto; aspect-ratio: 400 / 260; touch-action: pan-y; cursor: grab; }
+.breast-artboard:active { cursor: grabbing; }
+.breast-figure figcaption { padding: .55rem .65rem; background: var(--pelvic-paper); }
+.breast-figure dl { display: flex; flex-wrap: wrap; gap: .45rem .85rem; margin: 0 0 .35rem; }
+.breast-figure dt, .breast-figure small { font-size: .78rem; line-height: 1.45; color: var(--pelvic-muted); }
+.breast-figure dd { margin: 0; font-weight: 650; font-variant-numeric: tabular-nums; color: var(--pelvic-gold); }
+.breast-modes { display: grid; grid-template-columns: minmax(0,2fr) minmax(0,1fr); gap: .5rem; align-items: center; }
+.breast-labels { display: flex; justify-content: center; align-items: center; gap: .35rem; min-height: 2.65rem; cursor: pointer; }
+.screen-stage .breast-labels input { margin: 0; accent-color: var(--body-rose); }
+.screen-stage .breast-labels input:focus-visible { outline: 2px solid var(--body-rose); outline-offset: 2px; }
+.breast-view-actions { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: .8rem; align-items: center; }
+@media (min-width: 651px) {
+  .screen-library:has(.breast-reading) { width: min(27rem, 46%); }
+}
+@media (max-width: 650px) {
+  .screen-library:has(.breast-reading) { max-height: min(78%, calc(100% - clamp(7rem, 20dvh, 11rem))); padding-inline: .5rem; }
+  .body-editor:has(.breast-reading) { gap: .35rem; margin-block: .2rem 0; padding-bottom: 0; }
+  .breast-reading { gap: .35rem; }
+  .breast-figure figcaption { padding: .4rem .6rem; }
+  .breast-figure dl { margin-bottom: .2rem; }
+  .breast-reading > .body-range { grid-template-columns: auto minmax(3rem,1fr); align-items: center; gap: .75rem; }
+  .breast-reading > .body-range span { gap: .4rem; }
+  .breast-view-actions .body-range { gap: 0; }
+}

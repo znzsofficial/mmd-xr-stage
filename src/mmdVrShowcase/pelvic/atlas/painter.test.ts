@@ -102,6 +102,21 @@ it('does not rasterize a frozen, locked cycle diagram for unrelated refill ticks
   }finally{driver.dispose();}
 });
 
+it('repaints a fixed-thickness frozen section when its gland and vessel architecture changes',()=>{
+  const worker=slowWorker(),start={...DEFAULT_BODY_PROFILE,day:23,liningOverride:.55};
+  setAtlasView('a',{mode:'organ',motion:false});useBodyState.setState({byAsset:{a:start}});
+  const driver=atlasPainter(paper(),{assetId:'a',runtimeId:'r'},'body',()=>{},()=>{});
+  try{
+    driver.tick(0);const first=worker.current.postMessage.mock.lastCall![0].options,oldBitmap=worker.reply();
+    const updated={...start,ovulation:false};useBodyState.setState({byAsset:{a:updated}});driver.tick(50);
+    const next=worker.current.postMessage.mock.lastCall![0].options;
+    expect(oldBitmap.close).toHaveBeenCalledOnce();expect(worker.current.postMessage).toHaveBeenCalledTimes(2);
+    expect(first.tissue).toEqual(sampleBody(start).tissue);expect(next.tissue).toEqual(sampleBody(updated).tissue);
+    expect(first.tissue.functionalDepth).toBe(next.tissue.functionalDepth);expect(first.tissue.glandCoil).toBeGreaterThan(next.tissue.glandCoil);
+    expect(next.time).toBe(first.time);
+  }finally{driver.dispose();}
+});
+
 it('invalidates a ready bitmap on a stop-limit crossing or a mode round trip between drawing frames',()=>{
   const worker=slowWorker(),upload=vi.fn();setAtlasView('a',{mode:'organ',motion:false});
   const sample={tip:[0,0,-.1] as const,tail:[0,0,.1] as const,depth:.1,angleDeg:0,radiusM:.02,lengthM:.1,

@@ -5,11 +5,13 @@ import type { PelvicXYZ } from '../contract';
 import { pelvicCenterline, projectDepth, tangent } from '../path';
 import { canalY, clamp, ENTRY, organMeshes, smooth, STOP, stride } from './model';
 import type { Mesh, V } from './model';
+import type {EndometrialTissue} from '../../bodyState/data';
+import {createWallStudy,wallStride} from './uterineWall';
 
 export interface OrganArtOptions {
   x:number; y:number; width:number; height:number; yaw:number; time:number;
   /** Illustrative normalized tissue inputs, not physical measurements. */
-  lining:number; shedding:number; pressure:number; zh:boolean;
+  lining:number; shedding:number; pressure:number; zh:boolean; tissue?:EndometrialTissue; labels?:boolean;
   /** Selected balance / its OWN capacity. Optional second balance is vaginal. */
   fluid:number; fantasy:boolean; vaginalFluid?:number; sample?:PelvicSample|null; parked?:boolean;
 }
@@ -62,20 +64,26 @@ function triangles(p:Plate,mesh:Mesh,v:Float32Array,sectionMix=0){
     }
   }
 }
-function projectMesh(mesh:Mesh,out:Float32Array,l:Lens,o:OrganArtOptions,vag:boolean){
+function projectMesh(mesh:Mesh,out:Float32Array,l:Lens,o:OrganArtOptions,vag:boolean,wall?:readonly [Float32Array,Float32Array]){
   const a=mesh.a,b=mesh.b,section=mesh.section,q=section?l.cut:0,iq=1-q,dc=section?l.dc:l.ca,ds=section?l.ds:l.sa;
   const lining=sane(o.lining),shed=sane(o.shedding),pressure=sane(o.pressure),time=Number.isFinite(o.time)?o.time:0;
   const fill=vag?sane(o.vaginalFluid??(o.fantasy?0:o.fluid)):o.fantasy?sane(o.fluid):0;
   const level=vag?mix(ENTRY,STOP,fill):mix(.47,3.77,fill);
-  let i=0,j=0;
+  let i=0,j=0,k=0;
   for(let row=0;row<mesh.rows;row++){
     const rowZ=a[i+2];
     const wave=section?(.5+.5*cos(rowZ*1.14-time*2.45))**4:0;
     const constr=section?(vag?.014:.042)*wave:0, lift=section?(vag?.018:.074)*wave:0;
-    for(let col=0;col<mesh.cols;col++,i+=stride,j+=N){
+    for(let col=0;col<mesh.cols;col++,i+=stride,j+=N,k+=wallStride){
       let x=a[i]*iq+b[i]*q,y=a[i+1]*iq+b[i+1]*q,z=a[i+2]*iq+b[i+2]*q;
       const xc=a[i+9]*iq+b[i+9]*q,lw=a[i+10]*iq+b[i+10]*q,lum=a[i+11]*iq+b[i+11]*q;
-      if(section){x=x*(1-constr)-(x<0?-1:1)*lw*lining*.095;y=y*(1-constr)+lw*(.045+.08*lining);
+      if(section){
+        const thickness=wall?wall[0][k]*iq+wall[1][k]*q:lw*lining;
+        const relief=wall?wall[0][k+1]*iq+wall[1][k+1]*q:lw*.08*lining;
+        // Keep the narrow sagittal slit from inverting even at maximum
+        // thickness. The surface also grows towards the exposed cut face.
+        const inset=Math.min(Math.abs(x)*.65,thickness*(wall ? .22 : .095));
+        x=x*(1-constr)-Math.sign(x)*inset;y=y*(1-constr)+lw*.045+relief;
         if(vag&&l.sa<0)z-=.38*q*(row/(mesh.rows-1))*Math.sin((col/(mesh.cols-1)-.5)*PI);
         if(vag&&pressure>0){const k=clamp(1-abs(z-STOP)*.63)*pressure;x*=1+.055*k;y-=.075*k*lum;}
         z+=lift;}
@@ -89,7 +97,10 @@ function projectMesh(mesh:Mesh,out:Float32Array,l:Lens,o:OrganArtOptions,vag:boo
       const lam=Math.max(0,-rx*.47+up*.63+nd*.62),spec=Math.max(0,-rx*.265+up*.36+nd*.895)**19;
       const light=.65+.34*lam+.046*up,edge=(1-nd)**3,shine=spec*(section?8:15);
       let r=a[i+6]*iq+b[i+6]*q,g=a[i+7]*iq+b[i+7]*q,bl=a[i+8]*iq+b[i+8]*q;
-      if(section){r+=lw*(lining*6-shed*19)+wave*2.6;g-=lw*shed*38;bl-=lw*shed*20;
+      if(section){
+        if(wall){const gland=wall[0][k+2]*iq+wall[1][k+2]*q,vessel=wall[0][k+3]*iq+wall[1][k+3]*q;
+          r+=wave*2.6+gland*21-vessel*31;g+=gland*25-vessel*64;bl+=gland*18-vessel*39;
+        }else{r+=lw*(lining*6-shed*19)+wave*2.6;g-=lw*shed*38;bl-=lw*shed*20;}
         // Only a tagged lumen receives the actual compartment balance. No drops,
         // inferred flow, or retained fantasy balance in ordinary-mode uterus.
         const coverage=vag?smooth(.8,1.72,lum):smooth(.60,.92,lum);
@@ -147,6 +158,7 @@ function sampleMark(ctx:CanvasRenderingContext2D,l:Lens,o:OrganArtOptions){
 /** One owner per DOM canvas / HUD texture. Reuses model topology and CPU depth
  * buffers; the caller's current canvas transform, clip and alpha are respected. */
 export function createOrganArt(){
+  const wall=createWallStudy();
   let canvas:HTMLCanvasElement|OffscreenCanvas|null=null,ic:CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D|null=null;
   let frame:Plate|undefined,back:Plate|undefined,near:Plate|undefined,img:ImageData|undefined,lastYaw=NaN;
   let meshes:Mesh[]|undefined,work=new Float32Array(0);
@@ -174,19 +186,21 @@ export function createOrganArt(){
       lastYaw=yaw;
     }
     frame.z.set(back.z);frame.color.set(back.color);
-    for(let i=0;i<4;i++){const mesh=meshes[i];projectMesh(mesh,work,l,o,i<2);triangles(frame,mesh,work,l.cut);}
+    for(let i=0;i<4;i++){const mesh=meshes[i],tissue=i===3&&o.tissue?wall.forDate(mesh,o.tissue):undefined;
+      projectMesh(mesh,work,l,o,i<2,tissue);triangles(frame,mesh,work,l.cut);}
     if(sectioning&&near){const c=frame.color,n=near.color;for(let i=0;i<near.z.length;i++)if(near.z[i]>frame.z[i]){const j=4*i;
       c[j]=mix(c[j],n[j],l.nearAlpha);c[j+1]=mix(c[j+1],n[j+1],l.nearAlpha);c[j+2]=mix(c[j+2],n[j+2],l.nearAlpha);}}
-    // The leader lands on the actual moving luminal margin, including at the
-    // in-between cut angles. Two labels leave enough room for 14px thumbnails.
-    const m4=meshes[3],iRow=Math.round((1.94+1.618)/6.437*(m4.rows-1))*m4.cols;
-    let best=0,idx=iRow+Math.floor(m4.cols*.72);
-    for(let i=iRow+Math.floor(m4.cols*.50);i<iRow+m4.cols;i++){const j=i*stride+10,weight=mix(m4.a[j],m4.b[j],l.cut);if(weight>best){best=weight;idx=i;}}
-    const logicalPt=(i:number):V=>[work[i*N]*o.width/w,work[i*N+1]*o.height/h,work[i*N+2]];
-    const liningPt=logicalPt(idx),musclePt=logicalPt(Math.round((2.82+1.618)/6.437*(m4.rows-1))*m4.cols+Math.round(m4.cols*.17));
     img.data.set(frame.color);ic!.putImageData(img,0,0);
     ctx.save();ctx.translate(o.x,o.y);ctx.beginPath();ctx.rect(0,0,o.width,o.height);ctx.clip();
     ctx.drawImage(canvas,0,0,o.width,o.height);const logical=lens(o.width,o.height,yaw);
-    annotations(ctx,logical,o,liningPt,musclePt);sampleMark(ctx,logical,o);ctx.restore();
-  },dispose(){canvas=null;ic=null;frame=back=near=undefined;img=undefined;meshes=undefined;work=new Float32Array(0);lastYaw=NaN;}};
+    if(o.labels){
+      // Label endpoints follow the deformed surface, not fixed screen points.
+      const m4=meshes[3],iRow=Math.round((1.94+1.618)/6.437*(m4.rows-1))*m4.cols;
+      let best=0,idx=iRow+Math.floor(m4.cols*.72);
+      for(let i=iRow+Math.floor(m4.cols*.50);i<iRow+m4.cols;i++){const j=i*stride+10,weight=mix(m4.a[j],m4.b[j],l.cut);if(weight>best){best=weight;idx=i;}}
+      const pt=(i:number):V=>[work[i*N]*o.width/w,work[i*N+1]*o.height/h,work[i*N+2]];
+      annotations(ctx,logical,o,pt(idx),pt(Math.round((2.82+1.618)/6.437*(m4.rows-1))*m4.cols+Math.round(m4.cols*.17)));
+    }
+    sampleMark(ctx,logical,o);ctx.restore();
+  },dispose(){canvas=null;ic=null;frame=back=near=undefined;img=undefined;meshes=undefined;wall.clear();work=new Float32Array(0);lastYaw=NaN;}};
 }

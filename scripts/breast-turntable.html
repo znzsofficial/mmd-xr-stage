@@ -1,0 +1,20 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>乳房观察 · 同姿态三视图</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#211722;color:#fff1df;font:1rem/1.4 system-ui,sans-serif}header{display:flex;align-items:center;gap:.9rem;flex-wrap:wrap;padding:.8rem}label{display:flex;gap:.4rem;align-items:center}input{accent-color:#d192a5}main{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}figure{margin:0}canvas{display:block;width:100%;height:auto}figcaption{color:#dbc2cb;padding:.3rem .9rem}@media(max-width:680px){main{grid-template-columns:1fr}}
+</style>
+<header><label>饱满度 <input id="fullness" type="range" min="0" max="100" value="55"><output id="value"></output></label><label><input id="section" type="checkbox">剖面</label><label><input id="labels" type="checkbox">标注</label></header>
+<main></main><script type="module">
+// Same source as both the HUD worker and the no-worker renderer. These are
+// independent canvases of one frozen state, not screenshots of a private PMX.
+import {createBreastArt} from '/src/mmdVrShowcase/bodyState/breast/art/index.ts';
+const node=id=>document.getElementById(id),fullness=node('fullness'),section=node('section'),labels=node('labels');
+const views=[0,32,80].map((degrees,i)=>{
+  const figure=document.createElement('figure'),canvas=document.createElement('canvas'),caption=document.createElement('figcaption');
+  canvas.width=800;canvas.height=520;caption.textContent=`${['正面','斜前','近侧面'][i]} · ${degrees}°`;figure.append(canvas,caption);document.querySelector('main').append(figure);
+  const ctx=canvas.getContext('2d');ctx.scale(2,2);return {art:createBreastArt(),ctx,degrees};
+});
+function draw(){labels.disabled=!section.checked;node('value').textContent=`${fullness.value}%`;for(const {art,ctx,degrees} of views)art.draw(ctx,{
+  width:400,height:260,degrees,time:0,zh:true,fullness:fullness.valueAsNumber/100,lactating:false,left:0,right:0,section:section.checked,labels:section.checked&&labels.checked,
+});}
+document.querySelector('header').addEventListener('input',draw);window.addEventListener('pagehide',()=>views.forEach(v=>v.art.dispose()));draw();
+</script></html>

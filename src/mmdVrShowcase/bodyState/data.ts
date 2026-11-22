@@ -26,7 +26,7 @@ const mix = (a:number,b:number,t:number) => a+(b-a)*smooth(t);
 export function bodyRanges(p: Pick<BodyProfile,'length'|'bleedDays'|'peakDays'|'ovulation'>) {
   const length = Math.round(ranged(p.length,28,[14,60]));
   const bleedMax=Math.min(12,length-3), bleed=Math.round(ranged(p.bleedDays,5,[1,bleedMax]));
-  const peakMax=Math.min(6,length-bleed-2), peak=p.ovulation?Math.round(ranged(p.peakDays,3,[1,peakMax])):0;
+  const peakMax=Math.min(6,length-bleed-2), peak=p.ovulation!==false?Math.round(ranged(p.peakDays,3,[1,peakMax])):0;
   return {day:[1,length], length:[14,60], bleedDays:[1,bleedMax], peakDays:[1,peakMax],
     lutealDays:[1,Math.min(22,length-bleed-peak-1)], compression:[0,1], rebound:[.02,.4], refillSeconds:[15,3600]} as const;
 }
@@ -45,21 +45,67 @@ export function normalizeBody(p:BodyProfile):BodyProfile {
     lactating:p.lactating===true,left:gain('left'),right:gain('right'),refillSeconds:val('refillSeconds')};
 }
 
-export type BodySample = { phase:'bleed'|'follicular'|'ovulatory'|'luteal'; lining:number; shedding:number; secretion:number; fullness:number; sensitivity:number };
+/** Relative shapes for the illustration, not measurements or a fertility model.
+ * functionalDepth is the intact envelope ABOVE the persistent basal layer. */
+export type EndometrialTissue = { functionalDepth:number; breakdown:number; glandCoil:number; vesselCoil:number };
+export type BodySample = { phase:'bleed'|'follicular'|'ovulatory'|'luteal'; tissue:EndometrialTissue; lining:number; shedding:number; secretion:number; fullness:number; sensitivity:number };
+
+// Fixed sites: tracking the SAME tissue across two dates is part of the comparison.
+export const ENDOMETRIAL_PATCHES = [
+  {center:.18,radius:.105,loss:.98}, {center:.53,radius:.14,loss:1}, {center:.84,radius:.08,loss:.84},
+] as const;
+export function functionalDepthAt(tissue:EndometrialTissue, u:number) {
+  if (!tissue.breakdown) return tissue.functionalDepth;
+  let loss=0;
+  for (const patch of ENDOMETRIAL_PATCHES) {
+    const distance=Math.abs(u-patch.center)/patch.radius;
+    loss=Math.max(loss,patch.loss*(1-smooth((distance-.18)/.82)));
+  }
+  return tissue.functionalDepth*(1-loss*tissue.breakdown);
+}
+
+// Shape landmarks [intact functional layer, gland winding, vessel winding].
+// Basal gland ends persist; repaired tubes are relatively straight. Secretory
+// glands and spiral vessels become tortuous, not merely darker or thicker.
+// Anatomy: https://histology.siu.edu/erg/uterus.htm
+type TissueShape = readonly [depth:number, gland:number, vessel:number];
+const repaired:TissueShape=[.09,.025,.05], grown:TissueShape=[.53,.05,.16],
+  peri:TissueShape=[.72,.09,.31], secretory:TissueShape=[.94,.96,.98], lateSecretory:TissueShape=[.82,.74,.80],
+  nonOvulatory:TissueShape=[.70,.05,.18];
+
+function sampleTissue(p:BodyProfile, t:number, peak:number, late:number):EndometrialTissue {
+  const endShape=p.ovulation?lateSecretory:nonOvulatory;
+  let from:TissueShape, to:TissueShape, progress:number, breakdown=0;
+  if(t<p.bleedDays){
+    from=endShape; to=repaired; progress=t/p.bleedDays;
+    breakdown=Math.sin(Math.PI*progress)**2*p.liningGain;
+  }else if(!p.ovulation||t<peak){
+    from=repaired; to=p.ovulation?grown:nonOvulatory; progress=(t-p.bleedDays)/(peak-p.bleedDays);
+  }else if(t<late){
+    from=grown; to=peri; progress=(t-peak)/(late-peak);
+  }else{
+    const m=(t-late)/(p.length-late);
+    if(m<.65){from=peri;to=secretory;progress=m/.65;}
+    else{from=secretory;to=lateSecretory;progress=(m-.65)/.35;}
+  }
+  const depth=mix(from[0],to[0],progress);
+  return { functionalDepth:p.liningOverride??(.25+(depth-.25)*p.liningGain), breakdown,
+    glandCoil:mix(from[1],to[1],progress)*p.liningGain, vesselCoil:mix(from[2],to[2],progress)*p.liningGain };
+}
+
 export function sampleBody(p:BodyProfile):BodySample {
-  // A whole-day preview samples the middle of that day rather than the exact
-  // instant bleeding begins. The envelope remains continuous across day 1.
-  const end=p.length, bleed=p.bleedDays,day=p.day-1+p.daySeconds/BODY_DAY_SECONDS,t=(day+.5)%end;
+  // Day N denotes the start of that day. Labels, tissue and the other envelopes
+  // all read the same fractional date, including the instant a new cycle begins.
+  const end=p.length, bleed=p.bleedDays, t=p.day-1+p.daySeconds/BODY_DAY_SECONDS;
   const late=p.ovulation?end-p.lutealDays:end, peak=p.ovulation?late-p.peakDays:end;
-  const phase=day<bleed?'bleed':day<peak?'follicular':day<late?'ovulatory':'luteal';
-  const lining=t<bleed?mix(.88,.12,t/bleed):mix(.12,.88,(t-bleed)/(end-bleed)*1.25);
+  const phase=t<bleed?'bleed':!p.ovulation||t<peak?'follicular':t<late?'ovulatory':'luteal';
+  const tissue=sampleTissue(p,t,peak,late);
   const peakMid=(peak+late)/2;
   const secretion=!p.ovulation ? .20+.12*Math.sin(Math.PI*t/end)**2
     : t<bleed ? .20 : t<peakMid ? mix(.2,.95,(t-bleed)/(peakMid-bleed)) : mix(.95,.2,(t-peakMid)/(end-peakMid)*1.8);
   // Gentle cyclic characteristics and editable steady baselines are separate.
   const lateWave=p.ovulation&&t>=late?Math.sin(Math.PI*(t-late)/(end-late))**2:0;
-  return {phase, lining:p.liningOverride??(.25+(lining-.25)*p.liningGain),
-    shedding:t<bleed?Math.sin(Math.PI*t/bleed)*p.liningGain:0,
+  return {phase, tissue, lining:tissue.functionalDepth, shedding:tissue.breakdown,
     secretion:p.secretionOverride??(.2+(secretion-.2)*p.secretionGain),
     fullness:p.fullness+(1-p.fullness)*p.cycleGain*lateWave,
     sensitivity:p.sensitivityMode==='manual'?p.sensitivity:p.sensitivityMode==='cycle'?p.sensitivity*lateWave:0};
@@ -67,7 +113,7 @@ export function sampleBody(p:BodyProfile):BodySample {
 
 export function moveDay(p:BodyProfile, days:number):BodyProfile {
   if(!Number.isFinite(days))return p;
-  return {...p,day:1+((p.day-1+Math.trunc(days))%p.length+p.length)%p.length,daySeconds:0};
+  return {...p,day:1+((p.day-1+Math.trunc(days))%p.length+p.length)%p.length};
 }
 
 /** Caller supplies elapsed, bounded active-stage simulation only; editing a

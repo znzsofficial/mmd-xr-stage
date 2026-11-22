@@ -14,6 +14,7 @@ const copy={zh:{entry:'入口对位',organ:'子宫动态图',measure:'测量剖�
 function ScreenPanel({scope,...actor}:Props){
   const v=useAtlasView(actor.assetId),t=useLanguageStore(s=>s.language==='zh'?copy.zh:copy.en);
   const set=(p:Parameters<typeof setAtlasView>[1])=>setAtlasView(actor.assetId,p),organ=scope==='body'||v.mode==='organ';
+  const label=useLanguageStore(s=>s.language==='zh'?'标注':'Labels');
   return <div className="anatomy-atlas" data-atlas-scope={scope}>
     <div className="anatomy-atlas-head">
       {scope==='body'?<strong>{t.organ}</strong>:<label className="anatomy-mode">{t.view}<select value={v.mode} onChange={e=>set({mode:e.currentTarget.value as AtlasMode})}>
@@ -25,7 +26,7 @@ function ScreenPanel({scope,...actor}:Props){
     <AtlasScreenGraphic {...actor} scope={scope}/>
     <details className="anatomy-orbit-tools"><summary><span>{t.drag}</span><span>{t.rotate}　{v.degrees}°</span></summary>
     <div className="anatomy-angles" role="group" aria-label={t.rotate}>{presets.map(k=><button type="button" key={k}
-      aria-pressed={v.degrees===atlasAngles[k]} onClick={()=>set({degrees:atlasAngles[k]})}>{t[k]}</button>)}</div>
+      aria-pressed={v.degrees===atlasAngles[k]} onClick={()=>set({degrees:atlasAngles[k]})}>{t[k]}</button>)}{organ&&<button type="button" aria-pressed={v.labels} onClick={()=>set({labels:!v.labels})}>{label}</button>}</div>
     <label className="anatomy-orbit"><span>{t.rotate}</span><input aria-label={t.rotate} type="range" min={-90} max={90} value={v.degrees} step={1}
       onChange={e=>set({degrees:e.currentTarget.valueAsNumber})}/><output>{v.degrees}°</output></label></details>
   </div>;
@@ -33,6 +34,7 @@ function ScreenPanel({scope,...actor}:Props){
 function HudPanel({scope,widthM,...actor}:Props&{widthM:number}){
   const v=useAtlasView(actor.assetId),t=useLanguageStore(s=>s.language==='zh'?copy.zh:copy.en),body=scope==='body';
   const [choose,setChoose]=useState(false);
+  const label=useLanguageStore(s=>s.language==='zh'?'标注':'Labels');
   const set=(p:Parameters<typeof setAtlasView>[1])=>setAtlasView(actor.assetId,p);
   return <group scale={widthM} name="pelvic:atlas-panel">
     {body&&<PrivateSheet size={[1.02,1.30]}/>}
@@ -43,7 +45,8 @@ function HudPanel({scope,widthM,...actor}:Props&{widthM:number}){
     <group position-y={.071}><AtlasHudGraphic {...actor} scope={scope} widthM={1}/></group>
     {choose&&!body?modes.map((k,i)=><PrivateButton key={k} position={[(i-1)*.336,-.45,0]} size={[.315,.15]} label={t[k]}
       active={v.mode===k} onPress={()=>{set({mode:k});setChoose(false);}}/>):<>
-      <PrivateLine position={[-.30,-.455,0]} width={.37} text={t.rotate} value={`${v.degrees}°`}/>
+      {body||v.mode==='organ'?<><PrivateButton position={[-.381,-.455,0]} size={[.21,.143]} label={label} active={v.labels} onPress={()=>set({labels:!v.labels})}/>
+        <PrivateLine position={[-.19,-.455,0]} width={.15} text={`${v.degrees}°`}/></>:<PrivateLine position={[-.30,-.455,0]} width={.37} text={t.rotate} value={`${v.degrees}°`}/>}
       <PrivateSlider position={[.204,-.455,0]} width={.58} value={(v.degrees+90)/180} disabled={false} onChange={n=>set({degrees:n*180-90})}/></>}
   </group>;
 }

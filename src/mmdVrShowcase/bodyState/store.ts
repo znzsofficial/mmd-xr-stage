@@ -53,14 +53,19 @@ export function disableBodyState(assetId:string) {
   useBodyState.setState({byAsset:next,draft:draft?.assetId===assetId?null:draft});
 }
 
+// A late diagram frame is usable during continuous clock/refill updates, but
+// not after a preview edit or cancellation. Mark the produced value rather
+// than infer user intent from whether a percentage moved up or down.
+const clockValues=new WeakSet<BodyProfile>();
+export const fromBodyClock=(value:BodyProfile)=>clockValues.has(value);
 export function advanceLiveBodies(ids:Iterable<string>, seconds:number) {
   const s=useBodyState.getState(); let byAsset=s.byAsset,draft=s.draft;
   for(const id of ids){
     if(draft?.assetId===id){
-      const value=advanceBody(draft.value,seconds); if(value!==draft.value)draft={assetId:id,value};
+      const value=advanceBody(draft.value,seconds); if(value!==draft.value){clockValues.add(value);draft={assetId:id,value};}
     }else if(byAsset[id]){
       const value=advanceBody(byAsset[id],seconds);
-      if(value!==byAsset[id]){if(byAsset===s.byAsset)byAsset={...byAsset}; byAsset[id]=value;}
+      if(value!==byAsset[id]){clockValues.add(value);if(byAsset===s.byAsset)byAsset={...byAsset}; byAsset[id]=value;}
     }
   }
   if(byAsset!==s.byAsset||draft!==s.draft)useBodyState.setState({byAsset,draft});

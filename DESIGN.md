@@ -123,6 +123,10 @@ The frontmatter preserves the actual Canvas hex values from `HUD_COLORS`, rather
 
 **Show what a button did.** Entering an actor tool replaces the backpack list. Start body editing with the chest slider and a reversible preview on the actor. Start rod fitting with one action that places the visible stand outside the opening. Give a blocked action a recovery at the same location (including restoring a hidden clothing material). Use “inside” only after a measured crossing; a mounted or stopped rod has a position, not confirmed contact. Put anatomy, capacity, model fit and cycle settings behind named controls instead of presenting them all above the primary action.
 
+**Actor status, appearance first.** The breast view opens as a warm, softly lit external figure against the actor panel's plum field. Breathing and the lower silhouette are legible without text on the figure. Cutaway and labels are separate choices. Reserve relative left/right readouts for enabled lactation. On the cycle page let the date and visible change lead; the tissue comparison and anatomical references belong one level down in the experience or in the guide.
+
+For the external vulva, the user prefers soft cherry and peach highlights, with rose shadows separating the inner and outer folds. Preserve saturated midtones and the measured entrance. Judge the effect at the size of the actual HUD and in a nearly side-on view: highlights should turn with the folds, not outline a hard ring.
+
 The optional FPS badge retains a diagnostic exception: green text (`#9fe870`) over translucent black (`rgba(0,0,0,0.55)`). It is not a general success or selection style. Prep controls use their studio palette; the neutral stage background, grid and placement aid have their own colours. A legacy OS accent must not tint any of these surfaces.
 
 Hand and controller rays share a `#79baff` beam and a hollow hit marker with a white inner band and ink outer rim. Both bands use the existing cursor quad, independent of scene exposure. The 39 mm cursor quad and 7 mm beam are visuals; neither enlarges the interaction target. Live House scenery colors are intentionally separate from the HUD palette.
