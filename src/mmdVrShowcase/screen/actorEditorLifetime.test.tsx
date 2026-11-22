@@ -17,7 +17,7 @@ it('preserves the open actor preview while physics rebuilds the transform, and d
   useMmdVrStore.setState({models:[model],physicsBusy:false});
   useBackpack.setState({entries:[{id:'a',kind:'model',file:new File([],'actor.pmx'),path:'actor.pmx'}],live:{a:{runtimeId:'m',visible:true,position:[0,0,0]}},selected:'a'});
   const host=document.createElement('div'),root=createRoot(host);
-  const show=(locked:boolean)=>root.render(<ScreenLibrary locked={locked} close={()=>{}} frame={()=>{}}/>);
+  const show=(locked:boolean)=>root.render(<ScreenLibrary view="item" visit={1} locked={locked} close={()=>{}} frame={()=>{}} openItem={()=>{}} openBackpack={()=>{}}/>);
   const click=(label:string)=>[...host.querySelectorAll('button')].find(b=>b.textContent===label)!.click();
   try{
     await act(()=>show(false));await act(()=>click(useLanguageStore.getState().t('actorBodyState')));

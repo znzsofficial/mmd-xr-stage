@@ -6,7 +6,7 @@ export type BodyProfile = {
   liningGain:number; secretionGain:number; liningOverride:number|null; secretionOverride:number|null;
   fullness:number; cycleGain:number; compression:number; rebound:number; morph:string|null;
   sensitivityMode:'off'|'cycle'|'manual'; sensitivity:number;
-  lactating:boolean; left:number; right:number; refillSeconds:number;
+  lactating:boolean; left:number; right:number; refillSeconds:number; bareLeft:boolean; bareRight:boolean;
 };
 export const BODY_DAY_SECONDS = 120;
 export const DEFAULT_BODY_PROFILE: Readonly<BodyProfile> = Object.freeze({
@@ -14,7 +14,7 @@ export const DEFAULT_BODY_PROFILE: Readonly<BodyProfile> = Object.freeze({
   liningGain:1, secretionGain:.65, liningOverride:null, secretionOverride:null,
   fullness:0, cycleGain:.35, compression:1, rebound:.085, morph:null,
   sensitivityMode:'off', sensitivity:.5,
-  lactating:false, left:.5, right:.5, refillSeconds:180,
+  lactating:false, left:.5, right:.5, refillSeconds:180, bareLeft:false,bareRight:false,
 });
 type Range = readonly [number,number];
 const clamp = (n:number, low:number, high:number) => Math.max(low,Math.min(high,n));
@@ -42,7 +42,7 @@ export function normalizeBody(p:BodyProfile):BodyProfile {
     liningGain:gain('liningGain'),secretionGain:gain('secretionGain'),liningOverride:override(p.liningOverride),secretionOverride:override(p.secretionOverride),
     fullness:gain('fullness'),cycleGain:gain('cycleGain'),compression:val('compression'),rebound:val('rebound'),morph:typeof p.morph==='string'&&p.morph?p.morph:null,
     sensitivityMode:p.sensitivityMode==='cycle'||p.sensitivityMode==='manual'?p.sensitivityMode:'off',sensitivity:gain('sensitivity'),
-    lactating:p.lactating===true,left:gain('left'),right:gain('right'),refillSeconds:val('refillSeconds')};
+    lactating:p.lactating===true,left:gain('left'),right:gain('right'),refillSeconds:val('refillSeconds'),bareLeft:p.bareLeft===true,bareRight:p.bareRight===true};
 }
 
 /** Relative shapes for the illustration, not measurements or a fertility model.

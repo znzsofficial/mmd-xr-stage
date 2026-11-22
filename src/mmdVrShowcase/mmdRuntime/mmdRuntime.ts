@@ -15,6 +15,7 @@ import { PARK_Y } from "./colliderReentry";
 import { configureActorPalms } from './actorPalms';
 import {fitChestCompression} from './chestCompression';
 import { createBodyDisplay } from '../bodyState/runtime';
+import { prepareMilkOutlets, type SampleMilkOutlet } from '../bodyState/lactation/outlets';
 import type { BodyProfile } from '../bodyState/data';
 import type { BodySupport } from '../bodyState/store';
 import {FINGERTIP_MASK,TrackedPressure} from './trackedPressure';
@@ -108,6 +109,8 @@ export type MmdRuntimeHandle = {
   endPose: (id:string)=>void;
   getModelSurface: (id:string) => Pick<ThreeMmdModel,'root'|'mesh'|'renderOrderMeshes'>|null;
   getBodySupport?: (id:string) => BodySupport|null;
+  /** Query after display evaluation. False leaves both world-space outputs untouched. */
+  sampleMilkOutlet?: (runtimeId:string,...args:Parameters<SampleMilkOutlet>)=>boolean;
   /** Returns true when a paused stage needs another display evaluation. */
   setBodyProfile?: (id:string,profile:BodyProfile|null)=>boolean;
   setModelVisible: (id: string, visible: boolean) => void;
@@ -143,6 +146,7 @@ type RuntimeEntryWithPhysics = RuntimeEntry & {
   chest?:ReturnType<typeof fitChestCompression>;
   bodyDisplay?:ReturnType<typeof createBodyDisplay>;
   bodyProfile?:BodyProfile|null;
+  milkOutlet:SampleMilkOutlet;
   fingertipFit?:ReturnType<typeof beginFingertipFit>;
   fingertip?:ReturnType<ReturnType<typeof beginFingertipFit>>;
   handEligibility:{mask:number};
@@ -507,7 +511,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       runtime: runtimeOptions,
       ...(withPhysics ? { runtimeFactory: () => new DefaultMmdRuntime(runtimeOptions) } : {}),
     });
-    let model, bindPose;
+    let model, bindPose, milkOutlet;
     try {
       assertCurrent();
       const started = work ? performance.now() : 0;
@@ -515,6 +519,8 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       if (work) work.loaderWallMs = performance.now()-started;
       assertCurrent();
       bindPose = captureBindPose(model.mesh);
+      milkOutlet = await prepareMilkOutlets(model,stale);
+      assertCurrent();
       configureActorPalms(model.mesh,palmsRequested());
       if (withPhysics) bindStaticMmdPhysicsRuntime(model);
       colliderRoot = model.root;
@@ -572,7 +578,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       companionFiles: companionFiles.length ? [...companionFiles] : [modelFile],
       physicsBackend,
       physicsDisplay,
-      bindPose, createWorld, handEligibility,
+      bindPose, milkOutlet, createWorld, handEligibility,
     };
     model.root.userData.mmdVisualScale = entry.transform.scale;
     // Tag root + meshes so post FX (DOF lock / selective bloom) can target a model id.
@@ -814,6 +820,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       return entries.get(id)?.model.root ?? null;
     },
     getModelSurface(id) {return entries.get(id)?.model??null;},
+    sampleMilkOutlet(id,side,position,normal,trustedBareSkin){const e=entries.get(id);return !!e?.visible&&e.milkOutlet(side,position,normal,trustedBareSkin);},
     getBodySupport(id){const entry=entries.get(id);return entry?bodyDisplay(entry).support:null;},
     setBodyProfile(id,profile){
       const entry=entries.get(id);if(!entry||(!profile&&!entry.bodyDisplay))return false;

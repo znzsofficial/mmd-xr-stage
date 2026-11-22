@@ -53,6 +53,7 @@ import {PoseHandles} from '../pose/PoseHandles';
 import {PelvicRig,type PelvicRigHandle} from '../pelvic/PelvicRig';
 import {PelvicObserver} from '../pelvic/PelvicObserver';
 import {createBodyRoom} from '../bodyState/room';
+import {mountRoomMilk} from '../bodyState/lactation/roomMilk';
 
 const noRoomLightEvents=()=>()=>{};
 
@@ -162,6 +163,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
   const screenPropSettle=useRef(0);
   const poseSettle=useRef(0);
   const bodyRoom=useRef<ReturnType<typeof createBodyRoom>|null>(null);
+  const milkRoom=useRef<ReturnType<typeof mountRoomMilk>|null>(null);
   const poseRoom=useRef<ReturnType<typeof mountPoseRoom>|null>(null);
   const runtime = useMemo(() => createRoomRuntime(scene, gl, camera, motionCache, alphaTiles,propFeed),
     [scene, gl, motionCache, alphaTiles,propFeed]);
@@ -184,6 +186,11 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
   useLayoutEffect(()=>propDisplay.subscribe(scenery),[propDisplay,scenery]);
   const characterToy = useStagePlay(s => s.character?.toy);
   const isRoomStale = () => retired.current || !useMmdVrStore.getState().overlayOpen || useMmdVrStore.getState().prefs.scenery !== scenery || runtimeRef.current !== runtime;
+
+  useLayoutEffect(()=>{
+    const milk=mountRoomMilk(scene,gl,runtime,isRoomStale);milkRoom.current=milk;
+    return ()=>{milkRoom.current=null;milk.dispose();};
+  },[scene,gl,runtime,scenery]);
 
   useLayoutEffect(()=>{
     const body=createBodyRoom(runtime,()=>{lastEvaluatedTimeRef.current=-Infinity;});bodyRoom.current=body;
@@ -705,6 +712,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
     pelvic.current?.advance(delta,frame,pelvicBlocked);
     if(!isRoomStale()&&!store.physicsBusy&&!store.physicsFatal&&!store.assetLoad.running)
       propDisplay.present(rt,scene,wristGroup.current,pelvic.current,frame,clock);
+    milkRoom.current?.advance(delta,frame);
     if(store.presentation!=='xr')return;
     hapticContactPollRef.current += delta;
     if (hapticContactPollRef.current >= MMD_VR_HAPTIC_POLL_INTERVAL) {

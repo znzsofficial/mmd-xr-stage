@@ -1,4 +1,5 @@
 import {useId,useLayoutEffect,useRef} from 'react';
+import {useLanguageStore} from '../../languageStore';
 import { HudButton, HudLine, HudSheet } from '../components/PorcelainControls';
 import { HudSlider } from '../components/HudValues';
 import { PrivateButton, PrivateLine, PrivateSheet } from '../pelvic/HudPrivateControls';
@@ -20,6 +21,13 @@ function ScreenRow({ actor, row, blocked }: { actor: BodyActor; row: Row; blocke
     case 'actions': return <ScreenActions items={row.items} blocked={blocked}/>;
     case 'text': return <p className="body-note">{row.text}</p>;
     case 'destination': return <ScreenDestination row={row} blocked={blocked}/>;
+    case 'milkSide': return <div className="body-milk-side" role="group" aria-label={row.label}>
+      <div className="body-milk-reading"><span>{row.label}</span><strong>{row.value}</strong></div>
+      <ScreenActions items={[row.drain]} blocked={blocked}/>
+      <small aria-live="polite" aria-atomic="true">{row.feedback}</small></div>;
+    case 'skinConfirmation': return <fieldset className="body-skin-confirm" disabled={blocked}>
+      <legend>{row.title}</legend><small>{row.instruction} {row.note}</small>
+      <div>{row.choices.map(a=><label key={a.label}><input type="checkbox" checked={!!a.active} onChange={a.run}/>{a.label}</label>)}</div></fieldset>;
     case 'breast': return <ScreenBreastPanel actor={actor} row={row} blocked={blocked}/>;
     case 'cycle': return <ScreenCycleReading actor={actor} row={row} blocked={blocked}/>;
     case 'morph': return <label className="body-select">{row.label}<select disabled={blocked||(!row.names.length&&!row.value)}
@@ -32,7 +40,7 @@ function ScreenRow({ actor, row, blocked }: { actor: BodyActor; row: Row; blocke
   }
 }
 
-function ScreenEditor({onBack,...props}: BodyActor & {onBack?:()=>void}) {
+function ScreenEditor({onBack,suspended,...props}: BodyActor & {onBack?:()=>void;suspended?:boolean}) {
   const editor = useBodyEditor(props);
   const back = editor.backAction ?? (onBack && {label:editor.back,run:onBack});
   const panel=useRef<HTMLDivElement>(null),heading=useRef<HTMLHeadingElement>(null),previous=useRef(editor.page);
@@ -43,6 +51,7 @@ function ScreenEditor({onBack,...props}: BodyActor & {onBack?:()=>void}) {
     if(previous.current!==editor.page&&!panel.current?.contains(document.activeElement))heading.current?.focus({preventScroll:true});
     previous.current=editor.page;
   },[editor.page]);
+  if(suspended)return null;
   return <div ref={panel} className="body-screen body-editor" data-page={editor.page}>
     <header className="body-page"><div className="body-page-name"><h4 ref={heading} tabIndex={-1}>{editor.title}</h4><small title={editor.name}>{editor.name}</small></div>
       {back&&<ScreenActions items={[back]} blocked={false}/>}</header>
@@ -55,7 +64,7 @@ function ScreenEditor({onBack,...props}: BodyActor & {onBack?:()=>void}) {
 }
 
 /** The actor sheet owns entry/exit and already identifies the selected file. */
-export function BodyScreenControls(props: BodyActor & {onBack?:()=>void}) {
+export function BodyScreenControls(props: BodyActor & {onBack?:()=>void;suspended?:boolean}) {
   return <ScreenEditor key={`${props.assetId}:${props.runtimeId}`} {...props}/>;
 }
 
@@ -65,6 +74,8 @@ function rowHeight(row: Row) {
   if (row.kind === 'cycle') return cycleRowHeight(row.organ);
   if (row.kind === 'text') return .105;
   if (row.kind === 'destination') return .245;
+  if (row.kind === 'milkSide') return .24;
+  if (row.kind === 'skinConfirmation') return .49;
   return row.kind === 'field' && row.scrub ? .26 : .175;
 }
 function HudRow({ actor, row, blocked }: { actor: BodyActor; row: Row; blocked: boolean }) {
@@ -73,6 +84,15 @@ function HudRow({ actor, row, blocked }: { actor: BodyActor; row: Row; blocked: 
     case 'text': return <HudLine position={[0,0,0]} role="muted" width={span} center text={row.text}/>;
     case 'destination': return <><HudButton position={[0,.042,0]} size={[span,.14]} label={row.action.label} onPress={row.action.run} disabled={blocked||row.action.disabled}/>
       <HudLine position={[0,-.076,0]} role="muted" width={span} center text={row.detail}/></>;
+    case 'milkSide': return <>
+      <HudLine position={[-.255,.05,0]} width={span-.51} role="title" text={`${row.label} · ${row.value}`}/>
+      <HudButton position={[(span-.47)/2,.045,0]} size={[.47,.14]} label={row.drain.label} disabled={blocked||row.drain.disabled} onPress={row.drain.run}/>
+      <HudLine position={[0,-.067,0]} width={span} text={row.feedback}/></>;
+    case 'skinConfirmation': return <>
+      <HudLine position={[0,.184,0]} width={span} role="title" text={row.title}/>
+      <HudLine position={[0,.087,0]} width={span} role="muted" text={row.instruction}/>
+      <group position-y={-.038}><HudActions items={row.choices} label={a=>`${a.label} · ${a.active?row.yes:row.no}`} blocked={blocked}/></group>
+      <HudLine position={[0,-.172,0]} width={span} role="muted" text={row.note}/></>;
     case 'breast': return <HudBreastPanel actor={actor} row={row} blocked={blocked}/>;
     case 'cycle': return <HudCycleReading actor={actor} row={row} blocked={blocked}/>;
     case 'morph': return <HudButton position={[0,0,0]} size={[span,.14]} label={`${row.label}: ${row.value??row.none}`}
@@ -87,8 +107,11 @@ function HudRow({ actor, row, blocked }: { actor: BodyActor; row: Row; blocked: 
   }
 }
 
-function HudEditor({onBack,...actor}: BodyActor & { onBack: () => void }) {
+type HudEditorProps = BodyActor & {onBack:()=>void;suspended?:boolean;onPeek?:()=>void};
+function HudEditor({onBack,suspended,onPeek,...actor}: HudEditorProps) {
   const editor = useBodyEditor(actor);
+  const t=useLanguageStore(s=>s.t);
+  if(suspended)return null;
   const cycle = editor.rows.find(row=>row.kind==='cycle');
   const breast = editor.rows.some(row=>row.kind==='breast'), gallery = !!cycle || breast;
   const contentWidth=breast?breastSpan:span, extra=contentWidth-span;
@@ -112,7 +135,10 @@ function HudEditor({onBack,...actor}: BodyActor & { onBack: () => void }) {
       const height=rowHeight(row),center=y-height/2; y-=height;
       return <group key={`${editor.page}:${row.kind}:${i}`} position-y={center}><HudRow actor={actor} row={row} blocked={editor.blocked}/></group>;
     })}
-    {editor.status&&<group position={[compactReceipt&&editor.footer.length?-.24:0,y-(compactReceipt ? .10 : .069),0]}>
+    {editor.inDraft&&onPeek?<group position-y={y-.069}>
+      {gallery?<PrivateLine position={[-.30,0,0]} width={.83} title text={editor.status??''}/>:<HudLine position={[-.30,0,0]} width={.83} text={editor.status??''} center/>}
+      <Back position={[.44,0,0]} size={[.52,.13]} label={t('bodyPeek')} variant="quiet" onPress={onPeek}/>
+    </group>:editor.status&&<group position={[compactReceipt&&editor.footer.length?-.24:0,y-(compactReceipt ? .10 : .069),0]}>
       {gallery?<PrivateLine position={[0,0,0]} width={compactReceipt&&editor.footer.length?contentWidth-.52:contentWidth} title text={editor.status}/>:
         <HudLine position={[0,0,0]} width={compactReceipt&&editor.footer.length?contentWidth-.52:contentWidth} role="title" text={editor.status}/>}
     </group>}
@@ -122,6 +148,6 @@ function HudEditor({onBack,...actor}: BodyActor & { onBack: () => void }) {
 }
 
 /** Replaces the selected asset sheet inside its already-positioned actor anchor. */
-export function BodyHudControls(props: BodyActor & { onBack: () => void }) {
+export function BodyHudControls(props: HudEditorProps) {
   return <HudEditor key={`${props.assetId}:${props.runtimeId}`} {...props}/>;
 }

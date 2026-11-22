@@ -1,5 +1,5 @@
 import { useFrame } from "@react-three/fiber";
-import { useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { useLanguageStore } from "../../languageStore";
 import { useBackpack, type BackpackEntry, type BackpackLive } from "../backpack";
@@ -12,6 +12,7 @@ import { isStoryRoom, STORIES, toyLabel } from '../play/propCatalog';
 import { canGiveTo, useStagePlay } from '../play/stagePlay';
 import {EggControls,WandControls} from './ContactPropControls';
 import {BodyHudControls} from '../bodyState/BodyControls';
+import {useBodyState} from '../bodyState/store';
 import {PelvicHudControls} from '../pelvic/Controls';
 import {PoseHudControls} from '../pose/PoseHudControls';
 import {bindRemoteEgg,useRemoteEgg} from '../play/remoteEgg';
@@ -41,16 +42,19 @@ export function BackpackWorldTools() {
   const entry = useBackpack(s => s.entries.find(e => e.id === id));
   const instance = useBackpack(s => id ? s.live[id] : null);
   const blocked = useHudWorldInput(s => s.blocked);
+  const preview = useBodyState(s=>!!id&&s.draft?.assetId===id);
   const recovery = useMmdVrStore(s => s.assetLoad.running || s.physicsFatal);
-  if (!entry || !instance || draft || blocked || recovery) return null;
-  return <SelectedTools key={entry.id} entry={entry} instance={instance} />;
+  if (!entry || !instance || draft || (blocked&&!preview) || recovery) return null;
+  return <SelectedTools key={`${entry.id}:${instance.runtimeId}`} entry={entry} instance={instance} blocked={blocked} preview={preview}/>;
 }
 
-function SelectedTools({ entry, instance }: { entry: BackpackEntry; instance: BackpackLive }) {
+function SelectedTools({ entry, instance, blocked, preview }: { entry: BackpackEntry; instance: BackpackLive; blocked:boolean; preview:boolean }) {
   const t = useLanguageStore(s => s.t);
   const transform = useMmdVrStore(s => (entry.kind === "model" ? s.models : s.objects).find(e => e.id === instance.runtimeId));
   const busy = useBackpack(s => s.busy), physicsBusy = useMmdVrStore(s => s.physicsBusy);
   const [page, setPage] = useState<'tools'|'arrange'|'motions'|'prop'|'wand'|'pose'|'body'|'pelvic'>(entry.kind==='model'?'tools':'arrange');
+  const [peek,setPeek]=useState(false);
+  useLayoutEffect(()=>{if(blocked&&page==='body'&&preview)setPeek(true);else if(!preview)setPeek(false);},[blocked,page,preview]);
   const held=useStagePlay(s=>s.held?.toy),holding=!!held;
   const wearer=useRemoteEgg(s=>s.assetId===entry.id);
   const carries = useStagePlay(s=>s.character?.assetId===entry.id);
@@ -65,10 +69,13 @@ function SelectedTools({ entry, instance }: { entry: BackpackEntry; instance: Ba
   });
   const locked = busy || physicsBusy;
   const scale = transform?.scale ?? 1, rotation = transform?.rotationY ?? 0;
+  if(blocked && page!=='body')return null;
   if(page==='pose'||page==='body'||page==='pelvic'){
-    const Editor=page==='pose'?PoseHudControls:page==='body'?BodyHudControls:PelvicHudControls;
+    const Editor=page==='pose'?PoseHudControls:PelvicHudControls;
     return <group ref={group} name="backpack-world-tools" scale={.86} pointerEventsOrder={1} pointerEventsType={{deny:['touch','grab']}}>
-      <Editor assetId={entry.id} runtimeId={instance.runtimeId} onBack={()=>setPage('tools')}/></group>;
+      {page==='body'?<><BodyHudControls assetId={entry.id} runtimeId={instance.runtimeId} suspended={blocked||peek} onPeek={()=>setPeek(true)} onBack={()=>setPage('tools')}/>
+        {peek&&!blocked&&<HudButton position={[0,-.32,0]} size={[.78,.15]} label={t('bodyResume')} onPress={()=>setPeek(false)}/>}</>:
+        <Editor assetId={entry.id} runtimeId={instance.runtimeId} onBack={()=>setPage('tools')}/>}</group>;
   }
   return <group ref={group} name="backpack-world-tools" scale={0.86} pointerEventsOrder={1} pointerEventsType={{ deny: ["touch", "grab"] }}>
     <group position-y={page==='tools' ? ((holding||carries||wandOut) ? -.11 : -.01) : cues||eggPage||page==='wand' ? -.10 : 0}><HudSheet size={[1.34, page==='tools' ? ((holding||carries||wandOut) ? 1.2 : .98) : cues||eggPage||page==='wand' ? 1.20 : 1.0]} /></group>

@@ -51,7 +51,7 @@ it('keeps preview on section switches and detail back, but discards it on the la
     await act(()=>root.render(<ActorTools/>));await click('触碰与适配');await click('触碰');await click('胀感与触痛');await click('关闭');
     expect(useBodyState.getState().draft).toBeNull();
     await click('返回触碰');await click('返回设置');await click('返回胸型');
-    await click('泌乳');await click('开启泌乳');await click('回充设置');await click('返回泌乳');
+    await click('泌乳');await click('开启泌乳');await click('泌乳设置');await click('返回泌乳');
     await click('胸型');expect(useBodyState.getState().draft?.value.lactating).toBe(true);
     await click('不保存并退出');expect(host.children).toHaveLength(0);expect(useBodyState.getState().draft).toBeNull();
     expect(useBodyState.getState().byAsset.b).toBeUndefined();

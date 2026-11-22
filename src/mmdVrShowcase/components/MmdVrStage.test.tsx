@@ -14,6 +14,8 @@ import { ThreeMmdLoader, type ThreeMmdModel } from "@yohawing/three-mmd-loader";
 import { createMmdVrGltfLoader } from "../mmdVrGltf";
 import * as bullet from '../mmdRuntime/bulletModule';
 import {xrRoomRestoreTiming} from '../roomRestoreTiming';
+import { beginBodyPreview, drainBodySide, patchBodyPreview } from '../bodyState/store';
+import { makeOutletFixture } from '../bodyState/lactation/outletFixture.test-support';
 
 const harness = vi.hoisted(() => ({
   three: {} as Record<string, unknown>,
@@ -191,6 +193,31 @@ function runtimeWith(actor: File) {
   return vi.mocked(createMmdRuntimeHandle).mock.results.map(r => r.value as ReturnType<typeof createMmdRuntimeHandle>)
     .reverse().find(rt => rt.exportProjectModels().some(m => m.modelFile === actor))!;
 }
+
+it('accepts a drain only in its evaluated room and never transfers its visible drops across a batched return',async()=>{
+  // These are explicit simulated render frames; CPU contention in a suite
+  // must not stand in for the frame stall tested separately in roomMilk.
+  let now=0;vi.spyOn(performance,'now').mockImplementation(()=>now);
+  const actor=file('outlet.pmx'),{load,id,place,exit,bag,scene,store}=await setupBag([actor]);
+  load.mockImplementation(async()=>Object.assign(loadedCharacter(),makeOutletFixture().model));
+  const assetId=id(actor),tick=()=>act(async()=>{now+=1000/90;harness.frame?.({},1/90);});
+  try{
+    await act(async()=>useMmdVrStore.setState({presentation:'screen'}));await place(actor);
+    const old=bag().live[assetId].runtimeId,oldFrame=harness.frame!;
+    await act(async()=>store().setMaterialVisible(old,'outer',false));
+    expect(beginBodyPreview(assetId,true)).toBe(true);patchBodyPreview(assetId,{lactating:true,left:.08});
+    await tick();
+    expect(drainBodySide(assetId,'left')).toEqual({before:.08,after:0,visible:true});
+    const drops=scene.getObjectByName('body:milk-droplets') as THREE.InstancedMesh;expect(drops.count).toBe(1);
+    await act(async()=>{store().setPrefs({scenery:'pool'});store().setPrefs({scenery:'floor'});});
+    expect(bag().live[assetId].runtimeId).not.toBe(old);expect(drops.parent).toBe(null);expect(drops.count).toBe(0);
+    await act(async()=>{bag().select(assetId);oldFrame({},1/90);});
+    expect(beginBodyPreview(assetId,true)).toBe(true);patchBodyPreview(assetId,{lactating:true});
+    expect(drainBodySide(assetId,'right')?.visible).toBe(false);await tick();expect(scene.getObjectByName('body:milk-droplets')).toBeUndefined();
+    expect(drainBodySide(assetId,'right')?.visible).toBe(true);
+    await act(async()=>store().closeOverlay());expect((scene.getObjectByName('body:milk-droplets') as THREE.InstancedMesh)?.count??0).toBe(0);
+  }finally{await exit();}
+});
 
 for (const initial of [false, true]) {
   it.each(['pending', 'success', 'rollback', 'fatal'] as const)(`saves a complete layout on exit when physics ${initial} → ${!initial} is %s`, async outcome => {

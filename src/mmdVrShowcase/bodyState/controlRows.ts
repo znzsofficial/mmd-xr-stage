@@ -12,6 +12,8 @@ export type CycleReading = {
 };
 export type Row = { kind: 'actions'; items: Action[] } | Field | { kind: 'text'; text: string }
   | {kind:'destination';action:Action;detail:string}
+  | {kind:'milkSide';label:string;value:string;feedback:string;drain:Action}
+  | {kind:'skinConfirmation';title:string;instruction:string;note:string;choices:Action[];yes:string;no:string}
   | CycleReading | BreastReading
   | { kind: 'morph'; label: string; names: readonly string[]; value: string|null; none: string; choose: (name: string|null) => void; browse: () => void };
 

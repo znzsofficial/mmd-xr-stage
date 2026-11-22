@@ -13,6 +13,7 @@ import * as hudValues from "./HudValues";
 import { useHudWorldInput } from "./hudWorldInput";
 import { useStagePlay } from '../play/stagePlay';
 import { shelfToys, TOYS } from '../play/propCatalog';
+import {useBodyState} from '../bodyState/store';
 
 const harness = vi.hoisted(() => ({ camera: {} as unknown, b: (_: string) => {} }));
 vi.mock("@react-three/fiber", () => ({ useThree: (selector: (s: typeof harness) => unknown) => selector(harness), useFrame: vi.fn() }));
@@ -134,6 +135,18 @@ it("cancels new placement explicitly or with right B without issuing a stage com
   await click(t("hudMove")); await act(async () => harness.b("pressed"));
   expect(bag().command).toBeNull(); expect(bag().live.obj).toBe(existing); expect(bag().selected).toBeNull();
   expect(button(t("hudMore"))).toBeDefined();
+});
+
+it('folds only the actor sheet, and resumes its unsaved section even after B recalls the public menu',async()=>{
+  useBackpack.setState({selected:'a0',live:{a0:instance('actor0'),a1:instance('actor1')}});
+  await render();await click(t('actorBodyState'));await click('泌乳');await click('开启泌乳');
+  await click(t('bodyPeek'));expect(button('放弃改动')).toBeUndefined();
+  expect(useBodyState.getState().draft?.value.lactating).toBe(true);
+  await click(t('bodyResume'));expect(button('排出左侧')).toBeDefined();
+  await recall();expect(button(t('hudBackpack'))).toBeDefined();expect(button(t('bodyResume'))).toBeUndefined();
+  await click(t('hudBack'));await click(t('bodyResume'));expect(button('排出左侧')).toBeDefined();
+  await click(t('bodyPeek'));await act(async()=>bag().select('a1'));
+  expect(useBodyState.getState().draft).toBeNull();expect(button(t('bodyResume'))).toBeUndefined();
 });
 
 it("targets the selected runtime for transforms, but the stable character and exact file for body/face motions", async () => {

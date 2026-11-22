@@ -25,6 +25,7 @@ import { useRenderDiagnostics } from "../renderDiagnostics";
 import { diagnosticLines } from "../diagnosticText";
 import { resolveHudSurface } from "../hudMode";
 import { WatchRecall } from './WatchRecall';
+import {useBodyState} from '../bodyState/store';
 import { useStageMusic } from '../music/stageMusic';
 import { MusicSettings } from '../music/MusicSettings';
 import { isPortalRoom, portalHall } from '../scenery/catalog';
@@ -754,7 +755,7 @@ export function MmdVrControlBar({onExit,busy,onDragChange:reportInteraction}:{on
       if (!panelGroupRef.current || interacting.current) return;
       const bag = useBackpack.getState();
       bag.cancelPlace();
-      if (bag.busy) setRecallingBusy(true); else if (bag.selected && !bag.error) bag.select(null);
+      if (bag.busy) setRecallingBusy(true); else if (bag.selected && !bag.error && useBodyState.getState().draft?.assetId!==bag.selected) bag.select(null);
       setPhysicsDetails(false); setDiagnosticsOpen(false);
       summon();
     });

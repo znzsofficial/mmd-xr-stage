@@ -5,6 +5,8 @@ export const en: Record<keyof ZhMessages, string> = {
   actorPelvic:'Pelvic attachment',
   screenInspectStand:'Look at stand',
   actorPose:'Pose actor', actorBodyState:'Body state',
+  bodyPeek:'View on stage',bodyResume:'Preview · resume editing',
+  actorAllItems:'All items',actorBack:'Back to actor',actorFold:'Hide tools',
   emberWind:'Launch collar · Ember',frostWind:'Launch collar · Frost',emberReturn:'Ember · homeward view',frostReturn:'Frost · homeward view',
   saltWind:'Launch collar · Halite',glazeWind:'Launch collar · Obsidian',saltReturn:'Halite · homeward view',glazeReturn:'Obsidian · homeward view',
   saltLeap:'Halite · leap to Obsidian',glazeLeap:'Obsidian · leap to Halite',twinPortrait:'Between the twins · Gravity Narrows',

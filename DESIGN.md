@@ -125,6 +125,8 @@ The frontmatter preserves the actual Canvas hex values from `HUD_COLORS`, rather
 
 **Body editor navigation.** Chest shape, cycle and lactation are peer sections with a shared draft. Show all three names on the main sheet; reserve the detail header for a return action that names its destination. On mobile keep the save/discard row readable during scrolling. On XR separate that row from the diagram and date controls. Freezing a figure, holding a cycle day and saving a character are distinct actions with distinct labels.
 
+Selecting an actor opens that actor’s tools; the backpack button opens the catalog. A player can fold an unsaved body preview to inspect the stage and resume the same section. Keep left/right drain receipts beside their actions and distinguish an actual stage effect from a fill-only update. An illustration reached from Lactation returns there.
+
 **Actor status, appearance first.** The breast view opens as a warm, softly lit external figure against the actor panel's plum field. Breathing and the lower silhouette are legible without text on the figure. Cutaway and labels are separate choices. Reserve relative left/right readouts for enabled lactation. On the cycle page let the date and visible change lead; the tissue comparison and anatomical references belong one level down in the experience or in the guide.
 
 For the external vulva, the user prefers soft cherry and peach highlights, with rose shadows separating the inner and outer folds. Preserve saturated midtones and the measured entrance. Judge the effect at the size of the actual HUD and in a nearly side-on view: highlights should turn with the folds, not outline a hard ring.

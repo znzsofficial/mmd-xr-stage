@@ -1,0 +1,69 @@
+<!doctype html><meta charset="utf-8"><title>Stage milk droplets · WebGL regression</title>
+<pre id="status">Loading WebGL</pre><canvas width="512" height="512"></canvas>
+<script type="module">
+// Via Vite: /scripts/milk-droplets-smoke.html. Only a pair of synthetic,
+// independently skinned disks. No model files, captures or device required.
+import * as T from 'three';
+import {makeOutletFixture} from '/src/mmdVrShowcase/bodyState/lactation/outletFixture.test-support';
+import {createMilkOutlets} from '/src/mmdVrShowcase/bodyState/lactation/outlets';
+import {mountRoomMilk} from '/src/mmdVrShowcase/bodyState/lactation/roomMilk';
+import {beginBodyPreview,cancelBodyPreview,drainBodySide,patchBodyPreview,useBodyState} from '/src/mmdVrShowcase/bodyState/store';
+import {useMmdVrStore} from '/src/mmdVrShowcase/mmdVrStore';
+import {syncBackpackFiles,useBackpack} from '/src/mmdVrShowcase/backpack';
+
+const W=512,H=512,status=document.querySelector('#status');
+function check(ok,why){if(!ok)throw Error(why);}
+try{
+  const {model,bones,cloth}=makeOutletFixture(),sample=createMilkOutlets(model);
+  const gl=new T.WebGLRenderer({canvas:document.querySelector('canvas'),antialias:true}),scene=new T.Scene();
+  scene.background=new T.Color(0x29435a);scene.add(model.root,new T.HemisphereLight(0xfffbf4,0x737e9a,1.9));
+  const light=new T.DirectionalLight(0xfff9ee,2);light.position.set(-1,2,3);scene.add(light);
+  const target=new T.WebGLRenderTarget(W,H),buffer=new Uint8Array(W*H*4),camera=new T.PerspectiveCamera(34,W/H,.01,5);
+  camera.position.set(0,1.31,.75);camera.lookAt(0,1.31,0);camera.focus=.63;camera.updateMatrixWorld();
+  const stereo=new T.StereoCamera();stereo.update(camera);
+  const id='model:fixture',file=new File(['fixture'],'outlet.pmx');syncBackpackFiles([file]);const assetId=useBackpack.getState().entries[0].id;
+  useBackpack.setState({live:{[assetId]:{runtimeId:id,visible:true,position:[0,0,0]}},selected:assetId});useMmdVrStore.getState().openOverlay('screen');
+  const room=mountRoomMilk(scene,gl,{getModelRoot:r=>r===id?model.root:null,sampleMilkOutlet:(r,...args)=>r===id&&sample(...args)},()=>false);
+  const frame=(dt=1/90)=>{model.root.updateMatrixWorld(true);room.advance(dt);};
+  const preview=()=>{beginBodyPreview(assetId,true);patchBodyPreview(assetId,{lactating:true,left:.04,right:.5});};
+  const mesh=()=>scene.getObjectByName('body:milk-droplets');
+  function read(camera){gl.setRenderTarget(target);gl.render(scene,camera);gl.readRenderTargetPixels(target,0,0,W,H,buffer);gl.setRenderTarget(null);return buffer.slice();}
+  // Compare the composed model with/without JUST the droplet pass: a moving
+  // bone, depth occluder or camera alone cannot make this comparison pass.
+  function changed(cam){
+    const drops=mesh();if(!drops?.visible)return {px:0};
+    const withDrop=read(cam);drops.visible=false;const base=read(cam);drops.visible=true;
+    let px=0,x=0,y=0,r=0,g=0,b=0;
+    for(let i=0;i<base.length;i+=4){if(Math.max(Math.abs(base[i]-withDrop[i]),Math.abs(base[i+1]-withDrop[i+1]),Math.abs(base[i+2]-withDrop[i+2]))<6)continue;
+      px++;x+=(i/4)%W;y+=Math.floor(i/4/W);r+=withDrop[i];g+=withDrop[i+1];b+=withDrop[i+2];}
+    return {px,x:x/px,y:y/px,rgb:[r,g,b].map(v=>Math.round(v/px))};
+  }
+  function verifyAt(cam,measure,p){const expected=p.clone().project(cam);check(measure.px>=10&&
+    Math.abs((expected.x*.5+.5)*W-measure.x)<8&&Math.abs((expected.y*.5+.5)*H-measure.y)<16,`bead missed projected outlet: ${JSON.stringify(measure)}`);}
+  const point=new T.Vector3(),normal=new T.Vector3(),result={};
+  // Warm the two materials before timed steps (initial GPU compile can stall).
+  preview();frame();check(drainBodySide(assetId,'left')?.visible,'warm-up outlet');read(camera);cancelBodyPreview(assetId);
+  preview();frame();const receipt=drainBodySide(assetId,'left');check(receipt?.visible&&receipt.before===.04&&receipt.after===0,'low-volume event');
+  check(useBodyState.getState().draft.value.right===.5&&mesh().count===1,'side or amount');
+  check(sample('left',point,normal),'left outlet missing');result.screen=changed(camera);verifyAt(camera,result.screen,point);
+  check(result.screen.rgb.every(v=>v>140),'bead not milk-white');
+  result.leftEye=changed(stereo.cameraL);result.rightEye=changed(stereo.cameraR);
+  verifyAt(stereo.cameraL,result.leftEye,point);verifyAt(stereo.cameraR,result.rightEye,point);
+  // Fresh pulse for the movement sequence (pixel readback is intentionally
+  // synchronous; a slow machine should not replay an old pulse after a stall).
+  cancelBodyPreview(assetId);preview();frame();drainBodySide(assetId,'left');bones[0].position.set(.024,.017,0);
+  model.root.rotation.y=.22;model.root.scale.setScalar(1.02);frame(.10);check(sample('left',point,normal),'moving outlet missing');
+  result.following=changed(camera);verifyAt(camera,result.following,point);
+  frame(.11);const released=changed(camera);model.root.position.x+=.14;frame(.1);result.airborne=changed(camera);
+  // Outward release velocity and perspective can move the silhouette by a
+  // few pixels. Re-attaching to the translated model moves it by >150 here.
+  check(Math.abs(released.x-result.airborne.x)<8&&released.y-result.airborne.y>15,'airborne pixels: '+JSON.stringify({released,airborne:result.airborne}));
+  cancelBodyPreview(assetId);check(!mesh().visible,'discard left visible residue');
+  model.root.position.set(0,0,0);model.root.rotation.y=0;model.root.scale.setScalar(1);bones[0].position.set(0,0,0);cloth.visible=true;
+  preview();frame();check(drainBodySide(assetId,'left')?.visible===false&&!mesh().visible,'covered left side admitted');
+  cloth.visible=false;frame();check(!mesh().visible,'replayed covered-side event');check(drainBodySide(assetId,'right')?.visible,'right outlet missing');
+  check(sample('right',point,normal),'right sample missing');result.right=changed(camera);verifyAt(camera,result.right,point);
+  gl.render(scene,camera);check(gl.getContext().getError()===0,'WebGL error');status.textContent='PASS '+JSON.stringify(result);
+  room.dispose();target.dispose();gl.dispose();
+}catch(e){status.textContent='FAIL '+e.stack;console.error(e);}
+</script>

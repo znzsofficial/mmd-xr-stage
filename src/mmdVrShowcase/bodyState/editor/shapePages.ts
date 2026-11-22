@@ -1,7 +1,7 @@
 import {actions,destination,line,type Row} from '../controlRows';
 import {sampleBody} from '../data';
 import type {BodySupport} from '../store';
-import {action,atDay,percent,type EditorControls} from './controls';
+import {action,atDay,milkFill,percent,type EditorControls} from './controls';
 
 type ShapePage = 'chest'|'breast'|'fit'|'morphs'|'contact'|'sensitivity';
 type MorphBrowser = {page:number;setPage:(page:number)=>void};
@@ -28,12 +28,12 @@ export function shapeRows(page:ShapePage,ui:EditorControls,support:BodySupport|u
       return [field(l('胸部饱满度','Chest fullness'),'fullness',.05,percent),line(status()),
         ...(needsMorph&&(names.length||missing)?[actions(link('fit',l('选择模型胸型','Choose model morph')))]:[]),
         destination(link('breast'),l('转动外观，或切换剖面','Rotate the figure or see inside')),
-        actions(link('more'))];
+        destination(link('more'),l('调整按压反应，选择模型胸型','Adjust pressure response or choose a model morph'))];
     }
     case 'breast':
       return [{kind:'breast',caption:l('角色状态预览','Character preview'),detail:l('结构示意，非 PMX 扫描','Illustration, not a PMX scan'),
         readings:[{label:l('当前饱满度','Current fullness'),value:percent(effective.fullness)}, {label:l('周期','Cycle'),value:day(atDay(p))},
-          ...(p.lactating?[{label:l('左侧充盈','Left fill'),value:percent(p.left)},{label:l('右侧充盈','Right fill'),value:percent(p.right)}]:
+          ...(p.lactating?[{label:l('左侧充盈','Left fill'),value:milkFill(p.left)},{label:l('右侧充盈','Right fill'),value:milkFill(p.right)}]:
             [{label:l('泌乳','Lactation'),value:l('关','Off')}])],
         fullness:field(l('基础饱满度','Base fullness'),'fullness',.05,percent)}];
     case 'fit':
