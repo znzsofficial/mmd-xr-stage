@@ -1,7 +1,7 @@
 import {Component,lazy,Suspense,useLayoutEffect,useRef,useState,type ReactNode,type RefObject} from 'react';
 import {useFrame} from '@react-three/fiber';
 import {useXRInputSourceState} from '@react-three/xr';
-import {Quaternion,Vector3,type Group,type Mesh} from 'three';
+import {Quaternion,Vector3,type Group} from 'three';
 import {useMmdVrStore} from '../mmdVrStore';
 import {WALK_SPEED} from '../mmdVrQuality';
 import {newStick,readStick,stickAxis} from './controllerInput';
@@ -9,9 +9,7 @@ import {createTraveller,north,surfaceStep,transport,type PlanetDriver} from './p
 import {observePlanet,planetCounters} from './planetDiagnostics';
 import {createPlanetPad} from './planetPad';
 import {eyeLift,headMargin} from './eyeHeight';
-import {terrainAltitude,stationBlocks} from '../scenery/planet/opalTerrain';
-import {departureAt,moonObstructed,rideStep,startRide,type WalkMoon,type Ride} from '../scenery/planet/windAtlas';
-import {moonRadius} from '../scenery/planet/moonSurface';
+import {departureAt,rideStep,startRide,type WalkMoon,type Ride} from '../scenery/planet/windAtlas';
 import {moonWalk} from './moonWalk';
 import {startTwinLeap,stepTwinLeap,type TwinLeap} from './twinLeap';
 import {useBackpack} from '../backpack';
@@ -21,16 +19,16 @@ class PhysicsBoundary extends Component<{failed:()=>void;children:ReactNode},{fa
   componentDidCatch(){this.props.failed();}
   render(){return this.state.failed?null:this.props.children;}
 }
-type Props={originRef:RefObject<Group|null>;veilRef:RefObject<Mesh|null>;dragging:boolean};
+type Props={originRef:RefObject<Group|null>;dragging:boolean};
 
 // One owner of the foot, heading, input edges and XR origin for the whole visit.
 // Only the optional physics adapter may suspend, never the input/frame callback.
-export default function PlanetMotor({originRef,veilRef,dragging}:Props){
+export default function PlanetMotor({originRef,dragging}:Props){
   const left=useXRInputSourceState('controller','left'),right=useXRInputSourceState('controller','right');
   const driver=useRef<PlanetDriver|null>(null);
   const [Physics]=useState(()=>lazy(()=>import('./PlanetPhysics')));
   const [s]=useState(()=>({...createTraveller(),l:newStick(),r:newStick(),offset:new Vector3(),tmp:new Vector3(),travel:new Vector3(),
-    safe:new Vector3(),prev:new Vector3(),eye:new Vector3(),localEye:new Vector3(),head:new Quaternion(),safeBasis:new Quaternion(),epoch:-1,free:false,snap:true,a:false,
+    safe:new Vector3(),prev:new Vector3(),localEye:new Vector3(),head:new Quaternion(),safeBasis:new Quaternion(),epoch:-1,free:false,snap:true,a:false,
     active:null as PlanetDriver|null,parked:null as PlanetDriver|null,diag:planetCounters(),pad:createPlanetPad(),lastLift:0,
     moon:null as WalkMoon|null,ride:null as Ride|null,leap:null as TwinLeap|null,xDown:false,windSupportFrames:2}));
   useLayoutEffect(()=>{const unbind=observePlanet(s.diag);return()=>{unbind();s.pad.dispose();};},[s]);
@@ -123,14 +121,6 @@ export default function PlanetMotor({originRef,veilRef,dragging}:Props){
     origin.quaternion.copy(s.basis);origin.position.copy(s.foot).sub(s.tmp.copy(s.offset).applyQuaternion(s.basis));
     if(!free)origin.position.addScaledVector(s.up,lift);
     origin.updateMatrixWorld(true);
-    const veil=veilRef.current;if(veil){s.eye.copy(p).applyQuaternion(s.basis).add(origin.position);veil.position.copy(p);
-      let blocked=!free&&s.localEye.y<.055;
-      if(!free&&s.moon&&!s.ride){const n=s.radial.subVectors(s.eye,s.moon.centre),r=n.length();n.normalize();blocked ||=r-moonRadius(s.moon,n.x,n.y,n.z)<.055||moonObstructed(s.moon,s.eye,.055,.055);}
-      if(!free&&!s.moon&&!s.ride&&!blocked){blocked=terrainAltitude(s.eye)<.055||stationBlocks(s.eye,.055,.055);
-        if(ready)blocked ||=ready.headBlocked(s.eye,s.basis);
-        else if(s.up.y>.8){const c=s.pad.column(s.eye.x,s.eye.z,s.foot.y);
-           blocked ||=c.blocked||s.eye.y<c.floor+.055||s.eye.y+headMargin>c.ceiling+.001;}}
-      veil.visible=blocked;}
   },-2);
   return <PhysicsBoundary failed={()=>{s.diag.backend='failed';}}><Suspense fallback={null}><Physics driver={driver}/></Suspense></PhysicsBoundary>;
 }

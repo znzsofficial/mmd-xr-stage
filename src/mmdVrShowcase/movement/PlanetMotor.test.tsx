@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import {act,useLayoutEffect,type RefObject} from 'react';
 import {createRoot} from 'react-dom/client';
-import {Group,Mesh,Scene,Vector3} from 'three';
+import {Group,Scene,Vector3} from 'three';
 import {expect,it,vi} from 'vitest';
 import PlanetMotor from './PlanetMotor';
 import type {PlanetDriver,Traveller} from './planetTravel';
@@ -15,7 +15,7 @@ const h=vi.hoisted(()=>{let resolve!:()=>void;const promise=new Promise<void>(r=
 vi.mock('@react-three/fiber',()=>({useFrame:(cb:Function)=>{h.frame=cb;}}));
 vi.mock('@react-three/xr',()=>({useXRInputSourceState:()=>undefined}));
 vi.mock('./PlanetPhysics',async()=>{await h.module.promise;return {default:({driver}:{driver:RefObject<PlanetDriver|null>})=>{
-  useLayoutEffect(()=>{driver.current={ready:()=>h.ready,seed:h.seed,step:h.step,headBlocked:()=>false,stop:()=>{}};
+  useLayoutEffect(()=>{driver.current={ready:()=>h.ready,seed:h.seed,step:h.step,stop:()=>{}};
     return()=>{driver.current=null;};},[driver]);return null;}};});
 
 it('keeps both sticks live with no profile and no physics module, then hands off the same foot and latched snap',async()=>{
@@ -26,7 +26,7 @@ it('keeps both sticks live with no profile and no physics module, then hands off
   const sources=[source('left',0,-1),source('right',1,0)],pose={transform:{position:{x:.13,y:1.52,z:-.21},orientation:{x:0,y:0,z:0,w:1}}};
   const tick=()=>h.frame!({gl:{xr},scene},1/90,{session:{visibilityState:'visible',inputSources:sources},getViewerPose:()=>pose});
   try{
-    await act(async()=>root.render(<PlanetMotor originRef={{current:origin}} veilRef={{current:new Mesh()}} dragging={false}/>));
+    await act(async()=>root.render(<PlanetMotor originRef={{current:origin}} dragging={false}/>));
     for(let i=0;i<90;i++)tick();
     expect(samplePlanetMovement()).toMatchObject({backend:'pending',walkInputFrames:90,snapTurns:1,left:'native',right:'native'});
     expect(samplePlanetMovement()!.footTravelM).toBeGreaterThan(2.3);
@@ -49,7 +49,7 @@ it('does not hand a flight to a late Rapier driver or launch twice on a held X; 
   const tick=()=>h.frame!({gl:{xr:{getReferenceSpace:()=>({})}},scene},1/72,{session:{visibilityState:'visible',inputSources:[source]},getViewerPose:()=>tracked?pose:null});
   const foot=()=>new Vector3(p.x,0,p.z).applyMatrix4(origin.matrixWorld);
   try{
-    await act(async()=>root.render(<PlanetMotor originRef={{current:origin}} veilRef={{current:new Mesh()}} dragging={false}/>));tick();
+    await act(async()=>root.render(<PlanetMotor originRef={{current:origin}} dragging={false}/>));tick();
     // Room-scale tracking puts the visitor in the collar with no joystick movement.
     const delta=lane.home.foot.clone().sub(foot()).applyQuaternion(origin.quaternion.clone().invert());p.x=delta.x;p.z=delta.z;
     useBackpack.setState({draft:'pending'});button.pressed=true;tick();expect(samplePlanetMovement()?.windDepartures).toBe(0);
@@ -70,7 +70,7 @@ it('requires settled support even while the Rapier suspension cast still reports
   const tick=()=>h.frame!({gl:{xr:{getReferenceSpace:()=>({})}},scene},1/72,{session:{visibilityState:'visible',inputSources:[left,right]},getViewerPose:()=>({transform:{position:p,orientation:{x:0,y:0,z:0,w:1}}})});
   let radialSpeed=0;h.module.resolve();h.ready=true;h.step.mockImplementation((s:Traveller)=>{s.grounded=true;s.velocity.copy(s.up).multiplyScalar(radialSpeed);});
   try{
-    await act(async()=>root.render(<PlanetMotor originRef={{current:origin}} veilRef={{current:null}} dragging={false}/>));tick();
+    await act(async()=>root.render(<PlanetMotor originRef={{current:origin}} dragging={false}/>));tick();
     const offset=lane.home.foot.clone().sub(origin.position).applyQuaternion(origin.quaternion.clone().invert());p.x=offset.x;p.z=offset.z;
     a.pressed=true;tick();a.pressed=false;x.pressed=true;radialSpeed=2.4;tick();
     expect(samplePlanetMovement()?.windDepartures).toBe(0); // cast and velocity still stale on the first X frame

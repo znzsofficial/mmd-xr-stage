@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import {act,useLayoutEffect,type RefObject} from 'react';
 import {createRoot} from 'react-dom/client';
-import {Group,Mesh,Quaternion,Scene,Vector3} from 'three';
+import {Group,Quaternion,Scene,Vector3} from 'three';
 import {expect,it,vi} from 'vitest';
 import {useMmdVrStore} from '../mmdVrStore';
 import {lanes} from '../scenery/planet/windAtlas';
@@ -15,14 +15,14 @@ const h=vi.hoisted(()=>({frame:null as Function|null,ready:false,seed:vi.fn(),st
 vi.mock('@react-three/fiber',()=>({useFrame:(cb:Function)=>{h.frame=cb;}}));
 vi.mock('@react-three/xr',()=>({useXRInputSourceState:()=>undefined}));
 vi.mock('./PlanetPhysics',()=>({default:({driver}:{driver:RefObject<PlanetDriver|null>})=>{
-  useLayoutEffect(()=>{driver.current={ready:()=>h.ready,seed:h.seed,step:h.step,headBlocked:()=>false,stop:h.stop};
+  useLayoutEffect(()=>{driver.current={ready:()=>h.ready,seed:h.seed,step:h.step,stop:h.stop};
     return()=>{driver.current=null;};},[driver]);return null;}}));
 
 it.each(['recall','other wind'] as const)('X/A and stick axes: round trip, tracking loss, free, then hand back to mother via %s',async exit=>{
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);
   h.ready=false;h.seed.mockClear();h.step.mockClear();h.stop.mockClear();
   const old=useMmdVrStore.getState();useMmdVrStore.setState({prefs:{...old.prefs,scenery:'glassPlanet',movementMode:'normal',walkSpeedPref:'normal',normalEyeOffset:0}});
-  const root=createRoot(document.createElement('div')),origin=new Group(),veil=new Mesh(),scene=new Scene();
+  const root=createRoot(document.createElement('div')),origin=new Group(),scene=new Scene();
   const input=(hand:string)=>({handedness:hand,targetRayMode:'tracked-pointer',profiles:['meta-quest-touch-plus'],
     gamepad:{mapping:'xr-standard',axes:[0,0,0,0],buttons:Array.from({length:5},()=>({pressed:false}))}});
   const left=input('left'),right=input('right'),axes=left.gamepad.axes,x=left.gamepad.buttons[4],a=right.gamepad.buttons[4];
@@ -40,7 +40,7 @@ it.each(['recall','other wind'] as const)('X/A and stick axes: round trip, track
     axes[2]=axes[3]=0;tick();expect(foot().distanceTo(target)).toBeLessThan(.05);
   };
   try{
-    await act(async()=>root.render(<PlanetMotor originRef={{current:origin}} veilRef={{current:veil}} dragging={false}/>));tick();
+    await act(async()=>root.render(<PlanetMotor originRef={{current:origin}} dragging={false}/>));tick();
     const walkIn=lane.home.foot.clone().sub(foot()).applyQuaternion(origin.quaternion.clone().invert());p.x+=walkIn.x;p.z+=walkIn.z;
     // X pressed just after jumping (still within collar range) is consumed
     // here, not queued for the frame when the mother surface supports us.
@@ -66,7 +66,6 @@ it.each(['recall','other wind'] as const)('X/A and stick axes: round trip, track
       expect(origin.quaternion.angleTo(qExpected)).toBeLessThan(1e-6);
       expect(foot().distanceTo(drift.clone().applyQuaternion(qExpected).add(expectedFoot))).toBeLessThan(1e-6);
       if(report().location==='twinLeap'&&report().gravityOwner==='glaze')seenSeam=true;
-      expect(veil.visible).toBe(false);
     }
     expect(done&&seenSeam).toBe(true);tick(180);expect(report()).toMatchObject({location:'glaze',gravityOwner:'glaze',twinDepartures:1,twinLandings:1});
     expect(h.stop).toHaveBeenCalledOnce();expect(h.seed).not.toHaveBeenCalled();expect(h.step).not.toHaveBeenCalled();
@@ -91,7 +90,7 @@ it.each(['recall','other wind'] as const)('X/A and stick axes: round trip, track
         const crossing=leapRoutes.find(r=>r.pad.id===from&&r.target.id===to)!;
         a.pressed=false;tick();walkTo(crossing.pad.foot);
         a.pressed=true;tick(400);expect(report()).toMatchObject({location:to,gravityOwner:to});
-        expect(foot().distanceTo(crossing.target.foot)).toBeLessThan(.03);expect(veil.visible).toBe(false);
+        expect(foot().distanceTo(crossing.target.foot)).toBeLessThan(.03);
       }
       expect(h.seed).not.toHaveBeenCalled();expect(h.step).not.toHaveBeenCalled();
       a.pressed=false;tick();walkTo(otherLane.away.foot);

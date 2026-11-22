@@ -65,14 +65,13 @@ function Walker({driver}:Props){
         s.foot.copy(at).addScaledVector(radial,-bodyAboveFoot);transport(s);
         // The small suspension capsule ends below a standing head. Sweep the
         // calibrated head through virtual travel; real tracked lean remains
-        // unmodified and uses the veil. Ignore our own body for both queries.
+        // unmodified. Ignore our own body when testing that virtual travel.
         delta.copy(localEye).applyQuaternion(s.basis).add(s.foot).sub(from);
         if(delta.lengthSq()>1e-9&&world.castShape(from,s.basis,delta,headShape,0,1,false,undefined,undefined,c.collider,b)){
           s.foot.copy(oldFoot);transport(s);b.setTranslation(at.copy(s.foot).addScaledVector(s.up,bodyAboveFoot),true);b.setLinvel(zero,true);
         }
         s.velocity.copy(b.linvel());s.grounded=c.isOnGround;},
       stop(){const c=player.current;c?.setMovement({joystick:{x:0,y:0},jump:false});c?.body?.setEnabled(false);},
-      headBlocked(eye,basis){const c=player.current!;return world.intersectionWithShape(eye,basis,headShape,undefined,undefined,c.collider,c.body)!==null;},
     };
     driver.current=d;return()=>{if(driver.current===d)driver.current=null;};
   },[driver,rapier,step,world]);

@@ -55,5 +55,4 @@ export interface PlanetDriver {
   seed(s:Traveller):void;
   step(s:Traveller,dt:number,x:number,forward:number,jump:boolean,localEye:Vector3):void;
   stop():void;
-  headBlocked(eye:Vector3,basis:Quaternion):boolean;
 }

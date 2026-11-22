@@ -1,7 +1,7 @@
 import {useFrame} from '@react-three/fiber';
 import {useXRInputSourceState} from '@react-three/xr';
 import {useEffect,useState,type RefObject} from 'react';
-import {Quaternion,Vector3,type Group,type Mesh,type Object3D} from 'three';
+import {Quaternion,Vector3,type Group,type Object3D} from 'three';
 import {useBackpack} from '../backpack';
 import {useMmdVrStore} from '../mmdVrStore';
 import {WALK_SPEED} from '../mmdVrQuality';
@@ -18,7 +18,7 @@ import {newStick,readStick,stickAxis as axis} from './controllerInput';
 import {eyeLift,headMargin} from './eyeHeight';
 import {arcadePassage} from '../scenery/arcade/arcadeTravel';
 
-export function usePlayerMovement(originRef:RefObject<Group|null>,veilRef:RefObject<Mesh|null>,dragging:boolean){
+export function usePlayerMovement(originRef:RefObject<Group|null>,dragging:boolean){
   const left=useXRInputSourceState('controller','left'),right=useXRInputSourceState('controller','right');
   const [s]=useState(()=>({body:groundedBody(0,0,0),safe:{x:0,y:0,z:0},mode:null as MovementMode|null,
     room:null as SceneryId|null,epoch:-1,xDown:false,gate:new RoomGate(),motor:createGroundMotor(),solids:createSolidColumns(),
@@ -63,7 +63,7 @@ export function usePlayerMovement(originRef:RefObject<Group|null>,veilRef:RefObj
     const heading=yaw+Math.atan2(-s.direction.x,-s.direction.z),cx=Math.cos(heading),sx=Math.sin(heading);
     const ax=dragging?0:axis(s.left.x),az=dragging?0:axis(s.left.y),scale=speed*dt/Math.max(1,Math.hypot(ax,az));
     const dx=(cx*ax+sx*az)*scale,dz=(-sx*ax+cx*az)*scale;
-    let obstructed=false,lift=0;
+    let lift=0;
     if(mode==='free'){
       x+=dx;z+=dz;if(!dragging)origin.position.y-=axis(s.right.y)*speed*dt;
       s.gate.reset();
@@ -93,10 +93,10 @@ export function usePlayerMovement(originRef:RefObject<Group|null>,veilRef:RefObj
           }
         }
       }
-      // A real lean into/through a solid obscures the view until the tracked
-      // head returns. Never push the XR camera back or rewrite its physical pose.
+      // Keep the last valid motor foot while a physical lean is out of bounds.
+      // Leave tracked x/z alone: only a valid step can move the foot or cross a gate.
       if(eye<.055||!s.motor.track(s.body,sample,x,z,h)){
-        obstructed=true;s.gate.reset();
+        s.gate.reset();
         if(!s.body.grounded)s.motor.advance(s.body,sample,0,0,dt,h,false);
       }
       else{
@@ -128,6 +128,5 @@ export function usePlayerMovement(originRef:RefObject<Group|null>,veilRef:RefObj
     origin.position.x=x-cos*local.x-sin*local.z;origin.position.z=z+sin*local.x-cos*local.z;
     if(mode==='normal')origin.position.y=s.body.y+lift;
     origin.rotation.y=yaw;origin.updateMatrixWorld(true);
-    if(veilRef.current){veilRef.current.visible=obstructed;veilRef.current.position.set(local.x,local.y,local.z);}
   },-2); // before hand (-1) and controller (0) collider samples
 }
