@@ -1,0 +1,45 @@
+import { afterEach, expect, it, vi } from 'vitest';
+import { clearBackpack, useBackpack } from '../backpack';
+import { createBodyRoom } from './room';
+import { beginBodyPreview, cancelBodyPreview, commitBodyPreview, disableBodyState, drainBodySide, patchBodyPreview, stepBodyDay, useBodyState, type BodySupport } from './store';
+
+const live=(runtimeId:string,visible=true)=>({runtimeId,visible,position:[0,0,0] as [number,number,number]});
+const unsupported:BodySupport={bones:false,sides:{left:false,right:false},morphs:[],clothing:'authored-only'};
+afterEach(()=>{clearBackpack();useBodyState.setState({byAsset:{},draft:null,support:{}});});
+
+it('targets only an explicitly enabled live adult actor; preview, elapsed stores, switching, remounting and forgetting use separate lifetimes',()=>{
+  useBackpack.setState({entries:['assetA','assetB','prop'].map((id,i)=>({id,kind:i===2?'object':'model',file:new File(['x'],'same.pmx'),path:'same.pmx'})),
+    live:{assetA:live('rt-1'),assetB:live('rt-2'),prop:live('rt-prop')},selected:'assetA'});
+  const runtime={getBodySupport:vi.fn(()=>unsupported),setBodyProfile:vi.fn(()=>true)},wake=vi.fn(),room=createBodyRoom(runtime,wake);
+  const state=useBodyState.getState;
+  try{
+    expect(beginBodyPreview('rt-1',true)).toBe(false);expect(beginBodyPreview('prop',true)).toBe(false);
+    expect(beginBodyPreview('assetA')).toBe(false);expect(runtime.getBodySupport).not.toHaveBeenCalled();
+    expect(beginBodyPreview('assetA',true)).toBe(true);
+    expect(state().support.assetA).toMatchObject({runtimeId:'rt-1',morphs:[],bones:false});
+    patchBodyPreview('assetA',{day:9,lactating:true,left:.3,right:.7,refillSeconds:20});
+    drainBodySide('assetA','left',.2);room.advance(1);
+    expect(state().draft?.value.left).toBeCloseTo(.15);expect(state().draft?.value.right).toBeCloseTo(.75);
+    expect(state().byAsset.assetA).toBeUndefined();commitBodyPreview('assetA');
+    const committed=state().byAsset.assetA;expect(committed).toMatchObject({day:9,locked:true});
+    expect(beginBodyPreview('assetA')).toBe(true);stepBodyDay('assetA');drainBodySide('assetA','right');room.advance(.5);
+    expect(state().byAsset.assetA).toBe(committed);expect(state().draft?.value.day).toBe(10);
+    expect(beginBodyPreview('assetB',true)).toBe(false);useBackpack.getState().select('assetB');expect(state().draft).toBeNull();
+    expect(beginBodyPreview('assetB',true)).toBe(true);commitBodyPreview('assetA');patchBodyPreview('assetA',{day:18}); // stale callbacks
+    expect(state().byAsset.assetA).toBe(committed);expect(state().draft?.value).toMatchObject({day:1,lactating:false});
+    patchBodyPreview('assetB',{day:17});commitBodyPreview('assetB');
+    useBackpack.getState().publishLive({assetB:live('rt-2')});
+    expect(runtime.setBodyProfile).toHaveBeenCalledWith('rt-1',null);room.advance(9);
+    expect(state().byAsset.assetA).toBe(committed);expect(state().support.assetA).toBeUndefined();
+    useBackpack.getState().publishLive({assetB:live('rt-2'),assetA:live('rt-99')});
+    expect(runtime.setBodyProfile).toHaveBeenCalledWith('rt-99',committed);
+    useBackpack.getState().select('assetA');
+    expect(beginBodyPreview('assetA')).toBe(true);stepBodyDay('assetA',7);cancelBodyPreview('assetA');
+    expect(runtime.setBodyProfile).toHaveBeenLastCalledWith('rt-99',committed);expect(wake).toHaveBeenCalled();
+    expect(state().byAsset.assetB.day).toBe(17);disableBodyState('assetB');
+    expect(state().byAsset.assetB).toBeUndefined();expect(beginBodyPreview('assetB')).toBe(false);
+    expect(beginBodyPreview('assetA')).toBe(true);room.dispose();
+    expect(state().draft).toBeNull();expect(state().support).toEqual({});expect(state().byAsset.assetA).toBe(committed);
+    clearBackpack();expect(state().byAsset).toEqual({});
+  }finally{room.dispose();}
+});

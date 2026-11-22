@@ -11,6 +11,8 @@ import {getMmdVrRenderProfile} from '../mmdVrQuality';
 import { resetEncore } from '../play/encore/encoreRound';
 import {EggFields,fitScreenEgg,WandFields} from './ContactPropFields';
 import {useRemoteEgg} from '../play/remoteEgg';
+import {BodyScreenControls} from '../bodyState/BodyControls';
+import {PoseScreenControls} from '../pose/PoseControls';
 
 function give(id:string,toy:Toy,hand:Hand,room:SceneryId){
   if(canGiveTo(useBackpack.getState().live[id],hand))giveScreenToy(id,toy,hand,room);
@@ -80,13 +82,18 @@ function SelectedItem({entry,locked,frame,move,choice,setChoice}:{entry:Backpack
   const stage=useMmdVrStore.getState(), prop=useStagePlay(s=>s.character), motions=b.entries.filter(e=>e.kind==='motion');
   const room=useMmdVrStore(s=>s.prefs.scenery),localToy=isStoryRoom(room)?STORIES[room].toy:null;
   const wearing=useRemoteEgg(s=>s.assetId===entry.id);
+  const [poseOpen,setPoseOpen]=useState(false);
   const toy=choice??(wearing?'remoteEgg':prop?.assetId===entry.id?prop.toy:localToy??'saber');
   if(!live||!transform)return null;
+  if(poseOpen&&!locked&&live.visible)return <section className="screen-tools"><h3>{entry.file.name}</h3>
+    <PoseScreenControls assetId={entry.id} runtimeId={live.runtimeId} onBack={()=>setPoseOpen(false)}/></section>;
   return <section className="screen-tools"><h3>{entry.file.name}</h3>
     <div className="screen-buttons"><button onClick={frame}>{t('screenFit')}</button><button disabled={locked} onClick={move}>{t('hudMove')}</button>
       {(['hudTurnLeft','hudTurnRight','hudSmaller','hudLarger'] as const).map((key,i)=><button key={key} disabled={locked} onClick={()=>i<2?stage.requestModelRotation(live.runtimeId,transform.rotationY+(i?15:-15)):stage.requestModelScale(live.runtimeId,(i===2?previousMmdVrModelScale:nextMmdVrModelScale)(transform.scale))}>{t(key)}</button>)}
       <button disabled={locked} onClick={()=>stage.enqueueVisibilityToggle(live.runtimeId)}>{t(live.visible?'screenHideAsset':'screenShowAsset')}</button>
     </div>
+    {entry.kind==='model'&&<><button disabled={locked||!live.visible} onClick={()=>setPoseOpen(true)}>{t('actorPose')}</button>
+      {live.visible&&<BodyScreenControls assetId={entry.id} runtimeId={live.runtimeId}/>}</>}
     {entry.kind==='model'&&motions.length>0&&(['body','face'] as const).map(kind=><label className="screen-field" key={kind}>{t(kind==='body'?'hudApplyBody':'hudApplyFace')}
       <select disabled={locked} value={motions.find(e=>e.file===b.bindings[entry.id]?.[kind])?.id??''} onChange={e=>{const motion=motions.find(m=>m.id===e.target.value);if(motion)b.applyMotion(entry.id,motion.file,kind);}}>
         <option value="" disabled>{t('screenPickMotion')}</option>{motions.map(m=><option key={m.id} value={m.id}>{m.path}</option>)}

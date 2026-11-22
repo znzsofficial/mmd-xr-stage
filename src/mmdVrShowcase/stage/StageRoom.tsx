@@ -49,6 +49,9 @@ import { useStagePlay } from '../play/stagePlay';
 import { PlayPiece } from '../play/HeldPlay';
 import {useHudWorldInput} from '../components/hudWorldInput';
 import { RemoteWearable } from '../play/remote/RemoteWearable';
+import {mountPoseRoom,usePoseSession} from '../pose/poseSession';
+import {PoseHandles} from '../pose/PoseHandles';
+import {createBodyRoom} from '../bodyState/room';
 
 const noRoomLightEvents=()=>()=>{};
 
@@ -156,6 +159,9 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
   // Lifetime is tied to the room and renderer, not view/camera changes in XR.
   const propFeed=useMemo(createPropColliderFeed,[scene,scenery]);
   const screenPropSettle=useRef(0);
+  const poseSettle=useRef(0);
+  const bodyRoom=useRef<ReturnType<typeof createBodyRoom>|null>(null);
+  const poseRoom=useRef<ReturnType<typeof mountPoseRoom>|null>(null);
   const runtime = useMemo(() => createRoomRuntime(scene, gl, camera, motionCache, alphaTiles,propFeed),
     [scene, gl, motionCache, alphaTiles,propFeed]);
   const actors = useMemo(() => createStageActors(scene, runtime, () => appliedPhysicsEnabledRef.current, () => timeRef.current), [scene, runtime]);
@@ -187,6 +193,18 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
   },[wand,scenery]);
   const characterToy = useStagePlay(s => s.character?.toy);
   const isRoomStale = () => retired.current || !useMmdVrStore.getState().overlayOpen || useMmdVrStore.getState().prefs.scenery !== scenery || runtimeRef.current !== runtime;
+
+  useLayoutEffect(()=>{
+    const body=createBodyRoom(runtime,()=>{lastEvaluatedTimeRef.current=-Infinity;});bodyRoom.current=body;
+    poseRoom.current=mountPoseRoom({
+      open(id){if(isRoomStale())return null;wand.restore();return runtime.beginPose(id,timeRef.current);},
+      close(id){wand.restore();runtime.endPose(id);},
+      dirty(reseed){lastEvaluatedTimeRef.current=-Infinity;poseSettle.current=.8;
+        const id=usePoseSession.getState().runtimeId;
+        if(reseed&&id&&appliedPhysicsEnabledRef.current){wand.restore();runtime.resetPhysics(timeRef.current,id);}}
+    });
+    return ()=>{poseRoom.current?.dispose();poseRoom.current=null;bodyRoom.current=null;body.dispose();};
+  },[runtime,wand]);
 
   useLayoutEffect(() => {
     runtimeRef.current = runtime;
@@ -533,6 +551,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
     }
 
     const store = useMmdVrStore.getState();
+    if(!store.physicsBusy&&store.physicsEnabled===appliedPhysicsEnabledRef.current)poseRoom.current?.afterPhysics();
     let physicsReseedNeeded = false;
     const removals = store.physicsBusy ? [] : store.takeModelRemovals();
     if (removals.length) {
@@ -614,6 +633,10 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
     if (!rt) return;
     const duration = rt.duration;
     const simulationDelta = clampMmdVrSimulationDelta(delta);
+    const poseChanged=poseSettle.current>0;
+    poseSettle.current=Math.max(0,poseSettle.current-simulationDelta);
+    if(!isRoomStale()&&!store.physicsBusy&&!store.physicsFatal&&!store.assetLoad.running&&!useBackpack.getState().busy&&
+      (store.presentation!=='xr'||frame?.session.visibilityState==='visible'))bodyRoom.current?.advance(simulationDelta);
     const advancedMotion = playingRef.current && duration > 0 && !pendingSeekSeed.current;
     if (advancedMotion) {
       timeRef.current += simulationDelta;
@@ -647,7 +670,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
     // Screen has no free player hand. Keep the paused solver awake for a
     // mounted wrist prop and briefly after stowing so a lifted hem can fall.
     screenPropSettle.current=!physicsOn||inXR?0:propActive?1:Math.max(0,screenPropSettle.current-simulationDelta);
-    const interactive = inXR||screenPropSettle.current>0;
+    const interactive = inXR||screenPropSettle.current>0||poseChanged;
     let physicsDelta = advancedMotion || interactive ? simulationDelta : 0;
     if (physicsOn && duration <= 0) {
       if (!interactive) physicsDelta = Math.min(simulationDelta, 5 - staticSettleElapsed.current);
@@ -667,7 +690,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
     // keep stepping when enabled so controller collisions stay alive, and a
     // seek while paused must still re-evaluate the target frame once.
     const timeChanged = Math.abs(evaluationTime - lastEvaluatedTimeRef.current) > 1e-5;
-    if (playingRef.current || physicsOn || timeChanged || pendingSeekSeed.current) {
+    if (playingRef.current || physicsOn || timeChanged || poseChanged || pendingSeekSeed.current) {
       const start = performance.now();
       rt.update(evaluationTime, physicsOn, perspective, aspect, false, physicsDelta, pendingSeekSeed.current);
       pendingSeekSeed.current = false;
@@ -725,6 +748,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
     <>
       {characterToy && <group ref={wristGroup} name="play:character" pointerEvents="none" visible={false}><PlayPiece toy={characterToy}/></group>}
       <RemoteWearable getRoot={runtime.getModelRoot}/>
+      <PoseHandles/>
       <StageEnvironment scenery={scenery} prefs={mmdPrefs} profile={profile} lighting={lightCfg}
         sunRef={sunRef}/>
     </>

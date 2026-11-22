@@ -10,9 +10,13 @@ import { DefaultMmdRuntime, MmdAnimRuntime } from "@yohawing/three-mmd-loader/ru
 import * as THREE from "three";
 import { placementLoaderProfile } from '../placementWork';
 import { PhysicsPoseDisplay } from "./physicsPoseDisplay";
+import {createPoseSolver,type PoseSolver} from '../pose/poseSolver';
 import { PARK_Y } from "./colliderReentry";
 import { configureActorPalms } from './actorPalms';
 import {fitChestCompression} from './chestCompression';
+import { createBodyDisplay } from '../bodyState/runtime';
+import type { BodyProfile } from '../bodyState/data';
+import type { BodySupport } from '../bodyState/store';
 import {FINGERTIP_MASK,TrackedPressure} from './trackedPressure';
 import {beginFingertipFit} from './fingertipIndent';
 import {elapsed,type PhysicsSwitchWork} from '../physicsSwitchWork';
@@ -100,7 +104,12 @@ export type MmdRuntimeHandle = {
   selectModel: (id: string | null) => void;
   /** Scene root Object3D for gizmo / helpers (null if missing). */
   getModelRoot: (id: string | null) => THREE.Object3D | null;
+  beginPose: (id:string,seconds:number)=>PoseSolver|null;
+  endPose: (id:string)=>void;
   getModelSurface: (id:string) => Pick<ThreeMmdModel,'root'|'mesh'|'renderOrderMeshes'>|null;
+  getBodySupport?: (id:string) => BodySupport|null;
+  /** Returns true when a paused stage needs another display evaluation. */
+  setBodyProfile?: (id:string,profile:BodyProfile|null)=>boolean;
   setModelVisible: (id: string, visible: boolean) => void;
   setModelTransform: (id: string, patch: Partial<MmdModelTransform>) => void;
   /** When true, update() will not overwrite root TRS from entry.transform (gizmo drag). */
@@ -130,7 +139,10 @@ export type MmdRuntimeHandle = {
 };
 
 type RuntimeEntryWithPhysics = RuntimeEntry & {
+  editor?:PoseSolver;
   chest?:ReturnType<typeof fitChestCompression>;
+  bodyDisplay?:ReturnType<typeof createBodyDisplay>;
+  bodyProfile?:BodyProfile|null;
   fingertipFit?:ReturnType<typeof beginFingertipFit>;
   fingertip?:ReturnType<ReturnType<typeof beginFingertipFit>>;
   handEligibility:{mask:number};
@@ -167,6 +179,7 @@ function restoreBindPose(entry: RuntimeEntryWithPhysics) {
 // Rebinding or reseeding discards display history; ordinary frames keep it.
 function clearPoseForRebind(entry: RuntimeEntryWithPhysics) {
   entry.chest?.restore();
+  entry.bodyDisplay?.restore();
   entry.chest?.reset();
   entry.fingertip?.reset();
   entry.physicsDisplay?.restore(true);
@@ -175,6 +188,11 @@ function clearPoseForRebind(entry: RuntimeEntryWithPhysics) {
 function releaseEvaluator(evaluator: ThreeMmdModel['runtime']) {
   // The bundled WASM animation adapter owns native handles; the JS one does not.
   (evaluator as typeof evaluator & {dispose?:()=>void}).dispose?.();
+}
+
+function bodyDisplay(entry:RuntimeEntryWithPhysics){
+  if(entry.chest===undefined)entry.chest=fitChestCompression(entry.model.mesh);
+  return entry.bodyDisplay??=createBodyDisplay(entry.model.mesh,entry.chest);
 }
 
 const STATIC_PHYSICS_BINDING_ANIMATION: MmdAnimation = {
@@ -350,11 +368,20 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
     }
   }
 
+  function endPose(id:string){
+    const entry=entries.get(id);if(!entry?.editor)return;
+    const editor=entry.editor;entry.editor=undefined;
+    clearPoseForRebind(entry);editor.restore();
+    if(entry.physicsBackend&&!entry.appliedAnimation){restoreBindPose(entry);bindStaticMmdPhysicsRuntime(entry.model);}
+    lastPhysicsSeconds.delete(id);
+  }
+
   function removeEntry(id: string) {
     const entry = entries.get(id);
     if (!entry) return;
-    scene.remove(entry.model.root);
+    endPose(id);scene.remove(entry.model.root);
     entry.fingertip?.reset();
+    entry.chest?.restore(); entry.bodyDisplay?.restore();
     entry.fingertip=null;entry.fingertipFit=undefined;
     disposeEntryPhysics(entry);
     disposeModelObject(entry);
@@ -580,12 +607,14 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
   }
 
   async function rebuildAllModels(withPhysics: boolean, beforeRestore?: () => void,work?:PhysicsSwitchWork) {
+    for(const id of entries.keys())endPose(id);
     const generation = membershipGeneration;
     const stale = () => disposed || generation !== membershipGeneration;
     const assertCurrent = () => { if (stale()) throw new DOMException('Stage changed', 'AbortError'); };
     const snapshots = [...entries.values()].map((entry) => ({
       id: entry.id,
       bodyAnimation: entry.bodyAnimation,
+      bodyProfile: entry.bodyProfile,
       faceAnimation: entry.faceAnimation,
       cameraAnimation: entry.cameraAnimation,
       bodyMotionName: entry.bodyMotionName,
@@ -619,6 +648,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
         entry.faceMotionFile = snap.faceMotionFile;
         entry.cameraMotionFile = snap.cameraMotionFile;
         entry.visible = snap.visible;
+        if(snap.bodyProfile){entry.bodyProfile=snap.bodyProfile;bodyDisplay(entry).configure(snap.bodyProfile);}
         entry.morphWeights = snap.morphWeights;
         entry.morphFavorites = snap.morphFavorites;
         entry.materialVisible = { ...entry.materialVisible, ...snap.materialVisible };
@@ -782,11 +812,34 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       return entries.get(id)?.model.root ?? null;
     },
     getModelSurface(id) {return entries.get(id)?.model??null;},
+    getBodySupport(id){const entry=entries.get(id);return entry?bodyDisplay(entry).support:null;},
+    setBodyProfile(id,profile){
+      const entry=entries.get(id);if(!entry||(!profile&&!entry.bodyDisplay))return false;
+      entry.bodyProfile=profile; return bodyDisplay(entry).configure(profile);
+    },
+    beginPose(id,seconds){
+      const entry=entries.get(id);if(!entry?.visible)return null;
+      if(entry.editor)return entry.editor;
+      const original=entry.model.runtime;
+      clearPoseForRebind(entry);restoreBindPose(entry);lastPhysicsSeconds.delete(id);
+      try{
+        entry.editor=createPoseSolver(entry.model,entry.appliedAnimation,seconds,!!entry.bodyAnimation);return entry.editor;
+      }catch(error){
+        // A malformed/custom skeleton cannot be edited. Leave its original
+        // animation bound, even if the temporary evaluator had been installed.
+        if(entry.model.runtime!==original)releaseEvaluator(entry.model.exchangeRuntime(original));
+        restoreBindPose(entry);
+        if(entry.appliedAnimation)entry.model.setAnimation(entry.appliedAnimation);
+        else if(entry.physicsBackend)bindStaticMmdPhysicsRuntime(entry.model);
+        entry.model.update(seconds,{physics:false,ik:!!entry.bodyAnimation});
+        console.warn('[mmdVr] Could not edit this skeleton',error);return null;
+      }
+    },endPose,
     setModelVisible(id, visible) {
       const entry = entries.get(id);
       if (!entry) return;
       if (entry.visible !== visible) lastPhysicsSeconds.delete(id);
-      if (!visible) entry.fingertip?.reset();
+      if (!visible) {endPose(id);entry.fingertip?.reset();entry.chest?.restore();entry.chest?.reset();entry.bodyDisplay?.restore();}
       entry.visible = visible;
       applyMaterialVisibility(entry);
       applyMaterialOverrides(entry, lightingContext());
@@ -840,6 +893,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       if (!id) throw new Error("No model selected");
       const entry = entries.get(id);
       if (!entry) throw new Error("Model not found");
+      endPose(id);
       const at = work ? performance.now() : 0;
       const request = options.motionCache?.acquire(file, slot);
       if (work) {
@@ -938,7 +992,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
           syncEntryWorldMatrix(entry, true);
           entry.physicsBackend.reset?.();
           entry.model.runtime.seek(t);
-          entry.model.update(t, { physics: true, ik: entry.bodyAnimation != null });
+          entry.model.update(t, { physics: true, ik: !entry.editor&&entry.bodyAnimation != null });
           // Restore visual scale after physics rebind.
           syncEntryWorldMatrix(entry, false);
           lastPhysicsSeconds.set(entry.id, t);
@@ -1003,6 +1057,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
         const jumpedFar = prev !== undefined && seconds - prev > 0.25;
         const reset = jumpedBack || jumpedFar || prev === undefined;
         entry.chest?.restore();
+        entry.bodyDisplay?.restore();
         if (!physicsOn || reset || reseed) entry.fingertip?.reset();
         else entry.fingertip?.restore();
         entry.physicsDisplay?.restore(!physicsOn || reset);
@@ -1018,7 +1073,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
         entry.handEligibility.mask=0;
         stepDelta = physicsOn ? physicsDelta : undefined;
         try {
-          entry.model.update(seconds, { physics: physicsOn, ik: hasBodyMotion });
+          entry.model.update(seconds, { physics: physicsOn, ik: !entry.editor&&hasBodyMotion });
           if (physicsOn && physicsDelta != null) entry.physicsDisplay?.present(entry.model.mesh.skeleton.bones, physicsDelta);
         } finally {
           stepDelta = undefined;
@@ -1030,10 +1085,12 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
           lastPhysicsSeconds.delete(entry.id);
         }
 
-        const dancePressure=hasBodyMotion && !!options.chestCompression?.();
+        const dancePressure=(hasBodyMotion||!!entry.editor) && !!options.chestCompression?.();
         const handMask=physicsOn ? entry.handEligibility.mask : 0;
         // The authored pose and Bullet inputs are already complete.
         applyMorphOverrides(entry);
+        let bodyBonesChanged=entry.bodyDisplay?.apply()??false;
+        const bodyParams=entry.bodyDisplay?.settings;
         // Continue the release even after all tracked slots disappeared. No
         // tracking history or contact query is needed in controller-only VR.
         if(dancePressure || handMask || (physicsOn && entry.trackedPressure)){
@@ -1049,9 +1106,11 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
           }else if(entry.trackedPressure)entry.trackedPressure.mask=0;
           // Use the last surface sample to blend the broad response, then fit
           // this frame's dimple on the final display pose, including dance pressure.
-          if(entry.chest?.apply(seconds,physicsDelta,reseed||(physicsOn&&reset),dancePressure,entry.trackedPressure,entry.fingertip?.tipBroadGain))entry.model.mesh.skeleton.update();
-          if(physicsOn)entry.fingertip?.apply(entry.trackedPressure,physicsDelta??Math.max(0,seconds-(prev??seconds)));
+          if(entry.chest?.apply(seconds,physicsDelta,reseed||(physicsOn&&reset),dancePressure,entry.trackedPressure,entry.fingertip?.tipBroadGain,bodyParams?.compression,bodyParams?.rebound))bodyBonesChanged=true;
+          if(physicsOn&&bodyParams?.compression!==0)entry.fingertip?.apply(entry.trackedPressure,physicsDelta??Math.max(0,seconds-(prev??seconds)),bodyParams?.compression,bodyParams?.rebound);
+          else if(bodyParams?.compression===0)entry.fingertip?.reset();
         }else entry.chest?.reset();
+        if(bodyBonesChanged)entry.model.mesh.skeleton.update();
         const materials = getMeshMaterials(entry.model.mesh);
         if (directionalLight) syncMmdSpecularDirection(materials, directionalLight);
         applyMaterialOverrides(entry, lightingContext());

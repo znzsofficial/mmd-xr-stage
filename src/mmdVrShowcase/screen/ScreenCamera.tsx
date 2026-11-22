@@ -11,6 +11,7 @@ import {walkBetweenZones,hintLawnPrints} from '../scenery/campusTransit';
 import { bindScreenCameraKeyboard } from './screenCameraKeyboard';
 import {screenStreetTravel} from './streetTravel';
 import {RoomGate} from '../scenery/connections';
+import {usePoseSession} from '../pose/poseSession';
 import {screenWindTravel} from './screenWindTravel';
 
 type Point = [number,number,number];
@@ -44,7 +45,8 @@ export function ScreenCamera({actions,onReady,viewport}:{actions:RefObject<Camer
       if(walkBetweenZones(link))return true;
       arrival.current=null;return false;
     }};
-    const makeOrbit=()=>{const o=new OrbitControls(camera,gl.domElement);o.minDistance=.18;o.maxDistance=scenery==='astralCourt'?52:scenery==='glassPlanet'?38:22;o.maxPolarAngle=Math.PI*(scenery==='qinhuai'?.64:scenery==='glassPlanet'||scenery==='arcadeHall'?.99:.49);o.rotateSpeed=.70;o.enabled=!useBackpack.getState().draft;return o;};
+    const canOrbit=()=>!useBackpack.getState().draft&&!usePoseSession.getState().dragging;
+    const makeOrbit=()=>{const o=new OrbitControls(camera,gl.domElement);o.minDistance=.18;o.maxDistance=scenery==='astralCourt'?52:scenery==='glassPlanet'?38:22;o.maxPolarAngle=Math.PI*(scenery==='qinhuai'?.64:scenery==='glassPlanet'||scenery==='arcadeHall'?.99:.49);o.rotateSpeed=.70;o.enabled=canOrbit();return o;};
     let orbit=makeOrbit();const wup=[0,1,0] as const;
     function align(up:readonly [number,number,number]=wup){
       if(camera.up.distanceToSquared(new Vector3(...up))<1e-10)return;
@@ -79,10 +81,12 @@ export function ScreenCamera({actions,onReady,viewport}:{actions:RefObject<Camer
     const a=arrival.current;arrival.current=null;
     if(a?.room===scenery){camera.position.fromArray(a.eye);orbit.target.fromArray(a.aim);orbit.update();}
     if(!a?.walking||a.room!==scenery)heldKeys.current.clear();
-    orbit.enabled=!useBackpack.getState().draft;
+    orbit.enabled=canOrbit();
     keyboard.current=bindScreenCameraKeyboard(viewport.current,orbit,reset,travel,steps);
-    onReady(true);const off=useBackpack.subscribe((b,old)=>{if(old.draft!==b.draft){keyboard.current?.clear();orbit.enabled=!b.draft;}});
-    return ()=>{keyboard.current?.dispose(arrival.current?.walking===true);keyboard.current=null;travel?.dispose();off();releaseHints?.();actions.current=null;onReady(false);orbit.dispose();camera.up.set(0,1,0);};
+    const inputChanged=()=>{keyboard.current?.clear();orbit.enabled=canOrbit();};
+    onReady(true);const off=useBackpack.subscribe((b,old)=>{if(old.draft!==b.draft)inputChanged();});
+    const poseOff=usePoseSession.subscribe((s,p)=>{if(s.dragging!==p.dragging)inputChanged();});
+    return ()=>{keyboard.current?.dispose(arrival.current?.walking===true);keyboard.current=null;travel?.dispose();off();poseOff();releaseHints?.();actions.current=null;onReady(false);orbit.dispose();camera.up.set(0,1,0);};
   },[camera,gl,scene,scenery,actions,onReady,viewport]);
   return null;
 }

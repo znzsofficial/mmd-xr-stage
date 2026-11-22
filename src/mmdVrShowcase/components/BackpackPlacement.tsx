@@ -8,6 +8,7 @@ import { canPlaceInScenery, roomPickDecks, visiblePick } from "../scenery/placem
 import type { SceneryId } from "../scenery/catalog";
 import { useLanguageStore } from "../../languageStore";
 import { useHudWorldInput } from "./hudWorldInput";
+import {usePoseSession} from '../pose/poseSession';
 
 // Contact with a character is for Bullet. Only a deliberate far-ray selection
 // can open its tool strip, never a touch or a grab while adjusting clothing.
@@ -112,7 +113,8 @@ export function BackpackPlacement({onScreenPick}:{onScreenPick?:()=>void}={}) {
   const panelOpen = useHudWorldInput(s => s.blocked);
   const xr = useMmdVrStore(s=>s.presentation==='xr');
   const blocked = useMmdVrStore(s => s.assetLoad.running || s.physicsBusy || s.physicsFatal);
-  if (blocked || busy || (xr && panelOpen)) return null;
+  const posing=usePoseSession(s=>s.editing);
+  if (blocked || busy || posing || (xr && panelOpen)) return null;
   return draft ? <DropSurface key={`${scenery}:${draft}`} id={draft} scenery={scenery} /> :
     <>{Object.entries(live).map(([id,entry]) => entry.visible && <PickTarget key={id} id={id} live={entry} onScreenPick={onScreenPick} />)}</>;
 }

@@ -60,6 +60,7 @@ pnpm deploy
 ## XR And Physics Invariants
 
 - Dance self-contact must preserve the authored arm, wrist and hand trajectories. Use those segments as read-only contact probes. Deform only dedicated chest bones after evaluation, restore raw transforms before the next VMD/Bullet step, and compare arm matrices and weighted vertices. Do not steer the arms around the torso.
+- Manual posing is explicit. Freeze an independent animation input, not the displayed/post-physics bones; drag that clip without rebinding the solver. Verify planted feet, wrist-driven bodies and restoration of the original evaluator/IK on both static and dancing PMX. Named poses and body settings belong to the backpack asset; do not retain live skeletons on room changes. Apply the day's base chest shape before pressure and unwind display layers in reverse order before evaluating again.
 - Put viewing and contact controls on the stage. The user rarely opens prep; reserve it for import, launch and device setup.
 
 - XR collider recovery must not turn the parked pose into a high-speed strike. Re-arm each discontinuous slot only after it stays clear of the model's native dynamic-body bounds for two fixed-step durations. Regular tracked strokes go straight through. The loader patch also exposes `readRigidBodyCenters` for a shared, on-demand recovery check; never reset the whole Bullet world on a tracking change.

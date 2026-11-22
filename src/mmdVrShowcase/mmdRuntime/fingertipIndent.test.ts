@@ -47,6 +47,17 @@ it('does not start a new dent when a tracked tip reappears inside skin outside t
   touch(away);for(let i=0;i<3;i++)pass.apply(hands,1/60);touch(on);pass.apply(hands,1/60);expect(pos.getZ(0)).toBeLessThan(0);
 });
 
+it('the actor gain and rebound affect supported fingertip skin as well as broad bone contact',()=>{
+  function imprint(strength:number,rebound:number){
+    const {mesh,chest,pos,hands,touch}=rig(),pass=fitFingertipIndent(mesh,[chest],.45)!;
+    touch(new Vector3(0,0,.005));pass.apply(hands,1/60,strength,rebound);const depth=-pos.getZ(0);
+    touch(new Vector3(0,0,.005),0);pass.apply(hands,1/60,strength,rebound);return {depth,residual:-pos.getZ(0)};
+  }
+  const firm=imprint(.25,.085),full=imprint(1,.085),slow=imprint(1,.4);
+  expect(full.depth).toBeGreaterThan(.001);expect(firm.depth).toBeCloseTo(full.depth*.25,8);
+  expect(slow.depth).toBe(full.depth);expect(slow.residual).toBeGreaterThan(full.residual);
+});
+
 it('uses the posed, morphed split body under a rotated / scaled root; excluded buffers and shader hooks stay inert',()=>{
   const {mesh,root,chest,g,pos,hands,poses,touch}=rig(),body=new SkinnedMesh(g.clone(),mesh.material),other=new SkinnedMesh(g.clone(),mesh.material);
   root.add(body,other);body.bind(mesh.skeleton,mesh.bindMatrix);other.bind(mesh.skeleton,mesh.bindMatrix);

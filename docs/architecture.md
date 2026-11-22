@@ -15,6 +15,7 @@
 
 | 要改什么 | 负责的模块 |
 |---|---|
+| 摆姿势、身体状态及局部剖面 | [`pose/`](../src/mmdVrShowcase/pose/) 管编辑手势、单帧动作和命名姿势；[`bodyState/`](../src/mmdVrShowcase/bodyState/) 管每个资产的虚构时间线、预览及显示适配。只有当房间挂载演员时，才关联其骨架／形态。屏幕和 VR 使用同一套命令。[操作与验证](./gameplay/pose-and-body-states.md) |
 | 默认设置、合法值、v1/v2 偏好兼容 | [`settings/preferences.ts`](../src/mmdVrShowcase/settings/preferences.ts)。首次进入、读取旧记录和场内更新共用同一套规则；[`mmdVrStore.ts`](../src/mmdVrShowcase/mmdVrStore.ts) 发布状态和操作。文件、布局和运行时句柄不属于偏好。 |
 | 某一间房的模型、入口、机位、遮挡 | [`scenery/`](../src/mmdVrShowcase/scenery/)；按[布景接入指南](./scenery/adding-a-set.md)改注册表和本景布局。菜单切景是否重置视角由 `catalog.ts` 决定；步行跨门由 `connections.ts` 的平移数据决定。 |
 | 让两景共用一段可走的街 | [`routes/types.ts`](../src/mmdVrShowcase/scenery/routes/types.ts) 定义扩建区域的地面、摆位和遮挡接口。两景各用本地坐标引用同一份道路布局；[`connections.ts`](../src/mmdVrShowcase/scenery/connections.ts) 判断是否真正穿过门口。XR 与[屏幕步行](../src/mmdVrShowcase/screen/streetTravel.ts)共用门线；屏幕跨门时平移相机和环绕目标，XR 跨门时平移追踪原点。 |

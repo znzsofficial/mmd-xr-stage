@@ -2,6 +2,7 @@ import type { ZhMessages } from "./zh";
 
 /** English UI strings — must cover every key in zh. */
 export const en: Record<keyof ZhMessages, string> = {
+  actorPose:'Pose actor', actorBodyState:'Body state',
   emberWind:'Launch collar · Ember',frostWind:'Launch collar · Frost',emberReturn:'Ember · homeward view',frostReturn:'Frost · homeward view',
   saltWind:'Launch collar · Halite',glazeWind:'Launch collar · Obsidian',saltReturn:'Halite · homeward view',glazeReturn:'Obsidian · homeward view',
   saltLeap:'Halite · leap to Obsidian',glazeLeap:'Obsidian · leap to Halite',twinPortrait:'Between the twins · Gravity Narrows',

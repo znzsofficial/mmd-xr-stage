@@ -123,7 +123,7 @@ function* prepareSurface(source:SkinnedMesh, pads:readonly Bone[], shoulderWidth
     active=false;
   }
 
-  function apply(hands:TrackedPressure|undefined,dt:number){
+  function apply(hands:TrackedPressure|undefined,dt:number,strength=1,rebound=.085){
     restore();
     tips.length=0;tipBroadGain.fill(1);
     const mask=(hands?.mask??0)&FINGERTIP_MASK;
@@ -138,7 +138,7 @@ function* prepareSurface(source:SkinnedMesh, pads:readonly Bone[], shoulderWidth
       t.axis.subVectors(t.end,t.start);t.invLengthSq=1/Math.max(1e-12,t.axis.lengthSq());
       t.bounds.makeEmpty().expandByPoint(t.start).expandByPoint(t.end).expandByScalar(3.5*t.r);tips.push(t);
     }
-    const seconds=Math.min(.05,Math.max(0,dt)),attack=-Math.expm1(-seconds/.018),release=-Math.expm1(-seconds/.065);
+    const seconds=Math.min(.05,Math.max(0,dt)),attack=-Math.expm1(-seconds/.018),release=-Math.expm1(-seconds/(.065*rebound/.085));
     active=false;
     for(const l of layers){
       l.active.length=0;l.activeMorphs.length=0;
@@ -194,7 +194,7 @@ function* prepareSurface(source:SkinnedMesh, pads:readonly Bone[], shoulderWidth
           const alpha=goal>v.depth?attack:release;v.depth+=(goal-v.depth)*alpha;v.tilt.lerp(tilt,alpha);
           if(!goal && v.depth<shoulderWidth*1e-6){v.depth=0;v.tilt.set(0,0,0);continue;}
           if(!v.depth)continue;
-          p.copy(v.p).addScaledVector(v.n,-v.depth);n.copy(v.n).add(v.tilt).normalize();
+          p.copy(v.p).addScaledVector(v.n,-v.depth*strength);n.copy(v.n).addScaledVector(v.tilt,strength).normalize();
           l.position.setXYZ(i,p.x,p.y,p.z);l.normal.setXYZ(i,n.x,n.y,n.z);
           first=Math.min(first,i);last=Math.max(last,i);c.active=active=true;l.active.push(v);
         }
