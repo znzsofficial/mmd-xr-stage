@@ -1,6 +1,6 @@
 # 会话交接｜2026-11-22
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `bacf99c`](https://851afe68.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `b808e9c`](https://5e339b8e.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
 
 **线上基线：** 16 景，主列表 10 个入口，10 件道具。[母星采谱、五条风道、两座跳岛](./scenery/opal-planet.md)已上线。硅胶件和按摩棒均可在暂停时推动 PMX 活动衣物；[什么情况下手柄会震](./gameplay/README.md#道具接触与手柄震动)。
 
