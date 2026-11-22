@@ -25,11 +25,15 @@ function SectionStand({assetId,runtimeId,rig}:{assetId:string;runtimeId:string}&
     gl.xr.getCamera().getWorldPosition(s.eye);
     const b=live.bounds;
     node.position.y+=.14;
+    // Keep the read-only figure legible a step back, without letting it follow
+    // the eye or cover the actor at arm's length. The graphic is .42 m wide.
+    const width=Math.max(.42,Math.min(.64,node.position.distanceTo(s.eye)*.32));
+    node.scale.setScalar(width/.42);
     s.look.subVectors(node.position,s.eye).setY(0);if(s.look.lengthSq()<1e-6)s.look.set(0,0,-1);s.look.normalize();
     s.right.crossVectors(s.look,s.up);
     // Reserve space for the figure even when it has been scaled up. The panel
     // stays upright and actor-relative instead of following the hand or head.
-    node.position.addScaledVector(s.right,.32+Math.max(.12,(b?.size[0]??.5)*.5));
+    node.position.addScaledVector(s.right,.11+width/2+Math.max(.12,(b?.size[0]??.5)*.5));
     node.lookAt(s.eye);
   });
   return <group ref={group} visible={false} name="pelvic:observer" pointerEvents="none">

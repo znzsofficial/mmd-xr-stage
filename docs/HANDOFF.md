@@ -10,6 +10,8 @@
 
 **[骨盆附件与佩戴件物理](./gameplay/pelvic-attachment.md)：** 跳蛋外壳可推动相容的活动衣物；硅胶件由手柄或支架互斥操控。剖面显示实测杆位，按实际喷口区分在内、可见在外、未验证／越限。校准和游戏液量按角色分开。
 
+**子宫动态图：** 骨盆附件的「器官动态／测量剖面」和身体状态的周期页使用本地旋转视图，支持正面、斜前、侧面和中间角度。图像定格不停止真实输入或计量。[转动示例](./screenshots/organ-motion.webp)
+
 **Quest 3S 反馈：** 用户确认琉璃小行星已能正常行走，使用体验还可以。无需再专项测步行；跨跳翻转、道具初触与拨衣手感可在游玩时留意。教室用同一角色和大 VMD 查首次开物理、回场和稳态。11 月 20 日 14:43Z 是改前报告，持续 72 FPS 尚未验收。[短测与导出](./performance/next-quest-export.md)
 
 **暂缓：** 恋活卡暂不做逐卡手动导出；[Blender 转换](./gameplay/blender-characters.md)已交付。[灯影／霜岬回波](./gameplay/interactive-scene-studies.md)、新增街段与[片场候选](./scenery/next-modeling-round.md#婚礼之后的新景候选未排期)未排期；[暂停物理休眠](./performance/README.md#回场与后续验收)先取证。正式版继续用 Three。

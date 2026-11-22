@@ -1,136 +1,239 @@
-import type { Vector3 } from 'three';
-import { pelvicSection } from './geometry';
 import { rod, rodRadii } from './path';
+import { plot, SECTION_H, SECTION_W, sectionEvidence, type Point, type SectionLayout, type Slice } from './sectionProjection';
 import type { PelvicProfile, PelvicSample } from './stateTypes';
+export { sectionLayout, SECTION_H, SECTION_W, type SectionAngle } from './sectionProjection';
 
-// One calibrated sagittal projection for the actor sheet, the screen, and the
-// read-only plate beside the actor. Measurements remain in world metres.
-export const SECTION_W = 344, SECTION_H = 282;
-const art = { paper:'#fcf8f5', ink:'#302b32', muted:'#62545c', rule:'#daced1',
-  uterus:'#e3b1ad', cervix:'#cd9296', canal:'#f3d5cf', wall:'#885961',
-  fluid:'#62bfb9', meniscus:'#176a68', shaft:'#253e67', tip:'#264fc3', alert:'#973b49' };
-const left = 82, right = 335, top = 33, bottom = 187;
-type P2 = {x:number; y:number};
-const cm = (v:number) => (100*v).toFixed(1);
-export const fmtUnits = (v:number) => String(+v.toFixed(2));
+type Ctx = CanvasRenderingContext2D;
+type Evidence = ReturnType<typeof sectionEvidence>;
+const ink={paper:'#211722',pearl:'#fff1e9',muted:'#cfb9c2',rule:'#694957',gold:'#ebc68e',fluid:'#66e1ca',
+  tip:'#90bcff',exterior:'#c7a5ff',warning:'#ffba9f'};
+export const fmtUnits=(v:number)=>String(+v.toFixed(2));
+const cm=(v:number)=>`${(100*v).toFixed(1)} cm`;
+const signedCm=(v:number)=>`${v>0?'+':''}${cm(v)}`;
+function label(ctx:Ctx,text:string,x:number,y:number,color=ink.pearl,size=14,weight=550,align:CanvasTextAlign='left'){
+  ctx.font=`${weight} ${size}px system-ui,sans-serif`;ctx.fillStyle=color;ctx.textAlign=align;ctx.textBaseline='middle';ctx.fillText(text,x,y);
+}
+function path(points:readonly Point[],close=false){
+  const p=new Path2D();for(const [i,q] of points.entries())if(i)p.lineTo(q.x,q.y);else p.moveTo(q.x,q.y);
+  if(close)p.closePath();return p;
+}
+function stroke(ctx:Ctx,p:Path2D,color:string,width:number){ctx.strokeStyle=color;ctx.lineWidth=width;ctx.stroke(p);}
+function fill(ctx:Ctx,p:Path2D,color:string|CanvasGradient){ctx.fillStyle=color;ctx.fill(p);}
+function line(ctx:Ctx,ps:readonly Point[],color:string,width:number){stroke(ctx,path(ps),color,width);}
+function dot(ctx:Ctx,p:Point,r:number,color:string){ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.fillStyle=color;ctx.fill();}
+function cubic(points:Point[]){
+  const p=new Path2D();p.moveTo(points[0].x,points[0].y);
+  for(let i=1;i+2<points.length;i+=3){const [a,b,c]=points.slice(i,i+3);p.bezierCurveTo(a.x,a.y,b.x,b.y,c.x,c.y);}
+  return p;
+}
+function gradient(ctx:Ctx,a:Point,b:Point,stops:readonly (readonly [number,string])[]){
+  const g=ctx.createLinearGradient(a.x,a.y,b.x,b.y);for(const [at,col] of stops)g.addColorStop(at,col);return g;
+}
+function ringAt(rs:Slice[],t:number){return rs[Math.round((rs.length-1)*t)];}
+function contour(rs:Slice[],kind:'skin'|'face'|'lumen'){
+  const lumen=kind==='lumen',left=kind==='face'?-.80:-1,right=kind==='face'?.96:1;
+  const vl=kind==='face'?.60:0,vr=kind==='face'?.28:0;
+  const ps=rs.map(r=>r.at(left,vl,lumen));for(let i=rs.length-1;i>=0;i--)ps.push(rs[i].at(right,vr,lumen));
+  // The near half of the elliptical basal rim is visible. Its height and
+  // orientation follow the viewing direction, including the entry plane.
+  const start=Math.acos(right),end=Math.acos(left);
+  for(let j=1;j<15;j++){const a=start+(end-start)*j/15;ps.push(rs[0].at(Math.cos(a),Math.sin(a)*(kind==='face'?.72:1),lumen));}
+  return path(ps,true);
+}
+function apertureLoop(basal:Slice,inside:boolean){
+  return path(Array.from({length:48},(_,i)=>{const a=i*Math.PI/24;return basal.at(Math.cos(a),Math.sin(a),inside);}),true);
+}
+function contours(v:SectionLayout){
+  const rings=[...v.canal,...v.cervix.slice(1),...v.uterus.slice(1)];
+  const end=v.uterus.findIndex(r=>!r.open),body=v.uterus.slice(0,end<0?undefined:end+1);
+  const canal=contour(v.canal,'lumen'),aperture=apertureLoop(v.canal[0],true),canalLiquid=new Path2D(canal);
+  // The longitudinal cut meets the near lip; a low dose is still visible
+  // through the exposed end face when looking in from the exterior.
+  if(Math.cos(v.yaw)>.015)canalLiquid.addPath(aperture);
+  return {skin:contour(rings,'skin'),face:contour(rings,'face'),canal,canalLiquid,aperture,
+    cervix:contour(v.cervix,'lumen'),uterus:contour(body,'lumen'),body};
+}
+type Shapes=ReturnType<typeof contours>;
 
-export function sectionLayout(lengthM:number, radiusM:number) {
-  const section = pelvicSection({ lengthM,radiusM });
-  // The chart is socket-relative, not camera-relative: a head turn cannot
-  // turn insertion into retraction. Tilt the cut on paper for label clearance.
-  const c = Math.cos(Math.PI/6), s = Math.sin(Math.PI/6);
-  const flat = (y:number,z:number):P2 => ({ x:c*z+s*y, y:s*z-c*y });
-  const all = [...section.uterus,...section.cervix,...section.canal].map(p=>flat(p.y,p.z));
-  const outside=Math.min(lengthM*2.1,.205);
-  all.push(flat(-radiusM*.35,outside));
-  const xs=all.map(p=>p.x), ys=all.map(p=>p.y);
-  const x0=Math.min(...xs), x1=Math.max(...xs), y0=Math.min(...ys), y1=Math.max(...ys);
-  const pxPerM=Math.min((right-left)/(x1-x0||1),(bottom-top)/(y1-y0||1));
-  const project = (y:number,z:number):P2 => {const p=flat(y,z);return {
-    x:(left+right)/2+(p.x-(x0+x1)/2)*pxPerM, y:(top+bottom)/2+(p.y-(y0+y1)/2)*pxPerM,
-  };};
-  function region(points:Vector3[],throat:number,canal=false) {
-    const ps=points.map(p=>project(p.y,p.z));
-    // Both oval contours are paired at equal axial depth; the tubular canal
-    // returns along its second wall. Preserve the solver's full outer contour
-    // and draw a distinct schematic lumen inside it, not liquid in the wall.
-    const cavity=ps.map((p,i)=>{const q=ps[canal?ps.length-1-i:(ps.length-i)%ps.length];return {
-      x:(p.x+q.x)/2+(p.x-q.x)*throat/2,y:(p.y+q.y)/2+(p.y-q.y)*throat/2,
-    };});
-    function loop(vertices:P2[]){const p=new Path2D();vertices.forEach(({x,y},i)=>i?p.lineTo(x,y):p.moveTo(x,y));p.closePath();return p;}
-    const yLo=Math.min(...cavity.map(p=>p.y)),yHi=Math.max(...cavity.map(p=>p.y));
-    const target=ps.reduce((a,p)=>p.x<a.x?p:a,ps[0]);
-    return {path:loop(ps),lumen:loop(cavity),yLo,yHi,target};
-  }
-  return { project,pxPerM, canal:region(section.canal,.75,true),cervix:region(section.cervix,.19),uterus:region(section.uterus,.58),entry:project(section.entry.y,section.entry.z) };
-}
-type Layout = ReturnType<typeof sectionLayout>;
-function label(ctx:CanvasRenderingContext2D, text:string,x:number,y:number,color=art.ink,weight=550,size=16,align:CanvasTextAlign='left') {
-  ctx.fillStyle=color; ctx.textAlign=align; ctx.font=`${weight} ${size}px system-ui,sans-serif`;ctx.textBaseline='middle';ctx.fillText(text,x,y);
-}
-function line(ctx:CanvasRenderingContext2D, points:readonly P2[], color:string,width:number) {
-  ctx.beginPath(); points.forEach(({x,y},i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.strokeStyle=color;ctx.lineWidth=width;ctx.stroke();
-}
-function dot(ctx:CanvasRenderingContext2D,p:P2,r:number,color:string){ctx.beginPath();ctx.arc(p.x,p.y,r,0,2*Math.PI);ctx.fillStyle=color;ctx.fill();}
-
-export function drawPelvicSection(ctx:CanvasRenderingContext2D, layout:Layout, profile:PelvicProfile, sample:PelvicSample|null, zh:boolean) {
-  const l=(a:string,b:string)=>zh?a:b, mode=profile.container, fantasy=mode==='fantasyUterine';
-  ctx.save();ctx.scale(ctx.canvas.width/SECTION_W,ctx.canvas.height/SECTION_H);
-  ctx.fillStyle=art.paper;ctx.fillRect(0,0,SECTION_W,SECTION_H);ctx.lineJoin=ctx.lineCap='round';
-  label(ctx,l('骨盆矢状剖面','Pelvic sagittal section'),10,15,art.ink,650,17);
-  const uncertain=!!sample&&!sample.outletInside&&!sample.outletVisible;
-  const status=!sample?l('无杆位采样','No rod sample'):sample.outletInside?(sample.atCervix?l('限位 · 在内','Stop · inside'):l('喷口在内','Outlet inside')):
-    sample.outletVisible?l('喷口在外','Outlet outside'):sample.atCervix?l('越限 · 不释放','Past stop · no dose'):l('未确认 · 不释放','Unverified · no dose');
-  label(ctx,status,SECTION_W-10,15,uncertain||sample?.atCervix?art.alert:art.muted,550,15,'right');
-  for (const key of ['uterus','canal','cervix'] as const) {
-    const shape=layout[key];ctx.fillStyle=art[key];ctx.fill(shape.path);
-    ctx.fillStyle='#fff2eb';ctx.fill(shape.lumen);
-    const vessel=key==='uterus'?'fantasyUterine':key==='canal'?'vaginal':null;
-    // Fantasy balance is retained when switching away, but is only drawn on
-    // the uterus with the explicitly labelled fictional mode selected.
-    if(vessel&&(vessel==='vaginal'||fantasy)&&profile.fluid[vessel]>0) {
-      const fraction=Math.max(0,Math.min(1,profile.fluid[vessel]/profile.capacity[vessel]));
-      const h=(shape.yHi-shape.yLo)*fraction, y=shape.yHi-h;
-      ctx.save();ctx.clip(shape.lumen);ctx.fillStyle=art.fluid;ctx.fillRect(0,y,SECTION_W,h+1);
-      line(ctx,[{x:0,y},{x:SECTION_W,y}],art.meniscus,2.2);ctx.restore();
+function drawAdnexa(ctx:Ctx,v:SectionLayout){
+  const face=Math.abs(Math.cos(v.yaw)),width=v.pxPerM*v.lengthM;
+  for(const [i,a] of v.adnexa.entries()){
+    ctx.save();ctx.globalAlpha=.25+.75*face;
+    if(i===0)ctx.globalAlpha*=.70+.30*face;
+    const tube=cubic(a.tube),w=Math.max(1.6,width*.052);
+    stroke(ctx,tube,'#512f43',w+2.3);stroke(ctx,tube,'#bc737e',w);stroke(ctx,tube,'#f5b5ab',w*.34);
+    const ampulla=cubic(a.tube.slice(3));stroke(ctx,ampulla,'#d89594',w*1.34);stroke(ctx,ampulla,'#ffd0b2',w*.42);
+    // A separate, tilted ovoid with a pearl margin and follicle pits,
+    // behind the flared infundibulum; not a circle glued to the tube.
+    ctx.save();ctx.translate(a.at.x,a.at.y);ctx.rotate(a.roll);
+    const oval=new Path2D();oval.ellipse(0,0,a.rx,a.ry,0,0,2*Math.PI);
+    fill(ctx,oval,gradient(ctx,{x:0,y:-a.ry},{x:0,y:a.ry},[[0,'#f4d9bb'],[.36,'#ddb1a3'],[.72,'#c18389'],[1,'#865566']]));
+    stroke(ctx,oval,'#f1c3ae',.85);ctx.clip(oval);
+    for(const [x,y,k] of [[-.48,-.12,.17],[.05,.27,.20],[.34,-.19,.23],[-.18,-.49,.11]]){
+      const rr=Math.max(.65,a.ry*k);dot(ctx,{x:x*a.rx,y:y*a.ry},rr+.45,'#efcbbb');dot(ctx,{x:x*a.rx,y:y*a.ry-.25},rr,'#a97480');
     }
-    ctx.strokeStyle='#b8777a';ctx.lineWidth=1.2;ctx.stroke(shape.lumen);
-    ctx.strokeStyle=art.wall;ctx.lineWidth=key==='cervix'?2.2:1.6;ctx.stroke(shape.path);
-  }
-  if(sample) {
-    const points=(sample.shaft?.length ? sample.shaft : [sample.tail,sample.tip]).map(p=>layout.project(p[1],p[2]));
-    const tip=layout.project(sample.tip[1],sample.tip[2]);
-    ctx.save();ctx.beginPath();ctx.rect(left-2,top-3,right-left+2,bottom-top+7);ctx.clip();
-    // When the mould samples are present, also project the actual shaft
-    // profile (including its flange). The centreline stays legible over tint.
-    const shaft=sample.shaft;
-    if(shaft&&shaft.length===rod.length){
-      const a=shaft[0],b=shaft[1],scale=Math.hypot(b[0]-a[0],b[1]-a[1],b[2]-a[2])/rod[1].distanceTo(rod[0]);
-      const rims:P2[][]=[[],[]];
-      points.forEach((p,i)=>{
-        const prev=points[Math.max(0,i-1)],next=points[Math.min(points.length-1,i+1)];
-        const dx=next.x-prev.x,dy=next.y-prev.y,n=Math.hypot(dx,dy)||1,r=rodRadii[i]*scale*layout.pxPerM;
-        rims[0].push({x:p.x+r*dy/n,y:p.y-r*dx/n});rims[1].push({x:p.x-r*dy/n,y:p.y+r*dx/n});
-      });
-      ctx.beginPath();[...rims[0],...rims[1].reverse()].forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();
-      ctx.fillStyle='rgba(99,129,177,0.47)';ctx.fill();ctx.strokeStyle=art.shaft;ctx.lineWidth=1;ctx.stroke();
-    }
-    if(uncertain||!sample.aligned)ctx.setLineDash([5,3]);
-    line(ctx,points,art.paper,7);line(ctx,points,art.shaft,4.8);ctx.setLineDash([]);
-    dot(ctx,tip,5.4,art.paper);dot(ctx,tip,3.8,uncertain?art.alert:art.tip);
-    if(uncertain){line(ctx,[{x:tip.x-1.5,y:tip.y-1.5},{x:tip.x+1.5,y:tip.y+1.5}],art.paper,1.2);line(ctx,[{x:tip.x+1.5,y:tip.y-1.5},{x:tip.x-1.5,y:tip.y+1.5}],art.paper,1.2);}
-    else if(sample.outletVisible&&!sample.outletInside)dot(ctx,tip,1.8,art.paper);
     ctx.restore();
-    // A tracked hand can be metres away. Do not squeeze the anatomy to fit it
-    // or clamp a false 'tip' to the edge. Point towards the off-chart sample.
-    if(tip.x<left||tip.x>right||tip.y<top||tip.y>bottom){
-      const e=layout.entry,dx=tip.x-e.x,dy=tip.y-e.y;
-      const k=Math.min(dx>0?(right-7-e.x)/dx:dx<0?(left+7-e.x)/dx:Infinity,dy>0?(bottom-5-e.y)/dy:dy<0?(top+5-e.y)/dy:Infinity);
-      const x=e.x+dx*k,y=e.y+dy*k, a=Math.atan2(dy,dx);ctx.save();ctx.translate(x,y);ctx.rotate(a);
-      line(ctx,[{x:-7,y:-4},{x:0,y:0},{x:-7,y:4}],uncertain?art.alert:art.tip,2.4);ctx.restore();
-    }
+    for(const strand of a.fringe){const f=cubic(strand);stroke(ctx,f,'#85495c',Math.max(1.6,w*.70));stroke(ctx,f,'#f6b1a0',Math.max(.85,w*.33));}
+    ctx.restore();
   }
-  const names = [l('子宫','Uterus'),l('宫颈','Cervix'),l('阴道','Vagina')];
-  const labels = ([layout.uterus,layout.cervix,layout.canal]).map((r,i)=>({target:r.target,title:names[i]})).sort((a,b)=>a.target.y-b.target.y);
-  let prev=top-17;
-  labels.forEach(({target,title},i)=>{
-    const y=Math.min(bottom-20*(2-i),Math.max(prev+23,target.y)), x=target.x-3;prev=y;
-    line(ctx,[{x:66,y},{x:74,y},{x:x-8,y:target.y},{x,y:target.y}],art.wall,1);dot(ctx,{x,y:target.y},1.8,art.wall);
-    label(ctx,title,10,y,art.ink,550,16);
+}
+
+function tissue(ctx:Ctx,v:SectionLayout,g:Shapes){
+  const fundus=ringAt(v.uterus,.7),ls=fundus.at(-1,0),rs=fundus.at(1,0);
+  ctx.save();ctx.translate(1.5,2);stroke(ctx,g.skin,'#301d2e',3);ctx.restore();
+  fill(ctx,g.skin,gradient(ctx,ls,rs,[[0,'#6a3b53'],[.15,'#aa6078'],[.31,'#eaa49d'],[.66,'#ad667a'],[1,'#69394f']]));
+  stroke(ctx,g.skin,'#e29b9b',1.12);
+  fill(ctx,g.face,gradient(ctx,ls,rs,[[0,'#cc8290'],[.19,'#f0b9a7'],[.42,'#eaa499'],[.72,'#bd7182'],[.91,'#e29b95'],[1,'#f4b49d']]));
+  stroke(ctx,g.face,'#f6bea5',.85);
+  // Fine fascicles on the oblique cut surface. Varying width and curvature
+  // around the fundus follow the loft instead of a screen-space hatch.
+  ctx.save();ctx.clip(g.face);
+  for(const sign of [-1,1])for(let j=0;j<4;j++){
+    const begin=.08+j*.11,end=.96-j*.014,points=v.uterus.flatMap((r,i)=>{
+      const t=i/(v.uterus.length-1);if(t<begin||t>end)return [];
+      const k=(t-begin)/(end-begin),u=.34+.115*j+.18*Math.sin(Math.PI*k)-.19*k;
+      return [r.at(sign*u,.12+.12*Math.sin(Math.PI*k))];
+    });line(ctx,points,j%2?'#c57d89':'#ffd0b5',.77);
+  }
+  // The two narrow transverse cuts define the cervical lips.
+  for(const t of [.18,.73]){const r=ringAt(v.cervix,t);line(ctx,[r.at(-.8,.28),r.at(-.36,.22),r.at(0,.26),r.at(.47,.27),r.at(.89,.22)],'#bd7683',.9);}
+  ctx.restore();
+  for(const [p,r] of [[g.uterus,fundus],[g.canal,ringAt(v.canal,.49)],[g.cervix,ringAt(v.cervix,.39)]] as const){
+    const wash=gradient(ctx,r.at(-1,0,true),r.at(1,0,true),[[0,'#925a70'],[.15,'#77465b'],[.53,'#482c41'],[.88,'#663e52'],[1,'#a36776']]);
+    stroke(ctx,p,'#b97483',3.8);fill(ctx,p,wash);stroke(ctx,p,'#ffcfb2',1.24);
+  }
+  // Rugae are paired, offset mucosal ridges on the exposed back wall. They
+  // break at the midline. The much narrower cervical canal stays separate.
+  ctx.save();ctx.clip(g.canal);
+  for(let j=0;j<6;j++)for(const sign of [-1,1]){
+    const t=.13+j*.126+(sign>0?.025:0),a=ringAt(v.canal,t),b=ringAt(v.canal,t+.055);
+    const p=cubic([a.at(sign*1.02,0,true),a.at(sign*.71,-.10,true),b.at(sign*.45,-.20,true),b.at(sign*.20,-.23,true)]);
+    stroke(ctx,p,'#543247',1.75);stroke(ctx,p,'#b07783',.76);
+  }
+  ctx.restore();
+  for(const sign of [-1,1])line(ctx,g.body.map(r=>r.at(sign*.89,-.04,true)),'#db998e',.75);
+  // The true aperture ellipse closes the open end of the longitudinal cut.
+  // Edge-on it reduces to a lip; from the exterior the viewer sees its bore.
+  const basal=v.canal[0];
+  if(Math.cos(v.yaw)>.015){
+    const outer=apertureLoop(basal,false);fill(ctx,outer,'#bd7d87');
+    fill(ctx,g.aperture,gradient(ctx,basal.at(0,1,true),basal.at(0,-1,true),[[0,'#472b40'],[.53,'#643c51'],[1,'#9a6071']]));
+    stroke(ctx,outer,'#e5ab9c',.85);stroke(ctx,g.aperture,'#f0b7a4',.95);
+  }
+  // A gold interrupted bar is the actual terminal cross section. There is
+  // no live trajectory running from here into the illustrated uterine lumen.
+  const end=v.canal[v.canal.length-1];ctx.save();ctx.setLineDash([2.6,2.1]);
+  line(ctx,[end.at(-.75,0),end.center,end.at(.75,0)],ink.gold,1.65);ctx.restore();
+}
+
+function callouts(ctx:Ctx,v:SectionLayout,zh:boolean){
+  const t=(z:string,e:string)=>zh?z:e;
+  const tags=[{to:ringAt(v.uterus,.65).at(-.92,0),name:t('宫体','Uterus')},
+    {to:ringAt(v.cervix,.53).at(-.96,0),name:t('宫颈','Cervix')},
+    {to:ringAt(v.canal,.43).at(-.92,0),name:t('阴道','Vagina')},
+    {to:v.canal[0].at(-.88,.15,true),name:t('入口','Entry')}];
+  if(Math.abs(Math.cos(v.yaw))>.54){const ov=v.adnexa.reduce((a,b)=>a.at.x<b.at.x?a:b);tags.push({to:ov.at,name:t('卵巢','Ovary')});}
+  tags.sort((a,b)=>a.to.y-b.to.y);
+  let prev=plot.top-15;
+  tags.forEach(({to,name},i)=>{
+    const y=Math.min(plot.bottom-8-22*(tags.length-1-i),Math.max(prev+22,to.y));prev=y;
+    const x=Math.max(64,to.x-3);
+    line(ctx,[{x:59,y},{x:68,y},{x:Math.max(72,x-16),y:to.y},{x,y:to.y}],'#a77d83',.85);
+    dot(ctx,{x,y:to.y},1.7,ink.gold);label(ctx,name,9,y,ink.pearl,13.5,550);
   });
-  const x=11,y=bottom-8;
-  line(ctx,[{x,y},{x:x+17,y}],art.shaft,3.8);dot(ctx,{x:x+17,y},3.5,art.tip);
-  label(ctx,l('杆 / 尖端','Rod / tip'),x,y-16,art.shaft,550,14);
-  line(ctx,[{x:10,y:196},{x:SECTION_W-10,y:196}],art.rule,1);
-  const depth=sample?`${cm(sample.depth)} cm`:'—',angle=sample?`${Math.round(sample.angleDeg)}°`:'—';
-  label(ctx,`${l('深度','Depth')} ${depth}`,10,211,art.ink,600,16);
-  label(ctx,`${l('轴角','Angle')} ${angle}`,142,211,art.ink,600,16);
-  label(ctx,sample?`${l('侧偏','Lat.')} ${cm(sample.tip[0])} cm`:'',SECTION_W-10,211,art.muted,500,13,'right');
-  const amount=profile.fluid[mode], capacity=profile.capacity[mode];
-  label(ctx,fantasy?l('虚构宫腔液位','Fantasy uterine level'):l('阴道液位','Vaginal level'),10,235,art.meniscus,600,16);
-  label(ctx,`${fmtUnits(amount)} / ${fmtUnits(capacity)} ${l('游戏单位','game u.')}`,SECTION_W-10,235,art.ink,600,16,'right');
-  ctx.fillStyle=art.rule;ctx.fillRect(10,249,SECTION_W-20,4);ctx.fillStyle=art.meniscus;ctx.fillRect(10,249,(SECTION_W-20)*Math.min(1,amount/capacity),4);
-  label(ctx,`${l('溢出','Overflow')} ${fmtUnits(profile.overflow)}`,10,268,profile.overflow>0?art.alert:art.muted,550,15);
-  label(ctx,`${l('已排出','Drained')} ${fmtUnits(profile.drained)}`,SECTION_W-10,268,art.muted,550,15,'right');
-  ctx.restore();return `${status} · ${l('深度','Depth')} ${depth} · ${angle} · ${fantasy?l('虚构宫腔','Fantasy uterus'):l('阴道','Vagina')} ${fmtUnits(amount)} / ${fmtUnits(capacity)} · ${l('溢出','Overflow')} ${fmtUnits(profile.overflow)} · ${l('已排出','Drained')} ${fmtUnits(profile.drained)}`;
+  // An actual metre ruler; choose a 1/2/5 step near 26 logical pixels.
+  const span=26/v.pxPerM,unit=10**Math.floor(Math.log10(span)),n=span/unit;
+  const distance=(n>=5?5:n>=2?2:1)*unit,x=SECTION_W-11,y=plot.bottom-7,w=distance*v.pxPerM;
+  line(ctx,[{x:x-w,y:y-3},{x:x-w,y},{x,y},{x,y:y-3}],ink.gold,1.1);label(ctx,`${fmtUnits(distance*100)} cm`,x,y-10,ink.gold,11.5,550,'right');
+}
+
+function paintPlate(ctx:Ctx,v:SectionLayout,g:Shapes,zh:boolean){
+  ctx.fillStyle=ink.paper;ctx.fillRect(0,0,SECTION_W,SECTION_H);ctx.lineJoin=ctx.lineCap='round';
+  const a=v.stop,glow=ctx.createRadialGradient(a.x,a.y,0,a.x,a.y,92);glow.addColorStop(0,'rgba(134,71,86,.20)');glow.addColorStop(1,'rgba(134,71,86,0)');
+  ctx.fillStyle=glow;ctx.fillRect(plot.left,plot.top,plot.right-plot.left,plot.bottom-plot.top);
+  drawAdnexa(ctx,v);tissue(ctx,v,g);callouts(ctx,v,zh);
+  for(const y of [25.5,198.5])line(ctx,[{x:9,y},{x:SECTION_W-9,y}],ink.rule,1);
+}
+// Reuse a single backing canvas *per destination*, even through animated
+// yaw. During tracking, the only work is one blit plus liquid, probe and text.
+type Plate={canvas:HTMLCanvasElement;v?:SectionLayout;zh?:boolean;g?:Shapes};
+const plates=new WeakMap<Ctx,Plate>();
+function background(ctx:Ctx,v:SectionLayout,zh:boolean){
+  let b=plates.get(ctx);const {width,height}=ctx.canvas;
+  if(!b&&typeof document!=='undefined'){b={canvas:document.createElement('canvas')};plates.set(ctx,b);}
+  if(b){
+    if(v!==b.v||zh!==b.zh||width!==b.canvas.width||height!==b.canvas.height||!b.g){
+      if(width!==b.canvas.width)b.canvas.width=width;if(height!==b.canvas.height)b.canvas.height=height;
+      const c=b.canvas.getContext('2d');if(c){
+        b.g=contours(v);c.setTransform(width/SECTION_W,0,0,height/SECTION_H,0,0);paintPlate(c,v,b.g,zh);b.v=v;b.zh=zh;
+      }
+    }
+    if(b.v===v&&b.g){ctx.drawImage(b.canvas,0,0,SECTION_W,SECTION_H);return b.g;}
+  }
+  const g=contours(v);paintPlate(ctx,v,g,zh);return g;
+}
+
+function liquid(ctx:Ctx,shape:Path2D,y:number){
+  ctx.save();ctx.clip(shape);ctx.fillStyle='rgba(66,182,170,.88)';ctx.fillRect(0,y,SECTION_W,SECTION_H-y);
+  line(ctx,[{x:0,y},{x:SECTION_W,y}],ink.fluid,2);ctx.restore();
+}
+function marker(ctx:Ctx,p:Point,state:Evidence['state'],r:number){
+  if(state==='absent')return;
+  const {x,y}=p;
+  if(state==='inside'){dot(ctx,p,r+1,'#342c46');dot(ctx,p,r,ink.tip);dot(ctx,p,r*.40,'#eef7ff');return;}
+  if(state==='outside'){
+    const d=path([{x:x-r,y},{x,y:y-r},{x:x+r,y},{x,y:y+r}],true);fill(ctx,d,ink.paper);stroke(ctx,d,ink.exterior,2);return;
+  }
+  dot(ctx,p,r+.9,ink.paper);line(ctx,[{x:x-r*.65,y:y-r*.65},{x:x+r*.65,y:y+r*.65}],ink.warning,2.1);
+  line(ctx,[{x:x-r*.65,y:y+r*.65},{x:x+r*.65,y:y-r*.65}],ink.warning,2.1);
+}
+function drawProbe(ctx:Ctx,v:SectionLayout,e:Evidence,sample:PelvicSample){
+  const tip=e.tip!;ctx.save();ctx.beginPath();ctx.rect(plot.left,plot.top,plot.right-plot.left,plot.bottom-plot.top);ctx.clip();
+  const inside=e.state==='inside',points=e.shaft,src=sample.shaft;
+  if(points.length>1){
+    const color=inside?ink.tip:ink.exterior;
+    if(src&&points.length===rod.length){
+      const a=src[0],b=src[1],scale=Math.hypot(b[0]-a[0],b[1]-a[1],b[2]-a[2])/rod[1].distanceTo(rod[0]);
+      const left:Point[]=[],right:Point[]=[];
+      points.forEach((p,i)=>{const prev=points[Math.max(0,i-1)],next=points[Math.min(i+1,points.length-1)];
+        const dx=next.x-prev.x,dy=next.y-prev.y,h=Math.hypot(dx,dy)||1,r=rodRadii[i]*scale*v.pxPerM;
+        left.push({x:p.x-r*dy/h,y:p.y+r*dx/h});right.push({x:p.x+r*dy/h,y:p.y-r*dx/h});});
+      const shape=path([...left,...right.reverse()],true);fill(ctx,shape,inside?'rgba(113,155,255,.39)':'rgba(174,141,232,.30)');stroke(ctx,shape,color,.95);
+    }
+    if(!inside)ctx.setLineDash([4,3]);const linePath=path(points);stroke(ctx,linePath,'#372b48',4);stroke(ctx,linePath,color,2);ctx.setLineDash([]);
+  }
+  if(tip.x<plot.left||tip.x>plot.right||tip.y<plot.top||tip.y>plot.bottom){
+    // This is a bearing, not a clamped tip. Its terminal glyph is an arrow.
+    const o=v.entry,dx=tip.x-o.x,dy=tip.y-o.y,m=Math.min(dx>0?(plot.right-5-o.x)/dx:dx<0?(plot.left+5-o.x)/dx:Infinity,
+      dy>0?(plot.bottom-5-o.y)/dy:dy<0?(plot.top+5-o.y)/dy:Infinity);
+    ctx.translate(o.x+m*dx,o.y+m*dy);ctx.rotate(Math.atan2(dy,dx));line(ctx,[{x:-7,y:-4},{x:0,y:0},{x:-7,y:4}],e.state==='unverified'?ink.warning:inside?ink.tip:ink.exterior,2.2);
+  }else marker(ctx,tip,e.state,4.25);
+  ctx.restore();
+}
+
+export function drawPelvicSection(ctx:Ctx,layout:SectionLayout,profile:PelvicProfile,sample:PelvicSample|null,zh:boolean){
+  const t=(z:string,e:string)=>zh?z:e,e=sectionEvidence(layout,profile,sample);
+  const mode=profile.container,fantasy=mode==='fantasyUterine',amount=profile.fluid[mode],capacity=profile.capacity[mode];
+  const state=e.state,status=state==='absent'?t('无杆位采样','No rod sample'):state==='inside'?(e.atCervix?t('限位 · 在内','Stop · inside'):t('喷口在内','Outlet inside')):
+    state==='outside'?t('喷口在外','Outlet outside'):e.atCervix?t('越限 · 不释放','Past stop · no dose'):t('未确认 · 不释放','Unverified · no dose');
+  const deg=Math.round(layout.yaw*180/Math.PI),view=deg===0?t('正面','Front'):deg===90?t('侧面','Side'):deg===38?t('斜前','Oblique'):`${deg}°`;
+  const depth=e.depth===null?'—':cm(e.depth),angle=e.angle===null?'—':`${Math.round(e.angle)}°`,lat=e.lateral===null?'—':signedCm(e.lateral);
+  const vessel=fantasy?t('虚构宫腔液位','Fantasy uterine level'):t('阴道液位','Vaginal level');
+  ctx.save();ctx.scale(ctx.canvas.width/SECTION_W,ctx.canvas.height/SECTION_H);ctx.lineJoin=ctx.lineCap='round';
+  const g=background(ctx,layout,zh);
+  if(e.vaginal>0)liquid(ctx,g.canalLiquid,layout.levelY('canal',e.vaginal));if(e.uterine>0)liquid(ctx,g.uterus,layout.levelY('uterus',e.uterine));
+  if(sample)drawProbe(ctx,layout,e,sample);
+  label(ctx,`${t('测量剖面','Section')} · ${view}`,9,12,ink.pearl,15.5,650);
+  const key=state==='unverified'?ink.warning:state==='inside'?ink.tip:state==='outside'?ink.exterior:ink.muted;
+  label(ctx,status,SECTION_W-9,12,key,14.5,600,'right');const w=ctx.measureText(status).width;marker(ctx,{x:SECTION_W-18-w,y:12},state,3.6);
+  for(const [x,name,value] of [[10,t('进入深度','Depth'),depth],[133,t('轴角','Angle'),angle],[225,t('侧偏','Lateral'),lat]] as const){
+    label(ctx,name,x,208,ink.muted,12.5,520);label(ctx,value,x,224,ink.pearl,16,650);
+  }
+  label(ctx,vessel,10,245,ink.fluid,14.5,600);
+  label(ctx,`${fmtUnits(amount)} / ${fmtUnits(capacity)} ${t('游戏单位','game u.')}`,SECTION_W-10,245,ink.pearl,14.5,600,'right');
+  ctx.fillStyle='#57404e';ctx.fillRect(10,255,SECTION_W-20,3);ctx.fillStyle=ink.fluid;ctx.fillRect(10,255,(SECTION_W-20)*(fantasy?e.uterine:e.vaginal),3);
+  const overflow=`${t('溢出','Overflow')} ${fmtUnits(profile.overflow)}`,drained=`${t('已排出','Drained')} ${fmtUnits(profile.drained)}`;
+  label(ctx,overflow,10,270,profile.overflow>0?ink.warning:ink.muted,13.5);label(ctx,drained,SECTION_W-10,270,ink.muted,13.5,550,'right');ctx.restore();
+  const plane=sample?` · ${t('喷口相对入口 Z（向外为正）','Nozzle Z from entry (+out)')} ${signedCm(sample.tip[2])}`:'';
+  return `${view} · ${status} · ${t('深度','Depth')} ${depth} · ${t('轴角','Angle')} ${angle} · ${t('侧偏','Lateral')} ${lat}${plane} · ${t('入口半径','Entry radius')} ${cm(layout.radiusM)} · ${t('通道长度','Canal length')} ${cm(layout.lengthM)} · ${vessel} ${fmtUnits(amount)} / ${fmtUnits(capacity)} · ${overflow} · ${drained}`;
 }

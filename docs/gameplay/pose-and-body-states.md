@@ -22,6 +22,8 @@
 
 这些设置属于该页背包中的角色，关闭页签或刷新会清除。生理示意参考：[美国女性健康办公室：月经周期与个体差异](https://womenshealth.gov/menstrual-cycle/your-menstrual-cycle) · [NHS：周期性乳房胀痛](https://www.nhs.uk/symptoms/breast-pain/)。
 
+在身体状态的周期页可从「两日对照」切到「子宫动态」，调日期或转动观察角度。不必先装骨盆附件。图像定格、冻结周期日和暂停舞蹈是三个独立操作。
+
 ## 工程与复验入口
 
 - [姿势求值与 IK](../../src/mmdVrShowcase/pose/poseSolver.ts)、[冻结动作源](../../src/mmdVrShowcase/pose/poseClip.ts)、[编辑寿命及命名姿势](../../src/mmdVrShowcase/pose/poseSession.ts)。单帧动作不用 VMD 原字节，不烘入 Bullet 衣物或显示层胸部变形。开始、退出允许重绑；拖动只改已绑定的轨道。检查脚锁、两肘膝、转腕、带物理衣物、失追与取消，以及回到原动作后下一帧。

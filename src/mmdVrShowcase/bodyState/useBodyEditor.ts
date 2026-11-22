@@ -7,7 +7,7 @@ import { beginBodyPreview, cancelBodyPreview, commitBodyPreview, disableBodyStat
 import { actions, line, type Action, type Field, type Row } from './controlRows';
 
 export type BodyActor = { assetId: string; runtimeId: string };
-type Page = 'cycle'|'rhythm'|'lining'|'secretions'|'chest'|'morphs'|'contact'|'sensitivity'|'milk'|'milkLevel';
+type Page = 'cycle'|'organ'|'rhythm'|'lining'|'secretions'|'chest'|'morphs'|'contact'|'sensitivity'|'milk'|'milkLevel';
 const percent = (n: number) => `${Math.round(n*100)}%`;
 const decimal = (n: number) => String(+n.toFixed(1));
 const clamp = (n: number, min: number, max: number) => Math.min(max,Math.max(min,n));
@@ -64,16 +64,19 @@ export function useBodyEditor({ assetId, runtimeId }: BodyActor) {
     rows.push({kind:'field',label:l('固定水平','Fixed level'),value:n,formatted:percent(n),min:0,max:1,step:.05,disabled:!manual,change:v=>patch({[key]:clamp(v,0,1)})});
   }
   const backTo = (to: Page, cn: string, en: string) => actions(navigate(to,cn,en));
-  if (page === 'cycle') {
+  if (page === 'cycle' || page === 'organ') {
     const a = sampleBody(base);
-    rows.push({kind:'diagram',legend:l('粉色：子宫内膜　浮起的短线：脱落','Pink: uterine lining · Loose marks: shedding'),samples:[
-      {...a,caption:`${saved?l('已确认','Saved'):l('起点','Start')} · ${day(atDay(base))}`,phase:languagePhase(a.phase)},
-      {...effective,caption:`${l('预览','Preview')} · ${day(atDay(p))}`,phase:languagePhase(effective.phase)}]},
-      {kind:'date',label:l('预览周期日','Preview cycle day'),value:atDay(p),max:p.length,change:n=>patch({day:Math.floor(n),daySeconds:Math.round((n%1)*BODY_DAY_SECONDS)})},
-      actions(act(l('−1 天','−1 day'),()=>{if(start())stepBodyDay(assetId,-1);}),
-        toggle(p.locked?l('日期已冻结','Day frozen'):l('冻结日期','Freeze day'),'locked'),
-        act(l('+1 天','+1 day'),()=>{if(start())stepBodyDay(assetId,1);})),
-      actions(navigate('rhythm','周期设置','Cycle settings'),navigate('lining','剖面设置','Section settings')));
+    rows.push({ kind:'cycle', organ:page === 'organ',
+      views:[navigate('cycle','两日对照','Compare days',page==='cycle'),navigate('organ','子宫动态','Uterus in motion',page==='organ')],
+      pair:{ legend:l('同尺度子宫壁切片：粉色为内膜，浮线为脱落。','Uterine wall, same scale. Pink: lining. Loose marks: shedding.'), samples:[
+        {...a,caption:`${saved?l('已确认','Saved'):l('起点','Start')} · ${day(atDay(base))}`,phase:languagePhase(a.phase)},
+        {...effective,caption:`${l('预览','Preview')} · ${day(atDay(p))}`,phase:languagePhase(effective.phase)}]},
+      date:{label:l('预览周期日','Preview cycle day'),value:atDay(p),max:p.length,change:n=>patch({day:Math.floor(n),daySeconds:Math.round((n%1)*BODY_DAY_SECONDS)})},
+      previous:act(l('−1 天','−1 day'),()=>{if(start())stepBodyDay(assetId,-1);}),
+      next:act(l('+1 天','+1 day'),()=>{if(start())stepBodyDay(assetId,1);}),
+      settings:[toggle(p.locked?l('日期已冻结','Day frozen'):l('冻结日期','Freeze day'),'locked'),
+        navigate('rhythm','周期设置','Cycle settings'),navigate('lining','剖面设置','Section settings')],
+    });
   } else if (page === 'rhythm') {
     rows.push(field(l('周期天数','Cycle length (days)'),'length',1),field(l('经期天数','Bleeding days'),'bleedDays',1),
       actions(toggle(p.ovulation?l('模拟排卵：开','Ovulation: on'):l('模拟排卵：关','Ovulation: off'),'ovulation')));

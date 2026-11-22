@@ -15,7 +15,7 @@ export function tangent(frame: Pick<PelvicFrame, 'lengthM'>, depthM: number, out
   const a = bend*bounded(depthM, frame.lengthM)/frame.lengthM;
   return out.set(0, Math.sin(a), -Math.cos(a));
 }
-export function projectDepth(frame: PelvicFrame, p: Vector3) {
+export function projectDepth(frame: Pick<PelvicFrame, 'lengthM'>, p: Vector3) {
   if (p.z >= 0) return -p.z;
   const r = frame.lengthM/bend, a = Math.atan2(-p.z, r-p.y);
   if (a <= bend) return r*a;

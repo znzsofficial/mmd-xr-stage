@@ -15,6 +15,7 @@
 
 | 要改什么 | 负责的模块 |
 |---|---|
+| 角色工具里的动态解剖图 | [`pelvic/atlas/`](../src/mmdVrShowcase/pelvic/atlas/) 在本地绘制可转动的解剖模型，屏幕和 XR 共用画面；优先在按需 Worker 内绘图，旧设备可回退。视图按背包资产保存；周期、接触和液量均只读。[测量投影](../src/mmdVrShowcase/pelvic/sectionProjection.ts)将真实三维样本投到相同观察方向。 |
 | 骨盆附件的手持／支架、剖面与液量 | [`pelvic/`](../src/mmdVrShowcase/pelvic/) 将资产校准与道具所有权分开。手持用真实握姿和当帧侧握事件；房间在角色求值后检验同一喷口，决定内部计量或外喷。支架、剖面都读取同一条校准轨道；屏幕／VR 不自行从滑块推断接触。[玩家操作](./gameplay/pelvic-attachment.md) |
 | 摆姿势、身体状态及局部剖面 | [`pose/`](../src/mmdVrShowcase/pose/) 管编辑手势、单帧动作和命名姿势；[`bodyState/`](../src/mmdVrShowcase/bodyState/) 管每个资产的虚构时间线、预览及显示适配。只有当房间挂载演员时，才关联其骨架／形态。屏幕和 VR 使用同一套命令。[操作与验证](./gameplay/pose-and-body-states.md) |
 | 默认设置、合法值、v1/v2 偏好兼容 | [`settings/preferences.ts`](../src/mmdVrShowcase/settings/preferences.ts)。首次进入、读取旧记录和场内更新共用同一套规则；[`mmdVrStore.ts`](../src/mmdVrShowcase/mmdVrStore.ts) 发布状态和操作。文件、布局和运行时句柄不属于偏好。 |

@@ -3,8 +3,9 @@ import type { BodySample } from './data';
 /** Magnified section through one uterine wall: lumen above, muscle below.
  * Both dates use the same scale and basal line. Values are relative, not mm. */
 type Section = Pick<BodySample, 'lining' | 'shedding'>;
-const colors = { lumen: '#fcf7f2', muscle: '#dfc9bb', muscleFiber: '#aa897a', lining: '#d78286',
-  surface: '#803f51', gland: '#fce4da', vessel: '#a54e61' };
+// The same inks and basal line on both dates are part of the comparison.
+const colors = { lumen: '#f6e9df', muscle: '#d8b597', muscleFiber: '#976c5c', lining: '#d78a95',
+  surface: '#79394d', gland: '#ffe2d2', vessel: '#934457' };
 const width = 128, height = 80, base = 60;
 const unit = (n: number) => Math.max(0, Math.min(1, n));
 
@@ -42,7 +43,14 @@ export function drawBodySection(ctx: CanvasRenderingContext2D, x: number, y: num
   ctx.beginPath(); ctx.rect(0,0,width,height); ctx.clip(); ctx.lineCap = 'round';
   for (const p of layers(sample)) {
     const path = new Path2D(p.d); ctx.globalAlpha = p.opacity ?? 1;
-    if (p.fill) { ctx.fillStyle = p.fill; ctx.fill(path); }
+    if (p.fill) {
+      if (p.fill === colors.lining) {
+        const ink=ctx.createLinearGradient(0,base-7-38*unit(sample.lining),0,base);
+        ink.addColorStop(0,'#efb1ae'); ink.addColorStop(.62,colors.lining); ink.addColorStop(1,'#b46a7d');
+        ctx.fillStyle=ink;
+      } else ctx.fillStyle = p.fill;
+      ctx.fill(path);
+    }
     if (p.stroke) { ctx.strokeStyle = p.stroke; ctx.lineWidth = p.weight ?? 1; ctx.stroke(path); }
   }
   ctx.restore();

@@ -22,6 +22,8 @@ For future character features, the user's reference is Koikatsu's Free H mode: d
 
 When proposing adult content, describe what the player can do with a chosen adult character or prop and what responds. A wedding room, romantic lighting or themed décor alone does not meet that request.
 
+An anatomical illustration here is a live game view. The player can rotate the same anatomy and see changes in tissue, instrument position and simulated liquid. Use local rendering rather than a gallery of static generated pictures or an external image API; keep illustrative motion separate from measured state.
+
 ## Product Purpose
 
 MMD XR Stage loads local model, animation and environment assets into an immersive WebXR stage. Success means dependable entry and playback, unobstructed viewing, and settings that are easy to reach and dismiss.
