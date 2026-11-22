@@ -1,12 +1,12 @@
 # 会话交接｜2026-11-22
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `1424cdc`](https://820d2df4.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `5bc0d37`](https://24f5de9c.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
 
-**当前发布。** `1424cdc` 已上线，主域名入口及 224 份资源的 SHA-256 与验证构建一致。点角色直接选[服装、互动、身体观察](./gameplay/actor-tools.md)。独立衣件显隐／透明与恢复、穿衣插入并选宫腔、按住分侧泌乳与松手、四部位的三种视角均有[屏幕及模拟双眼证据](./performance/actor-tools-regression.md)，不代替 Quest 3S 的佩戴体验。
+**当前发布。** `5bc0d37` 已上线，679 项测试通过；主域名入口及 229 份资源 SHA-256 与验证构建一致。所有舞台 HUD 统一深梅紫、象牙字和金色边线。角色入口仍是[服装、互动、身体观察](./gameplay/actor-tools.md)。屏幕与模拟双眼的[实际验证范围](./performance/actor-tools-regression.md)不等于 Quest 3S 光学和手感验收。
 
 **角色工具已交付：** [摆姿、胸型、周期、泌乳](./gameplay/pose-and-body-states.md)与[骨盆附件](./gameplay/pelvic-attachment.md)共用屏幕／XR 舞台。三主栏共用当前角色草稿，切栏不保存；「保存到角色」只存本页背包。乳房观察默认正面二次元外观，剖面和标注按需；图可在不支持胸型变形的 PMX 上使用。已确认的美术方向看 [PRODUCT](../PRODUCT.md) 和 [DESIGN](../DESIGN.md)，实现入口看[舞台架构](./architecture.md)。
 
-**演员 HUD 与舞台泌乳：** 互动用量即时记到演员，身体编辑器仍保留草稿和原有单次预演。穿衣继续不绕过校准入口；[泌乳](./gameplay/stage-lactation-proposal.md)则必须有适配的皮肤出口和实测露出，不支持时操作前即显示「仅数值」。胸型新美术与功能发布分开：试样 01 被拒（偏方硬），用户要平滑圆润的水滴形，先看下一版再决定是否替换动态图。私模、路径、可识别照片、原始头显报告不入仓。
+**演员 HUD 与舞台泌乳：** 互动用量即时记到演员，身体编辑器仍保留草稿和原有单次预演。穿衣继续不绕过校准入口；[泌乳](./gameplay/stage-lactation-proposal.md)则必须有适配的皮肤出口和实测露出，不支持时操作前即显示「仅数值」。水滴胸型 02 已批准并接入动态图；外阴有三种可切换外形，外侧软垫与内侧褶皱按偏压分别变形。美术试样、验收截图放本机 `local-review/`，图形验证只由一人串行运行。
 
 **待真机：** [Quest 3S 分趟导出](./performance/next-quest-export.md)。优先测教室首开物理、泳池回教室；另趟看抓点、双眼文字、持棒震感；地台／草坪各 15 分钟才验持续 72 FPS。最近已分析的头显报告是 11 月 20 日 14:43Z，早于修复。[屏幕实模与模拟双眼](./performance/actor-tools-regression.md)已验，不必当成尚未做过；用户已确认小行星正常行走。
 
