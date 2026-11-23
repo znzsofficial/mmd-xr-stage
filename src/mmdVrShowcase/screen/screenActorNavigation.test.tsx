@@ -80,15 +80,16 @@ it('can inspect a fresh actor without enabling an attachment or creating a body 
   expect(button('服装')).toBeTruthy();expect(usePelvic.getState().active).toBeNull();
 });
 
-it('opens insertion on the encounter lens, keeps a chosen view across clothing and leaves the release target alone',async()=>{
+it('opens insertion on the whole uterus, keeps a chosen view across clothing and leaves the release target alone',async()=>{
   vi.spyOn(document,'hidden','get').mockReturnValue(false);
   await click('pick b');await act(()=>{useMmdVrStore.setState({overlayOpen:true,presentation:'screen'});expect(enablePelvic('b',true)).toBe(true);});
   const profile=usePelvic.getState().byAsset.b;
   await click('互动');expect([...host.querySelectorAll('.activity-links button')].map(k=>k.textContent)).toEqual(['插入','泌乳','胸型','初始乳量']);
-  await click('插入');expect(button('子宫').getAttribute('aria-pressed')).toBe('true');expect(activeSheet()?.querySelector('[data-part="uterus"][data-encounter]')).toBeTruthy();
+  await click('插入');expect(button('子宫').getAttribute('aria-pressed')).toBe('true');expect(activeSheet()?.querySelector('canvas[data-part="uterus"]:not([data-encounter])')).toBeTruthy();
   await click('外阴');await click('斜面');await click('调整服装');await click('返回插入');
   expect(button('外阴').getAttribute('aria-pressed')).toBe('true');expect(button('斜面').getAttribute('aria-pressed')).toBe('true');
-  expect(activeSheet()?.querySelector('[data-encounter]')).toBeNull();expect(activeSheet()?.querySelector('input[aria-label="受孕率（游戏）"]')).toBeTruthy();
+  expect(activeSheet()?.querySelector('[data-encounter]')).toBeNull();expect(activeSheet()?.querySelector('input[aria-label="受孕率（游戏）"]')).toBeNull();
+  await click('卵子');expect(activeSheet()?.querySelector('input[aria-label="受孕率（游戏）"]')).toBeTruthy();
   await click('返回互动');expect(button('初始乳量')).toBeDefined();
   expect(usePelvic.getState().byAsset.b).toBe(profile);expect(profile.container).toBe('vaginal');
   expect(useBodyState.getState().draft).toBeNull();expect(useConception.getState().byAsset.b).toBeUndefined();

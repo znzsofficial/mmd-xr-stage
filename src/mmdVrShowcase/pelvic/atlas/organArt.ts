@@ -3,25 +3,26 @@ import type { PelvicSample } from '../stateTypes';
 import {semenColor,semenRGB} from '../../play/semenAppearance';
 import type { PelvicXYZ } from '../contract';
 import { pelvicCenterline, projectDepth, tangent } from '../path';
-import { canalY, clamp, ENTRY, organMeshes, ovary, tubePath, smooth, STOP, stride } from './model';
+import { canalY, cavityColumn, clamp, ENTRY, organMeshes, ovary, tubePath, smooth, STOP, stride } from './model';
 import {canalBands,canalStudy,type CanalStudy} from './canalGeometry';
 import {canalAspectX,canalAspectY,createCanalContact,fitWall,type CanalContact} from './canalContact';
 import type { Mesh, V } from './model';
 import type {EndometrialTissue} from '../../bodyState/data';
 import {createWallStudy,wallStride} from './uterineWall';
-import {drawEncounter,drawEncounterInset} from './reproductionArt';
-import type {ConceptionEvent} from '../../bodyState/reproduction/game';
+import {cavityDistension,cavityLevel,cavitySurface,createCanalLiquid} from './retainedFluid';
+import {drawEncounter,drawTransit} from './reproductionArt';
+import type {ConceptionEvent,Ovum} from '../../bodyState/reproduction/game';
 import {createExteriorStudy} from './exteriorStudy';
 import type {FoldStyle,RimState} from '../vulvaForm';
 
 export interface OrganArtOptions {
   x:number; y:number; width:number; height:number; yaw:number; time:number;
-  focus?:'uterus'|'vagina'|'vulva';
-  event?:ConceptionEvent;encounterSeconds?:number;encounterFocus?:boolean;
+  focus?:'uterus'|'vagina'|'vulva'|'egg';
+  event?:ConceptionEvent;encounterSeconds?:number;egg?:Ovum;
   foldStyle?:FoldStyle;rim?:RimState;
   /** Illustrative normalized tissue inputs, not physical measurements. */
   lining:number; shedding:number; pressure:number; zh:boolean; tissue?:EndometrialTissue; labels?:boolean;
-  /** Selected balance / its OWN capacity. Optional second balance is vaginal. */
+  /** Caption metadata and the two independent retained/capacity fractions. */
   fluid:number; fantasy:boolean; vaginalFluid?:number; uterineFluid?:number; sample?:PelvicSample|null; parked?:boolean;
 }
 export const organPigments={endometrium:'#f4b396',myometrium:'#d28177',ovary:'#e0c1a0',liquid:semenColor} as const;
@@ -35,12 +36,14 @@ function plate(w:number,h:number,base=false):Plate {
   return {w,h,color,z};
 }
 type Lens=ReturnType<typeof lens>;
-function lens(w:number,h:number,yaw:number,canal=false){
+type CanalFraming={frontPitch:number;sidePitch:number;width:number;height:number;lateral:number};
+const focusedFraming:CanalFraming={frontPitch:-.13,sidePitch:-.0975,width:.80,height:.89,lateral:-.12};
+function lens(w:number,h:number,yaw:number,canal?:CanalFraming){
   const ca=cos(yaw),sa=sin(yaw),a=Math.acos(clamp(abs(ca),0,1));
   const cut=smooth(.72,1.54,a),angle=cut*(sa<0?-1:1)*PI/2;
-  const pitch=.095*abs(ca),cp=cos(pitch),sp=sin(pitch),scale=canal?Math.min(w*.74/3.1,h*.83/3.6):Math.min(w*.91/11.99,h*.88/8.78);
+  const pitch=canal?mix(canal.sidePitch,canal.frontPitch,abs(ca)):.095*abs(ca),cp=cos(pitch),sp=sin(pitch),scale=canal?Math.min(w*canal.width/3.1,h*canal.height/3.6):Math.min(w*.91/11.99,h*.88/8.78);
   return {ca,sa,cut,cp,sp,scale,dc:cos(yaw-angle),ds:sin(yaw-angle),
-    ox:w*.5+(canal?0:.37)*sa*scale,oy:h*.5+(canal?ENTRY+1.61:.45)*scale,nearAlpha:1-smooth(.96,1.45,a),farAlpha:1-smooth(1.29,1.54,a)};
+    ox:w*.5+(canal?.lateral??.37)*sa*scale,oy:h*.5+(canal?ENTRY+1.61:.45)*scale,nearAlpha:1-smooth(.96,1.45,a),farAlpha:1-smooth(1.29,1.54,a)};
 }
 function point(l:Lens,x:number,y:number,z:number):V{
   const d=l.sa*x+l.ca*y;return [l.ox+(l.ca*x-l.sa*y)*l.scale,l.oy-(z*l.cp-d*l.sp)*l.scale,d*l.cp+z*l.sp];
@@ -79,26 +82,27 @@ function triangles(p:Plate,mesh:Topology,v:Float32Array,sectionMix=0,indexCount=
 // Dedicated cutaway uses object-space XYZ for BOTH materials, one invariant
 // dissection and actual displaced normals. No interpolation of view-specific
 // plates. The old overview stays on its independently authored corpus mesh.
-function projectCanal(mesh:Mesh,data:Float32Array,out:Float32Array,l:Lens,fill:number){
-  const level=mix(ENTRY,STOP,fill);
+function projectCanal(mesh:Mesh,data:Float32Array,out:Float32Array,l:Lens){
   for(let i=0,j=0;i<data.length;i+=stride,j+=N){
     const x=data[i],y=data[i+1],z=data[i+2],d=x*l.sa+y*l.ca;
     out[j]=l.ox+(x*l.ca-y*l.sa)*l.scale;out[j+1]=l.oy-(z*l.cp-d*l.sp)*l.scale;out[j+2]=d*l.cp+z*l.sp;
     let nx=data[i+3]*l.ca-data[i+4]*l.sa,front=data[i+3]*l.sa+data[i+4]*l.ca,up=data[i+5]*l.cp-front*l.sp;
     front=front*l.cp+data[i+5]*l.sp;if(front<0){nx=-nx;up=-up;front=-front;}
-    const diffuse=clamp(.53-.34*nx+.42*up+.39*front),gloss=mesh.a[i+11];
+    const diffuse=clamp(.35-.39*nx+.48*up+.43*front),gloss=mesh.a[i+11];
+    // The long softbox breaks into small highlights as the fold tips turn;
+    // only the exposed epithelium carries the sharp reflection. The broad
+    // diffuse lobes and warm backscatter describe bulk on the cut surfaces.
     const half=clamp(-.31*nx+.37*up+.875*front),spec=half*half,glint=spec*spec*spec*spec;
-    const shine=glint*glint*(4+gloss*24),bounce=(1-front)*(1-diffuse)*8;
-    let r=data[i+6],g=data[i+7],b=data[i+8];
-    if(fill>0&&gloss>0){const coat=gloss*(1-smooth(level-.04,level+.04,z))*.89;
-      r=mix(r,semenRGB[0],coat);g=mix(g,semenRGB[1],coat);b=mix(b,semenRGB[2],coat);}
-    out[j+3]=r*(.72+.28*diffuse)+shine+bounce;out[j+4]=g*(.64+.36*diffuse)+shine*.85;out[j+5]=b*(.73+.27*diffuse)+shine*.82+bounce;
+    const stripe=clamp(1-abs(up-.37)*5.8)*clamp(.62-.60*nx+.46*front),sheen=stripe*stripe;
+    const shine=glint*glint*(3+gloss*13)+gloss*(40*sheen*sheen+7*glint),bounce=(1-front)*(1-diffuse)*16;
+    const r=data[i+6],g=data[i+7],b=data[i+8];
+    out[j+3]=r*(.72+.28*diffuse)+shine+bounce;out[j+4]=g*(.64+.36*diffuse)+shine*.84;out[j+5]=b*(.68+.32*diffuse)+shine*.73+bounce*.59;
   }
 }
 
-// Same measured sections as the wall, depth-tested *between* the two sheets.
-// Slate keeps the measured mould separate from rose tissue and white liquid.
-const sleeveSides=20,sleeveCols=sleeveSides+1;
+// The cutaway paints the same mould that parts the walls. A satin silicone
+// highlight is distinct from the finer wet reflections on living tissue.
+const sleeveSides=28,sleeveCols=sleeveSides+1;
 const sleeveCircle=Array.from({length:sleeveCols},(_,i)=>[cos(i*2*PI/sleeveSides),sin(i*2*PI/sleeveSides)]);
 function sleeveTopology():Topology{
   const rows=canalBands+2,indices=new Uint32Array((rows-1)*sleeveSides*6);
@@ -110,15 +114,29 @@ function drawSleeve(contact:CanalContact,mesh:Topology,out:Float32Array,p:Plate,
   const rows=contact.rings((row,z,x,y,rx,ry,shear)=>{
     for(let i=0,j=row*sleeveCols*N;i<sleeveCols;i++,j+=N){const [cx,cy]=sleeveCircle[i],sx=x+cx*rx,sy=y+cy*ry+cx*rx*shear,d=sx*l.sa+sy*l.ca;
       out[j]=l.ox+(sx*l.ca-sy*l.sa)*l.scale;out[j+1]=l.oy-(z*l.cp-d*l.sp)*l.scale;out[j+2]=d*l.cp+z*l.sp;
-      const k=clamp(.31+.49*(cx*l.sa+cy*l.ca)-.30*(cx*l.ca-cy*l.sa));out[j+3]=113+79*k;out[j+4]=103+75*k;out[j+5]=135+70*k;
     }
-  });if(rows>=2)triangles(p,mesh,out,0,(rows-1)*sleeveSides*6,.62);
+  });if(rows<2)return;
+  // Light the true crown: its radius and centre change along the measured
+  // shaft. A circular swatch lit only around its axis reads as a flat strip.
+  const inv=1/l.scale;
+  for(let row=0;row<rows;row++)for(let i=0;i<sleeveCols;i++){
+    const idx=row*sleeveCols,k=(idx+i)*N,prev=(idx+(i+sleeveSides-1)%sleeveSides)*N,next=(idx+(i+1)%sleeveSides)*N;
+    const lo=(Math.max(0,row-1)*sleeveCols+i)*N,hi=(Math.min(rows-1,row+1)*sleeveCols+i)*N;
+    const ax=(out[next]-out[prev])*inv,ay=(out[prev+1]-out[next+1])*inv,az=out[next+2]-out[prev+2];
+    const bx=(out[hi]-out[lo])*inv,by=(out[lo+1]-out[hi+1])*inv,bz=out[hi+2]-out[lo+2];
+    const x=ay*bz-az*by,y=az*bx-ax*bz,z=ax*by-ay*bx,n=(z<0?-1:1)/(Math.hypot(x,y,z)||1);
+    const nx=x*n,ny=y*n,nz=z*n,lam=clamp(.49-.39*nx+.28*ny+.40*nz),shine=clamp(-.43*nx+.37*ny+.81*nz)**19;
+    // Dusty mauve in the shadow and a broad pearl highlight, as on the
+    // model's moulded outer coat. White remains identifiable as retained fluid.
+    out[k+3]=115+86*lam+34*shine;out[k+4]=65+83*lam+43*shine;out[k+5]=92+77*lam+40*shine;
+  }
+  triangles(p,mesh,out,0,(rows-1)*sleeveSides*6,.88);
 }
 function projectMesh(mesh:Mesh,out:Float32Array,l:Lens,o:OrganArtOptions,vag:boolean,wall?:readonly [Float32Array,Float32Array]){
   const a=mesh.a,b=mesh.b,section=mesh.section,q=section?l.cut:0,iq=1-q,dc=section?l.dc:l.ca,ds=section?l.ds:l.sa;
   const lining=sane(o.lining),shed=sane(o.shedding),pressure=sane(o.pressure),time=Number.isFinite(o.time)?o.time:0;
-  const fill=vag?sane(o.vaginalFluid??(o.fantasy?0:o.fluid)):sane(o.uterineFluid??(o.fantasy?o.fluid:0));
-  const level=vag?mix(ENTRY,STOP,fill):mix(.47,3.77,fill);
+  const fill=vag&&o.focus==='uterus'?0:sane((vag?o.vaginalFluid:o.uterineFluid)??0);
+  const level=vag?mix(ENTRY,STOP,fill):cavityLevel(fill),pool={height:0,opacity:0,pearl:0};
   let i=0,j=0,k=0;
   for(let row=0;row<mesh.rows;row++){
     const rowZ=a[i+2];
@@ -136,6 +154,9 @@ function projectMesh(mesh:Mesh,out:Float32Array,l:Lens,o:OrganArtOptions,vag:boo
         x=x*(1-constr)-Math.sign(x)*inset;y=y*(1-constr)+lw*.045+relief;
         if(vag&&l.sa<0)z-=.38*q*(row/(mesh.rows-1))*Math.sin((col/(mesh.cols-1)-.5)*PI);
         if(vag&&pressure>0){const k=clamp(1-abs(z-STOP)*.63)*pressure;x*=1+.055*k;y-=.075*k*lum;}
+        if(!vag&&fill>0&&mesh.etch){const u=cavityColumn(col/(mesh.cols-1));
+          if(q>0)x+=q*cavityDistension(level,z,u);
+          if(lum>0){cavitySurface(pool,level,z,u,lum);y+=pool.height;}}
         z+=lift;}
       const depth=x*ds+y*dc+xc*l.ca;
       out[j]=l.ox+(x*dc-y*ds-xc*l.sa)*l.scale;out[j+1]=l.oy-(z*l.cp-depth*l.sp)*l.scale;out[j+2]=depth*l.cp+z*l.sp;
@@ -151,12 +172,9 @@ function projectMesh(mesh:Mesh,out:Float32Array,l:Lens,o:OrganArtOptions,vag:boo
         if(wall){const gland=wall[0][k+2]*iq+wall[1][k+2]*q,vessel=wall[0][k+3]*iq+wall[1][k+3]*q;
           r+=wave*2.6+gland*21-vessel*31;g+=gland*25-vessel*64;bl+=gland*18-vessel*39;
         }else{r+=lw*(lining*6-shed*19)+wave*2.6;g-=lw*shed*38;bl-=lw*shed*20;}
-        // Only a tagged lumen receives the actual compartment balance. No drops,
-         // inferred flow, or transfer between organs when changing the view.
-        const coverage=vag?smooth(.8,1.72,lum):smooth(.60,.92,lum);
-        if(fill>0&&coverage>0){const wet=(1-smooth(level-.025,level+.025,z))*coverage;
-          const rim=clamp(1-abs(z-level)/.085)*wet,alpha=wet*.96;
-          r=mix(r,semenRGB[0]+8*rim,alpha);g=mix(g,semenRGB[1]+9*rim,alpha);bl=mix(bl,semenRGB[2]+10*rim,alpha);}
+        if(fill>0&&lum>0){const alpha=vag?(1-smooth(level-.03,level+.03,z))*smooth(.8,1.72,lum)*.91:pool.opacity;
+          const pearl=vag?0:pool.pearl;
+          r=mix(r,semenRGB[0]+pearl*.74,alpha);g=mix(g,semenRGB[1]+pearl,alpha);bl=mix(bl,semenRGB[2]+pearl,alpha);}
       }
       out[j+3]=r*light+shine+edge*11;out[j+4]=g*(light-.017)+shine*.93+edge*7;out[j+5]=bl*(light+.015)+shine*.79+edge*13;
     }
@@ -177,9 +195,9 @@ function annotations(ctx:CanvasRenderingContext2D,l:Lens,o:OrganArtOptions,linin
   };
   if(front){const s=l.ca>=0?-1:1;call(point(l,...ovary(s)),o.zh?'卵巢':'Ovary',false,h*.48,organPigments.ovary);
     if(o.focus==='uterus')call(point(l,...tubePath(.48,s)),o.zh?'输卵管':'Tube',false,h*.077,organPigments.myometrium);}
-  if(o.focus==='uterus')call(point(l,0,1.3,4.1),o.zh?'子宫':'Uterus',true,h*(o.event ? .38 : .44),organPigments.myometrium);
-  if(o.labels&&l.ca>-.25)call(liningPt,o.zh?'子宫内膜':'Endometrium',!o.event,h*.63,organPigments.endometrium);
-  if(o.labels&&!front)call(musclePt,o.zh?'子宫肌层':'Myometrium',!!o.event,h*.32,organPigments.myometrium);
+  if(o.focus==='uterus')call(point(l,0,1.3,4.1),o.zh?'子宫':'Uterus',true,h*.44,organPigments.myometrium);
+  if(o.labels&&l.ca>-.25)call(liningPt,o.zh?'子宫内膜':'Endometrium',true,h*.63,organPigments.endometrium);
+  if(o.labels&&!front)call(musclePt,o.zh?'子宫肌层':'Myometrium',false,h*.32,organPigments.myometrium);
 }
 
 const vec=new Vector3(),c0=new Vector3(),tv=new Vector3();
@@ -209,21 +227,21 @@ function sampleMark(ctx:CanvasRenderingContext2D,l:Lens,o:OrganArtOptions){
 
 /** One owner per DOM canvas / HUD texture. Reuses model topology and CPU depth
  * buffers; the caller's current canvas transform, clip and alpha are respected. */
-export function createOrganArt(){
+export function createOrganArt(canalFraming:CanalFraming=focusedFraming){
   const wall=createWallStudy(),exterior=createExteriorStudy();
   let canvas:HTMLCanvasElement|OffscreenCanvas|null=null,ic:CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D|null=null;
   let frame:Plate|undefined,back:Plate|undefined,near:Plate|undefined,img:ImageData|undefined,lastYaw=NaN;
   let meshes:Mesh[]|undefined,work=new Float32Array(0),lastCanal=false;
-  let cut:CanalStudy|undefined,contact:CanalContact|undefined,dynamic:Float32Array[]|undefined,sleeve:Topology|undefined,previousFill=NaN;
+  let cut:CanalStudy|undefined,liquid:ReturnType<typeof createCanalLiquid>|undefined,contact:CanalContact|undefined,dynamic:Float32Array[]|undefined,sleeve:Topology|undefined,previousFill=NaN;
   return {draw(ctx:CanvasRenderingContext2D,o:OrganArtOptions){
     if(!(o.width>0&&o.height>0))return;
     if(o.focus==='vulva'){exterior(ctx,o);return;}
-    if(o.encounterFocus&&o.focus==='uterus'){
-      ctx.save();ctx.translate(o.x,o.y);drawEncounter(ctx,o.event,o.width,o.height,o.zh,o.encounterSeconds,o.yaw*180/PI);ctx.restore();return;
+    if(o.focus==='egg'){
+      ctx.save();ctx.translate(o.x,o.y);drawEncounter(ctx,o.egg,o.width,o.height,o.zh,o.encounterSeconds,o.yaw*180/PI);ctx.restore();return;
     }
     const canal=o.focus==='vagina';
     if(canal){
-      if(!cut){cut=canalStudy();contact=createCanalContact();dynamic=[cut.posterior.a.slice(),cut.anterior.a.slice()];sleeve=sleeveTopology();}
+      if(!cut){cut=canalStudy();liquid=createCanalLiquid(cut);contact=createCanalContact();dynamic=[cut.posterior.a.slice(),cut.anterior.a.slice()];sleeve=sleeveTopology();}
       const size=cut.anterior.rows*cut.anterior.cols*N;if(work.length<size)work=new Float32Array(size);
     }else if(!meshes){meshes=organMeshes();const size=Math.max(...meshes.map(m=>m.rows*m.cols))*N;if(work.length<size)work=new Float32Array(size);}
     // Fold geometry and readings remain at their authored resolution. For the
@@ -237,12 +255,12 @@ export function createOrganArt(){
       canvas.width=w;canvas.height=h;ic=canvas.getContext('2d') as typeof ic;if(!ic)return;
       frame=plate(w,h);back=plate(w,h,true);near=undefined;img=ic.createImageData(w,h);lastYaw=NaN;
     }
-    const l=lens(w,h,yaw,canal);
+    const framing=canal?canalFraming:undefined,l=lens(w,h,yaw,framing);
     const sectioning=!canal&&l.nearAlpha>0&&l.nearAlpha<1;
     const turned=yaw!==lastYaw||canal!==lastCanal;
     if(turned){new Uint32Array(back.color.buffer).fill(0xff221721);back.z.fill(-1e4);
       if(sectioning){near??=plate(w,h);near.z.fill(-1e4);}
-      if(canal){for(const mesh of [cut!.commissure,cut!.vault,cut!.cervix]){projectCanal(mesh,mesh.a,work,l,0);triangles(back,mesh,work);}}
+      if(canal){for(const mesh of [cut!.commissure,cut!.vault,cut!.fornix,cut!.cervix]){projectCanal(mesh,mesh.a,work,l);triangles(back,mesh,work);}}
       else for(const mesh of meshes!)if(!mesh.section){const ipsi=mesh.wing===(l.sa<0?-1:1);
         if((ipsi?l.nearAlpha:l.farAlpha)===0)continue;
         projectMesh(mesh,work,l,o,false);triangles(ipsi&&sectioning?near!:back,mesh,work);}
@@ -251,13 +269,14 @@ export function createOrganArt(){
       lastYaw=yaw;lastCanal=canal;
     }
     if(canal){
-      const fit=contact!,s=cut!,shifted=fit.update(o.sample,o.parked),fill=sane(o.vaginalFluid??(o.fantasy?0:o.fluid));
+      const fit=contact!,s=cut!,shifted=fit.update(o.sample,o.parked),fill=sane(o.vaginalFluid??0);
       if(turned||shifted||fill!==previousFill){
         frame.z.set(back.z);frame.color.set(back.color);previousFill=fill;
         for(const [i,mesh] of [s.posterior,s.anterior].entries()){
           if(shifted&&fit.active)fitWall(mesh,i===0?-1:1,fit,dynamic![i]);
-          projectCanal(mesh,fit.active?dynamic![i]:mesh.a,work,l,fill);triangles(frame,mesh,work);
+          projectCanal(mesh,fit.active?dynamic![i]:mesh.a,work,l);triangles(frame,mesh,work);
         }
+        for(const m of liquid!.update(fill,fit.active?dynamic![0]:s.posterior.a,shifted)){projectCanal(m,m.a,work,l);triangles(frame,m,work);}
         if(fit.active)drawSleeve(fit,sleeve!,work,frame,l);
         img.data.set(frame.color);ic!.putImageData(img,0,0);
       }
@@ -270,7 +289,7 @@ export function createOrganArt(){
       img.data.set(frame.color);ic!.putImageData(img,0,0);
     }
     ctx.save();ctx.translate(o.x,o.y);ctx.beginPath();ctx.rect(0,0,o.width,o.height);ctx.clip();
-    ctx.drawImage(canvas,0,0,o.width,o.height);const logical=lens(o.width,o.height,yaw,canal);
+    ctx.drawImage(canvas,0,0,o.width,o.height);const logical=lens(o.width,o.height,yaw,framing);
     if((o.labels||o.focus==='uterus')&&!canal){
       // Label endpoints follow the deformed surface, not fixed screen points.
       const m4=meshes![3],iRow=Math.round((1.94+1.618)/6.437*(m4.rows-1))*m4.cols;
@@ -279,8 +298,8 @@ export function createOrganArt(){
       const pt=(i:number):V=>[work[i*N]*o.width/w,work[i*N+1]*o.height/h,work[i*N+2]];
       annotations(ctx,logical,o,pt(idx),pt(Math.round((2.82+1.618)/6.437*(m4.rows-1))*m4.cols+Math.round(m4.cols*.17)));
     }
-    if(o.focus==='uterus'&&o.event)drawEncounterInset(ctx,o.event,v=>point(logical,...v),o.width,o.height,abs(logical.ca)<=.47,o.zh,o.encounterSeconds,o.yaw*180/PI);
-    sampleMark(ctx,logical,o);ctx.restore();
-  },dispose(){canvas=null;ic=null;frame=back=near=undefined;img=undefined;meshes=undefined;cut=undefined;dynamic=undefined;sleeve=undefined;contact=undefined;
+    if(o.focus==='uterus'&&o.event)drawTransit(ctx,o.event,v=>point(logical,...v),Math.min(o.width/344,o.height/282),o.encounterSeconds);
+    if(!canal)sampleMark(ctx,logical,o);ctx.restore();
+  },dispose(){canvas=null;ic=null;frame=back=near=undefined;img=undefined;meshes=undefined;cut=undefined;liquid=undefined;dynamic=undefined;sleeve=undefined;contact=undefined;
     wall.clear();work=new Float32Array(0);lastYaw=NaN;}};
 }

@@ -15,13 +15,16 @@ import { useStagePlay } from '../play/stagePlay';
 import { shelfToys, TOYS } from '../play/propCatalog';
 import {useBodyState} from '../bodyState/store';
 import {chanceFor,useConception} from '../bodyState/reproduction/store';
-import {usePelvic} from '../pelvic/store';
+import {enablePelvic,patchPelvic,publishPelvicSample,publishPelvicSupport,usePelvic} from '../pelvic/store';
+import {PelvicObserver} from '../pelvic/PelvicObserver';
+import {readAtlasView} from '../pelvic/atlas/view';
 
 const harness = vi.hoisted(() => ({ camera: {} as unknown, b: (_: string) => {} }));
 vi.mock("@react-three/fiber", () => ({ useThree: (selector: (s: typeof harness) => unknown) => selector(harness), useFrame: vi.fn() }));
 vi.mock("@react-three/xr", () => ({ useXRInputSourceState: () => undefined, useXRControllerButtonEvent: (_: unknown, id: string, cb: typeof harness.b) => { if (id === "b-button") harness.b = cb; } }));
 vi.mock("../../shared/panelTexture", () => ({ createPanelTexture: () => ({ dispose: vi.fn() }), roundRectPath: vi.fn() }));
-vi.mock('../observation/ObservationDiagram',()=>({ObservationDiagram:({part,fertility}:{part:string;fertility?:boolean})=><group name={`figure:${part}${fertility?':encounter':''}`}/>}));
+vi.mock('../observation/ObservationDiagram',()=>({ObservationDiagram:({part}:{part:string})=><group name={`figure:${part}`}/>}));
+vi.mock('../pelvic/Section',()=>({PelvicLiveSection:()=>null}));
 
 const t = useLanguageStore.getState().t;
 const bag = () => useBackpack.getState();
@@ -157,14 +160,33 @@ it('sets both chance endpoints in XR without mounting a prop, and opens the matc
   useMmdVrStore.setState({overlayOpen:true,presentation:'xr'});vi.spyOn(document,'hidden','get').mockReturnValue(false);
   vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValue(null);
   await render();await click(t('actorInteraction'));expect(button('生育进程')).toBeUndefined();expect(button('周期')).toBeUndefined();
-  await click(t('actorInsert'));expect(host.querySelector('[name="figure:uterus:encounter"]')).toBeTruthy();expect(chanceFor('a0')).toBe(60);
+  await click(t('actorInsert'));expect(host.querySelector('[name="figure:uterus"]')).toBeTruthy();expect(mesh(`hud-label:${t('actorChance')}`)).toBeUndefined();
+  await click('卵子');expect(host.querySelector('[name="figure:egg"]')).toBeTruthy();expect(chanceFor('a0')).toBe(60);
   const control=mesh(`hud-label:${t('actorChance')}`)!.parentElement!;
   const adjust=async(label:string,n:number)=>{for(let i=0;i<n;i++)await act(async()=>control.querySelector<HTMLElement>(`[name="hud:${label}"]`)!.click());};
   await adjust('−',12);expect(chanceFor('a0')).toBe(0);await adjust('+',20);expect(chanceFor('a0')).toBe(100);expect(useConception.getState().byAsset.a0.event).toBeUndefined();
+  await click('强制排卵');await click('强制排卵');await click('卵子 1');expect(useConception.getState().byAsset.a0.eggs).toHaveLength(2);
+  const eggs=useConception.getState().byAsset.a0.eggs;
+  for(const [label,degrees] of [['正面',0],['斜面',38],['侧面',90]] as const){await click(label);expect(readAtlasView('a0')).toMatchObject({degrees,eggId:1});}
+  expect(useConception.getState().byAsset.a0.eggs).toBe(eggs);
   await click('阴道');expect(host.querySelector('[name="figure:vagina"]')).toBeTruthy();expect(usePelvic.getState().byAsset.a0).toBeUndefined();
   await click(t('backToInteraction'));await click(t('actorBack'));await click(t('actorObservation'));await click('子宫');
   expect(host.querySelector('[name="figure:uterus"]')).toBeTruthy();expect(host.querySelector('[name="observation:controls"] [name="hud:+"]')).toBeNull();expect(labels()).toContain('最近结果');
   expect(useBodyState.getState().draft).toBeNull();
+});
+
+it('hands off the metre readout to the passive hand figure when starting dismisses the actor sheet',async()=>{
+  useBackpack.setState({selected:'a0',live:{a0:instance('actor0')}});
+  useMmdVrStore.setState({overlayOpen:true,presentation:'xr'});vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValue(null);
+  enablePelvic('a0',true);patchPelvic('a0',{clothed:true});publishPelvicSupport('a0',{runtimeId:'actor0',kind:'bones',anchorName:'hips'});
+  await act(()=>root.render(<><BackpackWorldTools/><PelvicObserver rig={{current:null}}/></>));
+  await click(t('actorInteraction'));await click(t('actorInsert'));await click('更多操作');await click('交给左手');
+  expect(mesh('hud-label:实际到达')).toBeDefined();expect(mesh('hud-label:目标深度')).toBeUndefined();
+  await click('开始手持并收起面板');const active=usePelvic.getState().active!;
+  expect(active).toMatchObject({mode:'xrManual',running:true});expect(bag().selected).toBeNull();
+  await act(()=>{publishPelvicSample(active.token,{depth:.043,outletInside:true,aligned:true,atCervix:false,tip:[0,0,-.043],tail:[0,0,.09],radiusM:.025,lengthM:.09,angleDeg:0});});
+  expect(host.querySelector('[name="pelvic:hand-depth"] [name="hud-label:实际到达"]')).not.toBeNull();expect(button('开始手持并收起面板')).toBeUndefined();
+  await act(()=>bag().select('a0'));expect(host.querySelector('[name="pelvic:hand-depth"]')).toBeNull();expect(usePelvic.getState().sample).toBeNull();
 });
 
 it("targets the selected runtime for transforms, but the stable character and exact file for body/face motions", async () => {

@@ -39,11 +39,6 @@ export function fitRows({assetId,source,l,profile,support,fit,setFit,morph,names
     if(!profile.showAdapter||!profile.clothingClear)rows.push(buttons(key(profile.clothingClear?l('显示外阴附件','Show vulva attachment'):
       l('入口已露出，显示外阴附件','Opening is clear · show attachment'),()=>patchPelvic(assetId,{showAdapter:true,clothingClear:true}),{disabled:!ready})));
     if(support?.obstruction)rows.push(buttons(key(l('调整服装','Clothing'),clothes)));
-    const rim=profile.rimMode??'off';
-    const rimModes=[['off',l('关','Off')],['elastic',l('弹性','Elastic')],['remember',l('记住首次','Remember first')]] as const;
-    rows.push({kind:'buttons',label:l('处女膜缘','Hymenal rim'),keys:rimModes.map(([mode,label])=>
-      key(label,()=>{if(mode!==rim)patchPelvic(assetId,{rimMode:mode});},{id:mode,active:mode===rim}))});
-    if(rim==='remember')rows.push(note(profile.rimMemory?l('首次进入已记录','First entry recorded'):l('等待首次有效进入','Awaiting first entry')));
     rows.push(
       buttons(key(l('选择开合形态','Choose opening morph'),()=>{setPage(Math.max(0,Math.floor(names.indexOf(morph??'')/3)));setFit('morph');})),
       buttons(key(c.manual?l('改用骨骼定位','Use bone position'):l('手动指定起点','Set origin manually'),()=>{if(c.manual)patch({manual:null});else if(support?.manualSeed){patch({manual:support.manualSeed});setFit('position');}},{disabled:!c.manual&&!support?.manualSeed})),

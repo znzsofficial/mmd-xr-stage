@@ -5,6 +5,9 @@ export type ConceptionEvent = Readonly<{
 }>;
 
 export const DEFAULT_CHANCE=60;
+export const MAX_EGGS=3;
+/** Numbered within one backpack actor. A failed encounter leaves this egg available. */
+export type Ovum=Readonly<{id:number;side:-1|1;fertilized:boolean;event?:ConceptionEvent}>;
 
 export function resolveConception(id:number,chance:number,side:-1|1,target?:ConceptionEvent['target']):ConceptionEvent {
   const success=chance===100 || (chance>0 && Math.random()<chance/100);

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ThreeEvent } from '@react-three/fiber';
 import { Shape, ShapeGeometry } from 'three';
-import { createPanelTexture } from '../../shared/panelTexture';
 import { PRIVATE_COLORS as c, PRIVATE_TITLE_FACE, buttonInks, type ButtonVariant } from './palette';
 import { useHudKeyTexture, type KeyPainter } from '../components/useHudKeyTexture';
 
@@ -105,15 +104,16 @@ export function PrivateSheet({size}:{size:Size}) {
 
 export function PrivateLine({position,width,text,value,title=false,rose=false}:{position:Point;width:number;text:string;value?:string;title?:boolean;rose?:boolean}) {
   const px=Math.round(width*density),py=64;
-  const texture=useMemo(()=>createPanelTexture(px,py,({ctx})=>{
+  // A measured value can change several times per second. Keep the canvas
+  // and GPU texture, just as the neighbouring buttons do on hover.
+  const texture=useHudKeyTexture(px,py,useCallback<KeyPainter>(({ctx})=>{
     ctx.textBaseline='middle';ctx.fillStyle=rose?c.rouge:title?c.ink:c.muted;
     let right=px-3;
     if(value){ctx.font='650 28px system-ui,sans-serif';ctx.fillStyle=c.gold;ctx.textAlign='right';ctx.fillText(value,right,py/2);
       right-=ctx.measureText(value).width+12;ctx.textAlign='left';ctx.fillStyle=c.muted;}
     ctx.font=title?`600 40px ${PRIVATE_TITLE_FACE}`:'500 27px system-ui,sans-serif';
     ctx.fillText(text,2,py/2,Math.max(1,right-2));
-  },'en'),[px,text,value,title,rose]);
-  useEffect(()=>()=>texture.dispose(),[texture]);
+  },[px,text,value,title,rose]));
   return <mesh name={`hud-label:${text}`} position={position} renderOrder={30} pointerEvents="none" raycast={noRay}>
     <planeGeometry args={[width,py/density]}/><meshBasicMaterial map={texture} {...material}/></mesh>;
 }

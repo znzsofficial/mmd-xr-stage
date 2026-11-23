@@ -6,6 +6,8 @@ import {useHudWorldInput} from '../components/hudWorldInput';
 import {useMmdVrStore} from '../mmdVrStore';
 import {usePelvic} from './store';
 import {PelvicLiveSection} from './Section';
+import {DepthHudReadout} from './StrokeReadout';
+import {PRIVATE_COLORS} from './palette';
 import type {PelvicRigHandle} from './PelvicRig';
 
 // Closing the controls frees the holding hand's grip. Leave the section beside
@@ -18,6 +20,7 @@ export function PelvicObserver({rig}:ObserverProps){
   return xr&&id&&live?.visible&&!panel&&!blocked?<SectionStand rig={rig} assetId={id} runtimeId={live.runtimeId}/>:null;
 }
 function SectionStand({assetId,runtimeId,rig}:{assetId:string;runtimeId:string}&ObserverProps){
+  const handheld=usePelvic(s=>s.active?.assetId===assetId&&s.active.runtimeId===runtimeId&&s.active.mode==='xrManual');
   const group=useRef<Group>(null),s=useMemo(()=>({eye:new Vector3(),look:new Vector3(),right:new Vector3(),up:new Vector3(0,1,0)}),[]);
   useFrame(({gl})=>{
     const live=useBackpack.getState().live[assetId],node=group.current;if(!node)return;
@@ -39,5 +42,10 @@ function SectionStand({assetId,runtimeId,rig}:{assetId:string;runtimeId:string}&
     node.lookAt(s.eye);
   });
   return <group ref={group} visible={false} name="pelvic:observer" pointerEvents="none">
-    <PelvicLiveSection assetId={assetId} runtimeId={runtimeId}/></group>;
+    <PelvicLiveSection assetId={assetId} runtimeId={runtimeId}/>
+    {handheld&&<group position-y={-.207} scale={.5} name="pelvic:hand-depth" pointerEvents="none">
+      <mesh renderOrder={29} position-z={-.002} raycast={()=>null}><planeGeometry args={[.84,.12]}/>
+        <meshBasicMaterial color={PRIVATE_COLORS.paper} toneMapped={false} fog={false} depthTest={false} depthWrite={false}/></mesh>
+      <DepthHudReadout assetId={assetId} runtimeId={runtimeId} width={.79}/>
+    </group>}</group>;
 }

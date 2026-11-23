@@ -3,6 +3,27 @@ import {PrivateLine} from './HudPrivateControls';
 import type {PelvicActor} from './Section';
 import {usePelvic} from './store';
 
+// Only a running solver reports admitted depth in world metres. A stopped
+// rod can sit inside geometrically without having made a new crossing.
+function useReached({assetId,runtimeId}:PelvicActor){
+  const label=useLanguageStore(s=>s.language==='zh'?'实际到达':'Measured depth');
+  const value=usePelvic(s=>{
+    const a=s.active;if(a?.assetId!==assetId||a.runtimeId!==runtimeId)return '— cm';
+    const p=a.running?s.sample:s.parkedSample;
+    if(a.running&&p?.outletInside)return `${(p.depth*100).toFixed(1)} cm`;
+    return p&&p.tip[2]>=0?'0.0 cm':'— cm';
+  });
+  return {label,value};
+}
+export function DepthScreenReadout(actor:PelvicActor){
+  const r=useReached(actor);
+  return <div className="pelvic-depth-reading"><span>{r.label}</span><b>{r.value}</b></div>;
+}
+export function DepthHudReadout({width,...actor}:PelvicActor&{width:number}){
+  const r=useReached(actor);
+  return <PrivateLine position={[0,0,0]} width={width} text={r.label} value={r.value}/>;
+}
+
 // The close-up shows the individual strokes. Captions hold still until the
 // stand or the player's one-shot order changes, including on a fast motor.
 function useReadout({assetId,runtimeId}:PelvicActor){

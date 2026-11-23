@@ -26,47 +26,80 @@
 .screen-stage .pelvic-body[data-live=true] .pelvic-key[aria-pressed=true]:enabled::after { background:var(--pelvic-rouge) }
 .screen-stage .pelvic-body[data-live=true] :is(.live-pelvic-view,.pelvic-keys[data-choices]) .pelvic-key:focus-visible { --edge:var(--pelvic-gold) }
 .pelvic-body[data-live=true] .pelvic-nav .pelvic-keys { border-color:var(--pelvic-control) }
+.live-monitor-body,.live-monitor-detail,.live-pelvic-eggs { display:grid;align-content:start;min-width:0;gap:.3rem }
+.live-pelvic-rim { display:grid;gap:.2rem }
+.live-pelvic-rim > :first-child,.pelvic-depth-reading { color:var(--pelvic-muted);font-size:.89rem }
+.live-pelvic-rim > :first-child { display:flex;align-items:baseline;justify-content:space-between;gap:.3rem }
+.live-egg-choices:empty { display:none }
+.screen-stage .live-pelvic-view .live-ovulate:enabled { --face:var(--pelvic-control);--letters:var(--pelvic-ink);--edge:var(--pelvic-rule) }
+.pelvic-depth-reading { display:flex;align-items:baseline;justify-content:space-between;gap:.35rem;min-height:1.35em }
+.pelvic-depth-reading b { color:var(--pelvic-gold);font-variant-numeric:tabular-nums;white-space:nowrap }
+.pelvic-field-pair { display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,8rem),1fr));gap:.35rem .65rem;align-items:end }
 @media (min-width:651px) {
   .screen-workspace .screen-library:has(.pelvic-body[data-live=true]) { width:min(49rem,60%) }
   .pelvic-body[data-live=true] { grid-template-columns:minmax(0,1.16fr) minmax(0,1fr);gap:clamp(.6rem,1.2vw,1rem) }
   .pelvic-live-plate { position:sticky;top:3.7rem }
 }
 @media (max-width:650px) {
-  .pelvic-live-plate .live-pelvic-view { grid-template-columns:repeat(2,minmax(0,1fr));column-gap:.35rem }
-  .pelvic-live-plate .live-pelvic-heading { grid-area:1 / 1 / 2 / -1 }
-  .pelvic-live-plate .live-pelvic-view .observation-art { grid-area:2 / 1 / 3 / -1 }
-  .pelvic-live-plate .live-pelvic-view .observation-art canvas { max-height:clamp(9rem,23dvh,13rem) }
-  .pelvic-live-plate .live-pelvic-view .live-pelvic-parts { grid-area:3 / 1 }
-  .pelvic-live-plate .live-pelvic-view .live-pelvic-angles { grid-area:3 / 2 }
+  /* Keep the operating controls at one baseline across all four lenses. The
+     detail column can scroll on a short phone or when using enlarged text. */
+  .pelvic-live-plate .live-pelvic-view { display:flex;flex-direction:column;align-items:stretch }
+  .pelvic-live-plate .live-pelvic-heading { min-height:0;block-size:2.75rem }
+  .live-monitor-body { grid-template: minmax(0,1fr) auto / minmax(0,1fr) minmax(0,1fr);align-items:start;gap:.3rem .5rem;block-size:clamp(10.5rem,22dvh,13rem) }
+  .live-monitor-detail { grid-area:1/2/3/3;min-height:0;max-height:100%;overflow-y:auto;scrollbar-color:var(--pelvic-rule) var(--pelvic-paper) }
+  .pelvic-live-plate .live-pelvic-view .observation-art { grid-area:1/1;align-self:center;max-height:100% }
+  .pelvic-live-plate .live-pelvic-view .observation-art canvas { max-height:clamp(7rem,15dvh,9rem) }
+  .live-pelvic-angles { grid-area:2/1 }
+  .live-pelvic-rim { grid-area:2/1/3/-1 }
+  .live-pelvic-view[data-part=vulva] .live-pelvic-angles { grid-area:1/2;align-self:center }
+  .live-pelvic-view[data-part=vulva] .live-monitor-detail { display:none }
+  .live-pelvic-view:is([data-part=uterus],[data-part=vagina]) .live-monitor-body { grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);grid-template-rows:auto 1fr }
+  .pelvic-live-plate .live-pelvic-view:is([data-part=uterus],[data-part=vagina]) .observation-art { grid-area:1/1/3/2 }
+  .pelvic-live-plate .live-pelvic-view:is([data-part=uterus],[data-part=vagina]) .observation-art canvas { max-height:clamp(10.5rem,22dvh,13rem) }
+  .live-pelvic-view:is([data-part=uterus],[data-part=vagina]) .live-pelvic-angles { grid-area:1/2 }
+  .live-pelvic-view:is([data-part=uterus],[data-part=vagina]) .live-monitor-detail { grid-area:2/2 }
+  .screen-stage .pelvic-live-plate .live-monitor-body .pelvic-key { padding-inline:.2rem }
   @container pelvic-sheet (max-width:18.5rem) {
     .screen-stage .pelvic-body[data-live=true] .pelvic-fields .pelvic-key { padding-inline:.25rem }
-    .pelvic-live-plate .live-pelvic-view .live-pelvic-parts { grid-area:3 / 1 / 4 / -1 }
-    .pelvic-live-plate .live-pelvic-view .live-pelvic-angles { grid-area:4 / 1 / 5 / -1 }
+    .live-monitor-body { grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr) }
   }
 }
 @media (max-width:650px) and (orientation:portrait) {
-  .screen-workspace .screen-library:has(.pelvic-body[data-live=true]) { max-height:70%;padding:.35rem .5rem }
-  /* One result beside the organ title. Leave the whole picture row for the encounter. */
-  .pelvic-live-plate .live-pelvic-view:has(.uterus-record) .live-pelvic-heading { grid-area:1 / 1 }
-  .pelvic-live-plate .live-pelvic-view .uterus-record { grid-area:1 / 2;align-self:center;margin:0;padding:0 }
-  .pelvic-live-plate .uterus-record div { display:flex;justify-content:flex-end;gap:.3rem;flex-wrap:wrap;align-items:baseline }
-  .pelvic-live-plate .uterus-record dt { font-size:.78rem }
-  .pelvic-live-plate .uterus-record dd { text-align:end;font-size:.87rem }
-  .pelvic-screen:has(.pelvic-body[data-live=true]) { padding:.4rem .52rem }
-  .pelvic-body[data-live=true] { gap:.35rem;padding-top:.35rem }
+  .screen-workspace .screen-library:has(.pelvic-body[data-live=true]) { max-height:73%;padding:.2rem .5rem }
+  .pelvic-screen:has(.pelvic-body[data-live=true]) { padding:.15rem .52rem .4rem }
+  .pelvic-screen:has(.pelvic-body[data-live=true]) > .pelvic-heading { padding-block:0 .15rem }
+  .pelvic-body[data-live=true] { gap:.32rem;padding-top:.14rem }
   .pelvic-body[data-live=true] :is(.pelvic-operation,.pelvic-fields) { gap:.32rem }
   .pelvic-body[data-live=true] .pelvic-fields { order:1 }
   .pelvic-body[data-live=true] .pelvic-nav { order:3 }
-}
-/* Short portrait sheet: keep the two release targets close to the encounter.
-   The six view choices still have full-height tap targets beside the picture. */
-@media (min-width:340px) and (max-width:650px) and (orientation:portrait) {
-  .pelvic-live-plate .live-pelvic-view:has(.uterus-record) { grid-template-columns:minmax(0,1fr) 3.25rem 3.25rem }
-  .pelvic-live-plate .live-pelvic-view:has(.uterus-record) .uterus-record { grid-column:2/-1 }
-  .pelvic-live-plate .live-pelvic-view:has(.uterus-record) .observation-art { grid-area:2/1 }
-  .pelvic-live-plate .live-pelvic-view:has(.uterus-record) .observation-art canvas { max-height:clamp(8.5rem,18dvh,10rem) }
-  .pelvic-live-plate .live-pelvic-view:has(.uterus-record) .live-pelvic-parts { grid-area:2/2 }
-  .pelvic-live-plate .live-pelvic-view:has(.uterus-record) .live-pelvic-angles { grid-area:2/3 }
-  .pelvic-live-plate .live-pelvic-view:has(.uterus-record) :is(.live-pelvic-parts,.live-pelvic-angles) {flex-direction:column;gap:0;align-self:center}
-  .screen-stage .pelvic-live-plate .live-pelvic-view:has(.uterus-record) .pelvic-key {padding-inline:.15rem}
+  /* The operating manual stand also has an outlet status and stock line.
+     Place both immediately below its mode, jog and release keys, so wrapping
+     an English status or changing the measured outlet cannot move a key. */
+  .pelvic-operation:has(> .pelvic-state):has(.pelvic-depth-reading) > .pelvic-fields { display:contents }
+  .pelvic-operation:has(.pelvic-depth-reading) > .pelvic-state { grid-row:4;min-height:0 }
+  .pelvic-operation:has(.pelvic-depth-reading) .pelvic-fields > .pelvic-note { grid-row:5 }
+
+  /* Tabs identify the organ. Give the picture and its detail one shared,
+     fixed-height spread so changing the lens never shifts the operating keys. */
+  .pelvic-live-plate .live-pelvic-view {
+    display:grid;grid-template-columns:minmax(0,.94fr) minmax(0,1.06fr);
+    grid-template-rows:2.75rem 2.75rem minmax(0,1fr) 2.75rem;gap:.18rem .5rem;
+    block-size:calc(2.75rem + clamp(10.75rem,21dvh,11.5rem));align-content:stretch;
+  }
+  .pelvic-live-plate .live-pelvic-view > .live-pelvic-parts { grid-area:1/1/2/-1 }
+  .pelvic-live-plate .live-pelvic-view .live-monitor-body { display:contents }
+  .pelvic-live-plate .live-pelvic-heading { grid-area:2/2;min-width:0;block-size:auto }
+  .pelvic-live-plate .live-pelvic-heading h4 { margin:0;padding:0 }
+  .pelvic-live-plate .live-pelvic-heading h4 > span { display:none }
+  .pelvic-live-plate .live-pelvic-view .observation-art { grid-area:2/1/4/2 }
+  .pelvic-live-plate .live-pelvic-view .observation-art canvas { max-height:clamp(7.5rem,15dvh,8rem) }
+  .pelvic-live-plate .live-pelvic-angles { grid-area:4/1 }
+  .pelvic-live-plate .live-monitor-detail { grid-area:3/2/5/3 }
+  .pelvic-live-plate .live-pelvic-view:not([data-part=egg]) .live-pelvic-heading { grid-area:3/2;align-self:start }
+  .pelvic-live-plate .live-pelvic-view:not([data-part=egg]) .live-pelvic-heading:has(small:empty) { display:none }
+  .pelvic-live-plate .live-pelvic-view:is([data-part=uterus],[data-part=vagina]) .observation-art { grid-area:2/1/5/2 }
+  .pelvic-live-plate .live-pelvic-view:not([data-part=egg]) .live-pelvic-angles { grid-area:2/2;align-self:start }
+  .pelvic-live-plate .live-pelvic-view:is([data-part=uterus],[data-part=vagina]) .live-monitor-detail { grid-area:4/2;align-self:start }
+  .pelvic-live-plate .live-pelvic-view[data-part=vulva] { grid-template-rows:2.75rem 2.75rem minmax(0,1fr) auto }
+  .pelvic-live-plate .live-pelvic-rim { grid-area:4/1/5/-1 }
 }

@@ -18,7 +18,7 @@ it('isolates a captured drag, painted pixels and late bitmaps across actor chang
   const drawImage=vi.fn(),ctx=new Proxy({}, {get:(_,key)=>key==='drawImage'?drawImage:()=>{},set:()=>true}) as CanvasRenderingContext2D;
   vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValue(ctx);
   const host=document.createElement('div'),root=createRoot(host);let mounted=true;
-  const event:ConceptionEvent={id:1,success:false,chance:20,at:0,side:-1};useConception.setState({byAsset:{a:{chance:80,event}}});
+  const event:ConceptionEvent={id:1,success:false,chance:20,at:0,side:-1};useConception.setState({byAsset:{a:{chance:80,event,eggs:[{id:1,fertilized:false,side:-1,event}]}}});
   setAtlasView('a',{motion:false,degrees:0});setAtlasView('b',{motion:false,degrees:90});
   const show=async(assetId:string)=>{await act(async()=>root.render(<StrictMode><AtlasScreenGraphic assetId={assetId} runtimeId={assetId} scope="uterus"/></StrictMode>));return host.querySelector('canvas')!;};
   function pointer(el:HTMLCanvasElement,type:string,x:number){el.dispatchEvent(new PointerEvent(type,{bubbles:true,pointerId:3,clientX:x,button:0}));}

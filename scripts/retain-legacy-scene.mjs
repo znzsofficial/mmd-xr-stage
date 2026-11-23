@@ -4,6 +4,11 @@ import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 
 const files = [
+  ['2cedc07b','index-BZXo65DD.js','24afec75bb989bb2908a8af94de80beeb1dce127f286522a2fcb1fb3f96d6654'],
+  ['2cedc07b','PlanetPhysics-ZXJZaipg.js','983b3eb0bad422ea5fa199fd6d5dc3efd902a73f58c8d07da53e52c473114bfe'],
+  ['2cedc07b','tide-section-06RFVSMF.webp','c7ca2559f56d7db239a3c5eb37f10ea98f6eb2c381e9ad10a992d3213ab513e8'],
+  ['2cedc07b','tide-shore-CxgKO6ws.webp','49f5daea891e265b0beedde68dc2c771915299f98b201e8376ddb096a050812f'],
+  ['2cedc07b','tide-valve-normals-CnCkyCtD.webp','3620f95af9b3ab86a3152f245eb63418246484f33204130a318d41928b06a845'],
   ['39ddb5de','index-BgYVo4cw.js','f423e30a3f58cdb23f12fcde56681b10a26318d18793d2d762e1c5686178b091'],
   ['39ddb5de','PlanetPhysics-DL1V2T16.js','5a1b2e66f450d5541c3439ba5927381014d173d2d520ec2399ca067b88dfa95d'],
   ['eed3526f','index-gT7xGe-5.js','c41f7662c7efd2da69c5b6ff2ffd2e5be9c9135fa293e070c539524131a2915f'],

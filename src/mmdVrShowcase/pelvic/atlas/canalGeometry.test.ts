@@ -2,7 +2,7 @@ import {expect,it,vi} from 'vitest';
 import {DoubleSide,Float32BufferAttribute,BufferGeometry,Mesh,MeshBasicMaterial,Raycaster,Vector3,Matrix4} from 'three';
 import {createPelvicSolver,pelvicRailMatrix} from '../geometry';
 import {canalY,ENTRY,STOP,stride,type Mesh as StudyMesh} from './model';
-import {canalBands,canalStudy,canalStation} from './canalGeometry';
+import {canalBands,canalStudy,canalStation,mucosaEnd} from './canalGeometry';
 import {createCanalContact,fitWall} from './canalContact';
 import type {PelvicSample} from '../stateTypes';
 import {createOrganArt,type OrganArtOptions} from './organArt';
@@ -19,14 +19,14 @@ function session(x=0){
   }
   frame();return (to:number)=>{let sample=frame();while(mm!==to){mm+=Math.sign(to-mm);sample=frame();}return sample;};
 }
-function atX(mesh:StudyMesh,row:number,x:number){
-  // First 20 columns are the exposed mucosal surface, with increasing X.
+function atX(mesh:StudyMesh,row:number,x:number,data=mesh.a){
+  // Sample the same anatomical X even when the mucosal mesh is retessellated.
   const a=mesh.a;let i=row*mesh.cols*stride;
-  for(let j=0;j<20;j++,i+=stride)if(a[i]<=x&&a[i+stride]>=x){const k=(x-a[i])/(a[i+stride]-a[i]);return a[i+1]+k*(a[i+stride+1]-a[i+1]);}
+  for(let j=0;j<Math.round((mesh.cols-1)*mucosaEnd);j++,i+=stride)if(a[i]<=x&&a[i+stride]>=x){const k=(x-a[i])/(a[i+stride]-a[i]);return data[i+1]+k*(data[i+stride+1]-data[i+1]);}
   throw new Error('outside retained tissue');
 }
 it('keeps the opposing sheets in contact below the vault and closes the deep end with a protruding, solid cervical surface',()=>{
-  const {posterior:p,anterior:a,cervix,vault}=canalStudy();
+  const {posterior:p,anterior:a,cervix,vault,fornix}=canalStudy();
   const heights=Array.from({length:canalBands},(_,i)=>({t:canalStation(i),gap:atX(a,i,.48)-atX(p,i,.48)}));
   for(const {gap} of heights.filter(h=>h.t<.78))expect(gap).toBeCloseTo(.012,2);
   expect(heights.filter(h=>h.t>1.16).every(h=>h.gap>.55)).toBe(true);
@@ -46,6 +46,19 @@ it('keeps the opposing sheets in contact below the vault and closes the deep end
   // oblique cut. The same lateral ray must clear the cervix and hit its roof.
   const lateral=.60,nose=distal(cervix,0),roof=distal(vault,lateral);expect(nose).toBeDefined();expect(roof).toBeDefined();
   expect(Math.abs(nose!-STOP)).toBeLessThan(.38);expect(roof!-nose!).toBeGreaterThan(.22);expect(distal(cervix,lateral)).toBeUndefined();
+  expect(distal(fornix,0)??Infinity).toBeGreaterThan(nose!);expect(Math.min(distal(fornix,lateral)??Infinity,roof!)-nose!).toBeGreaterThan(.22);
+});
+
+it('flattens actual posterior fold crests under the measured shaft and recovers their profile as it withdraws',()=>{
+  const pose=session(.002),m=canalStudy().posterior,contact=createCanalContact(),out=m.a.slice();
+  const range=Array.from({length:m.rows},(_,i)=>i).filter(i=>canalStation(i)>.22&&canalStation(i)<.49);
+  function trace(x:number,data:Float32Array){return range.map(i=>atX(m,i,x,data));}
+  // Variation of the slope removes a rigid translation/tilt. Moving the
+  // entire wall or a tip icon without pressing out the rugae cannot pass.
+  function bends(y:number[]){return y.slice(1,-1).reduce((s,h,i)=>s+Math.abs(y[i]-2*h+y[i+2]),0);}
+  contact.update(pose(60));fitWall(m,-1,contact,out);
+  for(const x of [-.10,.16]){const raw=bends(trace(x,m.a));expect(raw).toBeGreaterThan(.09);expect(bends(trace(x,out))).toBeLessThan(raw*.32);}
+  contact.update(pose(14));fitWall(m,-1,contact,out);for(const x of [-.10,.16])expect(trace(x,out)).toEqual(trace(x,m.a));
 });
 
 // Capture the production CPU z-buffer *before* the separate tip annotations.

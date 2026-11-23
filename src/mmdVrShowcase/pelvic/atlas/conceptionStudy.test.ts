@@ -1,7 +1,9 @@
-import {expect,it} from 'vitest';
+import {expect,it,vi} from 'vitest';
 import type {ConceptionEvent} from '../../bodyState/reproduction/game';
 import {encounterCut,encounterSwimmers,paintConceptionLens} from './conceptionStudy';
 import {lensView,nuclei,SHELL,type V} from './encounterGeometry';
+import {drawEncounter} from './reproductionArt';
+import {createOrganArt,type OrganArtOptions} from './organArt';
 
 const hit:ConceptionEvent={id:11,side:-1,at:1200,chance:100,success:true};
 const miss:ConceptionEvent={...hit,id:12,at:1600,chance:0,success:false};
@@ -66,11 +68,14 @@ it('projects the same waving cohort through front, oblique and side: depth order
 
 // Record drawing commands without a DOM or second renderer. This exercises
 // the public brush used by both sizes, including the caption opt-out.
-function impression(event:ConceptionEvent|undefined,age:number,degrees:number,caption:boolean){
+function drawing(paint:(c:CanvasRenderingContext2D)=>void){
   const marks:(string|number)[][]=[],gradient={addColorStop(){}};
-  const base={globalAlpha:1,createLinearGradient:()=>gradient,createRadialGradient:()=>gradient};
+  const base={globalAlpha:1,createLinearGradient:()=>gradient,createRadialGradient:()=>gradient,getTransform:()=>({a:1,b:0,c:0,d:1}),measureText:()=>({width:26})};
   const c=new Proxy(base,{get:(o,k)=>k in o?Reflect.get(o,k):(...args:(string|number)[])=>marks.push([String(k),...args])}) as unknown as CanvasRenderingContext2D;
-  paintConceptionLens(c,event,100,100,82,true,2.5,age,encounterCut(event,age),degrees,caption);return marks;
+  paint(c);return marks;
+}
+function impression(event:ConceptionEvent|undefined,age:number,degrees:number,caption:boolean){
+  return drawing(c=>paintConceptionLens(c,event,100,100,82,true,2.5,age,encounterCut(event,age),degrees,caption));
 }
 it('retains an exact held frame, rotates the real brush in either lens and honours the caption switch',()=>{
   const a=impression(hit,7.6,38,false);expect(a.some(op=>op[0]==='fillText')).toBe(false);
@@ -78,4 +83,35 @@ it('retains an exact held frame, rotates the real brush in either lens and honou
   expect(impression(hit,7.6,0,false)).not.toEqual(a);expect(impression(hit,7.6,90,false)).not.toEqual(a);expect(impression(hit,7.6,38,false)).toEqual(a);
   expect(impression(undefined,12,38,true).find(op=>op[0]==='fillText')?.[1]).toBe('卵子');
   expect(impression(miss,12,38,true).find(op=>op[0]==='fillText')?.[1]).toBe('未受精');
+});
+
+it('draws no cell, marker or encounter when the selected actor has no egg; an available egg has a real, rotatable study',()=>{
+  const empty=drawing(c=>drawEncounter(c,undefined,344,282,true));
+  expect(empty.map(([op])=>op)).toEqual(['save','fillRect','fillText','restore']);expect(empty.find(([op])=>op==='fillText')?.[1]).toBe('暂无卵子');
+  const egg={id:1,side:-1 as const,fertilized:false},draw=(degrees:number)=>drawing(c=>drawEncounter(c,egg,344,282,true,12,degrees));
+  expect(draw(0).filter(([op])=>op==='ellipse').length).toBeGreaterThan(10);expect(draw(0)).not.toEqual(draw(90));
+  for(const [event,caption] of [[hit,'受精卵'],[miss,'未受精']] as const){
+    const lines=drawing(c=>drawEncounter(c,{...egg,event,fertilized:event.success},344,282,true,12));
+    expect(lines.find(([op])=>op==='fillText')?.[1]).toBe(caption);
+  }
+});
+
+it('still rasterizes the complete uterine plate at every angle after a successful encounter, without painting a lens on top',()=>{
+  let pixels=new Uint8ClampedArray(0);
+  vi.stubGlobal('OffscreenCanvas',class{getContext(){return {createImageData:(w:number,h:number)=>({data:new Uint8ClampedArray(w*h*4)}),
+    putImageData:({data}:{data:Uint8ClampedArray})=>{pixels=data.slice();}};}});
+  const art=createOrganArt(),o:OrganArtOptions={x:0,y:0,width:168,height:136,yaw:0,time:0,focus:'uterus',lining:.44,shedding:0,pressure:0,zh:true,fluid:0,fantasy:false};
+  try{
+    const views=new Set<string>();
+    for(const deg of [0,38,90]){
+      const options={...o,yaw:deg*Math.PI/180,encounterSeconds:12};
+      const before=drawing(c=>art.draw(c,options));
+      const after=drawing(c=>art.draw(c,{...options,event:hit}));
+      expect(after.map(op=>op[0])).toEqual(before.map(op=>op[0]));
+      expect(after.some(op=>op[0]==='drawImage')).toBe(true);expect(after.some(op=>op[0]==='fillText'&&op[1]==='子宫')).toBe(true);
+      let tissue=0;for(let i=0;i<pixels.length;i+=4)if(pixels[i]!==33)tissue++;
+      expect(tissue).toBeGreaterThan(500);views.add(String(tissue));
+    }
+    expect(views.size).toBe(3);
+  }finally{art.dispose();vi.unstubAllGlobals();}
 });

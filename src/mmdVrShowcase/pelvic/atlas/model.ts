@@ -62,6 +62,7 @@ const cuts=[boundary(cavity),boundary(sagittal)];
 // window narrows into a sagittal slit during an orbit instead of cross-fading
 // two differently shaped cavities onto the same surface.
 const seam=.46;
+export const cavityColumn=(u:number)=>(2*u-1)/seam;
 // The focused canal has no fundal dissection. Defer its unrelated split-axis
 // tables until the corpus is actually requested (also on the worker path).
 const bakeAxes=()=>cuts.map(poly=>Float32Array.from({length:512},(_,i)=>{

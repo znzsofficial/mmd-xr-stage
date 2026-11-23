@@ -1,4 +1,4 @@
-import type {ConceptionEvent} from '../../bodyState/reproduction/game';
+import type {ConceptionEvent,Ovum} from '../../bodyState/reproduction/game';
 import {PICTURE_END} from '../../bodyState/reproduction/pictureClock';
 import {ovary,tubePath,type V} from './model';
 import {encounterCut,paintConceptionLens} from './conceptionStudy';
@@ -26,11 +26,7 @@ const along=(e:ConceptionEvent,t:number):V=>{
   if(k<.21){const end=tubePath(0,e.side);return [.63*e.side+(end[0]-.63*e.side)*k/.21,.25+(end[1]-.25)*k/.21,3.42+(end[2]-3.42)*k/.21];}
   return tubePath(.80*(k-.21)/.79,e.side);
 };
-function location(c:Paper,event:ConceptionEvent|undefined,project:Project,x:number,y:number,r:number,k:number,age:number){
-  if(!event)return;
-  const [px,py]=project(tubePath(.8,event.side)),dir=Math.atan2(py-y,px-x);
-  c.beginPath();c.moveTo(px,py);c.lineTo(x+r*Math.cos(dir),y+r*Math.sin(dir));c.strokeStyle='#ac8978';c.lineWidth=k;c.stroke();
-  dot(c,px,py,4*k,gold);dot(c,px,py,2.7*k,paper);dot(c,px,py,1.3*k,gold);
+export function drawTransit(c:Paper,event:ConceptionEvent,project:Project,k:number,age=PICTURE_END){
   // A schematic transit, only for a retained internal dose. Sampling the
   // delivery's own target keeps a later lens or destination change read-only.
   if(event.target&&age<5)for(let i=0;i<5;i++){
@@ -39,17 +35,15 @@ function location(c:Paper,event:ConceptionEvent|undefined,project:Project,x:numb
   }
 }
 
-/** The operating sheet uses its whole plate for the encounter. The actor's
- * anatomical overview below uses precisely the same brush at inset scale. */
-export function drawEncounter(c:Paper,event:ConceptionEvent|undefined,w:number,h:number,zh:boolean,age=PICTURE_END,degrees=38){
+/** Only the egg tab owns a magnifier. A missing egg has neither a cell nor an encounter. */
+export function drawEncounter(c:Paper,egg:Ovum|undefined,w:number,h:number,zh:boolean,age=PICTURE_END,degrees=38){
   const r=Math.min(w*.355,h*.444),x=w-r-w*.025,y=h*.46;
   c.save();c.fillStyle='#211722';c.fillRect(0,0,w,h);
-  const project=locator(c,(x-r)*.5,h*.59,Math.min((x-r)*.080,h*.042));location(c,event,project,x,y,r,Math.min(w/344,h/282),age);
+  if(!egg){c.font=`550 ${h*.075}px system-ui,sans-serif`;c.textAlign='center';c.textBaseline='middle';c.fillStyle='#d5bcc4';c.fillText(zh?'暂无卵子':'No eggs',w*.5,h*.5);c.restore();return;}
+  const event=egg.event,k=Math.min(w/344,h/282),project=locator(c,(x-r)*.5,h*.59,Math.min((x-r)*.080,h*.042));
+  const [px,py]=project(tubePath(.8,egg.side)),dir=Math.atan2(py-y,px-x);
+  c.beginPath();c.moveTo(px,py);c.lineTo(x+r*Math.cos(dir),y+r*Math.sin(dir));c.strokeStyle='#ac8978';c.lineWidth=k;c.stroke();
+  dot(c,px,py,4*k,gold);dot(c,px,py,2.7*k,paper);dot(c,px,py,1.3*k,gold);
+  if(event)drawTransit(c,event,project,k,age);
   paintConceptionLens(c,event,x,y,r,zh,age,age,encounterCut(event,age),degrees);c.restore();
-}
-export function drawEncounterInset(c:Paper,event:ConceptionEvent,project:Project,w:number,h:number,sideCut:boolean,zh:boolean,age=PICTURE_END,degrees=38){
-  c.save();const map=sideCut?locator(c,w*.16,h*.41,w*.026):project,k=Math.min(w/344,h/282),cut=encounterCut(event,age);
-  const [midX,midY]=project([0,0,-2.6]),scale=Math.abs(project([0,0,-1.6])[1]-midY),limit=(w-7*k-midX-1.40*scale)/2;
-  const extra=cut.close*Math.max(0,Math.min(16*k,limit-58*k)),r=58*k+extra,x=w-7*k-r,y=h*.736-1.25*extra;
-  location(c,event,map,x,y,r,k,age);paintConceptionLens(c,event,x,y,r,zh,age,age,cut,degrees);c.restore();
 }

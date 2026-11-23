@@ -9,7 +9,7 @@ const {createOrganArt}=await import(new URL('mmdVrShowcase/pelvic/atlas/organArt
 const w=344,h=282,brush=createOrganArt(),stages=[1.5,4.5,7.4,9.1,12],modes=[false,true];
 function frame(success,age,deg=38,close=true){const canvas=createCanvas(w*2,h*2),ctx=canvas.getContext('2d');ctx.scale(2,2);
   const event=success==null?undefined:{id:1,chance:success?100:0,success,at:0,side:1,target:'vaginal'};
-  brush.draw(ctx,{x:0,y:0,width:w,height:h,focus:'uterus',encounterFocus:close,event,encounterSeconds:age,yaw:deg*Math.PI/180,time:age,zh:true,lining:.44,shedding:0,fluid:0,pressure:0,fantasy:false});return canvas;}
+  brush.draw(ctx,{x:0,y:0,width:w,height:h,focus:close?'egg':'uterus',egg:close?{id:1,side:1,fertilized:success===true,event}:undefined,event:close?undefined:event,encounterSeconds:age,yaw:deg*Math.PI/180,time:age,zh:true,lining:.44,shedding:0,fluid:0,pressure:0,fantasy:false});return canvas;}
 await mkdir(out,{recursive:true});const sheet=createCanvas(w*stages.length,(h+26)*2),c=sheet.getContext('2d');c.fillStyle='#211722';c.fillRect(0,0,sheet.width,sheet.height);
 for(const [j,success] of modes.entries())for(const [i,t] of stages.entries()){const x=i*w,y=j*(h+26);c.drawImage(frame(success,t),x,y,w,h);c.fillStyle='#f4d5bb';c.font='16px sans-serif';c.fillText(`${success?100:0}%  /  ${t} s`,x+12,y+h+17);}
 await writeFile(new URL('encounter-branches.png',out),sheet.toBuffer('image/png'));

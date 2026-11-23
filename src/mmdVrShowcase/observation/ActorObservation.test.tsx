@@ -6,13 +6,14 @@ import {useLanguageStore} from '../../languageStore';
 import {DEFAULT_BODY_PROFILE} from '../bodyState/data';
 import {breastViews,readBreastView} from '../bodyState/breast/view';
 import {useBodyState} from '../bodyState/store';
+import {useConception} from '../bodyState/reproduction/store';
 import {defaultPelvicCalibration} from '../pelvic/contract';
 import {usePelvic} from '../pelvic/store';
 import {ObservationScreenControls} from './ActorObservation';
 import {readAtlasView,useAtlasSettings} from '../pelvic/atlas/view';
 
 afterEach(()=>{useBodyState.setState(useBodyState.getInitialState());usePelvic.setState(usePelvic.getInitialState());
-  breastViews.setState({actors:{}});useAtlasSettings.setState({actors:{}});
+  breastViews.setState({actors:{}});useAtlasSettings.setState({actors:{}});useConception.setState(useConception.getInitialState());
   useLanguageStore.setState(useLanguageStore.getInitialState());vi.restoreAllMocks();vi.unstubAllGlobals();});
 
 it('shows the chosen organ’s measurements and keeps uterine labels read-only without adding a calendar',async()=>{
@@ -36,6 +37,25 @@ it('shows the chosen organ’s measurements and keeps uterine labels read-only w
     expect(el.textContent).toContain('25% / 75%');await act(async()=>button('返回插入').click());expect(onBack).toHaveBeenCalledOnce();
   }finally{await act(async()=>root.unmount());}
   expect(useBodyState.getState()).toBe(body);expect(usePelvic.getState()).toBe(pelvis);
+});
+
+it('browses each egg’s own settled state without changing the actor, its egg records or the active device',async()=>{
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);vi.stubGlobal('requestAnimationFrame',()=>1);vi.stubGlobal('cancelAnimationFrame',()=>{});
+  vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValue(null);useLanguageStore.setState({language:'zh'});
+  const hit={id:5,at:-14000,chance:80,success:true,side:-1 as const},miss={...hit,id:6,success:false,side:1 as const};
+  useConception.setState({byAsset:{a:{chance:80,event:miss,eggs:[{id:1,side:-1,fertilized:true,event:hit},{id:2,side:1,fertilized:false,event:miss},{id:3,side:-1,fertilized:false}]}}});
+  const saved=useConception.getState(),pelvic=usePelvic.getState(),el=document.createElement('div'),root=createRoot(el);
+  const show=(id:string)=>act(async()=>root.render(<ObservationScreenControls assetId={id} runtimeId="r" initialPart="egg" onBack={()=>{}}/>));
+  const button=(label:string)=>[...el.querySelectorAll('button')].find(b=>b.textContent===label),click=(label:string)=>act(async()=>button(label)!.click());
+  const row=()=>[...el.querySelectorAll('dl dd')].at(-1)?.textContent;
+  try{
+    await show('a');expect(row()).toBe('已受精');expect(button('强制排卵')).toBeUndefined();
+    await click('卵子 3');expect(row()).toBe('待受精');await click('子宫');expect(row()).toBe('未受精');
+    await click('卵子');expect(row()).toBe('待受精');await click('卵子 2');expect(row()).toBe('未受精');
+    await show('b');expect(row()).toBe('0 / 3');expect(button('卵子 1')).toBeUndefined();
+    await show('a');expect(button('卵子 2')?.getAttribute('aria-pressed')).toBe('true');expect(row()).toBe('未受精');
+    expect(useConception.getState()).toBe(saved);expect(usePelvic.getState()).toBe(pelvic);
+  }finally{await act(async()=>root.unmount());}
 });
 
 it('keeps the selected fold geometry with its actor without creating a fit or recording an entry while browsing',async()=>{

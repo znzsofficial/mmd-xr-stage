@@ -4,7 +4,7 @@ import {usePelvic} from '../store';
 import {defaultPelvicCalibration} from '../contract';
 import {useBodyState} from '../../bodyState/store';
 import {DEFAULT_BODY_PROFILE} from '../../bodyState/data';
-import {chanceFor,recordInternalDose,setConceptionChance,useConception,type ConceptionEvent} from '../../bodyState/reproduction/store';
+import {chanceFor,eggsFor,forceOvulation,recordInternalDose,setConceptionChance,useConception,type ConceptionEvent} from '../../bodyState/reproduction/store';
 import {atlasPainter} from './painter';
 import {setAtlasView,useAtlasSettings} from './view';
 import {useLanguageStore} from '../../../languageStore';
@@ -25,7 +25,7 @@ const calibrated={calibration:defaultPelvicCalibration,clothingClear:true,contai
 const actor={assetId:'a',runtimeId:'r'};
 function seedEvent(success:boolean):ConceptionEvent{
   const event:ConceptionEvent={id:37,at:1000,chance:60,success,side:-1};
-  useConception.setState({byAsset:{a:{chance:60,event}}});return event;
+  useConception.setState({byAsset:{a:{chance:60,event,eggs:[{id:1,side:-1,fertilized:success,event}]}}});return event;
 }
 const lastDraw=()=>art.draw.mock.lastCall![1];
 it('holds the displayed encounter when frozen, while actual balances and camera angle remain live',()=>{
@@ -51,52 +51,56 @@ function slowWorker(){
   return {get current(){return worker;},options:()=>worker.postMessage.mock.lastCall![0].options,
     reply(){const b={close:vi.fn()};worker.onmessage!({data:{bitmap:b}});return b;}};
 }
-it('replaces a ready bitmap on real delivery; next-dose odds and another actor’s delivery leave the new frame valid',()=>{
+it('invalidates only the observed egg bitmap; another egg can receive the dose while the player keeps this one selected',()=>{
   useBackpack.setState({entries:['a','b'].map(id=>({id,kind:'model' as const,path:'fixture.pmx',file:new File([],'fixture.pmx')})),
-    selected:'a',live:{a:{runtimeId:'r',visible:true,position:[0,0,0]}}});
+    selected:'b',live:{a:{runtimeId:'r',visible:true,position:[0,0,0]},b:{runtimeId:'r2',visible:true,position:[0,0,0]}}});
+  forceOvulation('b','r2');useBackpack.setState({selected:'a'});forceOvulation('a','r');forceOvulation('a','r');
   expect(setConceptionChance('a','r',100)).toBe(true);setAtlasView('a',{motion:false});
-  const worker=slowWorker(),upload=vi.fn(),p=atlasPainter(paper(),actor,'uterus',()=>{},upload,true);
+  const worker=slowWorker(),upload=vi.fn(),p=atlasPainter(paper(),actor,'egg',()=>{},upload);
   try{
-    p.tick(0);expect(worker.options().event).toBeUndefined();const obsolete=worker.reply();
+    p.tick(0);expect(worker.options().egg.event).toBeUndefined();const obsolete=worker.reply();
     recordInternalDose('a',1);const event=useConception.getState().byAsset.a.event!;
     expect(event).toMatchObject({chance:100,success:true});p.tick(event.at);
     expect(obsolete.close).toHaveBeenCalledOnce();expect(upload).not.toHaveBeenCalled();
-    expect(worker.options()).toMatchObject({event,encounterFocus:true,encounterSeconds:12});
+    expect(worker.options()).toMatchObject({egg:{id:1,event},focus:'egg',encounterSeconds:12});
     const valid=worker.reply();expect(setConceptionChance('a','r',0)).toBe(true);expect(chanceFor('a')).toBe(0);
     recordInternalDose('a',0);recordInternalDose('b',1);expect(useConception.getState().byAsset.b.event).toBeDefined();
     expect(useConception.getState().byAsset.a.event).toBe(event);expect(upload).not.toHaveBeenCalled();
     p.tick(event.at+100);expect(valid.close).toHaveBeenCalledOnce();expect(upload).toHaveBeenCalledOnce();
     p.tick(event.at+1000);expect(worker.current.postMessage).toHaveBeenCalledTimes(2);
     recordInternalDose('a',1);p.tick(event.at+1010);
-    expect(worker.options().event).toMatchObject({success:false,chance:0});expect(worker.options().event.id).not.toBe(event.id);
+    expect(worker.current.postMessage).toHaveBeenCalledTimes(2);expect(eggsFor('a')[1].event).toMatchObject({success:false,chance:0});
+    setAtlasView('a',{eggId:2});p.tick(event.at+1011);expect(worker.options().egg).toMatchObject({id:2,event:eggsFor('a')[1].event});
     expect(worker.current.postMessage).toHaveBeenCalledTimes(3);
+    setAtlasView('a',{eggId:1});const late=worker.reply();p.tick(event.at+1012);
+    expect(upload).toHaveBeenCalledOnce();expect(late.close).toHaveBeenCalledOnce();expect(worker.options().egg).toMatchObject({id:1,event});
   }finally{p.dispose();}
 });
 
 it('reopens mid-encounter at the age of the same delivery instead of replaying the start',()=>{
   const event=seedEvent(false),wake=vi.fn();setAtlasView('a',{motion:true});
-  const open=()=>atlasPainter(paper(),actor,'uterus',wake,()=>{},true),first=open();
+  const open=()=>atlasPainter(paper(),actor,'egg',wake,()=>{}),first=open();
   try{
-    first.tick(event.at+2000);expect(lastDraw()).toMatchObject({event,encounterSeconds:2,encounterFocus:true});
-    useConception.setState({byAsset:{a:{event,chance:95},b:{chance:100,event:{...event,id:38,at:event.at+2000,success:true,chance:100}}}});
-    expect(wake).not.toHaveBeenCalled();first.tick(event.at+3500);expect(lastDraw()).toMatchObject({event,encounterSeconds:3.5});
+    first.tick(event.at+2000);expect(lastDraw()).toMatchObject({egg:{event},encounterSeconds:2,focus:'egg'});
+    useConception.setState({byAsset:{a:{...useConception.getState().byAsset.a,chance:95}}});
+    expect(wake).not.toHaveBeenCalled();first.tick(event.at+3500);expect(lastDraw()).toMatchObject({egg:{event},encounterSeconds:3.5});
   }finally{first.dispose();}
   const reopened=open();
-  try{reopened.tick(event.at+7500);expect(lastDraw()).toMatchObject({event,encounterSeconds:7.5,encounterFocus:true});}
+  try{reopened.tick(event.at+7500);expect(lastDraw()).toMatchObject({egg:{event},encounterSeconds:7.5,focus:'egg'});}
   finally{reopened.dispose();}
   expect(useConception.getState().byAsset.a.event).toBe(event);
 });
 
 it.each([true,false])('uploads the exact 12-second frame once, then rests (success=%s)',success=>{
   const event=seedEvent(success),worker=slowWorker(),upload=vi.fn(),wake=vi.fn();setAtlasView('a',{motion:true});
-  const p=atlasPainter(paper(),actor,'uterus',wake,upload,true);
+  const p=atlasPainter(paper(),actor,'egg',wake,upload);
   try{
     const end=event.at+12000;p.tick(end-10);expect(worker.options().encounterSeconds).toBeCloseTo(11.99);
     worker.reply();expect(p.tick(end-9)).toBe(true);expect(upload).toHaveBeenCalledOnce();
     // Cross the endpoint inside the normal frame-rate limit. A request for
     // 11.99 is not the terminal image, even though no animation time remains.
     p.tick(end);expect(worker.current.postMessage).toHaveBeenCalledTimes(2);
-    expect(worker.options()).toMatchObject({event,encounterSeconds:12});wake.mockClear();const terminal=worker.reply();expect(wake).toHaveBeenCalled();
+    expect(worker.options()).toMatchObject({egg:{event},encounterSeconds:12});wake.mockClear();const terminal=worker.reply();expect(wake).toHaveBeenCalled();
     expect(upload).toHaveBeenCalledOnce();expect(p.tick(end+1)).toBe(false);
     expect(terminal.close).toHaveBeenCalledOnce();expect(upload).toHaveBeenCalledTimes(2);
     for(const elapsed of [80,250,5000])expect(p.tick(end+elapsed)).toBe(false);
@@ -104,17 +108,19 @@ it.each([true,false])('uploads the exact 12-second frame once, then rests (succe
   }finally{p.dispose();}
 });
 
-it('holds an idle egg before any event and responds to rotation without waiting for a delivery',()=>{
+it('rests with an empty egg lens, independent of the stand; manual ovulation wakes it without a delivery',()=>{
   const wake=vi.fn(),upload=vi.fn();setAtlasView('a',{motion:true,degrees:0});
-  const p=atlasPainter(paper(),actor,'uterus',wake,upload,true);
+  const p=atlasPainter(paper(),actor,'egg',wake,upload);
   try{
-    expect(p.tick(0)).toBe(false);expect(lastDraw()).toMatchObject({encounterFocus:true,yaw:0,sample:null});
+    expect(p.tick(0)).toBe(false);expect(lastDraw()).toMatchObject({focus:'egg',egg:undefined,yaw:0,sample:null});
     expect(lastDraw().event).toBeUndefined();expect(useConception.getState().byAsset.a).toBeUndefined();
     usePelvic.setState({byAsset:{a:calibrated},active:{...actor,mode:'standAuto',source:'screen',token:1,running:true,position:.3,awaitingWorld:false}});
     for(const t of [100,1000,10000])expect(p.tick(t)).toBe(false);
     expect(upload).toHaveBeenCalledOnce();wake.mockClear();setAtlasView('a',{degrees:90});expect(wake).toHaveBeenCalled();
     p.tick(10050);expect(upload).toHaveBeenCalledTimes(2);expect(lastDraw().yaw).toBeGreaterThan(0);
     expect(lastDraw().event).toBeUndefined();expect(lastDraw().sample).toBeNull();
+    useBackpack.setState({selected:'a',entries:[{id:'a',kind:'model',file:new File([],'fixture.pmx'),path:'fixture.pmx'}],live:{a:{visible:true,runtimeId:'r',position:[0,0,0]}}});
+    expect(forceOvulation('a','r')).toBe(true);p.tick(10051);expect(lastDraw().egg).toMatchObject({id:1,fertilized:false});expect(lastDraw().egg.event).toBeUndefined();
   }finally{p.dispose();}
 });
 

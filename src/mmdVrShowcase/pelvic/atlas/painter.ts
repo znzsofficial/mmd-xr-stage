@@ -1,5 +1,5 @@
 import {useLanguageStore} from '../../../languageStore';
-import {useConception} from '../../bodyState/reproduction/store';
+import {eggsFor,useConception} from '../../bodyState/reproduction/store';
 import {REFERENCE_TISSUE as tissue} from '../../bodyState/data';
 import {createPictureClock,PICTURE_END,RESULT_REVEAL_SECONDS} from '../../bodyState/reproduction/pictureClock';
 import {semenColor} from '../../play/semenAppearance';
@@ -12,7 +12,7 @@ import {readAtlasView,useAtlasSettings} from './view';
 import {visibleRim} from '../vulvaForm';
 
 export type AtlasActor={assetId:string;runtimeId:string};
-export type ObservationAtlasPart='vulva'|'vagina'|'uterus';
+export type ObservationAtlasPart='vulva'|'vagina'|'uterus'|'egg';
 export type AtlasScope='pelvic'|'body'|ObservationAtlasPart;
 
 type SocketState=ReturnType<typeof usePelvic.getState>;
@@ -36,7 +36,7 @@ function sameCanalPose(a:PelvicSample,b:PelvicSample,exterior=false){
 /** One painter for the DOM surface or one reusable XR canvas texture. Discrete
  * input/sample changes wake it; only the diagram's pulse and camera ease need
  * a clock. The UI never writes a simulation sample, even during an orbit. */
-export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasActor,scope:AtlasScope,wake:()=>void,upload:()=>void,encounterFocus=false){
+export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasActor,scope:AtlasScope,wake:()=>void,upload:()=>void){
   const ctx=canvas.getContext('2d');
   let art:ReturnType<typeof organOutput>|undefined,geometry:ReturnType<typeof sectionLayout>|undefined;
   let view=readAtlasView(assetId),lastL=0,lastR=0,lastYaw=NaN,dirty=true,heading=view.degrees,lastHeading=NaN;
@@ -44,7 +44,8 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
   const changed=(invalidate=true)=>{dirty=true;if(invalidate)art?.discard();wake();};
   const lettering=entryLettering(()=>changed(false));
   const observation=scope!=='body'&&scope!=='pelvic';
-  const pictureSeconds=scope==='uterus'?createPictureClock():undefined;
+  const eggLens=scope==='egg',pictureSeconds=scope==='uterus'||eggLens?createPictureClock():undefined;
+  const selectedEgg=(s=useConception.getState())=>eggsFor(assetId,s).find(e=>e.id===view.eggId);
   let lastAge=-1;
   const binding=(s:SocketState)=>actorBinding(s,assetId,runtimeId);
   const observed=(s:SocketState)=>actorRodSample(s,assetId,runtimeId);
@@ -54,14 +55,14 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
     if(scope==='pelvic'&&view.mode!==prev.mode){
       if(prev.mode==='entry')lettering.dispose();
       changed();
-    }else if(view.motion!==prev.motion||view.labels!==prev.labels||(scope==='vulva'||scope==='pelvic'&&view.mode==='entry')&&view.foldStyle!==prev.foldStyle||!view.motion&&view.degrees!==prev.degrees)changed();
+    }else if(view.motion!==prev.motion||view.labels!==prev.labels||eggLens&&view.eggId!==prev.eggId||(scope==='vulva'||scope==='pelvic'&&view.mode==='entry')&&view.foldStyle!==prev.foldStyle||!view.motion&&view.degrees!==prev.degrees)changed();
     else if(view.degrees!==prev.degrees)wake(); // a continuous orbit still honours the turn rate limit
   }),
     useLanguageStore.subscribe((s,p)=>{if(s.language!==p.language)changed();})];
-  if(scope==='uterus')off.push(useConception.subscribe((s,p)=>{
-    if(s.byAsset[assetId]?.event!==p.byAsset[assetId]?.event)changed();
+  if(pictureSeconds)off.push(useConception.subscribe((s,p)=>{
+    if(eggLens?selectedEgg(s)!==selectedEgg(p):s.byAsset[assetId]?.event!==p.byAsset[assetId]?.event)changed();
   }));
-  if(scope!=='body'&&!encounterFocus)off.push(usePelvic.subscribe((s,p)=>{
+  if(scope!=='body'&&!eggLens)off.push(usePelvic.subscribe((s,p)=>{
     const a=binding(s),b=binding(p);
     if(s.byAsset[assetId]!==p.byAsset[assetId]||a?.token!==b?.token){changed();return;}
     if(a){const x=observed(s),y=observed(p);
@@ -72,23 +73,23 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
   function tick(now:number){
     if(!ctx||dead)return false;
     const v=readAtlasView(assetId),mode=scope==='pelvic'?v.mode:'organ';
-    const pelvis=usePelvic.getState(),profile=scope==='body'||encounterFocus?undefined:pelvis.byAsset[assetId];
+    const pelvis=usePelvic.getState(),profile=scope==='body'||eggLens?undefined:pelvis.byAsset[assetId];
     if(scope==='pelvic'&&!profile)return false;
     art?.flush();
-    const event=pictureSeconds?useConception.getState().byAsset[assetId]?.event:undefined;
+    const egg=eggLens?selectedEgg():undefined,event=scope==='uterus'?useConception.getState().byAsset[assetId]?.event:egg?.event;
     const age=pictureSeconds?.(event,now,v.motion)??PICTURE_END;
-    const anim=mode==='organ'&&scope!=='vagina'&&scope!=='vulva'&&v.motion&&(!encounterFocus||!!event&&age<PICTURE_END);
+    const anim=mode==='organ'&&scope!=='vagina'&&scope!=='vulva'&&v.motion&&(!eggLens||!!event&&age<PICTURE_END);
     const dt=lastTime===null?0:Math.min(.10,Math.max(0,(now-lastTime)/1000));lastTime=now;
     const remaining=v.degrees-heading;
     heading=!v.motion||Math.abs(remaining)<.15?v.degrees:heading+remaining*(-Math.expm1(-23*dt));
     const turning=heading!==v.degrees;
     if(anim)time+=dt;
-    const finalFrame=encounterFocus&&age===PICTURE_END&&lastAge!==age;
+    const finalFrame=eggLens&&age===PICTURE_END&&lastAge!==age;
     if(art?.inFlight||!dirty&&!finalFrame&&(lastHeading===heading?(!anim||now-lastPaint<80):(turning&&now-lastPaint<32)))return anim||turning;
     const sample=profile?observed(pelvis):null,parked=!!sample&&!binding(pelvis)?.running;
     const zh=useLanguageStore.getState().language==='zh', yaw=heading*Math.PI/180;
     const displayedHeading=heading;
-    function publish(alt:string){const angle=`${Math.round(displayedHeading)}°`,name=scope==='vulva'?(zh?'外阴示意':'Vulva study'):scope==='vagina'?(zh?'阴道剖面':'Vaginal cutaway'):mode==='organ'?(zh?'子宫动态示意':'Uterine study'):mode==='entry'?(zh?'入口对位':'Entry alignment'):(zh?'骨盆测量剖面':'Pelvic measurement'),caption=`${name} · ${angle}${alt?' · '+alt:''}`;
+    function publish(alt:string){const angle=`${Math.round(displayedHeading)}°`,name=eggLens?(egg?`${zh?'卵子':'Egg'} ${egg.id}`:zh?'暂无卵子':'No eggs'):scope==='vulva'?(zh?'外阴示意':'Vulva study'):scope==='vagina'?(zh?'阴道剖面':'Vaginal cutaway'):mode==='organ'?(zh?'子宫动态示意':'Uterine study'):mode==='entry'?(zh?'入口对位':'Entry alignment'):(zh?'骨盆测量剖面':'Pelvic measurement'),caption=`${name} · ${angle}${alt?' · '+alt:''}`;
       if(canvas.getAttribute('aria-label')!==caption)canvas.setAttribute('aria-label',caption);
       canvas.dataset.view=observation?scope:mode;canvas.dataset.angle=String(Math.round(displayedHeading));upload();}
     if(mode!=='organ'&&profile){
@@ -104,8 +105,8 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
       // With body state disabled the neutral illustration is not a measured lining.
       art??=organOutput(result=>{if(result==='retry')dirty=true;wake();});
          art.submit({scale:canvas.width/W,options:{x:0,y:0,width:W,height:observation?H:H-32,focus:observation?scope:undefined,foldStyle:v.foldStyle,rim:visibleRim(profile),yaw,time,lining:tissue.functionalDepth,shedding:0,tissue,labels:v.labels,
-           event,encounterFocus,encounterSeconds:age,fluid:volume/capacity,fantasy,vaginalFluid:profile?profile.fluid.vaginal/profile.capacity.vaginal:0,
-         uterineFluid:scope==='uterus'&&profile?profile.fluid.fantasyUterine/profile.capacity.fantasyUterine:undefined,
+           event:scope==='uterus'?event:undefined,egg,encounterSeconds:age,fluid:volume/capacity,fantasy,vaginalFluid:profile?profile.fluid.vaginal/profile.capacity.vaginal:0,
+          uterineFluid:profile&&(scope==='uterus'||scope==='pelvic')?profile.fluid.fantasyUterine/profile.capacity.fantasyUterine:undefined,
          pressure:!parked&&sample?.outletInside?Math.min(1,sample.depth/Math.max(.0001,sample.lengthM)):0,sample,parked,zh},paint:draw=>{
         ctx.save();ctx.scale(canvas.width/W,canvas.height/H);ctx.fillStyle='#211722';ctx.fillRect(0,0,W,H);draw(ctx);
         // The observation sheet sets its live readings in native-size type outside the plate.
