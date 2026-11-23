@@ -187,13 +187,13 @@ export default function PlanetMotor({originRef,dragging}:Props){
       else ready.step(s,dt,x*groundSpeed/speed,forward*groundSpeed/speed,false,s.tmp.copy(s.localEye).applyQuaternion(s.groundTilt));
     }else{
       s.active=null;
-      surfaceStep(s,s.travel,groundSpeed,dt,false,s.pad.read,Math.max(.24,s.localEye.y+headMargin));
+      surfaceStep(s,s.travel,groundSpeed,dt,false,s.pad.read,Math.max(.24,s.localEye.y+headMargin),s.worldEye.copy(s.localEye).applyQuaternion(s.display),s.viewUp);
     }
     if(groundFrame&&s.travel.lengthSq()>0&&!s.groundTilt.equals(noTilt)){
       const angle=s.groundTilt.angleTo(noTilt),limit=.45*Math.min(s.prev.distanceTo(s.foot),speed*dt);
       if(angle<=limit+1e-6)s.groundTilt.identity();else s.groundTilt.slerp(noTilt,limit/angle);
     }
-    if(groundFrame&&s.turn&&riseToFeet(s.turn,dt,s.localEye,s.foot,s.basis)){s.turn=null;diag.alignments++;}
+    if(groundFrame&&s.turn&&riseToFeet(s.turn,dt,s.localEye,s.foot,s.basis,s.moon?.id??'home')){s.turn=null;diag.alignments++;}
     if(!free&&s.grounded){s.safe.copy(s.foot);s.safeBasis.copy(s.basis);s.safeOffset.copy(s.offset);s.safeTilt.copy(s.groundTilt);s.safeMoon=s.moon;}
     diag.awaitingAlignment=!free&&s.pending;
     diag.grounded=!free&&s.grounded;

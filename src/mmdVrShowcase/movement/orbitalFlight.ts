@@ -3,6 +3,7 @@ import {moonObstructed} from '../scenery/planet/windAtlas';
 import {stationBlocks} from '../scenery/planet/opalTerrain';
 import {MOON_JUMP_SPEED} from './moonWalk';
 import {tideBodyBlocked} from './tideContact';
+import {fixtureBodyBlocked} from './planetFixtures';
 import {altitude,createShellSweep,homeWorld,walkWorlds,type World} from './orbitalSurfaces';
 import type {ReadColumn} from './groundMotor';
 
@@ -49,7 +50,7 @@ export function startOrbit(w:World,foot:Vector3,velocity:Vector3){return {
   from:w,owner:w as World|null,foot:foot.clone(),velocity:velocity.clone(),changes:0,grazes:0,first:true,
   landing:null as World|null,point:new Vector3(),up:new Vector3(),tracked:false,part:'foot' as 'foot'|'head'|'body',
   sweep:createShellSweep(),a:new Vector3(),move:new Vector3(),next:new Vector3(),column:{floor:-Infinity,ceiling:Infinity,blocked:false},
-  rim:null as Vector3|null,side:new Vector3(),across:new Vector3(),probe:new Vector3(),
+  rim:null as Vector3|null,fixtureLip:null as Vector3|null,side:new Vector3(),across:new Vector3(),probe:new Vector3(),
 };}
 export type Orbit=ReturnType<typeof startOrbit>;
 
@@ -57,6 +58,7 @@ export type Orbit=ReturnType<typeof startOrbit>;
 // remain solids during a jump. Flying in the free movement mode bypasses this.
 function obstacle(f:Orbit,to:Vector3,up:Vector3,eye:Vector3,read?:ReadColumn){
   const h=Math.max(.25,eye.dot(up)+.115),w=f.owner;
+  if(w&&fixtureBodyBlocked(w.id,to,up,eye,.16))return 'wall';
   if(w?.id==='tide'){if(tideBodyBlocked(to,up,eye))return 'wall';}
   else if(w&&gap(w,to)<3.3&&(w.id==='home'?stationBlocks(to,.16,h):moonObstructed(w,to,.16,h)))return 'wall';
   if(!read||Math.abs(to.x)>4||Math.abs(to.z)>4||to.y<-.3)return;
@@ -70,21 +72,41 @@ function obstacle(f:Orbit,to:Vector3,up:Vector3,eye:Vector3,read?:ReadColumn){
 // into the top of a non-walkable station, ease over the nearest lip; do not
 // freeze the foot there accumulating metres per second of downward velocity.
 function slideAtWall(f:Orbit,h:number,viewUp:Vector3,eye:Vector3,read?:ReadColumn){
+  const onFixture=!!f.owner&&fixtureBodyBlocked(f.owner.id,f.next,viewUp,eye,.16);
   const n=f.a.subVectors(f.foot,f.owner?.centre??homeWorld.centre).normalize(),v=Math.min(0,f.velocity.dot(n));
   f.velocity.copy(n).multiplyScalar(v);f.next.copy(f.foot).addScaledVector(n,v*h);
   if(obstacle(f,f.next,viewUp,eye,read)!=='wall'){f.rim=null;return;}
   if(!f.rim){
     f.side.set(0,0,1);if(Math.abs(n.z)>.9)f.side.set(1,0,0);
     f.side.projectOnPlane(n).normalize();f.across.crossVectors(n,f.side);
-    for(let radius=.18;radius<2.6&&!f.rim;radius+=.18)for(let i=0;i<12;i++){
+    for(let radius=.18;radius<2.6&&!f.rim&&!f.fixtureLip;radius+=.18)for(let i=0;i<12;i++){
       const a=i*Math.PI/6;f.probe.copy(f.next).addScaledVector(n,-.12).addScaledVector(f.side,radius*Math.cos(a)).addScaledVector(f.across,radius*Math.sin(a));
-      if(!obstacle(f,f.probe,viewUp,eye,read)){f.rim=f.probe.clone();break;}
+      if(obstacle(f,f.probe,viewUp,eye,read))continue;
+      // The nearest open point can be over the HIGH edge of a tilted face.
+      // From first contact its horizontal approach would enter the panel and
+      // leave the body hovering. Choose a reachable lip on the downhill side.
+      if(!onFixture){f.rim=f.probe.clone();break;}
+      let clear=true;
+      for(let d=Math.min(.95*h,radius);;d=Math.min(radius,d+.055)){
+        f.move.copy(f.foot).addScaledVector(f.side,d*Math.cos(a)).addScaledVector(f.across,d*Math.sin(a));
+        if(obstacle(f,f.move,viewUp,eye,read)==='wall'){clear=false;break;}
+        if(d===radius)break;
+      }
+      if(clear){f.fixtureLip=f.move.clone();break;}
     }
   }
   f.velocity.set(0,0,0);f.next.copy(f.foot);
+  if(f.fixtureLip){slideToLip(f,h,viewUp,eye,read);return;}
   if(f.rim){f.side.subVectors(f.rim,f.foot).projectOnPlane(n);
     if(f.side.lengthSq()<.015**2)f.rim=null;else f.next.add(f.side.clampLength(0,.95*h));
-    if(obstacle(f,f.next,viewUp,eye,read)==='wall'&&obstacle(f,f.foot,viewUp,eye,read)!=='wall')f.next.copy(f.foot);}
+    if(obstacle(f,f.next,viewUp,eye,read)==='wall'&&obstacle(f,f.foot,viewUp,eye,read)!=='wall'){f.next.copy(f.foot);f.rim=null;}}
+}
+
+function slideToLip(f:Orbit,h:number,up:Vector3,eye:Vector3,read?:ReadColumn){
+  f.move.subVectors(f.fixtureLip!,f.foot).clampLength(0,.95*h);f.next.copy(f.foot).add(f.move);
+  if(obstacle(f,f.next,up,eye,read)==='wall'){f.move.set(0,0,0);f.next.copy(f.foot);f.fixtureLip=null;}
+  else if(f.next.distanceToSquared(f.fixtureLip!)<1e-8)f.fixtureLip=null;
+  f.velocity.copy(f.move).multiplyScalar(1/h);
 }
 
 /** Ballistic translation, independent of renderer, tracking basis and Rapier.
@@ -100,14 +122,15 @@ export function stepOrbit(f:Orbit,dt:number,viewUp:Vector3,eyeOffset:Vector3,rea
     // volume. Refuse the impulse on its existing support instead of sending
     // an already intersecting body sideways in search of a landing.
     const w=f.from;
-    if(w.id==='tide'&&tideBodyBlocked(f.foot,viewUp,eyeOffset)&&Math.abs(altitude(w,f.foot))<.001){
+    if((fixtureBodyBlocked(w.id,f.foot,viewUp,eyeOffset,.16)||w.id==='tide'&&tideBodyBlocked(f.foot,viewUp,eyeOffset))&&Math.abs(altitude(w,f.foot))<.001){
       f.landing=w;f.point.copy(f.foot);f.up.subVectors(f.foot,w.centre).normalize();f.velocity.set(0,0,0);return true;
     }
   }
   for(let i=0;i<steps&&h>0;i++){
     const w=localWell(f.foot,f.owner);if(w!==f.owner){f.owner=w;f.changes++;}
-    pull(w,f.foot,f.a);f.move.copy(f.velocity).multiplyScalar(h).addScaledVector(f.a,.5*h*h);
-    f.next.copy(f.foot).add(f.move);f.velocity.addScaledVector(f.a,h);
+    if(f.fixtureLip)slideToLip(f,h,viewUp,eyeOffset,read);
+    else {pull(w,f.foot,f.a);f.move.copy(f.velocity).multiplyScalar(h).addScaledVector(f.a,.5*h*h);
+      f.next.copy(f.foot).add(f.move);f.velocity.addScaledVector(f.a,h);}
     let blocked=obstacle(f,f.next,viewUp,eyeOffset,read);
     if(blocked==='wall'){slideAtWall(f,h,viewUp,eyeOffset,read);f.move.subVectors(f.next,f.foot);blocked=obstacle(f,f.next,viewUp,eyeOffset,read);}
     else f.rim=null;

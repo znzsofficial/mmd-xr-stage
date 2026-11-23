@@ -1,23 +1,28 @@
 import {useEffect,useMemo,useRef} from 'react';
 import {useFrame} from '@react-three/fiber';
-import {Box3,Ray,Vector3,type Group} from 'three';
+import {Box3,Mesh,Ray,Vector3,type Group} from 'three';
 import {useLanguageStore} from '../../../languageStore';
 import {useBackpack} from '../../backpack';
-import {PaintedParts,box,rod,turn} from '../../play/modelParts';
 import {useSceneAction} from '../input/useSceneAction';
 import {noPick,paintedSurface} from '../sceneryPaint';
 import {cutStep,sampleBit,sampleInk,surveySight,surveySites,type SurveyPlace,type SurveyState} from './opalSurvey';
+import {chipSeat,readerFace} from './surveyHardware';
+import {readerHardware,surveyChip} from './surveyReaderModel';
+import {windTerminalOccludes} from './windTerminalLayout';
 
 const noPlayer={playerCollision:false};
 const stops=['dial','aqua','coral'] as const;
-const width=1.12,height=.50,chipX=-.353,chipY=-.018;
+const {width,height}=readerFace;
 const uiFont='"Microsoft YaHei",system-ui,sans-serif';
+// Three's CPU raycast can visit invisible descendants. The physical chip is
+// a child of the action face, so tapping its top or side releases the same action.
+const pickChip:Mesh['raycast']=function(this:Mesh,ray,hits){if(this.parent?.visible)Mesh.prototype.raycast.call(this,ray,hits);};
 function legend(place:SurveyPlace,s:SurveyState,zh:boolean){
   const n=(s.samples&1)+(s.samples>>1),got=place!=='dial'&&Boolean(s.samples&sampleBit[place]);
   if(place==='dial'){
-    if(s.held)return zh?[`插回晶片 · 亮 ${n} 柱`,n?'也可继续沿脊采色':'沿白脊到矿簇转片']: [`Dock chip · ${n} lit`,n?'Or follow the seam for more':'Turn chip at a seam reader'];
-    if(n)return zh?['取片并清空','测星柱正显示所采颜色']:['Lift chip to clear','Samples light the twin columns'];
-    return zh?['点按取测晶片','沿白脊采色，再插回此处']:['Take survey chip','Follow white seam; bring chip back'];
+    if(s.held)return zh?['插回晶片',n?`已采 ${n} 色 · 回插亮柱`:'白脊旁有两处矿簇']:['Dock chip',n?`${n} sampled · dock to light`:'Find both seams on the ridge'];
+    if(n)return zh?['取片并清空','测星柱已亮']:['Lift chip to clear','Survey columns lit'];
+    return zh?['取测晶片','沿白脊前往青晶矿簇']:['Take survey chip','Follow white ridge to aqua'];
   }
   if(!s.held)return zh?['先到罗盘取片','沿白脊回北台罗盘']:['Get the compass chip','Follow white seam to north deck'];
   if(got)return zh?[place==='aqua'?'青谱已收':'珊瑚谱已收',n===2?'沿白脊回罗盘插片':'可采另一色，或回罗盘']:['Sample recorded',n===2?'Return chip to the compass':'Try other reader or return chip'];
@@ -32,7 +37,7 @@ function facePrint(place:SurveyPlace,state:SurveyState,zh:boolean){
     c.strokeStyle='#788881';c.lineWidth=3;c.strokeRect(10,10,1100,480);
     for(const x of [26,1094])for(const y of [27,473]){c.fillStyle='#bdab87';c.beginPath();c.arc(x,y,5,0,Math.PI*2);c.fill();}
     c.fillStyle='#acc2bb';c.font=`500 29px ${uiFont}`;c.fillText(`OPAL   /   ${index}`,61,71);
-    const x=560+chipX*1000,y=250-chipY*1000;
+    const x=(width/2+chipSeat.x)/width*1120,y=(height/2-chipSeat.y)/height*500;
     c.fillStyle='#132326';c.beginPath();c.arc(x,y,137,0,Math.PI*2);c.fill();
     for(let i=0;i<12;i++){
       const a=Math.PI*i/6,match=i%6===(dial?0:cutStep[place]);
@@ -46,29 +51,16 @@ function facePrint(place:SurveyPlace,state:SurveyState,zh:boolean){
     const badges=zh?['青谱','珊瑚谱']:['AQUA','CORAL'];
     for(const [i,k] of (['aqua','coral'] as const).entries()){
       c.fillStyle=state.samples&sampleBit[k]?sampleInk[k]:'#63736e';c.fillRect(430+i*270,415,32,12);
-      c.font=`600 30px ${uiFont}`;c.fillText(badges[i],480+i*270,432);
+      c.fillStyle=state.samples&sampleBit[k]?sampleInk[k]:'#b2c0b6';c.font=`600 32px ${uiFont}`;c.fillText(badges[i],480+i*270,432);
     }
   });
 }
 
-function cradle(place:SurveyPlace){
-  const parts=new PaintedParts(),s=surveySites[place];
-  if(place==='dial'){
-    parts.add(turn([[0,-.25],[.26,-.25],[.27,.035],[.20,.096],[.14,.20],[.13,.27],[0,.27]],12),'#617470');
-  }else{
-    // Brackets bolted into the existing mineral foot, not spindly freestanding signs.
-    for(const side of [-1,1]){
-      parts.add(rod([side*.18,.14,s.r-.32],[side*.36,s.height-.07,s.r-.07],.043,.030,8),'#82775f');
-    }
-  }
-  parts.add(box(0,0,-.027,width+.024,height+.026,.053).rotateX(s.tilt).translate(0,s.height,s.r),'#897d64');
-  return parts.finish();
-}
 function Reader({place,state,activate}:{place:SurveyPlace;state:SurveyState;activate:(p:SurveyPlace)=>void}){
   const zh=useLanguageStore(s=>s.language==='zh'),s=surveySites[place],dial=place==='dial';
   const scratch=useMemo(()=>({ray:new Ray(),bounds:new Box3(),size:new Vector3(),p:new Vector3()}),[]);
   const sight=(from:Vector3,hit:Vector3)=>{
-    if(!surveySight(from,hit))return false;
+    if(!surveySight(from,hit)||windTerminalOccludes(from,hit,'home'))return false;
     // Imported actors/props on the landing can hide the dock. Use the same
     // visible world extents as the room, including scale / repositioning.
     const {ray,bounds,size,p}=scratch,len=from.distanceTo(hit);
@@ -80,7 +72,7 @@ function Reader({place,state,activate}:{place:SurveyPlace;state:SurveyState;acti
     return true;
   };
   const {hovered,bindings}=useSceneAction('glassPlanet',sight,()=>activate(place));
-  const print=useMemo(()=>facePrint(place,state,zh),[place,state,zh]),body=useMemo(()=>cradle(place),[place]);
+  const print=useMemo(()=>facePrint(place,state,zh),[place,state,zh]),body=useMemo(()=>readerHardware(s),[s]);
   useEffect(()=>()=>print.dispose(),[print]);useEffect(()=>()=>body.dispose(),[body]);
   const lens=useRef<Group>(null),eye=useMemo(()=>new Vector3(),[]);
   useFrame(({camera,gl})=>{
@@ -89,17 +81,17 @@ function Reader({place,state,activate}:{place:SurveyPlace;state:SurveyState;acti
     lens.current.visible=dial?!state.held:state.held&&eye.distanceToSquared(s.lens)<4.45**2;
   });
   const stripe=dial?(state.samples&1?sampleInk.aqua:state.samples&2?sampleInk.coral:'#555e5c'):state.samples&sampleBit[place]?sampleInk[place]:'#505e5c';
+  const second=dial&&state.samples===3?sampleInk.coral:undefined;
+  const chip=useMemo(()=>surveyChip(stripe,second),[stripe,second]);useEffect(()=>()=>chip.dispose(),[chip]);
   return <group name={`survey:site-${place}`} position={s.base} quaternion={s.q}>
-    <mesh geometry={body} userData={noPlayer} raycast={noPick} pointerEvents="none"><meshStandardMaterial vertexColors roughness={.65} metalness={.26}/></mesh>
+    <mesh name={`survey:hardware-${place}`} geometry={body} userData={noPlayer} raycast={noPick} pointerEvents="none"><meshStandardMaterial vertexColors roughness={.65} metalness={.20}/></mesh>
     <group position={[0,s.height,s.r]} rotation-x={s.tilt}>
       <mesh name={`survey:read-${place}`} userData={noPlayer} {...bindings}>
-        <planeGeometry args={[width,height]}/><meshBasicMaterial map={print} color={hovered?'#ffffff':'#ebefe9'} toneMapped={false}/>
+        <planeGeometry args={[width,height]}/><meshStandardMaterial map={print} emissiveMap={print} emissive="#ffffff" emissiveIntensity={hovered ? .55 : .40} roughness={.84} metalness={.04}/>
+        <group ref={lens} name={`survey:chip-${place}`} position={[chipSeat.x,chipSeat.y,0]} rotation-z={(dial?0:state.step)*Math.PI/6}>
+          <mesh geometry={chip} userData={noPlayer} raycast={pickChip}><meshStandardMaterial vertexColors roughness={.40} metalness={.13}/></mesh>
+        </group>
       </mesh>
-      <group ref={lens} name={`survey:chip-${place}`} position={[chipX,chipY,.008]} rotation-z={(dial?0:state.step)*Math.PI/6} pointerEvents="none">
-        <mesh rotation-x={Math.PI/2} userData={noPlayer} raycast={noPick}><cylinderGeometry args={[.098,.107,.022,8]}/><meshStandardMaterial color="#d5ddc8" roughness={.33} metalness={.17}/></mesh>
-        <mesh position-z={.012} userData={noPlayer} raycast={noPick}><boxGeometry args={[.192,.012,.002]}/><meshBasicMaterial color={stripe} toneMapped={false}/></mesh>
-        {dial&&state.samples===3&&<mesh position={[0,.021,.012]} userData={noPlayer} raycast={noPick}><boxGeometry args={[.16,.010,.002]}/><meshBasicMaterial color={sampleInk.coral} toneMapped={false}/></mesh>}
-      </group>
     </group>
   </group>;
 }

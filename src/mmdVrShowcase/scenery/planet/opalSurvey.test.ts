@@ -3,7 +3,7 @@ import {expect,it} from 'vitest';
 import {courseUp,courseDistance} from './opalCourse';
 import {stations,stationBlocks,crustRadius,makeCrust} from './opalTerrain';
 import {PAD_RADIUS,PLANET_RADIUS as R} from './planetLayout';
-import {blankSurvey,lampSpectrum,opalSurveyShots,surveyRelease,surveySight,surveySites} from './opalSurvey';
+import {blankSurvey,lampSpectrum,opalSurveyShots,surveyReaderBlocks,surveyReaderOccludes,surveyRelease,surveySight,surveySites} from './opalSurvey';
 
 it('walks the painted line past both readers and between the existing solids to the back beacon',()=>{
   const near={dial:Infinity,aqua:Infinity,coral:Infinity,beacon:Infinity};
@@ -11,6 +11,7 @@ it('walks the painted line past both readers and between the existing solids to 
     const up=courseUp(i*Math.PI/720),foot=up.clone().multiplyScalar(crustRadius(up.x,up.y,up.z));foot.y-=R;
     expect(Math.abs(courseDistance(up.x,up.y,up.z))).toBeLessThan(1e-5);
     expect(stationBlocks(foot,.26,1.65)).toBe(false);
+    expect(surveyReaderBlocks(foot,.26,1.65,up)).toBe(false);
     for(const site of ['dial','aqua','coral'] as const)near[site]=Math.min(near[site],foot.distanceTo(surveySites[site].lens));
     near.beacon=Math.min(near.beacon,foot.distanceTo(stations.find(s=>s.style==='beacon')!.base));
   }
@@ -31,6 +32,10 @@ it('has reachable finite rays for all three views but cannot read through a clus
   // Dock plate and its hit area stay outside the allowed actor circle even at the inner corners.
   const dock=surveySites.dial;
   expect(Math.hypot(dock.lens.x,dock.lens.z)-.26*Math.abs(Math.cos(dock.tilt))).toBeGreaterThan(PAD_RADIUS-.22);
+  const overFoot=dock.base.clone().addScaledVector(dock.up,.36);
+  expect(surveyReaderBlocks(overFoot,.042,.10)).toBe(false); // between the two real arms
+  expect(surveyReaderOccludes(dock.eye,dock.lens.clone().addScaledVector(dock.front,-.04))).toBe(true);
+  expect(surveyReaderOccludes(dock.eye,dock.lens.clone().addScaledVector(dock.front,.04))).toBe(false);
 });
 it('captures only aligned cuts, displays either single colour or both only on docking, and removes them when lifted',()=>{
   let s=blankSurvey;

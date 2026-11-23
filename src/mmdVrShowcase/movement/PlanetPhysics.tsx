@@ -1,6 +1,6 @@
 import {useLayoutEffect,useMemo,useRef,type RefObject} from 'react';
 import {useThree} from '@react-three/fiber';
-import {TrimeshCollider,CylinderCollider,Physics,RigidBody,useRapier} from '@react-three/rapier';
+import {CuboidCollider,TrimeshCollider,CylinderCollider,Physics,RigidBody,useRapier} from '@react-three/rapier';
 import {Ecctrl,type EcctrlHandle} from 'ecctrl';
 import {useCustomGravity} from 'ecctrl/gravity';
 import {Matrix4,Vector3,type InstancedMesh} from 'three';
@@ -13,6 +13,7 @@ import {makeCrust,stations} from '../scenery/planet/opalTerrain';
 
 import {planetCentre as centre,bodyAboveFoot,transport,type PlanetDriver} from './planetTravel';
 import {headMargin} from './eyeHeight';
+import {homeFixtureBoxes} from './planetFixtures';
 const zero={x:0,y:0,z:0};
 const spawn:[number,number,number]=[0,.8,1.9];
 type Props={driver:RefObject<PlanetDriver|null>};
@@ -77,6 +78,7 @@ function Walker({driver}:Props){
   },[driver,rapier,step,world]);
   return <><LandingSolids/><RigidBody type="fixed" colliders={false}><TrimeshCollider args={hull} position={[0,-R,0]}/><CylinderCollider args={[.17,PAD_RADIUS]} position={[0,-.17,0]}/>
     {stations.map(s=><group key={s.name} position={s.base} quaternion={s.rotation}><CylinderCollider args={[(s.height+.16)/2,s.r]} position={[0,(s.height-.16)/2,0]}/></group>)}
+    {homeFixtureBoxes.map((b,i)=><CuboidCollider key={`console:${i}`} args={[b.half.x,b.half.y,b.half.z]} position={b.center} quaternion={b.rotation}/>)}
   </RigidBody>
     <Ecctrl ref={player} position={spawn} enable={mode==='normal'} enableCustomGravity gravityDirLerpSpeed={1000} useCustomForward canSleep={false} maxWalkVel={speed} jumpVel={2.4} fallingGravityScale={1}/></>;
 }

@@ -2,6 +2,8 @@ import {Quaternion,Vector3} from 'three';
 import {createShellSweep} from './orbitalSurfaces';
 import {north} from './planetTravel';
 import {tideBodyBlocked} from './tideContact';
+import {fixtureBodyBlocked} from './planetFixtures';
+import type {WindTerminalWorld} from '../scenery/planet/windTerminalLayout';
 
 export const landingTurnRate=Math.PI/3.6; // maximum angular speed, 50°/s
 
@@ -14,7 +16,7 @@ export function standingArrival(foot:Vector3,basis:Quaternion){return {
 };}
 export type StandingArrival=ReturnType<typeof standingArrival>;
 
-export function riseToFeet(s:StandingArrival,dt:number,localEye:Vector3,target:Vector3,targetBasis:Quaternion){
+export function riseToFeet(s:StandingArrival,dt:number,localEye:Vector3,target:Vector3,targetBasis:Quaternion,world:WindTerminalWorld){
   const time=Math.min(.05,Math.max(0,dt)),count=Math.max(1,Math.ceil(time*120)),h=time/count;
   s.normal.copy(north).applyQuaternion(targetBasis);s.blocked=false;
   for(let i=0;i<count;i++){
@@ -30,7 +32,8 @@ export function riseToFeet(s:StandingArrival,dt:number,localEye:Vector3,target:V
     s.delta.subVectors(s.goal,s.foot).clampLength(0,2.4*h);
     const hit=s.sweep(s.foot,s.delta,s.up,s.eye,s.end);
     if(!hit){
-      if(tideBodyBlocked(s.goal.copy(s.foot).add(s.delta),s.end.up,s.end.eye)){s.blocked=true;break;}
+      s.goal.copy(s.foot).add(s.delta);
+      if(tideBodyBlocked(s.goal,s.end.up,s.end.eye)||fixtureBodyBlocked(world,s.goal,s.end.up,s.end.eye,.16)){s.blocked=true;break;}
       s.foot.add(s.delta);s.basis.copy(s.q);
     }
     else {
@@ -38,7 +41,8 @@ export function riseToFeet(s:StandingArrival,dt:number,localEye:Vector3,target:V
       // the same blocked screw motion: retreat from the measured contact
       // before rotating. The retreat is swept too, even between two shells.
       s.escape.copy(hit.up).multiplyScalar(1.6*h);
-      if(!s.sweep(s.foot,s.escape,s.up,s.eye)&&!tideBodyBlocked(s.goal.copy(s.foot).add(s.escape),s.up,s.eye))s.foot.add(s.escape);
+      s.goal.copy(s.foot).add(s.escape);
+      if(!s.sweep(s.foot,s.escape,s.up,s.eye)&&!tideBodyBlocked(s.goal,s.up,s.eye)&&!fixtureBodyBlocked(world,s.goal,s.up,s.eye,.16))s.foot.add(s.escape);
       else {s.blocked=true;break;}
     }
   }

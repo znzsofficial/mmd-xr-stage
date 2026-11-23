@@ -19,6 +19,7 @@ export const zh = {
   lanternAmberLeap:'伞灯星 · 跃向琥珀屿',amberLanternLeap:'琥珀屿 · 跃回伞灯星',
   amberFossil:'琥珀屿 · 蕨叶化石',
   opalSurveyDial:'采谱 · 北台罗盘',opalSurveyAqua:'采谱 · 青晶矿簇',opalSurveyCoral:'采谱 · 珊瑚矿簇',
+  opalDepartureChart:'北台 · 七线航向盘',
   glazeMicaLeap:'玄釉星 · 跃向云母屿',micaSulfurLeap:'云母屿 · 跃向硫珠屿',sulfurMicaLeap:'硫珠屿 · 跃回云母屿',micaGlazeLeap:'云母屿 · 跃回玄釉星',
   tourSurvey:'母星 · 沿白脊采谱',tourDepart:'从母星起飞',tourReturn:'从卫星返航',tourStrait:'引力海峡与跳岛',tourPortrait:'观景与近看',
   planetWindHint:'点编号牌看航线 · 风环内按 G 起降 · 足印上按空格跨星',

@@ -2,6 +2,10 @@ import {Vector3} from 'three';
 import {lanes,windPoint,moonObstructed,type WindLane,type WindPort} from './windAtlas';
 import {stationBlocks,terrainAltitude} from './opalTerrain';
 import {moonRadius} from './moonSurface';
+import {windTerminalOccludes,windTerminals} from './windTerminalLayout';
+import {PAD_RADIUS} from './planetLayout';
+import {lanternCanopyBlocks} from './lanternBiosphere';
+import {surveyReaderOccludes} from './opalSurvey';
 
 // A standing, seated or lowered eye can read the same collar. Measure
 // horizontal distance in the collar's own plane, not in world XZ.
@@ -35,12 +39,16 @@ export function createWindFocus(){
 }
 
 export function windPlateSight(lane:WindLane,back:boolean,from:Vector3,hit:Vector3){
-  const distance=from.distanceTo(hit);if(!Number.isFinite(distance)||distance>15)return false;
-  const p=new Vector3(),radial=new Vector3(),steps=Math.ceil(distance/.11);
-  for(let i=0;i<steps;i++){
+  const distance=from.distanceTo(hit);if(!Number.isFinite(distance)||distance<.001||distance>15)return false;
+  const site=windTerminals.find(t=>t.lane===lane&&t.back===back)!;
+  if(windTerminalOccludes(from,hit,site.world)||!back&&surveyReaderOccludes(from,hit))return false;
+  const p=new Vector3(),radial=new Vector3(),steps=Math.ceil(distance/.07);
+  for(let i=0;i<=steps;i++){
     p.lerpVectors(from,hit,i/steps);
-    if(!back){if(terrainAltitude(p)<-.01||stationBlocks(p,.012,.02))return false;}
+    if(!back){if(terrainAltitude(p)<-.01||stationBlocks(p,.012,.02)||
+      (p.y<0&&p.y>-.34&&Math.hypot(p.x,p.z)<PAD_RADIUS-.01))return false;}
     else {radial.subVectors(p,lane.moon.centre);const r=radial.length();if(r<1e-5)return false;radial.divideScalar(r);
-      if(r<moonRadius(lane.moon,radial.x,radial.y,radial.z)-.01||moonObstructed(lane.moon,p,.012,.02))return false;}
+      if(r<moonRadius(lane.moon,radial.x,radial.y,radial.z)-.01||moonObstructed(lane.moon,p,.012,.02)||
+        (lane.moon.id==='lantern'&&lanternCanopyBlocks(p)))return false;}
   }return true;
 }

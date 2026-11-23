@@ -8,6 +8,7 @@ import {surfaceStep,type PlanetDriver,type Traveller} from './planetTravel';
 import {samplePlanetMovement} from './planetDiagnostics';
 import {useMmdVrStore} from '../mmdVrStore';
 import {lanes} from '../scenery/planet/windAtlas';
+import {surveyReaderBlocks,surveySites} from '../scenery/planet/opalSurvey';
 import {useBackpack} from '../backpack';
 
 const h=vi.hoisted(()=>{let resolve!:()=>void;const promise=new Promise<void>(r=>{resolve=r;});
@@ -113,4 +114,29 @@ it.each(['ready at takeoff','ready during hop'])('%s: small same-world landings 
     expect(foot().distanceTo(landed)).toBeGreaterThan(2.25);expect(samplePlanetMovement()).toMatchObject({backend:'rapier',orbitalJumps:1,awaitingAlignment:false,alignments:0});
     expect(h.seed).toHaveBeenCalledTimes(when==='ready at takeoff'?2:1);
   }finally{h.step.mockReset();await act(async()=>root.unmount());useMmdVrStore.setState(old);h.ready=true;vi.unstubAllGlobals();}
+});
+
+it('free flight can carry the actual eye through the north compass and leave normal movement at the saved foot',async()=>{
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);const old=useMmdVrStore.getState();
+  useMmdVrStore.setState({prefs:{...old.prefs,scenery:'glassPlanet',movementMode:'normal',walkSpeedPref:'normal',normalEyeOffset:0}});
+  const root=createRoot(document.createElement('div')),origin=new Group(),scene=new Scene();
+  const input=(hand:string)=>({handedness:hand,targetRayMode:'tracked-pointer',profiles:['meta-quest-touch-plus'],gamepad:{mapping:'xr-standard',axes:[0,0,0,0],buttons:[]}});
+  const left=input('left'),right=input('right'),p=new Vector3(0,.82,0),up=new Vector3(0,1,0);
+  const tick=()=>h.frame!({gl:{xr:{getReferenceSpace:()=>({})}},scene},1/90,{session:{visibilityState:'visible',inputSources:[left,right]},getViewerPose:()=>({transform:{position:p,orientation:{x:0,y:0,z:0,w:1}}})});
+  const mode=(movementMode:'normal'|'free')=>useMmdVrStore.setState({prefs:{...useMmdVrStore.getState().prefs,movementMode}});
+  h.ready=false;
+  try{
+    await act(async()=>root.render(<PlanetMotor originRef={{current:origin}} dragging={false}/>));tick();
+    const before=origin.position.clone();mode('free');tick();
+    const eye=()=>p.clone().applyMatrix4(origin.matrixWorld),ray=surveySites.dial.lens.clone().sub(eye()).normalize();
+    const direction=ray.clone().applyQuaternion(origin.quaternion.clone().invert());
+    const axis=(v:number)=>v===0?0:Math.sign(v)*(.16+.84*Math.abs(v));
+    left.gamepad.axes[2]=axis(direction.x);left.gamepad.axes[3]=axis(direction.z);right.gamepad.axes[3]=axis(-direction.y);
+    let inside=false;
+    for(let i=0;i<250;i++){tick();inside ||= surveyReaderBlocks(eye(),0,.001,up);}
+    expect(inside).toBe(true);expect(eye().sub(surveySites.dial.lens).dot(ray)).toBeGreaterThan(.6);
+    expect(samplePlanetMovement()).toMatchObject({location:'free',windDepartures:0});
+    left.gamepad.axes.fill(0);right.gamepad.axes.fill(0);mode('normal');tick();
+    expect(origin.position.distanceTo(before)).toBeLessThan(.002);
+  }finally{h.ready=true;await act(async()=>root.unmount());useMmdVrStore.setState(old);vi.unstubAllGlobals();}
 });

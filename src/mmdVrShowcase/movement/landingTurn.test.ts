@@ -13,7 +13,7 @@ it.each(leapRoutes)('$pad.id → $target.id: opposed arrival stays outside both 
   const finish=q.clone().premultiply(new Quaternion().setFromAxisAngle(crest,Math.PI)),s=standingArrival(foot,q);
   let done=false,max=0;const dt=1/36,prev=q.clone(),p=new Vector3();
   for(let i=0;i<360&&!done;i++){
-    prev.copy(s.basis);done=riseToFeet(s,dt,eye,target.foot,finish);max=Math.max(max,s.basis.angleTo(prev)/dt);
+    prev.copy(s.basis);done=riseToFeet(s,dt,eye,target.foot,finish,target.moon.id);max=Math.max(max,s.basis.angleTo(prev)/dt);
     for(const h of [0,.16,.6,1.1,1.65,eye.y])for(const m of [pad.moon,target.moon]){
       p.copy(eye).setY(h).applyQuaternion(s.basis).add(s.foot);expect(altitude(m,p)).toBeGreaterThan(-.001);
     }
@@ -33,7 +33,7 @@ it.each(['head','body'] as const)('recovers from a real %s-first sweep onto the 
   for(let i=0;i<450&&!done;i++){
     d.set(0,0,1).projectOnPlane(walker.up).normalize();moonWalk(m,walker,d,i<75?.85:0,dt,false,shellRadius);
     expect(walker.grounded).toBe(true);expect(altitude(m,walker.foot)).toBeCloseTo(0,5);
-    done=riseToFeet(s,dt,localEye,walker.foot,walker.basis);
+    done=riseToFeet(s,dt,localEye,walker.foot,walker.basis,m.id);
     for(const h of [0,.15,.8,1.4,localEye.y])expect(altitude(m,new Vector3(0,h,0).applyQuaternion(s.basis).add(s.foot))).toBeGreaterThan(-.001);
   }
   expect(done).toBe(true);expect(s.foot.distanceTo(f.point)).toBeGreaterThan(.7);expect(altitude(m,s.foot)).toBeCloseTo(0,5);
@@ -45,8 +45,8 @@ it('does not wait forever on the same blocked step after the visitor leans acros
   const s=standingArrival(target.foot.clone().addScaledVector(target.up,.12),from);
   // Tracking is input to each synthetic sweep. Lean, hold for a while,
   // then return to standing normally without a key press or a new landing.
-  for(let i=0;i<75;i++)riseToFeet(s,1/72,eye,target.foot,finish);
+  for(let i=0;i<75;i++)riseToFeet(s,1/72,eye,target.foot,finish,target.moon.id);
   eye.set(0,1.7,0);let done=false;
-  for(let i=0;i<600&&!done;i++)done=riseToFeet(s,1/72,eye,target.foot,finish);
+  for(let i=0;i<600&&!done;i++)done=riseToFeet(s,1/72,eye,target.foot,finish,target.moon.id);
   expect(done).toBe(true);expect(altitude(target.moon,s.foot)).toBeCloseTo(0,5);
 });

@@ -3,6 +3,8 @@ import {homeGravity,PAD_RADIUS,PLANET_RADIUS as R} from '../scenery/planet/plane
 import type {ReadColumn} from './groundMotor';
 import {STEP} from './solidColumns';
 import {crustRadius,stationBlocks} from '../scenery/planet/opalTerrain';
+import {fixtureBodyBlocked} from './planetFixtures';
+import {headMargin} from './eyeHeight';
 
 export const planetCentre=new Vector3(0,-R,0),north=new Vector3(0,1,0);
 // Ecctrl's .3 m half-capsule + .3 m radius + .2 m suspension.
@@ -30,29 +32,39 @@ function support(s:Traveller,p:Vector3,read:ReadColumn,height:number){
   return c.blocked||Math.max(c.floor,s.foot.y)+height>c.ceiling ? NaN : Math.max(crust,(R+c.floor)/n.y);
 }
 
+const eye=new Vector3(),view=new Vector3(),nextEye=new Vector3(),nextView=new Vector3(),rotation=new Quaternion();
+function fallbackStep(s:Traveller,travel:Vector3,speed:number,dt:number,jump:boolean,read:ReadColumn,height:number){
+  const radius=s.foot.distanceTo(planetCentre),v=jump&&s.grounded?1.45:s.velocity.dot(s.up),gravity=homeGravity(radius);
+  function candidate(move:boolean){
+    const p=s.destination.copy(s.foot);if(move)p.addScaledVector(travel,speed*dt);
+    const floor=support(s,p,read,height);if(!Number.isFinite(floor))return false;
+    let vy=v-gravity*dt,r=radius+v*dt-.5*gravity*dt*dt;
+    // Follow reachable downhill support on the flat north pad.
+    if(s.grounded&&!jump&&floor<=radius&&radius-floor<=STEP)r=floor;
+    if(s.radial.y>.8&&Number.isFinite(s.col.ceiling)&&vy>0){
+      const max=(R+s.col.ceiling-height)/s.radial.y;
+      if(r>max){r=max;vy=0;}
+    }
+    p.copy(planetCentre).addScaledVector(s.radial,Math.max(floor,r));
+    rotation.setFromUnitVectors(s.up,s.radial);nextEye.copy(eye).applyQuaternion(rotation);nextView.copy(view).applyQuaternion(rotation);
+    if(fixtureBodyBlocked('home',p,nextView,nextEye,.22))return false;
+    s.grounded=r<=floor+.000001&&vy<=0;
+    s.foot.copy(p);transport(s);s.velocity.copy(travel).multiplyScalar(move?speed:0).projectOnPlane(s.up).addScaledVector(s.up,s.grounded?0:vy);return true;
+  }
+  const moving=speed!==0&&travel.lengthSq()>0;
+  if(!candidate(moving)&&!(moving&&candidate(false))){s.arc.identity();s.velocity.set(0,0,0);}
+}
+
 /** Always available, even with a cached module rejection. Move the existing
  * foot, never a second XR origin. A late physics body is seeded from this pose. */
-export function surfaceStep(s:Traveller,travel:Vector3,speed:number,dt:number,jump:boolean,read:ReadColumn,height:number){
-  const p=s.destination.copy(s.foot).addScaledVector(travel,speed*dt);
-  const radius=s.foot.distanceTo(planetCentre);
-  let floor=support(s,p,read,height);
-  if(!Number.isFinite(floor)) {p.copy(s.foot);floor=support(s,p,read,height);if(!Number.isFinite(floor))return;}
-  let vy=s.velocity.dot(s.up);
-  if(jump&&s.grounded)vy=1.45;
-  const gravity=homeGravity(radius);
-  let r=radius+vy*dt-.5*gravity*dt*dt;vy-=gravity*dt;
-  // Radial distance decreases while walking towards the middle of the flat
-  // north deck. Follow reachable downhill support instead of leaving the
-  // deck on a tangent and repeatedly entering a tiny fall.
-  if(s.grounded&&!jump&&floor<=radius&&radius-floor<=STEP)r=floor;
-  if(s.radial.y>.8&&Number.isFinite(s.col.ceiling)&&vy>0){
-    const max=(R+s.col.ceiling-height)/s.radial.y;
-    if(r>max){r=max;vy=0;}
+export function surfaceStep(s:Traveller,travel:Vector3,speed:number,dt:number,jump:boolean,read:ReadColumn,height:number,trackedEye?:Vector3,viewUp=s.up){
+  if(trackedEye)eye.copy(trackedEye);else eye.copy(s.up).multiplyScalar(height-headMargin);
+  view.copy(viewUp);
+  const count=Math.max(1,Math.ceil(travel.length()*speed*dt/.085));
+  for(let i=0;i<count;i++){
+    fallbackStep(s,travel,speed,dt/count,jump&&i===0,read,height);
+    eye.applyQuaternion(s.arc);view.applyQuaternion(s.arc);
   }
-  s.grounded=r<=floor+.000001&&vy<=0;
-  if(s.grounded)vy=0;
-  s.foot.copy(planetCentre).addScaledVector(s.radial,Math.max(floor,r));
-  transport(s);s.velocity.copy(travel).multiplyScalar(speed).projectOnPlane(s.up).addScaledVector(s.up,vy);
 }
 
 export interface PlanetDriver {

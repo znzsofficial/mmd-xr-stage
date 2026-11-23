@@ -6,6 +6,8 @@ import {moonRadius} from './moonSurface';
 import {clearingDeck,onClearing} from './lanternClearing';
 import {lanternCanopyBlocks} from './lanternBiosphere';
 import {onTideDeck,tideDeck} from './tideLayout';
+import {surveyReaderOccludes} from './opalSurvey';
+import {windTerminalOccludes} from './windTerminalLayout';
 
 const home=new Vector3(0,-PLANET_RADIUS,0);
 /** Any actor deck can be the destination. Clip against each world's occupied
@@ -14,7 +16,11 @@ export function planetSight(from:{x:number;y:number;z:number},x:number,y:number,
   if(!(planetPlace(x,z)&&y===0||onClearing(x,z)&&y===clearingDeck.y||onTideDeck(x,z)&&y===tideDeck.y)||from.y<=y+.005)return false;
   const dx=x-from.x,dy=y+.012-from.y,dz=z-from.z,len=Math.hypot(dx,dy,dz);
   if(!Number.isFinite(len))return false;
-  const p=new Vector3();
+  const start=new Vector3(from.x,from.y,from.z),end=new Vector3(x,y+.012,z),p=new Vector3();
+  // Thin tilted faces and fork arms can fall between terrain samples. Clip
+  // this finite segment even on worlds other than the destination deck.
+  if(surveyReaderOccludes(start,end)||windTerminalOccludes(start,end,'home')||
+    allMoons.some(m=>windTerminalOccludes(start,end,m.id)))return false;
   function crosses(centre:Vector3,radius:number,blocks:(p:Vector3)=>boolean){
     const a=from.x-centre.x,b=from.y-centre.y,c=from.z-centre.z;
     const mid=len?-(a*dx+b*dy+c*dz)/len:0,span=radius*radius-(a*a+b*b+c*c-mid*mid);

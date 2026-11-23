@@ -2,6 +2,8 @@ import {Matrix4,Quaternion,Vector3} from 'three';
 import {stations,stationBlocks,crustRadius,terrainAltitude} from './opalTerrain';
 import {courseUp} from './opalCourse';
 import {PAD_RADIUS,PLANET_RADIUS as R} from './planetLayout';
+import {readerWorldBoxes,type ReaderBox} from './surveyHardware';
+import {surveyOccupancy} from './surveyOccupancy';
 
 export type SurveyPlace='dial'|'aqua'|'coral';
 export const sampleBit={aqua:1,coral:2} as const;
@@ -20,26 +22,32 @@ export const lampSpectrum=(s:SurveyState)=>s.held?0:s.samples;
 
 const north=new Vector3(0,1,0),centre=new Vector3(0,-R,0);
 function frame(up:Vector3,front:Vector3){return new Quaternion().setFromRotationMatrix(new Matrix4().makeBasis(new Vector3().crossVectors(up,front),up,front));}
-function apparatus(base:Vector3,up:Vector3,front:Vector3,r:number,height:number,tilt:number){
-  const q=frame(up,front),lens=base.clone().addScaledVector(front,r).addScaledVector(up,height);
-  return {base,up,front,q,r,height,tilt,lens};
+function apparatus(base:Vector3,up:Vector3,eye:Vector3,cameraUp:Vector3,mineralRadius:number,height:number){
+  const front=eye.clone().sub(base).projectOnPlane(up).normalize(),q=frame(up,front),r=mineralRadius?mineralRadius+.22:0;
+  const lens=base.clone().addScaledVector(front,r).addScaledVector(up,height),view=eye.clone().sub(lens);
+  return {base,up,front,q,r,height,mineralRadius,tilt:-Math.atan2(view.dot(up),view.dot(front)),lens,eye,cameraUp};
 }
-function atMineral(name:string){
+function atMineral(name:string,lead:number){
   const s=stations.find(v=>v.name===name)!;
-  const track=courseUp(Math.atan2(-s.up.z,s.up.y)),front=track.addScaledVector(s.up,-track.dot(s.up)).normalize();
-  return apparatus(s.base,s.up,front,s.r+.23,.69,-.46);
+  const track=courseUp(Math.atan2(-s.up.z,s.up.y)-lead);
+  const eye=centre.clone().addScaledVector(track,crustRadius(track.x,track.y,track.z)+1.54);
+  return apparatus(s.base,s.up,eye,track,s.r,.84);
 }
-const dialFront=new Vector3(-.54,0,.84).normalize();
 export const surveySites={
-  dial:apparatus(new Vector3(1.67,0,-2.52),north,dialFront,0,.29,-.91),
-  aqua:atMineral('aqua-quartz'),coral:atMineral('coral-quartz'),
+  dial:apparatus(new Vector3(1,0,-2.98),north,new Vector3(.70,1.54,-1.31),north,0,.82),
+  aqua:atMineral('aqua-quartz',.05),coral:atMineral('coral-quartz',.10),
 };
+export const surveyReaderBoxes:readonly ReaderBox[]=Object.values(surveySites).flatMap(readerWorldBoxes);
+const occupied=surveyOccupancy(surveyReaderBoxes),axis=new Vector3();
+export function surveyReaderBlocks(worldFoot:Vector3,r:number,h:number,up?:Vector3){
+  return occupied(worldFoot,(up?axis.copy(up):axis.subVectors(worldFoot,centre)).normalize(),h,r);
+}
+export function surveyReaderOccludes(from:Vector3,to:Vector3,endTolerance=0){
+  axis.subVectors(to,from);const len=axis.length();return occupied(from,axis.normalize(),Math.max(0,len-endTolerance),0);
+}
 type P=[number,number,number];
 function shot(site:SurveyPlace){
-  const s=surveySites[site],eye=s.lens.clone().addScaledVector(s.front,site==='dial'?1.10:1.34);
-  const up=site==='dial'?north:eye.clone().sub(centre).normalize();
-  if(site==='dial')eye.y=1.46;else eye.copy(centre).addScaledVector(up,crustRadius(up.x,up.y,up.z)+1.49);
-  return {eye:eye.toArray() as P,aim:s.lens.toArray() as P,up:up.toArray() as P};
+  const s=surveySites[site];return {eye:s.eye.toArray() as P,aim:s.lens.toArray() as P,up:s.cameraUp.toArray() as P};
 }
 export const opalSurveyShots=[{key:'opalSurveyDial',...shot('dial')},{key:'opalSurveyAqua',...shot('aqua')},{key:'opalSurveyCoral',...shot('coral')}] as const;
 
@@ -47,6 +55,9 @@ export const opalSurveyShots=[{key:'opalSurveyDial',...shot('dial')},{key:'opalS
  * face outside each solid, so there is no blanket exception for its host. */
 export function surveySight(from:Vector3,hit:Vector3){
   const len=from.distanceTo(hit);if(!Number.isFinite(len)||len>4.2||len<.001)return false;
+  // The hit is on the casting's shared front boundary. Stop one tenth of a
+  // millimetre short there; do not exempt the target cabinet, its arms or feet.
+  if(surveyReaderOccludes(from,hit,.0001))return false;
   const n=Math.ceil(len/.055),p=new Vector3();
   for(let i=0;i<=n;i++){
     p.lerpVectors(from,hit,i/n);

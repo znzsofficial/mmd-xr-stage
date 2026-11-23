@@ -37,6 +37,17 @@ export function opalBedrock(grain:Texture|null):MeshStandardMaterial['onBeforeCo
       float face=(1.-smoothstep(.02,.18+aa,abs(layer-.65*shelf)))*smoothstep(-.35,.49,sin(fold*.86)+.48*sin(run*1.28));
       float angle=abs(dot(normalize(rockEye),normalize(rockNormal)));
       ivory=mix(ivory,mix(vec3(.33,.67,.65),vec3(.58,.47,.68),smoothstep(.22,.85,angle)),face*.80);
-      diffuseColor.rgb=mix(mix(matrixRock,vec3(.48,.56,.52)*grainLift,.80*branch),ivory*grainLift,milk);`);
+       // Bands of opal in the broken shoulder. The coppery selvage occurs on
+       // just one side of a seam; keep the centre light enough to follow on foot.
+       float v=d-.73*shelf+.13*sin(run*3.7+.57*fold);
+       float skin=exp(-12.*v*v)*smoothstep(-.15,.59,bedding+.48*sin(run*2.1-fold));
+       float lamina=layer*28.+.86*sin(3.8*run-fold)+1.64*bedding;
+       float keep=1.-smoothstep(.32,2.8,fwidth(lamina));
+       float luster=pow(.5+.5*cos(lamina),4.)*keep;
+       vec3 flash=mix(vec3(.28,.58,.56),vec3(.61,.49,.62),.5+.5*sin(run*2.+1.6*angle));
+       ivory=mix(ivory,flash,skin*(.26+.49*luster));
+       float rind=abs(edge-.048+.035*bedding),edgeInk=(1.-smoothstep(.022,.063+aa,rind))*smoothstep(-.08,.53,splitA-bedding*.37);
+       matrixRock=mix(matrixRock,vec3(.31,.235,.17)*grainLift,edgeInk*.69);
+       diffuseColor.rgb=mix(mix(matrixRock,vec3(.48,.56,.52)*grainLift,.80*branch),ivory*grainLift,milk);`);
   };
 }

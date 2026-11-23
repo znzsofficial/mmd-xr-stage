@@ -23,6 +23,8 @@ import {opalSurveyShots} from './planet/opalSurvey';
 type Point=readonly [number,number,number];
 type Shot={key:TranslationKey;eye:Point;aim:Point;up?:Point;fov?:number;link?:RoomLink;preloadLawn?:boolean;overview?:boolean};
 type RoomView={entry:readonly [Point,Point];shots?:readonly Shot[]};
+// Frame all seven collars, still within their chart-selection reach.
+const departureChart={key:'opalDepartureChart',eye:[.55,8.85,4.5],aim:[.16,-.12,.55],fov:63} as const;
 export const roomViews:Record<SceneryId,RoomView>={
   ...RETREAT_VIEWS,
   arcadeHall:arcadeView,
@@ -31,7 +33,7 @@ export const roomViews:Record<SceneryId,RoomView>={
     {key:'planetTransit',...transitPortrait},{key:'planetSouth',...southPortrait},...launchViews.filter(v=>v.key!=='tideWind'),...returnViews.filter(v=>v.key!=='tideReturn'),
     {key:'planetPulsar',eye:[.55,1.65,1.88],aim:[4.50,2.73,-12.78]},
     straitPortrait,...twinSurveys.flatMap(s=>[s.portrait,s.leapView]),...reedShots,...opalSurveyShots,...steppingViews,...lanternShots,amberPortrait,
-    ...launchViews.filter(v=>v.key==='tideWind'),...returnViews.filter(v=>v.key==='tideReturn'),...tideShots]},
+     ...launchViews.filter(v=>v.key==='tideWind'),...returnViews.filter(v=>v.key==='tideReturn'),...tideShots,departureChart]},
   floor:{entry:[[1.4,1.65,4],[0,.95,-.4]]}, liveHouse:{entry:[[.8,1.7,4.4],[0,1.05,-1.3]]},
   pool:{entry:[[2.1,1.7,2.8],[0,.85,-3.7]],shots:[LIDO_ROUTE_SHOTS.clock,LIDO_ROUTE_SHOTS.return]},
   classroom:{entry:[[.15,1.58,3.95],[0,1.05,-1.4]],shots:[
@@ -71,7 +73,7 @@ export function tourShots(room:SceneryId):readonly Shot[]{
 // Keep camera indices stable, but make travel actions distinct from viewpoints
 // in the long planetary picker. Labels come from each site's existing record.
 const planetViews=tourShots('glassPlanet');
-const planetSections=[['tourSurvey',opalSurveyShots],['tourDepart',launchViews],['tourReturn',returnViews],
+const planetSections=[['tourSurvey',[departureChart,...opalSurveyShots]],['tourDepart',launchViews],['tourReturn',returnViews],
   ['tourStrait',[straitPortrait,...twinSurveys.map(v=>v.leapView),...steppingViews]]] as const;
 const assigned=new Set<string>(planetSections.flatMap(([,shots])=>shots.map(s=>s.key)));
 export const planetTourGroups=[...planetSections,['tourPortrait',planetViews.filter(v=>!assigned.has(v.key))] as const]

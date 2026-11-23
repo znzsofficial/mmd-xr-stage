@@ -39,6 +39,7 @@
 | 摄影棚实景灯控 | [`velvetLight.ts`](../src/mmdVrShowcase/scenery/velvet/velvetLight.ts) 保存本页灯轨和强度。只有私摄棚订阅调节，`StageRoom` 将同一组灯光参数同时交给布景和 PMX；换档不重建房间。 |
 | 增加能用射线点击的场内机关 | [`useSceneAction`](../src/mmdVrShowcase/scenery/input/useSceneAction.ts) 管鼠标点选、XR 按下归属、松开复验及输入中断。喜房帘绳和灯台共用它；遮挡、动画、改变哪盏灯及是否跨房保留仍归各自布景。[两种拟议的接入例子](./gameplay/interactive-scene-studies.md) |
 | 星球的测站、风口、到站镜头 | [`windAtlas.ts`](../src/mmdVrShowcase/scenery/planet/windAtlas.ts) 每个目的地持有自己的测站、设备类型与机位键，屏幕到站、阴影和碰撞均引用同一测站；[`moonSurface.ts`](../src/mmdVrShowcase/scenery/planet/moonSurface.ts) 提供径向地形和对应网格，无需挂载 React 组件即可检查脚底与壳面。 |
+| 母星航向盘与仪表底座 | [航向刻度](../src/mmdVrShowcase/scenery/planet/departureDial.ts)按每条风道的真实出发点生成。航线牌用[固定安装坐标与分段实体盒](../src/mmdVrShowcase/scenery/planet/windTerminalLayout.ts)，喷嘴经[实际壳面三角形](../src/mmdVrShowcase/scenery/planet/windCollarBed.ts)贴地；采谱读头的[背板和支架](../src/mmdVrShowcase/scenery/planet/surveyHardware.ts)也供碰撞与视线复用。 |
 | 潮洞的阶面、洞顶和水线 | [`tideLayout.ts`](../src/mmdVrShowcase/scenery/planet/tideLayout.ts) 是海蚀洞的实体边界和地面三角网；演员只放在恒定高度的干台。[潮水](../src/mmdVrShowcase/scenery/planet/TidalMoon.tsx)和[涉水减速](../src/mmdVrShowcase/scenery/planet/tideSession.ts)读取本景同一条潮时钟；月影采样苇湾星实际方位与半径，不另渲染反射相机。 |
 | 创建角色运行时、连接手追／手柄碰撞或 GPU 预热 | [`stage/createRoomRuntime.ts`](../src/mmdVrShowcase/stage/createRoomRuntime.ts) 组装依赖；MMD/Bullet 实现在 [`mmdRuntime/`](../src/mmdVrShowcase/mmdRuntime/)。句柄在房间的 layout effect 提交，加载、换物理与逐帧更新归房间。 |
 | XR 会话创建、绑定和首帧 | [`src/xr/`](../src/xr/) 与[会话生命周期](./xr-session-lifecycle.md)。普通屏幕不申请 XR 会话。 |

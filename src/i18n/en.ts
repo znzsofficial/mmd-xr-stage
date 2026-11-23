@@ -21,6 +21,7 @@ export const en: Record<keyof ZhMessages, string> = {
   lanternAmberLeap:'Lantern · leap to Amber',amberLanternLeap:'Amber · leap back to Lantern',
   amberFossil:'Amber · fern inclusion',
   opalSurveyDial:'Survey · Compass',opalSurveyAqua:'Survey · Aqua seam',opalSurveyCoral:'Survey · Coral seam',
+  opalDepartureChart:'North deck · Seven wind routes',
   glazeMicaLeap:'Obsidian · leap to Mica',micaSulfurLeap:'Mica · leap to Sulfur',sulfurMicaLeap:'Sulfur · leap to Mica',micaGlazeLeap:'Mica · leap back to Obsidian',
   tourSurvey:'Compass and mineral survey',tourDepart:'Outbound wind collars',tourReturn:'Homeward wind collars',tourStrait:'Gravity narrows and moonlets',tourPortrait:'Lookouts and close views',
   planetWindHint:'Select a numbered plate to see its route · G at a collar · Space at a jump mark',
