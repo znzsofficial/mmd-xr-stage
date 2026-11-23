@@ -1,24 +1,30 @@
 import {useState} from 'react';
 import {useLanguageStore} from '../../languageStore';
 import type {BackpackLive} from '../backpack';
-import {useRemoteEgg,bindRemoteEgg,cycleRemoteEgg,adjustRemoteEgg,resetEggOffset} from '../play/remoteEgg';
-import {eggModes,eggAxes,eggAxesIndices} from '../play/propControlLabels';
+import {useRemoteEgg,bindRemoteEgg,selectEggPattern,stopRemoteEgg,removeRemoteEgg,onEggWearer,adjustRemoteEgg,resetEggOffset} from '../play/remoteEgg';
+import {eggPatterns,eggAxes,eggAxesIndices} from '../play/propControlLabels';
 import {useStagePlay} from '../play/stagePlay';
 import {cycleWand,useWandMotor} from '../play/wandMotor';
 import {defaultWandResponse,useWandResponse,setWandResponse,setWandResponseEnabled} from '../play/wandResponse';
 import {HudButton,HudLine} from './PorcelainControls';
 
 export function EggControls({id,locked}:{id:string;locked:boolean}){
-  const t=useLanguageStore(s=>s.t),s=useRemoteEgg(),wearing=s.assetId===id;
-  if(!wearing)return <HudButton position={[0,.03,0]} size={[1.20,.17]} label={t('eggWear')} disabled={locked} onPress={()=>bindRemoteEgg(id)}/>;
-  return <>
-    <HudButton position={[0,.18,0]} size={[1.20,.14]} label={`${t('eggMode')}: ${t(eggModes[s.mode])}`} disabled={locked} onPress={cycleRemoteEgg}/>
+  const t=useLanguageStore(s=>s.t),s=useRemoteEgg(),[fit,setFit]=useState(false);
+  const act=(action:()=>void)=>()=>onEggWearer(id,action);
+  if(s.assetId!==id)return <HudButton position={[0,.03,0]} size={[1.20,.17]} variant="primary" label={t(s.assetId?'eggTransfer':'eggWear')} disabled={locked} onPress={()=>{setFit(false);bindRemoteEgg(id);}}/>;
+  if(fit)return <>
+    <HudButton position={[0,.18,0]} size={[1.20,.14]} label={t('eggControls')} variant="quiet" onPress={()=>setFit(false)}/>
     {eggAxesIndices.map(axis=><group key={axis} position-y={-.002-axis*.17}>
       <HudLine position={[0,0,0]} width={.62} center text={`${t(eggAxes[axis])} ${s.offset[axis]} cm`}/>
-      {([-1,1] as const).map(k=><HudButton key={k} position={[k*.46,0,0]} size={[.27,.13]} label={k<0?'−1':'+1'} disabled={locked} onPress={()=>adjustRemoteEgg(axis,k)}/>)}
+      {([-1,1] as const).map(k=><HudButton key={k} position={[k*.46,0,0]} size={[.27,.13]} label={k<0?'−1':'+1'} disabled={locked} onPress={act(()=>adjustRemoteEgg(axis,k))}/>)}
     </group>)}
-    <HudButton position={[-.32,-.53,0]} size={[.58,.14]} label={t('eggReset')} disabled={locked} onPress={resetEggOffset}/>
-    <HudButton position={[.32,-.53,0]} size={[.58,.14]} label={t('toyStow')} disabled={locked} onPress={()=>useStagePlay.getState().stow()}/>
+    <HudButton position={[0,-.53,0]} size={[1.20,.14]} label={t('eggReset')} disabled={locked} onPress={act(resetEggOffset)}/>
+  </>;
+  return <>
+    {eggPatterns.map(([mode,label],i)=><HudButton key={mode} position={[(i-1)*.41,.18,0]} size={[.39,.16]} label={t(label)} active={s.mode===mode} disabled={locked} onPress={act(()=>selectEggPattern(mode))}/>)}
+    <HudButton position={[-.31,-.03,0]} size={[.58,.14]} danger label={t('eggStop')} disabled={locked||!s.mode} onPress={act(stopRemoteEgg)}/>
+    <HudButton position={[.31,-.03,0]} size={[.58,.14]} label={t('eggRemove')} disabled={locked} onPress={()=>removeRemoteEgg(id)}/>
+    <HudButton position={[0,-.25,0]} size={[1.20,.14]} variant="quiet" label={t('eggFit')} disabled={locked} onPress={()=>setFit(true)}/>
   </>;
 }
 

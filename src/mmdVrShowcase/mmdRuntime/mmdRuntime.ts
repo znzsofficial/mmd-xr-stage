@@ -10,6 +10,7 @@ import type { MmdPhysicsBackend } from "@yohawing/three-mmd-loader/physics";
 import { DefaultMmdRuntime, MmdAnimRuntime } from "@yohawing/three-mmd-loader/runtime";
 import * as THREE from "three";
 import { placementLoaderProfile } from '../placementWork';
+import {mountedModelBytePool, type ModelByteLease} from './mountedModelBytes';
 import { PhysicsPoseDisplay } from "./physicsPoseDisplay";
 import {createPoseSolver,type PoseSolver} from '../pose/poseSolver';
 import { PARK_Y } from "./colliderReentry";
@@ -147,6 +148,7 @@ export type MmdRuntimeHandle = {
 };
 
 type RuntimeEntryWithPhysics = RuntimeEntry & {
+  modelBytes?: ModelByteLease;
   motionEpoch: Record<MmdMotionSlot, number>;
   editor?:PoseSolver;
   chest?:ReturnType<typeof fitChestCompression>;
@@ -285,6 +287,7 @@ export function isMmdRuntimeRebuildError(error: unknown): error is MmdRuntimeReb
 }
 
 export type MmdRuntimeOptions = {
+  modelBytePool?: typeof mountedModelBytePool;
   alphaTiles?: import('./roomAlphaTiles').RoomAlphaTiles;
   motionCache?: import('./roomMotionCache').RoomMotionCache;
   actorPalmCloth?:boolean|(()=>boolean);
@@ -325,6 +328,10 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
     if (disposed) throw new DOMException("MMD runtime disposed", "AbortError");
   };
   const entries = new Map<string, RuntimeEntryWithPhysics>();
+  const byteLeases = new Set<ModelByteLease>(); // includes loads not published to entries yet
+  function releaseBytes(lease?: ModelByteLease) {
+    if (lease) { lease.release(); byteLeases.delete(lease); }
+  }
   let selectedId: string | null = null;
   let physicsWanted = false;
   let physicsTransition: Promise<void> = Promise.resolve();
@@ -434,6 +441,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
   function removeEntry(id: string) {
     const entry = entries.get(id);
     if (!entry) return;
+    releaseBytes(entry.modelBytes);
     endPose(id);scene.remove(entry.model.root);
     entry.fingertip?.reset();
     entry.chest?.restore(); entry.bodyDisplay?.restore();
@@ -456,6 +464,16 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
     preferredId?: string,
     isStale: () => boolean = () => false,
     work?: MmdAddModelOptions['work'],
+  ) {
+    const lease = (options.modelBytePool ?? mountedModelBytePool).acquire(modelFile);
+    if (lease) byteLeases.add(lease);
+    try { return await assembleEntry(modelFile, companionFiles, withPhysics, transform, preferredId, isStale, work, lease); }
+    catch (error) { releaseBytes(lease); throw error; }
+  }
+
+  async function assembleEntry(
+    modelFile: File, companionFiles: readonly File[], withPhysics: boolean, transform: MmdModelTransform,
+    preferredId: string | undefined, isStale: () => boolean, work: MmdAddModelOptions['work'], modelBytes?: ModelByteLease,
   ) {
     const stale = () => disposed || isStale();
     const assertCurrent = () => { if (stale()) throw new DOMException("Stage changed", "AbortError"); };
@@ -565,8 +583,17 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
     try {
       assertCurrent();
       const started = work ? performance.now() : 0;
-      model = await loader.loadModel(modelFile);
-      if (work) work.loaderWallMs = performance.now()-started;
+      const source = modelBytes ? await modelBytes.read() : modelFile;
+      assertCurrent();
+      const readMs = modelBytes && work ? performance.now()-started : 0;
+      model = await loader.loadModel(source);
+      if (work) {
+        work.loaderWallMs = performance.now()-started;
+        if (modelBytes) {
+          const stages = work.loaderStagesMs ??= {};
+          stages['read-bytes'] = readMs + (stages['read-bytes'] ?? 0);
+        }
+      }
       assertCurrent();
       bindPose = captureBindPose(model.mesh);
       milkOutlet = await prepareMilkOutlets(model,stale);
@@ -626,11 +653,12 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       hasCameraTrack: false,
       duration: 0,
       modelFile,
+      modelBytes,
       companionFiles: companionFiles.length ? [...companionFiles] : [modelFile],
       physicsBackend,
       physicsDisplay,
       bindPose, milkOutlet, createWorld, handEligibility,
-      wardrobe:resumeWardrobeModel(model.mesh,modelFile),
+      wardrobe:resumeWardrobeModel(model.mesh,modelFile,model),
     };
     model.root.userData.mmdVisualScale = entry.transform.scale;
     // Tag root + meshes so post FX (DOF lock / selective bloom) can target a model id.
@@ -743,7 +771,9 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
               finally {elapsed(work,'evaluatorMs',at);}
             } else {
               const read=work?performance.now():0;
-              const modelBytes = new Uint8Array(await entry.modelFile.arrayBuffer().finally(()=>elapsed(work,'readModelMs',read)));
+              const retained = entry.modelBytes;
+              if (work) { const key = retained ? 'modelByteHits' : 'modelByteReads'; work[key] = (work[key] ?? 0) + 1; }
+              const modelBytes = await (retained ? retained.read() : entry.modelFile.arrayBuffer().then(b => new Uint8Array(b))).finally(()=>elapsed(work,'readModelMs',read));
               assertCurrent();
               const at=work?performance.now():0;
               const runtime = await new ThreeMmdLoader({runtime:{physics:'none'}}).createDetachedRuntime({modelBytes,mesh:entry.model.mesh,source:entry.model.source}).finally(()=>elapsed(work,'evaluatorMs',at));
@@ -830,6 +860,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
     clearAll() {
       membershipGeneration++;
       clearGeneration++;
+      for (const lease of byteLeases) releaseBytes(lease);
       for (const id of [...entries.keys()]) removeEntry(id);
       selectedId = null;
       duration = 0;
@@ -872,8 +903,8 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       return entries.get(id)?.model.root ?? null;
     },
     getModelSurface(id) {return entries.get(id)?.model??null;},
-    getWardrobe(id,file){const e=entries.get(id);return e?.visible&&e.modelFile===file?(e.wardrobe??=createWardrobeModel(e.model.mesh,file)):null;},
-    sampleMilkOutlet(id,side,position,normal,trustedBareSkin){const e=entries.get(id);return !!e?.visible&&e.milkOutlet(side,position,normal,trustedBareSkin);},
+    getWardrobe(id,file){const e=entries.get(id);return e?.visible&&e.modelFile===file?(e.wardrobe??=createWardrobeModel(e.model.mesh,file,e.model)):null;},
+    sampleMilkOutlet(id,...args){const e=entries.get(id);return !!e?.visible&&e.milkOutlet(...args);},
     getBodySupport(id){const entry=entries.get(id);return entry?bodyDisplay(entry).support:null;},
     setBodyProfile(id,profile){
       const entry=entries.get(id);if(!entry||(!profile&&!entry.bodyDisplay))return false;
@@ -1185,6 +1216,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
     },
     dispose() {
       disposed = true;
+      for (const lease of byteLeases) releaseBytes(lease);
       for (const id of [...entries.keys()]) removeEntry(id);
       lastPhysicsSeconds.clear();
       selectedId = null;

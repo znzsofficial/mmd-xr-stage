@@ -9,9 +9,10 @@ import {useBodyState} from '../bodyState/store';
 import {defaultPelvicCalibration} from '../pelvic/contract';
 import {usePelvic} from '../pelvic/store';
 import {ObservationScreenControls} from './ActorObservation';
+import {readAtlasView,useAtlasSettings} from '../pelvic/atlas/view';
 
 afterEach(()=>{useBodyState.setState(useBodyState.getInitialState());usePelvic.setState(usePelvic.getInitialState());
-  breastViews.setState({actors:{}});
+  breastViews.setState({actors:{}});useAtlasSettings.setState({actors:{}});
   useLanguageStore.setState(useLanguageStore.getInitialState());vi.restoreAllMocks();vi.unstubAllGlobals();});
 
 it('opens the requested part directly, shows each organ’s own balance, and leaves the simulation and caller’s draft alone on return',async()=>{
@@ -34,6 +35,18 @@ it('opens the requested part directly, shows each organ’s own balance, and lea
     expect(el.textContent).toContain('25% / 75%');await act(async()=>button('返回插入').click());expect(onBack).toHaveBeenCalledOnce();
   }finally{await act(async()=>root.unmount());}
   expect(useBodyState.getState()).toBe(body);expect(usePelvic.getState()).toBe(pelvis);
+});
+
+it('keeps the selected fold geometry with its actor without creating a fit or recording an entry while browsing',async()=>{
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);vi.stubGlobal('requestAnimationFrame',()=>1);vi.stubGlobal('cancelAnimationFrame',()=>{});
+  vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValue(null);useLanguageStore.setState({language:'zh'});
+  const before=usePelvic.getState(),el=document.createElement('div'),root=createRoot(el);
+  const show=(id:string)=>act(async()=>root.render(<ObservationScreenControls assetId={id} runtimeId="r" initialPart="vulva" onBack={()=>{}}/>));
+  const click=(label:string)=>act(async()=>Array.from(el.querySelectorAll('button')).find(b=>b.textContent===label)!.click());
+  try{await show('a');await click('内缘突出');await click('侧面');await click('阴道');await click('外阴');
+    expect(readAtlasView('a').foldStyle).toBe('defined');await show('b');await click('外侧覆盖');
+    expect(readAtlasView('a').foldStyle).toBe('defined');expect(readAtlasView('b').foldStyle).toBe('soft');expect(usePelvic.getState()).toBe(before);
+  }finally{await act(async()=>root.unmount());}
 });
 
 it('remembers the exterior brush by actor through cutaway and re-entry without editing the body profile',async()=>{

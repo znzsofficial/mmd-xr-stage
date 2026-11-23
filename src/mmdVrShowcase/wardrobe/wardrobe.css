@@ -17,3 +17,7 @@
 .wardrobe-screen footer { border-top:1px solid var(--line); padding-top:.65rem; flex-wrap:wrap; justify-content:start; }
 .wardrobe-screen p { margin:0; }
 .wardrobe-screen .wardrobe-note { color:var(--quiet); font-size:.875rem; line-height:1.45; }
+.wardrobe-select { display:grid; gap:.35rem; min-width:0; }
+.wardrobe-select select,.wardrobe-select input { min-width:0; width:100%; min-height:2.75rem; }
+.wardrobe-select input::file-selector-button { min-height:2.75rem; font:inherit; color:var(--ink); background:var(--key-normal-face); border:1px solid var(--line); border-radius:.42rem; }
+.wardrobe-tools { display:flex; gap:.4rem; flex-wrap:wrap; }

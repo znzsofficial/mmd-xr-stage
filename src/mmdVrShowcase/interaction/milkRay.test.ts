@@ -1,6 +1,6 @@
 import {Matrix4,Mesh,PlaneGeometry,type WebGLRenderer} from 'three';
 import {expect,it} from 'vitest';
-import {milkRayGuard} from './milkRay';
+import {milkPressFrame,milkRayGuard} from './milkRay';
 
 it('re-picks a tracked trigger or pinch; a lost grip or fingertip is not a held input even if the old ray still hits',()=>{
   const target=new Mesh(new PlaneGeometry(.45,.15));target.position.z=-1;
@@ -15,4 +15,13 @@ it('re-picks a tracked trigger or pinch; a lost grip or fingertip is not a held 
   gripOK=true;emulated=false;src.hand=new Map([['index-finger-tip',tip],['thumb-tip',thumb]]);const pinch=press();expect(pinch(frame)).toBe(true);
   indexOK=false;expect(pinch(frame)).toBe(false);indexOK=true;src.hand.delete('thumb-tip');expect(pinch(frame)).toBe(false);
   session.inputSources=[];expect(press()(frame)).toBe(false);target.geometry.dispose();
+});
+
+it('re-picks a deferred pointerdown on the active frame only if its event frame has expired, never on loss, miss, or another session',()=>{
+  const session={} as XRSession,source={} as XRInputSource,live={session} as XRFrame;
+  const gl={xr:{getFrame:()=>live,getReferenceSpace:()=>({})}} as unknown as WebGLRenderer;
+  const lost={session,getPose:()=>null} as unknown as XRFrame;
+  const expired={session,getPose:()=>{throw new DOMException('inactive frame','InvalidStateError');}} as unknown as XRFrame;
+  expect(milkPressFrame(gl,session,source,expired)).toBe(live);expect(milkPressFrame(gl,session,source)).toBe(live);
+  expect(milkPressFrame(gl,session,source,lost)).toBe(lost);expect(milkPressFrame(gl,{} as XRSession,source,expired)).toBeUndefined();
 });

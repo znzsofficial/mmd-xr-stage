@@ -1,24 +1,59 @@
 .pelvic-operation { display:grid;grid-template-columns:minmax(0,1fr);align-content:start;gap:.65rem;min-width:0 }
 .pelvic-live-plate { min-width:0;align-self:start }
 .screen-library .pelvic-live-plate > section { margin:0 }
-.pelvic-stroke-readout { display:grid;gap:.12rem;color:var(--pelvic-ink);font-size:.89rem;line-height:1.35;font-variant-numeric:tabular-nums }
-.pelvic-stroke-readout span,.pelvic-stroke-readout output { display:block;min-width:0;height:1.35em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis }
-.pelvic-stroke-readout [role=status] { color:var(--pelvic-muted) }
-.pelvic-stroke-readout output { color:var(--pelvic-gold) }
+.pelvic-stroke-readout { display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;gap:.16rem .4rem;padding-block:.12rem;color:var(--pelvic-muted);font-size:.85rem;line-height:1.35;font-variant-numeric:tabular-nums }
+.pelvic-stroke-readout > span { display:block;min-width:0 }
+.pelvic-stroke-readout > :first-child,.pelvic-balance { white-space:nowrap;overflow:hidden;text-overflow:ellipsis }
+.pelvic-stroke-readout [role=status] { grid-column:1/-1;grid-row:2;block-size:2.7em;color:var(--pelvic-ink);font-size:.97rem }
+.pelvic-stroke-readout[data-delivered] [role=status] { color:var(--pelvic-rouge);font-weight:650 }
+.pelvic-balance { grid-column:2;grid-row:1;max-width:100%;color:var(--pelvic-muted);text-align:end }
 .pelvic-body[data-live=true] .pelvic-state { min-height:3em }
+.pelvic-body[data-live=true] { --key-primary-face:var(--key-stroke-face);--key-primary-letters:var(--key-stroke-letters);--key-primary-edge:var(--pelvic-rouge);--key-primary-hover-face:var(--pelvic-selected) }
+.pelvic-live-plate .live-pelvic-view { gap:.2rem }
+.pelvic-live-plate .live-pelvic-view h4 { padding-block:.25rem;color:var(--key-stroke-letters) }
+.pelvic-live-plate .observation-art { background:linear-gradient(90deg,#2d1922,#211722 15%,#211722 85%,#2d1922);box-shadow:0 .45rem .85rem -.7rem #160b10 }
+.pelvic-live-plate .live-pelvic-view .observation-art canvas { background:transparent;max-height:min(44dvh,23rem) }
+.pelvic-live-plate .uterus-record { border:0 }
+/* Let the close-up carry the light. Choices remain full-size hit targets but
+   read as names along the margin rather than a second bank of action keys. */
+.screen-stage .pelvic-body[data-live=true] :is(.live-pelvic-view,.pelvic-keys[data-choices]) .pelvic-key:enabled {
+  --edge:transparent;--face:var(--pelvic-paper);--letters:var(--pelvic-muted);
+}
+.screen-stage .pelvic-body[data-live=true] :is(.live-pelvic-view,.pelvic-keys[data-choices]) .pelvic-key[aria-pressed=true]:enabled { --letters:var(--pelvic-ink) }
+.screen-stage .pelvic-body[data-live=true] :is(.live-pelvic-view,.pelvic-keys[data-choices]) .pelvic-key:enabled:hover { --face:var(--pelvic-control);--letters:var(--pelvic-ink) }
+.screen-stage .pelvic-body[data-live=true] .pelvic-key[aria-pressed=true]:enabled::after { background:var(--pelvic-rouge) }
+.screen-stage .pelvic-body[data-live=true] :is(.live-pelvic-view,.pelvic-keys[data-choices]) .pelvic-key:focus-visible { --edge:var(--pelvic-gold) }
+.pelvic-body[data-live=true] .pelvic-nav .pelvic-keys { border-color:var(--pelvic-control) }
 @media (min-width:651px) {
-  .screen-workspace .screen-library:has(.pelvic-body[data-live=true]) { width:min(52rem,68%) }
-  .pelvic-body[data-live=true] { grid-template-columns:minmax(0,1fr) minmax(0,1.07fr);gap:clamp(.6rem,1.4vw,1.2rem) }
+  .screen-workspace .screen-library:has(.pelvic-body[data-live=true]) { width:min(49rem,60%) }
+  .pelvic-body[data-live=true] { grid-template-columns:minmax(0,1.16fr) minmax(0,1fr);gap:clamp(.6rem,1.2vw,1rem) }
   .pelvic-live-plate { position:sticky;top:3.7rem }
 }
+@media (max-width:650px) {
+  .pelvic-live-plate .live-pelvic-view { grid-template-columns:repeat(2,minmax(0,1fr));column-gap:.35rem }
+  .pelvic-live-plate .live-pelvic-view h4 { grid-area:1 / 1 / 2 / -1 }
+  .pelvic-live-plate .live-pelvic-view .observation-art { grid-area:2 / 1 / 3 / -1 }
+  .pelvic-live-plate .live-pelvic-view .observation-art canvas { max-height:clamp(9rem,23dvh,13rem) }
+  .pelvic-live-plate .live-pelvic-view .live-pelvic-parts { grid-area:3 / 1 }
+  .pelvic-live-plate .live-pelvic-view .live-pelvic-angles { grid-area:3 / 2 }
+  @container pelvic-sheet (max-width:18.5rem) {
+    .pelvic-live-plate .live-pelvic-view .live-pelvic-parts { grid-area:3 / 1 / 4 / -1 }
+    .pelvic-live-plate .live-pelvic-view .live-pelvic-angles { grid-area:4 / 1 / 5 / -1 }
+  }
+}
 @media (max-width:650px) and (orientation:portrait) {
-  .screen-workspace .screen-library:has(.pelvic-body[data-live=true]) { max-height:82%;padding:.35rem .5rem }
+  .screen-workspace .screen-library:has(.pelvic-body[data-live=true]) { max-height:70%;padding:.35rem .5rem }
+  /* Read the event beside the picture. Stacking all three values underneath
+     it pushes even Stop out of the visible part of a phone's workbench. */
+  .pelvic-live-plate .live-pelvic-view:has(.uterus-record) { grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) }
+  .pelvic-live-plate .live-pelvic-view:has(.uterus-record) .observation-art { grid-column:1;grid-row:2 }
+  .pelvic-live-plate .live-pelvic-view .uterus-record { grid-column:2;grid-row:2;align-self:center;margin:0;padding:0 }
+  .pelvic-live-plate .uterus-record div { display:block;padding:.15rem .2rem }
+  .pelvic-live-plate .uterus-record dt { font-size:.78rem }
+  .pelvic-live-plate .uterus-record dd { text-align:start;font-size:.87rem }
   .pelvic-screen:has(.pelvic-body[data-live=true]) { padding:.4rem .52rem }
   .pelvic-body[data-live=true] { gap:.35rem;padding-top:.35rem }
   .pelvic-body[data-live=true] :is(.pelvic-operation,.pelvic-fields) { gap:.32rem }
   .pelvic-body[data-live=true] .pelvic-fields { order:1 }
   .pelvic-body[data-live=true] .pelvic-nav { order:3 }
-  .pelvic-body[data-live=true] .pelvic-stroke-readout { grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:.12rem .35rem }
-  .pelvic-stroke-readout [role=status] { grid-column:1 / -1 }
-  .pelvic-stroke-readout output { grid-column:2;grid-row:1 }
 }

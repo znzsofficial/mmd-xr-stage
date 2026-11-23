@@ -17,8 +17,9 @@ export function crustRadius(x:number,y:number,z:number){
 }
 export function terrainAltitude(p:{x:number;y:number;z:number}){const y=p.y+R,n=Math.hypot(p.x,y,p.z);return n<1e-6?-R:n-crustRadius(p.x/n,y/n,p.z/n);}
 
+export const crustSegments=[168,104] as const;
 export function makeCrust(painted=true){
-  const g=new SphereGeometry(1,168,104),pos=g.attributes.position,colors=new Float32Array(painted?pos.count*3:0);
+  const g=new SphereGeometry(1,...crustSegments),pos=g.attributes.position,colors=new Float32Array(painted?pos.count*3:0);
   const course=new Float32Array(painted?pos.count:0);
   const shale=new Color('#48595c'),smoke=new Color('#738887'),slate=new Color('#526969'),color=new Color();
   for(let i=0;i<pos.count;i++){

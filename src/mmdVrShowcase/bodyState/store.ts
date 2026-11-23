@@ -3,6 +3,8 @@ import { useBackpack } from '../backpack';
 import { advanceBody, DEFAULT_BODY_PROFILE, moveDay, normalizeBody, type BodyProfile } from './data';
 import {clearMilkEffects,offerMilkDrain} from './lactation/events';
 import type {MilkPanel, Side} from './lactation/interaction';
+import {configureReproduction,jumpReproductiveClock} from './reproduction/store';
+import type {ReproductionGame} from './reproduction/game';
 
 export type BodySupport = { morphs:readonly string[]; bones:boolean; sides:{left:boolean;right:boolean}; clothing:'authored-only' };
 type LiveSupport = BodySupport & {runtimeId:string};
@@ -38,6 +40,14 @@ export function patchBodyPreview(assetId:string, patch:Partial<BodyProfile>) {
   edit(assetId,p=>normalizeBody({...p,...patch,...(patch.day!==undefined&&patch.daySeconds===undefined?{daySeconds:0}:{})}));
 }
 export function stepBodyDay(assetId:string, days=1) {edit(assetId,p=>moveDay(p,days));}
+/** A deliberate forward skip advances both saved clocks by the same duration.
+ * The calendar picker still edits only the tissue study. Neither path reopens
+ * a previously resolved game day. */
+export function fastForwardReproduction(assetId:string,expected:ReproductionGame){
+  const {byAsset,draft}=useBodyState.getState(),p=byAsset[assetId];if(draft||!p)return;
+  const days=jumpReproductiveClock(assetId,p,expected);if(!days)return;
+  useBodyState.setState({byAsset:{...byAsset,[assetId]:{...moveDay(p,days),daySeconds:0}}});
+}
 export function drainBodySide(assetId:string, side:'left'|'right', amount=.25) {
   const draft=useBodyState.getState().draft,bag=useBackpack.getState(),live=bag.live[assetId];
   if(!(amount>0)||!Number.isFinite(amount)||(side!=='left'&&side!=='right')||draft?.assetId!==assetId||!draft.value.lactating||
@@ -77,7 +87,7 @@ export function debitActorMilk(actor:MilkPanel,sides:readonly Side[],amount:numb
 }
 export function commitBodyPreview(assetId:string) {
   const {draft,byAsset}=useBodyState.getState();
-  if(draft?.assetId===assetId)useBodyState.setState({byAsset:{...byAsset,[assetId]:draft.value},draft:null});
+  if(draft?.assetId===assetId){configureReproduction(assetId,draft.value);useBodyState.setState({byAsset:{...byAsset,[assetId]:draft.value},draft:null});}
 }
 export function cancelBodyPreview(assetId:string) {
   if(useBodyState.getState().draft?.assetId===assetId){clearMilkEffects(assetId);useBodyState.setState({draft:null});}
@@ -87,6 +97,7 @@ export function disableBodyState(assetId:string) {
   if(!byAsset[assetId]&&draft?.assetId!==assetId)return;
   clearMilkEffects(assetId);
   const next={...byAsset}; delete next[assetId];
+  configureReproduction(assetId,null);
   useBodyState.setState({byAsset:next,draft:draft?.assetId===assetId?null:draft});
 }
 

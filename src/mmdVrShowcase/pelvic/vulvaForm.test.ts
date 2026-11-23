@@ -3,7 +3,46 @@ import { Bone, BufferAttribute, Float32BufferAttribute, Group, Matrix4, Mesh, Me
 import { createPortDrawing } from './drawing';
 import { createPelvicSolver, pelvicRailMatrix, type PelvicFrame } from './geometry';
 import { rod, rodRadii } from './path';
-import { fitSite, foldStyles, formColors, rimSamples, vulvaHalves } from './vulvaForm';
+import { fitSite, foldStyles, formColors, restingCut, rimSamples, vulvaHalves } from './vulvaForm';
+import {createSealShell,landmarkAt} from './vulvaMesh';
+
+it('retains only a lower rim arc and exposes separate glans, hood and blind meatus triangles to the frontal camera',()=>{
+  const {geom,fitCut}=createSealShell(),mat=new MeshStandardMaterial(),surface=new Mesh(geom,mat),pos=geom.getAttribute('position');
+  const ray=new Raycaster(new Vector3(),new Vector3(0,0,-1)),n=formColors.length;
+  try{
+    for(const style of foldStyles){
+      fitCut(restingCut,1,style,'elastic');const rest=pos.array.slice();
+      // All three names must be the foremost visible triangles, not shells
+      // hidden beneath the anterior skin, and none is a passage through it.
+      for(const [name,y] of [['urethra',1.38],['glans',1.85],['hood',2.01]] as const){
+        ray.ray.origin.set(0,y,4);const hit=ray.intersectObject(surface,false)[0]!;
+        expect(landmarkAt(hit.face!.a)).toBe(name);
+      }
+      ray.ray.origin.set(0,0,4);expect(ray.intersectObject(surface,false)).toHaveLength(0);
+      fitCut({...restingCut,x:.20,xx:.72,yy:.17},1,style,'elastic');
+      let fixed=0;for(let i=0;i<pos.count;i++)if(landmarkAt(i))for(let k=0;k<3;k++)fixed=Math.max(fixed,Math.abs(pos.array[3*i+k]-rest[3*i+k]));
+      expect(fixed).toBe(0);fitCut(restingCut,1,style,'right');let localDelta=0,otherDelta=0;
+      for(const [h,half] of vulvaHalves.entries())for(const [j,row] of half.rows.entries())for(const [k,site] of row.sites.entries()){
+        const i=3*((h*half.rows.length+j)*n+k),dz=Math.abs(pos.array[i+2]-rest[i+2]);
+        if(half.side<0||!site.margin||k===0)otherDelta=Math.max(otherDelta,dz);else localDelta=Math.max(localDelta,dz);
+      }
+      expect(localDelta).toBeGreaterThan(.065);expect(otherDelta).toBe(0);
+    }
+  }finally{geom.dispose();mat.dispose();}
+});
+
+it('is a single connected sheet with just two boundary loops: the skin margin and the measured vaginal opening',()=>{
+  const {geom}=createSealShell(),ix=geom.getIndex()!.array,edges=new Map<string,number>(),links=new Map<number,Set<number>>();
+  const link=(m:Map<number,Set<number>>,a:number,b:number)=>{let n=m.get(a);if(!n)m.set(a,n=new Set());n.add(b);};
+  const components=(m:Map<number,Set<number>>)=>{const unseen=new Set(m.keys());let count=0;
+    while(unseen.size){count++;const stack=[unseen.values().next().value!];while(stack.length){const i=stack.pop()!;if(unseen.delete(i))stack.push(...m.get(i)!);}}return count;};
+  try{for(let i=0;i<ix.length;i+=3)for(let t=0;t<3;t++){const a=ix[i+t],b=ix[i+(t+1)%3],k=[Math.min(a,b),Math.max(a,b)].join(':');
+      edges.set(k,(edges.get(k)??0)+1);link(links,a,b);link(links,b,a);}
+    expect(components(links)).toBe(1);const boundary=new Map<number,Set<number>>();
+    for(const [k,n] of edges){if(n===1){const [a,b]=k.split(':').map(Number);link(boundary,a,b);link(boundary,b,a);}else if(n!==2)throw Error('Non-manifold edge '+k);}
+    expect([...boundary.values()].every(v=>v.size===2)).toBe(true);expect(components(boundary)).toBe(2);
+  }finally{geom.dispose();}
+});
 
 it('changes the cushion and inner relief independently, keeping every style on the measured rim',()=>{
   const zero={x:0,y:0,xx:0,xy:0,yx:0,yy:0}, load={...zero,x:.5,xx:.56,yy:.25};

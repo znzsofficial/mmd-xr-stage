@@ -48,13 +48,13 @@ function chestWeight(mesh:SkinnedMesh,i:number,side:Side){
 /** Bind a barycentric point on the rendered triangles inside the narrowest
  * bilateral, localized, anatomically named vertex morph. Never a bone end,
  * body-wide morph, projected HUD point, model filename or guessed height. */
-export function* fitOutlets(mesh:SkinnedMesh,draws:Draw[]){
+export function* fitOutlets(mesh:SkinnedMesh,draws:Draw[],source=mesh){
   const g=mesh.geometry,{position:p,normal:n}=g.attributes;
   if(!p||!n||!g.morphTargetsRelative)return null;
-  const attrs=g.morphAttributes.position??[],metadata=mesh.userData.mmdMorphs,markers=new Set<number>();
+  const attrs=g.morphAttributes.position??[],metadata=source.userData.mmdMorphs,remap=mesh.userData.mmdMorphSplitBody?.morphTargetIndices,markers=new Set<number>();
   if(!attrs?.length)return null;
   for(const [name,i] of Object.entries(mesh.morphTargetDictionary??{})){
-    const m=metadata?.[i];if((isMarker(name)||isMarker(m?.englishName??''))&&(!m||m.type==='vertex')&&attrs?.[i])markers.add(i);
+    const m=metadata?.[remap?.[i]??i];if((isMarker(name)||isMarker(m?.englishName??''))&&(!m||m.type==='vertex')&&attrs?.[i])markers.add(i);
   }
   if(!markers.size||markers.size>24)return null;
   const pt=v(),nm=v();let best:{left:Patch;right:Patch;span:number;size:number}|null=null;

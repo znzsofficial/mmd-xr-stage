@@ -1,12 +1,10 @@
 import {Vector3} from 'three';
 import {pelvicSeal} from '../geometry';
 import {rod} from '../path';
-import {readCut,type CutBasis} from '../vulvaForm';
+import {readCut,restingCut as rest,type CutBasis} from '../vulvaForm';
 import type {PelvicSample} from '../stateTypes';
 import {drawVulva,exteriorBox,exteriorLens} from './vulvaSurface';
 import type {OrganArtOptions} from './organArt';
-
-const rest:CutBasis={x:0,y:0,xx:0,xy:0,yx:0,yy:0};
 
 // Use the stage's actual shaft/plane intersection. An idle, unverified or
 // untracked tool cannot open this figure, even if its last pose was inside.
@@ -28,11 +26,9 @@ export function createExteriorStudy(){
     ctx.save();ctx.translate(x,y);ctx.fillStyle='#211722';ctx.fillRect(0,0,w,h);
     ctx.beginPath();ctx.rect(0,0,w,h);ctx.clip();
     const zoom=Math.min(w/(box.right-box.left),h/(box.bottom-box.top))*0.94;
-    // Gentle illustrative movement translates the whole study, including
-    // markers. It never opens the rim or changes a measured coordinate.
-    ctx.translate(w/2,h/2+Math.sin(o.time*1.55)*h*.005);ctx.scale(zoom,zoom);
+    ctx.translate(w/2,h/2);ctx.scale(zoom,zoom);
     ctx.translate(-(box.left+box.right)/2,-(box.top+box.bottom)/2);
-    drawVulva(ctx,yaw,cut,o.foldStyle);
+    drawVulva(ctx,yaw,cut,o.foldStyle,o.rim);
     if(s&&s.radiusM>0){
       const point=exteriorLens(yaw,s.radiusM),state=o.parked?'#ebc68e':s.outletInside?'#c3d9fa':s.outletVisible?'#c7a5ff':'#ffba9f';
       const shaft=s.shaft;

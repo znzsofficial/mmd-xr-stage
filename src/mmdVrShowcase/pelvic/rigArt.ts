@@ -1,42 +1,10 @@
-import { BufferGeometry, Color, DynamicDrawUsage, Float32BufferAttribute, Matrix4, Vector3 } from 'three';
+import { Matrix4, Vector3 } from 'three';
 import { ball, box, PaintedParts, ring, rod, turn } from '../play/modelParts';
 import { siliconeMount, siliconeTilt } from '../play/siliconeProfile';
-import { pelvicRailLimit, pelvicRailMatrix, type PelvicFrame, type PelvicSeal } from './geometry';
+import { pelvicRailLimit, pelvicRailMatrix, type PelvicFrame } from './geometry';
 import { pelvicRailTravel } from './path';
 import { PELVIC_LIMITS } from './stateTypes';
-import { fitSite, formColors, junctionColor, readCut, vulvaHalves, type FoldStyle } from './vulvaForm';
-
-const sites=vulvaHalves.flatMap(h=>h.rows.flatMap(r=>r.sites));
-const columns=formColors.length,colors=formColors.map(c=>new Color(c));
-export function createSealShell(){
-  const geom=new BufferGeometry(),pos=new Float32BufferAttribute(sites.length*3,3).setUsage(DynamicDrawUsage);
-  const pigment=new Float32Array(sites.length*3),finish=new Float32Array(sites.length*2),ix:number[]=[],tint=new Color(),skin=new Color(junctionColor);
-  for(const [h,{rows,side}] of vulvaHalves.entries())for(let j=0;j<rows.length;j++)for(let k=0;k<columns;k++){
-    const a=(h*rows.length+j)*columns+k,b=a+1,c=a+columns,d=c+1;
-    const site=sites[a];tint.copy(colors[k]).lerp(skin,site.blend).multiplyScalar(1-.13*site.contactShade).toArray(pigment,a*3);
-    finish[2*a]=.25+.5*site.gloss;finish[2*a+1]=.5;
-    if(k+1===columns||j+1===rows.length)continue;
-    if(side===1)ix.push(a,b,c,b,d,c);else ix.push(a,c,b,b,c,d);
-  }
-  geom.setIndex(ix);geom.setAttribute('position',pos);geom.setAttribute('color',new Float32BufferAttribute(pigment,3));
-  geom.setAttribute('uv',new Float32BufferAttribute(finish,2));
-  geom.setAttribute('normal',new Float32BufferAttribute(pos.count*3,3).setUsage(DynamicDrawUsage));
-  const last={x:0,y:0,xx:0,xy:0,yx:0,yy:0},cut={...last},point=new Vector3();let fittedRadius=-1;
-  let fittedStyle:FoldStyle|undefined;
-  function fit(seal:PelvicSeal,radius:number,style:FoldStyle='natural'){
-    // An admitted, stationary tool is just as static as an empty slit. A
-    // lateral or oblique change at the same openness must still move the lip.
-    readCut(seal.lip,radius,cut);
-    if(style===fittedStyle&&Math.abs(radius-fittedRadius)+Math.abs(cut.x-last.x)+Math.abs(cut.y-last.y)+Math.abs(cut.xx-last.xx)+
-      Math.abs(cut.xy-last.xy)+Math.abs(cut.yx-last.yx)+Math.abs(cut.yy-last.yy)<1e-8)return;
-    Object.assign(last,cut);fittedRadius=radius;fittedStyle=style;
-    for(let i=0;i<sites.length;i++){
-      fitSite(sites[i],radius,cut,point,style);pos.setXYZ(i,point.x,point.y,point.z);
-    }
-    pos.needsUpdate=true;geom.computeVertexNormals();geom.computeBoundingSphere();if(geom.boundingBox)geom.computeBoundingBox();
-  }
-  return {geom,fit};
-}
+export {createSealShell} from './vulvaMesh';
 
 const alloy='#62727b',enamel='#c8c9bd',bronze='#b99569',rubber='#474450';
 const partMount=new Matrix4().makeRotationX(siliconeTilt).setPosition(...siliconeMount);

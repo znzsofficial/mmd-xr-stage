@@ -5,11 +5,12 @@ import type { MmdRuntimeHandle } from '../../mmdRuntime/mmdRuntime';
 import { useMmdVrStore } from '../../mmdVrStore';
 import {debitActorMilk, useBodyState} from '../store';
 import { createMilkDroplets } from './droplets';
+import type {OutletDetail} from './outlets';
 import { subscribeMilkEffects } from './events';
 import {publishOutlets, releaseMilk, retireMilkReading, useMilkInteraction, type MilkPanel, type OutletState, type Side} from './interaction';
 
 type Runtime = Pick<MmdRuntimeHandle,'getModelRoot'|'sampleMilkOutlet'>;
-const frameGap=.20;
+const frameGap=.50,betweenFramesMaxAge=.20;
 const sides=['left','right'] as const, beat=.16, dose=.034;
 
 /** Button offers arrive between renders. Only the last visible, evaluated
@@ -23,20 +24,21 @@ export function mountRoomMilk(scene:Scene, gl:WebGLRenderer, runtime:Runtime, is
   const profile=(s:ReturnType<typeof useBodyState.getState>,id=assetId)=>id?(s.draft?.assetId===id?s.draft.value:s.byAsset[id]):undefined;
   // Read each skinned/occlusion result once per evaluated frame. Between
   // frames (legacy presses or material changes) always take a fresh sample.
-  const port=()=>({frame:-1,ok:false,pos:new Vector3(),axis:new Vector3()});
+  const port=()=>({frame:-1,ok:false,pos:new Vector3(),axis:new Vector3(),detail:{} as OutletDetail});
   const samples={left:[port(),port()],right:[port(),port()]};let evaluating=false,stamp=0;
-  function sample(side:Side,confirmed:boolean,pos:Vector3,axis:Vector3){
+  function sample(side:Side,confirmed:boolean,pos:Vector3,axis:Vector3,size?:{span?:number}){
     const cache=samples[side][Number(confirmed)];
     if(!evaluating||cache.frame!==stamp){
       cache.pos.setScalar(NaN);cache.axis.setScalar(NaN);cache.frame=evaluating?stamp:-1;
-      cache.ok=!!runtimeId&&!!runtime.sampleMilkOutlet?.(runtimeId,side,cache.pos,cache.axis,confirmed)&&
+      cache.detail.state=undefined;cache.detail.span=undefined;
+      cache.ok=!!runtimeId&&!!runtime.sampleMilkOutlet?.(runtimeId,side,cache.pos,cache.axis,confirmed,cache.detail)&&
         Number.isFinite(cache.pos.lengthSq()+cache.axis.lengthSq())&&cache.axis.lengthSq()>1e-12;
     }
-    if(cache.ok){pos.copy(cache.pos);axis.copy(cache.axis);}return cache.ok;
+    if(cache.ok){pos.copy(cache.pos);axis.copy(cache.axis);if(size)size.span=cache.detail.span;}return cache.ok;
   }
-  const drops=createMilkDroplets(scene,(side,pos,normal)=>{
+  const drops=createMilkDroplets(scene,(side,pos,normal,size)=>{
     const p=profile(useBodyState.getState()),confirmed=side==='left'?p?.bareLeft:p?.bareRight;
-    return sample(side,confirmed===true,pos,normal);
+    return sample(side,confirmed===true,pos,normal,size);
   });
   function interrupt(){
     if(root)drops.clear();
@@ -54,7 +56,7 @@ export function mountRoomMilk(scene:Scene, gl:WebGLRenderer, runtime:Runtime, is
   }
   function pending(id:string){const s=useMmdVrStore.getState();return s.pendingVisibilityToggles.includes(id)||s.pendingModelRemovals.includes(id);}
   const sessionEnded=()=>{ended=session;interrupt();};
-  const sourceEnded=(e:XRInputSourceEvent)=>{const s=interaction();if(s.reading?.room===room&&s.hold?.source===e.inputSource)releaseMilk(s.hold);};
+  const sourceEnded=(e:XRInputSourceEvent)=>{const s=interaction();if(s.reading?.room===room&&s.hold?.source===e.inputSource)releaseMilk(s.hold,true);};
   const sourceChanged=(e:XRInputSourcesChangeEvent)=>{const s=interaction();if(s.reading?.room===room&&s.hold?.source&&e.removed.includes(s.hold.source))releaseMilk(s.hold);};
   function bindSession(next:XRSession|null){
     if(next===session)return;
@@ -76,7 +78,7 @@ export function mountRoomMilk(scene:Scene, gl:WebGLRenderer, runtime:Runtime, is
   });
   const stopStage=useMmdVrStore.subscribe((s,p)=>{
     if(!root||!runtimeId)return;
-    if(blocked()||pending(runtimeId)||s.presentation!==p.presentation||s.entryEpoch!==p.entryEpoch||s.physicsEnabled!==p.physicsEnabled)interrupt();
+    if(blocked()||s.overlayOpen!==p.overlayOpen||pending(runtimeId)||s.presentation!==p.presentation||s.entryEpoch!==p.entryEpoch||s.physicsEnabled!==p.physicsEnabled)interrupt();
     else if(s.materialModels[runtimeId]!==p.materialModels[runtimeId]){retireMilkReading(room);lastProbe=-Infinity;drops.advance(0);}
   });
   const stopBody=useBodyState.subscribe((s,p)=>{
@@ -90,7 +92,7 @@ export function mountRoomMilk(scene:Scene, gl:WebGLRenderer, runtime:Runtime, is
     if(e.kind==='clear'){if(e.assetId===assetId)drops.clear();return;}
     if(!root||e.assetId!==assetId||e.runtimeId!==runtimeId)return false;
     const b=useBackpack.getState(),live=b.live[e.assetId];
-    if(blocked()||pending(e.runtimeId)||performance.now()-lastFrame>frameGap*1000||b.selected!==assetId||!live?.visible||live.runtimeId!==runtimeId||
+    if(blocked()||pending(e.runtimeId)||performance.now()-lastFrame>betweenFramesMaxAge*1000||b.selected!==assetId||!live?.visible||live.runtimeId!==runtimeId||
       !b.entries.some(entry=>entry.id===assetId&&entry.kind==='model')||visibleRoot(e.runtimeId)!==root||gl.getContext?.().isContextLost()||
       (useMmdVrStore.getState().presentation==='xr'&&(!session||session===ended||gl.xr.getSession()!==session||session.visibilityState!=='visible'))){interrupt();return false;}
     return drops.emit(e.side,e.amount);
@@ -99,6 +101,7 @@ export function mountRoomMilk(scene:Scene, gl:WebGLRenderer, runtime:Runtime, is
   function probe(side:Side):OutletState{
     const p=useBodyState.getState().byAsset[assetId!],bare=side==='left'?p?.bareLeft:p?.bareRight;
     if(sample(side,!!bare,point,axis))return 'ready';
+    const reason=samples[side][Number(!!bare)].detail.state;if(reason&&reason!=='ready')return reason;
     // A hypothetical confirmation is diagnostic only: no position from this
     // pass ever reaches the emitter; even after confirmation it samples again.
     return !bare&&sample(side,true,point,axis)?'confirm':'blocked';
@@ -123,12 +126,14 @@ export function mountRoomMilk(scene:Scene, gl:WebGLRenderer, runtime:Runtime, is
     if(hold!==previousHold){
       previousHold=hold;elapsed=0;
       for(const side of sides)flowing[side]=(hold.mode===side||hold.mode==='both')&&stock[side]>0;
-      return; // A tap, or time from before pointerdown, is not a dose.
+      // A short, still-down press is one dose on its first verified display
+      // frame. Never queue work for a press already released between frames.
+    }else{
+      if((elapsed+=Math.min(dt,beat))<beat)return;
+      elapsed%=beat; // never issue two beats, even on a slow frame
     }
-    if((elapsed+=dt)<beat)return;
-    elapsed%=beat; // never issue two beats, even on a slow frame
     const selected=sides.filter(side=>flowing[side]),debit=debitActorMilk(panel,selected,dose);
-    if(!debit){releaseMilk(hold);return;}
+    if(!debit){releaseMilk(hold);return;}hold.debited=debit.left>0||debit.right>0;
     for(const side of selected){
       if(interaction().hold!==hold)return;
       if(interaction().reading?.[side]==='ready'&&debit[side]>0)drops.emit(side,debit[side],true);

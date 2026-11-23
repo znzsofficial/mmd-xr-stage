@@ -8,7 +8,7 @@ import './atlas.css';
 type Props=AtlasActor&{scope:AtlasScope};
 const presets=['front','oblique','side'] as const;
 const modes=['entry','measure'] as const;
-const copy={zh:{entry:'入口轴位',organ:'子宫动态图',measure:'实测杆位',front:'正面',oblique:'斜前',side:'侧面',pause:'定格图像',play:'播放图像',rotate:'观察角度',view:'测量视图',drag:'横拖图面旋转'},
+const copy={zh:{entry:'入口方向',organ:'子宫动态图',measure:'棒身位置',front:'正面',oblique:'斜前',side:'侧面',pause:'定格图像',play:'播放图像',rotate:'观察角度',view:'测量视图',drag:'横拖图面旋转'},
   en:{entry:'Opening axis',organ:'Uterine anatomy',measure:'Rod position',front:'Front',oblique:'Oblique',side:'Side',pause:'Freeze motion',play:'Play motion',rotate:'View angle',view:'Measurement view',drag:'Drag to rotate'}};
 function ScreenPanel({scope,...actor}:Props){
   const v=useAtlasView(actor.assetId),t=useLanguageStore(s=>s.language==='zh'?copy.zh:copy.en);

@@ -1,82 +1,61 @@
-import {fitSite,formColors,junctionColor,slitHalfLength,vulvaHalves,type CutBasis,type FoldStyle} from '../vulvaForm';
+import {createSealShell} from '../vulvaMesh';
+import {slitHalfLength,slitHalfWidth,type CutBasis,type FoldStyle,type RimState} from '../vulvaForm';
 
-// The diagram exposes a reference cut. No measurement is inferred from it.
-// Slice the SAME fitted sheets at constant anatomical Y before projection:
-// a single flat gradient along the whole length streaks the turning folds.
-export const studyCut:CutBasis={x:0,y:0,xx:1,xy:0,yx:0,yy:1-slitHalfLength};
-const rgb=(s:string)=>[1,3,5].map(i=>parseInt(s.slice(i,i+2),16));
-const skin=rgb(junctionColor),pigment=formColors.map(rgb),last=pigment.length-1;
-const satinWeight=pigment.map((_,k)=>.22*Math.sin(Math.PI*k/last)**2*Math.max(0,(k-8)/7));
-const mix=(a:number,b:number,t:number)=>a+(b-a)*t;
-const clamp=(v:number)=>Math.min(1,Math.max(0,v));
+const clamp=(v:number)=>Math.max(0,Math.min(1,v));
+const srgb=(v:number)=>255*(v<.0031308?12.92*v:1.055*v**(1/2.4)-.055);
 
-function makeColumns(cut:CutBasis,style:FoldStyle){return vulvaHalves.map(({side,rows})=>{
-  const points=rows.map(r=>r.sites.map(site=>fitSite(site,1,cut,{x:0,y:0,z:0},style)));
-  const columns=pigment.map((color,k)=>points.map((row,j)=>{
-    const p=row[k],l=row[Math.max(0,k-1)],r=row[Math.min(last,k+1)];
-    const bottom=points[Math.max(0,j-1)][k],top=points[Math.min(rows.length-1,j+1)][k];
-    const ax=r.x-l.x,ay=r.y-l.y,az=r.z-l.z,bx=top.x-bottom.x,by=top.y-bottom.y,bz=top.z-bottom.z;
-    const nx=side*(ay*bz-az*by),ny=side*(az*bx-ax*bz),nz=side*(ax*by-ay*bx),inv=1/(Math.hypot(nx,ny,nz)||1);
-    const site=rows[j].sites[k];
-    const c=color.map((n,i)=>mix(n,skin[i],site.blend));
-    return {x:p.x,y:p.y,z:p.z,nx:nx*inv,ny:ny*inv,nz:nz*inv,r:c[0],g:c[1],b:c[2],contact:site.contactShade,gloss:site.gloss};
-  }));return {side,columns};
-});}
-type Knot=ReturnType<typeof makeColumns>[number]['columns'][number][number];
-function cutAt(col:Knot[],y:number){
-  let lo=0,hi=col.length-1;while(hi-lo>1){const mid=(hi+lo)>>1;if(col[mid].y<y)lo=mid;else hi=mid;}
-  const a=col[lo],b=col[hi],t=clamp((y-a.y)/(b.y-a.y)||0);
-  return {x:mix(a.x,b.x,t),z:mix(a.z,b.z,t),nx:mix(a.nx,b.nx,t),ny:mix(a.ny,b.ny,t),nz:mix(a.nz,b.nz,t),
-    r:mix(a.r,b.r,t),g:mix(a.g,b.g,t),b:mix(a.b,b.b,t),contact:mix(a.contact,b.contact,t),gloss:mix(a.gloss,b.gloss,t)};
-}
-type Cut=ReturnType<typeof cutAt>;
-type Row={left:Cut[];right:Cut[];y:number;joined:boolean};
-// Store only projection-independent sections, never a cache of rotated images.
-const sectionsByCut=new WeakMap<CutBasis,{style:FoldStyle;rows:Row[]}>();
-function sample(unit:number,oy:number,cut:CutBasis,style:FoldStyle){const [left,right]=makeColumns(cut,style),result:Row[]=[];
-  const lo=left.columns[0][0].y,hi=left.columns[0].at(-1)!.y;
-  for(let py=Math.floor((oy-hi*unit)*2);py<Math.ceil((oy-lo*unit)*2);py++){
-    const y=(oy-(py+.5)*.5)/unit;if(y<=lo||y>=hi)continue;
-    const l=left.columns.map(c=>cutAt(c,y)),r=right.columns.map(c=>cutAt(c,y));
-    result.push({y:py*.5,left:l,right:r,joined:Math.abs(l[0].x-r[0].x)<1e-6});
-  }return result;
-}
-
-/** Orthographic transverse sections. Front-facing runs are already in pixel
- * order; project their depth for occlusion. Canvas interpolates the shaded
- * stops. No triangle raster, extra GL context, readback or ImageData upload. */
-export function paintFoldLight(c:CanvasRenderingContext2D,yaw:number,ox:number,oy:number,unit:number,cut=studyCut,style:FoldStyle='natural'){
-  let cached=sectionsByCut.get(cut);if(cached?.style!==style){cached={style,rows:sample(unit,oy,cut,style)};sectionsByCut.set(cut,cached);}
-  const sections=cached.rows;
-  const co=Math.cos(yaw),si=Math.sin(yaw);
-  const xx=new Float64Array(2*(last+1)),depth=new Float64Array(xx.length),col:string[]=Array(xx.length);
-  const stride=last+1,runs:{from:number;to:number;depth:number}[]=[];
-  const byte=(x:number)=>Math.max(0,Math.min(255,Math.round(x)));
-  for(const row of sections){runs.length=0;
-    for(let h=0;h<2;h++){
-      const points=h?row.right:row.left,base=h*stride,side=h?1:-1;let start=-1;
-      for(let k=0;k<=last;k++){
-        const p=points[k],i=base+k;
-        xx[i]=ox+unit*(co*p.x+si*p.z);depth[i]=co*p.z-si*p.x;
-        const u=co*p.nx+si*p.nz,v=p.ny,w=co*p.nz-si*p.nx;
-        // A broad warm key, cherry-coloured bounced light and local contact
-        // shadow. A turning pad retains reflected colour on its unlit side.
-        const key=clamp((1.0-.58*u+.32*v+.75*w)*.5),light=.70+.297*key-.081*p.contact;
-        const facing=clamp(w+.14),spec=Math.max(0,-.32*u+.17*v+.932*w);
-        const sheen=satinWeight[k]*spec**7+p.gloss*facing*(.30+.68*spec**9);
-        col[i]=`rgb(${byte(mix(p.r*light+9*(1-key),255,sheen))},${byte(mix(p.g*light-8*(1-key)-5*p.contact,225,sheen))},${byte(mix(p.b*light+2*(1-key),229,sheen))})`;
-        if(k){const visible=(xx[i]-xx[i-1])*side>1e-6;if(visible&&start<0)start=i-1;
-          if(start>=0&&(!visible||k===last)){const end=visible?i:i-1;runs.push({from:h?start:end,to:h?end:start,depth:depth[(start+end)>>1]});start=-1;}}
+/** Soft vertex lighting and per-pixel occlusion. In particular the clitoral
+ * hood can eclipse the glans, and a near outer fold can hide the meatus in
+ * profile. All three are the actual stage triangles, not overlays. */
+export function exteriorBrush(ctx:CanvasRenderingContext2D,w:number,h:number,ox:number,oy:number,unit:number){
+  const shell=createSealShell(),g=shell.geom,idx=g.getIndex()!.array,pos=g.getAttribute('position'),norm=g.getAttribute('normal');
+  const finish=g.getAttribute('uv'),colors=g.getAttribute('color'),count=pos.count,ink=new Float32Array(count*3);
+  const screen=new Float32Array(count*6),depth=new Float32Array(w*h),image=ctx.createImageData(w,h),rgba=image.data;
+  let inkRim:RimState|undefined;
+  return (yaw:number,cut:CutBasis,style:FoldStyle,rim:RimState)=>{
+    shell.fitCut(cut,1,style,rim);depth.fill(-Infinity);rgba.fill(0);
+    if(inkRim!==rim){for(let i=0;i<count;i++){ink[i*3]=srgb(colors.getX(i));ink[i*3+1]=srgb(colors.getY(i));ink[i*3+2]=srgb(colors.getZ(i));}inkRim=rim;}
+    const co=Math.cos(yaw),si=Math.sin(yaw);
+    // The floor of the illustration's single bore. Only place colour behind
+    // its measured affine ellipse; the meatus is a blind relief on the mesh.
+    const a=slitHalfWidth+cut.xx,b=cut.yx,c=cut.xy,d=slitHalfLength+cut.yy,det=a*d-b*c;
+    if(co>.001&&det>1e-7){
+      const cx=ox+unit*co*cut.x,cy=oy-unit*cut.y,rx=unit*co*Math.hypot(a,b),ry=unit*Math.hypot(c,d);
+      for(let y=Math.max(0,Math.floor(cy-ry));y<Math.min(h,Math.ceil(cy+ry));y++)for(let x=Math.max(0,Math.floor(cx-rx));x<Math.min(w,Math.ceil(cx+rx));x++){
+        const px=(x+.5-cx)/(unit*co),py=(cy-y-.5)/unit,u=(d*px-b*py)/det,v=(-c*px+a*py)/det,r=u*u+v*v;
+        if(r>1.01)continue;
+        const axis=u+.28*si-.11*v*v+.095*Math.sin(2.4*v),channel=Math.exp(-axis*axis/.076-.45*v*v);
+        const lobe=Math.exp(-((axis+.57-.12*v)**2)/.076-.85*(v-.21)**2)+.83*Math.exp(-((axis-.63-.14*v)**2)/.065-1.08*(v+.18)**2);
+        const light=clamp(.35+.32*r+.30*lobe-.23*channel-.065*v),k=4*(y*w+x);
+        rgba[k]=129+100*light;rgba[k+1]=71+87*light;rgba[k+2]=98+81*light;rgba[k+3]=255;
       }
     }
-    runs.sort((a,b)=>a.depth-b.depth);
-    for(const {from,to} of runs){const x0=xx[from],x1=xx[to],width=x1-x0;if(width<.015)continue;
-      const shade=c.createLinearGradient(x0,0,x1,0),step=from<to?1:-1;
-      for(let i=from;;i+=step){shade.addColorStop(clamp((xx[i]-x0)/width),col[i]);if(i===to)break;}
-      // Adjacent halves share one medial edge outside the cut. Antialiasing
-      // two fractional spans independently would leave a black dotted seam.
-      const left=row.joined&&from%stride===0?.47:0,right=row.joined&&to%stride===0?.47:0;
-      c.fillStyle=shade;c.fillRect(x0-left,row.y,width+left+right,.5);
+    for(let i=0;i<count;i++){
+      const k=6*i,x=pos.getX(i),z=pos.getZ(i),nx=norm.getX(i),nz=norm.getZ(i);
+      screen[k]=ox+unit*(co*x+si*z);screen[k+1]=oy-unit*pos.getY(i);screen[k+2]=co*z-si*x;
+      const u=co*nx+si*nz,v=norm.getY(i),f=co*nz-si*nx,key=clamp(.47-.42*u+.25*v+.42*f);
+      // Two broad feathered cel bands and a pink bounce, with the part's
+      // own vertex normals turning each band and the narrow silk reflection.
+      const t=clamp((key-.31)/.49),light=.74+.19*t*t*(3-2*t)+.07*key;
+      const highlight=Math.max(0,-.33*u+.25*v+.91*f),satin=2*(finish.getX(i)-.25);
+      const shine=.15*highlight**7+.79*satin*clamp(f+.20)*(.34+.66*highlight**10);
+      const r=ink[3*i]*light+13*(1-key),gr=ink[3*i+1]*light-6*(1-key),bl=ink[3*i+2]*light+9*(1-key);
+      screen[k+3]=r+(255-r)*shine;screen[k+4]=gr+(222-gr)*shine;screen[k+5]=bl+(225-bl)*shine;
     }
-  }
+    for(let i=0;i<idx.length;i+=3){
+      const p=6*idx[i],q=6*idx[i+1],s=6*idx[i+2];
+      const x=screen[p],y=screen[p+1],ux=screen[q]-x,uy=screen[q+1]-y,vx=screen[s]-x,vy=screen[s+1]-y,det=ux*vy-uy*vx;
+      if(det>=-1e-7)continue;
+      const x0=Math.max(0,Math.ceil(x+Math.min(0,ux,vx)-.5)),x1=Math.min(w-1,Math.floor(x+Math.max(0,ux,vx)-.5));
+      const y0=Math.max(0,Math.ceil(y+Math.min(0,uy,vy)-.5)),y1=Math.min(h-1,Math.floor(y+Math.max(0,uy,vy)-.5));
+      for(let py=y0;py<=y1;py++)for(let px=x0;px<=x1;px++){
+        const dx=px+.5-x,dy=py+.5-y,t=(dx*vy-dy*vx)/det,l=(ux*dy-uy*dx)/det,n=1-t-l;
+        if(n<0||t<0||l<0)continue;
+        const j=py*w+px,z=n*screen[p+2]+t*screen[q+2]+l*screen[s+2];if(z<depth[j])continue;
+        depth[j]=z;const k=4*j;
+        for(let ch=0;ch<3;ch++)rgba[k+ch]=n*screen[p+3+ch]+t*screen[q+3+ch]+l*screen[s+3+ch];rgba[k+3]=255;
+      }
+    }
+    ctx.putImageData(image,0,0);
+  };
 }

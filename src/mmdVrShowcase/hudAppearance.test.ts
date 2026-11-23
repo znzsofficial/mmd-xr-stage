@@ -17,7 +17,8 @@ describe("stage HUD appearance", () => {
       [HUD_COLORS.ink, HUD_COLORS.control], [HUD_COLORS.primary, HUD_COLORS.selected],
       [HUD_COLORS.danger, HUD_COLORS.dangerSurface], [HUD_COLORS.disabled, HUD_COLORS.surface],
     ];
-    const roles:ButtonState[] = [{}, {variant:'quiet'}, {variant:'tab', active:true}, {active:true}, {variant:'primary'}, {danger:true}, {variant:'stop'}];
+    const roles:ButtonState[] = [{}, {variant:'quiet'}, {variant:'tab', active:true}, {active:true}, {variant:'primary'}, {danger:true}, {variant:'stop'},
+      {variant:'stroke'}, {variant:'lens'}, {variant:'lens',active:true}];
     for (const role of roles) for (const hovered of [false,true]) for (const disabled of [false,true]) {
       const {letters, face}=buttonInks({...role, hovered, disabled});
       pairs.push([letters,face]);

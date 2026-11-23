@@ -5,7 +5,7 @@ import { createCustomBulletMmdPhysicsBackend, type CustomBulletMmdModule } from 
 import { afterEach, beforeAll, expect, it, vi } from 'vitest';
 import { createMmdRuntimeHandle } from '../../mmdRuntime/mmdRuntime';
 import { createPropColliderFeed, EGG_SLOT, mountHeldColliderSource, propColliderShape } from '../propColliders';
-import { adjustRemoteEgg, clearRemoteEgg, cycleRemoteEgg, startEggBinding } from './remoteMotor';
+import { adjustRemoteEgg, clearRemoteEgg, cycleRemoteEgg, startEggBinding, stopRemoteEgg } from './remoteMotor';
 import { createWearableCollider, mountWearableCollider, presentRemoteWearable } from './wearableCollider';
 import { receiverFixture } from './receiverFixture.testSupport';
 
@@ -48,7 +48,7 @@ it.each([1,.1])('supports and vibrates a weighted paused PMX hem; parks on disco
     };
     const wait=(n:number)=>{for(let i=0;i<n;i++)tick();};
     wait(50);expect(rt.getRigidBodyCount()).toBe(24);const rest=vertex(),original=pelvis.matrixWorld.clone();
-    startEggBinding('worn');live=root;wait(20);
+    startEggBinding('worn');stopRemoteEgg();live=root;wait(20); // stationary cloth control before powering the same shell
     expect(center().y).toBe(-1000);expect(vertex().distanceTo(rest)).toBeLessThan(.00005);
     // GUI clicks while VMD is paused: retreat to the left, then approach along
     // the same visible bounded path. Initially overlapping must never activate.
@@ -76,7 +76,7 @@ it.each([1,.1])('supports and vibrates a weighted paused PMX hem; parks on disco
     }
     // Return to paused pose and rebind inside; synthetic controller remains far
     // away, but stale XR frames cannot keep this attached shell in Bullet.
-    tick(0);const afterScrub=seeds;inXR=true;startEggBinding('other');wait(20);expect(center().y).toBe(-1000);
+    tick(0);const afterScrub=seeds;inXR=true;startEggBinding('other');stopRemoteEgg();wait(20);expect(center().y).toBe(-1000);
     tracked=false;wait(5);tracked=true;wait(20);expect(center().y).toBe(-1000);
     nudge(-1,10);wait(10);expect(center().y).not.toBe(-1000);
     nudge(1,9);wait(60);expect(vertex().distanceTo(rest)).toBeGreaterThan(.005);

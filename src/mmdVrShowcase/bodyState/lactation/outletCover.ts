@@ -3,6 +3,7 @@ import type { createWandPose } from '../../play/wandPose';
 import type { Binding, Draw } from './outletFit';
 
 type Attr=BufferAttribute|InterleavedBufferAttribute;
+export type ClearOutlet=(binding:Binding,point:Vector3,axis:Vector3,scale:number,work:{faces:number})=>boolean;
 type Node={box:Box3;center:Vector3;half:Vector3;joints:number[];travel:Map<Attr,number>;faces?:number[];children?:Node[]};
 const v=()=>new Vector3();
 function node(box:Box3,joints:Set<number>,travel:Map<Attr,number>,faces?:number[],children?:Node[]):Node{
@@ -17,7 +18,7 @@ export function shown({owner,material}:Draw){
 /** All drawn materials (including the skin itself), both windings. No garment
  * name or rest-pose neighbourhood decides which meshes can move over the tip.
  * The convex LBS bound is valid ONLY for linear weights and relative morphs. */
-export function* makeCover(mesh:SkinnedMesh,draws:Draw[],pose:ReturnType<typeof createWandPose>){
+export function* makeCover(mesh:SkinnedMesh,draws:Draw[],pose:ReturnType<typeof createWandPose>):Generator<void,ClearOutlet|null>{
   const g=mesh.geometry,{position:p,skinIndex:ix,skinWeight:w}=g.attributes,index=g.index;
   if(!ix||!w||!mesh.skeleton?.bones.length||g.attributes.matricesSdefEnabled||g.attributes.matricesQdefEnabled)return null;
   const layers:{draw:Draw;tree:Node}[]=[],pt=v(),attrs=g.morphAttributes.position??[];
@@ -57,14 +58,13 @@ export function* makeCover(mesh:SkinnedMesh,draws:Draw[],pose:ReturnType<typeof 
     if(children.length)layers.push({draw,tree:children[0]});
   }
   const tri=new Triangle(),ray=new Ray(),hit=v(),mid=v(),extent=v(),zone=new Box3(),box=new Box3(),faceBox=new Box3();
-  return function clear(bind:Binding,pos:Vector3,axis:Vector3,scale:number){
+  return function clear(bind:Binding,pos:Vector3,axis:Vector3,scale:number,work:{faces:number}){
     const span=bind.span*scale,near=span*.009,far=span*.88;
     ray.origin.copy(pos).addScaledVector(axis,-near);ray.direction.copy(axis);
     zone.makeEmpty().expandByPoint(ray.origin).expandByPoint(mid.copy(pos).addScaledVector(axis,far)).expandByScalar(near);
     // Fingertip contact can alter a position buffer between samples. Include
     // its bounded on-surface depression in all broad-phase rejections.
     const padding=.006;
-    let tested=0;
     function clearNode(n:Node,draw:Draw):boolean{
       let margin=0;for(const {attr,weight} of pose.active)margin+=(n.travel.get(attr)??0)*Math.abs(weight);
       box.makeEmpty();for(const i of n.joints){const b=pose.bone(i),e=b.world.elements,h=n.half;mid.copy(n.center).applyMatrix4(b.world);
@@ -75,7 +75,7 @@ export function* makeCover(mesh:SkinnedMesh,draws:Draw[],pose:ReturnType<typeof 
       if(!zone.intersectsBox(box))return true;
       if(box.distanceToPoint(pos)>near&&!ray.intersectsBox(box))return true;
       if(n.children){for(const c of n.children)if(!clearNode(c,draw))return false;return true;}
-      for(const j of n.faces!){if(++tested>24_000)return false;
+      for(const j of n.faces!){if(++work.faces>24_000)return false;
         if(j===bind.face&&draw===bind.draw)continue;
         const a=index?.getX(j)??j,b=index?.getX(j+1)??j+1,c=index?.getX(j+2)??j+2;
         pose.vertex(a,tri.a);pose.vertex(b,tri.b);pose.vertex(c,tri.c);

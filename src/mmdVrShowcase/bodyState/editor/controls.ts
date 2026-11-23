@@ -11,6 +11,7 @@ const pages = {
   calendar: ['选择周期日', 'Choose a cycle day', 'cycle'],
   compare: ['两日内膜对照', 'Compare lining by day', 'cycle'],
   rhythm: ['高级周期参数', 'Advanced cycle settings', 'cycle'],
+  reproduction: ['生育进程', 'Reproduction', 'cycle'],
   lining: ['内膜与分泌物', 'Lining & secretions', 'rhythm'],
   secretions: ['内膜与分泌物', 'Lining & secretions', 'rhythm'],
   contact: ['触碰', 'Touch', 'more'],

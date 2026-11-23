@@ -57,6 +57,11 @@ function trackedRoot(scene:Scene,owner:Owner,frame:XRFrame|undefined,requireUsab
     d.heldToy===owner.toy&&d.propSource?.handedness===owner.hand?root:null;
 }
 
+// A menu owns the trigger, not tracking. The motor and the clothing proxy
+// both require a real, current transmitter pose in XR, even with Bullet off.
+export const hasEggTransmitterPose=(scene:Scene,held:Owner|null,frame:XRFrame|undefined)=>
+  held?.toy==='remoteEgg'&&!!trackedRoot(scene,held,frame,false);
+
 export function createPropColliderFeed(){
   const matrices=Array.from({length:EGG_SLOT+1},()=>parked.clone()), hidden=matrices.map(()=>parked);
   let prevOwner:object|null=null,prevRoot:Object3D|null=null,prevTracked:Object3D|null=null,prevSource:XRInputSource|null=null,epoch=0;

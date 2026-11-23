@@ -7,7 +7,7 @@ import {
 import * as THREE from "three";
 import { disposeEntryEnhancementTextures, type MaterialOverride } from "./mmdRuntimeMaterials";
 import { getMmdAnimationDurationSeconds, mergeMotionAnimations } from "./mmdUtils";
-import {materialSlotKey} from './materialSlotKey';
+import {materialSlotKeys} from './materialSlotKey';
 
 export type MmdModelTransform = {
   positionX: number;
@@ -99,10 +99,11 @@ export function extractMorphNames(model: ThreeMmdModel) {
 
 export function extractMaterialNames(model: ThreeMmdModel) {
   const materials = Array.isArray(model.mesh.material) ? model.mesh.material : [model.mesh.material];
-  return materials.map(materialSlotKey);
+  return materialSlotKeys(materials);
 }
 
-export function disposeModelObject(entry: RuntimeEntry) {
+export function disposeModelObject(entry: RuntimeEntry & {wardrobe?:{dispose():void}}) {
+  entry.wardrobe?.dispose(); // restore loader-owned base maps before loader disposal
   disposeEntryEnhancementTextures(entry);
   disposeLoadedModelObject(entry.model);
 }

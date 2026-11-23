@@ -173,8 +173,8 @@ function sweep(s:number,path:(t:number)=>V,radius:(t:number,a:number)=>number,co
   });
 }
 const tubePoints=[[1.92,1.09,3.63],[2.49,1.04,3.65],[2.93,.96,3.54],[3.35,.75,3.67],[3.73,.67,3.99],[4.09,.44,4.07],[4.48,.19,3.97],[4.90,-.09,4.13],[5.29,-.43,4.10],[5.54,-.74,3.88],[5.59,-.64,3.59],[5.47,-.37,3.38]];
-function tubePath(t:number,s:number):V{const [x,y,z]=spline(tubePoints,t);return [x*s,y+(s<0?.18*sin(t*3):0),z+(s<0?.16*sin(t*6):0)];}
-const ovary=(s:number):V=>[4.53*s,-1.19+(s<0?.19:0),2.74+(s<0?-.14:0)];
+export function tubePath(t:number,s:number):V{const [x,y,z]=spline(tubePoints,t);return [x*s,y+(s<0?.18*sin(t*3):0),z+(s<0?.16*sin(t*6):0)];}
+export const ovary=(s:number):V=>[4.53*s,-1.19+(s<0?.19:0),2.74+(s<0?-.14:0)];
 function adnexa(s:number,all:Mesh[]){
   const o=ovary(s),pt=(t:number)=>tubePath(t,s);
   // The thin mesosalpinx hangs from the tubal arch, tapering to the ovarian

@@ -14,8 +14,9 @@ import { createPelvicSolver, pelvicRailMatrix, registerPelvicSocket, samplePelvi
 import { createPelvicInput, isMountedVisible, mountPelvicInput, samplePelvicNozzle } from './input';
 import { measuredRailPosition, pelvicRailTravel } from './path';
 import {createStandHold} from './rigHold';
+import {visibleRim} from './vulvaForm';
 import { advancePelvic, clearPelvicSupport, consumePelvicDose, discardPelvicDoses, endPelvic, interruptPelvic,
-  presentRailTechnique, publishParkedSample, publishPelvicSample, publishPelvicSupport, usePelvic, PELVIC_LIMITS, type PelvicSample, type PelvicSupport } from './store';
+  presentRailTechnique, publishParkedSample, publishPelvicSample, publishPelvicSupport, rememberRimEntry, usePelvic, PELVIC_LIMITS, type PelvicSample, type PelvicSupport } from './store';
 
 export type PelvicRigProps={getRoot:(runtimeId:string)=>Object3D|null;getSurface?:(runtimeId:string)=>WandModel|null};
 type Options=PelvicRigProps & {scene:Scene;host:Group;standPiece:()=>Group|null;standSpray:() => ((f:GripFrame)=>void)|null;tracked?:(frame:XRFrame)=>boolean};
@@ -65,6 +66,7 @@ function observations(){
 export function mountPelvicRig(o:Options):PelvicRigHandle&{dispose:()=>void}{
   const bindings=new Map<string,Binding>(),solver=createPelvicSolver(),sample=observations(),railWorld=new Matrix4(),observer=new Vector3();
   const spray:GripFrame={at:new Vector3(),dir:new Vector3(),action:'off',usable:false,dt:0},hold=createStandHold();
+  let rimEdge:'left'|'right'|'center'|null=null;
   let token=-1,owner:object|null=null,actor:Object3D|null=null,source:XRInputSource|null=null,epoch=0,aperture:Aperture|null=null,response:ActorContactFrame|null=null,
     standKey:object|null=null,stand:ReturnType<typeof createStandDrawing>|null=null,session:XRSession|null=null,disposed=false,hasObserver=false;
   const input=createPelvicInput(o.scene,()=>{
@@ -73,7 +75,7 @@ export function mountPelvicRig(o:Options):PelvicRigHandle&{dispose:()=>void}{
   }),unmountInput=mountPelvicInput(o.scene,input);
 
   function hideStand(){if(stand)stand.body.visible=false;const piece=o.standPiece();if(piece)piece.visible=false;standKey=null;hold.clear();}
-  function reset(clearInput=true){solver.reset();source=null;epoch=0;aperture=null;response=null;hasObserver=false;hideStand();if(clearInput)input.clear();}
+  function reset(clearInput=true){solver.reset();rimEdge=null;source=null;epoch=0;aperture=null;response=null;hasObserver=false;hideStand();if(clearInput)input.clear();}
   function currentRoomToken(){
     const state=usePelvic.getState(),a=state.active,play=useStagePlay.getState();if(!a)return null;
     const b=bindings.get(a.assetId);
@@ -132,7 +134,7 @@ export function mountPelvicRig(o:Options):PelvicRigHandle&{dispose:()=>void}{
           b.support={...b.support,kind,obstruction,garmentNames,blockerName};
         if(usePelvic.getState().support[id]!==b.support)publishPelvicSupport(id,b.support);
         if(!b.frame)b.port.group.visible=false;
-        else if(!a?.running||a.assetId!==id)b.port.draw(b.frame,profile.showAdapter&&profile.clothingClear&&!obstruction,bag.selected===id);
+        else if(!a?.running||a.assetId!==id)b.port.draw(b.frame,profile.showAdapter&&profile.clothingClear&&!obstruction,bag.selected===id,undefined,visibleRim(profile));
         else if(obstruction||!profile.clothingClear)b.port.group.visible=false; // also on early-return frames without a mounted piece
       }
       if(!a){if(owner)reset();token=-1;owner=actor=null;return;}
@@ -195,9 +197,15 @@ export function mountPelvicRig(o:Options):PelvicRigHandle&{dispose:()=>void}{
       reading.railHome=reading.aligned&&measured!==null&&Math.abs(measured-PELVIC_LIMITS.position[0])<=1e-6;
       if(rebound&&a.take&&!reading.railHome){interrupt();return;}
       if(!a.running){publishParkedSample(a.token,reading);return;}
-      const amount=b.port.draw(f,exposed&&profile.showAdapter,bag.selected===a.assetId,exposed?contact:undefined);
-      if(amount>0)aperture={assetId:a.assetId,runtimeId:a.runtimeId,amount};
       if(!publishPelvicSample(a.token,reading)){interrupt();return;}
+      // Crossing exactly at Z=0 can precede the first positive depth by a
+      // frame. Never arm from an inside sample, an idle rail or the HUD.
+      if(profile.rimMode!=='remember'||profile.rimMemory||!contact.continuous||!contact.inside)rimEdge=null;
+      else if(contact.motion==='enter')rimEdge=Math.abs(contact.outletLocal.x)<.04*f.radiusM?'center':contact.outletLocal.x<0?'left':'right';
+      else if(contact.motion!=='inside')rimEdge=null;
+      if(rimEdge&&contact.outletInside){rememberRimEntry(a.token,rimEdge);rimEdge=null;}
+      const amount=b.port.draw(f,exposed&&profile.showAdapter,bag.selected===a.assetId,exposed?contact:undefined,visibleRim(usePelvic.getState().byAsset[a.assetId]));
+      if(amount>0)aperture={assetId:a.assetId,runtimeId:a.runtimeId,amount};
       if(a.mode==='standAuto'&&((!rebound&&!contact.continuous)||!reading.aligned||(!contact.outletInside&&contact.outletLocal.z < -1e-6)))discardPelvicDoses(a.token);
       if(contact.motion){response=b.responseFrame;response.motion=contact.motion;response.token=a.token;response.dt=delta;response.depthM=contact.depthM/f.scale;}
       if(!manual)hold.record(f,piece);

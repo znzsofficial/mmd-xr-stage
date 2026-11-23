@@ -1,16 +1,25 @@
 import { useBackpack } from '../backpack';
 import { useStagePlay } from './stagePlay';
-import { startEggBinding, useRemoteEgg } from './remote/remoteMotor';
+import { clearRemoteEgg, startEggBinding, useRemoteEgg } from './remote/remoteMotor';
 
-export { useRemoteEgg, cycleRemoteEgg, adjustRemoteEgg, resetEggOffset, type RemoteMode, type EggOffset } from './remote/remoteMotor';
+export { useRemoteEgg, selectEggPattern, cycleRemoteEgg, stopRemoteEgg, adjustRemoteEgg, resetEggOffset, type RemoteMode, type EggOffset } from './remote/remoteMotor';
 
 /** Asset identity is explicit. Selecting someone else never transfers the wearable. */
-export function bindRemoteEgg(assetId:string):boolean {
+export function bindRemoteEgg(assetId:string,equipOnScreen=false):boolean {
   const bag=useBackpack.getState();
-  if(useStagePlay.getState().held?.toy!=='remoteEgg'||bag.busy||bag.draft||(bag.selected!==null&&bag.selected!==assetId)||!bag.live[assetId]?.visible||
-    !bag.entries.some(e=>e.id===assetId&&e.kind==='model'))return false;
+  if(bag.busy||bag.draft||(bag.selected!==null&&bag.selected!==assetId)||!bag.live[assetId]?.visible||
+     !bag.entries.some(e=>e.id===assetId&&e.kind==='model'))return false;
+  const play=useStagePlay.getState();
+  if(play.held?.toy!=='remoteEgg'){if(!equipOnScreen)return false;play.equip('remoteEgg','right');}
   startEggBinding(assetId); return true;
 }
+
+/** Actor-sheet callbacks can outlive a transfer. Never stop or nudge the new wearer. */
+export function onEggWearer(assetId:string,command:()=>void){
+  const bag=useBackpack.getState();
+  if(useRemoteEgg.getState().assetId===assetId&&(!bag.selected||bag.selected===assetId))command();
+}
+export const removeRemoteEgg=(assetId:string)=>onEggWearer(assetId,clearRemoteEgg);
 
 // Observe the room's atomic actor publications, including a command to put away,
 // file-library removal, or a same-id replacement. Do not reattach on reappearance.

@@ -6,6 +6,7 @@ import { useStagePlay, type Hand } from '../play/stagePlay';
 import { defaultPelvicCalibration, type ContactMotion, type PelvicCalibration, type PelvicContact, type PelvicXYZ } from './contract';
 import { canStartAtOpening, PELVIC_LIMITS as limits, type PelvicActive, type PelvicContainer, type PelvicDoseTarget, type PelvicMode, type PelvicPatch, type PelvicProfile, type PelvicSample, type PelvicSupport } from './stateTypes';
 import {createRailRecorder,createRailReplay} from './railTechnique';
+import {recordInternalDose} from '../bodyState/reproduction/store';
 
 export * from './stateTypes';
 
@@ -78,7 +79,7 @@ export function patchPelvic(assetId:string,patch:PelvicPatch){
   const targetChanged=!!patch.container&&patch.container!==p.container&&active?.assetId===assetId;
   if(targetChanged)doseCount=0;
   const next:PelvicProfile={...p,calibration:patch.calibration?calibrate(p.calibration,patch.calibration):p.calibration,
-    clothingClear,clothed,showAdapter:patch.showAdapter??p.showAdapter,
+    clothingClear,clothed,showAdapter:patch.showAdapter??p.showAdapter,rimMode:patch.rimMode??p.rimMode,
     container:patch.container==='vaginal'||patch.container==='fantasyUterine'?patch.container:p.container,
     speedHz:limited(patch.speedHz,p.speedHz,limits.speedHz),stroke:limited(patch.stroke,p.stroke,limits.stroke),
     replayRate:limited(patch.replayRate,p.replayRate??1,limits.replayRate),replayLoop:patch.replayLoop??p.replayLoop};
@@ -92,6 +93,12 @@ export function publishPelvicSupport(assetId:string,support:PelvicSupport){
   if(a?.assetId===assetId&&(support.kind==='missing'||a.take&&!canStartAtOpening(state().byAsset[assetId],support)))interruptPelvic(a.token);
   else if(a?.assetId===assetId&&a.mode==='standAuto'&&!canStartAtOpening(state().byAsset[assetId],support))discardPelvicDoses(a.token);
   usePelvic.setState(s=>({support:{...s.support,[assetId]:support}}));
+}
+/** Called only on the positive-depth frame of an opted-in solver crossing. */
+export function rememberRimEntry(token:number,side:NonNullable<PelvicProfile['rimMemory']>){
+  const {active:a,byAsset,support}=state();if(!a?.running||a.token!==token||blocked(a))return;
+  const p=byAsset[a.assetId],s=support[a.assetId];
+  if(p?.rimMode==='remember'&&!p.rimMemory&&s?.runtimeId===a.runtimeId&&canStartAtOpening(p,s))writeProfile(a.assetId,{...p,rimMemory:side});
 }
 /** Apply the ordinary actor material setting (including outlines/proxies).
  * It is reversible even with the motor off. Only a later scan of the actual
@@ -322,6 +329,7 @@ export function consumePelvicDose(token:number,outlet:Pick<PelvicContact,'outlet
   }
   const p=state().byAsset[a.assetId],k=p.container,amount=Math.min(limits.dose,p.capacity[k]-p.fluid[k]);
   const next={...p,fluid:{...p.fluid,[k]:p.fluid[k]+amount},overflow:p.overflow+(limits.dose-amount)};
+  recordInternalDose(a.assetId,amount);
   usePelvic.setState(s=>({byAsset:{...s.byAsset,[a.assetId]:next},...(s.strokeOrder?{strokeOrder:null,strokeReceipt:'delivered' as const}:{})}));return 'internal';
 }
 export function setPelvicCapacity(assetId:string,capacity:number){

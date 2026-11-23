@@ -137,6 +137,8 @@ Hand and controller rays share a `#79baff` beam and a hollow hit marker with a w
 
 ## Typography
 
+**Control copy and scene art have different jobs.** The adult doujin style comes from framing, the colour and weight of the illustration, the actor's response, and the timing of events. Use familiar game wording for buttons and status: “保持穿衣”, “取消释放”, “待释放”, “已着床”. Avoid instructional or restrictive narration on the everyday action sheet. When the player needs an explanation, keep the specific reason beside its recovery or in the detail page.
+
 Use the local Yu Mincho / Songti SC / SimSun / Georgia stack for sheet headings. Buttons, body text and values use system sans-serif. No font download is needed. Frontmatter font sizes, rounded tokens and spacing tokens are **Canvas pixels**, not CSS layout or world-space sizes.
 
 - Buttons use the button role, switching weight when active; text is centered with a maximum width of texture width minus 28 px.

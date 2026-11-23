@@ -1,5 +1,5 @@
 import { useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useImperativeHandle, useMemo, useRef } from 'react';
+import { useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef } from 'react';
 import { Color, type MeshBasicMaterial } from 'three';
 import { useMmdVrStore } from '../../mmdVrStore';
 import { TOYS } from '../propCatalog';
@@ -47,7 +47,7 @@ export function EggReceiver() {
 
 export function EggHandFeedback({ref}:FrameEffectProps) {
   const driver=useMemo(createEggFeedback,[]),clock=useThree(s=>s.clock);
-  useEffect(()=>()=>driver.reset(),[driver]);
+  useLayoutEffect(()=>driver.connect(),[driver]);
   useImperativeHandle(ref,()=>frame=>driver.update(frame,useMmdVrStore.getState().prefs.physicsHapticLevel,clock.oldTime),[driver,clock]);
   return null;
 }

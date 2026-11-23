@@ -12,18 +12,28 @@ useRemoteEgg.subscribe((s,p)=>{if(s.assetId!==p.assetId||(s.offset!==p.offset&&
   Math.hypot(s.offset[0]-p.offset[0],s.offset[1]-p.offset[1],s.offset[2]-p.offset[2])>5))placementEpoch++;});
 export const eggPlacementEpoch=()=>placementEpoch;
 
-// The store publishes commands, not animation frames. Both LEDs and XR feedback
-// sample the same monotonic phase, including when a running remote changes hands.
+// A new wearer starts low. Re-opening the same actor's tools is not a start
+// command (especially after Stop), nor does changing the transmitter hand refit it.
 let modeStartedMs = 0;
 export function startEggBinding(assetId:string) {
-  if(useRemoteEgg.getState().assetId!==assetId) useRemoteEgg.setState({assetId, mode:0, offset:zero});
+  if(useRemoteEgg.getState().assetId===assetId)return;
+  modeStartedMs=performance.now();useRemoteEgg.setState({assetId, mode:1, offset:zero});
 }
 export function clearRemoteEgg() {
   if(useRemoteEgg.getState().assetId!==null) useRemoteEgg.setState({assetId:null,mode:0,offset:zero});
 }
+export function selectEggPattern(mode:Exclude<RemoteMode,0>) {
+  const s=useRemoteEgg.getState();
+  if(!s.assetId||s.mode===mode)return;
+  modeStartedMs=performance.now();useRemoteEgg.setState({mode});
+}
+// The physical remote has one key: steady → rising → intermittent → off.
 export function cycleRemoteEgg() {
-  const s=useRemoteEgg.getState(); if(!s.assetId)return;
-  modeStartedMs=performance.now(); useRemoteEgg.setState({mode:((s.mode+1)%4) as RemoteMode});
+  const {mode}=useRemoteEgg.getState();
+  if(mode===3)stopRemoteEgg();else selectEggPattern(mode===0?1:mode===1?2:3);
+}
+export function stopRemoteEgg() {
+  if(useRemoteEgg.getState().mode!==0)useRemoteEgg.setState({mode:0});
 }
 export function adjustRemoteEgg(axis:0|1|2,deltaCm:number) {
   const {assetId,offset}=useRemoteEgg.getState(); if(!assetId||!Number.isFinite(deltaCm))return;
@@ -44,4 +54,5 @@ export function eggEnvelope(mode:RemoteMode,elapsedMs:number) {
     case 3: return ms%880<320 ? .92 : 0;
   }
 }
-export const eggPowerAt=(nowMs:number)=>eggEnvelope(useRemoteEgg.getState().mode,nowMs-modeStartedMs);
+export const eggElapsedAt=(nowMs:number)=>Math.max(0,nowMs-modeStartedMs);
+export const eggPowerAt=(nowMs:number)=>eggEnvelope(useRemoteEgg.getState().mode,eggElapsedAt(nowMs));

@@ -15,6 +15,8 @@ import { createWardrobeModel, resumeWardrobeModel } from './model';
 const mat=(name:string)=>new MeshBasicMaterial({name});
 function actorMesh(){
   const geometry=new BufferGeometry(),mesh=new SkinnedMesh(geometry,[mat('blouse'),mat('skin'),mat('HairClip')]);
+  geometry.setAttribute('position',new Float32BufferAttribute(new Float32Array(72),3));
+  for(let i=0;i<3;i++)geometry.addGroup(i*3,3,i);
   const delta=new Float32BufferAttribute([0,.25,0],3);
   const split=new SkinnedMesh(new BufferGeometry());split.geometry.morphAttributes.position=[delta];
   split.userData.mmdMorphSplitBody={materialIndex:0,morphTargetIndices:[2]};split.morphTargetInfluences=[.36];
@@ -23,10 +25,11 @@ function actorMesh(){
   mesh.morphTargetInfluences=[.5,.7,.34];return {mesh,split};
 }
 
-it('uses independent named slots and real vertex channels, refusing mixed aliases, duplicate keys and facial morphs',()=>{
+it('keeps mixed aliases and facial morphs out of the short list; duplicate materials have distinct source-slot keys',()=>{
   const {mesh}=actorMesh();const mixed=mat('shirt');mixed.userData.mmdMaterial={englishName:'Body atlas'};
   mesh.material.push(mixed,mat('jacket'),mat(' jacket '),mat('metal'),mat('mat00001'));
-  expect(wardrobeCatalog(mesh).map(p=>[p.key,p.kind])).toEqual([['blouse','clothing'],['HairClip','accessory'],['襟','morph']]);
+  for(let i=3;i<8;i++)mesh.geometry.addGroup(i*3,3,i);
+  expect(wardrobeCatalog(mesh).map(p=>[p.key,p.kind])).toEqual([['blouse','clothing'],['HairClip','accessory'],['jacket [#5]','clothing'],['jacket [#6]','clothing'],['襟','morph']]);
   for(const name of ['body_shirt','眼球_衣装','skin/gloves','Face: hat','肌_靴下','skirtingBoard','hairspray','eyeshadow'])expect(wardrobeKind(name)).toBeNull();
 });
 
@@ -84,6 +87,9 @@ it('checks current selection and mounted model identity, reads ordinary material
   // leave that independent update, the skin, and the prior opacity intact.
   useMmdVrStore.getState().setMaterialParam('r','blouse','roughness',.2);editWardrobe(a,old,'blouse',{visible:false});restoreOutfit(a,old,'undo');
   expect(useMmdVrStore.getState().materialModels.r).toEqual([{...start,roughness:.2},{...start,name:'skin',visible:false}]);
+  editWardrobe(a,old,'blouse',{opacity:.5});useMmdVrStore.getState().setMaterialParam('r','blouse','opacity',.74);
+  editWardrobe(a,old,'blouse',{visible:false});restoreOutfit(a,old,'original');restoreOutfit(a,old,'undo');
+  expect(useMmdVrStore.getState().materialModels.r).toEqual([{...start,opacity:.74,roughness:.2},{...start,name:'skin',visible:false}]);
   model=createWardrobeModel(actorMesh().mesh,file);expect(editWardrobe(a,old,'blouse',{visible:false})).toBe(false);
   useMmdVrStore.setState({physicsBusy:true});expect(editWardrobe(a,model,'blouse',{visible:false})).toBe(false);
   useMmdVrStore.setState({physicsBusy:false});useBackpack.setState({selected:null});expect(editWardrobe(a,model,'blouse',{visible:false})).toBe(false);

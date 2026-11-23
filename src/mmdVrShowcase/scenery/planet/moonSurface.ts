@@ -77,9 +77,10 @@ export function moonRadius(m:Profile,x:number,y:number,z:number){
   }
   return m.radius+h*relief;
 }
+const smallSegments=[80,48] as const,largeSegments=[112,72] as const;
+export const moonSegments=(m:Profile)=>m.relief==='mica'||m.relief==='sulfur'?smallSegments:largeSegments;
 export function moonShell(m:Profile){
-  const small=m.relief==='mica'||m.relief==='sulfur';
-  const g=new SphereGeometry(1,small?80:112,small?48:72),p=g.attributes.position;
+  const g=new SphereGeometry(1,...moonSegments(m)),p=g.attributes.position;
   for(let i=0;i<p.count;i++){
     const x=p.getX(i),y=p.getY(i),z=p.getZ(i),r=moonRadius(m,x,y,z);
     p.setXYZ(i,x*r,y*r,z*r);

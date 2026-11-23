@@ -56,7 +56,7 @@ function SelectedTools({ entry, instance, blocked, preview }: { entry: BackpackE
   const [peek,setPeek]=useState(false);
   useLayoutEffect(()=>{if(blocked&&page==='body'&&preview)setPeek(true);else if(!preview)setPeek(false);},[blocked,page,preview]);
   const held=useStagePlay(s=>s.held?.toy),holding=!!held;
-  const wearer=useRemoteEgg(s=>s.assetId===entry.id);
+  const wearer=useRemoteEgg(s=>s.assetId);
   const carries = useStagePlay(s=>s.character?.assetId===entry.id);
   const characterToy=useStagePlay(s=>s.character?.toy),room=useMmdVrStore(s=>s.prefs.scenery);
   const eggPage=page==='prop'&&held==='remoteEgg',wandOut=held==='wand'||characterToy==='wand';
@@ -90,7 +90,7 @@ function SelectedTools({ entry, instance, blocked, preview }: { entry: BackpackE
       <HudButton position={[.315,-.11,0]} size={[.59,.16]} label={t('watchArrange')} disabled={locked} onPress={()=>setPage('arrange')}/>
       <HudButton position={[-.315,-.325,0]} size={[.59,.16]} label={t('actorPose')} disabled={locked||!instance.visible} onPress={()=>setPage('pose')}/>
       <HudButton position={[.315,-.325,0]} size={[.59,.16]} label={t('actorBodyState')} disabled={locked||!instance.visible} onPress={()=>setPage('body')}/>
-      {(holding||carries)&&<HudButton position={[wandOut ? -.315 : 0,-.55,0]} size={[wandOut ? .59 : 1.22,.14]} label={t(held==='remoteEgg'?(wearer?'eggFit':'eggWear'):carries?'propGrip':'propGive')} disabled={locked||(!instance.visible&&held==='remoteEgg')} onPress={()=>{if(held==='remoteEgg'&&!wearer)bindRemoteEgg(entry.id);setPage('prop');}}/>}
+      {(holding||carries)&&<HudButton position={[wandOut ? -.315 : 0,-.55,0]} size={[wandOut ? .59 : 1.22,.14]} label={t(held==='remoteEgg'?(wearer===entry.id?'eggControls':wearer?'eggTransfer':'eggWear'):carries?'propGrip':'propGive')} disabled={locked||(!instance.visible&&held==='remoteEgg')} onPress={()=>{if(held==='remoteEgg'&&wearer!==entry.id)bindRemoteEgg(entry.id);setPage('prop');}}/>}
       {wandOut&&<HudButton position={[(holding||carries) ? .315 : 0,-.55,0]} size={[(holding||carries) ? .59 : 1.22,.14]} label={t('wandResponse')} disabled={locked||!instance.visible} onPress={()=>setPage('wand')}/>}
     </>:<>
       <HudLine position={[0, 0.225, 0]} width={1.24} role="muted" text={busy ? t("hudWorking") : `${t(instance.visible ? "hudOnStage" : "hudOnStageHidden")} · ${Math.round(rotation)}° · ${formatMmdVrModelScale(scale)}`} />

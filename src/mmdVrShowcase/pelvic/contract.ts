@@ -72,7 +72,7 @@ export interface PelvicSection {
 }
 export interface PelvicSeal {
   /** Outer perimeter and deformable lip, same cyclic order. Draw a strip
-   * outer→lip; the closed lip becomes a zero-area slit; never touches actor skin. */
+   * outer→lip; the resting aperture is narrow and centred on the same plane. */
   outer: Vector3[];
   lip: Vector3[];
   openness: number;

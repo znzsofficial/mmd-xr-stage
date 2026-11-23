@@ -1,6 +1,7 @@
 import {Quaternion,Vector3} from 'three';
 import {homeGravity,PAD_RADIUS,PLANET_RADIUS as R} from '../scenery/planet/planetLayout';
 import type {ReadColumn} from './groundMotor';
+import {STEP} from './solidColumns';
 import {crustRadius,stationBlocks} from '../scenery/planet/opalTerrain';
 
 export const planetCentre=new Vector3(0,-R,0),north=new Vector3(0,1,0);
@@ -40,6 +41,10 @@ export function surfaceStep(s:Traveller,travel:Vector3,speed:number,dt:number,ju
   if(jump&&s.grounded)vy=1.45;
   const gravity=homeGravity(radius);
   let r=radius+vy*dt-.5*gravity*dt*dt;vy-=gravity*dt;
+  // Radial distance decreases while walking towards the middle of the flat
+  // north deck. Follow reachable downhill support instead of leaving the
+  // deck on a tangent and repeatedly entering a tiny fall.
+  if(s.grounded&&!jump&&floor<=radius&&radius-floor<=STEP)r=floor;
   if(s.radial.y>.8&&Number.isFinite(s.col.ceiling)&&vy>0){
     const max=(R+s.col.ceiling-height)/s.radial.y;
     if(r>max){r=max;vy=0;}

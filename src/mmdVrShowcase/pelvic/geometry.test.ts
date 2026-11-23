@@ -108,14 +108,16 @@ it('keeps the real hand pose beyond the stop, caps depth and never counts an out
   close(a.outletLocal,outlet(past));expect(copy.equals(past)).toBe(true);
 });
 
-it('closes the separate adapted lip at rest, opens it on the measured shaft-plane crossing and returns to a seam on exit',()=>{
+it('keeps a narrow normal opening at rest, follows the measured shaft cut and restores the same aperture on exit',()=>{
   const f=frame(),s=createPelvicSolver(), x=.003;
   const step=(d:number)=>s.step(f,shifted(pelvicRailMatrix(f,d),x,0,0),{dt});
   const outside=step(-.008);expect(pelvicSeal(f,outside,false)).toBeNull();
-  const ring=pelvicSeal(f,outside,true)!;expect(ring.lip.every(v=>v.x===0)).toBe(true);expect(ring.openness).toBe(0);
+  const ring=pelvicSeal(f,outside,true)!,rest=ring.lip.map(v=>v.clone());expect(ring.lip[0].x).toBeGreaterThan(0);
+  expect(Math.max(...ring.lip.map(v=>Math.abs(v.x)))).toBeLessThan(.1*f.radiusM);expect(ring.openness).toBe(0);
   step(.009);const actual=step(.035);pelvicSeal(f,actual,true,ring);
   const center=ring.lip.reduce((sum,p)=>sum.add(p),new Vector3()).divideScalar(ring.lip.length);
   const i=actual.shaftLocal.findIndex(p=>p.z<=0), a=actual.shaftLocal[i-1],b=actual.shaftLocal[i];
   close(center,a.clone().lerp(b,a.z/(a.z-b.z)));expect(ring.openness).toBeGreaterThan(.55);
   expect(ring.lip.every(v=>v.z===0)).toBe(true);step(.006);pelvicSeal(f,step(-.01),true,ring);expect(ring.openness).toBe(0);
+  expect(ring.lip).toEqual(rest);
 });

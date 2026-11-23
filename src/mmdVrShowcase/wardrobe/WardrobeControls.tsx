@@ -2,11 +2,13 @@ import { useId, useState } from 'react';
 import { HudButton, HudLine, HudSheet } from '../components/PorcelainControls';
 import type { WardrobeProps } from './actions';
 import { useWardrobe } from './useWardrobe';
+import { SlotFinder } from './SlotFinder';
 import './wardrobe.css';
 
 function Screen(props:WardrobeProps){
   const w=useWardrobe(props),{l}=w,id=useId();
-  const [expanded,expand]=useState<string|null>(null);
+  const [expanded,expand]=useState<string|null>(null),[finder,find]=useState(false);
+  if(finder&&w.model)return <SlotFinder {...props} model={w.model} onBack={()=>find(false)}/>;
   return <div className="wardrobe-screen" role="group" aria-label={w.title}>
     <header><h3>{w.title}</h3><button type="button" onClick={props.onBack}>{w.back}</button></header>
     <nav aria-label={l('衣柜分类','Wardrobe categories')}>{w.types.map(k=><button type="button" key={k} aria-pressed={w.kind===k} onClick={()=>w.setKind(k)}>{w.labels[k]}</button>)}</nav>
@@ -26,13 +28,14 @@ function Screen(props:WardrobeProps){
     })}</ul>:<p role="status">{w.empty}</p>}
     <footer><button type="button" disabled={!w.modified} onClick={()=>w.restore('original')}>{l('恢复原装','Original outfit')}</button>
       <button type="button" disabled={!w.undo} onClick={()=>w.restore('undo')}>{l('撤销衣柜改动','Undo wardrobe edits')}</button></footer>
-    <p className="wardrobe-note">{w.note}</p>
+    <button type="button" disabled={!w.available} onClick={()=>find(true)}>{w.finder}</button><p className="wardrobe-note">{w.note}</p>
   </div>;
 }
 
 function Hud(props:WardrobeProps){
-  const w=useWardrobe(props),{l}=w,width=1.64;
-  return <group name="wardrobe-hud"><HudSheet size={[1.78,1.45]}/>
+  const w=useWardrobe(props),{l}=w,width=1.64,[finder,find]=useState(false);
+  if(finder&&w.model)return <SlotFinder {...props} hud model={w.model} onBack={()=>find(false)}/>;
+  return <group name="wardrobe-hud"><HudSheet size={[1.78,1.54]}/>
     <HudLine position={[-.31,.59,0]} width={1} text={w.title} role="title"/>
     <HudButton position={[.52,.59,0]} size={[.62,.145]} label={w.back} onPress={props.onBack} variant="quiet"/>
     {w.types.map((k,i)=><HudButton key={k} position={[(i-1)*.56,.39,0]} size={[.53,.15]} label={w.labels[k]} active={w.kind===k} variant="tab" onPress={()=>w.setKind(k)}/>)}
@@ -49,7 +52,7 @@ function Hud(props:WardrobeProps){
     </group>:<HudLine position={[0,0,0]} width={width} text={w.empty} center/>}
     <HudButton position={[-.42,-.492,0]} size={[.80,.14]} label={l('恢复原装','Original outfit')} disabled={!w.modified} onPress={()=>w.restore('original')}/>
     <HudButton position={[.42,-.492,0]} size={[.80,.14]} label={l('撤销衣柜改动','Undo wardrobe edits')} disabled={!w.undo} onPress={()=>w.restore('undo')}/>
-    <HudLine position={[0,-.635,0]} width={width} role="muted" text={l('皮肤贴图上的衣物无法拆分。','Clothes painted onto skin cannot be separated.')} center/>
+    <HudButton position={[0,-.664,0]} size={[width,.14]} variant="quiet" label={w.finder} disabled={!w.available} onPress={()=>find(true)}/>
   </group>;
 }
 

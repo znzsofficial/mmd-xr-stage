@@ -10,7 +10,7 @@ export const PRIVATE_COLORS = {
 
 export const PRIVATE_TITLE_FACE = '"Yu Mincho", "Songti SC", SimSun, Georgia, serif';
 
-export type ButtonVariant = 'button' | 'quiet' | 'tab' | 'primary' | 'stop';
+export type ButtonVariant = 'button' | 'quiet' | 'tab' | 'primary' | 'stop' | 'stroke' | 'lens';
 export type ButtonState = { variant?: ButtonVariant; active?: boolean; disabled?: boolean; danger?: boolean; hovered?: boolean };
 
 const c = PRIVATE_COLORS;
@@ -20,6 +20,8 @@ const keys = {
   hover: {face:c.raised, letters:c.ink, edge:c.gold},
   selected: {face:c.selected, letters:c.gold, edge:c.gold},
   primary: {face:c.gold, letters:c.paper, edge:c.gold},
+  stroke: {face:'#693749',letters:'#ffe6db',edge:c.rouge},
+  lens: {face:c.paper,letters:c.muted,edge:c.paper},
   stop: {face:c.dangerFill, letters:c.danger, edge:c.rouge},
   disabled: {face:c.inset, letters:c.disabled, edge:c.rule},
 } as const;
@@ -29,6 +31,8 @@ const hoverInk = {selected:{...keys.selected, edge:c.ink}, primary:{...keys.prim
 export function buttonInks({variant, active, disabled, danger, hovered}: ButtonState) {
   if (disabled) return keys.disabled;
   if (danger || variant === 'stop') return hovered ? hoverInk.stop : keys.stop;
+  if (variant === 'stroke') return hovered ? {...keys.stroke,edge:c.ink} : keys.stroke;
+  if (variant === 'lens') return active ? {...keys.lens,letters:c.ink,edge:hovered?c.rouge:c.paper} : hovered?keys.hover:keys.lens;
   if (variant === 'primary') return hovered ? hoverInk.primary : keys.primary;
   if (active) return hovered ? hoverInk.selected : keys.selected;
   return hovered ? keys.hover : variant === 'quiet' || variant === 'tab' ? keys.quiet : keys.normal;

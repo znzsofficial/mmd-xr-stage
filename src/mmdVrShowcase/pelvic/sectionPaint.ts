@@ -2,7 +2,8 @@ import { rod, rodRadii } from './path';
 import {semenColor,semenFill,semenHighlight} from '../play/semenAppearance';
 import { plot, SECTION_H, SECTION_W, outletLabel, sectionEvidence, type Point, type SectionLayout, type Slice } from './sectionProjection';
 import {drawVulva,exteriorBox,exteriorLens} from './atlas/vulvaSurface';
-import type {FoldStyle} from './vulvaForm';
+import {slitHalfLength,visibleRim,type FoldStyle} from './vulvaForm';
+import {observedCut} from './atlas/exteriorStudy';
 import type {EntryType} from './atlas/entryLettering';
 import type { PelvicProfile, PelvicSample } from './stateTypes';
 export { sectionLayout, SECTION_H, SECTION_W, type SectionAngle } from './sectionProjection';
@@ -152,11 +153,10 @@ function callouts(ctx:Ctx,v:SectionLayout,zh:boolean){
   line(ctx,[{x:x-w,y:y-3},{x:x-w,y},{x,y},{x,y:y-3}],ink.gold,1.1);label(ctx,`${fmtUnits(distance*100)} cm`,x,y-10,ink.gold,11.5,550,'right');
 }
 
-function paintPlate(ctx:Ctx,v:SectionLayout,g:Shapes,zh:boolean,type?:EntryType|null,style?:FoldStyle){
+function paintPlate(ctx:Ctx,v:SectionLayout,g:Shapes,zh:boolean,type?:EntryType|null){
   ctx.fillStyle=ink.paper;ctx.fillRect(0,0,SECTION_W,SECTION_H);ctx.lineJoin=ctx.lineCap='round';
   if(v.entryFocus){
-    drawVulva(ctx,v.yaw,undefined,style);tissue(ctx,v,g);
-    const exterior=exteriorLens(v.yaw,v.radiusM),rim=exterior(-.4*v.radiusM,-.92*v.radiusM,0);
+    tissue(ctx,v,g);
     function leader(name:string,from:Point,x:number,y:number,right=false){
       const w=right?(zh?56:77):(zh?40:49);
       type?.draw(ctx,name,right?x-w:x,y);
@@ -164,7 +164,6 @@ function paintPlate(ctx:Ctx,v:SectionLayout,g:Shapes,zh:boolean,type?:EntryType|
     }
     // At a full lateral view the near fold occludes the external opening.
     // The cutaway remains available; don't label the outer skin as the bore.
-    if(Math.abs(Math.cos(v.yaw))>.30)leader(zh?'阴道口':'Opening',rim,9,201);
     leader(zh?'宫颈限位':'Cervical stop',v.canal.at(-1)!.at(.72,0),335,34,true);
     type?.draw(ctx,zh?'外阴':'Vulva',9,15);type?.draw(ctx,zh?'阴道剖面':'Vaginal canal',181,15);
     line(ctx,[{x:171,y:10},{x:171,y:214}],ink.rule,.8);
@@ -178,21 +177,21 @@ function paintPlate(ctx:Ctx,v:SectionLayout,g:Shapes,zh:boolean,type?:EntryType|
 }
 // Reuse a single backing canvas *per destination*, even through animated
 // yaw. During tracking, the only work is one blit plus liquid, probe and text.
-type Plate={canvas:HTMLCanvasElement;v?:SectionLayout;zh?:boolean;g?:Shapes;type?:EntryType|null;style?:FoldStyle};
+type Plate={canvas:HTMLCanvasElement;v?:SectionLayout;zh?:boolean;g?:Shapes;type?:EntryType|null};
 const plates=new WeakMap<Ctx,Plate>();
-function background(ctx:Ctx,v:SectionLayout,zh:boolean,type?:EntryType|null,style?:FoldStyle){
+function background(ctx:Ctx,v:SectionLayout,zh:boolean,type?:EntryType|null){
   let b=plates.get(ctx);const {width,height}=ctx.canvas;
   if(!b&&typeof document!=='undefined'){b={canvas:document.createElement('canvas')};plates.set(ctx,b);}
   if(b){
-    if(v!==b.v||zh!==b.zh||type!==b.type||style!==b.style||width!==b.canvas.width||height!==b.canvas.height||!b.g){
+    if(v!==b.v||zh!==b.zh||type!==b.type||width!==b.canvas.width||height!==b.canvas.height||!b.g){
       if(width!==b.canvas.width)b.canvas.width=width;if(height!==b.canvas.height)b.canvas.height=height;
       const c=b.canvas.getContext('2d');if(c){
-        b.g=contours(v);c.setTransform(width/SECTION_W,0,0,height/SECTION_H,0,0);paintPlate(c,v,b.g,zh,type,style);b.v=v;b.zh=zh;b.type=type;b.style=style;
+        b.g=contours(v);c.setTransform(width/SECTION_W,0,0,height/SECTION_H,0,0);paintPlate(c,v,b.g,zh,type);b.v=v;b.zh=zh;b.type=type;
       }
     }
     if(b.v===v&&b.g){ctx.drawImage(b.canvas,0,0,SECTION_W,SECTION_H);return b.g;}
   }
-  const g=contours(v);paintPlate(ctx,v,g,zh,type,style);return g;
+  const g=contours(v);paintPlate(ctx,v,g,zh,type);return g;
 }
 
 function liquid(ctx:Ctx,shape:Path2D,y:number){
@@ -247,7 +246,12 @@ export function drawPelvicSection(ctx:Ctx,layout:SectionLayout,profile:PelvicPro
   const depth=e.depth===null?'—':cm(e.depth),angle=e.angle===null?'—':`${Math.round(e.angle)}°`,lat=e.lateral===null?'—':signedCm(e.lateral);
   const vessel=fantasy?t('宫腔精液量','Semen · uterus'):t('阴道精液量','Semen · vagina');
   ctx.save();ctx.scale(ctx.canvas.width/SECTION_W,ctx.canvas.height/SECTION_H);ctx.lineJoin=ctx.lineCap='round';
-  const g=background(ctx,layout,zh,type,style);
+  const g=background(ctx,layout,zh,type);
+  if(layout.entryFocus){
+    const cut=observedCut(sample,parked);drawVulva(ctx,layout.yaw,cut,style,visibleRim(profile));
+    if(Math.abs(Math.cos(layout.yaw))>.30){const from=exteriorLens(layout.yaw,1)(cut.x-cut.yx,cut.y-cut.yy-slitHalfLength,0),end=zh?54:63;
+      type?.draw(ctx,zh?'阴道口':'Opening',9,201);line(ctx,[from,{x:end+6,y:201},{x:end,y:201}],ink.muted,.85);dot(ctx,from,1.65,ink.gold);}
+  }
   if(e.vaginal>0)liquid(ctx,g.canalLiquid,layout.levelY('canal',e.vaginal));if(!layout.entryFocus&&e.uterine>0)liquid(ctx,g.uterus,layout.levelY('uterus',e.uterine));
   if(sample)drawProbe(ctx,layout,e,sample);
   if(layout.entryFocus){

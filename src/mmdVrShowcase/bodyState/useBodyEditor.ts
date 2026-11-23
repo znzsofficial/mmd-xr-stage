@@ -8,7 +8,8 @@ import {action,editorControls,mainPages,pageTitle,parentPage,type DetailParents,
 import {cycleRows,daysPerPage} from './editor/cyclePages';
 import {lactationRows} from './editor/lactationPages';
 import {shapeRows} from './editor/shapePages';
-import {beginBodyPreview,cancelBodyPreview,commitBodyPreview,disableBodyState,inspectBody,patchBodyPreview,stepBodyDay,useBodyState} from './store';
+import {beginBodyPreview,cancelBodyPreview,commitBodyPreview,disableBodyState,fastForwardReproduction,inspectBody,patchBodyPreview,stepBodyDay,useBodyState} from './store';
+import {activeGame,useReproduction} from './reproduction/store';
 
 export type BodyActor = {assetId:string;runtimeId:string};
 
@@ -22,6 +23,7 @@ export function useBodyEditor({assetId,runtimeId}:BodyActor) {
   const [undo,setUndo]=useState<{kind:'save'|'clear';previous:BodyProfile|undefined}|null>(null);
   const [feedback,setFeedback]=useState<'discarded'|'restored'|null>(null);
   const saved=useBodyState(s=>s.byAsset[assetId]);
+  const game=useReproduction(s=>page==='reproduction'?activeGame(assetId,s):undefined);
   const draft=useBodyState(s=>s.draft?.assetId===assetId?s.draft.value:null);
   const support=useBodyState(s=>s.support[assetId]?.runtimeId===runtimeId?s.support[assetId]:undefined);
   const name=useBackpack(s=>s.entries.find(e=>e.id===assetId)?.file.name??'');
@@ -72,10 +74,10 @@ export function useBodyEditor({assetId,runtimeId}:BodyActor) {
           ...(saved&&!draft?[actions(action(l('清除本角色设置','Clear actor settings'),disable,{danger:true}))]:[])];
       case 'chest': case 'fit': case 'morphs': case 'contact': case 'sensitivity':
         return shapeRows(page,ui,support,{page:morphPage,setPage:setMorphPage});
-      case 'cycle': case 'compare': case 'calendar': case 'rhythm': case 'lining': case 'secretions':
+      case 'cycle': case 'compare': case 'calendar': case 'rhythm': case 'lining': case 'secretions': case 'reproduction':
         return cycleRows(page,ui,days=>{if(start())stepBodyDay(assetId,days);},{index:calendarIndex,setIndex:setCalendarIndex,
           choose:day=>{if(day!==ui.p.day)patch({day,daySeconds:0});setPage(parents.calendar??'cycle');},
-        });
+        },game,g=>{if(canEditNow())fastForwardReproduction(assetId,g);});
       case 'milk':return lactationRows(ui);
     }
   }

@@ -3,6 +3,8 @@ import {usePelvic} from '../store';
 import {defaultPelvicCalibration} from '../contract';
 import {useBodyState} from '../../bodyState/store';
 import {DEFAULT_BODY_PROFILE,sampleBody} from '../../bodyState/data';
+import {configureReproduction,recordInternalDose,useReproduction} from '../../bodyState/reproduction/store';
+import {mockGameEntropy} from '../../bodyState/reproduction/entropy.testSupport';
 import {atlasPainter} from './painter';
 import {setAtlasView,useAtlasSettings} from './view';
 import {useLanguageStore} from '../../../languageStore';
@@ -39,6 +41,19 @@ function slowWorker(){
   vi.stubGlobal('Worker',Stub);vi.stubGlobal('OffscreenCanvas',class {transferToImageBitmap(){}});
   return {get current(){return worker;},reply(){const b={close:vi.fn()};worker.onmessage!({data:{bitmap:b}});return b;}};
 }
+it('supersedes a frozen uterus bitmap on the actual game trial, but not on another actor’s trial or a replayed dose',()=>{
+  const entropy=mockGameEntropy(5,1);
+  const worker=slowWorker(),upload=vi.fn(),assetId='asset-1',other='asset-2',profile={...DEFAULT_BODY_PROFILE,day:15,reproduction:true};
+  configureReproduction(assetId,profile);configureReproduction(other,profile);setAtlasView(assetId,{motion:false});
+  const painter=atlasPainter(paper(),{assetId,runtimeId:'r'},'uterus',()=>{},upload),options=()=>worker.current.postMessage.mock.lastCall![0].options;
+  try{
+    painter.tick(0);expect(options().reproduction).toMatchObject({eggs:1,chance:60,tried:false,stage:'ovulated'});
+    const obsolete=worker.reply();recordInternalDose(other,1);recordInternalDose(assetId,1);painter.tick(1);
+    expect(obsolete.close).toHaveBeenCalledOnce();expect(upload).not.toHaveBeenCalled();expect(options()).toMatchObject({time:0,reproductionSeconds:12,reproduction:{tried:true,stage:'fertilized',implanted:false}});
+    expect(options().reproduction).not.toHaveProperty('trial');const valid=worker.reply();recordInternalDose(assetId,1);recordInternalDose(other,1);painter.tick(2);
+    expect(valid.close).toHaveBeenCalledOnce();expect(upload).toHaveBeenCalledOnce();expect(worker.current.postMessage).toHaveBeenCalledTimes(2);
+  }finally{painter.dispose();useReproduction.setState(useReproduction.getInitialState());entropy.mockRestore();}
+});
 it('does not display a late worker frame from an old cycle preview after the user freezes a new day',()=>{
   const worker=slowWorker();
   const b={...DEFAULT_BODY_PROFILE,day:4};useBodyState.setState({byAsset:{a:b}});

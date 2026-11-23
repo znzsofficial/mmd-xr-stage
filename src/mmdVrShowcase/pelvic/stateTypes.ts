@@ -1,5 +1,6 @@
 import type { PelvicCalibration, PelvicXYZ } from './contract';
 import type {RailTechnique} from './railTechnique';
+import type {RimMode} from './vulvaForm';
 
 export const PELVIC_LIMITS = {
   offsetM:[-.5,.5], pitchDeg:[-90,90], yawDeg:[-180,180], radiusM:[.008,.08], lengthM:[.035,.20],
@@ -16,13 +17,15 @@ export type PelvicProfile = {
    * belong to this fit and are cleared when its calibration changes. */
   calibration:PelvicCalibration; clothingClear:boolean; clothed?:boolean; container:PelvicContainer;
   apertureMorph?:string|null; showAdapter:boolean;
+  /** A chosen game event, local to this backpack actor. No medical meaning. */
+  rimMode?:RimMode; rimMemory?:'left'|'right'|'center';
   /** Auto from the mounted face by default; null turns actor response off. */
   responseMorph?:string|null;
   fluid:Record<PelvicContainer,number>; capacity:Record<PelvicContainer,number>;
   overflow:number; drained:number; speedHz:number; stroke:number;
   technique?:RailTechnique; replayRate?:number; replayLoop?:boolean;
 };
-export type PelvicPatch = Partial<Pick<PelvicProfile,'clothingClear'|'clothed'|'container'|'speedHz'|'stroke'|'showAdapter'|'replayRate'|'replayLoop'>> & {
+export type PelvicPatch = Partial<Pick<PelvicProfile,'clothingClear'|'clothed'|'container'|'speedHz'|'stroke'|'showAdapter'|'replayRate'|'replayLoop'|'rimMode'>> & {
   calibration?:Partial<PelvicCalibration>;
 };
 export type PelvicActive = {

@@ -28,9 +28,10 @@ it('holds over a real DOM target, ignores taps and a competing touch, stops on s
   const fire=(target:Element,type:string,id:number)=>act(()=>{target.dispatchEvent(new PointerEvent(type,{bubbles:true,pointerId:id,button:0,buttons:1,pointerType:'touch'}));});
   try{
     await mount();expect(stock()).toBeUndefined();await click('开启泌乳');await tick();expect(stock()).toEqual({...DEFAULT_BODY_PROFILE,lactating:true});
-    expect(host.textContent).toContain('待确认裸露');expect(host.textContent).toContain('遮挡或无出口');
+    expect(host.textContent).toContain('待确认裸露');expect(host.textContent).toContain('出口被遮挡');
     const left=by('按住左侧');pointed=left;await click('按住左侧');await tick(.17);expect(stock().left).toBe(.5);
-    await fire(left,'pointerdown',1);await tick();await fire(left,'pointerup',2);await tick(.17);expect(stock().left).toBeLessThan(.5);expect(stock().right).toBe(.5);
+    await fire(left,'pointerdown',1);await fire(left,'pointerup',1);await tick();expect(host.textContent).toContain('轻点未排出');expect(stock().left).toBe(.5);
+    await fire(left,'pointerdown',1);await tick();expect(stock().left).toBeCloseTo(.466);await fire(left,'pointerup',2);await tick(.27);expect(stock().left).toBeCloseTo(.432);expect(stock().right).toBe(.5);
     const first=stock();pointed=host;await fire(left,'pointermove',1);pointed=left;await tick(.17);expect(stock()).toBe(first);
     await click('确认露出');await act(()=>host.querySelector<HTMLInputElement>('input')!.click());await tick();expect(host.textContent).toContain('可出滴');await click('确认露出');
     const both=by('按住双侧');both.focus();await act(()=>{both.dispatchEvent(new KeyboardEvent('keydown',{key:' ',bubbles:true}));});await tick();await tick(.17);

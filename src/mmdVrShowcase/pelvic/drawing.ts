@@ -2,7 +2,7 @@ import { BufferGeometry, CylinderGeometry, DataTexture, Group, LinearFilter, Mat
 import { createSealShell, makeCarriage, makeStandFoot, makeTracks } from './rigArt';
 import { pelvicSeal, type PelvicContact, type PelvicFrame } from './geometry';
 import {readAtlasView} from './atlas/view';
-import type {FoldStyle} from './vulvaForm';
+import type {FoldStyle,RimState} from './vulvaForm';
 
 const closed:PelvicContact={inside:false,depthM:0,atCervix:false,outletInside:false,outletVisible:false,outletLocal:new Vector3(),shaftLocal:[]};
 const parentInverse=new Matrix4();
@@ -25,14 +25,15 @@ export function createPortDrawing(host:Object3D,assetId:string){
   const molded=new Mesh(shell.geom,shellMaterial);molded.name='pelvic:seal';group.add(molded);
   const mark=new Mesh(new TorusGeometry(1,.055,8,40),new MeshStandardMaterial({color:'#6dc6bd',roughness:.64,wireframe:false}));
   mark.visible=false;mark.name='pelvic:calibration-guide';group.add(mark);
-  let lastRadius=-1,wasOpen=false,lastStyle:FoldStyle|undefined;
-  return {group,draw(f:PelvicFrame,showShell:boolean,preview:boolean,contact:PelvicContact=closed){
+  let lastRadius=-1,wasOpen=false,lastStyle:FoldStyle|undefined,lastRim:RimState|undefined;
+  return {group,draw(f:PelvicFrame,showShell:boolean,preview:boolean,contact:PelvicContact=closed,rim:RimState='off'){
     placeWorld(group,f.world);group.visible=showShell||preview;mark.visible=preview&&!showShell;molded.visible=showShell;
+    if(!contact.outletInside)contact=closed;
     if(mark.visible)mark.scale.set(f.radiusM*1.62,f.radiusM*1.72,f.radiusM);
     const style=showShell?readAtlasView(assetId).foldStyle:undefined;
-    if(!contact.inside&&(!showShell||(!wasOpen&&lastStyle===style&&Math.abs(lastRadius-f.radiusM)<=1e-8)))return 0;
+    if(!contact.inside&&(!showShell||(!wasOpen&&lastStyle===style&&lastRim===rim&&Math.abs(lastRadius-f.radiusM)<=1e-8)))return 0;
     const opening=pelvicSeal(f,contact,true,seal)!;
-    if(showShell){shell.fit(opening,f.radiusM,style);lastRadius=f.radiusM;lastStyle=style;wasOpen=opening.openness>0;}
+    if(showShell){shell.fit(opening,f.radiusM,style,rim);lastRadius=f.radiusM;lastStyle=style;lastRim=rim;wasOpen=opening.openness>0;}
     return opening.openness;
   },dispose(){group.removeFromParent();shell.geom.dispose();finish.dispose();shellMaterial.dispose();mark.geometry.dispose();mark.material.dispose();}};
 }

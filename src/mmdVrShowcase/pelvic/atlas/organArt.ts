@@ -3,19 +3,22 @@ import type { PelvicSample } from '../stateTypes';
 import {semenColor,semenRGB} from '../../play/semenAppearance';
 import type { PelvicXYZ } from '../contract';
 import { pelvicCenterline, projectDepth, tangent } from '../path';
-import { canalY, clamp, ENTRY, organMeshes, smooth, STOP, stride } from './model';
+import { canalY, clamp, ENTRY, organMeshes, ovary, tubePath, smooth, STOP, stride } from './model';
 import {canalBands,canalStudy,type CanalStudy} from './canalGeometry';
 import {canalAspectX,canalAspectY,createCanalContact,fitWall,type CanalContact} from './canalContact';
 import type { Mesh, V } from './model';
 import type {EndometrialTissue} from '../../bodyState/data';
 import {createWallStudy,wallStride} from './uterineWall';
+import {drawReproduction} from './reproductionArt';
+import type {ReproductiveSample} from '../../bodyState/reproduction/game';
 import {createExteriorStudy} from './exteriorStudy';
-import type {FoldStyle} from '../vulvaForm';
+import type {FoldStyle,RimState} from '../vulvaForm';
 
 export interface OrganArtOptions {
   x:number; y:number; width:number; height:number; yaw:number; time:number;
   focus?:'uterus'|'vagina'|'vulva';
-  foldStyle?:FoldStyle;
+  reproduction?:ReproductiveSample;reproductionSeconds?:number;
+  foldStyle?:FoldStyle;rim?:RimState;
   /** Illustrative normalized tissue inputs, not physical measurements. */
   lining:number; shedding:number; pressure:number; zh:boolean; tissue?:EndometrialTissue; labels?:boolean;
   /** Selected balance / its OWN capacity. Optional second balance is vaginal. */
@@ -172,9 +175,11 @@ function annotations(ctx:CanvasRenderingContext2D,l:Lens,o:OrganArtOptions,linin
     ctx.textAlign=right?'right':'left';ctx.textBaseline='middle';ctx.lineWidth=2.9*k;ctx.strokeStyle='#211722';ctx.strokeText(text,x,y);
     ctx.fillStyle='#e6cfc5';ctx.fillText(text,x,y);
   };
-  if(front){const s=l.ca>=0?-1:1;call(point(l,4.48*s+.24*l.sa,-1.01+.34*l.ca,2.68),o.zh?'卵巢':'Ovary',false,h*.48,organPigments.ovary);}
-  if(l.ca>-.25)call(liningPt,o.zh?'子宫内膜':'Endometrium',true,h*.63,organPigments.endometrium);
-  if(!front)call(musclePt,o.zh?'子宫肌层':'Myometrium',false,h*.32,organPigments.myometrium);
+  if(front){const s=l.ca>=0?-1:1;call(point(l,...ovary(s)),o.zh?'卵巢':'Ovary',false,h*.48,organPigments.ovary);
+    if(o.focus==='uterus')call(point(l,...tubePath(.48,s)),o.zh?'输卵管':'Tube',false,h*.077,organPigments.myometrium);}
+  if(o.focus==='uterus')call(point(l,0,1.3,4.1),o.zh?'子宫':'Uterus',true,h*(o.reproduction ? .38 : .44),organPigments.myometrium);
+  if(o.labels&&l.ca>-.25)call(liningPt,o.zh?'子宫内膜':'Endometrium',!o.reproduction,h*.63,organPigments.endometrium);
+  if(o.labels&&!front)call(musclePt,o.zh?'子宫肌层':'Myometrium',!!o.reproduction,h*.32,organPigments.myometrium);
 }
 
 const vec=new Vector3(),c0=new Vector3(),tv=new Vector3();
@@ -263,7 +268,7 @@ export function createOrganArt(){
     }
     ctx.save();ctx.translate(o.x,o.y);ctx.beginPath();ctx.rect(0,0,o.width,o.height);ctx.clip();
     ctx.drawImage(canvas,0,0,o.width,o.height);const logical=lens(o.width,o.height,yaw,canal);
-    if(o.labels&&!canal){
+    if((o.labels||o.focus==='uterus')&&!canal){
       // Label endpoints follow the deformed surface, not fixed screen points.
       const m4=meshes![3],iRow=Math.round((1.94+1.618)/6.437*(m4.rows-1))*m4.cols;
       let best=0,idx=iRow+Math.floor(m4.cols*.72);
@@ -271,6 +276,7 @@ export function createOrganArt(){
       const pt=(i:number):V=>[work[i*N]*o.width/w,work[i*N+1]*o.height/h,work[i*N+2]];
       annotations(ctx,logical,o,pt(idx),pt(Math.round((2.82+1.618)/6.437*(m4.rows-1))*m4.cols+Math.round(m4.cols*.17)));
     }
+    if(o.focus==='uterus'&&o.reproduction)drawReproduction(ctx,o.reproduction,v=>point(logical,...v),o.width,o.height,abs(logical.ca)<=.47,o.zh,o.time,o.reproductionSeconds);
     sampleMark(ctx,logical,o);ctx.restore();
   },dispose(){canvas=null;ic=null;frame=back=near=undefined;img=undefined;meshes=undefined;cut=undefined;dynamic=undefined;sleeve=undefined;contact=undefined;
     wall.clear();work=new Float32Array(0);lastYaw=NaN;}};

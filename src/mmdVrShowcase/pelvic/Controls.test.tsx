@@ -14,7 +14,7 @@ import {siliconeMount,siliconeTilt} from '../play/siliconeProfile';
 const stage=useMmdVrStore.getState(),pelvic=usePelvic.getState;
 const renderMonitor=vi.hoisted(()=>vi.fn());
 vi.mock('../observation/LivePelvicView',()=>({LivePelvicHudView:()=>null,LivePelvicScreenView:({assetId}:{assetId:string})=>{
-  const [part,setPart]=useState('阴道');renderMonitor();return <div aria-label="实时观察" data-actor={assetId} data-part={part}>
+  const [part,setPart]=useState('阴道');renderMonitor();return <div aria-label="身体特写" data-actor={assetId} data-part={part}>
     {['外阴','阴道','子宫'].map(k=><button key={k} onClick={()=>setPart(k)}>{k}</button>)}</div>;
 }}));
 vi.mock('./atlas/AtlasGraphic',()=>({AtlasScreenGraphic:()=>null,AtlasHudGraphic:()=>null}));
@@ -37,19 +37,19 @@ it('keeps the manual release gated by the real outlet while viewing a different 
     await act(()=>publishPelvicSupport('a',{runtimeId:'r',kind:'bones',anchorName:'hips',obstruction:'garment'}));
     expect(pelvic().active).toMatchObject({assetId:'a',running:false,mode:'standManual'});expect(button('推进')).toBeUndefined();
     expect(button('保持穿衣继续')).toBeUndefined();await act(()=>publishParkedSample(pelvic().active!.token,initial));
-    expect(button('我看到了入口')).toBeUndefined();await click('保持穿衣继续');
-    await act(()=>publishParkedSample(pelvic().active!.token,initial));await click('目标：宫腔');expect(button('射入宫腔').disabled).toBe(true);
-    await click('推进');const token=pelvic().active!.token;expect(button('射入宫腔').disabled).toBe(true);
+    expect(button('确认入口露出')).toBeUndefined();await click('保持穿衣继续');
+    await act(()=>publishParkedSample(pelvic().active!.token,initial));await click('目标：宫腔');expect(button('释放到宫腔').disabled).toBe(true);
+    await click('推进');const token=pelvic().active!.token;expect(button('释放到宫腔').disabled).toBe(true);
     await act(()=>{publishPelvicSample(token,{...initial,exteriorCovered:true});});
-    expect(host.querySelector('[role=status]')?.textContent).toContain('先推进才能射入');expect(button('向外释放').disabled).toBe(true);
+    expect(host.querySelector('[role=status]')?.textContent).toContain('喷口在入口外');expect(button('体外释放').disabled).toBe(true);
     const inside={...initial,tip:[0,0,-.035] as const,outletInside:true,depth:.035,outletVisible:false};
-    await act(()=>{publishPelvicSample(token,inside);});await click('射入宫腔');await act(()=>{expect(consumePelvicDose(token,inside)).toBe('internal');});
+    await act(()=>{publishPelvicSample(token,inside);});await click('释放到宫腔');await act(()=>{expect(consumePelvicDose(token,inside)).toBe('internal');});
     expect(pelvic().byAsset.a.fluid).toEqual({vaginal:0,fantasyUterine:1});
-    expect(host.querySelector('[aria-label="实时观察"]')?.getAttribute('data-part')).toBe('子宫');await click('外阴');
-    expect(pelvic().byAsset.a.container).toBe('fantasyUterine');await click('服装');await click('wardrobe · 返回插入');
+    expect(host.querySelector('[aria-label="身体特写"]')?.getAttribute('data-part')).toBe('子宫');await click('外阴');
+    expect(pelvic().byAsset.a.container).toBe('fantasyUterine');await click('调整服装');await click('wardrobe · 返回插入');
     expect(button('操作').getAttribute('aria-pressed')).toBe('true');
-    expect(pelvic().active).toMatchObject({token,running:true});expect(button('射入宫腔').disabled).toBe(false);
-    await click('停止');expect(button('停止').disabled).toBe(true);expect(button('射入宫腔').disabled).toBe(true);
+    expect(pelvic().active).toMatchObject({token,running:true});expect(button('释放到宫腔').disabled).toBe(false);
+    await click('停止');expect(button('停止').disabled).toBe(true);expect(button('释放到宫腔').disabled).toBe(true);
     expect(pelvic().sample).toBeNull();expect(pelvic().byAsset.a.clothingClear).toBe(false);
   }finally{await act(()=>root.unmount());}
 });
@@ -69,21 +69,24 @@ it('places the automatic stand directly and holds its controls and monitor in pl
     await act(()=>publishParkedSample(pelvic().active!.token,initial));await click('保持穿衣继续');await act(()=>publishParkedSample(pelvic().active!.token,initial));
     expect(button('阴道').closest('.pelvic-live-plate')).not.toBeNull();expect(button('目标：阴道').closest('.pelvic-operation')).not.toBeNull();
     await click('目标：宫腔');expect(host.querySelector('.pelvic-stroke-readout')?.textContent).toContain('支架静止');
-    expect(button('本次往复射入宫腔').disabled).toBe(true);expect(host.querySelector('input[aria-label="每秒往复"]')).toBeTruthy();
-    await click('开始自动往复');const token=pelvic().active!.token;
+    expect(button('释放到宫腔').disabled).toBe(true);expect(host.querySelector('input[aria-label="每秒往复"]')).toBeTruthy();
+    await click('开始往复');const token=pelvic().active!.token;expect(button('手动支架').disabled).toBe(true);
     const outside={...initial,exteriorCovered:true},inside={...initial,depth:.02,outletInside:true};
     const sample=async(s:PelvicSample,motion:'outside'|'enter')=>act(()=>{advancePelvic(token,.016);publishPelvicSample(token,s);
       consumePelvicDose(token,{outletInside:s.outletInside,outletVisible:!!s.outletVisible,motion});});
-    await sample(outside,'outside');const nodes=controls();renderMonitor.mockClear();
-    await sample(inside,'enter');await sample(outside,'outside');expect(renderMonitor).not.toHaveBeenCalled();
-    expect(controls().every((n,i)=>n===nodes[i])).toBe(true);expect(host.querySelector('.pelvic-stroke-readout')?.textContent).toContain('喷口在入口外');
-    await click('本次往复射入宫腔');expect(button('本次往复射入宫腔').disabled).toBe(true);expect(host.querySelector('[role=status]')?.textContent).toContain('等待本次进入');
-    await click('取消本次');await sample(inside,'enter');expect(pelvic().byAsset.a.fluid.fantasyUterine).toBe(0);
-    await sample(outside,'outside');await click('本次往复射入宫腔');const q=pelvic().strokeOrder;
+    const readout=()=>host.querySelector('.pelvic-stroke-readout')?.textContent,receipt=()=>host.querySelector('[role=status]')?.textContent;
+    await sample(outside,'outside');const nodes=controls(),before=readout();renderMonitor.mockClear();expect(before).toContain('支架往复中');
+    await sample(inside,'enter');expect(readout()).toBe(before);await sample(outside,'outside');expect(renderMonitor).not.toHaveBeenCalled();
+    expect(controls().every((n,i)=>n===nodes[i])).toBe(true);expect(readout()).toBe(before);
+    await click('释放到宫腔');expect(button('释放到宫腔').disabled).toBe(true);expect(receipt()).toBe('待释放 · 1 单位');
+    await click('取消释放');await sample(inside,'enter');expect(receipt()).toBe('已取消释放');expect(pelvic().byAsset.a.fluid.fantasyUterine).toBe(0);
+    await sample(outside,'outside');await click('释放到宫腔');const q=pelvic().strokeOrder;
     await click('外阴');expect(pelvic().strokeOrder).toBe(q);expect(pelvic().active).toMatchObject({assetId:'a',token,running:true});
     await sample(inside,'enter');expect(pelvic().byAsset.a.fluid).toEqual({vaginal:0,fantasyUterine:1});expect(pelvic().strokeOrder).toBeNull();
-    await click('停止往复');await click('对位与测量');expect([...host.querySelectorAll('option')].map(o=>o.text)).toEqual(['入口轴位','实测杆位']);
-    expect(button('本次往复射入宫腔')).toBeUndefined();await click('精液存量与容量');expect(host.textContent).toContain('宫腔 · 1 / 16');
+    expect(receipt()).toBe('已释放 · 1 单位');await sample(outside,'outside');expect(receipt()).toBe('已释放 · 1 单位');
+    await click('目标：阴道');expect(readout()).not.toContain('已释放');expect(pelvic().byAsset.a.fluid.vaginal).toBe(0);await click('目标：宫腔');
+    await click('停止往复');await click('对位与测量');expect([...host.querySelectorAll('option')].map(o=>o.text)).toEqual(['入口方向','棒身位置']);
+    expect(button('释放到宫腔')).toBeUndefined();await click('精液存量与容量');expect(host.textContent).toContain('宫腔 · 1 / 16');
   }finally{await act(()=>root.unmount());}
 });
 

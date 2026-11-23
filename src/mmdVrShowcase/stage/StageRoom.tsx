@@ -1,7 +1,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { runtimeTiming } from "../runtimeTiming";
 import {elapsed,type PhysicsSwitchWork} from '../physicsSwitchWork';
-import { useEffect, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import * as THREE from "three";
 import {
   isMmdRuntimeRebuildError,
@@ -185,7 +185,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
   const propDisplay=useMemo(createRoomPropDisplay,[runtime]);
   useLayoutEffect(()=>propDisplay.subscribe(scenery),[propDisplay,scenery]);
   const characterToy = useStagePlay(s => s.character?.toy);
-  const isRoomStale = () => retired.current || !useMmdVrStore.getState().overlayOpen || useMmdVrStore.getState().prefs.scenery !== scenery || runtimeRef.current !== runtime;
+  const isRoomStale = useCallback(() => retired.current || !useMmdVrStore.getState().overlayOpen || useMmdVrStore.getState().prefs.scenery !== scenery || runtimeRef.current !== runtime,[scenery,runtime]);
 
   useLayoutEffect(()=>{
     const milk=mountRoomMilk(scene,gl,runtime,isRoomStale);milkRoom.current=milk;
@@ -763,7 +763,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
   return (
     <>
       {characterToy && <group ref={wristGroup} name="play:character" pointerEvents="none" visible={false}><PlayPiece toy={characterToy}/></group>}
-      <RemoteWearable getRoot={runtime.getModelRoot}/>
+      <RemoteWearable getRoot={runtime.getModelRoot} isRoomStale={isRoomStale}/>
       <PelvicRig ref={pelvic} getRoot={runtime.getModelRoot} getSurface={runtime.getModelSurface}/>
       <PelvicObserver rig={pelvic}/>
       <PoseHandles/>

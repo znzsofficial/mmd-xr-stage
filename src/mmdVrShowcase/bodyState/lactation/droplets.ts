@@ -1,12 +1,12 @@
 import { DynamicDrawUsage, InstancedMesh, LatheGeometry, Matrix4, MeshStandardMaterial, Quaternion, Vector2, Vector3, type Scene } from 'three';
 
 type Side = 'left'|'right';
-export type SampleOutlet = (side:Side, position:Vector3, normal:Vector3)=>boolean;
+export type SampleOutlet = (side:Side, position:Vector3, normal:Vector3, size:{span?:number})=>boolean;
 const sides = ['left','right'] as const;
 const capacity=24, hang=.20, fall=.37, gravity=9.81;
-const outlet=()=>({position:new Vector3(),normal:new Vector3()});
+const outlet=()=>({position:new Vector3(),normal:new Vector3(),size:{span:undefined as number|undefined}});
 type Outlet=ReturnType<typeof outlet>;
-type Drop={side:Side; age:number; radius:number; center:Vector3; velocity:Vector3; pendant:Quaternion};
+type Drop={side:Side; age:number; radius:number; launch:number; center:Vector3; velocity:Vector3; pendant:Quaternion};
 
 /** One opaque, depth-tested draw for both eyes. All centers, including the
  * release point, are world-space; the instance mesh never belongs to a PMX. */
@@ -24,9 +24,9 @@ export function createMilkDroplets(scene:Scene, sample:SampleOutlet) {
     mesh.instanceMatrix.setUsage(DynamicDrawUsage);mesh.count=0;scene.add(mesh);return mesh;
   }
   function read(side:Side){
-    const {position,normal}=ports[side];
+    const {position,normal,size}=ports[side];size.span=undefined;
     position.setScalar(NaN);normal.setScalar(NaN);
-    if(!sample(side,position,normal)||!Number.isFinite(position.lengthSq()))return false;
+    if(!sample(side,position,normal,size)||!Number.isFinite(position.lengthSq()))return false;
     const length=normal.length();if(!Number.isFinite(length)||length<1e-6)return false;
     normal.multiplyScalar(1/length);return true;
   }
@@ -38,7 +38,7 @@ export function createMilkDroplets(scene:Scene, sample:SampleOutlet) {
     axis.copy(up).addScaledVector(p.normal,-p.normal.y-.78).normalize();
     d.pendant.setFromUnitVectors(up,axis);
     d.center.copy(p.position).addScaledVector(axis,-1.48*size(d)*stretch(d));
-    d.velocity.copy(p.normal).multiplyScalar(.042);
+    d.velocity.copy(p.normal).multiplyScalar(d.launch);
   }
   function draw(){
     let count=0;
@@ -64,10 +64,13 @@ export function createMilkDroplets(scene:Scene, sample:SampleOutlet) {
       if(active.length+count>capacity)return false; // Reject this event whole, never enqueue it.
       // Held beats form one legible pendant now. Never schedule sibling beads
       // for after release; the queued bead train is only the legacy button.
-      const radius=Math.max(.0032,(singleBead ? .0105 : .0073)*Math.cbrt(volume/(count*.10)));
+      // Scale the pendant to the displayed actor's measured outlet spacing.
+      // A large actor viewed from further away otherwise gets subpixel beads.
+      const span=ports[side].size.span,visualScale=span&&Number.isFinite(span)?span/.17:1;
+      const radius=Math.max(.0032,(singleBead ? .0145 : .0073)*Math.cbrt(volume/(count*.10)))*visualScale;
       for(let i=0;i<count;i++){
-        const d=free.pop()??{side,age:0,radius,center:new Vector3(),velocity:new Vector3(),pendant:new Quaternion()};
-        d.side=side;d.radius=radius;d.age=-i*hang;attach(d,ports[side]);active.push(d);
+        const d=free.pop()??{side,age:0,radius,launch:0,center:new Vector3(),velocity:new Vector3(),pendant:new Quaternion()};
+        d.side=side;d.radius=radius;d.launch=(singleBead?.12:.042)*visualScale;d.age=-i*hang;attach(d,ports[side]);active.push(d);
       }
       draw();return true;
     },

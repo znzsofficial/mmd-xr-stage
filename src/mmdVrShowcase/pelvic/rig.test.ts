@@ -11,6 +11,7 @@ import { siliconeMount, siliconeOutlet, siliconeTilt, centerZ, tipHeight } from 
 import type { GripFrame } from '../play/propView';
 import { mountPelvicRig } from './rig';
 import { queuePelvicGrip } from './input';
+import {setAtlasView} from './atlas/view';
 import { pelvicRailMatrix, registerPelvicSocket, samplePelvicFrame } from './geometry';
 import { assignPelvic, clearRailTechnique, enablePelvic, nudgePelvic, patchPelvic, requestPelvicDose, requestStrokeDose, saveRailTechnique,
   setActorResponse, startPelvic, startRailTechnique, stopPelvic, usePelvic } from './store';
@@ -71,6 +72,22 @@ it('cuts an exterior pulse even when stop and restart both happen between two re
   // An off action alone still pumps the unsent part of a LiquidSpray pulse.
   expect(emissions.at(-1)).toMatchObject({action:'off',usable:false});
   requestPelvicDose('a','external');tick();expect(emissions.at(-1)).toMatchObject({action:'start',usable:true});
+});
+
+it('records only a fresh opted-in crossing, not enabling memory or restarting inside; room teardown retains only local memory',()=>{
+  const {tick,driver}=fixture('screen');patchPelvic('a',{clothed:true});tick();
+  const frames=(n:number)=>{for(let i=0;i<n;i++)tick();};
+  assignPelvic('a','standManual','screen');tick();startPelvic('a');nudgePelvic('a',.87);frames(60);
+  expect(st().sample?.outletInside).toBe(true);expect(st().byAsset.a.rimMemory).toBeUndefined();
+  patchPelvic('a',{rimMode:'remember'});frames(15);expect(st().byAsset.a.rimMemory).toBeUndefined();
+  stopPelvic('a');tick();expect(st().parkedSample!.tip[2]).toBeLessThan(0);
+  setAtlasView('a',{foldStyle:'defined',degrees:90});startPelvic('a');frames(12);
+  expect(st().sample?.outletInside).toBe(false);expect(st().byAsset.a.rimMemory).toBeUndefined();
+  nudgePelvic('a',-2);frames(55);expect(st().sample?.railHome).toBe(true);
+  nudgePelvic('a',.87);frames(55);expect(st().byAsset.a.rimMemory).toBe('center');
+  const saved=st().byAsset.a;nudgePelvic('a',-2);frames(55);nudgePelvic('a',.87);frames(55);
+  expect(st().byAsset.a).toBe(saved);expect(saved.fluid).toEqual({vaginal:0,fantasyUterine:0});
+  driver.dispose();setAtlasView('a',{foldStyle:'soft',degrees:0});expect(st().active).toBeNull();expect(st().byAsset.a).toBe(saved);
 });
 
 it.each(['screen','xr'] as const)('delivers one motor order at the physical nozzle on %s, never spraying, while VMD is paused',source=>{

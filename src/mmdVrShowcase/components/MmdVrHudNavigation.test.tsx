@@ -38,6 +38,12 @@ it("opens on personal adjustments, keeps physics details contextual, and retains
     await click(t('moveFree'));expect(useMmdVrStore.getState().prefs.movementMode).toBe('free');
     expect(buttons('+10 cm')).toHaveLength(0);
     await click(t('moveNormal'));expect(useMmdVrStore.getState().prefs.movementMode).toBe('normal');
+    expect(buttons(t('planetHorizonManual'))).toHaveLength(0);
+    await act(async()=>useMmdVrStore.getState().setPrefs({scenery:'glassPlanet'}));
+    await click(t('planetHorizonManual'));expect(useMmdVrStore.getState().prefs.planetAutoLanding).toBe(true);
+    await click(t('moveFree'));expect(buttons(t('planetHorizonAuto'))).toHaveLength(0);
+    await click(t('moveNormal'));await click(t('planetHorizonAuto'));expect(useMmdVrStore.getState().prefs.planetAutoLanding).toBe(false);
+    await act(async()=>useMmdVrStore.getState().setPrefs({scenery:state.prefs.scenery}));
     expect(buttons(t('hudDiagnostics'))).toHaveLength(0);
     await click(t('settingsEnvironment'));expect(buttons('+')).toHaveLength(0);expect(buttons(t('hudDiagnostics'))).toHaveLength(1);
     expect(buttons(t('hudSimpleStage'))).toHaveLength(0);

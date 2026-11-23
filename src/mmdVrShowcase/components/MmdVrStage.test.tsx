@@ -149,6 +149,19 @@ async function setupBag(files: File[], useMotionCache = false) {
 }
 const file = (name: string) => new File([name], name);
 
+// loadModel accepts a File or its already-read bytes. Attribute calls to the
+// actual File's backing buffers, including a second read or a second parse of
+// one retained buffer. Counting reads alone would miss the latter regression.
+function traceModelSource(file: File) {
+  const buffers = new WeakSet<object>(), original = file.arrayBuffer.bind(file);
+  const reads = vi.spyOn(file, 'arrayBuffer').mockImplementation(async () => {
+    const buffer = await original(); buffers.add(buffer); return buffer;
+  });
+  const owns = (source: Parameters<ThreeMmdLoader['loadModel']>[0]) => source === file ||
+    (typeof source === 'object' && buffers.has(ArrayBuffer.isView(source) ? source.buffer : source));
+  return {reads,owns};
+}
+
 it('restores the last complete layout on a renderer replacement and releases the old committed rig exactly once',async()=>{
   const actor=file('replace.pmx'),dance=file('replace.vmd');
   const {place,root,exit,bag,id}=await setupBag([actor,dance]);
@@ -352,14 +365,17 @@ it('preserves the other actor and clock when unbinding, restores per-room choice
 it('arms idle Bullet only after the next frame of a successful fresh manual character placement', async () => {
   const cancel=vi.fn(), arm=vi.spyOn(bullet,'scheduleBulletModuleWarm').mockImplementation(()=>cancel);
   const a=file('actor.pmx'),{place,exit,load,store,bag,id}=await setupBag([a]);
+  const actor=traceModelSource(a);
   const frame=()=>act(async()=>harness.frame?.({},1/90));
   try {
     await frame();load.mockRejectedValueOnce(Error('bad model'));await place(a);await frame();
-    expect(arm).not.toHaveBeenCalled();await place(a);expect(arm).not.toHaveBeenCalled();
+    expect(arm).not.toHaveBeenCalled();expect(bag().live[id(a)]).toBeUndefined();expect(actor.reads).toHaveBeenCalledOnce();
+    await place(a);expect(arm).not.toHaveBeenCalled();expect(actor.reads).toHaveBeenCalledTimes(2);
     await frame();expect(arm).toHaveBeenCalledOnce();const eligible=arm.mock.calls[0][0];expect(eligible()).toBe(true);
-    await place(a,2);await frame();expect(arm).toHaveBeenCalledOnce();
+    await place(a,2);await frame();expect(arm).toHaveBeenCalledOnce();expect(actor.reads).toHaveBeenCalledTimes(2);
     await act(async()=>store().setPrefs({scenery:'lawn'}));expect(cancel).toHaveBeenCalled();expect(eligible()).toBe(false);
     await act(async()=>store().setPrefs({scenery:'floor'}));await frame();expect(bag().live[id(a)]).toBeDefined();expect(arm).toHaveBeenCalledOnce();
+    expect(actor.reads).toHaveBeenCalledTimes(3);
     await act(async()=>bag().putAway(id(a)));await place(a);await frame();const second=arm.mock.calls[1][0];
     await act(async()=>bag().putAway(id(a)));expect(second()).toBe(false);
   } finally {await exit();}
@@ -368,10 +384,12 @@ it('arms idle Bullet only after the next frame of a successful fresh manual char
 it("keeps neighbors mounted, restores the actor's binding and material after put-away, and continues the actual room", async () => {
   const a = file("a.pmx"), b = file("b.pmx"), vmd = file("dance.vmd"), face = file("smile.vmd");
   const { load, motion, id, place, exit, store, bag, scene } = await setupBag([a,b,vmd,face]);
+  const neighborSource = traceModelSource(b);
   try {
     expect(load).not.toHaveBeenCalled();
     await place(a); await place(b);
     const neighbor = bag().live[id(b)].runtimeId, oldId = bag().live[id(a)].runtimeId;
+    const neighborRoot = runtimeWith(b).getModelRoot(neighbor)!;
     await place(a, 3, 90);
     expect(load).toHaveBeenCalledTimes(2);
     expect(bag().live[id(a)]).toMatchObject({ runtimeId:oldId, position:[3,0,-2], bounds:{center:[3,1,-2]} });
@@ -404,7 +422,9 @@ it("keeps neighbors mounted, restores the actor's binding and material after put
     const newId = bag().live[id(a)].runtimeId;
     expect(newId).not.toBe(oldId);
     expect(store().materialModels[newId][0].opacity).toBe(.4);
-    expect(load.mock.calls.filter(([f]) => f === b)).toHaveLength(1);
+    expect(runtime.getModelRoot(neighbor)).toBe(neighborRoot);
+    expect(neighborSource.reads).toHaveBeenCalledOnce();
+    expect(load.mock.calls.filter(([source]) => neighborSource.owns(source))).toHaveLength(1);
 
     await act(async () => store().setPrefs({scenery:"lawn"}));
     expect(scene.children).toHaveLength(0);
@@ -414,6 +434,9 @@ it("keeps neighbors mounted, restores the actor's binding and material after put
     expect(bag().bindings[id(a)].body).toBe(face);
     await act(async () => store().setPrefs({scenery:"floor"}));
     expect(scene.children).toHaveLength(2);
+    expect(runtimeWith(b).getModelRoot(bag().live[id(b)].runtimeId)).not.toBe(neighborRoot);
+    expect(neighborSource.reads).toHaveBeenCalledTimes(2);
+    expect(load.mock.calls.filter(([source]) => neighborSource.owns(source))).toHaveLength(2);
     expect(bag().live[id(a)].position).toEqual([2,0,-2]);
     expect(bag().bindings[id(a)].body).toBe(vmd);
     expect(bag().layouts.lawn?.models[0].transform.positionX).toBe(-3);
@@ -561,6 +584,7 @@ it('never re-spawns a removed actor from a draft or an already confirmed move', 
 it("repairs a dynamic actor with texture warnings without replacing either the last clean layout or its neighbor on failure", async () => {
   const a = file("a.pmx"), b = file("b.pmx"), dance = file("dance.vmd");
   const { id, place, exit, store, bag, load, scene } = await setupBag([a,b,dance]);
+  const neighborSource = traceModelSource(b);
   try {
     await place(b);
     const damaged = loadedCharacter();
@@ -568,6 +592,7 @@ it("repairs a dynamic actor with texture warnings without replacing either the l
     load.mockResolvedValueOnce(damaged);
     await place(a);
     const idA = bag().live[id(a)].runtimeId, idB = bag().live[id(b)].runtimeId;
+    const neighborRoot = runtimeWith(b).getModelRoot(idB)!;
     expect(store().assetLoad.failures[0].message).toContain("hair.png");
     expect(bag().layouts.floor?.models.map(m => m.file)).toEqual([b]);
     await act(async () => { store().setMaterialParam(idA, "hair", "roughness", .3); bag().applyMotion(id(a), dance, "body"); });
@@ -575,6 +600,7 @@ it("repairs a dynamic actor with texture warnings without replacing either the l
     await act(async () => store().retryFailedAssets());
     expect(store().assetLoad.failures[0].message).toBe("bad repair");
     expect(bag().live[id(a)].runtimeId).toBe(idA);
+    expect(runtimeWith(b).getModelRoot(idB)).toBe(neighborRoot);
     expect(scene.children).toHaveLength(2);
     await act(async () => store().retryFailedAssets());
     expect(store().assetLoad.failures).toEqual([]);
@@ -583,7 +609,9 @@ it("repairs a dynamic actor with texture warnings without replacing either the l
     expect(store().materialModels[bag().live[id(a)].runtimeId][0].roughness).toBe(.3);
     expect(bag().live[id(b)].runtimeId).toBe(idB);
     expect(bag().layouts.floor?.models).toHaveLength(2);
-    expect(load.mock.calls.filter(([f]) => f === b)).toHaveLength(1);
+    expect(runtimeWith(b).getModelRoot(idB)).toBe(neighborRoot);
+    expect(neighborSource.reads).toHaveBeenCalledOnce();
+    expect(load.mock.calls.filter(([source]) => neighborSource.owns(source))).toHaveLength(1);
   } finally { await exit(); }
 });
 

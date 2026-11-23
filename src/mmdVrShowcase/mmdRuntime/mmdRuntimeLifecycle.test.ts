@@ -9,6 +9,7 @@ import { bindCompanion } from "../../mmdImport/assetPaths";
 import { createModelLoadTask } from "../modelLoadTask";
 import { createAssetLoadQueue } from "../mmdAssetLoadQueue";
 import { createRoomMotionCache } from './roomMotionCache';
+import { createMountedModelBytePool } from './mountedModelBytes';
 import { poseFixture } from '../pose/poseFixture.testSupport';
 
 vi.mock("./mmdPhysics", async (original) => ({
@@ -26,6 +27,12 @@ function modelFixture() {
     diagnostics: { textures: [] }, outlineMeshes: [], renderOrderMeshes: [],
   } as unknown as ThreeMmdModel;
   return model;
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>(done => { resolve = done; });
+  return {promise,resolve};
 }
 
 afterEach(() => vi.restoreAllMocks());
@@ -97,9 +104,13 @@ describe("runtime asynchronous lifecycle", () => {
     const model = modelFixture();
     const dispose = vi.spyOn(model.mesh.geometry, "dispose");
     let resolve!: (model: ThreeMmdModel) => void;
-    vi.spyOn(ThreeMmdLoader.prototype, "loadModel").mockReturnValueOnce(new Promise((done) => { resolve = done; }));
+    const entered = deferred<void>();
+    vi.spyOn(ThreeMmdLoader.prototype, "loadModel").mockImplementationOnce(() => {
+      entered.resolve(); return new Promise(done => { resolve = done; });
+    });
     const runtime = createMmdRuntimeHandle(scene);
     const pending = runtime.addModel(new File(["pmx"], "model.pmx"));
+    await entered.promise;
     runtime[end]();
     resolve(model);
     await expect(pending).rejects.toMatchObject({ name: "AbortError" });
@@ -107,6 +118,85 @@ describe("runtime asynchronous lifecycle", () => {
     expect(dispose).toHaveBeenCalledOnce();
     expect((model.runtime as unknown as { dispose: () => void }).dispose).toHaveBeenCalledOnce();
     runtime.dispose();
+  });
+
+  it.each([true, false])('reads a real PMX once on placement and only rereads on disable outside the budget (admitted: %s)', async admitted => {
+    const fixture = poseFixture(false, 'body'), pmx = new File([fixture.pmx], 'actor.pmx'), vmd = new File([fixture.vmd], 'motion.vmd');
+    const read = vi.spyOn(pmx, 'arrayBuffer'), pool = createMountedModelBytePool(admitted ? pmx.size : pmx.size - 1);
+    const runtime = createMmdRuntimeHandle(new THREE.Scene(), {modelBytePool:pool});
+    const world = {name:'test', disabled:false, disposed:false, step:()=>({simulated:false}), dispose:vi.fn()};
+    vi.mocked(createBulletPhysicsBackend).mockResolvedValueOnce(world);
+    const camera = new THREE.PerspectiveCamera();
+    try {
+      const {modelId:id} = await runtime.addModel(pmx);
+      expect(read).toHaveBeenCalledTimes(1); expect(pool.reservedBytes).toBe(admitted ? pmx.size : 0);
+      await runtime.loadMotion(vmd, 'body', id);
+      const mesh = runtime.getModelSurface(id)!.mesh;
+      runtime.update(1.5,false,camera,1,false); const posed = mesh.getVertexPosition(0,new THREE.Vector3());
+      await runtime.setPhysicsEnabled(true); expect(read).toHaveBeenCalledTimes(1);
+      const work = {}; await runtime.setPhysicsEnabled(false,work);
+      expect(work).toMatchObject(admitted ? {modelByteHits:1} : {modelByteReads:1});
+      expect(read).toHaveBeenCalledTimes(admitted ? 1 : 2);
+      expect(world.dispose).toHaveBeenCalledOnce(); expect(runtime.getModelSurface(id)!.mesh).toBe(mesh);
+      runtime.update(1.5,false,camera,1,false); expect(mesh.getVertexPosition(0,new THREE.Vector3()).distanceTo(posed)).toBeLessThan(1e-5);
+      expect(runtime.exportProjectModels()[0].bodyMotionFile).toBe(vmd);
+      runtime.removeModel(id); expect(pool.reservedBytes).toBe(0);
+    } finally { runtime.dispose(); }
+  });
+
+  it('a failed off-evaluator keeps the playing VMD, original world and source bytes for an in-place retry', async()=>{
+    const f=poseFixture(),file=new File([f.pmx],'actor.pmx'),motion=new File([f.vmd],'body.vmd');
+    const read=vi.spyOn(file,'arrayBuffer'),pool=createMountedModelBytePool(file.size);
+    const world={name:'test',disabled:false,disposed:false,step:vi.fn(()=>({simulated:false})),dispose:vi.fn()};
+    vi.mocked(createBulletPhysicsBackend).mockResolvedValueOnce(world);
+    const rt=createMmdRuntimeHandle(new THREE.Scene(),{modelBytePool:pool});const camera=new THREE.PerspectiveCamera();
+    try{
+      const {modelId:id}=await rt.addModel(file,[],{physics:true});await rt.loadMotion(motion,'body',id);
+      const root=rt.getModelRoot(id),live=rt.getModelSurface(id)!.mesh;
+      const create=vi.spyOn(ThreeMmdLoader.prototype,'createDetachedRuntime').mockRejectedValueOnce(Error('unavailable'));
+      await expect(rt.setPhysicsEnabled(false)).rejects.toThrow('unavailable');
+      expect(rt.getModelSurface(id)!.mesh).toBe(live);expect(rt.exportProjectModels()[0].bodyMotionFile).toBe(motion);
+      rt.update(1,true,camera,1,false,1/72);expect(world.step).toHaveBeenCalled();expect(world.dispose).not.toHaveBeenCalled();
+      await rt.setPhysicsEnabled(false);expect(world.dispose).toHaveBeenCalledOnce();expect(rt.getModelRoot(id)).toBe(root);
+      expect(create.mock.calls[1][0].modelBytes).toBe(create.mock.calls[0][0].modelBytes);expect(read).toHaveBeenCalledOnce();
+    }finally{rt.dispose();}expect(pool.reservedBytes).toBe(0);
+  });
+
+  it('clear retires an unresolved first read immediately; late bytes cannot mount or fill a replacement slot',async()=>{
+    const fixture = poseFixture(false,'body'), file = new File([fixture.pmx],'actor.pmx');
+    const {promise, resolve} = deferred<ArrayBuffer>();
+    const read = vi.spyOn(file,'arrayBuffer').mockReturnValueOnce(promise);
+    const pool=createMountedModelBytePool(file.size), runtime=createMmdRuntimeHandle(new THREE.Scene(),{modelBytePool:pool});
+    try {
+      const old=runtime.addModel(file); expect(pool.reservedBytes).toBe(file.size);
+      runtime.clearAll(); expect(pool.reservedBytes).toBe(0);
+      const fresh=await runtime.addModel(file); resolve(fixture.pmx.buffer);
+      await expect(old).rejects.toMatchObject({name:'AbortError'});
+      expect(read).toHaveBeenCalledTimes(2); expect(runtime.listModels().map(m=>m.id)).toEqual([fresh.modelId]);
+      expect(pool.reservedBytes).toBe(file.size);
+    } finally {runtime.dispose();} expect(pool.reservedBytes).toBe(0);
+  });
+
+  it('shares only a real File among concurrent actors; a rejected parse releases only its own reservation',async()=>{
+    const fixture=poseFixture(), one = new File([fixture.pmx],'same.pmx'), other = new File([fixture.pmx],'same.pmx');
+    const pool=createMountedModelBytePool(one.size), a=createMmdRuntimeHandle(new THREE.Scene(),{modelBytePool:pool}),
+      b=createMmdRuntimeHandle(new THREE.Scene(),{modelBytePool:pool});
+    const {promise,resolve}=deferred<ArrayBuffer>(), firstRead=vi.spyOn(one,'arrayBuffer').mockReturnValueOnce(promise);
+    const otherRead=vi.spyOn(other,'arrayBuffer');
+    try{
+      const p=a.addModel(one),q=b.addModel(one);
+      expect(pool.reservedBytes).toBe(one.size);expect(firstRead).toHaveBeenCalledOnce();
+      const {modelId:uncached}=await b.addModel(other); expect(otherRead).toHaveBeenCalledOnce();
+      resolve(fixture.pmx.buffer); const [actor]=await Promise.all([p,q]);expect(firstRead).toHaveBeenCalledOnce();
+      a.removeModel(actor.modelId);expect(pool.reservedBytes).toBe(one.size);
+      b.removeModel(uncached);expect(pool.reservedBytes).toBe(one.size);
+      b.clearAll();expect(pool.reservedBytes).toBe(0);
+      vi.spyOn(ThreeMmdLoader.prototype,'loadModel').mockRejectedValueOnce(Error('bad parse'));
+      await expect(a.addModel(one)).rejects.toThrow('bad parse');expect(pool.reservedBytes).toBe(0);
+      firstRead.mockRejectedValueOnce(Error('disk unavailable'));
+      await expect(a.addModel(one)).rejects.toThrow('disk unavailable');expect(pool.reservedBytes).toBe(0);
+      await a.addModel(one); expect(firstRead).toHaveBeenCalledTimes(4);expect(pool.reservedBytes).toBe(one.size);
+    }finally{a.dispose();b.dispose();} expect(pool.reservedBytes).toBe(0);
   });
 
   it("converts controller coordinates and radius independently of visual model scale", async () => {

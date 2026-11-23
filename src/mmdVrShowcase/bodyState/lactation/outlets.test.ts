@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
-import { Float32BufferAttribute, Uint16BufferAttribute, Vector3 } from 'three';
+import { Float32BufferAttribute, SkinnedMesh, Uint16BufferAttribute, Vector3 } from 'three';
 import { makeOutletFixture } from './outletFixture.test-support';
-import { createMilkOutlets, prepareMilkOutlets } from './outlets';
+import { createMilkOutlets, prepareMilkOutlets, type OutletDetail } from './outlets';
 
 it('samples the posed skin and outward normal; a moving, unlabelled covering vetoes only its side',()=>{
   const {model,bones,cloth}=makeOutletFixture(),sample=createMilkOutlets(model),p=new Vector3(),n=new Vector3();
@@ -30,6 +30,26 @@ it('malformed optional input cannot break model preparation or repeatedly throw 
   model.mesh.skeleton.bones=bones;expect(sample('left',p,n,true)).toBe(false);
   model.mesh.userData.mmdMorphs=[{englishName:17}];model.mesh.morphTargetDictionary={unknown:0};
   const skip=await prepareMilkOutlets(model,()=>false);expect(skip('left',p,n,true)).toBe(false);
+});
+
+it('binds split skin and tests every rendered sibling with its own face indices and remapped display weights',()=>{
+  const {model,skin,cloth}=makeOutletFixture(),src=model.mesh;skin.name='body';cloth.visible=true;
+  const groups=src.geometry.groups,parts=[skin,cloth].map((mat,i)=>{
+    const g=src.geometry.clone(),group=groups[i];g.setIndex(Array.from(g.index!.array.slice(group.start,group.start+group.count)));g.clearGroups();
+    const body=new SkinnedMesh(g,mat);body.bind(src.skeleton,src.bindMatrix);body.userData.mmdMorphSplitBody={morphTargetIndices:[2+i]};model.root.add(body);return body;
+  });
+  parts[0].morphTargetDictionary={'marker':0};parts[1].morphTargetDictionary={'slide':0};
+  const moving=new Float32BufferAttribute(new Float32Array(parts[1].geometry.attributes.position.count*3),3);
+  for(const i of parts[1].geometry.index!.array)moving.setX(i,-.2);
+  parts[1].geometry.morphAttributes.position=[moving];src.geometry.setDrawRange(0,0);src.userData.mmdMorphSplitBodyMeshes=parts;
+  src.userData.mmdMorphs=[{},{},{type:'vertex',englishName:'nipple'},{type:'vertex',englishName:'slide'}];src.morphTargetInfluences=[0,0,0,0];
+  model.root.updateMatrixWorld(true);
+  const d:OutletDetail={},p=new Vector3(),n=new Vector3(),sample=createMilkOutlets(model);
+  expect(sample('left',p,n,true,d)).toBe(false);expect(d.state).toBe('blocked');expect(sample('right',p,n,false,d)).toBe(false);expect(d.state).toBe('confirm');
+  cloth.visible=false;expect(sample('left',p,n,true,d)).toBe(true);expect(d.span).toBeCloseTo(.2);const rest=p.clone();
+  src.morphTargetInfluences[2]=.8;expect(sample('left',p,n,true,d)).toBe(true);expect(p.z-rest.z).toBeCloseTo(.014*.8);
+  src.morphTargetInfluences[2]=0;src.morphTargetInfluences[3]=1;cloth.visible=true;expect(sample('left',p,n,true,d)).toBe(true);expect(sample('right',p,n,true,d)).toBe(false);
+  parts[0].morphTargetDictionary={};expect(createMilkOutlets(model)('left',p,n,true,d)).toBe(false);expect(d.state).toBe('missing');
 });
 
 it('a large active morph on a different panel does not consume the clear-skin triangle budget',()=>{

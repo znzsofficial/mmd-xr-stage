@@ -1,7 +1,7 @@
 import { Vector3 } from 'three';
 import type { PelvicContact, PelvicFrame, PelvicSeal, PelvicSection } from './contract';
 import { pelvicCenterline, rod, rodRadii, tangent } from './path';
-import {rimSamples as count,slitHalfLength} from './vulvaForm';
+import {rimSamples as count,slitHalfLength,slitHalfWidth} from './vulvaForm';
 
 export * from './contract';
 export { registerPelvicSocket, samplePelvicFrame } from './socket';
@@ -32,7 +32,7 @@ export function pelvicSection<F extends Pick<PelvicFrame,'lengthM'|'radiusM'>>(f
 const angles = Array.from({length:count},(_,i) => [Math.cos(i*2*Math.PI/count), Math.sin(i*2*Math.PI/count)]);
 const makeLoop = () => Array.from({length:count},() => new Vector3());
 /** Socket guides and measured entrance curve for the separate attachment.
- * The two resting slit edges coincide; the moving edge follows the actual
+ * The apposed resting lips leave a narrow normal aperture; the moving edge follows the actual
  * shaft-plane intersection, including an oblique section. */
 export function pelvicSeal(f: Pick<PelvicFrame,'radiusM'>, contact: PelvicContact, adapted: boolean, target?: PelvicSeal): PelvicSeal | null {
   if (!adapted) return null;
@@ -55,9 +55,9 @@ export function pelvicSeal(f: Pick<PelvicFrame,'radiusM'>, contact: PelvicContac
   for (let i=0; i<count; i++) {
     const [c,s] = angles[i], extra = stretch*(c*dx+s*dy);
     seal.outer[i].set(1.62*rim*c,1.72*rim*s,0);
-    // At rest the edges coincide along a vertical seam. Even a narrow tip
+    // At rest the aperture is narrow. Even a narrow tip
     // has a physical section; do not leave a gap above and below its crown.
-    seal.lip[i].set(x+radius*(c+extra*dx),radius?y+radius*(s+extra*dy):rim*slitHalfLength*s,0);
+    seal.lip[i].set(radius?x+radius*(c+extra*dx):rim*slitHalfWidth*c,radius?y+radius*(s+extra*dy):rim*slitHalfLength*s,0);
   }
   return seal;
 }

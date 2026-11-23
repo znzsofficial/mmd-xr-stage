@@ -2,7 +2,7 @@
  * and relative amounts; no wall clock, real volumes or motion-track timing. */
 export type BodyProfile = {
   day:number; length:number; bleedDays:number; peakDays:number; lutealDays:number;
-  locked:boolean; ovulation:boolean; daySeconds:number;
+  locked:boolean; ovulation:boolean; reproduction:boolean; daySeconds:number;
   liningGain:number; secretionGain:number; liningOverride:number|null; secretionOverride:number|null;
   fullness:number; cycleGain:number; compression:number; rebound:number; morph:string|null;
   sensitivityMode:'off'|'cycle'|'manual'; sensitivity:number;
@@ -10,7 +10,7 @@ export type BodyProfile = {
 };
 export const BODY_DAY_SECONDS = 120;
 export const DEFAULT_BODY_PROFILE: Readonly<BodyProfile> = Object.freeze({
-  day:1, length:28, bleedDays:5, peakDays:3, lutealDays:12, locked:true, ovulation:true, daySeconds:0,
+  day:1, length:28, bleedDays:5, peakDays:3, lutealDays:12, locked:true, ovulation:true, reproduction:false, daySeconds:0,
   liningGain:1, secretionGain:.65, liningOverride:null, secretionOverride:null,
   fullness:0, cycleGain:.35, compression:1, rebound:.085, morph:null,
   sensitivityMode:'off', sensitivity:.5,
@@ -38,7 +38,7 @@ export function normalizeBody(p:BodyProfile):BodyProfile {
   const override=(n:number|null)=>typeof n==='number'&&Number.isFinite(n)?unit(n):null;
   return {day:Math.round(val('day')),length:Math.round(val('length')),bleedDays:Math.round(val('bleedDays')),
     peakDays:Math.round(val('peakDays')),lutealDays:Math.round(val('lutealDays')),
-    locked:p.locked!==false,ovulation:p.ovulation!==false,daySeconds:ranged(p.daySeconds,0,[0,BODY_DAY_SECONDS-1e-6]),
+    locked:p.locked!==false,ovulation:p.ovulation!==false,reproduction:p.reproduction===true,daySeconds:ranged(p.daySeconds,0,[0,BODY_DAY_SECONDS-1e-6]),
     liningGain:gain('liningGain'),secretionGain:gain('secretionGain'),liningOverride:override(p.liningOverride),secretionOverride:override(p.secretionOverride),
     fullness:gain('fullness'),cycleGain:gain('cycleGain'),compression:val('compression'),rebound:val('rebound'),morph:typeof p.morph==='string'&&p.morph?p.morph:null,
     sensitivityMode:p.sensitivityMode==='cycle'||p.sensitivityMode==='manual'?p.sensitivityMode:'off',sensitivity:gain('sensitivity'),

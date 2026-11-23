@@ -7,11 +7,11 @@ export const MOON_JUMP_SPEED=1.6; // m/s; equal impulse, different heights and h
 
 /** The small moons have no imported actors or structures above the surface.
  * Keep the optional Ecctrl world parked on the mother planet. */
-export function moonWalk(m:WalkMoon,s:Traveller,travel:Vector3,speed:number,dt:number,jump:boolean){
+export function moonWalk(m:WalkMoon,s:Traveller,travel:Vector3,speed:number,dt:number,jump:boolean,readRadius:(m:WalkMoon,x:number,y:number,z:number)=>number=moonRadius){
   const p=s.destination.copy(s.foot).addScaledVector(travel,speed*dt);
   if(moonObstructed(m,p,.19,1.74))p.copy(s.foot);
   const r=s.foot.distanceTo(m.centre),n=s.radial.subVectors(p,m.centre).normalize();
-  const surface=moonRadius(m,n.x,n.y,n.z),v=s.grounded?(jump?MOON_JUMP_SPEED:0):s.velocity.dot(s.up),g=m.surfaceGravity;
+  const surface=readRadius(m,n.x,n.y,n.z),v=s.grounded?(jump?MOON_JUMP_SPEED:0):s.velocity.dot(s.up),g=m.surfaceGravity;
   // Walk contours (including downhill) while planted. Only a deliberate
   // jump enters the ballistic branch; poles and crater rims share one rule.
   const height=s.grounded&&!jump?surface:r+v*dt-.5*g*dt*dt;

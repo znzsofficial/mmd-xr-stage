@@ -1,6 +1,10 @@
 import {useLanguageStore} from '../../../languageStore';
 import {useBodyState} from '../../bodyState/store';
 import {BODY_DAY_SECONDS,DEFAULT_BODY_PROFILE,sampleBody,type BodyProfile} from '../../bodyState/data';
+import {activeGame,useReproduction} from '../../bodyState/reproduction/store';
+import {reproductiveSample} from '../../bodyState/reproduction/game';
+import {createPictureClock,pictureCue} from '../../bodyState/reproduction/pictureClock';
+import {stageLabel} from '../../bodyState/reproduction/readings';
 import {semenColor} from '../../play/semenAppearance';
 import {usePelvic,type PelvicSample} from '../store';
 import {drawPelvicSection,sectionLayout,SECTION_W as W,SECTION_H as H} from '../sectionPaint';
@@ -8,6 +12,7 @@ import {outletLabel,outletObservation} from '../sectionProjection';
 import {organOutput} from './organOutput';
 import {entryLettering} from './entryLettering';
 import {readAtlasView,useAtlasSettings} from './view';
+import {visibleRim} from '../vulvaForm';
 
 export type AtlasActor={assetId:string;runtimeId:string};
 export type ObservationAtlasPart='vulva'|'vagina'|'uterus';
@@ -24,11 +29,11 @@ export function actorRodSample(s:SocketState,assetId:string,runtimeId:string){
 // The focused canal now animates the measured impression, not a periodic
 // wave. Stationary sampling still refreshes the store at 10 Hz; it must not
 // cause a worker raster or a headset texture upload by itself.
-function sameCanalPose(a:PelvicSample,b:PelvicSample){
+function sameCanalPose(a:PelvicSample,b:PelvicSample,exterior=false){
   if(a.lengthM!==b.lengthM||a.radiusM!==b.radiusM||a.outletInside!==b.outletInside||outletObservation(a)!==outletObservation(b))return false;
   const same=(v:PelvicSample['tip'],w:PelvicSample['tip'])=>Math.abs(v[0]-w[0])<=1e-7&&Math.abs(v[1]-w[1])<=1e-7&&Math.abs(v[2]-w[2])<=1e-7;
   if(!same(a.tip,b.tip))return false;
-  const x=a.shaft,y=b.shaft;return !a.outletInside||x===y||!!x&&!!y&&x.length===y.length&&x.every((v,i)=>same(v,y[i]));
+  const x=a.shaft,y=b.shaft;return !exterior&&!a.outletInside||x===y||!!x&&!!y&&x.length===y.length&&x.every((v,i)=>same(v,y[i]));
 }
 
 // Only inputs to the lining, shedding and cycle-day readout. Breast refill
@@ -52,6 +57,7 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
     return s.draft?.assetId===assetId?s.draft.value:s.byAsset[assetId]??(scope==='body'?DEFAULT_BODY_PROFILE:undefined);
   }
   const observation=scope!=='body'&&scope!=='pelvic';
+  const pictureSeconds=scope==='uterus'?createPictureClock():undefined;
   const binding=(s:SocketState)=>actorBinding(s,assetId,runtimeId);
   const observed=(s:SocketState)=>actorRodSample(s,assetId,runtimeId);
   const off=[useAtlasSettings.subscribe((s,p)=>{
@@ -74,11 +80,12 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
         changed(Math.round(a.daySeconds*10/BODY_DAY_SECONDS)!==Math.round(b.daySeconds*10/BODY_DAY_SECONDS));
       }
     })];
+  if(scope==='uterus')off.push(useReproduction.subscribe((s,p)=>{if(activeGame(assetId,s)!==activeGame(assetId,p))changed();}));
   if(scope!=='body')off.push(usePelvic.subscribe((s,p)=>{
     const a=binding(s),b=binding(p);
     if(s.byAsset[assetId]!==p.byAsset[assetId]||a?.token!==b?.token){changed();return;}
     if(a){const x=observed(s),y=observed(p);
-      if(scope==='vagina'&&x&&y&&a.running===b?.running&&sameCanalPose(x,y))return;
+      if((scope==='vagina'||scope==='vulva')&&x&&y&&a.running===b?.running&&sameCanalPose(x,y,scope==='vulva'))return;
       if(x!==y||a.running!==b?.running)changed(!x||!y||a.running!==b?.running||outletObservation(x)!==outletObservation(y));}
   }));
 
@@ -88,7 +95,7 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
     const body=currentBody(),pelvis=usePelvic.getState(),profile=scope==='body'?undefined:pelvis.byAsset[assetId];
     if(scope==='pelvic'&&!profile)return false;
     art?.flush();
-    const anim=mode==='organ'&&scope!=='vagina'&&v.motion,dt=lastTime===null?0:Math.min(.10,Math.max(0,(now-lastTime)/1000));lastTime=now;
+    const anim=mode==='organ'&&scope!=='vagina'&&scope!=='vulva'&&v.motion,dt=lastTime===null?0:Math.min(.10,Math.max(0,(now-lastTime)/1000));lastTime=now;
     const remaining=v.degrees-heading;
     heading=!v.motion||Math.abs(remaining)<.15?v.degrees:heading+remaining*(-Math.expm1(-23*dt));
     const turning=heading!==v.degrees;
@@ -106,19 +113,20 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
       publish(drawPelvicSection(ctx,geometry,profile,sample,zh,parked,mode==='entry'?lettering.get(zh):undefined,v.foldStyle));
     }else{
       const daily=body?sampleBody(body):null,fantasy=profile?.container==='fantasyUterine';
+      const game=scope==='uterus'?activeGame(assetId):undefined,reproduction=game&&reproductiveSample(game);
       const volume=profile?.fluid[profile.container]??0,capacity=profile?.capacity[profile.container]??1;
       const state=outletLabel(sample,zh,parked);
       const depth=!parked&&sample?.outletInside?`${(sample.depth*100).toFixed(1)} cm`:'—';
       // A shared normalized art region leaves space for an honest live caption.
       // With body state disabled the neutral illustration is not a measured lining.
       art??=organOutput(result=>{if(result==='retry')dirty=true;wake();});
-        art.submit({scale:canvas.width/W,options:{x:0,y:0,width:W,height:observation?H:H-32,focus:observation?scope:undefined,foldStyle:v.foldStyle,yaw,time,lining:daily?.lining??.44,shedding:daily?.shedding??0,tissue:daily?.tissue,labels:v.labels,
-         fluid:volume/capacity,fantasy,vaginalFluid:profile?profile.fluid.vaginal/profile.capacity.vaginal:0,
+        art.submit({scale:canvas.width/W,options:{x:0,y:0,width:W,height:observation?H:H-32,focus:observation?scope:undefined,foldStyle:v.foldStyle,rim:visibleRim(profile),yaw,time,lining:daily?.lining??.44,shedding:daily?.shedding??0,tissue:daily?.tissue,labels:v.labels,
+         reproduction,reproductionSeconds:game&&pictureSeconds?.(pictureCue(game),now,v.motion),fluid:volume/capacity,fantasy,vaginalFluid:profile?profile.fluid.vaginal/profile.capacity.vaginal:0,
          uterineFluid:scope==='uterus'&&profile?profile.fluid.fantasyUterine/profile.capacity.fantasyUterine:undefined,
          pressure:!parked&&sample?.outletInside?Math.min(1,sample.depth/Math.max(.0001,sample.lengthM)):0,sample,parked,zh},paint:draw=>{
         ctx.save();ctx.scale(canvas.width/W,canvas.height/H);ctx.fillStyle='#211722';ctx.fillRect(0,0,W,H);draw(ctx);
         // The observation sheet sets its live readings in native-size type outside the plate.
-        if(observation){ctx.restore();publish(sample?state:'');return;}
+        if(observation){ctx.restore();publish([sample?state:'',reproduction?stageLabel(reproduction,zh):''].filter(Boolean).join(' · '));return;}
         ctx.font='550 14px system-ui,sans-serif';ctx.fillStyle='#fbe2d8';ctx.textAlign='left';ctx.textBaseline='middle';
         const text=profile?`${state}   ·   ${zh?'深度':'Depth'} ${depth}`:body?`${zh?'周期第 ':'Cycle day '}${+(body.day+body.daySeconds/BODY_DAY_SECONDS).toFixed(1)}${zh?' 天':''}   ·   ${zh?'内膜':'Lining'} ${Math.round(100*(daily?.lining??0))}%`:state;
         ctx.strokeStyle='#674450';ctx.beginPath();ctx.moveTo(9,H-31.5);ctx.lineTo(W-9,H-31.5);ctx.stroke();ctx.fillText(text,10,H-15,profile?W*.60:W-20);

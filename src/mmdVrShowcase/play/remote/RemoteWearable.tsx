@@ -4,18 +4,23 @@ import type { Group, Object3D } from 'three';
 import { useBackpack } from '../../backpack';
 import { useMmdVrStore } from '../../mmdVrStore';
 import { useRemoteEgg } from '../remoteEgg';
+import { checkEggTracking,watchEggSession } from './eggTracking';
 import { EggReceiver } from './RemotePieces';
 import { createWearableCollider, mountWearableCollider } from './wearableCollider';
 
-type Props={getRoot:(runtimeId:string)=>Object3D|null};
-function BoundReceiver({getRoot}:Props) {
+type Props={getRoot:(runtimeId:string)=>Object3D|null;isRoomStale:()=>boolean};
+function BoundReceiver({getRoot,isRoomStale}:Props) {
   const node=useRef<Group>(null);
-  const scene=useThree(s=>s.scene), source=useMemo(createWearableCollider,[scene]);
+  const scene=useThree(s=>s.scene), gl=useThree(s=>s.gl),source=useMemo(createWearableCollider,[scene]);
   useLayoutEffect(()=>{if(node.current)return mountWearableCollider(scene,source,node.current);},[scene,source]);
-  useFrame(({clock})=>{
+  useLayoutEffect(()=>{const session=gl.xr.getSession();if(session)return watchEggSession(session,isRoomStale);},[gl,isRoomStale]);
+  useFrame(({clock},_dt,frame)=>{
+    if(isRoomStale())return;
     const {assetId}=useRemoteEgg.getState(), actor=assetId&&useBackpack.getState().live[assetId];
     const stage=useMmdVrStore.getState();
-    source.begin(actor&&actor.visible&&!stage.physicsBusy&&!stage.physicsFatal?getRoot(actor.runtimeId):null,clock.oldTime,stage.presentation==='xr');
+    const inXR=stage.presentation==='xr';
+    if(inXR)checkEggTracking(scene,frame);
+    source.begin(actor&&actor.visible&&!stage.physicsBusy&&!stage.physicsFatal?getRoot(actor.runtimeId):null,clock.oldTime,inXR);
   },-.5);
   return <group ref={node} visible={false} name="play:remote-wearable" pointerEvents="none"><EggReceiver/></group>;
 }

@@ -100,11 +100,11 @@ it('checks both displayed sides before pressing; beats debit actual stock, never
     useBodyState.setState({inspection:null,byAsset:{[panel.assetId]:{...DEFAULT_BODY_PROFILE,lactating:true,left:.04,right:.8}}});
     f.tick();expect(useMilkInteraction.getState().reading).toMatchObject({left:'confirm',right:'blocked'});
     setActorMilk(panel,{bareLeft:true,bareRight:true});f.tick();expect(useMilkInteraction.getState().reading).toMatchObject({left:'ready',right:'blocked'});
-    const start=()=>pressMilk(panel,'both',()=>true),tapped=start();f.tick();releaseMilk(tapped);f.tick(.17);
+    const start=()=>pressMilk(panel,'both',()=>true),tapped=start();releaseMilk(tapped,true);f.tick(.17);
     expect(profile().left).toBe(.04);expect(f.count).toBe(0);
     const h=start();expect(h).not.toBeNull();expect(pressMilk(panel,'right',()=>true)).toBeNull();
-    f.tick();f.tick(.17);expect(profile().left).toBeCloseTo(.006);expect(profile().right).toBeCloseTo(.766);expect(f.count).toBe(1);
-    f.tick(.16);expect(profile().left).toBe(0);expect(f.count).toBe(2);
+    f.tick();expect(profile().left).toBeCloseTo(.006);expect(profile().right).toBeCloseTo(.766);expect(f.count).toBe(1);
+    f.tick(.27);expect(profile().left).toBe(0);expect(f.count).toBe(2);
     advanceLiveBodies([panel.assetId],1.8);f.tick(.16);expect(profile().left).toBeCloseTo(.01);expect(profile().right).toBeCloseTo(.708);
     releaseMilk(h);const atRelease=profile();for(let i=0;i<8;i++)f.tick(.10);
     expect(f.count).toBe(0);expect(profile()).toBe(atRelease);expect(useBodyState.getState().draft).toBeNull();
@@ -124,7 +124,7 @@ it('revokes the complete held clock on tracking/pose loss, coverage, stalls, hid
       ()=>{useBackpack.setState({live:{[f.assetId]:{...f.live,visible:false}}});useBackpack.setState({live:{[f.assetId]:f.live}});},
       ()=>{window.dispatchEvent(new Event('blur'));},()=>f.room.dispose()]){
       f.tick();expect(pressMilk(panel,'left',()=>tracked,source)).not.toBeNull();f.tick();f.tick(.11);const before=stock();interrupt();
-      expect(useMilkInteraction.getState().hold).toBeNull();for(let i=0;i<4;i++)f.tick(.12);expect(stock()).toBe(before);expect(f.count).toBe(0);
+      expect(useMilkInteraction.getState().hold).toBeNull();for(let i=0;i<5;i++)f.tick(.12);expect(stock()).toBe(before);expect(f.count).toBe(0);
     }
   }finally{close();dispose=null;}
 });

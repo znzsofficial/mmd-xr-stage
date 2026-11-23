@@ -1,8 +1,10 @@
 import {actions, line, type Row} from '../controlRows';
 import {BODY_DAY_SECONDS, sampleBody, type BodyProfile, type BodySample} from '../data';
 import {action, atDay, clamp, percent, type EditorControls, type Localize} from './controls';
+import {nextMilestone,reproductiveSample,type ReproductionGame} from '../reproduction/game';
+import {stageLabel} from '../reproduction/readings';
 
-type CyclePage = 'cycle'|'compare'|'calendar'|'rhythm'|'lining'|'secretions';
+type CyclePage = 'cycle'|'compare'|'calendar'|'rhythm'|'lining'|'secretions'|'reproduction';
 export const daysPerPage=15;
 
 function describe(s:BodySample,p:BodyProfile,l:Localize) {
@@ -17,19 +19,34 @@ function describe(s:BodySample,p:BodyProfile,l:Localize) {
 }
 
 type Calendar = {index:number;setIndex:(index:number)=>void;choose:(day:number)=>void};
-export function cycleRows(page: CyclePage, ui: EditorControls, stepDay: (days:number)=>void, calendar:Calendar): Row[] {
+export function cycleRows(page: CyclePage, ui: EditorControls, stepDay: (days:number)=>void, calendar:Calendar,
+  game:ReproductionGame|undefined,jump:(g:ReproductionGame)=>void): Row[] {
   const {l,p,base,saved,inDraft,effective,day,link,field,toggle,patch} = ui;
   const phases = {bleed:l('经期','Menstrual'),follicular:l('经后期','Follicular'),ovulatory:l('排卵前后','Ovulatory'),luteal:l('黄体期','Luteal')};
   const chooseDate=actions(action(l('上一天','Previous day'),()=>stepDay(-1)),link('calendar',l('选择日期','Choose day')),action(l('下一天','Next day'),()=>stepDay(1)));
   switch(page){
     case 'cycle': {
-      const source=inDraft?l('模拟日期 · 草稿预览','Simulation day · preview'):saved?l('当前模拟日期','Current simulation day'):l('模拟日期 · 默认','Simulation day · default');
+      const source=p.reproduction?(inDraft?l('组织周期日 · 草稿预览','Tissue cycle day · preview'):l('组织周期日','Tissue cycle day')):inDraft?l('模拟日期 · 草稿预览','Simulation day · preview'):saved?l('当前模拟日期','Current simulation day'):l('模拟日期 · 默认','Simulation day · default');
       const dayMode=(label:string,locked:boolean)=>action(label,()=>patch({locked}),{active:p.locked===locked});
       return [{kind:'reading',label:source,value:l(`第 ${p.day} 天 / 共 ${p.length} 天`,`Day ${p.day} of ${p.length}`)},
         line(`${phases[effective.phase]} · ${describe(effective,p,l)}`),chooseDate,
         actions(dayMode(l('固定日期','Fixed day'),true),dayMode(l('自动过日','Auto-advance'),false)),
         line(l(`固定时只手动改日；自动时每 ${BODY_DAY_SECONDS} 秒舞台时间过一天。`,`Fixed: change days by hand. Auto: one day per ${BODY_DAY_SECONDS} s on stage.`)),
-        actions(link('compare'),link('rhythm'))];
+        actions(link('compare'),link('rhythm'),link('reproduction'))];
+    }
+    case 'reproduction': {
+      const rows:Row[]=[actions(action(p.reproduction?l('关闭生育模拟','Turn simulation off'):l('开启生育模拟','Turn simulation on'),()=>patch({reproduction:!p.reproduction}),{active:p.reproduction}))];
+      if(game){
+        const next=nextMilestone(game),sample=reproductiveSample(game),names={release:l('快进至排卵','Skip to ovulation'),day:l('推进一天','Advance one day'),
+          four:l('推进至 4 细胞','Advance to 4 cells'),eight:l('推进至 8 细胞','Advance to 8 cells'),cavity:l('快进至宫腔','Skip to cavity arrival'),implant:l('快进，查看是否着床','Advance to see if implantation occurs'),weeks:l(`快进 ${next.days} 孕日`,`Advance ${next.days} gestation days`),
+          round:l('进入下一周期','Next cycle'),end:l('模拟孕期完成','Gestation complete')};
+        rows.push({kind:'reading',label:l(`组织周期日 ${p.day} / 生育累计日 ${game.day}`,`Tissue day ${p.day} / Game day ${game.day}`),value:l(stageLabel(sample,true),stageLabel(sample,false))},
+          {kind:'reading',label:sample.tried?l('该次受孕率','Trial chance'):l('下剂受孕率','Dose chance'),value:l(`${sample.chance}%（游戏）`,`${sample.chance}% (game)`)},
+          actions(action(names[next.key],()=>jump(game),{primary:true,disabled:inDraft||!next.days})));
+        if(!inDraft&&next.days)rows.push(line(l('快进即时生效。','Fast-forward takes effect immediately.')));
+      }
+      if(inDraft)rows.push(line(l('设置保存后生效。','Settings take effect when saved.')));
+      return rows;
     }
     case 'calendar': {
       const lastIndex=Math.floor((p.length-1)/daysPerPage), index=clamp(calendar.index,0,lastIndex);

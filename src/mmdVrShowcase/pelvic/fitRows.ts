@@ -35,10 +35,15 @@ export function fitRows({assetId,source,l,profile,support,fit,setFit,morph,names
     // Exposing the port does not require a rod assignment or start a stand.
     const ready=!!support&&support.kind!=='missing'&&!support.obstruction;
     if(profile.showAdapter)rows.push(buttons(key(ready&&profile.clothingClear?l('隐藏外阴附件','Hide vulva attachment'):l('取消显示外阴附件','Turn attachment display off'),()=>patchPelvic(assetId,{showAdapter:false}))));
-    if(profile.clothed&&ready)rows.push(buttons(key(l('我看到了入口','I can see the opening'),()=>patchPelvic(assetId,{clothingClear:true,showAdapter:false}))));
+    if(profile.clothed&&ready)rows.push(buttons(key(l('确认入口露出','Confirm exposure'),()=>patchPelvic(assetId,{clothingClear:true,showAdapter:false}))));
     if(!profile.showAdapter||!profile.clothingClear)rows.push(buttons(key(profile.clothingClear?l('显示外阴附件','Show vulva attachment'):
       l('入口已露出，显示外阴附件','Opening is clear · show attachment'),()=>patchPelvic(assetId,{showAdapter:true,clothingClear:true}),{disabled:!ready})));
-    if(support?.obstruction)rows.push(buttons(key(l('调整衣物','Manage clothing'),clothes)));
+    if(support?.obstruction)rows.push(buttons(key(l('调整服装','Clothing'),clothes)));
+    const rim=profile.rimMode??'off';
+    rows.push(buttons(key(l('处女膜缘','Hymenal rim'),()=>patchPelvic(assetId,{rimMode:rim==='off'?'elastic':'off'}),{active:rim!=='off'})));
+    if(rim!=='off')rows.push(buttons(key(l('记住首次有效进入','Remember first entry'),()=>patchPelvic(assetId,{rimMode:rim==='remember'?'elastic':'remember'}),{active:rim==='remember'})),
+      note(rim==='remember'&&profile.rimMemory?l('已记录本角色的进入事件；局部边缘已舒展。','Entry recorded for this actor; the local rim has relaxed.'):
+        l('边缘有自然开口。开启记录后，下次有效进入会留下局部变化。','The rim has a natural opening. With memory on, the next verified entry leaves a local change.')));
     rows.push(
       buttons(key(l('选择开合形态','Choose opening morph'),()=>{setPage(Math.max(0,Math.floor(names.indexOf(morph??'')/3)));setFit('morph');})),
       buttons(key(c.manual?l('改用骨骼定位','Use bone position'):l('手动指定起点','Set origin manually'),()=>{if(c.manual)patch({manual:null});else if(support?.manualSeed){patch({manual:support.manualSeed});setFit('position');}},{disabled:!c.manual&&!support?.manualSeed})),

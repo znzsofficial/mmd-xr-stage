@@ -1,23 +1,40 @@
-import { Triangle, Vector3 } from 'three';
+import { Triangle, Vector3, type SkinnedMesh } from 'three';
 import { visibleTexel } from '../../play/wandOpacity';
 import { createWandPose } from '../../play/wandPose';
 import type { WandModel } from '../../play/wandSurface';
-import { fitOutlets, materialDraws, type Side } from './outletFit';
-import { makeCover, shown } from './outletCover';
+import { fitOutlets, materialDraws, type Binding, type Draw, type Side } from './outletFit';
+import { makeCover, shown, type ClearOutlet } from './outletCover';
+import type {OutletState} from './interaction';
 
-export type SampleMilkOutlet=(side:Side,position:Vector3,normal:Vector3,trustedBareSkin?:boolean)=>boolean;
-const unsupported:SampleMilkOutlet=()=>false;
+export type OutletDetail={state?:OutletState;span?:number};
+export type SampleMilkOutlet=(side:Side,position:Vector3,normal:Vector3,trustedBareSkin?:boolean,detail?:OutletDetail)=>boolean;
+const unsupported:SampleMilkOutlet=(_s,_p,_n,_bare,detail)=>{if(detail){detail.state='missing';detail.span=undefined;}return false;};
 
 function* build(model:WandModel):Generator<void,SampleMilkOutlet>{
-  const mesh=model.mesh,g=mesh.geometry,dict=mesh.morphTargetDictionary;
-  if(!dict||!Object.keys(dict).length||!g?.attributes.position||mesh.userData.mmdMorphSplitBodyMeshes||g.attributes.position.count>200_000||
-    (g.index?.count??g.attributes.position.count)>1_200_000)return unsupported;
-  const draws=materialDraws(model);if(!draws)return unsupported;
-  const binds=yield* fitOutlets(mesh,draws);if(!binds||(!binds.left&&!binds.right))return unsupported;
-  const pose=createWandPose(mesh,mesh),clear=yield* makeCover(mesh,draws,pose);if(!clear)return unsupported;
-  const tri=new Triangle(),point=new Vector3(),axis=new Vector3(),a=new Vector3(),c=new Vector3();
-  return (side,position,normal,trustedBareSkin=false)=>{
-    const b=binds[side];if(!b||(!trustedBareSkin&&b.bareOnly)||!shown(b.draw)||b.draw.material.opacity<b.draw.material.alphaTest)return false;
+  const source=model.mesh,split:SkinnedMesh[]|undefined=source.userData.mmdMorphSplitBodyMeshes;
+  if(!source.morphTargetDictionary||split&&(!Array.isArray(split)||source.geometry.drawRange.count!==0||model.renderOrderMeshes.length!==0))return unsupported;
+  const parts:{mesh:SkinnedMesh;draws:Draw[]}[]=[],sides=['left','right'] as const;
+  const anchors:Partial<Record<Side,{mesh:SkinnedMesh;b:Binding}|null>>={};let vertices=0,indices=0,morphValues=0;
+  // For split PMX the source mesh owns weights but draws no triangles. The
+  // skin AND every possible cover have independent indices and morph maps.
+  for(const mesh of split??[source]){
+    const g=mesh.geometry,p=g?.attributes.position;
+    if(!p||(vertices+=p.count)>200_000||(indices+=g.index?.count??p.count)>1_200_000||
+      (morphValues+=(g.morphAttributes.position?.length??0)*p.count)>32_000_000)return unsupported;
+    const draws=materialDraws(mesh===source?model:{root:model.root,mesh,renderOrderMeshes:[]});if(!draws?.length)return unsupported;
+    const binds=yield* fitOutlets(mesh,draws,source);
+    for(const side of sides){const b=binds?.[side];if(b)anchors[side]=side in anchors?null:{mesh,b};}
+    parts.push({mesh,draws});
+  }
+  if(!anchors.left&&!anchors.right)return unsupported;
+  const covers=new Map<SkinnedMesh,{clear:ClearOutlet;draws:Draw[];pose:ReturnType<typeof createWandPose>}>();
+  for(const {mesh,draws} of parts){const pose=createWandPose(mesh,source),clear=yield* makeCover(mesh,draws,pose);if(!clear)return unsupported;covers.set(mesh,{clear,draws,pose});}
+  const tri=new Triangle(),point=new Vector3(),axis=new Vector3(),a=new Vector3(),c=new Vector3(),work={faces:0};
+  return (side,position,normal,trustedBareSkin=false,detail)=>{
+    const anchor=anchors[side];if(!anchor)return unsupported(side,position,normal,trustedBareSkin,detail);
+    if(detail){detail.state='blocked';detail.span=undefined;}
+    const {mesh,b}=anchor,g=mesh.geometry,{pose}=covers.get(mesh)!;
+    if(!shown(b.draw)||b.draw.material.opacity<b.draw.material.alphaTest)return false;
     pose.begin();pose.vertex(b.ids[0],tri.a);pose.vertex(b.ids[1],tri.b);pose.vertex(b.ids[2],tri.c);
     const scale=mesh.matrixWorld.getMaxScaleOnAxis();if(!(scale>0&&tri.getArea()>(b.span*scale)**2*1e-12))return false;
     point.copy(tri.a).multiplyScalar(b.bary.x).addScaledVector(tri.b,b.bary.y).addScaledVector(tri.c,b.bary.z);
@@ -25,7 +42,11 @@ function* build(model:WandModel):Generator<void,SampleMilkOutlet>{
     for(let i=0;i<b.boundary.length;i+=2){pose.vertex(b.boundary[i],a).sub(point);pose.vertex(b.boundary[i+1],c).sub(point);axis.add(a.cross(c));}
     if(!(axis.lengthSq()>1e-20*(b.span*scale)**4))return false;
     axis.normalize().multiplyScalar(b.sign);
-    if(!Number.isFinite(point.lengthSq()+axis.lengthSq())||!visibleTexel(b.draw.material,g,b.face,tri,point)||!clear(b,point,axis,scale))return false;
+    if(!Number.isFinite(point.lengthSq()+axis.lengthSq())||!visibleTexel(b.draw.material,g,b.face,tri,point))return false;
+    work.faces=0;
+    for(const cover of covers.values()){if(!cover.draws.some(shown))continue;if(cover.pose!==pose)cover.pose.begin();if(!cover.clear(b,point,axis,scale,work))return false;}
+    if(!trustedBareSkin&&b.bareOnly){if(detail)detail.state='confirm';return false;}
+    if(detail){detail.state='ready';detail.span=b.span*scale;}
     position.copy(point);normal.copy(axis);return true;
   };
 }
@@ -34,9 +55,9 @@ function* build(model:WandModel):Generator<void,SampleMilkOutlet>{
 // Retire the faulty sampler for this instance instead of throwing every frame.
 function* prepare(model:WandModel):Generator<void,SampleMilkOutlet>{
   try{const sample=yield* build(model);if(sample===unsupported)return sample;
-    let failed=false;return (side,position,normal,trusted)=>{
-      if(failed)return false;
-      try{return sample(side,position,normal,trusted);}catch{failed=true;return false;}
+    let failed=false;return (side,position,normal,trusted,detail)=>{
+      if(!failed)try{return sample(side,position,normal,trusted,detail);}catch{failed=true;}
+      return unsupported(side,position,normal,trusted,detail);
     };
   }catch{return unsupported;}
 }

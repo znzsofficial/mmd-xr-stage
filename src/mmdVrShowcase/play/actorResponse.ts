@@ -9,6 +9,16 @@ import type {WandModel} from './wandSurface';
 export type ActorContactFrame={assetId:string;runtimeId:string;root:Object3D;token:number;motion:ContactMotion;depthM:number;dt:number};
 const smooth=(n:number)=>{const x=Math.min(1,Math.max(0,n));return x*x*(3-2*x);};
 
+// Both contact gestures and the wearable rhythm use the mounted mesh's approved
+// face channels. An unsupported face yields no gesture, never a garment morph.
+const automaticFaces=new WeakMap<SkinnedMesh,string[]>();
+export function actorFacePalette(mesh:SkinnedMesh,choice?:string|null){
+  if(choice!==undefined)return pickFaceMorphs(faceMorphNames(mesh),choice);
+  let names=automaticFaces.get(mesh);
+  if(!names){names=pickFaceMorphs(faceMorphNames(mesh),undefined);automaticFaces.set(mesh,names);}
+  return names;
+}
+
 export function createActorResponse(){
   const layers=Array.from({length:4},createVertexMorphLayer), weights=[0,0,0,0],beforeExit=[0,0,0];
   let names:string[]=[], owner:SkinnedMesh|null=null, token=-1, choice:string|null|undefined;
@@ -19,7 +29,7 @@ export function createActorResponse(){
     restore();
     if(!f||!surface||surface.root!==f.root||!f.root.visible||selected===null||!(f.dt>0&&f.dt<=.12)||!Number.isFinite(f.depthM)){reset();return;}
     if(f.motion==='enter'){
-      names=pickFaceMorphs(faceMorphNames(surface.mesh),selected);
+      names=actorFacePalette(surface.mesh,selected);
       if(!names.length){reset();return;}
       owner=surface.mesh;token=f.token;choice=selected;
       age=moving=0;quiet=.14;release=-1;depth=mark=f.depthM;

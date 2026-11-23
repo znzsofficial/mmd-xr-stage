@@ -1,7 +1,8 @@
 import { Box3, Triangle, Vector3, type Material, type Mesh, type Object3D, type SkinnedMesh } from 'three';
 import { createWandPose } from '../play/wandPose';
 import type { WandModel } from '../play/wandSurface';
-import { materialSlotKey, sourceMaterialSlot } from '../mmdRuntime/materialSlotKey';
+import { materialSlotKeys, sourceMaterialSlot } from '../mmdRuntime/materialSlotKey';
+import { garmentKeys } from '../wardrobe/slots';
 import {pelvicRailTravel} from './path';
 import {PELVIC_LIMITS} from './stateTypes';
 import type { PelvicFrame } from './contract';
@@ -23,17 +24,24 @@ const chunksPerSample=128,trianglesPerSample=1400,maxPoseValues=131072;
  * and active morph positions are tested in the actual displayed pose. A scan
  * of immutable PMX topology may span samples, but never different poses. */
 export function createGarmentGuard(root:Object3D,surface?:WandModel|null){
+  const keys=()=>surface?garmentKeys(surface.mesh):undefined;
+  let registered=keys(),guard=indexGarmentGuard(root,surface,registered);
+  const probe=Object.assign((frame:PelvicFrame):Obstruction=>{
+    if(registered!==keys()){registered=keys();guard=indexGarmentGuard(root,surface,registered);probe.garmentNames=guard.garmentNames;}
+    return guard(frame);
+  },{blockerName:()=>guard.blockerName(),garmentNames:guard.garmentNames});return probe;
+}
+function indexGarmentGuard(root:Object3D,surface?:WandModel|null,registered?:ReadonlySet<string>){
   const layers:Layer[]=[], chunks:Chunk[]=[],bodies:Body[]=[];
   function add(mesh:Mesh,source:SkinnedMesh|null,proxies:readonly SkinnedMesh[]=[]){
     const g=mesh.geometry,pos=g?.attributes.position;if(!pos)return;
     const total=g.index?.count??pos.count,oversize=pos.count>450_000||total>2_400_000;
     let pose:ReturnType<typeof createWandPose>|null=null,body:Body|undefined;
-    const sourceMaterials=source?[source.material].flat():[mesh.material].flat();
+    const sourceMaterials=source?[source.material].flat():[mesh.material].flat(),keys=materialSlotKeys(sourceMaterials);
     const range=(owner:Object3D,m:Material|undefined,start:number,end:number,localIndex=0)=>{
       if(!m||end<=start)return;
       const i=sourceMaterialSlot(owner,sourceMaterials,m,localIndex),author=sourceMaterials[i]??m;
-      if(!garment(m)&&(author===m||!garment(author)))return;
-      const key=materialSlotKey(author,i);
+      const key=keys[i];if(!registered?.has(key)&&!garment(m)&&(author===m||!garment(author)))return;
       if(source&&!oversize)pose??=createWandPose(mesh as SkinnedMesh,source);
       if(!body)bodies.push(body={mesh,source,bones:new Set(),shown:false});
       layers.push({body,mesh,owner,material:m,key,start,end:Math.min(total,end),pose,oversize,invalid:false,shown:false});

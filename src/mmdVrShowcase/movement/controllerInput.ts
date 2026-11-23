@@ -1,11 +1,11 @@
 // Quest Touch's xr-standard layout reserves axes 0/1 for a touchpad even
 // when none is fitted. A live source can exist before its profile is loaded.
-type Profile = {inputSource:XRInputSource; gamepad:{'xr-standard-thumbstick'?:{xAxis?:number;yAxis?:number};'a-button'?:{state?:string};'x-button'?:{state?:string}}};
+type Profile = {inputSource:XRInputSource; gamepad:{'xr-standard-thumbstick'?:{xAxis?:number;yAxis?:number};'a-button'?:{state?:string};'x-button'?:{state?:string};'y-button'?:{state?:string}}};
 export const stickAxis=(v:number)=>Math.sign(v)*Math.max(0,(Math.min(1,Math.abs(v))-.16)/.84);
 // The lower face button is A on the right Touch and X on the left.
-export const newStick=()=>({x:0,y:0,primary:false,via:'none' as 'none'|'native'|'profile'});
+export const newStick=()=>({x:0,y:0,primary:false,align:false,via:'none' as 'none'|'native'|'profile'});
 export function readStick(sources:XRInputSourceArray,hand:'left'|'right',profile:Profile|undefined,out:ReturnType<typeof newStick>){
-  out.x=out.y=0;out.primary=false;out.via='none';
+  out.x=out.y=0;out.primary=out.align=false;out.via='none';
   for(let i=0;i<sources.length;i++){
     const s=sources[i],g=s.gamepad;if(s.handedness!==hand||s.hand||s.targetRayMode!=='tracked-pointer'||!g)continue;
     const mapped=profile?.inputSource===s?profile.gamepad:undefined,stick=mapped?.['xr-standard-thumbstick'];
@@ -14,6 +14,7 @@ export function readStick(sources:XRInputSourceArray,hand:'left'|'right',profile
       out.x=axes[2];out.y=axes[3];out.via='native';
     }else if(stick){out.x=Number.isFinite(stick.xAxis)?stick.xAxis!:0;out.y=Number.isFinite(stick.yAxis)?stick.yAxis!:0;out.via='profile';}
     out.primary=mapped?.[hand==='left'?'x-button':'a-button']?.state==='pressed'||(g.mapping==='xr-standard'&&g.buttons[4]?.pressed&&s.profiles.some(p=>/^(oculus-touch|meta-quest-touch)/.test(p)))===true;
-    if(out.via!=='none'||out.primary)return;
+    out.align=hand==='left'&&(mapped?.['y-button']?.state==='pressed'||(g.mapping==='xr-standard'&&g.buttons[5]?.pressed&&s.profiles.some(p=>/^(oculus-touch|meta-quest-touch)/.test(p)))===true);
+    if(out.via!=='none'||out.primary||out.align)return;
   }
 }

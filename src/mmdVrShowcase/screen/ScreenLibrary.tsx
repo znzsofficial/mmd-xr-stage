@@ -39,6 +39,7 @@ export function ScreenLibrary({view,suspended=false,visit,locked,close,openBackp
   const room=useMmdVrStore(s=>s.prefs.scenery);
   const motions=b.entries.filter(e=>e.kind==='motion');
   const [guide,setGuide]=useState<Toy|null>(null),actor=selected?.kind==='model'?b.live[selected.id]:null;
+  const eggWearer=useRemoteEgg(s=>s.assetId);
   const [choice,choose]=useState<{id:string;toy:Toy}|null>(null);
   const palm=useMmdVrStore(s=>s.prefs.actorPalmCloth),physics=useMmdVrStore(s=>s.physicsEnabled);
   const prefs=useMmdVrStore(s=>s.prefs),profile=getMmdVrRenderProfile(prefs),grid=showSceneryGrid(room,profile.showGrid,prefs.gridPref==='on');
@@ -62,7 +63,7 @@ export function ScreenLibrary({view,suspended=false,visit,locked,close,openBackp
     <details className="screen-toy-guide"><summary>{t('toyList')} · {shelfToys.length}</summary>
       <p>{t('toyGuideScreenGive')}</p><ul>{shelfToys.map(toy=>{return <li key={toy}>
         <span>{t(toyLabel(toy,room))}<small>{t('toyShelfHome')}{t(TOYS[toy].homeLabel)}</small></span>
-        <div>{actor&&selected&&(toy==='remoteEgg'?<button disabled={locked||!actor.visible} onClick={()=>{choose({id:selected.id,toy});fitScreenEgg(selected.id)}}>{t('eggWear')}</button>:(['left','right'] as const).map(hand=><button key={hand} disabled={locked||!canGiveTo(actor,hand)} onClick={()=>{choose({id:selected.id,toy});give(selected.id,toy,hand,room);}}>{t(hand==='left'?'propLeft':'propRight')}</button>))} <button onClick={()=>setGuide(toy)}>{t('toyGuide')}</button></div>
+         <div>{actor&&selected&&(toy==='remoteEgg'?<button disabled={locked||!actor.visible} onClick={()=>{if(fitScreenEgg(selected.id)){choose({id:selected.id,toy});openItem();}}}>{t(eggWearer===selected.id?'eggControls':eggWearer?'eggTransfer':'eggWear')}</button>:(['left','right'] as const).map(hand=><button key={hand} disabled={locked||!canGiveTo(actor,hand)} onClick={()=>{choose({id:selected.id,toy});give(selected.id,toy,hand,room);}}>{t(hand==='left'?'propLeft':'propRight')}</button>))} <button onClick={()=>setGuide(toy)}>{t('toyGuide')}</button></div>
       </li>;})}</ul></details>
     {guide&&<ScreenToyGuide toy={guide} room={room} locked={locked} close={()=>setGuide(null)}/>}
     <details className="screen-stage-options"><summary>{t('settingsEnvironment')}</summary>

@@ -54,10 +54,10 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen
     status:'',warn:false,live:page==='use',motorReadout:false,chart:page==='view',blocked,enabled:!!profile};
   const modes=[['standManual',l('手动支架','Manual stand')],['standAuto',l('自动支架','Motor stand')]] as const;
   if(!profile){
-    result.status=l('为此成年角色选择支架。支架会停在入口外，确认衣着后再启动。','Choose a stand for this adult. It waits outside until you confirm clothing and start.');
+    result.status=l('成年角色 · 尚未放置支架','Adult character · no stand placed');
     rows.push(buttons(...modes.map(([m,label])=>key(label,()=>{pending.current?.();pending.current=prepareFirstStand(assetId,runtimeId,source,m);}))));
-    rows.push(link(l('仅设置成年角色入口','Fit adult opening only'),()=>{if(enablePelvic(assetId,true))go('fit');}));
-    if(onClothing)rows.push(link(l('服装','Clothing'),onClothing));
+    rows.push(link(l('成年角色入口设置','Adult opening settings'),()=>{if(enablePelvic(assetId,true))go('fit');}));
+    if(onClothing)rows.push(link(l('调整服装','Clothing'),onClothing));
     return result;
   }
   const section=page==='holder'||page==='technique'?'use':page==='clothes'?clothesBack:page==='fluid'?'view':page;
@@ -82,34 +82,32 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen
   const jogReady=mode==='standManual'&&!replaying&&(running||ready&&signal==='parked');
   const jog=(n:number)=>{if(running||startPelvic(assetId))setTarget(n);};
   const jogKeys=()=>buttons(key(l('推进','Advance'),()=>jog(running?Math.min(1,target+.25):.5),{primary:true,disabled:!jogReady||(!running&&withdrawFirst)||target>=1}),
-    key(l('退出','Withdraw'),()=>jog(lim.position[0]),{disabled:!jogReady||target<=lim.position[0]&&!withdrawFirst}));
+    key(l('退回起点','Return to start'),()=>jog(lim.position[0]),{disabled:!jogReady||target<=lim.position[0]&&!withdrawFirst}));
   const targetSlider=()=>field(l('支架目标位置','Target rail position'),Math.round(target*100),'%',[-20,100],5,p=>setTarget(p/100),!running||replaying);
   const site=profile.container==='vaginal'?l('阴道','Vagina'):l('宫腔','Uterus');
+  const releaseLabel=profile.container==='vaginal'?l('释放到阴道','Release into vagina'):l('释放到宫腔','Release into uterus');
   const targetKeys=()=>buttons(key(l('目标：阴道','Target: vagina'),()=>patchPelvic(assetId,{container:'vaginal'}),{active:profile.container==='vaginal'}),
     key(l('目标：宫腔','Target: uterus'),()=>patchPelvic(assetId,{container:'fantasyUterine'}),{active:profile.container==='fantasyUterine'}));
-  const doseKeys=()=>buttons(key(profile.container==='vaginal'?l('射入阴道','Release into vagina'):l('射入宫腔','Release into uterus'),()=>requestPelvicDose(assetId,profile.container),
-    {primary:true,disabled:!running||mode==='xrManual'||signal!=='inside'}),
-    key(l('向外释放','Release outside'),()=>requestPelvicDose(assetId,'external'),{disabled:!running||mode==='xrManual'||signal!=='outside'}));
-  const balance=()=>note(`${l('释放目标：','Release target: ')}${site}　${profile.fluid[profile.container]} / ${profile.capacity[profile.container]}${profile.overflow?l(` · 已溢出 ${profile.overflow}`,` · Overflow ${profile.overflow}`):''}`);
-  const clothesLabel=onClothing?l('服装','Clothing'):l('调整衣物','Manage clothing');
-  const coverage=covered==='garment'?(support?.blockerName?l(`「${support.blockerName}」挡住了入口。`,`The opening is covered by ${support.blockerName}.`):l('衣物挡住了入口。','Clothing covers the opening.')):
-    covered?l('尚未确认入口露出。','Exposure is unconfirmed.'):'';
+  const doseKeys=()=>buttons(key(releaseLabel,()=>requestPelvicDose(assetId,profile.container),
+    {id:'inside-dose',primary:true,disabled:!running||mode==='xrManual'||signal!=='inside'}),
+    key(l('体外释放','Release outside'),()=>requestPelvicDose(assetId,'external'),{disabled:!running||mode==='xrManual'||signal!=='outside'}));
+  const balance=()=>note(`${site}　${profile.fluid[profile.container]} / ${profile.capacity[profile.container]}${profile.overflow?l(` · 已溢出 ${profile.overflow}`,` · Overflow ${profile.overflow}`):''}`);
+  const clothesLabel=l('调整服装','Clothing');
+  const coverage=covered==='garment'?(support?.blockerName?l(`衣物遮挡：${support.blockerName}`,`Covered by ${support.blockerName}`):l('衣物遮挡入口','Opening covered by clothing')):
+    covered?l('入口露出未确认','Exposure unconfirmed'):'';
   const rigName=mode==='xrManual'?(hand==='left'?l('左手持棒','Left hand'):l('右手持棒','Right hand')):
     mode==='standAuto'?l('自动支架','Motor stand'):l('手动支架','Manual stand');
-  const waiting=mode==='xrManual'?l('已交给手柄。','The rod is in your hand.'):
-    signal==='parked'?l('支架已摆好，棒身静止。','Stand in place. The rod is stationary.'):
-    l('正在摆放支架…','Placing the stand…');
+  const waiting=mode==='xrManual'?rigName:signal==='parked'?l('支架已就位','Stand in place'):l('支架就位中','Positioning stand');
   const openFit=()=>{setFit('position');go('fit');};
-  const reading=signal==='inside'?l('喷口已进入阴道。','The outlet is inside the vagina.'):
-    signal==='outside'?l('喷口在入口外，可向外释放。先推进才能射入。','The outlet is outside. Advance before an internal release.'):
-    signal==='coveredOutside'?l('喷口在入口外。先推进才能射入；衣物下不外喷。','Advance to enter. The covered outlet cannot spray outside.'):
-    signal==='unverified'?l('未确认进入。先退出，再对准入口推进。','Entry not verified. Withdraw, align and advance again.'):
-    l('正在读取喷口位置，尚不能释放。','Reading the outlet position before release.');
+  const reading=signal==='inside'?l('喷口在阴道内','Outlet inside vagina'):
+    signal==='outside'?l('喷口在入口外','Outlet outside'):
+    signal==='coveredOutside'?l('喷口在入口外 · 体外释放不可用','Outlet outside · external release unavailable'):
+    signal==='unverified'?l('未确认进入','Entry unconfirmed'):l('喷口定位中','Locating outlet');
   if(page==='clothes'){
-    result.status=coverage||l('点衣物名称可隐藏或重新显示。','Hide or show a clothing material.');result.warn=!!covered;
+    result.status=coverage||l('服装显示','Clothing visibility');result.warn=!!covered;
     const candidates=(support?.garmentNames??[]).filter(n=>materials?.some(m=>m.name===n));
     const pages=Math.max(1,Math.ceil(candidates.length/3)),at=Math.min(listPage,pages-1);
-    if(!candidates.length)rows.push(note(l('没有可单独开关的衣物材质。可换姿势，或使用衣物分层的模型。','No separate clothing material is available. Change pose or use a model with separate clothing.')));
+    if(!candidates.length)rows.push(note(l('无可单独显示的衣物','No separate clothing layers')));
     for(const n of candidates.slice(at*3,at*3+3)){
       const visible=!!materials?.find(m=>m.name===n)?.visible;
       rows.push(buttons(key(visible?l(`隐藏：${n}`,`Hide: ${n}`):l(`显示：${n}`,`Show: ${n}`),()=>setPelvicGarmentVisible(assetId,n,!visible),{id:n})));
@@ -121,11 +119,11 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen
     const sheet=techniquePage(assetId,profile,take,l,{manual:mode==='standManual',ready,home,jog:jogKeys(),withdraw,slider:targetSlider(),back:()=>go('use')});
     result.title=l('手法录放','Rail takes');result.status=sheet.status;rows.push(...sheet.rows);
   }else if(page==='holder'){
-    result.status=mode?l(`当前：${rigName}`,`Using: ${rigName}`):l('选择谁来拿假阳具。','Choose how to hold the rod.');
+    result.status=mode?rigName:l('未选择支架或手柄','No stand or controller selected');
     rows.push(...responseRows(assetId,runtimeId,profile,support,l));
     if(mode==='standManual'&&!replaying)rows.push(targetSlider());
     if(mode==='standAuto')rows.push(field(l('往复幅度','Stroke length'),profile.stroke*100,'%',percentRange(lim.stroke),5,n=>patchPelvic(assetId,{stroke:n/100})),
-      buttons(key(l('向外释放','Release outside'),()=>requestPelvicDose(assetId,'external'),{disabled:!running||!!order||signal!=='outside'})));
+      buttons(key(l('体外释放','Release outside'),()=>requestPelvicDose(assetId,'external'),{disabled:!running||!!order||signal!=='outside'})));
     if(source==='xr')rows.push(buttons(...(['left','right'] as const).map(h=>key(h==='left'?l('交给左手','Left hand'):l('交给右手','Right hand'),
       ()=>mode==='xrManual'&&h===hand?go('use'):assign('xrManual',h),{active:mode==='xrManual'&&h===hand,disabled:!known}))));
     if(mode)rows.push(link(l('收起假阳具','Put rod away'),()=>{releasePelvic(assetId);go('use');}));
@@ -144,41 +142,40 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen
       buttons(key(l('排出 1 单位','Drain 1 unit'),()=>drainPelvic(assetId,1),{disabled:!amount}),key(l('清空此处','Empty site'),()=>clearPelvicFluid(assetId),{disabled:!amount,danger:!!amount})),
       link(l('返回测量','Back to measurements'),()=>go('view')));
   }else if(page==='view'){
-    result.status=l('查看入口轴位和实测杆位。','Inspect the opening axis and measured rod position.');
+    result.status=l('入口方向与棒身位置','Opening axis and rod position');
     rows.push(link(l('精液存量与容量','Semen amount and capacity'),()=>go('fluid')));
     if(!mode)rows.push(link(l('去放置假阳具','Place the rod'),()=>go('use')));
   }else{
-    if(known)rows.push(buttons(...modes.map(([m,label])=>key(label,()=>{if(mode!==m)assign(m);},{active:mode===m}))));
-    if(!support){result.status=l('正在寻找角色的入口…','Locating the opening…');}
-    else if(!known){result.warn=true;result.status=l('未找到可用的骨盆骨骼。','No usable pelvic bones found.');rows.push(main(l('手动定位入口','Locate opening manually'),relocate));}
+    if(known)rows.push(buttons(...modes.map(([m,label])=>key(label,()=>{if(mode!==m&&!active(usePelvic.getState())?.running)assign(m);},{active:mode===m,disabled:running&&mode!==m}))));
+    if(!support){result.status=l('入口定位中','Locating opening');}
+    else if(!known){result.warn=true;result.status=l('未找到入口','Opening not found');rows.push(main(l('手动定位入口','Locate opening manually'),relocate));}
     else if(!mode){
-      result.status=l('此角色还没有放置假阳具。先放到入口外，再推进。','No rod placed for this actor. Position it outside the opening first.');
+      result.status=l('尚未放置支架','No stand placed');
     }else if(!running&&mode!=='xrManual'&&signal==='waiting'){
       result.status=waiting;
     }else if(!running&&!ready){
-      result.status=(mode==='xrManual'?'':l('支架已就位，棒身静止。','Stand in place and stationary. '))+(coverage||l('入口未确认露出。可以穿衣继续。','Exposure is unconfirmed. You can continue clothed.'));
+      result.status=(mode==='xrManual'?'':l('支架已就位 · ','Stand in place · '))+(coverage||l('入口露出未确认','Exposure unconfirmed'));
       rows.push(main(l('保持穿衣继续','Continue clothed'),()=>patchPelvic(assetId,{clothed:true})));
-      if(!covered)rows.push(link(l('我看到了入口','I can see the opening'),()=>patchPelvic(assetId,{clothingClear:true})));
+      if(!covered)rows.push(link(l('确认入口露出','Confirm exposure'),()=>patchPelvic(assetId,{clothingClear:true})));
       else if(!onClothing)rows.push(link(l('重调入口位置','Refit opening'),openFit));
     }else{
-      const idle=withdrawFirst?l('棒身已停。先退出，再推进才能射入。','Stopped. Withdraw and advance again before release.'):
-        mode==='standManual'?l('支架已停在入口外。先推进才能射入。','The stand is outside. Advance before release.'):
-        mode==='xrManual'?l('开始后用手柄推进／退出，按侧握释放。','Start, then advance or withdraw by hand. Squeeze to release.'):
-        l('先启动支架，喷口进入后才能射入。','Start the stand. An internal release requires entry.');
+      const idle=withdrawFirst?l('已停止 · 待退回起点','Stopped · return pending'):
+        mode==='standManual'?l('支架静止 · 入口外','Stand at rest · outside'):
+        mode==='xrManual'?l('手持模式 · 侧握释放','Hand control · grip to release'):l('支架静止','Stand at rest');
       result.status=`${profile.clothed?l('穿衣互动 · ','Clothed · '):''}${running?reading:signal==='waiting'&&mode!=='xrManual'?waiting:idle}`;
       if(mode==='xrManual'&&!running)rows.push(main(l('开始手持并收起面板','Start hand control'),start));
     }
     if(mode==='standAuto'&&(ready||running)){
       result.motorReadout=true;
-      rows.push(buttons(key(l('开始自动往复','Start motor'),start,{primary:true,disabled:running||!ready||signal!=='parked'}),key(l('停止往复','Stop motor'),()=>stopPelvic(assetId),{danger:true,disabled:!running})),
-        buttons(key(profile.container==='vaginal'?l('本次往复射入阴道','Release into vagina this stroke'):l('本次往复射入宫腔','Release into uterus this stroke'),
-          ()=>{if(token!==undefined)requestStrokeDose(assetId,token,profile.container);},{primary:true,disabled:!ready||!running||!!order}),
-          key(l('取消本次','Cancel dose'),()=>{if(order)cancelStrokeDose(order.id);},{disabled:!order})),{kind:'strokeReading'},targetKeys(),
+      rows.push(buttons(key(l('开始往复','Start motor'),start,{primary:true,disabled:running||!ready||signal!=='parked'}),key(l('停止往复','Stop motor'),()=>stopPelvic(assetId),{danger:true,disabled:!running})),
+        buttons(key(releaseLabel,()=>{if(token!==undefined)requestStrokeDose(assetId,token,profile.container);},
+          {id:'inside-dose',primary:true,disabled:!ready||!running||!!order}),
+          key(l('取消释放','Cancel release'),()=>{if(order)cancelStrokeDose(order.id);},{disabled:!order})),{kind:'strokeReading'},targetKeys(),
         field(l('每秒往复','Cycles per second'),profile.speedHz,' Hz',lim.speedHz,.1,n=>patchPelvic(assetId,{speedHz:n})));
     }else if(mode&&(running||ready)){
       if(mode==='standManual'&&!replaying)rows.push(jogKeys());
       rows.push(balance(),targetKeys(),doseKeys());
-      if(profile.container==='fantasyUterine')rows.push(note(l('宫腔是释放目标，棒头仍止于宫颈。','The uterus is the release target. The rod still stops at the cervix.')));
+      if(profile.container==='fantasyUterine')rows.push(note(l('棒头止于宫颈','Rod stops at the cervix')));
     }
     rows.push(buttons(key(clothesLabel,onClothing??clothes),...(onFace?[key(l('近看表情','Frame face'),onFace)]:[])));
     const takes=!!profile.technique||mode==='standManual'&&ready;
