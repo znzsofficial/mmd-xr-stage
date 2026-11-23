@@ -1,8 +1,8 @@
 # 会话交接｜2026-11-23
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `754ffb5`](https://eed3526f.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `855cceb`](https://39ddb5de.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
 
-**当前发布。** `754ffb5` 已上线，845 项测试通过；主域名入口及 256 份资源与构建一致。「互动 → 插入」直接设置本演员的游戏受孕率（默认 60%）。只在一次实际体内释放且有正量留存时独立判定；左侧子宫镜显示游近、围拢、单枚融合或散开。已移除周期日历、生育菜单、着床和孕日推进；孕肚和胎体试样未发布。体型与泌乳仍为独立设置。见[当前玩法](./gameplay/actor-tools.md)和[实测](./performance/actor-tools-regression.md#按实际释放判定受精)。
+**当前发布。** `855cceb` 已上线，864 项测试通过；主域名入口及 261 份资源与构建一致。[潮汐洞星](./scenery/opal-planet.md#潮汐洞星)是第 07 条风道目的地：低潮下贝阶，高水走侧岸或涉水，干台可放演员，洞口可回望苇湾与倒影。已在屏幕实模和 IWER 完成往返；真机清晰度、舒适度和帧率待验。上一版[插入页受精规则](./gameplay/pelvic-attachment.md#一次释放的受精演出)继续适用。
 
 **停点：**新互动方向止于受精，不再扩展生理周期或孕期管理。Quest 3S 下一趟可看插入页受精瞬间是否清晰，或回访[伞灯星与琥珀屿](./scenery/opal-planet.md)检验普通跳回落和站稳后的舒适度。若继续性能线，读[持续播放的证据与下一项测量](./performance/README.md#持续播放)。
 
