@@ -1,8 +1,9 @@
-import { BufferGeometry, CylinderGeometry, DataTexture, Group, LinearFilter, Matrix4, Mesh, MeshStandardMaterial, TorusGeometry, Vector3, type Object3D } from 'three';
+import { BufferGeometry, CylinderGeometry, Group, Matrix4, Mesh, MeshStandardMaterial, TorusGeometry, Vector3, type Object3D } from 'three';
 import { createSealShell, makeCarriage, makeStandFoot, makeTracks } from './rigArt';
 import { pelvicSeal, type PelvicContact, type PelvicFrame } from './geometry';
 import {readAtlasView} from './atlas/view';
 import type {FoldStyle,RimState} from './vulvaForm';
+import {createVulvaRoughness} from './vulvaStageFinish';
 
 const closed:PelvicContact={inside:false,depthM:0,atCervix:false,outletInside:false,outletVisible:false,outletLocal:new Vector3(),shaftLocal:[]};
 const parentInverse=new Matrix4();
@@ -16,11 +17,8 @@ export function placeWorld(node:Object3D,world:Matrix4){
 
 export function createPortDrawing(host:Object3D,assetId:string){
   const group=new Group();group.name=`pelvic:adapter:${assetId}`;group.visible=false;host.add(group);
-  // Green is linear roughness. Only the free lip carries small glints under
-  // a stage light; the broad pad has a much wider lobe. No PMX material map.
-  const finish=new DataTexture(new Uint8Array([0,173,0,255,0,69,0,255]),2,1);
-  finish.magFilter=finish.minFilter=LinearFilter;finish.needsUpdate=true;
-  const shellMaterial=new MeshStandardMaterial({vertexColors:true,roughness:1,roughnessMap:finish});
+  const finish=createVulvaRoughness();
+  const shellMaterial=new MeshStandardMaterial({name:'pelvic:tissue',vertexColors:true,roughness:1,roughnessMap:finish});
   const seed={radiusM:.02},seal=pelvicSeal(seed,closed,true)!,shell=createSealShell();
   const molded=new Mesh(shell.geom,shellMaterial);molded.name='pelvic:seal';group.add(molded);
   const mark=new Mesh(new TorusGeometry(1,.055,8,40),new MeshStandardMaterial({color:'#6dc6bd',roughness:.64,wireframe:false}));

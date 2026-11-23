@@ -19,7 +19,7 @@ export interface OrganArtOptions {
   x:number; y:number; width:number; height:number; yaw:number; time:number;
   focus?:'uterus'|'vagina'|'vulva'|'egg';
   event?:ConceptionEvent;encounterSeconds?:number;egg?:Ovum;
-  foldStyle?:FoldStyle;rim?:RimState;
+  foldStyle?:FoldStyle;rim?:RimState;exteriorDisplayScale?:number;
   /** Illustrative normalized tissue inputs, not physical measurements. */
   lining:number; shedding:number; pressure:number; zh:boolean; tissue?:EndometrialTissue; labels?:boolean;
   /** Caption metadata and the two independent retained/capacity fractions. */

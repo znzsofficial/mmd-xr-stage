@@ -28,7 +28,7 @@ export function createExteriorStudy(){
     const zoom=Math.min(w/(box.right-box.left),h/(box.bottom-box.top))*0.94;
     ctx.translate(w/2,h/2);ctx.scale(zoom,zoom);
     ctx.translate(-(box.left+box.right)/2,-(box.top+box.bottom)/2);
-    drawVulva(ctx,yaw,cut,o.foldStyle,o.rim);
+    drawVulva(ctx,yaw,cut,o.foldStyle,o.rim,(o.exteriorDisplayScale??Infinity)*zoom);
     if(s&&s.radiusM>0){
       const point=exteriorLens(yaw,s.radiusM),state=o.parked?'#ebc68e':s.outletInside?'#c3d9fa':s.outletVisible?'#c7a5ff':'#ffba9f';
       const shaft=s.shaft;

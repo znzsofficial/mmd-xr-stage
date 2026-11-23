@@ -12,6 +12,7 @@ import * as THREE from "three";
 import { placementLoaderProfile } from '../placementWork';
 import {mountedModelBytePool, type ModelByteLease} from './mountedModelBytes';
 import { PhysicsPoseDisplay } from "./physicsPoseDisplay";
+import { fitPoseSkirt } from './poseSkirtClearance';
 import {createPoseSolver,type PoseSolver} from '../pose/poseSolver';
 import { PARK_Y } from "./colliderReentry";
 import { configureActorPalms } from './actorPalms';
@@ -151,6 +152,7 @@ type RuntimeEntryWithPhysics = RuntimeEntry & {
   modelBytes?: ModelByteLease;
   motionEpoch: Record<MmdMotionSlot, number>;
   editor?:PoseSolver;
+  poseSkirt?:ReturnType<typeof fitPoseSkirt>;
   chest?:ReturnType<typeof fitChestCompression>;
   bodyDisplay?:ReturnType<typeof createBodyDisplay>;
   wardrobe?:WardrobeModel;
@@ -205,6 +207,7 @@ function bindNoMotion(entry: RuntimeEntryWithPhysics) {
 
 // Rebinding or reseeding discards display history; ordinary frames keep it.
 function clearPoseForRebind(entry: RuntimeEntryWithPhysics) {
+  entry.poseSkirt?.clear();
   entry.chest?.restore();
   entry.bodyDisplay?.restore();
   entry.wardrobe?.restore();
@@ -287,6 +290,8 @@ export function isMmdRuntimeRebuildError(error: unknown): error is MmdRuntimeReb
 }
 
 export type MmdRuntimeOptions = {
+  /** Manual-pose, native-physics skirt display correction. False retains the raw display for comparisons. */
+  poseSkirtClearance?:boolean;
   modelBytePool?: typeof mountedModelBytePool;
   alphaTiles?: import('./roomAlphaTiles').RoomAlphaTiles;
   motionCache?: import('./roomMotionCache').RoomMotionCache;
@@ -1079,8 +1084,12 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
           restoreDraws(entry.model.mesh);
           try{entry.model.update(t, { physics: true, ik: !entry.editor&&entry.bodyAnimation != null });}
           finally{presentDraws(entry.model.mesh);}
-          // Restore visual scale after physics rebind.
-          syncEntryWorldMatrix(entry, false);
+           // Restore visual scale after physics rebind.
+           syncEntryWorldMatrix(entry, false);
+           if(entry.editor && options.poseSkirtClearance!==false){
+             if(entry.poseSkirt===undefined)entry.poseSkirt=fitPoseSkirt(entry.model.mesh);
+             entry.poseSkirt?.seed();entry.poseSkirt?.present();
+           }
           lastPhysicsSeconds.set(entry.id, t);
         } catch {
           lastPhysicsSeconds.delete(entry.id);
@@ -1142,6 +1151,8 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
         const jumpedBack = prev !== undefined && seconds + 1e-4 < prev;
         const jumpedFar = prev !== undefined && seconds - prev > 0.25;
         const reset = jumpedBack || jumpedFar || prev === undefined;
+        if(!physicsOn||reset||!entry.editor)entry.poseSkirt?.clear();
+        else entry.poseSkirt?.restore();
         entry.chest?.restore();
         entry.bodyDisplay?.restore();
         entry.wardrobe?.restore();
@@ -1201,6 +1212,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
           else if(bodyParams?.compression===0)entry.fingertip?.reset();
         }else entry.chest?.reset();
         if(bodyBonesChanged)entry.model.mesh.skeleton.update();
+        if(physicsOn&&entry.editor)entry.poseSkirt?.present();
         const materials = getMeshMaterials(entry.model.mesh);
         if (directionalLight) syncMmdSpecularDirection(materials, directionalLight);
         applyMaterialOverrides(entry, lightingContext());

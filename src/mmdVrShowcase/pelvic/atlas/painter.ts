@@ -10,6 +10,7 @@ import {organOutput} from './organOutput';
 import {entryLettering} from './entryLettering';
 import {readAtlasView,useAtlasSettings} from './view';
 import {visibleRim} from '../vulvaForm';
+import {exteriorViewport} from './exteriorViewport';
 
 export type AtlasActor={assetId:string;runtimeId:string};
 export type ObservationAtlasPart='vulva'|'vagina'|'uterus'|'egg';
@@ -42,6 +43,8 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
   let view=readAtlasView(assetId),lastL=0,lastR=0,lastYaw=NaN,dirty=true,heading=view.degrees,lastHeading=NaN;
   let lastTime:number|null=null,lastPaint=-Infinity,time=0,dead=false;
   const changed=(invalidate=true)=>{dirty=true;if(invalidate)art?.discard();wake();};
+  const viewport=scope==='vulva'?exteriorViewport(canvas,W,H,changed):undefined;
+  let lastWidth=canvas.width,lastHeight=canvas.height;
   const lettering=entryLettering(()=>changed(false));
   const observation=scope!=='body'&&scope!=='pelvic';
   const eggLens=scope==='egg',pictureSeconds=scope==='uterus'||eggLens?createPictureClock():undefined;
@@ -64,9 +67,12 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
   }));
   if(scope!=='body'&&!eggLens)off.push(usePelvic.subscribe((s,p)=>{
     const a=binding(s),b=binding(p);
-    if(s.byAsset[assetId]!==p.byAsset[assetId]||a?.token!==b?.token){changed();return;}
+    const profile=s.byAsset[assetId],old=p.byAsset[assetId];
+    if(a?.token!==b?.token||profile!==old&&(scope!=='vulva'||!profile||!old||visibleRim(profile)!==visibleRim(old))){changed();return;}
     if(a){const x=observed(s),y=observed(p);
-      if((scope==='vagina'||scope==='vulva')&&x&&y&&a.running===b?.running&&sameCanalPose(x,y,scope==='vulva'))return;
+      const entry=scope==='pelvic'&&view.mode==='entry';
+      if((scope==='vagina'||scope==='vulva'||entry)&&x&&y&&a.running===b?.running&&sameCanalPose(x,y,scope!=='vagina')&&
+        (!entry||x.depth===y.depth&&x.angleDeg===y.angleDeg&&x.outletVisible===y.outletVisible))return;
       if(x!==y||a.running!==b?.running)changed(!x||!y||a.running!==b?.running||outletObservation(x)!==outletObservation(y));}
   }));
 
@@ -75,6 +81,9 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
     const v=readAtlasView(assetId),mode=scope==='pelvic'?v.mode:'organ';
     const pelvis=usePelvic.getState(),profile=scope==='body'||eggLens?undefined:pelvis.byAsset[assetId];
     if(scope==='pelvic'&&!profile)return false;
+    if(scope==='vulva'&&(canvas.width!==lastWidth||canvas.height!==lastHeight)){
+      lastWidth=canvas.width;lastHeight=canvas.height;dirty=true;art?.discard();
+    }
     art?.flush();
     const egg=eggLens?selectedEgg():undefined,event=scope==='uterus'?useConception.getState().byAsset[assetId]?.event:egg?.event;
     const age=pictureSeconds?.(event,now,v.motion)??PICTURE_END;
@@ -104,7 +113,7 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
       // A shared normalized art region leaves space for an honest live caption.
       // With body state disabled the neutral illustration is not a measured lining.
       art??=organOutput(result=>{if(result==='retry')dirty=true;wake();});
-         art.submit({scale:canvas.width/W,options:{x:0,y:0,width:W,height:observation?H:H-32,focus:observation?scope:undefined,foldStyle:v.foldStyle,rim:visibleRim(profile),yaw,time,lining:tissue.functionalDepth,shedding:0,tissue,labels:v.labels,
+          art.submit({scale:viewport?.scale??canvas.width/W,options:{x:0,y:0,width:W,height:observation?H:H-32,focus:observation?scope:undefined,exteriorDisplayScale:viewport?.scale,foldStyle:v.foldStyle,rim:visibleRim(profile),yaw,time,lining:tissue.functionalDepth,shedding:0,tissue,labels:v.labels,
            event:scope==='uterus'?event:undefined,egg,encounterSeconds:age,fluid:volume/capacity,fantasy,vaginalFluid:profile?profile.fluid.vaginal/profile.capacity.vaginal:0,
           uterineFluid:profile&&(scope==='uterus'||scope==='pelvic')?profile.fluid.fantasyUterine/profile.capacity.fantasyUterine:undefined,
          pressure:!parked&&sample?.outletInside?Math.min(1,sample.depth/Math.max(.0001,sample.lengthM)):0,sample,parked,zh},paint:draw=>{
@@ -123,5 +132,5 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
     return anim||turning;
   }
   return {tick, suspend(){if(lastTime!==null){lastTime=null;dirty=true;art?.discard();}},
-    dispose(){dead=true;off.forEach(f=>f());art?.dispose();lettering.dispose();}};
+    dispose(){dead=true;off.forEach(f=>f());viewport?.dispose();art?.dispose();lettering.dispose();}};
 }

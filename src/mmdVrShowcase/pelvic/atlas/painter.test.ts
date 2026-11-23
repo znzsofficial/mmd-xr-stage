@@ -196,16 +196,34 @@ it('keeps painting a moving orbit at a bounded cadence during a stream of pointe
   }finally{driver.dispose();}
 });
 
-it('stops serializing a stationary canal, but repaints when the shaft shifts with an unchanged tip',()=>{
+it.each(['vagina','vulva'] as const)('stops serializing stationary %s, but repaints when the shaft shifts with an unchanged tip',focus=>{
   const assetId='actor',runtimeId='id',sample={tip:[0,0,-.02] as const,tail:[0,0,.05] as const,shaft:[[0,0,.05],[0,0,-.02]] as const,
     outletInside:true,aligned:true,atCervix:false,depth:.02,radiusM:.024,lengthM:.09,angleDeg:0};
   setAtlasView(assetId,{motion:true});usePelvic.setState({byAsset:{actor:calibrated},sample,
     active:{assetId,runtimeId,token:1,mode:'standManual',source:'xr',running:true,awaitingWorld:false,position:.2}});
-  const upload=vi.fn(),p=atlasPainter(paper(),{assetId,runtimeId},'vagina',()=>{},upload);
+  const upload=vi.fn(),p=atlasPainter(paper(),{assetId,runtimeId},focus,()=>{},upload);
   try{p.tick(0);for(let i=1;i<=12;i++){usePelvic.setState({sample:structuredClone(sample)});p.tick(i*100);}
     expect(upload).toHaveBeenCalledOnce();usePelvic.setState({sample:{...sample,shaft:[[.003,0,.05],sample.tip]}});p.tick(1300);
     expect(upload).toHaveBeenCalledTimes(2);setAtlasView(assetId,{degrees:90});p.tick(1400);expect(upload).toHaveBeenCalledTimes(3);
   }finally{p.dispose();}
+});
+
+it('replaces a ready exterior bitmap after a DOM pixel-tier change; a held still window uploads once',()=>{
+  let cssWidth=156,resize=()=>{};const disconnect=vi.fn(),off=vi.fn();
+  const screenWindow={devicePixelRatio:1,addEventListener:vi.fn(),removeEventListener:off};vi.stubGlobal('window',screenWindow);
+  vi.stubGlobal('ResizeObserver',class {constructor(cb:()=>void){resize=cb;}observe(){}disconnect=disconnect;});
+  const canvas=Object.assign(paper(),{isConnected:true,getBoundingClientRect:()=>({width:cssWidth,height:cssWidth*282/344})});
+  const worker=slowWorker(),upload=vi.fn(),p=atlasPainter(canvas,actor,'vulva',()=>{},upload);
+  const scale=()=>worker.current.postMessage.mock.lastCall![0].scale;
+  try{
+    p.tick(0);expect(scale()).toBe(.5);expect(canvas.width).toBe(688);const stale=worker.reply();
+    cssWidth=420;resize();p.tick(16);expect(stale.close).toHaveBeenCalledOnce();expect(upload).not.toHaveBeenCalled();expect(scale()).toBe(1.25);
+    const current=worker.reply();p.tick(32);expect(current.close).toHaveBeenCalledOnce();expect(upload).toHaveBeenCalledOnce();
+    cssWidth=425;resize();p.tick(48);expect(worker.current.postMessage).toHaveBeenCalledTimes(2);
+    screenWindow.devicePixelRatio=2;resize();p.tick(64);expect(scale()).toBe(2.5);expect(canvas.width).toBe(860);
+    worker.reply();p.tick(80);cssWidth=156;screenWindow.devicePixelRatio=1;resize();p.tick(96);expect(scale()).toBe(.5);expect(canvas.width).toBe(688);
+    worker.reply();p.tick(112);p.tick(2000);expect(upload).toHaveBeenCalledTimes(3);
+  }finally{p.dispose();}expect(disconnect).toHaveBeenCalledOnce();expect(off).toHaveBeenCalled();
 });
 
 it.each(['vulva','vagina','uterus'] as const)('observes %s without enabling a socket and follows only the selected runtime while the figure is frozen',focus=>{

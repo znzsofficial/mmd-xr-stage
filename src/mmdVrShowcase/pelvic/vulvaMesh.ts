@@ -1,6 +1,7 @@
 import {BufferGeometry,Color,DynamicDrawUsage,Float32BufferAttribute} from 'three';
 import {fitSite,formColors,junctionColor,readCut,slitHalfLength,vulvaHalves,type CutBasis,type FoldStyle,type Landmark,type RimState} from './vulvaForm';
 import type {PelvicSeal} from './contract';
+import {foldFinish} from './vulvaFinish';
 
 const sites=vulvaHalves.flatMap(h=>h.rows.flatMap(r=>r.sites));
 const columns=formColors.length,colors=formColors.map(c=>new Color(c));
@@ -12,7 +13,8 @@ export function landmarkAt(i:number):Landmark|null{
  * actor's displayed skin remains intact and visible through the real cut. */
 export function createSealShell(){
   const geom=new BufferGeometry(),pos=new Float32BufferAttribute(sites.length*3,3).setUsage(DynamicDrawUsage);
-  const pigment=new Float32Array(pos.count*3),finish=new Float32Array(pos.count*2),ix:number[]=[],tint=new Color(),skin=new Color(junctionColor);
+  const pigment=new Float32Array(pos.count*3),uv=new Float32Array(pos.count*2),ix:number[]=[],tint=new Color(),skin=new Color(junctionColor);
+  const fields=foldFinish(),rowCount=vulvaHalves[0].rows.length;
   function grid(base:number,rows:number,cols:number,side:number){
     // Weld the midline everywhere except the two free edges of the calibrated
     // opening. The shared index makes grazing-angle normals continuous.
@@ -28,12 +30,24 @@ export function createSealShell(){
   sites.forEach((s,i)=>{
     tint.copy(colors[i%columns]).lerp(skin,s.blend).lerp(coral,.82*s.glans+.10*s.meatus).lerp(blossom,.60*s.hood)
       .lerp(rose,.63*s.undercurl).lerp(groove,.94*s.well).multiplyScalar(1-.12*s.contactShade).toArray(pigment,i*3);
-    finish[2*i]=.25+.50*s.gloss;finish[2*i+1]=.5;
+    // A single continuous chart across the welded midline. Each material
+    // station lands at its texel centre, including the uneven terminal rows.
+    uv[2*i]=(columns-.5+s.side*(i%columns))/(2*columns-1);
+    uv[2*i+1]=(Math.floor(i/columns)%rowCount+.5)/rowCount;
   });
-  const dye=new Float32BufferAttribute(pigment,3),pearl=new Color('#ffcfcc');
+  const dye=new Float32BufferAttribute(pos.count*3,3),pearl=new Color('#ffcfcc');
+  const saturate=(v:number)=>Math.max(0,Math.min(1,v));
+  // Mix the optional rim first. Its finished colour is intrinsic linear RGB,
+  // shared by the stage and the drawing; neither stores a lit/highlight colour.
+  function setDye(i:number,pearlMix:number){
+    const m=fields[i];tint.fromArray(pigment,3*i).lerp(pearl,pearlMix).convertLinearToSRGB();
+    tint.setRGB(saturate(tint.r*m.tone+m.r/255),saturate(tint.g*m.tone+m.g/255),saturate(tint.b*m.tone+m.b/255)).convertSRGBToLinear();
+    dye.setXYZ(i,tint.r,tint.g,tint.b);
+  }
+  for(let i=0;i<sites.length;i++)setDye(i,0);
   geom.setIndex(ix);geom.setAttribute('position',pos);geom.setAttribute('color',dye);
   const normals=new Float32BufferAttribute(pos.count*3,3).setUsage(DynamicDrawUsage);
-  geom.setAttribute('uv',new Float32BufferAttribute(finish,2));geom.setAttribute('normal',normals);
+  geom.setAttribute('uv',new Float32BufferAttribute(uv,2));geom.setAttribute('normal',normals);
   // Near the cut and hood, longitudinal rows are deliberately uneven. A
   // wide triangle must not grab a whole crest's normal. Sum angle-weighted
   // directions (sin of the corner angle), across the same welded indices.
@@ -53,7 +67,7 @@ export function createSealShell(){
     if(rim!==(fittedRim??'off')){
       sites.forEach((s,i)=>{if(s.margin<.001)return;
         const settled=rim==='center'||rim===(s.side<0?'left':'right');
-        tint.fromArray(pigment,3*i).lerp(pearl,rim==='off'?0:s.margin*(settled?.21:.67));dye.setXYZ(i,tint.r,tint.g,tint.b);
+        setDye(i,rim==='off'?0:s.margin*(settled?.21:.67));
       });dye.needsUpdate=true;
     }
     Object.assign(last,c);fittedRadius=radius;fittedStyle=style;fittedRim=rim;
