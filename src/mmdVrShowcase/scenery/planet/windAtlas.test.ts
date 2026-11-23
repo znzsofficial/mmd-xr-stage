@@ -8,9 +8,10 @@ import {createTraveller} from '../../movement/planetTravel';
 import {moonWalk} from '../../movement/moonWalk';
 import {planetSight} from './planetSightline';
 
-it('keeps the sixth collar clear of all five flight paths, and connects its west footprint only to Amber',()=>{
+it('keeps the Lantern collar clear of the other flight paths, and connects its west footprint only to Amber',()=>{
   const lane=lanes.find(l=>l.moon.id==='lantern')!,m=lane.moon;
-  expect(lanes).toHaveLength(6);expect(allMoons).toHaveLength(9);
+  expect(lanes.map(l=>l.moon.id)).toEqual(['ember','frost','salt','glaze','reed','lantern','tide']);
+  expect(allMoons).toHaveLength(10);
   const outward=leapRoutes.find(l=>l.pad.moon===m)!,inward=leapAt(amberMoon,outward.target.foot)!;
   expect(outward.target.moon).toBe(amberMoon);expect(inward.target.moon).toBe(m);
   expect(outward.pad.up.toArray()).toEqual([-1,0,0]);expect(inward.pad.up.x).toBe(1);
@@ -43,7 +44,9 @@ it.each(lanes)('carries an off-centre foot clear of both surfaces and back witho
   const back=startRide(lane,true,p);while(!rideStep(back,1/90,p,up)){}expect(p.distanceTo(lane.home.foot)).toBeLessThan(1e-7);
   expect(departureAt(lane.away.foot, lane.moon)).toBe(lane);
 });
-it.each(allMoons)('$id supports an antipodal walk and radial jump on the actual rendered satellite',m=>{
+// These satellites are rendered with moonShell. The grotto uses its own cut
+// chart and complete routes, exercised in tideTravel.test.
+it.each(allMoons.filter(m=>m.id!=='tide'))('$id supports an antipodal walk and radial jump on the actual rendered satellite',m=>{
   const s=createTraveller(),d=new Vector3(),g=moonShell(m),mat=new MeshBasicMaterial({side:DoubleSide}),mesh=new Mesh(g,mat),ray=new Raycaster();
   s.foot.copy(m.centre).y+=moonRadius(m,0,1,0);let lo=1,high=0,error=0;
   try{for(let i=0;i<1800;i++){

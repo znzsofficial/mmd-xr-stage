@@ -17,19 +17,21 @@ import {launchViews,returnViews} from './planet/windAtlas';
 import {amberPortrait,steppingViews,straitPortrait,twinSurveys} from './planet/twinSurvey';
 import {reedShots} from './planet/reedBiosphere';
 import {lanternShots} from './planet/lanternShots';
+import {tideShots} from './planet/tideShots';
 import {opalSurveyShots} from './planet/opalSurvey';
 
 type Point=readonly [number,number,number];
-type Shot={key:TranslationKey;eye:Point;aim:Point;up?:Point;link?:RoomLink;preloadLawn?:boolean;overview?:boolean};
+type Shot={key:TranslationKey;eye:Point;aim:Point;up?:Point;fov?:number;link?:RoomLink;preloadLawn?:boolean;overview?:boolean};
 type RoomView={entry:readonly [Point,Point];shots?:readonly Shot[]};
 export const roomViews:Record<SceneryId,RoomView>={
   ...RETREAT_VIEWS,
   arcadeHall:arcadeView,
   velvetStudio:velvetView,medievalChamber:chamberView,
   glassPlanet:{entry:[[0,2.18,3.45],[.12,.63,-3.85]],shots:[{key:'planetLimb',eye:[10.6,2.1,11.7],aim:[-.7,-2.2,-2.6]},{key:'planetRing',eye:[-.2,1.62,1.85],aim:[-3.6,3.02,-9.4]},
-    {key:'planetTransit',...transitPortrait},{key:'planetSouth',...southPortrait},...launchViews,...returnViews,
+    {key:'planetTransit',...transitPortrait},{key:'planetSouth',...southPortrait},...launchViews.filter(v=>v.key!=='tideWind'),...returnViews.filter(v=>v.key!=='tideReturn'),
     {key:'planetPulsar',eye:[.55,1.65,1.88],aim:[4.50,2.73,-12.78]},
-    straitPortrait,...twinSurveys.flatMap(s=>[s.portrait,s.leapView]),...reedShots,...opalSurveyShots,...steppingViews,...lanternShots,amberPortrait]},
+    straitPortrait,...twinSurveys.flatMap(s=>[s.portrait,s.leapView]),...reedShots,...opalSurveyShots,...steppingViews,...lanternShots,amberPortrait,
+    ...launchViews.filter(v=>v.key==='tideWind'),...returnViews.filter(v=>v.key==='tideReturn'),...tideShots]},
   floor:{entry:[[1.4,1.65,4],[0,.95,-.4]]}, liveHouse:{entry:[[.8,1.7,4.4],[0,1.05,-1.3]]},
   pool:{entry:[[2.1,1.7,2.8],[0,.85,-3.7]],shots:[LIDO_ROUTE_SHOTS.clock,LIDO_ROUTE_SHOTS.return]},
   classroom:{entry:[[.15,1.58,3.95],[0,1.05,-1.4]],shots:[

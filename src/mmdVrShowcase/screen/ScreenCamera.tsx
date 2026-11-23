@@ -37,7 +37,7 @@ export function ScreenCamera({actions,onReady,viewport}:{actions:RefObject<Camer
       steering.subVectors(orbit.target,camera.position);const distance=steering.length();
       steering.normalize().lerp(direction,weight).normalize();orbit.target.copy(camera.position).addScaledVector(steering,distance+(range-distance)*weight);
       camera.up.set(0,1,0);
-    },(arc,up)=>{orbit.target.sub(camera.position).applyQuaternion(arc).add(camera.position);camera.up.copy(up);}):undefined, travel=wind??screenStreetTravel(scene,scenery);
+    },(arc,up)=>{orbit.target.sub(camera.position).applyQuaternion(arc).add(camera.position);camera.up.copy(up);},scene):undefined, travel=wind??screenStreetTravel(scene,scenery);
     const gate=new RoomGate();
     const steps={held:heldKeys.current,beforeWalk(eye:Vector3,aim:Vector3,d:Vector3){
       if(!gate.hasExits(scenery))return true;
@@ -101,7 +101,7 @@ export function ScreenCamera({actions,onReady,viewport}:{actions:RefObject<Camer
       if(shot.link){arrival.current={room:shot.link.to,eye:shot.eye,aim:shot.aim};if(!walkBetweenZones(shot.link))arrival.current=null;return;}
       if(shot.preloadLawn&&!releaseHints)releaseHints=hintLawnPrints();
       align(shot.up);
-      setLens(shot.overview?Math.min(130,Math.max(99,2*Math.atan(1.1/camera.aspect)*180/Math.PI)):50);camera.position.fromArray(shot.eye);orbit.target.fromArray(shot.aim);orbit.update();wind?.survey(camera.position,!!shot.up);},story(){if(isStoryRoom(scenery)){const [eye,look]=storyViews[scenery];camera.position.set(...eye);orbit.target.set(...look);orbit.update();}},center(){const b=useBackpack.getState(),s=useMmdVrStore.getState();if(!b.draft||s.physicsBusy||s.assetLoad.running||s.physicsFatal)return;
+      setLens(shot.overview?Math.min(130,Math.max(99,2*Math.atan(1.1/camera.aspect)*180/Math.PI)):shot.fov??50);camera.position.fromArray(shot.eye);orbit.target.fromArray(shot.aim);orbit.update();wind?.survey(camera.position,!!shot.up);},story(){if(isStoryRoom(scenery)){const [eye,look]=storyViews[scenery];camera.position.set(...eye);orbit.target.set(...look);orbit.update();}},center(){const b=useBackpack.getState(),s=useMmdVrStore.getState();if(!b.draft||s.physicsBusy||s.assetLoad.running||s.physicsFatal)return;
       const prev=b.live[b.draft], transform=prev&&(s.models.find(m=>m.id===prev.runtimeId)??s.objects.find(o=>o.id===prev.runtimeId));
       const deck=scenery==='glassPlanet'?planetCenterDrop(camera.position):{x:0,z:0,y:undefined};
       if(!deck){useBackpack.setState({error:useLanguageStore.getState().t('planetCenterBlocked')});return;}

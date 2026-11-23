@@ -14,6 +14,7 @@ export const zh = {
   reedWind:'起飞风道 · 苇湾星',reedReturn:'苇湾星 · 回望母星',reedGlobe:'苇湾星 · 环湖全景',reedShore:'苇湾星 · 荷塘水尺',reedGrove:'苇湾星 · 草坡看林冠',
   lanternWind:'起飞风道 · 伞灯星',lanternReturn:'伞灯星 · 回望母星',lanternGills:'伞灯星 · 林下看菌褶',lanternNursery:'伞灯星 · 苗圃看落种',
   lanternGlobe:'伞灯星 · 伞林全景',lanternClearingView:'伞灯星 · 菌圃合影',
+  tideWind:'起飞风道 · 潮汐洞星',tideReturn:'潮汐洞星 · 回望母星',tideShellSteps:'潮汐洞星 · 洞口贝阶',tideStage:'潮汐洞星 · 内室合影',tideMoonrise:'潮汐洞星 · 苇湾与倒影',
   planetCenterBlocked:'从这里看不到最近的摆放台中心。',
   lanternAmberLeap:'伞灯星 · 跃向琥珀屿',amberLanternLeap:'琥珀屿 · 跃回伞灯星',
   amberFossil:'琥珀屿 · 蕨叶化石',

@@ -1,6 +1,7 @@
 import {Quaternion,Vector3} from 'three';
 import {createShellSweep} from './orbitalSurfaces';
 import {north} from './planetTravel';
+import {tideBodyBlocked} from './tideContact';
 
 export const landingTurnRate=Math.PI/3.6; // maximum angular speed, 50°/s
 
@@ -28,13 +29,16 @@ export function riseToFeet(s:StandingArrival,dt:number,localEye:Vector3,target:V
     s.goal.copy(target).addScaledVector(s.normal,lift);
     s.delta.subVectors(s.goal,s.foot).clampLength(0,2.4*h);
     const hit=s.sweep(s.foot,s.delta,s.up,s.eye,s.end);
-    if(!hit){s.foot.add(s.delta);s.basis.copy(s.q);}
+    if(!hit){
+      if(tideBodyBlocked(s.goal.copy(s.foot).add(s.delta),s.end.up,s.end.eye)){s.blocked=true;break;}
+      s.foot.add(s.delta);s.basis.copy(s.q);
+    }
     else {
       // A slope may rise above its radial tangent plane. Don't keep trying
       // the same blocked screw motion: retreat from the measured contact
       // before rotating. The retreat is swept too, even between two shells.
       s.escape.copy(hit.up).multiplyScalar(1.6*h);
-      if(!s.sweep(s.foot,s.escape,s.up,s.eye))s.foot.add(s.escape);
+      if(!s.sweep(s.foot,s.escape,s.up,s.eye)&&!tideBodyBlocked(s.goal.copy(s.foot).add(s.escape),s.up,s.eye))s.foot.add(s.escape);
       else {s.blocked=true;break;}
     }
   }

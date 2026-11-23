@@ -15,6 +15,7 @@ import {twinStation} from './twinStations';
 import {windRibbons} from './windRibbons';
 import {Reedwater,reedGaugeModel} from './Reedwater';
 import {LanternBiosphere} from './lanternGardenScene';
+import {TidalMoon} from './TidalMoon';
 import {AmberIslet} from './AmberIslet';
 import {surfaceGrain} from './surfaceGrain';
 import {createWindFocus,windPlateSight} from './windFocus';
@@ -52,7 +53,7 @@ function Satellite({moon,grain}:{moon:Extract<Moon,{relief:keyof typeof prints}>
 
 const axis=new Vector3(0,1,0);
 const daylight={sun:{value:sunDirection}};
-function SurveyProbe({moon}:{moon:Exclude<Moon,{id:'lantern'}>}){
+function SurveyProbe({moon}:{moon:Exclude<Moon,{id:'lantern'|'tide'}>}){
   const s=moon.station;
   const g=useMemo(()=>{
     if(moon.instrument==='gauge')return reedGaugeModel();
@@ -141,7 +142,7 @@ export function WindSystem({grain}:{grain:Texture|null}){
     if(next!==last.current){last.current=next;setActive(next);}});
   return <group name="planet:wind-system" pointerEvents="none">
   {lanes.map(l=><group key={l.moon.id}>
-    {l.moon.id==='lantern'?<LanternBiosphere/>:<>
+    {l.moon.id==='tide'?<TidalMoon/>:l.moon.id==='lantern'?<LanternBiosphere/>:<>
       {l.moon.relief==='wetland'?<Reedwater moon={l.moon} grain={grain}/>:<Satellite moon={l.moon} grain={grain}/>}
       <SurveyProbe moon={l.moon}/></>}
     <Terminal hardware={hardware} lane={l} port={l.home} back={false} active={l===active} pick={focus.select}/>

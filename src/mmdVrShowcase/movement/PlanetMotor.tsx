@@ -11,6 +11,8 @@ import {createPlanetPad} from './planetPad';
 import {eyeLift,headMargin} from './eyeHeight';
 import {departureAt,rideStep,startRide,type WalkMoon,type Ride} from '../scenery/planet/windAtlas';
 import {moonWalk} from './moonWalk';
+import {tideEyeLift} from './tideContact';
+import {tideWalkFactor} from '../scenery/planet/tideSession';
 import {startTwinLeap,stepTwinLeap,type TwinLeap} from './twinLeap';
 import {jumpVelocity,startOrbit,stepOrbit,type Orbit} from './orbitalFlight';
 import {altitude,homeWorld,shellRadius} from './orbitalSurfaces';
@@ -93,7 +95,9 @@ export default function PlanetMotor({originRef,dragging}:Props){
          const eye=s.tmp.copy(s.localEye).applyQuaternion(s.display).add(s.foot),c=s.pad.column(eye.x,eye.z,s.foot.y);
          room=(c.ceiling-(s.grounded?s.foot.y:c.floor))/s.viewUp.y;
       }}
-    const lift=free?0:eyeLift(prefs.normalEyeOffset,p.y,room);s.lastLift=lift;s.localEye.y+=lift;
+    let lift=free?0:eyeLift(prefs.normalEyeOffset,p.y,room);
+    if(lift>0&&s.moon?.id==='tide'&&!s.ride)lift=tideEyeLift(s.foot,s.viewUp,s.worldEye.copy(s.localEye).applyQuaternion(s.display),lift);
+    s.lastLift=lift;s.localEye.y+=lift;
     s.prev.copy(s.foot);
     // Ecctrl's suspension cast has 28 cm of forgiveness. Require two quiet
     // supported frames and a fresh X; an airborne press is never a booking.
@@ -174,7 +178,10 @@ export default function PlanetMotor({originRef,dragging}:Props){
       }
     }
     else if(s.pending||align){/* Hold an explicitly parked wind/pad view until a walk, Y or auto-align. */}
-    else if(s.moon)moonWalk(s.moon,s,s.travel,groundSpeed,dt,false,shellRadius);
+    else if(s.moon){
+      const wade=s.moon.id==='tide'&&s.grounded&&s.travel.lengthSq()>0?tideWalkFactor(scene,s.foot):1;
+      moonWalk(s.moon,s,s.travel,groundSpeed*wade,dt,false,shellRadius,s.worldEye.copy(s.localEye).applyQuaternion(s.display),s.viewUp);
+    }
     else if(ready){
       if(s.active!==ready){ready.seed(s);s.active=ready;s.parked=null;} // no step or origin recompute from a stale spawn this frame
       else ready.step(s,dt,x*groundSpeed/speed,forward*groundSpeed/speed,false,s.tmp.copy(s.localEye).applyQuaternion(s.groundTilt));

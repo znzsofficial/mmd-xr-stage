@@ -11,11 +11,13 @@ export const homeWorld={id:'home',radius:PLANET_RADIUS,centre:planetCentre,surfa
 export type World=typeof homeWorld|WalkMoon;
 // Finite, authored world geometry only. The distant system is a sky material.
 export const walkWorlds:readonly World[]=[homeWorld,...allMoons];
-const facets=new Map(walkWorlds.map(w=>{
+const facets=new Map(walkWorlds.filter(w=>w.id!=='tide').map(w=>{
   const [cols,rows]=w.id==='home'?crustSegments:moonSegments(w);
   return [w,facetSampler(cols,rows,w.id==='home'?crustRadius:(x,y,z)=>moonRadius(w,x,y,z))] as const;
 }));
 export function shellRadius(w:World,x:number,y:number,z:number){
+  // The grotto uses its own cut floor mesh, not SphereGeometry meridian cells.
+  if(w.id==='tide')return moonRadius(w,x,y,z);
   // A chord can bridge a depression in the continuous relief. Use the safe
   // outer one so neither the visible rock nor its walking surface is crossed.
   const face=facets.get(w)!(x,y,z);
@@ -41,7 +43,7 @@ export function createShellSweep(){
     const d2=delta.lengthSq(),distance=Math.sqrt(d2);if(distance<1e-12)return;
     for(const w of walkWorlds){
       rel.subVectors(start,w.centre);
-      const outer=w.radius+(w.id==='home'?4:1.4)+radius,projection=rel.dot(delta)/d2;
+      const outer=w.radius+(w.id==='home'||w.id==='tide'?4:1.4)+radius,projection=rel.dot(delta)/d2;
       const disc=projection*projection-(rel.lengthSq()-outer*outer)/d2;if(disc<0)continue;
       const half=Math.sqrt(disc),a=Math.max(0,-projection-half),b=Math.min(hit.t,-projection+half);if(b<=a)continue;
       const gap=(t:number)=>altitude(w,probe.copy(start).addScaledVector(delta,t))-radius;

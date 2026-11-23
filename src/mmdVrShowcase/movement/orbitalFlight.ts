@@ -2,7 +2,8 @@ import {Vector3} from 'three';
 import {moonObstructed} from '../scenery/planet/windAtlas';
 import {stationBlocks} from '../scenery/planet/opalTerrain';
 import {MOON_JUMP_SPEED} from './moonWalk';
-import {createShellSweep,homeWorld,walkWorlds,type World} from './orbitalSurfaces';
+import {tideBodyBlocked} from './tideContact';
+import {altitude,createShellSweep,homeWorld,walkWorlds,type World} from './orbitalSurfaces';
 import type {ReadColumn} from './groundMotor';
 
 const gap=(w:World,p:Vector3)=>p.distanceTo(w.centre)-w.radius;
@@ -45,7 +46,7 @@ export function jumpVelocity(w:World,up:Vector3,stick:Vector3,speed:number,out:V
 }
 
 export function startOrbit(w:World,foot:Vector3,velocity:Vector3){return {
-  from:w,owner:w as World|null,foot:foot.clone(),velocity:velocity.clone(),changes:0,grazes:0,
+  from:w,owner:w as World|null,foot:foot.clone(),velocity:velocity.clone(),changes:0,grazes:0,first:true,
   landing:null as World|null,point:new Vector3(),up:new Vector3(),tracked:false,part:'foot' as 'foot'|'head'|'body',
   sweep:createShellSweep(),a:new Vector3(),move:new Vector3(),next:new Vector3(),column:{floor:-Infinity,ceiling:Infinity,blocked:false},
   rim:null as Vector3|null,side:new Vector3(),across:new Vector3(),probe:new Vector3(),
@@ -56,7 +57,8 @@ export type Orbit=ReturnType<typeof startOrbit>;
 // remain solids during a jump. Flying in the free movement mode bypasses this.
 function obstacle(f:Orbit,to:Vector3,up:Vector3,eye:Vector3,read?:ReadColumn){
   const h=Math.max(.25,eye.dot(up)+.115),w=f.owner;
-  if(w&&gap(w,to)<3.3&&(w.id==='home'?stationBlocks(to,.16,h):moonObstructed(w,to,.16,h)))return 'wall';
+  if(w?.id==='tide'){if(tideBodyBlocked(to,up,eye))return 'wall';}
+  else if(w&&gap(w,to)<3.3&&(w.id==='home'?stationBlocks(to,.16,h):moonObstructed(w,to,.16,h)))return 'wall';
   if(!read||Math.abs(to.x)>4||Math.abs(to.z)>4||to.y<-.3)return;
   const c=f.column;c.floor=-Infinity;c.ceiling=Infinity;c.blocked=false;read(to.x,to.z,f.foot.y,c);
   if(c.blocked)return 'wall';
@@ -91,6 +93,17 @@ function slideAtWall(f:Orbit,h:number,viewUp:Vector3,eye:Vector3,read?:ReadColum
 export function stepOrbit(f:Orbit,dt:number,viewUp:Vector3,eyeOffset:Vector3,read?:ReadColumn){
   if(f.landing)return true;
   const time=Math.max(0,Math.min(.15,dt)),steps=Math.max(1,Math.ceil(time*120),Math.ceil(f.velocity.length()*time/.065)),h=time/steps;
+  if(time>0&&f.first){
+    f.first=false;
+    // The cut floor continues underneath solid rock. A radial foot on that
+    // floor, or a tracked lean beside a wall, need not have a clear launch
+    // volume. Refuse the impulse on its existing support instead of sending
+    // an already intersecting body sideways in search of a landing.
+    const w=f.from;
+    if(w.id==='tide'&&tideBodyBlocked(f.foot,viewUp,eyeOffset)&&Math.abs(altitude(w,f.foot))<.001){
+      f.landing=w;f.point.copy(f.foot);f.up.subVectors(f.foot,w.centre).normalize();f.velocity.set(0,0,0);return true;
+    }
+  }
   for(let i=0;i<steps&&h>0;i++){
     const w=localWell(f.foot,f.owner);if(w!==f.owner){f.owner=w;f.changes++;}
     pull(w,f.foot,f.a);f.move.copy(f.velocity).multiplyScalar(h).addScaledVector(f.a,.5*h*h);
