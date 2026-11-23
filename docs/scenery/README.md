@@ -6,7 +6,7 @@
 
 - **校园**：[教室、草坪、门诊和泳池](./campus-garden-routes.md)已有三条双向连接；[校园电玩环线](./campus-arcade-loop.md)将[双层电玩厅](./arcade-hall.md)接入步行网。门诊内三间房共享一层，原有护士默认隐藏。[陈列与显隐](./clinic-teaching.md)
 - **江南**：[双喜堂](./wedding-court.md)看喜幔、婚书与喜房；沿[枕河街](./jiangnan-river-street.md)可到[秦淮歌楼](./qinhuai.md)埠头、听曲廊和月蘅馆。跨景各存布局，楼内步行不卸载角色。
-- **天体**：[沿母星白脊采谱](./opal-planet.md#母星沿白脊采谱)，或走近编号风环飞往五颗卫星。[苇湾星](./opal-planet.md#苇湾星与地表近景)有草岸和浅湖，[引力海峡](./opal-planet.md#双星引力海峡)还可从玄釉星跨过云母屿，到硫珠屿再折返。
+- **天体**：母星北台的[七线航向盘](./opal-planet.md#从罗盘起飞七条往返风道)指向 01–07 号风环。想采色亮柱，走[白脊采谱路线](./opal-planet.md#母星沿白脊采谱)；想摆角色，除母星北台外，还可去 [06 伞灯星的菌圃台](./opal-planet.md#伞灯星和琥珀屿)或 [07 潮汐洞星的内室干台](./opal-planet.md#潮汐洞星)。[苇湾星](./opal-planet.md#苇湾星与地表近景)可涉水；云母屿、硫珠屿从[玄釉星方向](./opal-planet.md#双星引力海峡)跨跳，琥珀屿从伞灯星跨跳。
 - [传送大厅实景：六扇拱门与中央通道](../screenshots/astral-portal-hall.webp)。门中的图像拍自六个空片场；只加载一张图集，不预加载六个房间或角色。
 - **其他片场**：[黑绒私摄棚](./velvet-studio.md)、[中世纪刑讯室](./medieval-chamber.md)、[暮灯情侣套房与月庭双人私汤](./private-retreats.md)、晨光礼拜堂、简易地台和 Live House。
 

@@ -9,6 +9,7 @@
 | 看互动结果或找回审图 | [插入：游戏受孕率与一次释放的受精演出](./gameplay/pelvic-attachment.md#一次释放的受精演出) · [分侧泌乳与遮挡](./gameplay/stage-lactation-proposal.md) · [角色工具与本机审图索引](./gameplay/next-actor-tools.md) |
 | 找道具、手柄震动或互动玩法 | [道具接触与手柄震动](./gameplay/README.md#道具接触与手柄震动) · [已上线的四幕](./gameplay/README.md#四幕玩法) · [互动提案](./gameplay/interactive-scene-studies.md) |
 | 选地图、机位或步行路线 | [布景索引](./scenery/README.md) · [深空与风道](./scenery/opal-planet.md) · [校园环线](./scenery/campus-arcade-loop.md) · [喜院到秦淮](./scenery/jiangnan-river-street.md) |
+| 复查北台面板穿模 | [罗盘修复前后实景](./screenshots/north-instruments.webp) · [七条风道与操作](./scenery/opal-planet.md#从罗盘起飞七条往返风道) · [几何与实点证据](./scenery/opal-planet.md#北台仪表验证与维护) · [Quest 3S 短测](./performance/next-quest-export.md#北台仪表斜看与点选) |
 | 验收与查卡顿 | [下次 Quest 导出](./performance/next-quest-export.md) · [角色工具本机回归](./performance/actor-tools-regression.md) · [性能优先级](./performance/README.md) · [历次真机报告](./performance/viewing-and-diagnostics.md#已有测量) |
 | 改代码或加布景 | [舞台架构](./architecture.md) · [新布景与连接](./scenery/adding-a-set.md) · [美术样板](./scenery/art-direction.md) · [引擎取舍](./three-tooling.md) |
 
