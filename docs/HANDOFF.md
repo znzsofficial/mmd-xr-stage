@@ -1,8 +1,8 @@
-# 会话交接｜2026-11-23
+# 会话交接｜2026-11-24
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `e6be51b`](https://f58a7382.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `3fced36`](https://4ace7a30.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
 
-**当前发布。** `e6be51b` 已上线，954 项测试通过；主域名入口及 281 份资源与验证构建一致。「摆姿势 → 快速体位」现有[六款基础、四款挑逗](./gameplay/pose-and-body-states.md#快速体位)。外阴观察和附件用[外侧肉色、内缘粉红](./performance/actor-tools-regression.md#自然款外形与原模开合)，保留 C 材质的光泽分区。屏幕近看可原键回到原机位，屏幕／XR 卵子页可显式回看已确认的结果（不触发第二次交付）。[三款随身玩具](./gameplay/README.md#随身舞台特效)和[重力分工](./architecture/gravity.md)继续适用。
+**当前发布。** `3fced36` 已上线，964 项测试通过；主域名入口及 284 份资源与验证构建一致。外阴观察现在显示有深浅的入口内壁；默认子宫全貌显示实测杆身、软壁让位与撤回。角色身上的可选附件仍默认关闭。屏幕实模和模拟 XR 已实走进退及自动往复；新图仍待实戴。[六款基础、四款挑逗体位](./gameplay/pose-and-body-states.md#快速体位)、屏幕近看返回原机位与卵子结果只读回看继续适用。
 
 **实戴反馈。** 已收 11 月 23 日 15:11Z 报告：姿势初看可以，未逐一验证；裙腿仍穿但有所减轻；外阴配色可以。玩家指出观察图的入口内部没有深度，子宫全貌里只有轴线在动。个别裙装后续优先按可见侧、衣层、刚到位还是停住来定位；不采用在 C 初跪时变差的小腿修正组合，见[分层证据与取舍](./performance/actor-tools-regression.md#手动体位的局部裙片修正)。
 
