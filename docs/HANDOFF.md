@@ -1,14 +1,14 @@
-# 会话交接｜2026-11-22
+# 会话交接｜2026-11-23
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `28771c5`](https://38574cc8.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `45c8d5e`](https://7b96e1fc.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
 
-**当前发布。** `28771c5` 已上线；主域名入口及 243 份资源与验证构建一致。「互动 → 插入」左侧看实时图、右侧选支架或单次往复释放。新版阴道 38° 斜剖面显示贴合的前后壁、局部横褶与封闭穹隆；仅已验证的杆身截面撑开相应区域，停留时不反复上传相同图。乳房图显示分侧乳量；VMD 可分别解绑；手动支架可[录制回放](./gameplay/pelvic-attachment.md#用手动支架录下自己的节奏)，摆姿可固定双腕。角色入口为[服装、互动、身体观察](./gameplay/actor-tools.md)，改参数另进「身体设置」。
+**当前发布。** `45c8d5e` 已上线，799 项测试通过；主域名入口及 247 份资源与构建一致。原角色首页未添加入口：衣柜内查漏件／换图，佩戴即启动，面板泌乳支持材质分片。外阴重做成共边曲面和可选膜缘；子宫图有卵子数、游戏概率、受精到着床和孕日演出。小行星普通移动支持踏印外捕获和着陆回正。原有阴道接触剖面、支架录放、固定腕和分侧乳量保留。见[角色玩法](./gameplay/actor-tools.md)、[美术与 HUD 评审](./gameplay/actor-flow-review.md)。
 
-**性能优先级：**11 月 22 日 14:41Z [真机报告](./performance/viewing-and-diagnostics.md#已有测量)确认预热与动作缓存命中。先查开物理播放与关物理重读 PMX；新操作面板和新画笔的头显开销不能回推自这份报告。
+**性能优先级：**11 月 22 日 14:41Z [真机报告](./performance/viewing-and-diagnostics.md#已有测量)确认预热与动作缓存命中。新版本以 32 MiB 总预算复用在场 PMX 首次读取；两次关闭在预算内均零重读。稳态跳过重复运动学写入的 A/B 未带来可靠收益，不上线该候选；下一步分测 Bullet 碰撞与关节，再看真机和点选体验。
 
 **角色工具已交付：** [摆姿、胸型、周期、泌乳](./gameplay/pose-and-body-states.md)与[骨盆附件](./gameplay/pelvic-attachment.md)共用屏幕／XR 舞台。三主栏共用当前角色草稿，切栏不保存；「保存到角色」只存本页背包。乳房观察默认正面二次元外观，剖面和标注按需；图可在不支持胸型变形的 PMX 上使用。已确认的美术方向看 [PRODUCT](../PRODUCT.md) 和 [DESIGN](../DESIGN.md)，实现入口看[舞台架构](./architecture.md)。
 
-**演员 HUD 与舞台泌乳：** 互动用量即时记到演员；身体设置只编辑草稿参数。穿衣继续不绕过校准入口；[泌乳](./gameplay/stage-lactation-proposal.md)仍要求适配的皮肤出口和实测露出，不支持时显示「仅数值」。水滴胸型 02 与外阴三种外形沿用。美术试样、验收截图放本机 `local-review/`，图形验证串行运行。
+**演员 HUD 与舞台泌乳：** 控件用普通游戏的动作、状态、结果；成人同人风格靠角色反馈、画面与事件演出。互动用量即时记到演员；身体设置只编辑草稿参数。穿衣继续不绕过校准入口；[泌乳](./gameplay/stage-lactation-proposal.md)仍要求适配的皮肤出口和实测露出。美术试样、验收截图放本机 `local-review/`，图形验证串行运行。
 
 **待真机：** [Quest 3S 分趟导出](./performance/next-quest-export.md)。新面板的光学可读性、自动支架和图的同屏帧率、抓点与震感尚待硬件检查；地台／草坪各 15 分钟才验持续 72 FPS。[屏幕实模与模拟双眼](./performance/actor-tools-regression.md)有独立证据；用户已确认小行星正常行走。
 
