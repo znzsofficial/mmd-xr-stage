@@ -15,6 +15,8 @@
 
 想新增会飞、会落或会浮起的道具，先看[重力系统与扩展边界](./architecture/gravity.md)：普通房间和 11 个可步行天体如何取样，及哪些运动仍由玩家马达、演员 Bullet 或屏幕相机负责。
 
+决定是否需要重构，见[扩展与重构判断](./architecture/maintenance.md)：哪些功能已有入口、下一次该在哪个文件划分职责、用什么行为验证拆分没有破坏舞台。
+
 | 要改什么 | 负责的模块 |
 |---|---|
 | 角色工具里的动态解剖图 | [`pelvic/atlas/`](../src/mmdVrShowcase/pelvic/atlas/) 的子宫动态按需使用本地 Worker；入口对位和测量剖面在 Canvas 上画[标定投影](../src/mmdVrShowcase/pelvic/sectionProjection.ts)。入口图的文字表独立异步准备，实杆不等字体。运转实测和静止实杆分开发布；待命杆位不能触发开合、计量、外喷或触觉。 |
@@ -32,7 +34,7 @@
 | 并排操作面板 | [`LivePelvicView.tsx`](../src/mmdVrShowcase/observation/LivePelvicView.tsx) 只保存观察部位，复用完整观察页的画笔，每次只绘制一张。[`Controls.tsx`](../src/mmdVrShowcase/pelvic/Controls.tsx) 布置左右栏，右边的目标不受换图影响。自动往复独立刷新短状态行，已预约的一剂只有当帧有效进入才实际交付。 |
 | 阴道剖面 | [前后壁、宫颈及穹隆](../src/mmdVrShowcase/pelvic/atlas/canalGeometry.ts)为同一可旋转剖面。用[实际杆身截面](../src/mmdVrShowcase/pelvic/atlas/canalContact.ts)拟合接触行；滑杆不能撑开内壁。[留存画笔](../src/mmdVrShowcase/pelvic/atlas/retainedFluid.ts)读取当前部位的存量和形变后的壁面，不依据观察页推断释放目标。剖面以硅胶实形示意位置，校准线留在测量页。固定机位、固定样本不重复上传。 |
 | 收起身体工具，看舞台／继续编辑 | [屏幕面板导航](../src/mmdVrShowcase/screen/useScreenPanels.ts)和 [XR 演员工具](../src/mmdVrShowcase/components/BackpackWorldTools.tsx)暂时保留同一运行实例的编辑器。收起时卸下控件和图，不复制、保存或丢弃草稿。换演员、实例、房间不是收起。 |
-| 演员首页的服装、互动和四部位观察 | [ActorActivities](../src/mmdVrShowcase/interaction/ActorActivities.tsx)只保存当前演员的短导航路径。打开[衣柜](../src/mmdVrShowcase/wardrobe/WardrobeControls.tsx)或[身体观察](../src/mmdVrShowcase/observation/ActorObservation.tsx)不会让 UI 接管舞台求值。上半身近景由[屏幕镜头](../src/mmdVrShowcase/screen/upperBodyView.ts)按当前角色姿势取景，不作接触标定，也不控制 XR 视点。 |
+| 演员首页的服装、互动和身体观察 | [ActorActivities](../src/mmdVrShowcase/interaction/ActorActivities.tsx)只保存当前演员的短导航路径。打开[衣柜](../src/mmdVrShowcase/wardrobe/WardrobeControls.tsx)或[身体观察](../src/mmdVrShowcase/observation/ActorObservation.tsx)不会让 UI 接管舞台求值。上半身近景由[屏幕镜头](../src/mmdVrShowcase/screen/upperBodyView.ts)按当前角色姿势取景，不作接触标定，也不控制 XR 视点。 |
 | 舞台泌乳 | [`outlets.ts`](../src/mmdVrShowcase/bodyState/lactation/outlets.ts) 把作者的局部顶点形态绑定到实际皮肤表面；[房间](../src/mmdVrShowcase/bodyState/lactation/roomMilk.ts)只接收当次分侧扣量，在角色求值后更新遮挡和可见液滴。HUD 显示这笔操作是否获房间接收，不从回充、滑杆或读图倒推。 |
 | 默认设置、合法值、v1/v2 偏好兼容 | [`settings/preferences.ts`](../src/mmdVrShowcase/settings/preferences.ts)。首次进入、读取旧记录和场内更新共用同一套规则；[`mmdVrStore.ts`](../src/mmdVrShowcase/mmdVrStore.ts) 发布状态和操作。文件、布局和运行时句柄不属于偏好。 |
 | 某一间房的模型、入口、机位、遮挡 | [`scenery/`](../src/mmdVrShowcase/scenery/)；按[布景接入指南](./scenery/adding-a-set.md)改注册表和本景布局。菜单切景是否重置视角由 `catalog.ts` 决定；步行跨门由 `connections.ts` 的平移数据决定。 |
