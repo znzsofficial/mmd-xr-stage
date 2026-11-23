@@ -1,8 +1,8 @@
 # 会话交接｜2026-11-23
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `855cceb`](https://39ddb5de.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `63b88ad`](https://2cedc07b.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
 
-**当前发布。** `855cceb` 已上线，864 项测试通过；主域名入口及 261 份资源与构建一致。[潮汐洞星](./scenery/opal-planet.md#潮汐洞星)是第 07 条风道目的地：低潮下贝阶，高水走侧岸或涉水，干台可放演员，洞口可回望苇湾与倒影。已在屏幕实模和 IWER 完成往返；真机清晰度、舒适度和帧率待验。上一版[插入页受精规则](./gameplay/pelvic-attachment.md#一次释放的受精演出)继续适用。
+**当前发布。** `63b88ad` 已上线，880 项测试通过；主域名入口及 263 份资源与构建一致。[母星北台](./scenery/opal-planet.md#母星沿白脊采谱)的三处采谱读头、七条风道的出发与返航牌均已改为实体支架；风环贴坡、航向盘标出真实方位。已用屏幕点击七条航线，模拟双眼取还晶片并登上霜岬星。[潮汐洞星](./scenery/opal-planet.md#潮汐洞星)与[演员互动](./gameplay/actor-tools.md)继续适用。真机镜片可读性、舒适度和帧率待验。
 
 **停点：**新互动方向止于受精，不再扩展生理周期或孕期管理。Quest 3S 下一趟可看插入页受精瞬间是否清晰，或回访[伞灯星与琥珀屿](./scenery/opal-planet.md)检验普通跳回落和站稳后的舒适度。若继续性能线，读[持续播放的证据与下一项测量](./performance/README.md#持续播放)。
 

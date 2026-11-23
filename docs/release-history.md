@@ -6,6 +6,7 @@
 
 | 功能提交 | 已发布内容与验证范围 |
 |---|---|
+| `63b88ad` | 母星航向盘、三处采谱读头和七条风线仪表修整；喷嘴贴实际壳面，实体支架不挡字，背面和侧面碰撞与射线一致。[对照及实测](./scenery/opal-planet.md#母星沿白脊采谱)。880 项测试通过；主域名入口及 263 份资源与验证构建一致。[固定版](https://2cedc07b.mmd-xr-stage.pages.dev/?set=glassPlanet&view=screen) |
 | `855cceb` | 07 号风道通往潮汐洞星。自然潮汐、码头拨潮、涉水贝阶、常干高路、演员干台和可从洞内看到的苇湾星倒影。[实景与验证](./scenery/opal-planet.md#潮汐洞星)。864 项测试通过；主域名入口及 261 份资源 SHA-256 一致。[固定版](https://39ddb5de.mmd-xr-stage.pages.dev/?set=glassPlanet&view=screen) |
 | `754ffb5` | 插入操作内按演员设置游戏受孕率，实际体内留存的一笔交付独立判定；同一批精子的游近、头尾先后进入、原核靠近和失败散开。移除生理日历和长孕期玩法。845 项测试通过；屏幕参考模型和 IWER 的 0%／100% 两笔真实交付见[实测条件](./performance/actor-tools-regression.md#按实际释放判定受精)。主域名入口及 256 份资源与构建一致。[固定版](https://eed3526f.mmd-xr-stage.pages.dev) |
 | `d7c16d6` | 互动内生育操作与身体设置分区，精简膜缘、支架与公共设置；伞灯星、琥珀屿和菌圃演员台；普通跳限制起跳能量、触地后脚底立即接管。847 项测试通过。本机 PMX＋屏幕、模拟 XR 均从互动走到孕日 35，实走普通捕获后继续步行及新航线往返。[验证条件](./performance/actor-tools-regression.md#互动工作台与伞灯星)。主域名入口及 252 份资源 SHA-256 一致。[固定版](https://93cf654a.mmd-xr-stage.pages.dev) |
