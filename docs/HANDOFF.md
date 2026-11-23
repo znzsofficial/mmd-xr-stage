@@ -1,8 +1,8 @@
 # 会话交接｜2026-11-23
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `ef638f8`](https://cac3f0c1.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `f815893`](https://6f7ef3d0.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
 
-**当前发布。** `ef638f8` 已上线，947 项测试通过；主域名入口及 273 份资源与验证构建一致。开启角色物理后的[手动摆姿裙腿修正](./performance/actor-tools-regression.md#手动体位的局部裙片修正)已在三种裙装、15 条换姿路径对照，旧版直腿表现保留；A、B 的深跪仍可见残留。选定的[外阴 C 材质](./performance/actor-tools-regression.md#外阴-c-版观察材质)已用于观察图和露出时的实体附件。屏幕／模拟 XR 均实走操作，Quest 持续性能仍待实戴。[六款快速体位](./gameplay/pose-and-body-states.md#快速体位)、[三款随身玩具](./gameplay/README.md#随身舞台特效)和[重力分工](./architecture/gravity.md)继续适用。
+**当前发布。** `f815893` 已上线，948 项测试通过；主域名入口及 278 份资源与验证构建一致。包括 `76ef87c` 的[默认自然款外形与原模开合](./performance/actor-tools-regression.md#自然款外形与原模开合)，沿用 C 材质；[手动摆姿裙腿修正](./performance/actor-tools-regression.md#手动体位的局部裙片修正)已在三种裙装、15 条换姿路径对照，A、B 的深跪仍有残留。本轮重构做了模拟 XR 实点及原生 Bullet 暂停拨衣；Quest 持续性能仍待实戴。[六款快速体位](./gameplay/pose-and-body-states.md#快速体位)、[三款随身玩具](./gameplay/README.md#随身舞台特效)和[重力分工](./architecture/gravity.md)继续适用。
 
 **恢复停点。** 无在途实现或发布阻塞。等玩家反馈或 Quest 3S 记录；最有用的是[深跪残留与 C 版转动的分趟短测](./performance/next-quest-export.md#裙摆与外阴近景)。若继续修裙摆，先拿同一机位区分是哪层衣料、哪个动作方向、刚到位还是停住仍穿。不要恢复全局 0.30 秒换姿：它曾把干净的返站从 0 改成 135 个相交面。
 
