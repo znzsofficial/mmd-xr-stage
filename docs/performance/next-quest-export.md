@@ -1,6 +1,6 @@
 # Quest 3S：下次怎样测、怎样导出
 
-用[正式版](https://mmd-xr-stage.pages.dev)或[本轮固定版](https://7b96e1fc.mmd-xr-stage.pages.dev)。教室首开物理和大动作回场已有真机命中记录。下次按问题选一趟即可。**每趟退出 VR，先在准备页点「导出上次 VR 性能记录（JSON）」，下载后再进**，否则会覆盖上一份。
+用[正式版](https://mmd-xr-stage.pages.dev)或[本轮固定版](https://93cf654a.mmd-xr-stage.pages.dev)。教室首开物理和大动作回场已有真机命中记录。下次按问题选一趟即可。**每趟退出 VR，先在准备页点「导出上次 VR 性能记录（JSON）」，下载后再进**，否则会覆盖上一份。
 
 ## 只测本版：选一趟
 
