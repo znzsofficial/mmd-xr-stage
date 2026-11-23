@@ -12,6 +12,7 @@ import {EggFields,fitScreenEgg,WandFields} from './ContactPropFields';
 import {useRemoteEgg} from '../play/remoteEgg';
 import {ActorActivities,type ActivityEntry} from '../interaction/ActorActivities';
 import {PoseScreenControls} from '../pose/PoseControls';
+import type {ScreenCloseUp} from './upperBodyView';
 
 function give(id:string,toy:Toy,hand:Hand,room:SceneryId){
   if(canGiveTo(useBackpack.getState().live[id],hand))giveScreenToy(id,toy,hand,room);
@@ -29,7 +30,7 @@ function ScreenToyGuide({toy,room,locked,close}:{toy:Toy;room:SceneryId;locked:b
 
 type LibraryProps = {
   view:'backpack'|'item'; suspended?:boolean; visit:number; locked:boolean;
-  close:()=>void; openBackpack:()=>void; openItem:()=>void; frame:()=>void; closeUp?:(focus?:'face')=>void; storyView?:()=>void;
+  close:()=>void; openBackpack:()=>void; openItem:()=>void; frame:()=>void; closeUp?:ScreenCloseUp; storyView?:()=>void;
 };
 
 export function ScreenLibrary({view,suspended=false,visit,locked,close,openBackpack,openItem,frame,closeUp,storyView}:LibraryProps) {
@@ -81,7 +82,7 @@ function ScreenCues({room,locked,view}:{room:StoryRoom;locked:boolean;view?:()=>
     </div></section>;
 }
 
-function SelectedItem({entry,locked,frame,closeUp,move,choice,setChoice,suspended,close,openBackpack}:{entry:BackpackEntry;locked:boolean;frame:()=>void;closeUp?:(focus?:'face')=>void;move:()=>void;choice:Toy|null;setChoice:(toy:Toy)=>void;suspended:boolean;close:()=>void;openBackpack:()=>void}) {
+function SelectedItem({entry,locked,frame,closeUp,move,choice,setChoice,suspended,close,openBackpack}:{entry:BackpackEntry;locked:boolean;frame:()=>void;closeUp?:ScreenCloseUp;move:()=>void;choice:Toy|null;setChoice:(toy:Toy)=>void;suspended:boolean;close:()=>void;openBackpack:()=>void}) {
   const t=useLanguageStore(s=>s.t),b=useBackpack(),live=b.live[entry.id];
   const transform=useMmdVrStore(s=>(entry.kind==='model'?s.models:s.objects).find(e=>e.id===live?.runtimeId));
   const stage=useMmdVrStore.getState(), prop=useStagePlay(s=>s.character), motions=b.entries.filter(e=>e.kind==='motion');
@@ -109,7 +110,7 @@ function SelectedItem({entry,locked,frame,closeUp,move,choice,setChoice,suspende
     <div className="screen-library-head"><h2 ref={heading} tabIndex={-1} title={actorName}>{actorName}</h2>
       {!detail&&<button onClick={openBackpack}>{t('actorAllItems')}</button>}<button onClick={close}>{t('actorFold')}</button></div>
     {detail?<section className="screen-tools" data-focus-actor>
-      {editor==='pose'?<PoseScreenControls {...actor}/>:<ActorActivities entry={editor} {...actor} onCloseUp={closeUp} suspended={suspended}/>}
+      {editor==='pose'?<PoseScreenControls {...actor}/>:<ActorActivities entry={editor} {...actor} closeUp={closeUp} suspended={suspended}/>}
     </section>:editor==='motion'||editor==='position'?<section className="screen-tool-detail"><div className="screen-library-head"><h3>{t(editor==='position'?'watchArrange':'hudMotions')}</h3><button onClick={onBack}>{t('actorBack')}</button></div>
       {editor==='position'?positioning:<>
         {(['body','face'] as const).map(kind=>{

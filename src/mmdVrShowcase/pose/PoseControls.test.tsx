@@ -12,7 +12,7 @@ import { PoseHudControls, PoseScreenControls } from './PoseControls';
 import { poseFixture } from './poseFixture.testSupport';
 import { mountPoseRoom } from './poseSession';
 import { createPoseSolver, type PoseSolver } from './poseSolver';
-import { posePresets } from './presetCatalog';
+import { posePresets, presetGroups } from './presetCatalog';
 
 // Mount the real keys and dispatch their React events without opening a renderer.
 vi.mock('../../shared/panelTexture', () => ({ createPanelTexture: () => ({ dispose() {} }), roundRectPath: vi.fn() }));
@@ -55,18 +55,23 @@ async function editor(surface: 'screen' | 'xr', partial = false) {
 }
 const delta = (a: number[], b: number[]) => Math.max(...a.map((n,i) => Math.abs(n-b[i])));
 
-it.each(['screen','xr'] as const)('applies six poses with one press each on %s and edits, saves, undoes and restores the animated actor', async surface => {
+it.each(['screen','xr'] as const)('groups all ten one-press poses on %s; changing group keeps the pose, undo, save and restore', async surface => {
   const ui = await editor(surface);
   try {
     const original = ui.sample(); await ui.mount();
     expect(ui.key('仰卧屈膝')).toBeFalsy(); expect(ui.key(surface === 'xr' ? 'Y +5°' : '+5°')).toBeTruthy();
     await ui.press('快速体位');
-    expect(posePresets.map(p => p.zh)).toEqual(['仰卧屈膝','仰卧抬腿','四点跪撑','骑乘跪坐','侧卧屈腿','站姿前倾']);
+    expect(ui.key('仰卧分膝捧腿')).toBeFalsy();
     let before = original, last = original;
-    for (const preset of posePresets) {
-      await ui.press(preset.zh); expect(ui.status()).toContain(`已应用 · ${preset.zh}`);
-      before = last; last = ui.sample(); expect(delta(last, before)).toBeGreaterThan(.04);
+    for (const [group,choices] of Object.entries(presetGroups)) {
+      await ui.press(group==='basic'?'基础体位':'挑逗体位'); expect(delta(ui.sample(),last)).toBeLessThan(.001);
+      expect(ui.key(group==='basic'?'跪坐掩胸':'仰卧屈膝')).toBeFalsy();
+      for(const preset of choices) {
+        await ui.press(preset.zh); expect(ui.status()).toContain(`已应用 · ${preset.zh}`);
+        before = last; last = ui.sample(); expect(delta(last, before)).toBeGreaterThan(.04);
+      }
     }
+    await ui.press('基础体位'); expect(delta(ui.sample(),last)).toBeLessThan(.001);
     await ui.press('撤销'); expect(ui.status()).toContain('已撤销'); expect(delta(ui.sample(), before)).toBeLessThan(.001);
     await ui.press('调关节'); await ui.press(surface === 'xr' ? 'Y +5°' : '+5°'); const edited = ui.sample();
     expect(delta(edited, before)).toBeGreaterThan(.005);

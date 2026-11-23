@@ -1,14 +1,15 @@
 import {useLayoutEffect,useMemo,useRef,useState} from 'react';
 import {ActorHudDiagram,ActorScreenDiagram,type DiagramActor,type DiagramSpec} from '../components/ActorDiagram';
 import {breastDiagram} from '../bodyState/breast/BreastGraphic';
-import {atlasDiagrams} from '../pelvic/atlas/AtlasGraphic';
+import {atlasDiagrams,eggReplayDiagram} from '../pelvic/atlas/AtlasGraphic';
+import type {EggReplay} from '../bodyState/reproduction/eggReplay';
 import {PrivateLine} from '../pelvic/HudPrivateControls';
 import type {ObservationPart} from './ActorObservation';
 
 // Mount with the part as key. Model generation happens in the local Worker;
 // readiness is its first painted frame, not loading a module or receiving mail.
-export function ObservationDiagram({part,widthM,loading,...actor}:DiagramActor&{part:ObservationPart;widthM?:number;loading:string}){
-  const [ready,setReady]=useState(false),base=part==='breast'?breastDiagram:atlasDiagrams[part];
+export function ObservationDiagram({part,widthM,loading,replay,...actor}:DiagramActor&{part:ObservationPart;widthM?:number;loading:string;replay?:EggReplay}){
+  const [ready,setReady]=useState(false),base=useMemo(()=>part==='egg'&&replay?eggReplayDiagram(replay):part==='breast'?breastDiagram:atlasDiagrams[part],[part,replay]);
   const plate=useRef<HTMLDivElement>(null);
   useLayoutEffect(()=>{
     const node=plate.current;if(!node)return;

@@ -4,7 +4,7 @@
 
 **当前发布。** `f815893` 已上线，948 项测试通过；主域名入口及 278 份资源与验证构建一致。包括 `76ef87c` 的[默认自然款外形与原模开合](./performance/actor-tools-regression.md#自然款外形与原模开合)，沿用 C 材质；[手动摆姿裙腿修正](./performance/actor-tools-regression.md#手动体位的局部裙片修正)已在三种裙装、15 条换姿路径对照，A、B 的深跪仍有残留。本轮重构做了模拟 XR 实点及原生 Bullet 暂停拨衣；Quest 持续性能仍待实戴。[六款快速体位](./gameplay/pose-and-body-states.md#快速体位)、[三款随身玩具](./gameplay/README.md#随身舞台特效)和[重力分工](./architecture/gravity.md)继续适用。
 
-**恢复停点。** 无在途实现或发布阻塞。等玩家反馈或 Quest 3S 记录；最有用的是[深跪残留与 C 版转动的分趟短测](./performance/next-quest-export.md#裙摆与外阴近景)。若继续修裙摆，先拿同一机位区分是哪层衣料、哪个动作方向、刚到位还是停住仍穿。不要恢复全局 0.30 秒换姿：它曾把干净的返站从 0 改成 135 个相交面。
+**恢复停点。** 等玩家反馈或 Quest 3S 记录；最有用的是[深跪残留与外阴近景的分趟短测](./performance/next-quest-export.md#裙摆与外阴近景)。新试过的小腿／局部位移组合不发布：B 的右后小腿有改善，但 C 刚切入跪姿出现新的穿模。A 左大腿深处的交线在两处测试机位均被遮挡。先记录看得到的角度、哪层衣料、刚到位还是停住，见[分层证据与取舍](./performance/actor-tools-regression.md#手动体位的局部裙片修正)。
 
 **架构接续。** [第一次局部整理](./architecture/maintenance.md#已拆出的三个入口)完成。新增演员显示效果从 `actorPoseDisplay.ts` 接入；移除／显隐／变换归 `roomModelCommands.ts`；XR 资产详情与加载恢复页已移出公共 HUD。运行时仍拥有物理时钟，只有当前房间可以消费命令。后续可回到实际玩法，不必继续按文件大小拆分。
 
@@ -12,7 +12,7 @@
 
 **演员玩法边界。** 「互动 → 插入」默认看子宫全貌。只在「卵子」手动新增卵子（默认零枚、最多三枚）与设置游戏概率（默认 60%）。实际体内正量留存且有未受精卵子才判定一次；改变观察部位或概率不会补判。玩法止于[融合或散开](./gameplay/pelvic-attachment.md#一次释放的受精演出)。主面板直接调支架深度，外阴图下调膜缘。阴道图按实测杆身撑开和回拢，阴道与宫腔分别显示实际存量。旧版生育日历和孕周不是当前玩法。
 
-**性能优先级。** 最近分析的 [Quest 3S 报告](./performance/viewing-and-diagnostics.md#已有测量)是 11 月 22 日 14:41Z 的旧版教室：关／开物理播放中位 61／48 FPS，原生步进约 5.04 ms；首开物理 118 ms、泳池回教室 2.34 秒已确认缓存命中。32 MiB 缓存解决的是关物理重读 PMX，不是稳态提帧。少写 22 个运动学变换的 A/B 无可靠收益，未上线。若继续性能线，先[分测 Bullet 碰撞与约束求解](./performance/README.md#持续播放)。
+**性能优先级。** 最近分析的 [Quest 3S 报告](./performance/viewing-and-diagnostics.md#已有测量)仍是 11 月 22 日 14:41Z 的旧版教室：关／开物理播放中位 61／48 FPS，原生步进约 5.04 ms。现有[原生 Bullet 桌面分段](./performance/bullet-step-profile.md)：同一角色、动作的 48 个窗口里，约束均居首（约 49%），窄相约 28%，AABB 与宽相配对合计约 16%。没有改生产求解器；桌面比例不可拆算头显 5.04 ms。
 
 **角色工具已交付：** [摆姿、胸型、泌乳](./gameplay/pose-and-body-states.md)与[骨盆附件](./gameplay/pelvic-attachment.md)共用屏幕／XR 舞台。「保存到角色」只存本页背包；受孕率直接生效，不提交身体草稿。乳房观察默认正面二次元外观，剖面和标注按需。已确认的美术方向看 [PRODUCT](../PRODUCT.md) 和 [DESIGN](../DESIGN.md)，实现入口看[舞台架构](./architecture.md)。
 

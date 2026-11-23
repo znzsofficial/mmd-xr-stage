@@ -1,9 +1,12 @@
 import {Vector3,type Object3D,type SkinnedMesh} from 'three';
 import type {BackpackLive} from '../backpack';
 
+export type CloseUpFocus = 'body' | 'face';
+export type ScreenCloseUp = {active:CloseUpFocus|null; toggle(focus:CloseUpFocus,assetId:string,runtimeId:string):void};
+
 /** A composition only, never contact evidence. Fit the current pose (seated,
  * turned or scaled) instead of putting the lens at a fixed standing height. */
-export function upperBodyView(root:Object3D,live:BackpackLive,aspect:number,focus?:'face'){
+export function upperBodyView(root:Object3D,live:BackpackLive,aspect:number,focus:CloseUpFocus='body'){
   let source:SkinnedMesh|undefined;
   root.traverse(obj=>{const m=obj as SkinnedMesh;if(!source&&m.isSkinnedMesh&&m.skeleton?.bones.length&&!m.userData.mmdOutline&&!m.userData.mmdMaterialRenderProxy)source=m;});
   function joint(re:RegExp){return source?.skeleton.bones.find(b=>[b.userData.mmdBoneName,b.userData.mmdEnglishBoneName,b.name].some(s=>typeof s==='string'&&re.test(s.normalize('NFKC').replace(/[. _-]/g,''))))?.getWorldPosition(new Vector3());}

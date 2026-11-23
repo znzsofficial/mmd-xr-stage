@@ -2,6 +2,7 @@ import {useLanguageStore} from '../../../languageStore';
 import {eggsFor,useConception} from '../../bodyState/reproduction/store';
 import {REFERENCE_TISSUE as tissue} from '../../bodyState/data';
 import {createPictureClock,PICTURE_END,RESULT_REVEAL_SECONDS} from '../../bodyState/reproduction/pictureClock';
+import type {EggReplay} from '../../bodyState/reproduction/eggReplay';
 import {semenColor} from '../../play/semenAppearance';
 import {usePelvic,type PelvicSample} from '../store';
 import {drawPelvicSection,sectionLayout,SECTION_W as W,SECTION_H as H} from '../sectionPaint';
@@ -37,7 +38,7 @@ function sameCanalPose(a:PelvicSample,b:PelvicSample,exterior=false){
 /** One painter for the DOM surface or one reusable XR canvas texture. Discrete
  * input/sample changes wake it; only the diagram's pulse and camera ease need
  * a clock. The UI never writes a simulation sample, even during an orbit. */
-export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasActor,scope:AtlasScope,wake:()=>void,upload:()=>void){
+export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasActor,scope:AtlasScope,wake:()=>void,upload:()=>void,replay?:EggReplay){
   const ctx=canvas.getContext('2d');
   let art:ReturnType<typeof organOutput>|undefined,geometry:ReturnType<typeof sectionLayout>|undefined;
   let view=readAtlasView(assetId),lastL=0,lastR=0,lastYaw=NaN,dirty=true,heading=view.degrees,lastHeading=NaN;
@@ -49,7 +50,7 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
   const observation=scope!=='body'&&scope!=='pelvic';
   const eggLens=scope==='egg',pictureSeconds=scope==='uterus'||eggLens?createPictureClock():undefined;
   const selectedEgg=(s=useConception.getState())=>eggsFor(assetId,s).find(e=>e.id===view.eggId);
-  let lastAge=-1;
+  let lastAge=-1,settlingReplay=false;
   const binding=(s:SocketState)=>actorBinding(s,assetId,runtimeId);
   const observed=(s:SocketState)=>actorRodSample(s,assetId,runtimeId);
   const off=[useAtlasSettings.subscribe((s,p)=>{
@@ -62,6 +63,7 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
     else if(view.degrees!==prev.degrees)wake(); // a continuous orbit still honours the turn rate limit
   }),
     useLanguageStore.subscribe((s,p)=>{if(s.language!==p.language)changed();})];
+  if(eggLens&&replay)off.push(replay.state.subscribe(()=>{if(!settlingReplay)changed();}));
   if(pictureSeconds)off.push(useConception.subscribe((s,p)=>{
     if(eggLens?selectedEgg(s)!==selectedEgg(p):s.byAsset[assetId]?.event!==p.byAsset[assetId]?.event)changed();
   }));
@@ -86,8 +88,10 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
     }
     art?.flush();
     const egg=eggLens?selectedEgg():undefined,event=scope==='uterus'?useConception.getState().byAsset[assetId]?.event:egg?.event;
-    const age=pictureSeconds?.(event,now,v.motion)??PICTURE_END;
-    const anim=mode==='organ'&&scope!=='vagina'&&scope!=='vulva'&&v.motion&&(!eggLens||!!event&&age<PICTURE_END);
+    const liveAge=pictureSeconds?.(event,now,v.motion)??PICTURE_END;
+    const replayAge=eggLens?replay?.sample(event,now,!art?.inFlight):undefined,age=replayAge??liveAge;
+    const moving=replayAge!==undefined?!replay?.state.getState().paused:v.motion;
+    const anim=mode==='organ'&&scope!=='vagina'&&scope!=='vulva'&&moving&&(!eggLens||!!event&&age<PICTURE_END);
     const dt=lastTime===null?0:Math.min(.10,Math.max(0,(now-lastTime)/1000));lastTime=now;
     const remaining=v.degrees-heading;
     heading=!v.motion||Math.abs(remaining)<.15?v.degrees:heading+remaining*(-Math.expm1(-23*dt));
@@ -101,6 +105,7 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
     function publish(alt:string){const angle=`${Math.round(displayedHeading)}°`,name=eggLens?(egg?`${zh?'卵子':'Egg'} ${egg.id}`:zh?'暂无卵子':'No eggs'):scope==='vulva'?(zh?'外阴示意':'Vulva study'):scope==='vagina'?(zh?'阴道剖面':'Vaginal cutaway'):mode==='organ'?(zh?'子宫动态示意':'Uterine study'):mode==='entry'?(zh?'入口对位':'Entry alignment'):(zh?'骨盆测量剖面':'Pelvic measurement'),caption=`${name} · ${angle}${alt?' · '+alt:''}`;
       if(canvas.getAttribute('aria-label')!==caption)canvas.setAttribute('aria-label',caption);
       canvas.dataset.view=observation?scope:mode;canvas.dataset.angle=String(Math.round(displayedHeading));upload();}
+    dirty=false;lastHeading=heading;lastPaint=now;lastAge=age;
     if(mode!=='organ'&&profile){
       const l=sample?.lengthM??profile.calibration.lengthM,r=sample?.radiusM??profile.calibration.radiusM;
       if(!geometry||l!==lastL||r!==lastR||yaw!==lastYaw||geometry.entryFocus!==(mode==='entry')){geometry=sectionLayout(l,r,yaw,mode==='entry');lastL=l;lastR=r;lastYaw=yaw;}
@@ -120,7 +125,11 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
         ctx.save();ctx.scale(canvas.width/W,canvas.height/H);ctx.fillStyle='#211722';ctx.fillRect(0,0,W,H);draw(ctx);
         // The observation sheet sets its live readings in native-size type outside the plate.
           if(observation){ctx.restore();const phase=!event?'':age<RESULT_REVEAL_SECONDS?(zh?'精卵相遇':'Encounter'):event.success?(zh?'已受精':'Fertilized'):(zh?'未受精':'Not fertilized');
-            publish([sample?state:'',phase].filter(Boolean).join(' · '));return;}
+             publish([sample?state:'',phase].filter(Boolean).join(' · '));
+             // Release transport only when the terminal bitmap was displayed.
+             // A frozen live frame may differ and still needs restoring.
+             if(replayAge===PICTURE_END&&replay){settlingReplay=liveAge===age;replay.stop();settlingReplay=false;}
+             return;}
         ctx.font='550 14px system-ui,sans-serif';ctx.fillStyle='#fbe2d8';ctx.textAlign='left';ctx.textBaseline='middle';
          const text=profile?`${state}   ·   ${zh?'深度':'Depth'} ${depth}`:(zh?'子宫结构':'Uterine anatomy');
         ctx.strokeStyle='#674450';ctx.beginPath();ctx.moveTo(9,H-31.5);ctx.lineTo(W-9,H-31.5);ctx.stroke();ctx.fillText(text,10,H-15,profile?W*.60:W-20);
@@ -128,9 +137,8 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
         ctx.restore();publish(`${text}${right?' · '+right:''}`);
       }});
     }
-    dirty=false;lastHeading=heading;lastPaint=now;lastAge=age;
     return anim||turning;
   }
-  return {tick, suspend(){if(lastTime!==null){lastTime=null;dirty=true;art?.discard();}},
+  return {tick, suspend(){replay?.suspend();if(lastTime!==null){lastTime=null;dirty=true;art?.discard();}},
     dispose(){dead=true;off.forEach(f=>f());viewport?.dispose();art?.dispose();lettering.dispose();}};
 }

@@ -13,6 +13,7 @@ import { PrepIcon } from '../prep/PrepIcon';
 import { isPortalRoom, portalHall, resolveScenery } from '../scenery/catalog';
 import { SceneryOptions } from '../scenery/SceneryOptions';
 import { ScreenCamera, type CameraActions } from './ScreenCamera';
+import type {CloseUpFocus} from './upperBodyView';
 import {planetTourGroups,tourShots} from '../scenery/roomViews';
 import { ScreenLibrary } from './ScreenLibrary';
 import { ScreenMusic } from '../music/ScreenMusic';
@@ -45,6 +46,7 @@ export function ScreenStage(){
   const library=useScreenPanels(),resume=useRef<HTMLButtonElement>(null);
   const dialog=useRef<HTMLDialogElement>(null),actions=useRef<CameraActions|null>(null),life=useRef(0);
   const viewport=useRef<HTMLDivElement>(null);
+  const [closeUp,setCloseUp]=useState<CloseUpFocus|null>(null);
   const inspectStand=usePelvic(s=>!!selected&&s.active?.assetId===selected&&s.active.mode!=='xrManual'&&!!(s.parkedSample||s.sample));
   const [cameraReady,setCameraReady]=useState(false),locked=!cameraReady||busy||load.running||physicsBusy||fatal;
   useLayoutEffect(()=>{const el=dialog.current!;el.showModal();viewport.current?.focus({preventScroll:true});return ()=>el.close();},[]);
@@ -61,7 +63,7 @@ export function ScreenStage(){
     <div className="screen-workspace"><div className="screen-picture" ref={viewport} tabIndex={0} role="region" aria-label={t('screenWatch')} aria-describedby="screen-camera-hint"
       onPointerDownCapture={e=>{if(e.target instanceof HTMLCanvasElement)e.currentTarget.focus({preventScroll:true});}}>
       <Canvas gl={{antialias:prefs.antialiasPref!=='off',powerPreference:'high-performance'}} shadows={profile.shadows} dpr={prefs.dprPref==='auto'?[1,1.6]:profile.dpr} camera={{position:[0,1.65,4],near:.03,far:prefs.viewDistance,fov:50}} fallback={<p role="alert">{t('screenWebgl')}</p>}>
-        <MmdVrStageContent/><StoryStations/><BackpackPlacement onScreenPick={library.openItem}/><ScreenCamera actions={actions} onReady={setCameraReady} viewport={viewport}/>
+        <MmdVrStageContent/><StoryStations/><BackpackPlacement onScreenPick={library.openItem}/><ScreenCamera actions={actions} onReady={setCameraReady} onCloseUpChange={setCloseUp} viewport={viewport}/>
       </Canvas>
       <div className="screen-corner"><button aria-expanded={library.bag&&!draft} onClick={()=>{if(draft)useBackpack.getState().cancelPlace();if(library.bag&&!draft)library.close();else library.openBackpack();}}><PrepIcon name="bag"/>{t('hudBackpack')}</button>
          {library.suspended&&!draft&&<button ref={resume} className="screen-resume-preview" onClick={library.openItem}>{t('bodyResume')}</button>}
@@ -75,7 +77,7 @@ export function ScreenStage(){
        {prefs.scenery==='glassPlanet'&&!draft&&<div className="screen-arcade-hint">{t('planetWindHint')}</div>}
        <div id="screen-camera-hint" className="screen-caption" data-camera-help={!message&&!locked&&!draft||undefined} role="status">{message?<><span>{message}</span>{load.failures.length>0&&<button disabled={locked} onClick={stage.retryFailedAssets}>{t('loadRetry')}</button>}{err&&<button onClick={()=>useBackpack.getState().dismissError()}>{t('hudDone')}</button>}</>:locked?t('hudWorking'):draft?<><span>{t('screenAim')}</span>{prefs.scenery!=='arcadeHall'&&<button onClick={()=>actions.current?.center()}>{t('screenCenter')}</button>}<button onClick={()=>useBackpack.getState().cancelPlace()}>{t('hudCancelPlace')}</button></>:<>{t('screenOrbit')}<span className="screen-key-hint">{t('screenCameraKeys')}</span></>}</div>
     </div>{!draft&&(library.visible||library.suspended)&&<ScreenLibrary key={prefs.scenery} view={library.bag?'backpack':'item'} visit={library.visit} suspended={library.suspended} locked={locked}
-      frame={()=>actions.current?.frame()} closeUp={focus=>actions.current?.upperBody(focus)} storyView={isStoryRoom(prefs.scenery)?()=>actions.current?.story():undefined} close={library.close} openItem={library.openItem} openBackpack={library.openBackpack}/>}</div>
+      frame={()=>actions.current?.frame()} closeUp={{active:closeUp,toggle:(...args)=>actions.current?.upperBody(...args)}} storyView={isStoryRoom(prefs.scenery)?()=>actions.current?.story():undefined} close={library.close} openItem={library.openItem} openBackpack={library.openBackpack}/>}</div>
     <div><ScreenMusic/><Transport locked={locked}/></div>
   </dialog>;
 }

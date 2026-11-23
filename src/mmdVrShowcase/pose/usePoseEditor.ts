@@ -2,7 +2,7 @@ import { useLayoutEffect, useState } from 'react';
 import { useHudWorldInput } from '../components/hudWorldInput';
 import { useMmdVrStore } from '../mmdVrStore';
 import { poseActions, usePoseSession } from './poseSession';
-import { posePresets, type PosePresetId } from './presetCatalog';
+import { posePresets, presetGroups, type PosePresetId } from './presetCatalog';
 import type { PoseText } from './poseText';
 
 export type PoseControlsProps = { assetId: string; runtimeId: string; onBack?: () => void };
@@ -43,11 +43,13 @@ export function usePoseEditor({ assetId, runtimeId, onBack }: PoseControlsProps)
 /** The receipt describes the last press on this page, not a permanent preset selection. */
 export function useQuickPoses({ assetId, runtimeId, t, busy, undo }: QuickPoseProps) {
   const [receipt, setReceipt] = useState<PosePresetId | 'undone' | 'unavailable' | null>(null);
-  const choices = posePresets.map(p => ({ id: p.id, label: t.presetName(p), supported: poseActions.canPreset(p.id) }));
-  const last = choices.find(p => p.id === receipt);
-  const status = last ? `${t.applied} · ${last.label}` : receipt === 'undone' ? t.undone : receipt === 'unavailable' ? t.unavailable :
+  const [group, setGroup] = useState<keyof typeof presetGroups>('basic');
+  const groups = (['basic','teasing'] as const).map(id => ({id, label: t[id], active: group === id, select: () => setGroup(id)}));
+  const choices = presetGroups[group].map(p => ({ id: p.id, label: t.presetName(p), supported: poseActions.canPreset(p.id) }));
+  const last = posePresets.find(p => p.id === receipt);
+  const status = last ? `${t.applied} · ${t.presetName(last)}` : receipt === 'undone' ? t.undone : receipt === 'unavailable' ? t.unavailable :
     !busy && choices.some(p => !p.supported) ? t.unsupported : '';
-  return { choices, status,
+  return { choices, groups, status,
     apply: (id: PosePresetId) => setReceipt(poseActions.applyPreset(assetId, runtimeId, id) ? id : 'unavailable'),
     undo: () => { if (undo()) setReceipt('undone'); },
   };

@@ -40,6 +40,13 @@ export function screenWindTravel(look:(direction:Vector3,weight:number,range:num
   }
   return {
     survey,
+    // The tilted shell normal, vertical grotto camera and tracked eye offset
+    // need not agree. Keep the actual footing for a round trip, not an in-flight ride.
+    rememberGround(eye:Vector3){
+      const moon=current(eye);if(!moon)return;
+      const p=traveller.foot.clone(),n=traveller.up.clone(),axis=eyeAxis.clone(),h=height;
+      return ()=>{height=h;stand(moon,p,n,axis);};
+    },
     floorUp(eye:Vector3){return current(eye)?traveller.up:null;},
     jump(eye:Vector3){
       if(ride||leap||hopping)return;

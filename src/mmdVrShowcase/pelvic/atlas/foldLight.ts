@@ -35,7 +35,7 @@ export function exteriorBrush(ctx:CanvasRenderingContext2D,w:number,h:number,ox:
         const axis=u+.28*si-.11*v*v+.095*Math.sin(2.4*v),channel=Math.exp(-axis*axis/.076-.45*v*v);
         const lobe=Math.exp(-((axis+.57-.12*v)**2)/.076-.85*(v-.21)**2)+.83*Math.exp(-((axis-.63-.14*v)**2)/.065-1.08*(v+.18)**2);
         const light=clamp(.35+.32*r+.30*lobe-.23*channel-.065*v),k=4*(y*w+x);
-        rgba[k]=129+100*light;rgba[k+1]=71+87*light;rgba[k+2]=98+81*light;rgba[k+3]=255;
+        rgba[k]=190+56*light;rgba[k+1]=77+94*light;rgba[k+2]=73+87*light;rgba[k+3]=255;
       }
     }
     for(let i=0;i<count;i++){

@@ -5,6 +5,7 @@ import {defaultPelvicCalibration} from '../contract';
 import {useBodyState} from '../../bodyState/store';
 import {DEFAULT_BODY_PROFILE} from '../../bodyState/data';
 import {chanceFor,eggsFor,forceOvulation,recordInternalDose,setConceptionChance,useConception,type ConceptionEvent} from '../../bodyState/reproduction/store';
+import {createEggReplay} from '../../bodyState/reproduction/eggReplay';
 import {atlasPainter} from './painter';
 import {setAtlasView,useAtlasSettings} from './view';
 import {useLanguageStore} from '../../../languageStore';
@@ -89,6 +90,20 @@ it('reopens mid-encounter at the age of the same delivery instead of replaying t
   try{reopened.tick(event.at+7500);expect(lastDraw()).toMatchObject({egg:{event},encounterSeconds:7.5,focus:'egg'});}
   finally{reopened.dispose();}
   expect(useConception.getState().byAsset.a.event).toBe(event);
+});
+
+it('drops obsolete bitmaps at replay start and stop and skips hidden time on the diagram clock',()=>{
+  const event=seedEvent(false),worker=slowWorker(),upload=vi.fn(),replay=createEggReplay();setAtlasView('a',{motion:false});
+  const p=atlasPainter(paper(),actor,'egg',()=>{},upload,replay);
+  try{
+    p.tick(20000);replay.start(event);p.tick(21000);expect(worker.reply().close).toHaveBeenCalledOnce();
+    p.tick(24000);expect(worker.options()).toMatchObject({egg:{event},encounterSeconds:0});expect(upload).not.toHaveBeenCalled();
+    worker.reply();p.tick(28000);expect(worker.options().encounterSeconds).toBe(4);p.suspend();expect(worker.reply().close).toHaveBeenCalledOnce();
+    p.tick(80000);expect(worker.options().encounterSeconds).toBe(4);const stale=worker.reply();replay.stop();
+    p.tick(80100);expect(stale.close).toHaveBeenCalledOnce();expect(upload).toHaveBeenCalledTimes(1);
+    expect(worker.options()).toMatchObject({egg:{event},encounterSeconds:12});worker.reply();expect(p.tick(80200)).toBe(false);
+    expect(upload).toHaveBeenCalledTimes(2);
+  }finally{p.dispose();}
 });
 
 it.each([true,false])('uploads the exact 12-second frame once, then rests (success=%s)',success=>{

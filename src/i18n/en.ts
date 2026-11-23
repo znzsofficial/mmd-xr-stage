@@ -4,6 +4,7 @@ import type { ZhMessages } from "./zh";
 export const en: Record<keyof ZhMessages, string> = {
   actorPelvic:'Pelvic attachment',
   screenInspectStand:'Look at stand',
+  screenCloseUp:'Close-up',screenFrameFace:'Frame face',screenReturnView:'Restore view',
   actorPose:'Pose actor', actorBodyState:'Body settings',
   actorChance:'Conception chance (game)',actorChestShape:'Chest shape',actorMilkStock:'Milk supply',
   bodyPeek:'View on stage',bodyResume:'Preview · resume editing',

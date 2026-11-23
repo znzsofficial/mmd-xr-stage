@@ -18,8 +18,8 @@ type Page='use'|'view'|'fit'|'clothes'|'holder'|'fluid'|'technique';
 const main=(label:string,press:()=>void,disabled=false)=>buttons(key(label,press,{primary:true,disabled}));
 const link=(label:string,press:()=>void)=>buttons(key(label,press));
 
-export type PelvicNavigation={onClothing?:()=>void;onFace?:()=>void;backLabel?:string};
-export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen'|'xr',{onClothing,onFace,backLabel}:PelvicNavigation) {
+export type PelvicNavigation={onClothing?:()=>void;cameraKey?:Pick<Key,'label'|'press'>;backLabel?:string};
+export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen'|'xr',{onClothing,cameraKey,backLabel}:PelvicNavigation) {
   const zh=useLanguageStore(s=>s.language==='zh'),l=(a:string,b:string)=>zh?a:b;
   const [page,go]=useState<Page>('use'),[fit,setFit]=useState<Fit>('position');
   const pending=useRef<(()=>void)|null>(null);
@@ -181,7 +181,7 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen
       if(mode==='standManual')rows.push(field(l('目标深度','Target depth'),Math.max(0,Math.round(target*100)),'%',[0,100],5,n=>jog(n/100),!jogReady||!running&&withdrawFirst));
       rows.push({kind:'depthReading'});
     }
-    rows.push(buttons(key(clothesLabel,onClothing??clothes),...(onFace?[key(l('近看表情','Frame face'),onFace)]:[])));
+    rows.push(buttons(key(clothesLabel,onClothing??clothes),...(cameraKey?[{...cameraKey,id:'actor-camera'}]:[])));
     const takes=!!profile.technique||mode==='standManual'&&ready;
     if(known||takes)rows.push(buttons(...(known?[key(l('更多操作','More controls'),()=>go('holder'))]:[]),
       ...(takes?[key(l('手法录放','Rail takes'),()=>go('technique'))]:[])));

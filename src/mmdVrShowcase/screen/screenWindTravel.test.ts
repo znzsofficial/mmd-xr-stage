@@ -78,3 +78,13 @@ it('the same walk covers less ground at flood on the shell steps but the same di
     expect(dry).toBeGreaterThan(.23);expect(distance(1.45)).toBeCloseTo(dry,6);
   }finally{unbind();}
 });
+
+it('resumes the same first walking step after an actor close-up from a tilted grotto path',()=>{
+  const shot=tideShots.find(s=>s.key==='tideStage')!,travel=screenWindTravel(()=>{},()=>{});
+  const eye=new Vector3().fromArray(shot.eye),dt=1/60;travel.survey(eye,true);
+  function step(){const d=new Vector3(.035,0,0);travel.walk(eye,d,dt);eye.add(d);}
+  step();const saved=eye.clone(),up=travel.floorUp(eye)!.clone(),resume=travel.rememberGround(eye)!;
+  step();const expected=eye.clone();travel.dispose();eye.copy(saved);
+  expect(travel.floorUp(eye)).toBeNull();resume();expect(travel.floorUp(eye)?.distanceTo(up)).toBeLessThan(1e-9);
+  step();expect(eye.distanceTo(expected)).toBeLessThan(1e-6);
+});

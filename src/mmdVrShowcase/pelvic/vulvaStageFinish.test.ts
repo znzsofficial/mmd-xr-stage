@@ -25,11 +25,12 @@ it('places two tapered wet arcs, a shaded root and matte pads on the drawn attac
       expect(sample(site(side,y,14))).toBeGreaterThan(.83);expect(sample(site(side,y,10))).toBeGreaterThan(.73);
     }
     const ink=(i:number)=>new Color().fromBufferAttribute(color as BufferAttribute,i).convertLinearToSRGB().multiplyScalar(255);
-    // Independent mid-sheet swatches in display RGB: keep the plum root and
-    // warm variation; neither a flat old palette nor a baked white stripe.
-    const root=ink(site(-1,.38,9)),crest=ink(site(-1,.38,6)),pad=ink(site(-1,.38,14));
-    expect(root.r).toBeLessThan(188);expect(root.g).toBeLessThan(119);expect(crest.g).toBeGreaterThan(root.g+37);
-    expect(crest.g).toBeLessThan(187);expect(pad.g).toBeGreaterThan(198);
+    // A peach skin margin and coral vestibule are distinct before lighting.
+    // Keep a softer warm shadow at the fold root, not the old purple stripe.
+    const root=ink(site(-1,.38,9)),crest=ink(site(-1,.38,6)),pad=ink(site(-1,.38,14)),inner=ink(site(-1,.38,1));
+    for(const swatch of [pad,root,crest,inner])expect(swatch.g).toBeGreaterThan(swatch.b);
+    expect(inner.r-inner.g).toBeGreaterThan(pad.r-pad.g+45);expect(pad.g).toBeGreaterThan(200);
+    expect(root.r).toBeGreaterThan(194);expect(crest.g-root.g).toBeGreaterThan(12);
   }finally{port.dispose();}
 });
 

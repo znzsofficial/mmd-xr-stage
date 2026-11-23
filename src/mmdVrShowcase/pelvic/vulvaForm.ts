@@ -13,16 +13,16 @@ const headRows=anteriorY.length;
 // Transverse section at the body of each fold. Pigment is fixed to the
 // tissue; shape, rather than a painted line, produces the crests and groove.
 const section=[
-  [0,0,'#ba748d'],[.08,.034,'#e694aa'],[.16,.069,'#efadba'],
-  [.223,.153,'#f3afbf'],[.274,.302,'#f4a5b9'],[.33,.438,'#ffadc1'],
-  [.397,.502,'#ffb6c8'],[.472,.447,'#efa8bc'],[.543,.274,'#dc90a8'],
-  [.617,.134,'#cb829e'],[.714,.086,'#dc95a8'],[.835,.225,'#f0adbb'],
-  [1.005,.414,'#f8b6ba'],[1.225,.535,'#ffc6c0'],[1.45,.49,'#ffd1c6'],
-  [1.635,.34,'#fac9bd'],[1.772,.14,'#f3bdba'],[1.83,-.08,'#e9b2b2'],
-  [1.81,-.21,'#cf9597'],
+  [0,0,'#e97973'],[.08,.034,'#ee8980'],[.16,.069,'#f69c91'],
+  [.223,.153,'#f8a096'],[.274,.302,'#fa9c94'],[.33,.438,'#fda39b'],
+  [.397,.502,'#ffb1a6'],[.472,.447,'#faaa9e'],[.543,.274,'#f19b8d'],
+  [.617,.134,'#eaa08f'],[.714,.086,'#edb09e'],[.835,.225,'#f3c3ae'],
+  [1.005,.414,'#f9cbbd'],[1.225,.535,'#ffd0c7'],[1.45,.49,'#ffd4cb'],
+  [1.635,.34,'#ffd3c9'],[1.772,.14,'#fad0c5'],[1.83,-.08,'#f6cdc0'],
+  [1.81,-.21,'#eac5b5'],
 ] as const;
 export const formColors=section.map(k=>k[2]);
-export const junctionColor='#f7c3bf';
+export const junctionColor='#fad0c4';
 export type FormPoint={x:number;y:number;z:number};
 export const foldStyles=['natural','soft','defined'] as const;
 export type FoldStyle=typeof foldStyles[number];

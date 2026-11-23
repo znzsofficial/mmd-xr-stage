@@ -186,12 +186,19 @@ function makeEditClip(live: SkinnedMesh, rest: ReturnType<typeof bindLocals>, so
       const b=bones[i], name=b.userData.mmdBoneName || b.name;
       return animation.boneTracks[name]===tracks[i] && bones.findIndex(bone=>(bone.userData.mmdBoneName||bone.name)===name)===i;
     },
-    // A built-in posture starts from *inputs*, not the evaluator's last VMD,
-    // frozen IK result, facial bone morph or a previous hand edit.
-    resetToBind() {
-      for (const t of tracks) { t.translations.fill(0); t.rotations.set([0,0,0,1]); t.physicsToggles[0] = -1; }
-      for (const w of morphs) w[0] = 0;
-      morphRuntime?.evaluate(0, editOptions); evaluate();
+    // Reset the pose chains without touching a frozen expression, eye track,
+    // garment morph or physics toggle. Compensate a body bone morph in its
+    // input rather than switching off a (possibly mixed) PMX group morph.
+    resetBodyToBind(inputs: readonly number[]) {
+      for (const i of inputs) { tracks[i].translations.fill(0); tracks[i].rotations.set([0,0,0,1]); }
+      evaluate();
+      for (const i of inputs) {
+        const b=bones[i], r=rest[i];
+        if (r.position.distanceToSquared(b.position)<1e-14 && 1-Math.abs(r.quaternion.dot(b.quaternion))<1e-12) continue;
+        writeInput(i,r.position,r.quaternion);
+        if (grantSources.has(i)) evaluate();
+        else { b.position.copy(r.position); b.quaternion.copy(r.quaternion); }
+      }
     },
     set(i: number, p: Vector3, q: Quaternion) {
       writeInput(i, p, q);

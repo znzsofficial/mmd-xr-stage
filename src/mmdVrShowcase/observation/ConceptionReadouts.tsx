@@ -34,9 +34,10 @@ export function useConceptionReadout(id:string,part:ObservationPart,moving:boole
   const result=!event?(egg?(zh?'待受精':'Available'):(zh?'尚无记录':'No result yet')):pending?(zh?'观察中…':'In progress…'):event.success?(zh?'已受精':'Fertilized'):(zh?'未受精':'Not fertilized');
   const rows=chance===null?[]:[{label:chanceLabel,value:`${chance}%`}];
   if(part==='egg'&&!egg)rows.push({label:zh?'卵子数量':'Egg count',value:`0 / ${MAX_EGGS}`});
-  else rows.push({label:egg?`${zh?'卵子':'Egg'} ${egg.id}`:zh?'最近结果':'Last result',value:result});return rows;
+  else rows.push({label:egg?`${zh?'卵子':'Egg'} ${egg.id}`:zh?'最近结果':'Last result',value:result});
+  return {rows,replayable:part==='egg'&&!pending?egg?.event:undefined};
 }
-type Props={rows:NonNullable<ReturnType<typeof useConceptionReadout>>};
+type Props={rows:NonNullable<ReturnType<typeof useConceptionReadout>>['rows']};
 export function ScreenConceptionReadout({rows}:Props){
   return <dl className="uterus-record" aria-live="polite">{rows.map(r=><div key={r.label}><dt>{r.label}</dt><dd>{r.value}</dd></div>)}</dl>;
 }

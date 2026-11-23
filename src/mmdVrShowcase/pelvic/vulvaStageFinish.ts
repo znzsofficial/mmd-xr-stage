@@ -1,4 +1,4 @@
-import {DataTexture,LinearFilter,LinearMipmapLinearFilter} from 'three';
+import {DataTexture,LinearFilter,LinearMipmapLinearFilter,MeshStandardMaterial} from 'three';
 import {formColors,vulvaHalves} from './vulvaForm';
 import {foldFinish,stageRoughness} from './vulvaFinish';
 
@@ -19,4 +19,16 @@ export function createVulvaRoughness(){
   const texture=new DataTexture(texels??=roughnessField(),width,height);
   texture.name='pelvic:tissue-roughness';texture.magFilter=LinearFilter;texture.minFilter=LinearMipmapLinearFilter;
   texture.generateMipmaps=true;texture.needsUpdate=true;return texture;
+}
+
+export function createTissueMaterial(roughnessMap:DataTexture){
+  const material=new MeshStandardMaterial({name:'pelvic:tissue',vertexColors:true,roughness:1,roughnessMap});
+  // This skin sits against toon-shaded actors. Use the room's soft fill as
+  // the tissue's ambient colour rather than the darker Lambert irradiance/π.
+  // Direct light, occlusion and the narrow specular lobe keep their normals;
+  // the material still goes dark in an unlit room.
+  material.onBeforeCompile=shader=>{shader.fragmentShader=shader.fragmentShader.replace('#include <lights_fragment_end>',
+    '#include <lights_fragment_end>\nreflectedLight.indirectDiffuse *= 1.13 * PI;');};
+  material.customProgramCacheKey=()=>'pelvic-skin-fill-v1';
+  return material;
 }

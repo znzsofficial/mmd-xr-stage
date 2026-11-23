@@ -5,11 +5,16 @@ import {createRequire,registerHooks} from 'node:module';
 import {runInNewContext} from 'node:vm';
 import {createCustomBulletMmdPhysicsBackend} from '@yohawing/three-mmd-loader/physics';
 
-export async function loadNodeBulletStage(buildBackend = createCustomBulletMmdPhysicsBackend) {
-  const app = new URL('../src/',import.meta.url).href, dir = new URL('../public/mmd/0.8.6/',import.meta.url);
-  const {transformSync} = createRequire(import.meta.resolve('vite'))('rolldown/utils');
+export async function createNodeBulletModule(options = {}) {
+  const dir = new URL('../public/mmd/0.8.6/',import.meta.url);
   const factory = runInNewContext(`${readFileSync(new URL('mmd_bullet.js',dir),'utf8')}; MmdBullet`,{console});
-  const bullet = await factory({wasmBinary:readFileSync(new URL('mmd_bullet.wasm',dir))});
+  return factory({wasmBinary:readFileSync(new URL('mmd_bullet.wasm',dir)), ...options});
+}
+
+export async function loadNodeBulletStage(buildBackend = createCustomBulletMmdPhysicsBackend) {
+  const app = new URL('../src/',import.meta.url).href;
+  const {transformSync} = createRequire(import.meta.resolve('vite'))('rolldown/utils');
+  const bullet = await createNodeBulletModule();
   globalThis.__benchBullet = async () => ({module:bullet, createCustomBulletMmdPhysicsBackend:buildBackend});
   const hooks = registerHooks({
     resolve(s,ctx,next) {

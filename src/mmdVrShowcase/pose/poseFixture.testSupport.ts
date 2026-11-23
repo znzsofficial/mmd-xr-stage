@@ -17,7 +17,8 @@ export function poseFixture(partial = false, layer: 'both' | 'body' | 'face' = '
       [side+'Hand', sign*.78, 1.46, 0, partial && side === 'Right' ? -1 : i+1], [side+'Index1', sign*.87, 1.46, 0, i+2],
       [side+'Thigh', sign*.12, .98, 0, 0], [side+'Knee', sign*.12, .51, -.025, i+4], [side+'Foot', sign*.12, .04, 0, i+5]);
   }
-  joints.push(['Sleeve', -.32, 1.4, 0, 11], ['Cloth', -.32, 1.18, 0, 18], ['LegGoal', .12, .10, -.09, -1]);
+  joints.push(['Sleeve', -.32, 1.4, 0, 11], ['Cloth', -.32, 1.18, 0, 18], ['LegGoal', .12, .10, -.09, -1],
+    ['LeftEye', .04, 1.73, -.06, 3]);
   fixed('PMX ',4); vec(2); bytes.push(8,1,0,1,1,1,1,1,1); str('Actor'); str('Actor'); str(''); str('');
   i32(3); for (const x of [-.77,-.8,-.83]) { vec(x,1.45,-.05, 0,0,-1, 0,0); u8(0); u8(13); vec(1); }
   i32(3); bytes.push(0,1,2); i32(0); i32(1); str('sleeve'); str('sleeve');
@@ -38,10 +39,11 @@ export function poseFixture(partial = false, layer: 'both' | 'body' | 'face' = '
   }
   i32(0); const pmx = Uint8Array.from(bytes); bytes.length = 0;
   fixed('Vocaloid Motion Data 0002',30); fixed('Actor',20);
-  i32(layer === 'face' ? 0 : 6);
+  i32(layer === 'face' ? 0 : 8);
   if (layer !== 'face') for (const [name,frame,x,y,z,angle] of [
     ['Pelvis',0,0,0,0,0], ['Pelvis',60,.18,.07,.04,.2], ['RightArm',0,0,0,0,-.12], ['RightArm',60,0,0,0,.55],
     ['RightHand',0,0,0,0,.05], ['RightHand',60,0,0,0,.28],
+    ['LeftEye',0,0,0,0,.24], ['LeftEye',60,0,0,0,.24],
   ] as const) {
     fixed(name,15); i32(frame); vec(x,y,z, 0,0,Math.sin(angle/2),Math.cos(angle/2));
     for(let j=0;j<64;j++) u8(j%16<8?20:107);

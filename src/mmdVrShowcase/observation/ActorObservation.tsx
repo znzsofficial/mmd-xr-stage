@@ -1,6 +1,8 @@
 import {useLayoutEffect,useRef,useState} from 'react';
 import {useLanguageStore} from '../../languageStore';
 import {ObservationDiagram} from './ObservationDiagram';
+import {useEggReplay} from './useEggReplay';
+import {EggReplayKey} from './EggReplayKey';
 import {HudConceptionReadout,ScreenConceptionReadout,useConceptionReadout} from './ConceptionReadouts';
 import {setBreastView,useBreastView} from '../bodyState/breast/view';
 import {areolaNames,areolaStyles} from '../bodyState/breast/art/areola';
@@ -27,7 +29,7 @@ const words={
     freeze:'Freeze figure',play:'Animate figure',drag:'Drag across the figure to rotate',labels:'Labels',cut:'Cutaway',source:'Source',standard:'Default study',preview:'Current preview',saved:'Actor settings',
     fullness:'Fullness',milk:'Stored (L / R)',rod:'Rod',none:'No rod sample',depth:'Inside depth',vaginal:'Vaginal semen',unit:'game u.'},
 };
-function useView({assetId,initialPart='breast'}:ObservationProps){
+function useView({assetId,runtimeId,initialPart='breast'}:ObservationProps){
   const [part,choose]=useState(initialPart);
   const zh=useLanguageStore(s=>s.language==='zh'),t=zh?words.zh:words.en;
   const chest=useBreastView(assetId),atlas=useAtlasView(assetId),breast=part==='breast';
@@ -35,9 +37,11 @@ function useView({assetId,initialPart='breast'}:ObservationProps){
   const view=breast?chest:atlas;
   const set=breast?setBreastView:setAtlasView;
   const {degrees,motion}=view;
-  return {part,choose,t,zh,degrees,motion,turn:(degrees:number)=>set(assetId,{degrees}),
+  const record=useConceptionReadout(assetId,part,motion,true),replay=useEggReplay(assetId,runtimeId,record?.replayable);
+  const moving=replay.playing?!replay.paused:motion;
+  return {part,choose,t,zh,degrees,record,replay,turn:(degrees:number)=>set(assetId,{degrees}),
     eggs:eggs?.map(e=>({label:`${t.egg} ${e.id}`,active:e.id===atlas.eggId,press:()=>setAtlasView(assetId,{eggId:e.id})})),
-    transport:{label:motion?t.freeze:t.play,active:!motion,press:()=>set(assetId,{motion:!motion})},
+    transport:{label:moving?t.freeze:t.play,active:!moving,press:()=>replay.playing?replay.player.pause(moving):set(assetId,{motion:!motion})},
     areola:breast&&!chest.section?areolaStyles.map(style=>({label:areolaNames[zh?'zh':'en'][style],active:style===chest.areolaStyle,
       press:()=>setBreastView(assetId,{areolaStyle:style})})):[],areolaLabel:zh?'乳晕与乳头':'Areola & nipple',
     shapes:part==='vulva'?foldStyles.map(f=>({label:foldNames[zh?'zh':'en'][f],active:f===atlas.foldStyle,press:()=>setAtlasView(assetId,{foldStyle:f})})):[],
@@ -69,7 +73,7 @@ function useReadings(assetId:string,runtimeId:string,{part,zh,t}:ReturnType<type
 
 function Screen(props:ObservationProps){
   const {assetId,runtimeId,onBack,backLabel}=props,actor={assetId,runtimeId};
-  const view=useView(props),{t,part,degrees,turn}=view,record=useConceptionReadout(assetId,part,view.motion,true);
+  const view=useView(props),{t,part,degrees,turn,record,replay}=view;
   const readings=useReadings(assetId,runtimeId,view);
   const sheet=useRef<HTMLDivElement>(null);
   useLayoutEffect(()=>{const sidebar=sheet.current?.closest('.screen-library');if(sidebar)sidebar.scrollTop=0;},[]);
@@ -79,11 +83,12 @@ function Screen(props:ObservationProps){
       <div className="pelvic-nav"><div className="pelvic-keys" role="group" aria-label={t.part}>{parts.map(k=><button className="pelvic-key" type="button" key={k} aria-pressed={part===k} onClick={()=>view.choose(k)}>{t[k]}</button>)}</div></div>
       <div className="pelvic-keys observation-presets" role="group" aria-label={t.angle}>{presets.map(k=><button className="pelvic-key" type="button" key={k} aria-pressed={degrees===atlasAngles[k]} onClick={()=>turn(atlasAngles[k])}>{t[k]}</button>)}</div>
     </div>
-    <figure><ObservationDiagram key={part} {...actor} part={part} loading={view.zh?'正在绘制图像…':'Drawing figure…'}/>
+    <figure><ObservationDiagram key={part} {...actor} part={part} replay={part==='egg'?replay.player:undefined} loading={view.zh?'正在绘制图像…':'Drawing figure…'}/>
       <figcaption>{t.drag}<output aria-label={t.angle}>{degrees}°</output></figcaption></figure>
     {!!view.eggs?.length&&<div className="pelvic-keys" role="group" aria-label={t.egg}>{view.eggs.map(e=><button type="button" className="pelvic-key" key={e.label} aria-pressed={e.active} onClick={e.press}>{e.label}</button>)}</div>}
-    {record&&<ScreenConceptionReadout rows={record}/>}
-    <div className="pelvic-keys">{[view.transport,...view.options].map(a=><button type="button" className="pelvic-key" key={a===view.transport?'transport':a.label} aria-pressed={a.active} onClick={a.press}>{a.label}</button>)}</div>
+    {record&&<ScreenConceptionReadout rows={record.rows}/>}
+    <div className="pelvic-keys">{[view.transport,...view.options].map(a=><button type="button" className="pelvic-key" key={a===view.transport?'transport':a.label} aria-pressed={a.active} onClick={a.press}>{a.label}</button>)}
+      {part==='egg'&&<EggReplayKey replay={replay}/>}</div>
     {view.areola.length>0&&<fieldset className="observation-areola"><legend>{view.areolaLabel}</legend><div className="pelvic-keys">{view.areola.map(a=><button type="button" key={a.label} className="pelvic-key" aria-pressed={a.active} onClick={a.press}>{a.label}</button>)}</div></fieldset>}
     {view.shapes.length>0&&<div role="group" aria-label={view.zh?'外阴外形':'Fold shape'} className="pelvic-keys observation-presets">{view.shapes.map(s=><button type="button" key={s.label} className="pelvic-key" aria-pressed={s.active} onClick={s.press}>{s.label}</button>)}</div>}
     {readings.length>0&&<dl>{readings.map(r=><div key={r.label}><dt>{r.label}</dt><dd>{r.value}</dd></div>)}</dl>}
@@ -92,7 +97,7 @@ function Screen(props:ObservationProps){
 
 function Hud(props:ObservationProps){
   const {assetId,runtimeId,onBack,backLabel}=props,actor={assetId,runtimeId};
-  const view=useView(props),{t,part,degrees,turn}=view,record=useConceptionReadout(assetId,part,view.motion,true);
+  const view=useView(props),{t,part,degrees,turn,record,replay}=view;
   const readings=useReadings(assetId,runtimeId,view);
   // Back, part, angle and artwork stay fixed. The exterior style row has its
   // own space between the bottom of the picture and the first measurement.
@@ -110,7 +115,7 @@ function Hud(props:ObservationProps){
     {parts.map((k,i)=><PrivateButton key={k} position={[(i-2)*.291,.408,0]} size={[.273,.145]} label={t[k]} active={part===k} variant="tab" onPress={()=>view.choose(k)}/>)}
     {presets.map((k,i)=><PrivateButton key={k} position={[left+(i-1)*.295,.222,0]} size={[.273,.142]} label={t[k]} active={degrees===atlasAngles[k]} onPress={()=>turn(atlasAngles[k])}/>)}
     <PrivateButton position={[right,.222,0]} size={[rail,.142]} label={view.transport.label} active={view.transport.active} onPress={view.transport.press}/>
-    <group position={[left,-.194,0]}><ObservationDiagram key={part} {...actor} part={part} widthM={art} loading={view.zh?'正在绘制图像…':'Drawing figure…'}/></group>
+    <group position={[left,-.194,0]}><ObservationDiagram key={part} {...actor} part={part} replay={part==='egg'?replay.player:undefined} widthM={art} loading={view.zh?'正在绘制图像…':'Drawing figure…'}/></group>
     <PrivateLine position={[right,.04,0]} width={rail} text={t.angle} value={`${degrees}°`}/>
     <PrivateSlider position={[right,-.088,0]} width={rail} disabled={false} value={(degrees+90)/180} onChange={v=>turn(v*180-90)}/>
     {view.options.map((a,i)=><PrivateButton key={a.label} position={[right,-.26-i*.17,0]} size={[rail,.14]} label={a.label} active={a.active} onPress={a.press}/>)}
@@ -120,7 +125,8 @@ function Hud(props:ObservationProps){
       <PrivateLine position={[-.455,0,0]} width={.50} text={view.areolaLabel}/>
       {view.areola.map((a,i)=><PrivateButton key={a.label} position={[.028+i*.462,0,0]} size={[.43,.14]} label={a.label} active={a.active} onPress={a.press}/>)}
     </group>}
-    {record&&<group position-y={recordY}><HudConceptionReadout rows={record} width={1.41}/></group>}
+    {record&&<group position={[part==='egg'?left:0,recordY,0]}><HudConceptionReadout rows={record.rows} width={part==='egg'?art:1.41}/></group>}
+    {part==='egg'&&<EggReplayKey replay={replay} position={[right,recordY-.054,0]} width={rail}/>}
     {rod&&<PrivateLine position={[0,rodY,0]} width={1.41} text={rod.label} value={rod.value}/>}
     {fields.map((r,i)=><PrivateLine key={r.label} position={[(i%2-.5)*.736,firstY-Math.floor(i/2)*.11,0]} width={.68} text={r.label} value={r.value}/>)}
   </group>;

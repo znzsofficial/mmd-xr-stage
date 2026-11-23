@@ -3,7 +3,7 @@ import { createSealShell, makeCarriage, makeStandFoot, makeTracks } from './rigA
 import { pelvicSeal, type PelvicContact, type PelvicFrame } from './geometry';
 import {readAtlasView} from './atlas/view';
 import type {FoldStyle,RimState} from './vulvaForm';
-import {createVulvaRoughness} from './vulvaStageFinish';
+import {createTissueMaterial,createVulvaRoughness} from './vulvaStageFinish';
 
 const closed:PelvicContact={inside:false,depthM:0,atCervix:false,outletInside:false,outletVisible:false,outletLocal:new Vector3(),shaftLocal:[]};
 const parentInverse=new Matrix4();
@@ -18,7 +18,7 @@ export function placeWorld(node:Object3D,world:Matrix4){
 export function createPortDrawing(host:Object3D,assetId:string){
   const group=new Group();group.name=`pelvic:adapter:${assetId}`;group.visible=false;host.add(group);
   const finish=createVulvaRoughness();
-  const shellMaterial=new MeshStandardMaterial({name:'pelvic:tissue',vertexColors:true,roughness:1,roughnessMap:finish});
+  const shellMaterial=createTissueMaterial(finish);
   const seed={radiusM:.02},seal=pelvicSeal(seed,closed,true)!,shell=createSealShell();
   const molded=new Mesh(shell.geom,shellMaterial);molded.name='pelvic:seal';group.add(molded);
   const mark=new Mesh(new TorusGeometry(1,.055,8,40),new MeshStandardMaterial({color:'#6dc6bd',roughness:.64,wireframe:false}));

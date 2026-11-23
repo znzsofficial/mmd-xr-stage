@@ -7,12 +7,13 @@ import {WardrobeScreenControls,WardrobeHudControls} from '../wardrobe/WardrobeCo
 import {MilkScreenControls,MilkHudControls} from './MilkInteraction';
 import {BodyScreenControls,BodyHudControls} from '../bodyState/BodyControls';
 import type {ObservationAtlasPart} from '../pelvic/atlas/painter';
+import type {ScreenCloseUp} from '../screen/upperBodyView';
 
 export type ActivityEntry='wardrobe'|'interact'|'observe';
 const activities=[['insert','actorInsert'],['milk','actorMilk']] as const;
 const settings=[['chest','actorChestShape'],['milkSettings','actorMilkStock']] as const;
 type Page=ActivityEntry|typeof activities[number][0]|typeof settings[number][0];
-type Props={assetId:string;runtimeId:string;entry:ActivityEntry;onBack:()=>void;onCloseUp?:(focus?:'face')=>void;hud?:boolean;suspended?:boolean;onPeek?:()=>void};
+type Props={assetId:string;runtimeId:string;entry:ActivityEntry;onBack:()=>void;closeUp?:ScreenCloseUp;hud?:boolean;suspended?:boolean;onPeek?:()=>void};
 
 function ScreenPage({page,children}:{page:Page;children:ReactNode}){
   const host=useRef<HTMLDivElement>(null);
@@ -28,7 +29,7 @@ function ScreenPage({page,children}:{page:Page;children:ReactNode}){
 
 /** A short actor-local trail. Returning from clothing or a diagram goes back
  * to the initiating interaction; the mounted room still owns its simulation. */
-function ActivityTrail({entry,onBack,onCloseUp,hud=false,suspended,onPeek,...actor}:Props){
+function ActivityTrail({entry,onBack,closeUp,hud=false,suspended,onPeek,...actor}:Props){
   const t=useLanguageStore(s=>s.t),[trail,setTrail]=useState<readonly Page[]>([entry]);
   const [part,select]=useState<ObservationAtlasPart>('uterus');
   const page=trail[trail.length-1],previous=trail[trail.length-2];
@@ -36,12 +37,14 @@ function ActivityTrail({entry,onBack,onCloseUp,hud=false,suspended,onPeek,...act
   const back=()=>{if(!previous)onBack();else setTrail(old=>old.slice(0,-1));};
   const backLabel=t(previous==='insert'?'backToInsert':previous==='milk'?'backToMilk':previous==='interact'?'backToInteraction':'actorBack');
   const child={...actor,onBack:back,backLabel};
+  const focus=page==='insert'?'face':'body';
+  const cameraKey=!hud&&closeUp?{label:t(closeUp.active===focus?'screenReturnView':focus==='face'?'screenFrameFace':'screenCloseUp'),press:()=>closeUp.toggle(focus,actor.assetId,actor.runtimeId)}:undefined;
   let content:ReactNode;
   switch(page){
     case 'wardrobe': {const View=hud?WardrobeHudControls:WardrobeScreenControls;content=<View {...child}/>;break;}
     case 'observe': {const View=hud?ObservationHudControls:ObservationScreenControls;content=<View {...child}/>;break;}
-    case 'insert': {const View=hud?PelvicHudControls:PelvicScreenControls;content=<View {...child} lens={{part,select}} onClothing={()=>go('wardrobe')} onFace={onCloseUp&&(()=>onCloseUp('face'))}/>;break;}
-    case 'milk': {const View=hud?MilkHudControls:MilkScreenControls;content=<View {...child} onObserve={()=>go('observe')} onClothing={()=>go('wardrobe')} onCloseUp={onCloseUp}/>;break;}
+    case 'insert': {const View=hud?PelvicHudControls:PelvicScreenControls;content=<View {...child} lens={{part,select}} onClothing={()=>go('wardrobe')} cameraKey={cameraKey}/>;break;}
+    case 'milk': {const View=hud?MilkHudControls:MilkScreenControls;content=<View {...child} onObserve={()=>go('observe')} onClothing={()=>go('wardrobe')} cameraKey={cameraKey}/>;break;}
     case 'chest':case 'milkSettings': {
       const initialSection=page==='milkSettings'?'milk':page;
       content=hud?<BodyHudControls {...child} initialSection={initialSection} suspended={suspended} onPeek={onPeek}/>:

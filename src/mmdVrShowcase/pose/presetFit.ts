@@ -21,6 +21,7 @@ function transport(a:Vector3,b:Vector3,to:Vector3,towards:Vector3) {
     return new Quaternion().setFromUnitVectors(a.clone().normalize(),to.clone().normalize());
   return basis(to,towards).multiply(basis(a,b).invert());
 }
+function rise(v:Vector3,dy:number){const y=Math.max(-1,Math.min(1,v.y+dy));return v.setY(0).normalize().multiplyScalar(Math.sqrt(1-y*y)).setY(y);}
 
 /** Reuse the editor's single private evaluator. Only the common skeleton
  * driver can translate; all other joints turn around their real pivots. */
@@ -54,7 +55,7 @@ export function fitPresets(source:SkinnedMesh, clip:ReturnType<typeof bindPoseCl
   const regions=new Map<Bone,Region>();
   function mark(from:Bone,to:Bone,part:Region) {for(let b=from;b?.isBone;b=b.parent as Bone){regions.set(b,part);if(b===to)break;}}
   for(const b of body)mark(b,driver,'trunk');
-  const measures=new Map<Limb,{upper:Vector3;a:number;b:number;end:Vector3}>();
+  const measures=new Map<Limb,{upper:Vector3;a:number;b:number;end:Vector3;palmLength:number}>();
   for(const k of keys){
     const l=limb[k],hand=k.endsWith('Hand'),side=k.startsWith('left')?'left':'right';
     mark(l.tip,l.base,`${side}${hand?'Arm':'Leg'}`);regions.set(l.tip,k);
@@ -64,8 +65,15 @@ export function fitPresets(source:SkinnedMesh, clip:ReturnType<typeof bindPoseCl
     let end=hand?lower.clone():bindFront.clone();
     if(digits.length)end=rest(digits[0]).sub(rest(l.tip));
     if(end.lengthSq()<1e-12)end.copy(hand?lower:bindFront);
-    measures.set(l,{upper:upper.normalize(),a,b,end:end.normalize()});
+    const palmLength=hand && digits.length ? Math.min(.075*height,end.length()) : .047*height;
+    measures.set(l,{upper:upper.normalize(),a,b,end:end.normalize(),palmLength});
   }
+  const bodyInputs=bones.flatMap((b,i)=>{
+    // PMX IK/append donors also live on independent root branches. Reset
+    // them along with normal body tracks; retain eye/jaw/facial FK inputs.
+    const facial= b!==head && within(b,head) || /両目|[左右]目|^(?:(?:left|right|both|all)?eyes?|eyes?(?:left|right|[lr])|jaw)$/i.test(b.name);
+    return facial?[]:[i];
+  });
   const faceBone=neck&&within(head,neck)&&within(neck,torso)?neck:head;
   let skin:ReturnType<typeof createPresetSurface>|undefined, floor:number|undefined;
   function chain(l:Limb,hand:boolean,upper:Vector3,lower:Vector3) {
@@ -85,10 +93,10 @@ export function fitPresets(source:SkinnedMesh, clip:ReturnType<typeof bindPoseCl
     chain(l,hand,joint.clone().normalize(),ray.multiplyScalar(d).sub(joint).normalize());
   }
   return (id:PosePresetId)=>{
-    const s=presetShapes[id]; clip.resetToBind();
+    const s=presetShapes[id]; clip.resetBodyToBind(bodyInputs);
     skin??=createPresetSurface(source,clip.mesh,regions);
     if(floor===undefined){
-      const g=skin(), foot=Math.min(g.leftFoot,g.rightFoot), ankle=Math.min(pos(limb.leftFoot.tip).y,pos(limb.rightFoot.tip).y);
+      const g=skin.minima(), foot=Math.min(g.leftFoot,g.rightFoot), ankle=Math.min(pos(limb.leftFoot.tip).y,pos(limb.rightFoot.tip).y);
       floor=Number.isFinite(foot)&&Math.abs(ankle-foot)<.13*height?foot:Math.abs(ankle)<.13*height?0:ankle-.03*height;
     }
     for(const b of [driver,faceBone,...keys.flatMap(k=>[limb[k].base,limb[k].tip])])remember(b);
@@ -100,7 +108,7 @@ export function fitPresets(source:SkinnedMesh, clip:ReturnType<typeof bindPoseCl
     function digits(l:Limb,hand:boolean,sign:number){
       const pair=hand?s.palm:s.foot;if(!pair)return;
       const m=measures.get(l)!;
-      orient(l.tip,transport(m.end,bindUp,dir(pair[0],id==='side'?1:sign),dir(pair[1])).multiply(boneQ.get(l.tip)!));
+      orient(l.tip,transport(m.end,bindUp,dir(pair[0],s.support==='side'?1:sign),dir(pair[1])).multiply(boneQ.get(l.tip)!));
     }
     for(const k of keys){
       const l=limb[k],hand=k.endsWith('Hand'),right=k.startsWith('right'),override=right&&(hand?s.rightArm:s.rightLeg);
@@ -108,7 +116,7 @@ export function fitPresets(source:SkinnedMesh, clip:ReturnType<typeof bindPoseCl
       chain(l,hand,dir(pair[0],override?1:sign),dir(pair[1],override?1:sign));digits(l,hand,sign);
     }
     function contacts(){
-      const g=skin!();
+      const g=skin!.minima();
       // Sparse or synthetic actors need a contact even when only one limb has
       // drawn vertices. Otherwise prefer the actual weighted skin over a pad.
       const trunk=Math.min(hip().y,pos(head!).y,pos(limb.leftHand.base).y,pos(limb.rightHand.base).y);
@@ -119,15 +127,15 @@ export function fitPresets(source:SkinnedMesh, clip:ReturnType<typeof bindPoseCl
         pad(`${side}Arm`,pos(arm.joint).y,0);pad(`${side}Hand`,pos(arm.tip).y,.013);
       }return g;
     }
-    const c=contacts(),support=s.support==='knees'?Math.max(c.leftLeg,c.rightLeg):s.support==='feet'?Math.max(c.leftFoot,c.rightFoot):c.trunk;
+    const c=contacts(),support=s.support==='knees'?Math.max(c.leftLeg,c.rightLeg):s.support==='feet'?Math.max(c.leftFoot,c.rightFoot):
+      id==='sideLegLift'?Math.min(c.trunk,c.rightArm):c.trunk;
     for(const side of sides){
       const sign=side==='left'?1:-1,leg=limb[`${side}Foot`],arm=limb[`${side}Hand`];
       const legFloor=c[`${side}Leg`],footFloor=c[`${side}Foot`];
-      if(s.support==='knees'){
-        // A single vertical shift cannot plant two differently sized legs.
-        // Fit each thigh to the common knee plane, each shin back to the instep.
+      if(s.support==='knees'||id==='sideLegLift'&&side==='right'){
+        // A global shift can't plant different length legs or bring a long
+        // side-lying leg level with the supporting shoulder. Fit both segments.
         const {a,b}=measures.get(leg)!,kneeRise=support-legFloor;
-        function rise(v:Vector3,dy:number){const y=Math.max(-1,Math.min(1,v.y+dy));return v.setY(0).normalize().multiplyScalar(Math.sqrt(1-y*y)).setY(y);}
         chain(leg,false,rise(between(leg.base,leg.joint).normalize(),kneeRise/a),rise(between(leg.joint,leg.tip).normalize(),(support-footFloor-kneeRise)/b));digits(leg,false,sign);
       }else if(id==='supine'||s.support==='feet'&&Math.abs(support-footFloor)>height*1e-5){
         const foot=pos(leg.tip); foot.y+=support-footFloor;
@@ -139,6 +147,32 @@ export function fitPresets(source:SkinnedMesh, clip:ReturnType<typeof bindPoseCl
       }else if(id==='straddle'||id==='standingLean'){
         const p=pos(leg.joint).lerp(pos(leg.base),id==='straddle'?.32:.19).addScaledVector(floorFront,.026*height);
         reach(arm,true,p,dir([.65,.23,-.80],sign));
+      }else if(id==='forearmKneel'){
+        // Plant the two ends separately: wrist-only IK can put a palm down
+        // with its elbow still in the air like the old all-fours pose.
+        const {a,b}=measures.get(arm)!,elbowRise=support-c[`${side}Arm`];
+        chain(arm,true,rise(between(arm.base,arm.joint).normalize(),elbowRise/a),
+          rise(between(arm.joint,arm.tip).normalize(),(support-c[`${side}Hand`]-elbowRise)/b));
+        digits(arm,true,sign);
+      }else if(id==='thighCradle'||id==='sideLegLift'&&side==='left'){
+        const cradle=id==='thighCradle', along=between(leg.base,leg.joint).normalize();
+        const normal=cradle?dir([-1,.17,-.15],sign):dir([-.91,.36,-.16]);
+        normal.addScaledVector(along,-along.dot(normal)).normalize();
+        const center=pos(leg.base).lerp(pos(leg.joint),cradle?.72:.54),m=measures.get(arm)!;
+        const pad=skin.outset(`${side}Leg`,center,normal,height,.050);
+        const wrist=center.addScaledVector(normal,pad+.009*height).addScaledVector(along,-.70*m.palmLength);
+        reach(arm,true,wrist,dir(cradle?[.84,.03,.50]:[-.84,.12,-.52],sign));
+        orient(arm.tip,transport(m.end,bindUp,along,normal).multiply(boneQ.get(arm.tip)!));
+      }else if(id==='coveredKneel'){
+        // Cross the forearms in two bands. Measure the front of the posed
+        // chest near the middle of each forearm, not just at the far wrist.
+        const shoulders=pos(limb.leftHand.base).lerp(pos(limb.rightHand.base),.5);
+        const band=shoulders.addScaledVector(up,-height*(sign===1?.077:.124));
+        const m=measures.get(arm)!,outer=skin.outset('trunk',band.clone().addScaledVector(floorLeft,.065*height*sign),front,height,.10);
+        const across=floorLeft.clone().multiplyScalar(-sign);
+        const wrist=band.addScaledVector(across,.074*height).addScaledVector(front,outer+.014*height);
+        reach(arm,true,wrist,dir([.90,-.28,.64],sign));
+        orient(arm.tip,transport(m.end,bindUp,across,front).multiply(boneQ.get(arm.tip)!));
       }
     }
     const low=Math.min(...Object.values(contacts())), shift=home.clone().sub(hip()).setY(floor-low);

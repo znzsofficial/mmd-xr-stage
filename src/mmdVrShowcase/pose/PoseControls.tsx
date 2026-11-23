@@ -59,9 +59,11 @@ export function PoseScreenControls(props: PoseControlsProps) {
 }
 
 function QuickPoses(props: QuickPoseProps) {
-  const { choices, status, apply, undo } = useQuickPoses(props);
+  const { choices, groups, status, apply, undo } = useQuickPoses(props);
   return <>
-    <div className="pose-presets" role="group" aria-label={props.t.presets}>{choices.map(p =>
+    <div className="pose-presets" role="group" aria-label={props.t.presets}>{groups.map(g =>
+      <button key={g.id} aria-pressed={g.active} disabled={props.busy} onClick={g.select}>{g.label}</button>)}</div>
+    <div className="pose-presets pose-choices" role="group" aria-label={groups.find(g => g.active)?.label}>{choices.map(p =>
       <button key={p.id} disabled={props.busy || !p.supported} onClick={() => apply(p.id)}>{p.label}</button>)}</div>
     <div className="pose-receipt"><span role="status">{status}</span><button disabled={props.busy || !props.canUndo} onClick={undo}>{props.t.undo}</button></div>
   </>;

@@ -26,16 +26,16 @@ export function createSealShell(){
     }
   }
   for(const [h,{rows,side}] of vulvaHalves.entries())grid(h*rows.length*columns,rows.length,columns,side);
-  const coral=new Color('#ef8da6'),blossom=new Color('#ffbdc5'),groove=new Color('#a05f7c'),rose=new Color('#ce819e');
+  const coral=new Color('#f78e85'),blossom=new Color('#f9c3ac'),groove=new Color('#cb7667'),rose=new Color('#e39c89');
   sites.forEach((s,i)=>{
     tint.copy(colors[i%columns]).lerp(skin,s.blend).lerp(coral,.82*s.glans+.10*s.meatus).lerp(blossom,.60*s.hood)
-      .lerp(rose,.63*s.undercurl).lerp(groove,.94*s.well).multiplyScalar(1-.12*s.contactShade).toArray(pigment,i*3);
+      .lerp(rose,.63*s.undercurl).lerp(groove,.94*s.well).multiplyScalar(1-.075*s.contactShade).toArray(pigment,i*3);
     // A single continuous chart across the welded midline. Each material
     // station lands at its texel centre, including the uneven terminal rows.
     uv[2*i]=(columns-.5+s.side*(i%columns))/(2*columns-1);
     uv[2*i+1]=(Math.floor(i/columns)%rowCount+.5)/rowCount;
   });
-  const dye=new Float32BufferAttribute(pos.count*3,3),pearl=new Color('#ffcfcc');
+  const dye=new Float32BufferAttribute(pos.count*3,3),pearl=new Color('#ffc1ae');
   const saturate=(v:number)=>Math.max(0,Math.min(1,v));
   // Mix the optional rim first. Its finished colour is intrinsic linear RGB,
   // shared by the stage and the drawing; neither stores a lit/highlight colour.

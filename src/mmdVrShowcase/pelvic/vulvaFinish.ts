@@ -12,7 +12,7 @@ function makeFinish(){
     const by=gathered*(.17*Math.cos(phase)+.078*Math.cos(phase*.51+.36*k));
     const bx=gathered*(.073*Math.cos(phase)*side+.041*Math.sin(phase*.6));
     const inner=bell((k-4.6)/5.35)*bell((y-.16)/1.47),root=bell((k-9.45)/1.06)*bell((y-.14)/1.44)*(.77+.23*Math.sin(2.65*y+.55*side));
-    const tone=1-.169*root-.1*bell((y-2.078)/.067)*bell(x/.245);
+    const tone=1-.089*root-.068*bell((y-2.078)/.067)*bell(x/.245);
     const variation=.55*Math.sin(5.7*y+2.5*x+.48*Math.sin(2.7*x))+.27*Math.sin(3.8*y-5.4*x+.6)+.18*Math.sin(8.7*y+3.1*x-.4);
     const warm=inner*(.63+.28*variation);
     const arc=side<0?.89*bell((y-.38)/.65)+.36*bell((y+1.02)/.29):.55*bell((y-.77)/.41)+.42*bell((y+.56)/.36);

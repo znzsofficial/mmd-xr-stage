@@ -9,6 +9,8 @@ import {PrivateButton,PrivateLine} from '../pelvic/HudPrivateControls';
 import {HudField,ScreenField} from '../pelvic/WorkbenchField';
 import {atlasAngles,setAtlasView,useAtlasView} from '../pelvic/atlas/view';
 import {ObservationDiagram} from './ObservationDiagram';
+import {useEggReplay} from './useEggReplay';
+import {EggReplayKey} from './EggReplayKey';
 import type {ObservationAtlasPart} from '../pelvic/atlas/painter';
 import {enablePelvic,patchPelvic,usePelvic} from '../pelvic/store';
 import {HudConceptionReadout,ScreenConceptionReadout,useConceptionReadout} from './ConceptionReadouts';
@@ -41,7 +43,8 @@ function useMonitor({assetId:id,runtimeId,lens,blocked}:Props,source:'screen'|'x
     return !p||!key||p.container===key?'':`${key==='fantasyUterine'?t.uterine:t.vaginal}　${p.fluid[key]} / ${p.capacity[key]}`;
   });
   const record=useConceptionReadout(id,part,view.motion,false);
-  return {part,choose,t,record:part==='egg'&&!eggs.length?null:record,balance,blocked,heading:t[part],degrees:view.degrees,turn:(k:typeof angles[number])=>setAtlasView(id,{degrees:atlasAngles[k]}),
+  const replay=useEggReplay(id,runtimeId,record?.replayable);
+  return {part,choose,t,record:part==='egg'&&!eggs.length?null:record,replay,balance,blocked,heading:t[part],degrees:view.degrees,turn:(k:typeof angles[number])=>setAtlasView(id,{degrees:atlasAngles[k]}),
     eggs,eggId:view.eggId,count:`${eggs.length} / ${MAX_EGGS}`,selectEgg:(eggId:number)=>setAtlasView(id,{eggId}),
     ovulate:()=>{if(canEdit()&&forceOvulation(id,runtimeId)){
       const added=eggsFor(id).at(-1);if(added)setAtlasView(id,{eggId:added.id});
@@ -59,14 +62,15 @@ export function LivePelvicScreenView(props:Props){
     {choices}
     <div className="live-pelvic-heading"><h4><span>{m.heading}</span><small>{part==='egg'?m.count:m.balance}</small></h4>
       {part==='egg'&&<button className="pelvic-key live-ovulate" type="button" disabled={m.blocked||m.eggs.length>=MAX_EGGS} onClick={m.ovulate}>{t.ovulate}</button>}</div>
-    <div className="live-monitor-body"><ObservationDiagram key={part} assetId={props.assetId} runtimeId={props.runtimeId} part={part} loading={t.loading}/>
+    <div className="live-monitor-body"><ObservationDiagram key={part} assetId={props.assetId} runtimeId={props.runtimeId} part={part} replay={part==='egg'?m.replay.player:undefined} loading={t.loading}/>
     {part==='vulva'&&<div className="live-pelvic-rim" role="group" aria-label={t.rim}><div><span>{t.rim}</span> <small>{m.rimNote}</small></div><div className="pelvic-keys">{rims.map(k=><button type="button" key={k} className="pelvic-key" aria-pressed={k===m.rim} disabled={m.blocked} onClick={()=>m.setRim(k)}>{t[k]}</button>)}</div></div>}
     <div className="pelvic-keys live-pelvic-angles" role="group" aria-label={t.angle}>{angles.map(k=><button type="button" key={k} className="pelvic-key" aria-pressed={m.degrees===atlasAngles[k]} onClick={()=>m.turn(k)}>{t[k]}</button>)}</div>
     <div className="live-monitor-detail">
     {part==='egg'&&<div className="live-pelvic-eggs"><div className="pelvic-keys live-egg-choices" role="group" aria-label={t.egg}>
       {m.eggs.map(egg=><button type="button" key={egg.id} className="pelvic-key" aria-pressed={egg.id===m.eggId} onClick={()=>m.selectEgg(egg.id)}>{`${t.egg} ${egg.id}`}</button>)}</div>
       <ScreenField row={m.chance} blocked={m.blocked}/></div>}
-    {m.record&&<ScreenConceptionReadout rows={m.record}/>}</div></div>
+    {m.record&&<ScreenConceptionReadout rows={m.record.rows}/>}
+    {part==='egg'&&<EggReplayKey replay={m.replay}/>}</div></div>
   </section>;
 }
 
@@ -80,12 +84,13 @@ export function LivePelvicHudView({widthM:w,...props}:Props&{widthM:number}){
     {parts.map((k,i)=><PrivateButton key={k} position={[cols(4,i),-.069,0]} size={[w/4-.014,.137]} label={t[k]} active={k===part} variant="lens" onPress={()=>m.choose(k)}/>)}
     <PrivateLine position={[egg?-w*.29:0,-.218,0]} width={egg?w*.42:w} text={m.heading} value={egg?m.count:m.balance} title/>
     {egg&&<PrivateButton position={[w*.226,-.221,0]} size={[w*.548,.135]} label={t.ovulate} onPress={m.ovulate} disabled={m.blocked||m.eggs.length>=MAX_EGGS}/>}
-    <group position-y={-(egg?.30:.275)-pictureW*.41}><ObservationDiagram key={part} assetId={props.assetId} runtimeId={props.runtimeId} part={part} widthM={pictureW} loading={t.loading}/></group>
+    <group position-y={-(egg?.30:.275)-pictureW*.41}><ObservationDiagram key={part} assetId={props.assetId} runtimeId={props.runtimeId} part={part} replay={egg?m.replay.player:undefined} widthM={pictureW} loading={t.loading}/></group>
     {vulva&&<><PrivateLine position={[0,-1.196,0]} width={w} text={t.rim} value={m.rimNote}/>
       {rims.map((k,i)=><PrivateButton key={k} position={[cols(3,i),-1.327,0]} size={[w/3-.018,.135]} label={t[k]} active={k===m.rim} disabled={m.blocked} variant="lens" onPress={()=>m.setRim(k)}/>)}</>}
     {angles.map((k,i)=><PrivateButton key={k} position={[cols(3,i),vulva?-1.489:egg?-1.063:-1.212,0]} size={[w/3-.018,.135]} label={t[k]} active={m.degrees===atlasAngles[k]} variant="lens" onPress={()=>m.turn(k)}/>)}
     {egg&&<>{m.eggs.map((e,i)=><PrivateButton key={e.id} position={[cols(3,i),-1.22,0]} size={[w/3-.018,.135]} label={`${t.egg} ${e.id}`} active={e.id===m.eggId} variant="lens" onPress={()=>m.selectEgg(e.id)}/>)}
       <group position-y={-1.40}><HudField row={m.chance} blocked={m.blocked} width={w}/></group></>}
-    {m.record&&<group position-y={egg?-1.60:-1.365}><HudConceptionReadout rows={m.record} width={w}/></group>}
+    {m.record&&<group position={[egg?-w*.268:0,egg?-1.62:-1.365,0]}><HudConceptionReadout rows={m.record.rows} width={egg?w*.464:w}/></group>}
+    {egg&&<EggReplayKey replay={m.replay} position={[w*.24,-1.62,0]} width={w*.52}/>}
   </group>;
 }

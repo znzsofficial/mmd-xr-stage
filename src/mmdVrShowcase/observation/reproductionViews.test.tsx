@@ -41,6 +41,7 @@ it('sets odds without a rig, resolves consecutive real internal deliveries at 0 
     await show('a');expect(slider()).toBeNull();expect(monitor().querySelector('canvas[data-part="uterus"]')).toBeTruthy();
     expect(observer().querySelector('canvas[data-part="uterus"]')).toBeTruthy();expect(observer().querySelector('input')).toBeNull();
     await click('卵子',monitor());expect(monitor().querySelector('canvas[data-part="egg"]')).toBeTruthy();expect(eggsFor('a')).toHaveLength(0);
+    const replay='回看最近结果',stop='停止回看';expect(button(replay,monitor()).disabled).toBe(true);
     expect([slider().min,slider().max,slider().step,slider().value]).toEqual(['0','100','5','60']);
     await change(0);expect(chanceFor('a')).toBe(0);expect(last()).toBeUndefined();expect(usePelvic.getState().byAsset.a).toBeUndefined();expect(useBodyState.getState().draft).toBeNull();
     await act(()=>{enablePelvic('a',true);patchPelvic('a',{calibration:{manual:{origin:[0,0,0],unitsPerMeter:1},pitchDeg:0}});});
@@ -48,19 +49,24 @@ it('sets odds without a rig, resolves consecutive real internal deliveries at 0 
     expect(usePelvic.getState().sample?.outletInside).toBe(true);await click('释放到阴道');await frames();expect(last()).toBeUndefined();
     for(let i=0;i<3;i++)await click('强制排卵',monitor());expect(button('强制排卵',monitor()).disabled).toBe(true);
     expect(eggsFor('a').every(e=>!e.fertilized&&!e.event)).toBe(true);await click('卵子 1',monitor());
-    await click('释放到阴道');expect(last()).toBeUndefined();await frames();
+    await click('释放到阴道');expect(last()).toBeUndefined();expect(button(replay,monitor()).disabled).toBe(true);await frames();
     const missed=last();expect(missed).toMatchObject({chance:0,success:false});expect(result(monitor())).toBe('观察中…');
     await age(CONCEPTION_REVEAL_MS-1);expect(observer().textContent).not.toContain('未受精');await age(1);expect(result(monitor())).toBe('未受精');expect(observer().textContent).toContain('最近结果未受精');
 
     await click('外阴',monitor());expect(slider()).toBeNull();await click('释放到宫腔');const before=usePelvic.getState();await click('卵子',monitor());await change(100);
+    const ledger=useConception.getState();await click(replay,monitor());await click(stop,monitor());await click(replay,monitor());
+    expect(useConception.getState()).toBe(ledger);expect(button(stop,monitor())).toBeDefined();
     expect(usePelvic.getState()).toBe(before);expect(before.active?.running).toBe(true);expect(last()).toBe(missed);
     await frames();const hit=last();expect(hit).toMatchObject({success:true,chance:100});expect(hit?.id).not.toBe(missed?.id);
+    expect(button(stop,monitor())).toBeUndefined();expect(button(replay,monitor()).disabled).toBe(true);
     expect(usePelvic.getState().byAsset.a.fluid).toEqual({vaginal:2,fantasyUterine:1});expect(eggsFor('a').map(e=>e.fertilized)).toEqual([true,false,false]);
-    await click('卵子 2',monitor());expect(result(monitor())).toBe('待受精');await click('卵子 1',monitor());
+    await click('卵子 2',monitor());expect(result(monitor())).toBe('待受精');expect(button(replay,monitor()).disabled).toBe(true);await click('卵子 1',monitor());
     await change(5);expect(last()).toBe(hit);expect(observer().textContent).toContain('受孕率（游戏）5%');expect(observer().textContent).not.toContain('已受精');
     // A new actor owns the editor immediately, even before the next React commit.
     const stale=slider();await act(()=>{useBackpack.getState().select('b');input(stale,95);});expect(chanceFor('a')).toBe(5);
     await show('b');await click('卵子',monitor());expect(slider().value).toBe('60');await age(CONCEPTION_REVEAL_MS);expect(monitor().textContent).toContain('0 / 3');expect(useConception.getState().byAsset.b).toBeUndefined();
     await act(()=>useBackpack.getState().select('a'));await show('a');await click('卵子',monitor());expect(result(monitor())).toBe('已受精');expect(observer().textContent).toContain('最近结果已受精');expect(last()).toBe(hit);
+    await click(replay,monitor());await act(()=>{const {prefs}=useMmdVrStore.getState();useMmdVrStore.setState({prefs:{...prefs,scenery:'clinic'}});useMmdVrStore.setState({prefs});});
+    expect(button(stop,monitor())).toBeUndefined();expect(button(replay,monitor()).disabled).toBe(false);expect(last()).toBe(hit);
   }finally{await act(()=>root.unmount());room.dispose();rod.geometry.dispose();rod.material.dispose();clearBackpack();useMmdVrStore.setState(stage);vi.useRealTimers();vi.restoreAllMocks();vi.unstubAllGlobals();}
 });

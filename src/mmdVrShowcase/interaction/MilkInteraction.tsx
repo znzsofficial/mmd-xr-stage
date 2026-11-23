@@ -14,7 +14,7 @@ import {useMmdVrStore} from '../mmdVrStore';
 import {milkPressFrame,milkRayGuard} from './milkRay';
 import './milk-interaction.css';
 
-type Props=MilkPanel & {onBack:()=>void;onObserve:()=>void;onClothing?:()=>void;onCloseUp?:()=>void};
+type Props=MilkPanel & {onBack:()=>void;onObserve:()=>void;onClothing?:()=>void;cameraKey?:{label:string;press():void}};
 const sides=['left','right'] as const,modes=['left','right','both'] as const;
 type Hold=NonNullable<ReturnType<typeof pressMilk>>;
 
@@ -74,7 +74,7 @@ function ScreenHold({mode,page}:{mode:MilkMode;page:Page}){
 }
 
 export function MilkScreenControls(props:Props){
-  const page=useMilkPage(props),{l,p}=page;
+  const page=useMilkPage(props),{l,p}=page,{cameraKey}=props;
   const go=(fn:()=>void)=>{page.stop();fn();};
   return <div className="milk-interaction">
     <header className="screen-library-head"><h3>{page.title}</h3><button type="button" onClick={()=>go(props.onBack)}>{page.back}</button></header>
@@ -82,7 +82,7 @@ export function MilkScreenControls(props:Props){
       <div className="milk-readings">{sides.map(s=><div key={s} className="milk-side"><span>{page.sideName(s)} <strong>{page.fill(s)}</strong></span><small>{page.status(s)}</small></div>)}</div>
       <div className="milk-controls">{modes.map(mode=><ScreenHold key={mode} mode={mode} page={page}/>)}</div>
     </>:<button type="button" className="milk-enable" disabled={page.locked} onClick={()=>page.change({lactating:true})}>{page.enable}</button>}
-    <div className="milk-links">{props.onCloseUp&&<button type="button" onClick={()=>go(props.onCloseUp!)}>{l('近看角色','Close-up')}</button>}
+    <div className="milk-links">{cameraKey&&<button type="button" onClick={()=>go(cameraKey.press)}>{cameraKey.label}</button>}
       {p.lactating&&<button type="button" onClick={()=>go(props.onObserve)}>{page.observe}</button>}
       {props.onClothing&&<button type="button" onClick={()=>go(props.onClothing!)}>{l('服装','Clothing')}</button>}
       {p.lactating&&<button type="button" aria-expanded={page.settings} onClick={()=>page.setSettings(!page.settings)}>{page.settingsLabel}</button>}</div>
