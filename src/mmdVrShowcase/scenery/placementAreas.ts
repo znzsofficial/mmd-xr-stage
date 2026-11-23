@@ -7,6 +7,7 @@ import { weddingClear, weddingVisible } from './wedding/weddingLayout';
 import { retreatPlace, retreatVisible, type Retreat } from './retreat/retreatLayout';
 import { planetPlace } from './planet/planetLayout';
 import { planetSight } from './planet/planetSightline';
+import { clearingDeck,onClearing } from './planet/lanternClearing';
 import {portalPlacementSight} from './portalLayout';
 import { velvetPlace, velvetSight } from './velvet/velvetLayout';
 import { chamberPlace, chamberSight } from './chamber/chamberLayout';
@@ -40,7 +41,8 @@ const rules: Record<SceneryId, PlacementRule> = {
   weddingCourt: flat((x,z) => weddingClear(x,z,true), (from,x,y,z) => weddingVisible(from,x,z,y)),
   lanternSuite: retreat('lanternSuite'),
   moonSpa: retreat('moonSpa'),
-  glassPlanet: flat(planetPlace, planetSight),
+  glassPlanet: {decks:[...commonDecks,clearingDeck],visible:planetSight,resolve:(x,z,y=0)=>
+    y===clearingDeck.y&&onClearing(x,z)?clearingDeck.y:y===0&&planetPlace(x,z)?0:null},
   velvetStudio: flat(velvetPlace, velvetSight),
   medievalChamber: flat(chamberPlace, chamberSight),
   qinhuai: {

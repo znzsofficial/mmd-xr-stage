@@ -1,11 +1,35 @@
 import {DoubleSide,Mesh,MeshBasicMaterial,Raycaster,Vector3} from 'three';
 import {expect,it} from 'vitest';
-import {allMoons,departureAt,lanes,rideStep,startRide,windPoint} from './windAtlas';
+import {allMoons,amberMoon,departureAt,lanes,moonObstructed,rideStep,startRide,windPoint} from './windAtlas';
+import {leapAt,leapRoutes} from './leapAtlas';
 import {moonRadius,moonShell} from './moonSurface';
 import {terrainAltitude,stationBlocks} from './opalTerrain';
 import {createTraveller} from '../../movement/planetTravel';
 import {moonWalk} from '../../movement/moonWalk';
 import {planetSight} from './planetSightline';
+
+it('keeps the sixth collar clear of all five flight paths, and connects its west footprint only to Amber',()=>{
+  const lane=lanes.find(l=>l.moon.id==='lantern')!,m=lane.moon;
+  expect(lanes).toHaveLength(6);expect(allMoons).toHaveLength(9);
+  const outward=leapRoutes.find(l=>l.pad.moon===m)!,inward=leapAt(amberMoon,outward.target.foot)!;
+  expect(outward.target.moon).toBe(amberMoon);expect(inward.target.moon).toBe(m);
+  expect(outward.pad.up.toArray()).toEqual([-1,0,0]);expect(inward.pad.up.x).toBe(1);
+  expect(outward.pad.foot.distanceTo(outward.target.foot)).toBeCloseTo(7.2,5);
+  expect(leapAt(m,lane.away.foot)).toBeUndefined();expect(departureAt(inward.pad.foot,amberMoon)).toBeUndefined();
+  const routes=lanes.filter(l=>l!==lane).flatMap(l=>Array.from({length:97},(_,i)=>windPoint(l,i/96,new Vector3())));
+  const p=new Vector3(),u=new Vector3();let nearest=Infinity;
+  // The widest ribbons are at the ends. Off-centre departures can start up to
+  // .90 m from the collar; also check the path from an off-centre return foot.
+  for(const back of [false,true]){
+    const port=back?lane.away:lane.home,start=port.foot.clone().addScaledVector(new Vector3().crossVectors(port.up,new Vector3(0,0,1)).normalize(),.65);
+    const ride=startRide(lane,back,start);
+    do{rideStep(ride,.05,p,u);for(const other of routes)nearest=Math.min(nearest,p.distanceToSquared(other));
+      expect(stationBlocks(p,.22,1.8)).toBe(false);expect(moonObstructed(m,p,.22,1.8)).toBe(false);
+    }while(ride.time<lane.duration);
+    expect(departureAt(p,back?null:m)).toBe(lane);
+  }
+  expect(Math.sqrt(nearest)).toBeGreaterThan(1.9);
+});
 
 it.each(lanes)('carries an off-centre foot clear of both surfaces and back without ending inside a launch prop',lane=>{
   const p=new Vector3(),up=new Vector3(),start=lane.home.foot.clone().addScaledVector(lane.home.up,.09);

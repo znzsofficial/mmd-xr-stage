@@ -40,10 +40,10 @@ export function fitRows({assetId,source,l,profile,support,fit,setFit,morph,names
       l('入口已露出，显示外阴附件','Opening is clear · show attachment'),()=>patchPelvic(assetId,{showAdapter:true,clothingClear:true}),{disabled:!ready})));
     if(support?.obstruction)rows.push(buttons(key(l('调整服装','Clothing'),clothes)));
     const rim=profile.rimMode??'off';
-    rows.push(buttons(key(l('处女膜缘','Hymenal rim'),()=>patchPelvic(assetId,{rimMode:rim==='off'?'elastic':'off'}),{active:rim!=='off'})));
-    if(rim!=='off')rows.push(buttons(key(l('记住首次有效进入','Remember first entry'),()=>patchPelvic(assetId,{rimMode:rim==='remember'?'elastic':'remember'}),{active:rim==='remember'})),
-      note(rim==='remember'&&profile.rimMemory?l('已记录本角色的进入事件；局部边缘已舒展。','Entry recorded for this actor; the local rim has relaxed.'):
-        l('边缘有自然开口。开启记录后，下次有效进入会留下局部变化。','The rim has a natural opening. With memory on, the next verified entry leaves a local change.')));
+    const rimModes=[['off',l('关','Off')],['elastic',l('弹性','Elastic')],['remember',l('记住首次','Remember first')]] as const;
+    rows.push({kind:'buttons',label:l('处女膜缘','Hymenal rim'),keys:rimModes.map(([mode,label])=>
+      key(label,()=>{if(mode!==rim)patchPelvic(assetId,{rimMode:mode});},{id:mode,active:mode===rim}))});
+    if(rim==='remember')rows.push(note(profile.rimMemory?l('首次进入已记录','First entry recorded'):l('等待首次有效进入','Awaiting first entry')));
     rows.push(
       buttons(key(l('选择开合形态','Choose opening morph'),()=>{setPage(Math.max(0,Math.floor(names.indexOf(morph??'')/3)));setFit('morph');})),
       buttons(key(c.manual?l('改用骨骼定位','Use bone position'):l('手动指定起点','Set origin manually'),()=>{if(c.manual)patch({manual:null});else if(support?.manualSeed){patch({manual:support.manualSeed});setFit('position');}},{disabled:!c.manual&&!support?.manualSeed})),

@@ -5,6 +5,7 @@ import {moonRadius,moonSegments} from '../scenery/planet/moonSurface';
 import {facetSampler} from '../scenery/planet/shellFacets';
 import {allMoons,type WalkMoon} from '../scenery/planet/windAtlas';
 import {planetCentre} from './planetTravel';
+import {clearingSupport} from '../scenery/planet/lanternClearing';
 
 export const homeWorld={id:'home',radius:PLANET_RADIUS,centre:planetCentre,surfaceGravity:HOME_SURFACE_GRAVITY} as const;
 export type World=typeof homeWorld|WalkMoon;
@@ -18,7 +19,7 @@ export function shellRadius(w:World,x:number,y:number,z:number){
   // A chord can bridge a depression in the continuous relief. Use the safe
   // outer one so neither the visible rock nor its walking surface is crossed.
   const face=facets.get(w)!(x,y,z);
-  if(w.id!=='home')return Math.max(face,moonRadius(w,x,y,z));
+  if(w.id!=='home')return Math.max(face,moonRadius(w,x,y,z),w.id==='lantern'?clearingSupport(x,y,z):0);
   const pad=y>0?PLANET_RADIUS/y:Infinity;
   return Math.max(face,crustRadius(x,y,z),y>0&&(x*x+z*z)*pad*pad<=PAD_RADIUS**2?pad:0);
 }

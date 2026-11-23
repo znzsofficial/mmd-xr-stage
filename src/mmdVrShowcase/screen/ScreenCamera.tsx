@@ -4,6 +4,7 @@ import { PerspectiveCamera, Vector3 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { useBackpack } from '../backpack';
 import { useMmdVrStore } from '../mmdVrStore';
+import { useLanguageStore } from '../../languageStore';
 import type { SceneryId } from '../scenery/catalog';
 import { isStoryRoom, type StoryRoom } from '../play/stagePlay';
 import {roomViews,tourShots} from '../scenery/roomViews';
@@ -15,6 +16,7 @@ import {usePoseSession} from '../pose/poseSession';
 import {screenWindTravel} from './screenWindTravel';
 import {usePelvic} from '../pelvic/store';
 import {upperBodyView} from './upperBodyView';
+import {planetCenterDrop} from './planetCenterDrop';
 
 type Point = [number,number,number];
 const storyViews:Record<StoryRoom,[Point,Point]>={
@@ -30,11 +32,12 @@ export function ScreenCamera({actions,onReady,viewport}:{actions:RefObject<Camer
   useFrame((_,delta)=>keyboard.current?.step(delta));
   useLayoutEffect(()=>{
     if(!(camera instanceof PerspectiveCamera)||!viewport.current)return;
-    const steering=new Vector3();
-    const wind=scenery==='glassPlanet'?screenWindTravel((direction,weight)=>{
+    const steering=new Vector3(),orbitUp=new Vector3(0,1,0);
+    const wind=scenery==='glassPlanet'?screenWindTravel((direction,weight,range)=>{
       steering.subVectors(orbit.target,camera.position);const distance=steering.length();
-      steering.normalize().lerp(direction,weight).normalize();orbit.target.copy(camera.position).addScaledVector(steering,distance);
-    }):undefined, travel=wind??screenStreetTravel(scene,scenery);
+      steering.normalize().lerp(direction,weight).normalize();orbit.target.copy(camera.position).addScaledVector(steering,distance+(range-distance)*weight);
+      camera.up.set(0,1,0);
+    },(arc,up)=>{orbit.target.sub(camera.position).applyQuaternion(arc).add(camera.position);camera.up.copy(up);}):undefined, travel=wind??screenStreetTravel(scene,scenery);
     const gate=new RoomGate();
     const steps={held:heldKeys.current,beforeWalk(eye:Vector3,aim:Vector3,d:Vector3){
       if(!gate.hasExits(scenery))return true;
@@ -48,21 +51,24 @@ export function ScreenCamera({actions,onReady,viewport}:{actions:RefObject<Camer
       arrival.current=null;return false;
     }};
     const canOrbit=()=>!useBackpack.getState().draft&&!usePoseSession.getState().dragging;
-    const makeOrbit=()=>{const o=new OrbitControls(camera,gl.domElement);o.minDistance=.18;o.maxDistance=scenery==='astralCourt'?52:scenery==='glassPlanet'?38:22;o.maxPolarAngle=Math.PI*(scenery==='qinhuai'?.64:scenery==='glassPlanet'||scenery==='arcadeHall'?.99:.49);o.rotateSpeed=.70;o.enabled=canOrbit();return o;};
+    const makeOrbit=()=>{orbitUp.copy(camera.up);const o=new OrbitControls(camera,gl.domElement);o.minDistance=.18;o.maxDistance=scenery==='astralCourt'?52:scenery==='glassPlanet'?38:22;o.maxPolarAngle=Math.PI*(scenery==='qinhuai'?.64:scenery==='glassPlanet'?1:scenery==='arcadeHall'?.99:.49);o.rotateSpeed=.70;o.enabled=canOrbit();return o;};
     let orbit=makeOrbit();const wup=[0,1,0] as const;
-    function align(up:readonly [number,number,number]=wup){
-      if(camera.up.distanceToSquared(new Vector3(...up))<1e-10)return;
-      // OrbitControls captures up at construction. Switch frames before a
-      // southern tour, rather than letting the next drag undo its horizon.
-      keyboard.current?.dispose();orbit.dispose();camera.up.fromArray(up);orbit=makeOrbit();
+    function align(up:readonly [number,number,number]=wup,preserveHeld=false){
+      camera.up.fromArray(up);if(orbitUp.distanceToSquared(camera.up)<1e-10)return;
+      const target=orbit.target.clone();
+      keyboard.current?.dispose(preserveHeld);orbit.dispose();orbit=makeOrbit();orbit.target.copy(target);orbit.update();
       keyboard.current=bindScreenCameraKeyboard(viewport.current!,orbit,reset,travel,steps);
     }
+    // OrbitControls captures its drag axes on construction. Refresh only when
+    // switching from keyboard surface walking to a real pointer gesture.
+    const view=viewport.current,alignForPointer=()=>{if(orbitUp.distanceToSquared(camera.up)>1e-10)align([camera.up.x,camera.up.y,camera.up.z],true);};
+    if(wind){view.addEventListener('pointerdown',alignForPointer,true);view.addEventListener('wheel',alignForPointer,{capture:true,passive:true});}
     const setLens=(fov:number)=>{camera.fov=fov;camera.updateProjectionMatrix();};
     const reset=()=>{wind?.dispose();align();const [eye,look]=roomViews[scenery].entry;setLens(50);camera.position.set(...eye);orbit.target.set(...look);orbit.update();};
     const frame=()=>{
       const b=useBackpack.getState(), live=b.selected&&b.live[b.selected];if(!live)return;
       wind?.dispose();
-      if(scenery==='glassPlanet'&&camera.up.y<.99)reset(); // actors stand on the north landing
+      if(scenery==='glassPlanet')align(); // imported actors stand on level stages
       setLens(50);const bounds=live.bounds, [x,y,z]=live.position;
       const target=new Vector3(...(bounds?.center??[x,y+.8,z]));
       const [w,h,d]=bounds?.size??[.65,1.6,.5];
@@ -95,9 +101,11 @@ export function ScreenCamera({actions,onReady,viewport}:{actions:RefObject<Camer
       if(shot.link){arrival.current={room:shot.link.to,eye:shot.eye,aim:shot.aim};if(!walkBetweenZones(shot.link))arrival.current=null;return;}
       if(shot.preloadLawn&&!releaseHints)releaseHints=hintLawnPrints();
       align(shot.up);
-      setLens(shot.overview?Math.min(130,Math.max(99,2*Math.atan(1.1/camera.aspect)*180/Math.PI)):50);camera.position.fromArray(shot.eye);orbit.target.fromArray(shot.aim);orbit.update();},story(){if(isStoryRoom(scenery)){const [eye,look]=storyViews[scenery];camera.position.set(...eye);orbit.target.set(...look);orbit.update();}},center(){const b=useBackpack.getState(),s=useMmdVrStore.getState();if(!b.draft||s.physicsBusy||s.assetLoad.running||s.physicsFatal)return;
+      setLens(shot.overview?Math.min(130,Math.max(99,2*Math.atan(1.1/camera.aspect)*180/Math.PI)):50);camera.position.fromArray(shot.eye);orbit.target.fromArray(shot.aim);orbit.update();wind?.survey(camera.position,!!shot.up);},story(){if(isStoryRoom(scenery)){const [eye,look]=storyViews[scenery];camera.position.set(...eye);orbit.target.set(...look);orbit.update();}},center(){const b=useBackpack.getState(),s=useMmdVrStore.getState();if(!b.draft||s.physicsBusy||s.assetLoad.running||s.physicsFatal)return;
       const prev=b.live[b.draft], transform=prev&&(s.models.find(m=>m.id===prev.runtimeId)??s.objects.find(o=>o.id===prev.runtimeId));
-      b.confirmPlace(b.draft,0,0,transform?.rotationY??Math.atan2(camera.position.x,camera.position.z)*180/Math.PI);
+      const deck=scenery==='glassPlanet'?planetCenterDrop(camera.position):{x:0,z:0,y:undefined};
+      if(!deck){useBackpack.setState({error:useLanguageStore.getState().t('planetCenterBlocked')});return;}
+      b.confirmPlace(b.draft,deck.x,deck.z,transform?.rotationY??Math.atan2(camera.position.x-deck.x,camera.position.z-deck.z)*180/Math.PI,deck.y);
     }};
     reset();
     const a=arrival.current;arrival.current=null;
@@ -108,7 +116,7 @@ export function ScreenCamera({actions,onReady,viewport}:{actions:RefObject<Camer
     const inputChanged=()=>{keyboard.current?.clear();orbit.enabled=canOrbit();};
     onReady(true);const off=useBackpack.subscribe((b,old)=>{if(old.draft!==b.draft)inputChanged();});
     const poseOff=usePoseSession.subscribe((s,p)=>{if(s.dragging!==p.dragging)inputChanged();});
-    return ()=>{keyboard.current?.dispose(arrival.current?.walking===true);keyboard.current=null;travel?.dispose();off();poseOff();releaseHints?.();actions.current=null;onReady(false);orbit.dispose();camera.up.set(0,1,0);};
+    return ()=>{view.removeEventListener('pointerdown',alignForPointer,true);view.removeEventListener('wheel',alignForPointer,true);keyboard.current?.dispose(arrival.current?.walking===true);keyboard.current=null;travel?.dispose();off();poseOff();releaseHints?.();actions.current=null;onReady(false);orbit.dispose();camera.up.set(0,1,0);};
   },[camera,gl,scene,scenery,actions,onReady,viewport]);
   return null;
 }

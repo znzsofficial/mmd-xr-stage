@@ -85,12 +85,13 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen
     key(l('退回起点','Return to start'),()=>jog(lim.position[0]),{disabled:!jogReady||target<=lim.position[0]&&!withdrawFirst}));
   const targetSlider=()=>field(l('支架目标位置','Target rail position'),Math.round(target*100),'%',[-20,100],5,p=>setTarget(p/100),!running||replaying);
   const site=profile.container==='vaginal'?l('阴道','Vagina'):l('宫腔','Uterus');
-  const releaseLabel=profile.container==='vaginal'?l('释放到阴道','Release into vagina'):l('释放到宫腔','Release into uterus');
   const targetKeys=()=>buttons(key(l('目标：阴道','Target: vagina'),()=>patchPelvic(assetId,{container:'vaginal'}),{active:profile.container==='vaginal'}),
     key(l('目标：宫腔','Target: uterus'),()=>patchPelvic(assetId,{container:'fantasyUterine'}),{active:profile.container==='fantasyUterine'}));
-  const doseKeys=()=>buttons(key(releaseLabel,()=>requestPelvicDose(assetId,profile.container),
-    {id:'inside-dose',primary:true,disabled:!running||mode==='xrManual'||signal!=='inside'}),
-    key(l('体外释放','Release outside'),()=>requestPelvicDose(assetId,'external'),{disabled:!running||mode==='xrManual'||signal!=='outside'}));
+  const insideKeys=()=> ([['vaginal',l('释放到阴道','Release into vagina')],['fantasyUterine',l('释放到宫腔','Release into uterus')]] as const).map(([site,label])=>
+    key(label,()=>{if(token===undefined)return;
+      if(mode==='standAuto')requestStrokeDose(assetId,token,site);else requestPelvicDose(assetId,site,token);
+    },{id:site,primary:true,disabled:!running||(mode==='standAuto'?!ready||!!order:signal!=='inside')}));
+  const outsideKey=()=>key(l('体外释放','Release outside'),()=>{if(token!==undefined)requestPelvicDose(assetId,'external',token);},{disabled:!running||!!order||signal!=='outside'});
   const balance=()=>note(`${site}　${profile.fluid[profile.container]} / ${profile.capacity[profile.container]}${profile.overflow?l(` · 已溢出 ${profile.overflow}`,` · Overflow ${profile.overflow}`):''}`);
   const clothesLabel=l('调整服装','Clothing');
   const coverage=covered==='garment'?(support?.blockerName?l(`衣物遮挡：${support.blockerName}`,`Covered by ${support.blockerName}`):l('衣物遮挡入口','Opening covered by clothing')):
@@ -123,7 +124,7 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen
     rows.push(...responseRows(assetId,runtimeId,profile,support,l));
     if(mode==='standManual'&&!replaying)rows.push(targetSlider());
     if(mode==='standAuto')rows.push(field(l('往复幅度','Stroke length'),profile.stroke*100,'%',percentRange(lim.stroke),5,n=>patchPelvic(assetId,{stroke:n/100})),
-      buttons(key(l('体外释放','Release outside'),()=>requestPelvicDose(assetId,'external'),{disabled:!running||!!order||signal!=='outside'})));
+      buttons(outsideKey()));
     if(source==='xr')rows.push(buttons(...(['left','right'] as const).map(h=>key(h==='left'?l('交给左手','Left hand'):l('交给右手','Right hand'),
       ()=>mode==='xrManual'&&h===hand?go('use'):assign('xrManual',h),{active:mode==='xrManual'&&h===hand,disabled:!known}))));
     if(mode)rows.push(link(l('收起假阳具','Put rod away'),()=>{releasePelvic(assetId);go('use');}));
@@ -167,15 +168,16 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen
     }
     if(mode==='standAuto'&&(ready||running)){
       result.motorReadout=true;
-      rows.push(buttons(key(l('开始往复','Start motor'),start,{primary:true,disabled:running||!ready||signal!=='parked'}),key(l('停止往复','Stop motor'),()=>stopPelvic(assetId),{danger:true,disabled:!running})),
-        buttons(key(releaseLabel,()=>{if(token!==undefined)requestStrokeDose(assetId,token,profile.container);},
-          {id:'inside-dose',primary:true,disabled:!ready||!running||!!order}),
-          key(l('取消释放','Cancel release'),()=>{if(order)cancelStrokeDose(order.id);},{disabled:!order})),{kind:'strokeReading'},targetKeys(),
+      const motor=key(running?l('停止往复','Stop motor'):l('开始往复','Start motor'),()=>{
+        const a=active(usePelvic.getState());if(a?.mode!=='standAuto'||a.token!==token||a.running!==running)return;
+        if(running)stopPelvic(assetId);else startPelvic(assetId);
+      },{id:'motor-power',pressToken:token,stop:running,primary:!running,disabled:!running&&(!ready||signal!=='parked')});
+      rows.push(buttons(motor,key(l('取消释放','Cancel release'),()=>{if(order)cancelStrokeDose(order.id);},{id:'cancel-dose',pressToken:order?.id,disabled:!order})),
+        buttons(...insideKeys()),{kind:'strokeReading'},
         field(l('每秒往复','Cycles per second'),profile.speedHz,' Hz',lim.speedHz,.1,n=>patchPelvic(assetId,{speedHz:n})));
     }else if(mode&&(running||ready)){
       if(mode==='standManual'&&!replaying)rows.push(jogKeys());
-      rows.push(balance(),targetKeys(),doseKeys());
-      if(profile.container==='fantasyUterine')rows.push(note(l('棒头止于宫颈','Rod stops at the cervix')));
+      rows.push(balance(),mode==='xrManual'?targetKeys():buttons(...insideKeys(),outsideKey()));
     }
     rows.push(buttons(key(clothesLabel,onClothing??clothes),...(onFace?[key(l('近看表情','Frame face'),onFace)]:[])));
     const takes=!!profile.technique||mode==='standManual'&&ready;

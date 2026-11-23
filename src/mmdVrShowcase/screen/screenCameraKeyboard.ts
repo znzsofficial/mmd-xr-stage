@@ -1,18 +1,17 @@
-import { Quaternion,Vector3 } from 'three';
+import { Vector3 } from 'three';
 import type { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 const cameraKeys = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE', 'KeyF', 'KeyC', 'KeyR']);
-const up = new Vector3(0, 1, 0);
 const metresPerSecond = 2.4;
 const radiansPerSecond = Math.PI / 2;
 
 /** Translate the orbit rig together; yaw changes the aim around the eye, not the eye around the subject. */
-type Travel={walk(eye:Vector3,offset:Vector3,dt:number):void;pass?:(eye:Vector3,offset:Vector3)=>boolean;jump?:(eye:Vector3)=>void};
+type Travel={walk(eye:Vector3,offset:Vector3,dt:number,rising?:boolean):void;floorUp?:(eye:Vector3)=>Vector3|null;pass?:(eye:Vector3,offset:Vector3)=>boolean;jump?:(eye:Vector3)=>void};
 type StepOptions={held:Set<string>;beforeWalk:(eye:Vector3,aim:Vector3,offset:Vector3)=>boolean};
 export function bindScreenCameraKeyboard(viewport: HTMLElement, orbit: OrbitControls, reset: () => void, travel?:Travel, steps?:StepOptions) {
   const held = steps?.held ?? new Set<string>();
   const offset = new Vector3();
-  const tangent=new Quaternion().setFromUnitVectors(orbit.object.up,up).invert();
+  const ahead=new Vector3(),side=new Vector3();
   const clear = () => held.clear();
   const axis = (positive: string, negative: string) => Number(held.has(positive)) - Number(held.has(negative));
   function keyDown(e: KeyboardEvent) {
@@ -37,15 +36,19 @@ export function bindScreenCameraKeyboard(viewport: HTMLElement, orbit: OrbitCont
       if ((!held.size&&!travel) || !orbit.enabled) return;
       const dt = Math.min(delta, .1);
       const yaw = axis('KeyE', 'KeyQ') * radiansPerSecond * dt;
-      const heading = orbit.getAzimuthalAngle() + yaw;
       const eye = orbit.object.position;
-      if (yaw) orbit.target.sub(eye).applyAxisAngle(orbit.object.up, yaw).add(eye);
+      const up=travel?.floorUp?.(eye)??orbit.object.up;
+      if (yaw) orbit.target.sub(eye).applyAxisAngle(up, yaw).add(eye);
 
       const forward = axis('KeyW', 'KeyS'), right = axis('KeyD', 'KeyA'), rise = axis('KeyF', 'KeyC');
-      const sin = Math.sin(heading), cos = Math.cos(heading);
-      offset.set(right * cos - forward * sin, rise, -right * sin - forward * cos)
-        .applyQuaternion(tangent).normalize().multiplyScalar(metresPerSecond * dt);
-      travel?.walk(eye,offset,dt);
+      offset.set(0,0,0);
+      if(forward||right||rise){
+        ahead.subVectors(orbit.target,eye).projectOnPlane(up);
+        if(ahead.lengthSq()>1e-8){ahead.normalize();side.crossVectors(ahead,up);}
+        else {side.set(1,0,0).applyQuaternion(orbit.object.quaternion).projectOnPlane(up).normalize();ahead.crossVectors(up,side);}
+        offset.addScaledVector(ahead,forward).addScaledVector(side,right).addScaledVector(up,rise).normalize().multiplyScalar(metresPerSecond*dt);
+      }
+      travel?.walk(eye,offset,dt,!!rise);
       if ((forward||right)&&!rise && steps && !steps.beforeWalk(eye,orbit.target,offset)) offset.set(0,0,0);
       if(!yaw&&!offset.lengthSq())return;
       eye.add(offset);

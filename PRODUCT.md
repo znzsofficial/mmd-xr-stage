@@ -24,6 +24,8 @@ When proposing adult content, describe what the player can do with a chosen adul
 
 Selecting a character presents Clothing, Interact and Body view on screen and in XR. The player can choose to keep clothing on during calibrated rod interaction; visual exposure and simulated inside contact are independent. Place the release destination beside the action. Body view is reachable without equipping a prop and offers named parts and camera angles. For lactation the player should be able to look at the character while holding a side, and know before pressing when only a numerical response is possible.
 
+Interact is the home for the actor's game flow. Play and advance fertility here with the live figure in sight. Body settings is a section of this same sheet for reversible shape, tissue-cycle and starting-stock edits; it is not a prerequisite for entering an interaction. Keep Body view read-only.
+
 In the dildo controls, use the plain player-facing terms 精液 / semen, 阴道 / vagina and 宫腔 / uterus. The spray, organ view and measurement key use the same milky white. Keep quantities in game units and show the actual cervical stop; the selected destination does not need a “fantasy” prefix.
 
 An anatomical illustration here is a live game view. The player can rotate the same anatomy and see changes in tissue, instrument position and simulated liquid. Use local rendering rather than a gallery of static generated pictures or an external image API; keep illustrative motion separate from measured state.

@@ -24,6 +24,7 @@
 | 道具引起的临时模型形变 | [`roomPropDisplay.ts`](../src/mmdVrShowcase/stage/roomPropDisplay.ts) 管开合形态、[角色表情回应](../src/mmdVrShowcase/play/actorResponse.ts)、软头接触与持棒触觉。帧末依次叠开合形态、实测接触表情、道具接触；下次 VMD／Bullet 求值、姿势编辑或房间退出前逆序还原。同名顶点形态也不能把显示权重留进原动作。 |
 | 摆姿势、身体状态及局部剖面 | [`pose/`](../src/mmdVrShowcase/pose/) 管编辑手势、单帧动作和命名姿势；[`bodyState/`](../src/mmdVrShowcase/bodyState/) 管每个资产的虚构时间线、预览及显示适配。只有当房间挂载演员时，才关联其骨架／形态。屏幕和 VR 使用同一套命令。[操作与验证](./gameplay/pose-and-body-states.md) |
 | 改身体设置编辑页 | [`useBodyEditor.ts`](../src/mmdVrShowcase/bodyState/useBodyEditor.ts) 负责演员归属、翻页和草稿的保存／取消／撤销。[`editor/`](../src/mmdVrShowcase/bodyState/editor/) 按胸型与适配、周期与日历、泌乳与起始存量生成控件。两日对照是日期设置的局部参照，完整动态图在身体观察中。屏幕与 XR 消费同一份控件数据。 |
+| 互动里开启、暂停或推进生育 | [`FertilityControls.tsx`](../src/mmdVrShowcase/interaction/FertilityControls.tsx) 同时显示当前演员的子宫图和下一步实际操作；[`reproduction/`](../src/mmdVrShowcase/bodyState/reproduction/) 负责游戏账本和概率。进入观察或设置不产生事件，器官图的定格也不暂停进度。 |
 | 并排操作面板 | [`LivePelvicView.tsx`](../src/mmdVrShowcase/observation/LivePelvicView.tsx) 只保存观察部位，复用完整观察页的画笔，每次只绘制一张。[`Controls.tsx`](../src/mmdVrShowcase/pelvic/Controls.tsx) 布置左右栏，右边的目标不受换图影响。自动往复独立刷新短状态行，已预约的一剂只有当帧有效进入才实际交付。 |
 | 阴道剖面 | [前后壁、宫颈及穹隆](../src/mmdVrShowcase/pelvic/atlas/canalGeometry.ts)为同一可旋转剖面。用[实际杆身截面](../src/mmdVrShowcase/pelvic/atlas/canalContact.ts)拟合接触行；深度数值或滑杆都不能单独撑开内壁。固定机位下若样本无变化，不重复上传。 |
 | 收起身体工具，看舞台／继续编辑 | [屏幕面板导航](../src/mmdVrShowcase/screen/useScreenPanels.ts)和 [XR 演员工具](../src/mmdVrShowcase/components/BackpackWorldTools.tsx)暂时保留同一运行实例的编辑器。收起时卸下控件和图，不复制、保存或丢弃草稿。换演员、实例、房间不是收起。 |

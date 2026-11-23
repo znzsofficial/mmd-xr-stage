@@ -6,12 +6,10 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { isStoryRoom, shelfToys, STORIES, TOYS, toyLabel, type Hand, type Toy, type StoryRoom } from '../play/propCatalog';
 import { canGiveTo, giveScreenToy, ownerOf, useStagePlay } from '../play/stagePlay';
 import type { SceneryId } from '../scenery/catalog';
-import {hasSceneryPeople,showSceneryGrid} from '../scenery/catalog';
-import {getMmdVrRenderProfile} from '../mmdVrQuality';
+import {ScreenEnvironmentSettings} from './ScreenEnvironmentSettings';
 import { resetEncore } from '../play/encore/encoreRound';
 import {EggFields,fitScreenEgg,WandFields} from './ContactPropFields';
 import {useRemoteEgg} from '../play/remoteEgg';
-import {BodyScreenControls} from '../bodyState/BodyControls';
 import {ActorActivities,type ActivityEntry} from '../interaction/ActorActivities';
 import {PoseScreenControls} from '../pose/PoseControls';
 
@@ -42,7 +40,6 @@ export function ScreenLibrary({view,suspended=false,visit,locked,close,openBackp
   const eggWearer=useRemoteEgg(s=>s.assetId);
   const [choice,choose]=useState<{id:string;toy:Toy}|null>(null);
   const palm=useMmdVrStore(s=>s.prefs.actorPalmCloth),physics=useMmdVrStore(s=>s.physicsEnabled);
-  const prefs=useMmdVrStore(s=>s.prefs),profile=getMmdVrRenderProfile(prefs),grid=showSceneryGrid(room,profile.showGrid,prefs.gridPref==='on');
   const start=(entry:BackpackEntry)=>{b.beginPlace(entry.id);if(useBackpack.getState().draft)close();};
   const title=useRef<HTMLHeadingElement>(null);
   useLayoutEffect(()=>{if(view==='backpack')title.current?.focus({preventScroll:true});},[view]);
@@ -66,12 +63,7 @@ export function ScreenLibrary({view,suspended=false,visit,locked,close,openBackp
          <div>{actor&&selected&&(toy==='remoteEgg'?<button disabled={locked||!actor.visible} onClick={()=>{if(fitScreenEgg(selected.id)){choose({id:selected.id,toy});openItem();}}}>{t(eggWearer===selected.id?'eggControls':eggWearer?'eggTransfer':'eggWear')}</button>:(['left','right'] as const).map(hand=><button key={hand} disabled={locked||!canGiveTo(actor,hand)} onClick={()=>{choose({id:selected.id,toy});give(selected.id,toy,hand,room);}}>{t(hand==='left'?'propLeft':'propRight')}</button>))} <button onClick={()=>setGuide(toy)}>{t('toyGuide')}</button></div>
       </li>;})}</ul></details>
     {guide&&<ScreenToyGuide toy={guide} room={room} locked={locked} close={()=>setGuide(null)}/>}
-    <details className="screen-stage-options"><summary>{t('settingsEnvironment')}</summary>
-      <label><input type="checkbox" checked={prefs.balancedModelColor} onChange={e=>useMmdVrStore.getState().setPrefs({balancedModelColor:e.target.checked})}/>{t('modelColorBalanced')}</label>
-      {hasSceneryPeople(room)&&<label><input type="checkbox" checked={prefs.showSceneryPeople} onChange={e=>useMmdVrStore.getState().setPrefs({showSceneryPeople:e.target.checked})}/>{t('sceneryPeople')}</label>}
-      <label><input type="checkbox" checked={profile.shadows} onChange={e=>useMmdVrStore.getState().setPrefs({shadowsPref:e.target.checked?'on':'off'})}/>{t('settingsMmdVrShadows')}</label>
-      <label><input type="checkbox" checked={grid} onChange={e=>useMmdVrStore.getState().setPrefs({gridPref:e.target.checked?'on':'off'})}/>{t('settingsMmdVrGrid')}</label>
-    </details>
+    <ScreenEnvironmentSettings/>
     <details className="screen-stage-options"><summary>{t('contactDetails')}</summary>
       <p>{t('missingPalmContact')}</p><label><input type="checkbox" checked={palm} disabled={locked||physics} onChange={e=>useMmdVrStore.getState().setPrefs({actorPalmCloth:e.target.checked})}/>{t('actorPalmShort')}</label><p>{t(physics?'contactDisableFirst':'contactNextPhysics')}</p>
     </details>
@@ -95,12 +87,12 @@ function SelectedItem({entry,locked,frame,closeUp,move,choice,setChoice,suspende
   const stage=useMmdVrStore.getState(), prop=useStagePlay(s=>s.character), motions=b.entries.filter(e=>e.kind==='motion');
   const room=useMmdVrStore(s=>s.prefs.scenery),localToy=isStoryRoom(room)?STORIES[room].toy:null;
   const wearing=useRemoteEgg(s=>s.assetId===entry.id);
-  const [editor,setEditor]=useState<'position'|'motion'|'pose'|'body'|ActivityEntry|null>(null);
+  const [editor,setEditor]=useState<'position'|'motion'|'pose'|ActivityEntry|null>(null);
   const panel=useRef<HTMLElement>(null),heading=useRef<HTMLHeadingElement>(null);
   useLayoutEffect(()=>{
     if(suspended||!panel.current)return;
     panel.current.scrollTop=0;
-    (panel.current.querySelector<HTMLElement>('.body-page h4')??heading.current)?.focus({preventScroll:true});
+    (panel.current.querySelector<HTMLElement>('.body-page h4, [data-actor-activity] h3')??heading.current)?.focus({preventScroll:true});
   },[editor,suspended]);
   const toy=choice??(wearing?'remoteEgg':prop?.assetId===entry.id?prop.toy:localToy??'saber');
   if(!live)return null;
@@ -116,7 +108,7 @@ function SelectedItem({entry,locked,frame,closeUp,move,choice,setChoice,suspende
     <div className="screen-library-head"><h2 ref={heading} tabIndex={-1} title={actorName}>{actorName}</h2>
       {!detail&&<button onClick={openBackpack}>{t('actorAllItems')}</button>}<button onClick={close}>{t('actorFold')}</button></div>
     {detail?<section className="screen-tools" data-focus-actor>
-      {editor==='body'?<BodyScreenControls {...actor} suspended={suspended}/>:editor==='pose'?<PoseScreenControls {...actor}/>:<ActorActivities entry={editor} {...actor} onCloseUp={closeUp}/>}
+      {editor==='pose'?<PoseScreenControls {...actor}/>:<ActorActivities entry={editor} {...actor} onCloseUp={closeUp} suspended={suspended}/>}
     </section>:editor==='motion'||editor==='position'?<section className="screen-tool-detail"><div className="screen-library-head"><h3>{t(editor==='position'?'watchArrange':'hudMotions')}</h3><button onClick={onBack}>{t('actorBack')}</button></div>
       {editor==='position'?positioning:<>
         {(['body','face'] as const).map(kind=>{
@@ -136,7 +128,7 @@ function SelectedItem({entry,locked,frame,closeUp,move,choice,setChoice,suspende
       {([['wardrobe','actorWardrobe'],['interact','actorInteraction'],['observe','actorObservation']] as const).map(([id,key])=><button key={id} data-main={id==='interact'||undefined} disabled={locked||!live.visible} onClick={()=>setEditor(id)}>{t(key)}</button>)}
     </nav><div className="screen-actor-primary">
       <button disabled={locked||!transform} onClick={()=>setEditor('position')}>{t('watchArrange')}</button><button disabled={locked} onClick={()=>setEditor('motion')}>{t('hudMotions')}</button>
-      <button disabled={locked||!live.visible} onClick={()=>setEditor('pose')}>{t('actorPose')}</button><button disabled={locked||!live.visible} onClick={()=>setEditor('body')}>{t('actorBodyState')}</button>
+       <button disabled={locked||!live.visible} onClick={()=>setEditor('pose')}>{t('actorPose')}</button>
     </div></>:positioning}
     <div className="screen-buttons"><button onClick={frame}>{t('screenFit')}</button><button disabled={locked} onClick={()=>stage.enqueueVisibilityToggle(live.runtimeId)}>{t(live.visible?'screenHideAsset':'screenShowAsset')}</button></div>
     {entry.kind==='model'&&<fieldset className="screen-props"><legend>{t('storyProp')}</legend>

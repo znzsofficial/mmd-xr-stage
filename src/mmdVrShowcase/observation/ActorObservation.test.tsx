@@ -20,7 +20,7 @@ it('opens the requested part directly, shows each organ’s own balance, and lea
   vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValue(null);
   useLanguageStore.setState({language:'zh'});
   const saved={...DEFAULT_BODY_PROFILE,day:18},draft={assetId:'a',value:{...saved,day:22,lactating:true,left:.25,right:.75}};
-  const p={calibration:defaultPelvicCalibration,clothingClear:false,clothed:true,showAdapter:false,container:'vaginal' as const,
+  const p={calibration:defaultPelvicCalibration,clothingClear:false,clothed:true,showAdapter:false,container:'vaginal' as const,rimMode:'remember' as const,
     fluid:{vaginal:1.5,fantasyUterine:3},capacity:{vaginal:4,fantasyUterine:16},drained:0,overflow:0,speedHz:1,stroke:.7};
   useBodyState.setState({byAsset:{a:saved},draft});usePelvic.setState({byAsset:{a:p}});
   const body=useBodyState.getState(),pelvis=usePelvic.getState(),onBack=vi.fn();
@@ -31,7 +31,8 @@ it('opens the requested part directly, shows each organ’s own balance, and lea
     expect(el.textContent).toContain('当前预览');expect(el.textContent).toContain('22 / 28');
     for(const name of ['子宫','外阴','乳房']){await act(async()=>button(name).click());
       expect(button(name).getAttribute('aria-pressed')).toBe('true');for(const preset of ['正面','斜面','侧面'])expect(button(preset).closest('details')).toBeNull();
-      if(name==='子宫')expect(el.textContent).toContain('宫腔精液3 / 16 游戏单位');}
+      if(name==='子宫')expect(el.textContent).toContain('宫腔精液3 / 16 游戏单位');
+      if(name==='外阴'){await act(async()=>button('侧面').click());expect(el.textContent).toContain('等待有效跨越');}}
     expect(el.textContent).toContain('25% / 75%');await act(async()=>button('返回插入').click());expect(onBack).toHaveBeenCalledOnce();
   }finally{await act(async()=>root.unmount());}
   expect(useBodyState.getState()).toBe(body);expect(usePelvic.getState()).toBe(pelvis);

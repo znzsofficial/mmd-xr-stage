@@ -5,9 +5,9 @@ import { HudSlider, ValueLabel } from '../components/HudValues';
 import { useMmdVrStore } from '../mmdVrStore';
 import { normalizeMmdVrExposure } from './preferences';
 import { getMmdVrRenderProfile, WALK_SPEED } from '../mmdVrQuality';
-import { mmdVrViewDistanceToSlider, mmdVrSliderToViewDistance } from '../mmdVrAdjustments';
-import { hasSceneryPeople, showSceneryGrid } from '../scenery/catalog';
-import {hasStageLamps} from './stageLamps';
+import { minSceneViewDistance, mmdVrViewDistanceToSlider, mmdVrSliderToViewDistance } from '../mmdVrAdjustments';
+import { hasSceneryPeople } from '../scenery/catalog';
+import { lightNames, sceneEffects } from './environmentDisplay';
 
 export const settingsSections = [['player','settingsPlayer'],['character','settingsCharacter'],['environment','settingsEnvironment']] as const;
 export type SettingsSection = typeof settingsSections[number][0];
@@ -16,24 +16,30 @@ type Drag = { onDrag: (active:boolean)=>void };
 export function PlayerSettings() {
   const t=useLanguageStore(s=>s.t), p=useMmdVrStore(s=>s.prefs), set=useMmdVrStore(s=>s.setPrefs);
   const free=p.movementMode==='free',tier=p.walkSpeedPref==='auto'?'normal':p.walkSpeedPref;
+  const [handsPanel,showHandsPanel]=useState(false);
   const next={slow:'normal',normal:'fast',fast:'sprint',sprint:'slow'} as const;
   const labels={slow:'moveSlow',normal:'moveCruise',fast:'moveFast',sprint:'moveSprint'} as const;
+  if(handsPanel)return <group name="settings:hands-panel">
+    <HudLine position={[-.48,.54,0]} width={.89} role="title" text={t('settingsHandsPanel')}/>
+    <HudButton position={[.49,.54,0]} size={[.88,.16]} variant="quiet" label={t('settingsBackPlayer')} onPress={()=>showHandsPanel(false)}/>
+    <HudButton position={[-.49,.23,0]} size={[.88,.18]} active={p.handTracking} label={t(p.handTracking?'settingsHandModelOn':'settingsHandModelOff')} onPress={()=>set({handTracking:!p.handTracking})}/>
+    <HudButton position={[.49,.23,0]} size={[.88,.18]} label={t(p.physicsHapticLevel==='off'?'settingsMmdVrPhysicsHapticsOff':p.physicsHapticLevel==='low'?'settingsMmdVrPhysicsHapticsLow':'settingsMmdVrPhysicsHapticsNormal')} onPress={()=>useMmdVrStore.getState().cyclePhysicsHapticLevel()}/>
+    <HudButton position={[-.49,-.02,0]} size={[.88,.18]} active={p.panelFollowUser} label={t(p.panelFollowUser?'settingsFaceMeOn':'settingsFaceMeOff')} onPress={()=>set({panelFollowUser:!p.panelFollowUser})}/>
+  </group>;
   return <group name="settings:player">
     <HudLine position={[0,.58,0]} width={1.85} role="title" text={t('hudSelfTitle')}/>
     <HudButton position={[-.49,.38,0]} size={[.88,.17]} active={!free} label={t('moveNormal')} onPress={()=>set({movementMode:'normal'})}/>
     <HudButton position={[.49,.38,0]} size={[.88,.17]} active={free} label={t('moveFree')} onPress={()=>set({movementMode:'free'})}/>
     {!free&&p.scenery==='glassPlanet'?<HudButton position={[0,.18,0]} size={[1.85,.15]} label={t(p.planetAutoLanding?'planetHorizonAuto':'planetHorizonManual')} active={p.planetAutoLanding} onPress={()=>set({planetAutoLanding:!p.planetAutoLanding})}/>
       :<HudLine position={[0,.18,0]} width={1.85} role="muted" text={t(free?'moveFlyHint':'moveJumpHint')}/>}
-    {!free&&<><HudLine position={[-.56,-.04,0]} width={.75} text={`${t('settingsEyeOffset')}  ${p.normalEyeOffset>0?'+':''}${Math.round(p.normalEyeOffset*100)} cm`}/>
-      <HudButton position={[.02,-.04,0]} size={[.35,.15]} label="−10 cm" disabled={p.normalEyeOffset<=-.8} onPress={()=>set({normalEyeOffset:p.normalEyeOffset-.1})}/>
-      <HudButton position={[.40,-.04,0]} size={[.35,.15]} label="+10 cm" disabled={p.normalEyeOffset>=.8} onPress={()=>set({normalEyeOffset:p.normalEyeOffset+.1})}/>
-      <HudButton position={[.76,-.04,0]} size={[.31,.15]} variant="quiet" label={t('settingsMmdVrValueReset')} disabled={p.normalEyeOffset===0} onPress={()=>set({normalEyeOffset:0})}/></>}
-    <HudButton position={[-.49,-.28,0]} size={[.88,.16]} label={`${t(labels[tier])} · ${WALK_SPEED[tier]} m/s`} onPress={()=>set({walkSpeedPref:next[tier]})}/>
-    <HudButton position={[.49,-.28,0]} size={[.88,.16]} label={`${t('settingsMmdVrSnapTurn')}: ${p.snapTurnDegrees}°`} onPress={()=>set({snapTurnDegrees:p.snapTurnDegrees===15?30:p.snapTurnDegrees===30?45:15})}/>
-    <HudButton position={[-.49,-.50,0]} size={[.88,.15]} active={p.handTracking} label={t(p.handTracking?'settingsHandModelOn':'settingsHandModelOff')} onPress={()=>set({handTracking:!p.handTracking})}/>
-    <HudButton position={[.49,-.50,0]} size={[.88,.15]} active={p.panelFollowUser} label={t(p.panelFollowUser?'settingsFaceMeOn':'settingsFaceMeOff')} onPress={()=>set({panelFollowUser:!p.panelFollowUser})}/>
-    <HudButton position={[-.49,-.72,0]} size={[.88,.15]} label={t(p.physicsHapticLevel==='off'?'settingsMmdVrPhysicsHapticsOff':p.physicsHapticLevel==='low'?'settingsMmdVrPhysicsHapticsLow':'settingsMmdVrPhysicsHapticsNormal')} onPress={()=>useMmdVrStore.getState().cyclePhysicsHapticLevel()}/>
-    <HudButton position={[.49,-.72,0]} size={[.88,.15]} variant="quiet" label={t('settingsMmdVrResetView')} onPress={()=>useMmdVrStore.getState().resetView()}/>
+    <HudButton position={[-.49,-.06,0]} size={[.88,.17]} label={`${t(labels[tier])} · ${WALK_SPEED[tier]} m/s`} onPress={()=>set({walkSpeedPref:next[tier]})}/>
+    <HudButton position={[.49,-.06,0]} size={[.88,.17]} label={`${t('settingsMmdVrSnapTurn')}: ${p.snapTurnDegrees}°`} onPress={()=>set({snapTurnDegrees:p.snapTurnDegrees===15?30:p.snapTurnDegrees===30?45:15})}/>
+    {!free&&<><HudLine position={[-.56,-.31,0]} width={.75} text={`${t('settingsEyeOffset')}  ${p.normalEyeOffset>0?'+':''}${Math.round(p.normalEyeOffset*100)} cm`}/>
+      <HudButton position={[.02,-.31,0]} size={[.35,.15]} label="−10 cm" disabled={p.normalEyeOffset<=-.8} onPress={()=>set({normalEyeOffset:p.normalEyeOffset-.1})}/>
+      <HudButton position={[.40,-.31,0]} size={[.35,.15]} label="+10 cm" disabled={p.normalEyeOffset>=.8} onPress={()=>set({normalEyeOffset:p.normalEyeOffset+.1})}/>
+      <HudButton position={[.76,-.31,0]} size={[.31,.15]} variant="quiet" label={t('settingsMmdVrValueReset')} disabled={p.normalEyeOffset===0} onPress={()=>set({normalEyeOffset:0})}/></>}
+    <HudButton position={[-.49,-.61,0]} size={[.88,.17]} variant="quiet" label={t('settingsHandsPanel')} onPress={()=>showHandsPanel(true)}/>
+    <HudButton position={[.49,-.61,0]} size={[.88,.17]} variant="quiet" label={t('settingsMmdVrResetView')} onPress={()=>useMmdVrStore.getState().resetView()}/>
   </group>;
 }
 
@@ -65,27 +71,27 @@ export function CharacterSettings({locked}:{locked:boolean}) {
   </group>;
 }
 
-const lightNames={stage:'settingsMmdVrLightStage',soft:'settingsMmdVrLightSoft',contrast:'settingsMmdVrLightContrast',daylight:'settingsMmdVrLightDaylight',warm:'settingsMmdVrLightWarm',rim:'settingsMmdVrLightRim'} as const;
 export function EnvironmentSettings({onDrag,diagnostics}:Drag&{diagnostics:()=>void}) {
   const t=useLanguageStore(s=>s.t),p=useMmdVrStore(s=>s.prefs),set=useMmdVrStore(s=>s.setPrefs),profile=getMmdVrRenderProfile(p);
-  const grid=showSceneryGrid(p.scenery,profile.showGrid,p.gridPref==='on');
+  const [details,showDetails]=useState(false),min=minSceneViewDistance(p.scenery),distance=Math.max(min,p.viewDistance);
+  if(details)return <group name="settings:visual-details">
+    <HudLine position={[-.48,.54,0]} width={.89} role="title" text={t('settingsVisualDetails')}/>
+    <HudButton position={[.49,.54,0]} size={[.88,.16]} variant="quiet" label={t('settingsBackEnvironment')} onPress={()=>showDetails(false)}/>
+    {sceneEffects(p,profile).map(({label,active,change},i)=><HudButton key={label} position={[i%2 ? .49 : -.49,.24-Math.floor(i/2)*.24,0]} size={[.88,.17]}
+      label={`${t(label)} · ${t(active?'diagOn':'diagOff')}`} active={active} onPress={()=>set(change)}/>)}
+    <ValueLabel position={[-.65,-.57,0]} label={t('settingsMmdVrViewDistance')} value={`${distance} m`}/>
+    <HudSlider position={[.07,-.57,0]} width={.72} value={mmdVrViewDistanceToSlider(p.viewDistance,min)} onInteractionChange={onDrag} onChange={v=>set({viewDistance:mmdVrSliderToViewDistance(v,min)})}/>
+    <HudButton position={[.73,-.57,0]} size={[.4,.15]} variant="quiet" label={t('settingsMmdVrValueReset')} disabled={distance===Math.max(min,40)} onPress={()=>set({viewDistance:40})}/>
+  </group>;
   return <group name="settings:environment">
     <HudLine position={[0,.55,0]} width={1.85} role="title" text={t('hudGraphicsTitle')}/>
-    <HudButton position={[-.63,.30,0]} size={[.58,.16]} label={t('settingsMmdVrShadows')} active={profile.shadows} onPress={()=>set({shadowsPref:profile.shadows?'off':'on'})}/>
-    <HudButton position={[0,.30,0]} size={[.58,.16]} label={t('settingsMmdVrGrid')} active={grid} onPress={()=>set({gridPref:grid?'off':'on'})}/>
-    <HudButton position={[.63,.30,0]} size={[.58,.16]} label={t('hudSoftHighlights')} active={p.softHighlights} onPress={()=>set({softHighlights:!p.softHighlights})}/>
-    <HudButton position={[-.63,.08,0]} size={[.58,.15]} label={t(lightNames[p.lightPreset])} onPress={()=>useMmdVrStore.getState().cycleLightPreset()}/>
-    <HudButton position={[0,.08,0]} size={[.58,.15]} label={t(p.stageSkyEnabled?'settingsMmdVrSkyOn':'settingsMmdVrSkyOff')} active={p.stageSkyEnabled} onPress={()=>set({stageSkyEnabled:!p.stageSkyEnabled})}/>
-    <HudButton position={[.63,.08,0]} size={[.58,.15]} label={t(p.stageFogEnabled?'settingsMmdVrFogOn':'settingsMmdVrFogOff')} active={p.stageFogEnabled} onPress={()=>set({stageFogEnabled:!p.stageFogEnabled})}/>
-    {hasStageLamps(p.scenery)&&<><HudButton position={[-.49,-.13,0]} size={[.88,.14]} label={t(p.stageRimLightEnabled?'settingsMmdVrRimLightOn':'settingsMmdVrRimLightOff')} active={p.stageRimLightEnabled} onPress={()=>set({stageRimLightEnabled:!p.stageRimLightEnabled})}/>
-      <HudButton position={[.49,-.13,0]} size={[.88,.14]} label={t(p.stageLightPoolEnabled?'settingsMmdVrLightPoolOn':'settingsMmdVrLightPoolOff')} active={p.stageLightPoolEnabled} onPress={()=>set({stageLightPoolEnabled:!p.stageLightPoolEnabled})}/></>}
-    <ValueLabel position={[-.65,-.34,0]} label={t('settingsMmdVrExposure')} value={p.exposure.toFixed(1)}/>
-    <HudSlider position={[.07,-.34,0]} width={.72} value={(p.exposure-.7)/.6} onInteractionChange={onDrag} onChange={v=>set({exposure:normalizeMmdVrExposure(.7+.6*v)})}/>
-    <HudButton position={[.73,-.34,0]} size={[.4,.14]} label={t('settingsMmdVrValueReset')} onPress={()=>set({exposure:1})}/>
-    <ValueLabel position={[-.65,-.54,0]} label={t('settingsMmdVrViewDistance')} value={`${p.viewDistance} m`}/>
-    <HudSlider position={[.07,-.54,0]} width={.72} value={mmdVrViewDistanceToSlider(p.viewDistance)} onInteractionChange={onDrag} onChange={v=>set({viewDistance:mmdVrSliderToViewDistance(v)})}/>
-    <HudButton position={[.73,-.54,0]} size={[.4,.14]} label={t('settingsMmdVrValueReset')} onPress={()=>set({viewDistance:40})}/>
-    {hasSceneryPeople(p.scenery)&&<HudButton position={[-.49,-.75,0]} size={[.88,.16]} active={p.showSceneryPeople} label={t(p.showSceneryPeople?'sceneryPeopleOn':'sceneryPeopleOff')} onPress={()=>set({showSceneryPeople:!p.showSceneryPeople})}/>}
-    <HudButton position={[hasSceneryPeople(p.scenery)?.49:0,-.75,0]} size={[.88,.16]} variant="quiet" label={t('hudDiagnostics')} onPress={diagnostics}/>
+    <HudButton position={[-.49,.28,0]} size={[.88,.18]} label={`${t('settingsLighting')} · ${t(lightNames[p.lightPreset])}`} onPress={()=>useMmdVrStore.getState().cycleLightPreset()}/>
+    <HudButton position={[.49,.28,0]} size={[.88,.18]} label={`${t('settingsMmdVrShadows')} · ${t(profile.shadows?'diagOn':'diagOff')}`} active={profile.shadows} onPress={()=>set({shadowsPref:profile.shadows?'off':'on'})}/>
+    <ValueLabel position={[-.65,0,0]} label={t('settingsMmdVrExposure')} value={p.exposure.toFixed(1)}/>
+    <HudSlider position={[.07,0,0]} width={.72} value={(p.exposure-.7)/.6} onInteractionChange={onDrag} onChange={v=>set({exposure:normalizeMmdVrExposure(.7+.6*v)})}/>
+    <HudButton position={[.73,0,0]} size={[.4,.15]} variant="quiet" label={t('settingsMmdVrValueReset')} disabled={p.exposure===1} onPress={()=>set({exposure:1})}/>
+    {hasSceneryPeople(p.scenery)&&<HudButton position={[-.49,-.27,0]} size={[.88,.17]} active={p.showSceneryPeople} label={t(p.showSceneryPeople?'sceneryPeopleOn':'sceneryPeopleOff')} onPress={()=>set({showSceneryPeople:!p.showSceneryPeople})}/>}
+    <HudButton position={[-.49,-.61,0]} size={[.88,.17]} variant="quiet" label={t('settingsVisualDetails')} onPress={()=>showDetails(true)}/>
+    <HudButton position={[.49,-.61,0]} size={[.88,.17]} variant="quiet" label={t('hudDiagnostics')} onPress={diagnostics}/>
   </group>;
 }

@@ -81,3 +81,29 @@ it('does not ping-pong in overlapping wells; a quiet hop falls back under every 
     expect(f.landing).toBe(w);expect(apex).toBeGreaterThan(.3);expect(f.changes).toBe(0);
   }
 });
+
+it.each(walkWorlds)('$id: ordinary stick jumps remain bounded on this world, even at the fastest walking preset',w=>{
+  // Open slopes at different angles; include the tiny moons where a normal
+  // walking pace already exceeds the local circular speed.
+  for(const [tilt,az,speed,drive,dt] of [[.12,.84,2.4,.15,1/120],[.25,2.4,2.4,.38,1/72],[.39,-.8,1.2,1,.05],[.19,-.6,8,1,.093]]){
+    const up=new Vector3(Math.sin(tilt)*Math.cos(az),Math.cos(tilt),Math.sin(tilt)*Math.sin(az)),foot=surface(w,up);
+    const stick=new Vector3(0,0,1).projectOnPlane(up).setLength(drive),eye=up.clone().multiplyScalar(1.75);
+    const v=jumpVelocity(w,up,stick,speed,new Vector3()),f=startOrbit(w,foot,v);
+    expect(v.dot(up)).toBeCloseTo(w===homeWorld?1.9:1.6,6);
+    let apex=0,t=0;
+    for(;t<6&&!f.landing;t+=dt){stepOrbit(f,dt,up,eye);apex=Math.max(apex,altitude(w,f.foot));}
+    expect(f.landing,`${w.id} ${speed}/${drive}: clearance ${altitude(w,f.foot).toFixed(3)} m, speed ${f.velocity.length().toFixed(2)} m/s`).toBe(w);expect(f.changes).toBe(0);expect(apex).toBeLessThan(2.1);
+    expect(altitude(w,f.point)).toBeCloseTo(0,5);
+  }
+});
+
+it('crosses off the mark only with a committed, aimed run; partial throttle or running across the slope stays local',()=>{
+  const axis=glaze.centre.clone().sub(salt.centre).normalize();
+  for(const [angle,strength,speed,bearing] of [[.30,.38,8,0],[.33,.85,4.8,0],[.28,1,1.2,0],[.31,1,2.4,1.1],[.36,1,2.4,Math.PI],[.30,1,2.4,0]]){
+    const up=axis.clone().multiplyScalar(Math.cos(angle)).addScaledVector(new Vector3(0,1,0),Math.sin(angle)),p=surface(salt,up);
+    const stick=axis.clone().projectOnPlane(up).setLength(strength).applyAxisAngle(up,bearing);
+    expect(leapAt(salt,p)).toBeUndefined();const f=startOrbit(salt,p,jumpVelocity(salt,up,stick,speed,new Vector3()));
+    for(let i=0;i<400&&!f.landing;i++)stepOrbit(f,i%3===0?.074:.017,up,up.clone().multiplyScalar(1.7));
+    expect(f.landing).toBe(strength===1&&speed===2.4&&bearing===0?glaze:salt);
+  }
+});

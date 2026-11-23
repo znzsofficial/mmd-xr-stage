@@ -11,7 +11,6 @@ import { useHudWorldInput } from "./hudWorldInput";
 import { isStoryRoom, STORIES, toyLabel } from '../play/propCatalog';
 import { canGiveTo, useStagePlay } from '../play/stagePlay';
 import {EggControls,WandControls} from './ContactPropControls';
-import {BodyHudControls} from '../bodyState/BodyControls';
 import {useBodyState} from '../bodyState/store';
 import {ActorActivities,type ActivityEntry} from '../interaction/ActorActivities';
 import {PoseHudControls} from '../pose/PoseHudControls';
@@ -52,9 +51,9 @@ function SelectedTools({ entry, instance, blocked, preview }: { entry: BackpackE
   const t = useLanguageStore(s => s.t);
   const transform = useMmdVrStore(s => (entry.kind === "model" ? s.models : s.objects).find(e => e.id === instance.runtimeId));
   const busy = useBackpack(s => s.busy), physicsBusy = useMmdVrStore(s => s.physicsBusy);
-  const [page, setPage] = useState<'tools'|'arrange'|'motions'|'prop'|'wand'|'pose'|'body'|ActivityEntry>(entry.kind==='model'?'tools':'arrange');
+  const [page, setPage] = useState<'tools'|'arrange'|'motions'|'prop'|'wand'|'pose'|ActivityEntry>(entry.kind==='model'?'tools':'arrange');
   const [peek,setPeek]=useState(false);
-  useLayoutEffect(()=>{if(blocked&&page==='body'&&preview)setPeek(true);else if(!preview)setPeek(false);},[blocked,page,preview]);
+  useLayoutEffect(()=>{if(blocked&&page==='interact'&&preview)setPeek(true);else if(!preview)setPeek(false);},[blocked,page,preview]);
   const held=useStagePlay(s=>s.held?.toy),holding=!!held;
   const wearer=useRemoteEgg(s=>s.assetId);
   const carries = useStagePlay(s=>s.character?.assetId===entry.id);
@@ -69,13 +68,12 @@ function SelectedTools({ entry, instance, blocked, preview }: { entry: BackpackE
   });
   const locked = busy || physicsBusy;
   const scale = transform?.scale ?? 1, rotation = transform?.rotationY ?? 0;
-  if(blocked && page!=='body')return null;
-  if(page==='pose'||page==='body'||page==='wardrobe'||page==='interact'||page==='observe'){
+  if(blocked && !(page==='interact'&&preview))return null;
+  if(page==='pose'||page==='wardrobe'||page==='interact'||page==='observe'){
     return <group ref={group} name="backpack-world-tools" scale={.86} pointerEventsOrder={1} pointerEventsType={{deny:['touch','grab']}}>
-      {page==='body'?<><BodyHudControls assetId={entry.id} runtimeId={instance.runtimeId} suspended={blocked||peek} onPeek={()=>setPeek(true)} onBack={()=>setPage('tools')}/>
-        {peek&&!blocked&&<HudButton position={[0,-.32,0]} size={[.78,.15]} variant="primary" label={t('bodyResume')} onPress={()=>setPeek(false)}/>}</>:
-        page==='pose'?<PoseHudControls assetId={entry.id} runtimeId={instance.runtimeId} onBack={()=>setPage('tools')}/>:
-        <ActorActivities hud entry={page} assetId={entry.id} runtimeId={instance.runtimeId} onBack={()=>setPage('tools')}/>}</group>;
+      {page==='pose'?<PoseHudControls assetId={entry.id} runtimeId={instance.runtimeId} onBack={()=>setPage('tools')}/>:
+        <ActorActivities hud entry={page} assetId={entry.id} runtimeId={instance.runtimeId} onBack={()=>setPage('tools')} suspended={blocked||peek} onPeek={()=>setPeek(true)}/>}
+      {preview&&peek&&!blocked&&<HudButton position={[0,-.32,0]} size={[.78,.15]} variant="primary" label={t('bodyResume')} onPress={()=>setPeek(false)}/>}</group>;
   }
   const tallDetail=cues||eggPage||page==='wand'||page==='motions';
   return <group ref={group} name="backpack-world-tools" scale={0.86} pointerEventsOrder={1} pointerEventsType={{ deny: ["touch", "grab"] }}>
@@ -88,8 +86,7 @@ function SelectedTools({ entry, instance, blocked, preview }: { entry: BackpackE
       {([['wardrobe','actorWardrobe'],['interact','actorInteraction'],['observe','actorObservation']] as const).map(([id,key],i)=><HudButton key={id} position={[(i-1)*.418,.115,0]} size={[.39,.16]} label={t(key)} variant={id==='interact'?'primary':'button'} disabled={locked||!instance.visible} onPress={()=>setPage(id)}/>)}
       <HudButton position={[-.315,-.11,0]} size={[.59,.16]} label={t('hudChangeMotion')} disabled={locked} onPress={()=>setPage('motions')}/>
       <HudButton position={[.315,-.11,0]} size={[.59,.16]} label={t('watchArrange')} disabled={locked} onPress={()=>setPage('arrange')}/>
-      <HudButton position={[-.315,-.325,0]} size={[.59,.16]} label={t('actorPose')} disabled={locked||!instance.visible} onPress={()=>setPage('pose')}/>
-      <HudButton position={[.315,-.325,0]} size={[.59,.16]} label={t('actorBodyState')} disabled={locked||!instance.visible} onPress={()=>setPage('body')}/>
+      <HudButton position={[0,-.325,0]} size={[1.22,.16]} label={t('actorPose')} disabled={locked||!instance.visible} onPress={()=>setPage('pose')}/>
       {(holding||carries)&&<HudButton position={[wandOut ? -.315 : 0,-.55,0]} size={[wandOut ? .59 : 1.22,.14]} label={t(held==='remoteEgg'?(wearer===entry.id?'eggControls':wearer?'eggTransfer':'eggWear'):carries?'propGrip':'propGive')} disabled={locked||(!instance.visible&&held==='remoteEgg')} onPress={()=>{if(held==='remoteEgg'&&wearer!==entry.id)bindRemoteEgg(entry.id);setPage('prop');}}/>}
       {wandOut&&<HudButton position={[(holding||carries) ? .315 : 0,-.55,0]} size={[(holding||carries) ? .59 : 1.22,.14]} label={t('wandResponse')} disabled={locked||!instance.visible} onPress={()=>setPage('wand')}/>}
     </>:<>

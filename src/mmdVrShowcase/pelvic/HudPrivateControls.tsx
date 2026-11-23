@@ -48,12 +48,13 @@ function labelText(ctx:CanvasRenderingContext2D,label:string,x:number,y:number,w
   ctx.fillText(parts.slice(split).join(joint),x,y+font*.50,width);
 }
 
-export function PrivateButton({position,size=[.36,.135],label,onPress,active=false,disabled=false,danger=false,variant='button'}:{
-  position:Point;size?:Size;label:string;onPress:()=>void;active?:boolean;disabled?:boolean;danger?:boolean;variant?:ButtonVariant;
+export function PrivateButton({position,size=[.36,.135],label,onPress,pressToken,active=false,disabled=false,danger=false,variant='button'}:{
+  position:Point;size?:Size;label:string;onPress:()=>void;pressToken?:number;active?:boolean;disabled?:boolean;danger?:boolean;variant?:ButtonVariant;
 }) {
   const [w,h]=size,stop=variant==='stop';
   const [hover,setHover]=useState(false),[pressed,setPressed]=useState(false);
   const pointer=useRef<number|null>(null), handled=useRef(new Set<number>()), lastUp=useRef<number|null>(null);
+  const tokenAtDown=useRef(pressToken);
   const geom=useMemo(()=>cutGeometry(w,h,.014,stop),[w,h,stop]);
   const px=Math.round(w*density),py=Math.round(h*density);
   const texture=useHudKeyTexture(px,py,useCallback<KeyPainter>(({ctx,width,height})=>{
@@ -80,8 +81,8 @@ export function PrivateButton({position,size=[.36,.135],label,onPress,active=fal
     onPointerLeave={e=>{e.stopPropagation();setHover(false);cancel(e.pointerId);}}
     onPointerCancel={e=>{e.stopPropagation();cancel(e.pointerId);}}
     onPointerDown={e=>{e.stopPropagation();if(disabled||pointer.current!==null){handled.current.add(e.pointerId);return;}
-      handled.current.delete(e.pointerId);pointer.current=e.pointerId;setPressed(true);}}
-    onPointerUp={e=>{e.stopPropagation();if(pointer.current!==e.pointerId)return;cancel(e.pointerId);if(!disabled)onPress();}}
+      handled.current.delete(e.pointerId);pointer.current=e.pointerId;tokenAtDown.current=pressToken;setPressed(true);}}
+    onPointerUp={e=>{e.stopPropagation();if(pointer.current!==e.pointerId)return;cancel(e.pointerId);if(!disabled&&tokenAtDown.current===pressToken)onPress();}}
     onClick={e=>{e.stopPropagation();const id='pointerId' in e&&typeof e.pointerId==='number'?e.pointerId:lastUp.current;
       if(id!==null&&handled.current.delete(id))return;if(pointer.current===null&&!disabled)onPress();}}>
     <primitive attach="geometry" object={geom}/><meshBasicMaterial map={texture} {...material}/>

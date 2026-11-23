@@ -4,7 +4,7 @@ import {DoubleSide,InstancedMesh,Object3D,Quaternion,Vector3,type MeshBasicMater
 import {ball,box,PaintedParts,ring,rod,turn} from '../../play/modelParts';
 import {useBakedSurface} from '../useBakedSurface';
 import {noPick,paintedSurface} from '../sceneryPaint';
-import {lanes,moons,sunDirection,windPoint,type Moon,type WindLane,type WindPort} from './windAtlas';
+import {lanes,sunDirection,windPoint,type Moon,type WindLane,type WindPort} from './windAtlas';
 import {moonShell} from './moonSurface';
 import ember from './ember-basins.webp';
 import frost from './frost-rifts.webp';
@@ -14,6 +14,8 @@ import {instrumentFragment,instrumentVertex,mineralFragment,mineralVertex} from 
 import {twinStation} from './twinStations';
 import {windRibbons} from './windRibbons';
 import {Reedwater,reedGaugeModel} from './Reedwater';
+import {LanternBiosphere} from './lanternGardenScene';
+import {AmberIslet} from './AmberIslet';
 import {surfaceGrain} from './surfaceGrain';
 import {createWindFocus,windPlateSight} from './windFocus';
 import {useSceneAction} from '../input/useSceneAction';
@@ -22,7 +24,7 @@ import {SteppingMoons} from './SteppingMoons';
 
 const prints={basins:ember,rifts:frost,salt,glaze};
 const halite={HALITE:1};
-function Satellite({moon,grain}:{moon:Exclude<Moon,{relief:'wetland'}>;grain:Texture|null}){
+function Satellite({moon,grain}:{moon:Extract<Moon,{relief:keyof typeof prints}>;grain:Texture|null}){
   const twin=moon.relief==='salt'||moon.relief==='glaze';
   const g=useMemo(()=>moonShell(moon),[moon]),map=useBakedSurface(prints[moon.relief],twin?'mask':'print');
   const u=useMemo(()=>({albedo:{value:map},printMap:{value:map},mapped:{value:map?1:0},grainMap:{value:grain},grainReady:{value:grain?1:0},core:{value:moon.centre},sun:{value:sunDirection},ice:{value:moon.relief==='rifts'?1:0},probe:{value:moon.station.base},probeUp:{value:moon.station.up}}),[map,moon,grain]);
@@ -50,7 +52,7 @@ function Satellite({moon,grain}:{moon:Exclude<Moon,{relief:'wetland'}>;grain:Tex
 
 const axis=new Vector3(0,1,0);
 const daylight={sun:{value:sunDirection}};
-function SurveyProbe({moon}:{moon:Moon}){
+function SurveyProbe({moon}:{moon:Exclude<Moon,{id:'lantern'}>}){
   const s=moon.station;
   const g=useMemo(()=>{
     if(moon.instrument==='gauge')return reedGaugeModel();
@@ -138,8 +140,13 @@ export function WindSystem({grain}:{grain:Texture|null}){
   useFrame(({camera,gl})=>{(gl.xr.isPresenting?gl.xr.getCamera():camera).getWorldPosition(eye);const next=focus.read(eye);
     if(next!==last.current){last.current=next;setActive(next);}});
   return <group name="planet:wind-system" pointerEvents="none">
-  {lanes.map(l=><group key={l.moon.id}>{l.moon.relief==='wetland'?<Reedwater moon={l.moon} grain={grain}/>:<Satellite moon={l.moon} grain={grain}/>}<Terminal hardware={hardware} lane={l} port={l.home} back={false} active={l===active} pick={focus.select}/><Terminal hardware={hardware} lane={l} port={l.away} back active={l===active} pick={focus.select}/></group>)}
-  {moons.map(moon=><SurveyProbe key={moon.id} moon={moon}/>)}
-  <SteppingMoons grain={grain}/>
+  {lanes.map(l=><group key={l.moon.id}>
+    {l.moon.id==='lantern'?<LanternBiosphere/>:<>
+      {l.moon.relief==='wetland'?<Reedwater moon={l.moon} grain={grain}/>:<Satellite moon={l.moon} grain={grain}/>}
+      <SurveyProbe moon={l.moon}/></>}
+    <Terminal hardware={hardware} lane={l} port={l.home} back={false} active={l===active} pick={focus.select}/>
+    <Terminal hardware={hardware} lane={l} port={l.away} back active={l===active} pick={focus.select}/>
+  </group>)}
+  <SteppingMoons grain={grain}/><AmberIslet/>
   {active&&<group name={'wind:charted:'+active.moon.id}><Slipstream lane={active}/></group>}
 </group>;}

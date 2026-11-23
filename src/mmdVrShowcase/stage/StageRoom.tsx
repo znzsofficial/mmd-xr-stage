@@ -17,6 +17,7 @@ import {
   setMmdVrClockTime,
 } from "../mmdVrClock";
 import { getMmdVrRenderProfile } from "../mmdVrQuality";
+import { minSceneViewDistance } from '../mmdVrAdjustments';
 import { useMmdVrStore, type MmdVrMaterialState } from "../mmdVrStore";
 import { objectHeadingDegrees, setObjectHeadingDegrees } from "../objectHeading";
 import { roomSets } from '../scenery/roomSets';
@@ -337,7 +338,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
 
   useLayoutEffect(() => {
     if (!(camera instanceof THREE.PerspectiveCamera)) return;
-    camera.far = scenery==='glassPlanet'?Math.max(70,viewDistance):viewDistance;
+    camera.far = Math.max(minSceneViewDistance(scenery),viewDistance);
     camera.updateProjectionMatrix();
   }, [camera, scenery, viewDistance]);
 

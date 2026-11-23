@@ -269,13 +269,17 @@ export function publishPelvicSample(token:number,sample:PelvicSample){
   usePelvic.setState({active:a.mode==='standAuto'&&a.position!==position?{...a,position}:a,sample:snapshot(sample)});return true;
 }
 
-export function requestPelvicDose(assetId:string,target:PelvicDoseTarget){
+export function requestPelvicDose(assetId:string,target:PelvicDoseTarget,token=state().active?.token){
   const {active:a,sample,byAsset}=state();
-  if(a?.assetId!==assetId||!a.running||a.mode==='xrManual'||blocked(a)||!sample)return false;
+  if(a?.assetId!==assetId||a.token!==token||!a.running||a.mode==='xrManual'||!selected(assetId)||blocked(a)||!sample)return false;
   if(a.mode==='standAuto'&&(state().strokeOrder||doseCount))return false;
-  if(target==='external'?sample.outletInside||!sample.outletVisible:target!==byAsset[assetId].container||!sample.outletInside)return false;
+  if(target==='external'?sample.outletInside||!sample.outletVisible:!sample.outletInside)return false;
+  // An explicit change before the delivery frame retires the old target's
+  // pending doses; those units must never be delivered to the new site.
   if(doseTarget!==target)doseCount=0;
-  doseTarget=target;doseCount++;return true;
+  doseTarget=target;doseCount++;
+  const p=byAsset[assetId];if(target!=='external'&&p.container!==target)writeProfile(assetId,{...p,container:target});
+  return true;
 }
 /** One motor gesture owns at most the current/next inward pass. The HUD does
  * not dispatch a dose. Only the previous post-pose outlet can already have
@@ -283,10 +287,11 @@ export function requestPelvicDose(assetId:string,target:PelvicDoseTarget){
 export function requestStrokeDose(assetId:string,token:number,target:PelvicContainer){
   const {active:a,byAsset,support,strokeOrder}=state(),p=byAsset[assetId];
   if(!a||a.token!==token||a.assetId!==assetId||a.mode!=='standAuto'||!a.running||blocked(a)||!selected(assetId)||
-    !p||p.container!==target||!canStartAtOpening(p,support[assetId])||strokeOrder||doseCount)return false;
+    !p||!canStartAtOpening(p,support[assetId])||strokeOrder||doseCount)return false;
   const ttl=1/p.speedHz+.12;
   usePelvic.setState({strokeOrder:{id:++sequence,token,target,phase:lastInside?'dispatched':'waiting',deadline:performance.now()+1000*ttl,
-    driveDeadline:driveSeconds+ttl,lastEnd:forwardEnds},strokeReceipt:null});return true;
+    driveDeadline:driveSeconds+ttl,lastEnd:forwardEnds},strokeReceipt:null,
+    byAsset:p.container===target?byAsset:{...byAsset,[assetId]:{...p,container:target}}});return true;
 }
 export function cancelStrokeDose(id:number){if(state().strokeOrder?.id!==id)return false;settleOrder('cancelled');return true;}
 export function discardPelvicDoses(token:number,poseHeld=false){if(state().active?.token===token){doseCount=0;if(!poseHeld)lastInside=entering=false;settleOrder('cancelled');}}

@@ -8,7 +8,8 @@ import {stoneFinish} from './steppingMinerals';
 // Two small field samples: silvery split sheets with ink-dark partings,
 // and soft yellow concretions in an ochre matrix. One static draw per body;
 // the broad structures underneath the deposit colour are also walkable.
-function stone(m:SteppingMoon){
+type MineralIslet=Extract<SteppingMoon,{id:'mica'|'sulfur'}>;
+function stone(m:MineralIslet){
   const g=moonShell(m),p=g.attributes.position,n=g.attributes.normal,colors=new Float32Array(3*p.count);
   const up=new Vector3(),normal=new Vector3(),c=new Color(),mica=m.id==='mica';
   const dark=new Color(mica?'#3a5563':'#93613d'),mid=new Color(mica?'#7aabac':'#dcc168'),light=new Color(mica?'#d8e6da':'#faf0a1');
@@ -27,8 +28,8 @@ function stone(m:SteppingMoon){
   g.setAttribute('color',new Float32BufferAttribute(colors,3));return g;
 }
 const micaDefines={MICA_CLEAVAGE:1};
-function Stone({moon,grain}:{moon:SteppingMoon;grain:Texture|null}){
+function Stone({moon,grain}:{moon:MineralIslet;grain:Texture|null}){
   const g=useMemo(()=>stone(moon),[moon]),detail=useMemo(()=>stoneFinish(grain,moon.id==='mica'?1.2:.84),[grain,moon]);useEffect(()=>()=>g.dispose(),[g]);
   return <mesh name={'planet:moon-'+moon.id} position={moon.centre} geometry={g} raycast={noPick}><meshBasicMaterial key={grain?.uuid} defines={moon.id==='mica'?micaDefines:undefined} vertexColors fog={false} onBeforeCompile={detail}/></mesh>;
 }
-export function SteppingMoons({grain=null}:{grain?:Texture|null}){return <group name="planet:stepping-moons" pointerEvents="none" userData={{playerCollision:false}}>{steppingMoons.map(m=><Stone key={m.id} moon={m} grain={grain}/>)}</group>;}
+export function SteppingMoons({grain=null}:{grain?:Texture|null}){return <group name="planet:stepping-moons" pointerEvents="none" userData={{playerCollision:false}}>{steppingMoons.map(m=>m.id==='amber'?null:<Stone key={m.id} moon={m} grain={grain}/>)}</group>;}

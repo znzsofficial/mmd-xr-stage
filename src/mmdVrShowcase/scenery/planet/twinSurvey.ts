@@ -1,5 +1,5 @@
 import {Vector3} from 'three';
-import {moons} from './windAtlas';
+import {amberMoon,moons} from './windAtlas';
 import {moonRadius} from './moonSurface';
 import {leapRoutes,twinPad,type LeapRoute} from './leapAtlas';
 
@@ -25,10 +25,18 @@ export const twinSurveys=moons.flatMap(moon=>{
 const mid=twinSurveys[0].moon.centre.clone().lerp(twinSurveys[1].moon.centre,.5);
 export const straitPortrait={key:'twinPortrait' as const,eye:mid.clone().add(new Vector3(-.4,3.7,17.6)).toArray() as Point,aim:mid.toArray() as Point};
 
+// A close look at the sunward fern window, rather than the opposing planet
+// seen from the jump mark. This is an inspection shot, not a new jump route.
+const fossilUp=new Vector3(-.2,.88,-.51).normalize(),fossilSide=new Vector3(.4,.2,.8).projectOnPlane(fossilUp).normalize();
+const fossil=amberMoon.centre.clone().addScaledVector(fossilUp,moonRadius(amberMoon,fossilUp.x,fossilUp.y,fossilUp.z));
+export const amberPortrait={key:'amberFossil' as const,eye:fossil.clone().addScaledVector(fossilUp,1.7).addScaledVector(fossilSide,-1.50).toArray() as Point,
+  aim:fossil.toArray() as Point,up:fossilUp.toArray() as Point};
+
 function steppingView<K extends string>(key:K,route:LeapRoute){
   const {pad,sight,crest}=route,eye=pad.foot.clone().addScaledVector(pad.up,1.65);
   return {key,eye:eye.toArray() as Point,aim:eye.clone().addScaledVector(pad.up,8).addScaledVector(crest,.25).addScaledVector(sight,1.8).toArray() as Point};
 }
 const viewTo=(from:LeapRoute['pad']['id'],to:LeapRoute['target']['id'])=>leapRoutes.find(r=>r.pad.id===from&&r.target.id===to)!;
 export const steppingViews=[steppingView('glazeMicaLeap',viewTo('glaze','mica')),steppingView('micaSulfurLeap',viewTo('mica','sulfur')),
-  steppingView('sulfurMicaLeap',viewTo('sulfur','mica')),steppingView('micaGlazeLeap',viewTo('mica','glaze'))] as const;
+  steppingView('sulfurMicaLeap',viewTo('sulfur','mica')),steppingView('micaGlazeLeap',viewTo('mica','glaze')),
+  steppingView('lanternAmberLeap',viewTo('lantern','amber')),steppingView('amberLanternLeap',viewTo('amber','lantern'))] as const;

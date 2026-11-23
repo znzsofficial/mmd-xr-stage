@@ -5,7 +5,7 @@ import { HudSlider } from '../components/HudValues';
 import { bodySpan as span, HudActions, ScreenActions } from './BodyActions';
 import { HudLiningDiagram, ScreenLiningDiagram } from './LiningDiagram';
 import type { Row } from './controlRows';
-import { useBodyEditor, type BodyActor } from './useBodyEditor';
+import { useBodyEditor, type BodyActor, type BodyEditorEntry } from './useBodyEditor';
 import './body-controls.css';
 
 function ScreenDestination({row,blocked}:{row:Extract<Row,{kind:'destination'}>;blocked:boolean}) {
@@ -33,7 +33,8 @@ function ScreenRow({ row, blocked }:RowProps) {
   }
 }
 
-function ScreenEditor({onBack,suspended,...props}: BodyActor & {onBack?:()=>void;suspended?:boolean}) {
+type ScreenEditorProps=BodyActor&BodyEditorEntry&{onBack?:()=>void;suspended?:boolean};
+function ScreenEditor({onBack,suspended,...props}: ScreenEditorProps) {
   const editor = useBodyEditor(props);
   const back = editor.backAction ?? (onBack && {label:editor.back,run:onBack});
   const panel=useRef<HTMLDivElement>(null),heading=useRef<HTMLHeadingElement>(null),previous=useRef(editor.page);
@@ -57,7 +58,7 @@ function ScreenEditor({onBack,suspended,...props}: BodyActor & {onBack?:()=>void
 }
 
 /** The actor sheet owns entry/exit and already identifies the selected file. */
-export function BodyScreenControls(props: BodyActor & {onBack?:()=>void;suspended?:boolean}) {
+export function BodyScreenControls(props: ScreenEditorProps) {
   return <ScreenEditor key={`${props.assetId}:${props.runtimeId}`} {...props}/>;
 }
 
@@ -93,7 +94,7 @@ function HudRow({ row, blocked }: RowProps) {
   }
 }
 
-type HudEditorProps = BodyActor & {onBack:()=>void;suspended?:boolean;onPeek?:()=>void};
+type HudEditorProps = BodyActor & BodyEditorEntry & {onBack:()=>void;suspended?:boolean;onPeek?:()=>void};
 function HudEditor({onBack,suspended,onPeek,...actor}: HudEditorProps) {
   const editor = useBodyEditor(actor);
   const t=useLanguageStore(s=>s.t);

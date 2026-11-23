@@ -19,6 +19,7 @@ const harness = vi.hoisted(() => ({ camera: {} as unknown, b: (_: string) => {} 
 vi.mock("@react-three/fiber", () => ({ useThree: (selector: (s: typeof harness) => unknown) => selector(harness), useFrame: vi.fn() }));
 vi.mock("@react-three/xr", () => ({ useXRInputSourceState: () => undefined, useXRControllerButtonEvent: (_: unknown, id: string, cb: typeof harness.b) => { if (id === "b-button") harness.b = cb; } }));
 vi.mock("../../shared/panelTexture", () => ({ createPanelTexture: () => ({ dispose: vi.fn() }), roundRectPath: vi.fn() }));
+vi.mock('../observation/ObservationDiagram',()=>({ObservationDiagram:({part}:{part:string})=><group name={`figure:${part}`}/>}));
 
 const t = useLanguageStore.getState().t;
 const bag = () => useBackpack.getState();
@@ -139,7 +140,7 @@ it("cancels new placement explicitly or with right B without issuing a stage com
 
 it('folds only the actor sheet, and resumes its unsaved section even after B recalls the public menu',async()=>{
   useBackpack.setState({selected:'a0',live:{a0:instance('actor0'),a1:instance('actor1')}});
-  await render();await click(t('actorBodyState'));await click('泌乳');await click('开启泌乳');
+  await render();expect(button(t('actorBodyState'))).toBeUndefined();await click(t('actorInteraction'));await click(t('actorMilkStock'));await click('开启泌乳');
   await click(t('bodyPeek'));expect(button('放弃改动')).toBeUndefined();
   expect(useBodyState.getState().draft?.value.lactating).toBe(true);
   await click(t('bodyResume'));expect(button('关闭泌乳')).toBeDefined();expect(button('排出左侧')).toBeUndefined();
@@ -147,6 +148,18 @@ it('folds only the actor sheet, and resumes its unsaved section even after B rec
   await click(t('hudBack'));await click(t('bodyResume'));expect(button('关闭泌乳')).toBeDefined();
   await click(t('bodyPeek'));await act(async()=>bag().select('a1'));
   expect(useBodyState.getState().draft).toBeNull();expect(button(t('bodyResume'))).toBeUndefined();
+});
+
+it('returns from fertility to the selected uterus lens, and exits a cross-link at the original interaction hub',async()=>{
+  useBackpack.setState({selected:'a0',live:{a0:instance('actor0')}});
+  useMmdVrStore.setState({overlayOpen:true,presentation:'xr'});vi.spyOn(document,'hidden','get').mockReturnValue(false);
+  vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValue(null);
+  await render();await click(t('actorInteraction'));await click(t('actorInsert'));await click('子宫');
+  await click(t('actorFertility'));expect(button('插入操作')).toBeUndefined();await click(t('backToInsert'));
+  expect(host.querySelector('[name="figure:uterus"]')).toBeTruthy();await click(t('backToInteraction'));
+  await click(t('actorFertility'));await click('插入操作');expect(host.querySelector('[name="figure:uterus"]')).toBeTruthy();
+  await click(t('actorFertility'));await click(t('backToInteraction'));expect(button(t('actorMilkStock'))).toBeDefined();
+  expect(useBodyState.getState().draft).toBeNull();
 });
 
 it("targets the selected runtime for transforms, but the stable character and exact file for body/face motions", async () => {

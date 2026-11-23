@@ -2,7 +2,7 @@ import {Vector3} from 'three';
 import {allMoons,type WalkMoon} from './windAtlas';
 import {moonRadius} from './moonSurface';
 
-export const leapNames={salt:['棱盐星','Halite'],glaze:['玄釉星','Obsidian'],mica:['云母屿','Mica'],sulfur:['硫珠屿','Sulfur']} as const;
+export const leapNames={salt:['棱盐星','Halite'],glaze:['玄釉星','Obsidian'],mica:['云母屿','Mica'],sulfur:['硫珠屿','Sulfur'],lantern:['伞灯星','Lantern'],amber:['琥珀屿','Amber']} as const;
 type LeapId=keyof typeof leapNames;
 const world=(id:LeapId)=>allMoons.find(m=>m.id===id)!;
 function endpoint(id:LeapId,moon:WalkMoon,up:Vector3){
@@ -17,7 +17,7 @@ function crossing(a:LeapId,b:LeapId){
 // Each end gets its own trigger and the reciprocal landing, even when two
 // different crossings depart the same world. No nearest-centre capture.
 const twinRoutes=crossing('salt','glaze');
-export const leapRoutes=[...twinRoutes,...crossing('glaze','mica'),...crossing('mica','sulfur')];
+export const leapRoutes=[...twinRoutes,...crossing('glaze','mica'),...crossing('mica','sulfur'),...crossing('lantern','amber')];
 export type LeapRoute=typeof leapRoutes[number];
 export const TWIN_PAD_RADIUS=.68;
 export function twinPad(moon:WalkMoon){return twinRoutes.find(r=>r.pad.moon===moon)?.pad;}

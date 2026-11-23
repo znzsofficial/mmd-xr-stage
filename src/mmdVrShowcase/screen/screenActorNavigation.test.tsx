@@ -5,7 +5,8 @@ import {afterEach,beforeEach,expect,it,vi} from 'vitest';
 import {clearBackpack,useBackpack} from '../backpack';
 import {beginBodyPreview,patchBodyPreview,useBodyState} from '../bodyState/store';
 import {useMmdVrStore} from '../mmdVrStore';
-import {usePelvic} from '../pelvic/store';
+import {enablePelvic,usePelvic} from '../pelvic/store';
+import {useReproduction} from '../bodyState/reproduction/store';
 import {ScreenStage} from './ScreenStage';
 
 // Stand in for a completed scene pick. The real ray first selects in the
@@ -16,6 +17,7 @@ vi.mock('../components/MmdVrStage',()=>({MmdVrStageContent:()=>null}));
 vi.mock('../play/StoryStations',()=>({StoryStations:()=>null}));
 vi.mock('./ScreenCamera',async()=>{const {useLayoutEffect}=await import('react');return {ScreenCamera:({onReady}:{onReady:(v:boolean)=>void})=>{useLayoutEffect(()=>onReady(true),[onReady]);return null;}};});
 vi.mock('../music/ScreenMusic',()=>({ScreenMusic:()=>null}));
+vi.mock('../observation/ObservationDiagram',()=>({ObservationDiagram:({part}:{part:string})=><canvas data-part={part}/>}));
 
 HTMLDialogElement.prototype.showModal=function(){this.open=true;};
 HTMLDialogElement.prototype.close=function(){this.open=false;};
@@ -36,12 +38,13 @@ beforeEach(async()=>{
   host=document.createElement('div');document.body.append(host);root=createRoot(host);
   await act(()=>root.render(<ScreenStage/>));
 });
-afterEach(async()=>{await act(()=>root.unmount());host.remove();clearBackpack();useMmdVrStore.setState(stage);vi.unstubAllGlobals();});
+afterEach(async()=>{await act(()=>root.unmount());host.remove();clearBackpack();useMmdVrStore.setState(stage);vi.restoreAllMocks();vi.unstubAllGlobals();});
 
 it('opens the chosen actor directly and lets the bag show every item independently of that selection',async()=>{
   expect(activeSheet()).toBeNull();await click('背包');expect(activeSheet()?.querySelectorAll('.screen-item')).toHaveLength(2);
   await click('pick b');expect(activeSheet()?.querySelector('h2')?.textContent).toBe('Blue');
-  expect(['服装','互动','身体观察','摆位置','动作','摆姿势','身体设置'].filter(x=>button(x)?.disabled!==false)).toEqual([]);
+  expect(['服装','互动','身体观察','摆位置','动作','摆姿势'].filter(x=>button(x)?.disabled!==false)).toEqual([]);
+  expect(button('身体设置')).toBeUndefined();expect(button('生育进程')).toBeUndefined();
   expect(activeSheet()?.querySelector('.screen-item, .screen-toy-guide')).toBeNull();
   await click('动作');expect(activeSheet()?.textContent).toContain('请先在准备页导入 VMD');
   await click('pick b');await click('摆位置');await click('移动');expect(useBackpack.getState().draft).toBe('b');
@@ -68,6 +71,7 @@ it('shows each bound file even with duplicate basenames and unbinds the selected
 it('can inspect a fresh actor without enabling an attachment or creating a body draft',async()=>{
   await click('pick b');await click('身体观察');
   expect(['乳房','外阴','阴道','子宫'].filter(x=>!button(x))).toEqual([]);
+  await click('子宫');expect(button('生育进程')).toBeUndefined();expect(useReproduction.getState().byAsset.b).toBeUndefined();
   await click('阴道');expect(usePelvic.getState().byAsset.b).toBeUndefined();
   expect(useBodyState.getState().draft).toBeNull();expect(useBodyState.getState().byAsset.b).toBeUndefined();
   await click('返回角色');await click('互动');await click('插入');
@@ -75,8 +79,23 @@ it('can inspect a fresh actor without enabling an attachment or creating a body 
   expect(button('服装')).toBeTruthy();expect(usePelvic.getState().active).toBeNull();
 });
 
+it('links fertility and the insertion close-up in either direction without stacking visits or retargeting a dose',async()=>{
+  vi.spyOn(document,'hidden','get').mockReturnValue(false);
+  await click('pick b');await act(()=>{useMmdVrStore.setState({overlayOpen:true,presentation:'screen'});expect(enablePelvic('b',true)).toBe(true);});
+  const profile=usePelvic.getState().byAsset.b;
+  await click('互动');await click('生育进程');await click('插入操作');
+  const uterus=()=>expect(button('子宫').getAttribute('aria-pressed')).toBe('true');
+  uterus();await click('生育进程');await click('返回互动');expect(button('初始乳量')).toBeDefined();
+  await click('插入');await click('阴道');expect(button('生育进程')).toBeUndefined();
+  await click('子宫');await click('斜面');await click('生育进程');expect(button('插入操作')).toBeUndefined();
+  await click('返回插入');uterus();expect(button('斜面').getAttribute('aria-pressed')).toBe('true');
+  await click('返回互动');expect(button('初始乳量')).toBeDefined();
+  expect(usePelvic.getState().byAsset.b).toBe(profile);expect(profile.container).toBe('vaginal');
+  expect(useBodyState.getState().draft).toBeNull();expect(useReproduction.getState().byAsset.b).toBeUndefined();
+});
+
 async function startPreview(){
-  await click('pick a');await click('身体设置');
+  await click('pick a');await click('互动');await click('胸型');
   await act(()=>{expect(beginBodyPreview('a',true)).toBe(true);patchBodyPreview('a',{fullness:.7});});
   await click('触碰与适配');
 }

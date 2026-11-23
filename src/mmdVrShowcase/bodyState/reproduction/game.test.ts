@@ -32,6 +32,6 @@ it('persists both negative outcomes and only offers a fresh trial on a real new 
     const first=receiveDose(released(id)),result=progressDays(first,6,p);
     expect(reproductiveSample(result)).toMatchObject({stage:failed,gestation:0,chance:60});
     expect(receiveDose(result)).toBe(result);expect(receiveDose(first)).toBe(first);
-    const next=progressDays(result,nextMilestone(result).days,p);expect(next).toMatchObject({round:2,trial:null,eggs:0});
+    expect(nextMilestone(result).key).toBe('round');const next=progressDays(result,nextMilestone(result).days,p);expect(next).toMatchObject({round:2,trial:null,eggs:0});
   }
 });

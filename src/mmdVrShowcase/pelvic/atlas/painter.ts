@@ -46,7 +46,7 @@ function sameCycle(a:BodyProfile|undefined,b:BodyProfile|undefined){
 /** One painter for the DOM surface or one reusable XR canvas texture. Discrete
  * input/sample changes wake it; only the diagram's pulse and camera ease need
  * a clock. The UI never writes a simulation sample, even during an orbit. */
-export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasActor,scope:AtlasScope,wake:()=>void,upload:()=>void){
+export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasActor,scope:AtlasScope,wake:()=>void,upload:()=>void,workbench=false){
   const ctx=canvas.getContext('2d');
   let art:ReturnType<typeof organOutput>|undefined,geometry:ReturnType<typeof sectionLayout>|undefined;
   let view=readAtlasView(assetId),lastL=0,lastR=0,lastYaw=NaN,dirty=true,heading=view.degrees,lastHeading=NaN;
@@ -54,6 +54,7 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
   const changed=(invalidate=true)=>{dirty=true;if(invalidate)art?.discard();wake();};
   const lettering=entryLettering(()=>changed(false));
   function currentBody(s=useBodyState.getState()){
+    if(workbench)return s.byAsset[assetId]??DEFAULT_BODY_PROFILE;
     return s.draft?.assetId===assetId?s.draft.value:s.byAsset[assetId]??(scope==='body'?DEFAULT_BODY_PROFILE:undefined);
   }
   const observation=scope!=='body'&&scope!=='pelvic';
@@ -80,7 +81,10 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
         changed(Math.round(a.daySeconds*10/BODY_DAY_SECONDS)!==Math.round(b.daySeconds*10/BODY_DAY_SECONDS));
       }
     })];
-  if(scope==='uterus')off.push(useReproduction.subscribe((s,p)=>{if(activeGame(assetId,s)!==activeGame(assetId,p))changed();}));
+  if(scope==='uterus')off.push(useReproduction.subscribe((s,p)=>{
+    const a=s.byAsset[assetId],b=p.byAsset[assetId];
+    if(workbench?a?.game!==b?.game||a?.enabled!==b?.enabled:activeGame(assetId,s)!==activeGame(assetId,p))changed();
+  }));
   if(scope!=='body')off.push(usePelvic.subscribe((s,p)=>{
     const a=binding(s),b=binding(p);
     if(s.byAsset[assetId]!==p.byAsset[assetId]||a?.token!==b?.token){changed();return;}
@@ -113,7 +117,8 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
       publish(drawPelvicSection(ctx,geometry,profile,sample,zh,parked,mode==='entry'?lettering.get(zh):undefined,v.foldStyle));
     }else{
       const daily=body?sampleBody(body):null,fantasy=profile?.container==='fantasyUterine';
-      const game=scope==='uterus'?activeGame(assetId):undefined,reproduction=game&&reproductiveSample(game);
+       const account=scope==='uterus'?useReproduction.getState().byAsset[assetId]:undefined;
+       const game=(workbench||account?.enabled)?account?.game:undefined,reproduction=game&&reproductiveSample(game);
       const volume=profile?.fluid[profile.container]??0,capacity=profile?.capacity[profile.container]??1;
       const state=outletLabel(sample,zh,parked);
       const depth=!parked&&sample?.outletInside?`${(sample.depth*100).toFixed(1)} cm`:'—';
@@ -121,7 +126,7 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
       // With body state disabled the neutral illustration is not a measured lining.
       art??=organOutput(result=>{if(result==='retry')dirty=true;wake();});
         art.submit({scale:canvas.width/W,options:{x:0,y:0,width:W,height:observation?H:H-32,focus:observation?scope:undefined,foldStyle:v.foldStyle,rim:visibleRim(profile),yaw,time,lining:daily?.lining??.44,shedding:daily?.shedding??0,tissue:daily?.tissue,labels:v.labels,
-         reproduction,reproductionSeconds:game&&pictureSeconds?.(pictureCue(game),now,v.motion),fluid:volume/capacity,fantasy,vaginalFluid:profile?profile.fluid.vaginal/profile.capacity.vaginal:0,
+         reproduction,reproductionSeconds:game&&pictureSeconds?.(pictureCue(game),now,v.motion&&!!account?.enabled),fluid:volume/capacity,fantasy,vaginalFluid:profile?profile.fluid.vaginal/profile.capacity.vaginal:0,
          uterineFluid:scope==='uterus'&&profile?profile.fluid.fantasyUterine/profile.capacity.fantasyUterine:undefined,
          pressure:!parked&&sample?.outletInside?Math.min(1,sample.depth/Math.max(.0001,sample.lengthM)):0,sample,parked,zh},paint:draw=>{
         ctx.save();ctx.scale(canvas.width/W,canvas.height/H);ctx.fillStyle='#211722';ctx.fillRect(0,0,W,H);draw(ctx);

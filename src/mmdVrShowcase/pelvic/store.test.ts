@@ -131,14 +131,18 @@ it('never substitutes another destination when the nozzle crosses or the player 
   expect(requestPelvicDose('a','external')).toBe(false);nudgePelvic('a',1);expect(requestPelvicDose('a','vaginal')).toBe(false);
   reading(external);expect(requestPelvicDose('a','external')).toBe(true);expect(consumePelvicDose(t,inside)).toBe('none');
   reading(inside);expect(requestPelvicDose('a','vaginal')).toBe(true);expect(consumePelvicDose(t,external)).toBe('none');
-  requestPelvicDose('a','vaginal');patchPelvic('a',{container:'fantasyUterine'});expect(requestPelvicDose('a','vaginal')).toBe(false);
+  requestPelvicDose('a','vaginal');patchPelvic('a',{container:'fantasyUterine'});
   expect(consumePelvicDose(t,inside)).toBe('none');expect(get().byAsset.a.fluid).toEqual({vaginal:0,fantasyUterine:0});
+  stopPelvic('a');startPelvic('a');reading(inside);expect(requestPelvicDose('a','vaginal',t)).toBe(false);
+  reading(external);expect(requestPelvicDose('a','vaginal',token())).toBe(false);expect(get().byAsset.a.container).toBe('fantasyUterine');
+  reading(inside);expect(consumePelvicDose(token(),inside)).toBe('none');
 });
 
 it('distinguishes the actual current admission from a queued inward pass and never carries a dispatched dose past withdrawal',()=>{
   opted();assignPelvic('a','standAuto','screen');startPelvic('a');const t=token(),ask=()=>requestStrokeDose('a',t,'vaginal');
   const frame=(outlet:typeof inside,motion:'outside'|'withdraw'|'inside'|'enter')=>{advancePelvic(t,.015);return consumePelvicDose(t,{...outlet,motion});};
   reading(inside);frame(external,'outside');expect(ask()).toBe(true);const first=get().strokeOrder!;expect(first.phase).toBe('waiting');
+  expect(requestStrokeDose('a',t,'fantasyUterine')).toBe(false);expect(get().strokeOrder).toBe(first);expect(get().byAsset.a.container).toBe('vaginal');
   expect(ask()).toBe(false);expect(requestPelvicDose('a','external')).toBe(false);expect(cancelStrokeDose(first.id)).toBe(true);
   expect(ask()).toBe(true);expect(cancelStrokeDose(first.id)).toBe(false);expect(frame(external,'outside')).toBe('none');
   // Crossing the plane can precede the first physically usable nozzle by a frame.

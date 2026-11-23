@@ -1,8 +1,10 @@
 import {SphereGeometry} from 'three';
 import {reedRelief} from './reedBiosphere';
+import {lanternGround} from './lanternBiosphere';
+import {amberRelief} from './amberStrata';
 
 type Direction={x:number;y:number;z:number};
-type Profile={relief:'basins'|'rifts'|'salt'|'glaze'|'wetland'|'mica'|'sulfur';radius:number;station?:{up:Direction};jumpHeadings?:readonly Direction[]};
+type Profile={relief:'basins'|'rifts'|'salt'|'glaze'|'wetland'|'lantern'|'amber'|'mica'|'sulfur';radius:number;station?:{up:Direction};jumpHeadings?:readonly Direction[]};
 const pits=Array.from({length:30},(_,i)=>{
   const y=1-(i+.5)/15,s=Math.sqrt(1-y*y),a=i*2.39996+.38;
   return {x:s*Math.sin(a),y,z:s*Math.cos(a),width:.007+.036*((i*13%29)/29)**2};
@@ -48,6 +50,8 @@ function padTerrain(m:Profile,x:number,y:number,z:number){
 // Taper the terrain towards the north landing so its wind collar sits flush.
 export function moonRadius(m:Profile,x:number,y:number,z:number){
   if(m.relief==='wetland')return m.radius+reedRelief(x,y,z);
+  if(m.relief==='lantern')return m.radius+lanternGround(x,y,z);
+  if(m.relief==='amber')return m.radius+amberRelief(x,y,z);
   if(m.relief==='mica'||m.relief==='sulfur'){
     const height=m.relief==='mica'?.24*(x*x-z*z)+.095*Math.tanh(2.4*Math.sin(Math.PI*micaStrata(x,y,z)))
       :.13*sulfurLobes(x,y,z)-.21*Math.exp(-(((1-(.6*x+.8*y))/.16)**2));
@@ -78,7 +82,7 @@ export function moonRadius(m:Profile,x:number,y:number,z:number){
   return m.radius+h*relief;
 }
 const smallSegments=[80,48] as const,largeSegments=[112,72] as const;
-export const moonSegments=(m:Profile)=>m.relief==='mica'||m.relief==='sulfur'?smallSegments:largeSegments;
+export const moonSegments=(m:Profile)=>m.relief==='mica'||m.relief==='sulfur'||m.relief==='amber'?smallSegments:largeSegments;
 export function moonShell(m:Profile){
   const g=new SphereGeometry(1,...moonSegments(m)),p=g.attributes.position;
   for(let i=0;i<p.count;i++){

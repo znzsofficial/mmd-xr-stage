@@ -1,27 +1,34 @@
+import {Vector3} from 'three';
 import {stationBlocks,terrainAltitude} from './opalTerrain';
-import {planetPlace} from './planetLayout';
-import {allMoons} from './windAtlas';
+import {PLANET_RADIUS,planetPlace} from './planetLayout';
+import {allMoons,moonObstructed} from './windAtlas';
 import {moonRadius} from './moonSurface';
+import {clearingDeck,onClearing} from './lanternClearing';
+import {lanternCanopyBlocks} from './lanternBiosphere';
 
-/** Check the segment to the north deck, not only the side of its tangent
- * plane. The outlying observatory and ridges can rise across an oblique ray. */
+const home=new Vector3(0,-PLANET_RADIUS,0);
+/** Either deck can be the destination. Clip against each world's occupied
+ * volume, including the near side of the world the ray originated on. */
 export function planetSight(from:{x:number;y:number;z:number},x:number,y:number,z:number){
-  if(!planetPlace(x,z)||Math.abs(y)>.025||from.y<=.005)return false;
-  const dx=x-from.x,dy=.012-from.y,dz=z-from.z,len=Math.hypot(dx,dy,dz);
+  if(!(planetPlace(x,z)&&y===0||onClearing(x,z)&&y===clearingDeck.y)||from.y<=y+.005)return false;
+  const dx=x-from.x,dy=y+.012-from.y,dz=z-from.z,len=Math.hypot(dx,dy,dz);
   if(!Number.isFinite(len))return false;
-  // Clip to each neighbouring globe before sampling its relief. A ray from
-  // the far side of the ice moon cannot place an actor through its crust.
-  if(len>0)for(const m of allMoons){
-    const a=from.x-m.centre.x,b=from.y-m.centre.y,c=from.z-m.centre.z,mid=-(a*dx+b*dy+c*dz)/len;
-    const span=(m.radius+.9)**2-(a*a+b*b+c*c-mid*mid);if(span<=0)continue;
+  const p=new Vector3();
+  function crosses(centre:Vector3,radius:number,blocks:(p:Vector3)=>boolean){
+    const a=from.x-centre.x,b=from.y-centre.y,c=from.z-centre.z;
+    const mid=len?-(a*dx+b*dy+c*dz)/len:0,span=radius*radius-(a*a+b*b+c*c-mid*mid);
+    if(span<=0)return false;
     const reach=Math.sqrt(span),start=Math.max(0,mid-reach),end=Math.min(len,mid+reach);
-    for(let u=start;u<=end;u+=.10){const t=u/len,xx=a+dx*t,yy=b+dy*t,zz=c+dz*t,r=Math.hypot(xx,yy,zz);
-      if(r<.001||r<moonRadius(m,xx/r,yy/r,zz/r)-.006)return false;}
+    if(start>end)return false;
+    const count=Math.max(1,Math.ceil((end-start)/.075));
+    for(let i=0;i<=count;i++){const t=len?(start+(end-start)*i/count)/len:0;
+      p.set(from.x+t*dx,from.y+t*dy,from.z+t*dz);if(blocks(p))return true;}
+    return false;
   }
-  // Clip far-away flight rays to the inhabited part before checking the path.
-  const near=Math.max(0,1-34/Math.max(len,.001)),count=Math.max(1,Math.ceil(Math.min(len,34)/.11));
-  const p={x:0,y:0,z:0};
-  for(let i=0;i<=count;i++){const t=near+(1-near)*i/count;p.x=from.x+t*dx;p.y=from.y+t*dy;p.z=from.z+t*dz;
-    if(terrainAltitude(p)<-.006||stationBlocks(p,0,.008))return false;}
+  if(crosses(home,PLANET_RADIUS+5,q=>terrainAltitude(q)<-.006||stationBlocks(q,0,.008)))return false;
+  for(const m of allMoons){if(crosses(m.centre,m.radius+(m.id==='lantern'?6:3),q=>{
+    const a=q.x-m.centre.x,b=q.y-m.centre.y,c=q.z-m.centre.z,r=Math.hypot(a,b,c);
+    return r<.001||r<moonRadius(m,a/r,b/r,c/r)-.006||moonObstructed(m,q,0,.008)||(m.id==='lantern'&&lanternCanopyBlocks(q));
+  }))return false;}
   return true;
 }

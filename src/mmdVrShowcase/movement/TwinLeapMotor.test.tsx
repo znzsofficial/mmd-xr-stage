@@ -32,9 +32,9 @@ it.each(['recall','other wind','unmarked','unmarked auto'] as const)('X/A/Y and 
   const tick=(count=1)=>{for(let i=0;i<count;i++)h.frame!({gl:{xr},scene},dt,{session,getViewerPose:()=>tracked?pose:null});};
   const foot=()=>new Vector3(p.x,0,p.z).applyMatrix4(origin.matrixWorld),up=()=>new Vector3(0,1,0).applyQuaternion(origin.quaternion);
   const report=()=>samplePlanetMovement()!,lane=lanes.find(l=>l.moon.id==='salt')!,pad=twinPad(lane.moon)!;
-  const align=()=>{if(report().awaitingAlignment){
-    if(auto){for(let i=0;i<1000&&report().awaitingAlignment;i++){const prev=origin.quaternion.clone();tick();expect(origin.quaternion.angleTo(prev)).toBeLessThan(dt*.88);}
-      expect(report().awaitingAlignment).toBe(false);}
+  const align=()=>{if(report().awaitingAlignment||report().autoAligning){
+    if(auto||report().autoAligning){for(let i=0;i<1000&&(report().awaitingAlignment||report().autoAligning);i++){const prev=origin.quaternion.clone();tick();expect(origin.quaternion.angleTo(prev)).toBeLessThan(dt*.88);}
+      expect(report()).toMatchObject({awaitingAlignment:false,autoAligning:false});}
     else{y.pressed=false;tick();y.pressed=true;tick();y.pressed=false;}
   }};
   const walkTo=(target:Vector3)=>{
@@ -69,9 +69,15 @@ it.each(['recall','other wind','unmarked','unmarked auto'] as const)('X/A/Y and 
         axes[2]=map(stick.x);axes[3]=map(stick.z);const before=origin.quaternion.clone(),captures=report().orbitalLandings;
         a.pressed=true;y.pressed=true;tick();axes[2]=axes[3]=0;
         expect(report().location).toBe('orbit');h.ready=true;for(let i=0;i<400&&report().location==='orbit';i++)tick();
-        expect(report()).toMatchObject({location:to,gravityOwner:to,awaitingAlignment:true,twinDepartures:0,orbitalLandings:captures+1});
+        expect(report()).toMatchObject({location:to,gravityOwner:to,grounded:true,awaitingAlignment:false,autoAligning:true,twinDepartures:0,orbitalLandings:captures+1});
         expect(origin.quaternion.angleTo(before)).toBeLessThan(1e-6);expect(h.seed).not.toHaveBeenCalled();
-        align();expect(report().awaitingAlignment).toBe(false);expect(up().dot(foot().sub(other.centre).normalize())).toBeGreaterThan(.9999);
+        // Leave Y alone. The counted travel is the motor's grounded sole,
+        // not the metres the displayed head covers rolling out of the shell.
+        const walked=report().groundedWalkM;
+        if(auto){tick(30);expect(report()).toMatchObject({grounded:true,groundedWalkM:walked});}
+        axes[2]=.85;tick(140);axes[2]=0;expect(report().groundedWalkM-walked).toBeGreaterThan(.7);
+        align();const supported=foot(),normal=supported.clone().sub(other.centre).normalize();
+        expect(up().dot(normal)).toBeGreaterThan(.9999);expect(supported.distanceTo(other.centre)).toBeCloseTo(shellRadius(other,normal.x,normal.y,normal.z),4);
         a.pressed=false;tick();
       }
       useMmdVrStore.setState({viewEpoch:useMmdVrStore.getState().viewEpoch+1});tick();expect(h.seed).toHaveBeenCalledOnce();return;

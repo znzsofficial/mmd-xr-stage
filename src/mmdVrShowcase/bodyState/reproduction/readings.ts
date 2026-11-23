@@ -15,6 +15,8 @@ export function reproductionReadings(s:ReproductiveSample,zh:boolean){
   const n=s.eggs,d=s.gestation;
   const progress=d?(zh?`${s.stage==='complete'?'孕期完成':'已着床'} · 孕日 ${d} / ${Math.floor(d/7)}周${d%7}天`:`${s.stage==='complete'?'Complete':'Implanted'} · Day ${d} / ${Math.floor(d/7)}w ${d%7}d`):
     s.stage==='fertilized'?(s.eggs===2?(zh?'2 枚中 1 枚受精 · 待着床':'1 of 2 fertilized · not implanted'):(zh?'已受精 · 尚未着床':'Fertilized · not implanted')):
+    s.stage==='transit'?(zh?`${s.cells} 细胞 · 向宫腔移动`:`${s.cells} cells · moving along tube`):
+    s.stage==='cavity'?(zh?'宫腔囊胚 · 待着床':'Blastocyst · awaiting implantation'):
     s.stage==='ovulated'?(zh?'已排卵 · 尚未受精':'Ovulated · not fertilized'):
     stageLabel(s,zh);
   return {

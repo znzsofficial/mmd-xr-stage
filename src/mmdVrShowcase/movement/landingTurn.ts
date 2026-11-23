@@ -1,32 +1,42 @@
 import {Quaternion,Vector3} from 'three';
-import {north} from './planetTravel';
 import {createShellSweep} from './orbitalSurfaces';
+import {north} from './planetTravel';
 
-export const landingTurnRate=Math.PI/3.6; // at most 50°/s, zero speed at each end
-export function startLandingTurn(foot:Vector3,basis:Quaternion,target:Vector3,remaining:Quaternion){
-  const finish=basis.clone().premultiply(remaining).normalize(),angle=finish.angleTo(basis);
-  return {start:foot.clone(),target:target.clone(),from:basis.clone(),finish,normal:north.clone().applyQuaternion(finish),
-    time:0,blocked:false,duration:Math.max(.25,angle*1.5/landingTurnRate,foot.distanceTo(target)*1.6),
-    // Clear a shallow ridge between a glancing contact and the final sole.
-    clearance:Math.min(.18,angle*.16),sweep:createShellSweep(),foot:new Vector3(),delta:new Vector3(),q:new Quaternion(),
-    eye:new Vector3(),up:new Vector3(),end:{eye:new Vector3(),up:new Vector3()}};
-}
-export type LandingTurn=ReturnType<typeof startLandingTurn>;
+export const landingTurnRate=Math.PI/3.6; // maximum angular speed, 50°/s
 
-/** Feet move in after the head has begun to turn out of the opposed shell.
- * Subdivide rotation itself (not just centre translation). The same current
- * tracked pose is applied at both ends of every short sweep. Real leaning
- * is never cancelled; an obstruction pauses only the synthetic turn. */
-export function stepLandingTurn(s:LandingTurn,dt:number,localEye:Vector3,foot:Vector3,basis:Quaternion){
-  const time=Math.max(0,Math.min(.05,dt)),n=Math.max(1,Math.ceil(time*landingTurnRate/(Math.PI/360)));
-  s.blocked=false;
-  for(let i=0;i<n&&s.time<s.duration;i++){
-    const next=Math.min(s.duration,s.time+time/n),t=next/s.duration,k=t*t*(3-2*t);
-    s.q.slerpQuaternions(s.from,s.finish,k);s.up.copy(north).applyQuaternion(basis);s.end.up.copy(north).applyQuaternion(s.q);
-    s.foot.lerpVectors(s.start,s.target,.5-.5*Math.cos(Math.PI*k)).addScaledVector(s.normal,s.clearance*Math.sin(Math.PI*k));
-    s.delta.subVectors(s.foot,foot);s.eye.copy(localEye).applyQuaternion(basis);s.end.eye.copy(localEye).applyQuaternion(s.q);
-    if(s.sweep(foot,s.delta,s.up,s.eye,s.end)){s.blocked=true;break;}
-    foot.copy(s.foot);basis.copy(s.q);s.time=next;
+/** The navigation sole already belongs to the destination. This second pose
+ * is only the displayed XR floor while the visitor rises from a body/head hit.
+ * The destination is read again each frame, including while walking away. */
+export function standingArrival(foot:Vector3,basis:Quaternion){return {
+  foot:foot.clone(),basis:basis.clone(),rate:0,blocked:false,sweep:createShellSweep(),q:new Quaternion(),goal:new Vector3(),delta:new Vector3(),
+  eye:new Vector3(),up:new Vector3(),normal:new Vector3(),escape:new Vector3(),sole:new Vector3(),end:{eye:new Vector3(),up:new Vector3()},
+};}
+export type StandingArrival=ReturnType<typeof standingArrival>;
+
+export function riseToFeet(s:StandingArrival,dt:number,localEye:Vector3,target:Vector3,targetBasis:Quaternion){
+  const time=Math.min(.05,Math.max(0,dt)),count=Math.max(1,Math.ceil(time*120)),h=time/count;
+  s.normal.copy(north).applyQuaternion(targetBasis);s.blocked=false;
+  for(let i=0;i<count;i++){
+    s.up.copy(north).applyQuaternion(s.basis);s.eye.copy(localEye).applyQuaternion(s.basis);
+    const angle=s.basis.angleTo(targetBasis);s.rate=Math.min(landingTurnRate,s.rate+2.2*h,Math.sqrt(4.4*angle));
+    s.q.copy(s.basis).rotateTowards(targetBasis,s.rate*h);
+    s.end.up.copy(north).applyQuaternion(s.q);s.end.eye.copy(localEye).applyQuaternion(s.q);
+    // Keep the entire tilted body on the outer side of the contact plane.
+    // As the head turns out, the displayed soles can approach the real floor.
+    s.sole.copy(s.end.eye).addScaledVector(s.end.up,.15-localEye.y);
+    const lift=Math.max(0,.15-s.sole.dot(s.normal),.115-s.end.eye.dot(s.normal));
+    s.goal.copy(target).addScaledVector(s.normal,lift);
+    s.delta.subVectors(s.goal,s.foot).clampLength(0,2.4*h);
+    const hit=s.sweep(s.foot,s.delta,s.up,s.eye,s.end);
+    if(!hit){s.foot.add(s.delta);s.basis.copy(s.q);}
+    else {
+      // A slope may rise above its radial tangent plane. Don't keep trying
+      // the same blocked screw motion: retreat from the measured contact
+      // before rotating. The retreat is swept too, even between two shells.
+      s.escape.copy(hit.up).multiplyScalar(1.6*h);
+      if(!s.sweep(s.foot,s.escape,s.up,s.eye))s.foot.add(s.escape);
+      else {s.blocked=true;break;}
+    }
   }
-  return s.time===s.duration;
+  return s.basis.angleTo(targetBasis)<1e-6&&s.foot.distanceToSquared(target)<1e-10;
 }

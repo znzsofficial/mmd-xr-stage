@@ -11,6 +11,7 @@ import {StationFallout} from './StationFallout';
 import {opalGrain,useSurfaceGrain} from './surfaceGrain';
 import {opalBedrock} from './opalBedrock';
 import {OpalSampler} from './OpalSampler';
+import {ClearingStage} from './ClearingStage';
 import {blankSurvey,lampSpectrum,surveyRelease} from './opalSurvey';
 export {PlanetSky} from './PlanetSky';
 
@@ -22,7 +23,7 @@ export function GlassPlanet(){
   return <group name="planet:glass-meridian">
     <mesh name="planet:crust" geometry={stone} position-y={-R}><meshStandardMaterial key={grain?.uuid} onBeforeCompile={crustDetail} vertexColors roughness={.94} emissive="#243134" emissiveIntensity={.22}/></mesh>
     <MeridianMarks/><MeridianStations lamps={lampSpectrum(survey)}/><OpalSampler state={survey} activate={release}/><SpringLights/>
-    <WindSystem grain={grain}/><TwinWaymarks/><StationFallout/><OrbitalDrift/>
+    <WindSystem grain={grain}/><ClearingStage/><TwinWaymarks/><StationFallout/><OrbitalDrift/>
     <mesh position-y={-.17}><cylinderGeometry args={[PAD_RADIUS,PAD_RADIUS-.10,.34,80]}/><meshStandardMaterial color="#526875" roughness={.71}/></mesh>
     <mesh rotation-x={-Math.PI/2} position-y={.002}><circleGeometry args={[PAD_RADIUS-.025,80]}/><meshStandardMaterial key={`${landing?.uuid}:${grain?.uuid}`} onBeforeCompile={deckDetail} map={landing} color={landing?'#ffffff':'#526875'} roughness={.70}/></mesh>
     {[1.98,2.55,2.70].map(r=><mesh key={r} rotation-x={Math.PI/2}><torusGeometry args={[r,.012,6,90]}/><meshStandardMaterial color="#e0b177"/></mesh>)}

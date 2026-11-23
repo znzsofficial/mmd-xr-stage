@@ -1,14 +1,14 @@
 import {useLayoutEffect,useMemo,useRef,useState} from 'react';
 import {ActorHudDiagram,ActorScreenDiagram,type DiagramActor,type DiagramSpec} from '../components/ActorDiagram';
 import {breastDiagram} from '../bodyState/breast/BreastGraphic';
-import {atlasDiagrams} from '../pelvic/atlas/AtlasGraphic';
+import {atlasDiagrams,fertilityDiagram} from '../pelvic/atlas/AtlasGraphic';
 import {PrivateLine} from '../pelvic/HudPrivateControls';
 import type {ObservationPart} from './ActorObservation';
 
 // Mount with the part as key. Model generation happens in the local Worker;
 // readiness is its first painted frame, not loading a module or receiving mail.
-export function ObservationDiagram({part,widthM,loading,...actor}:DiagramActor&{part:ObservationPart;widthM?:number;loading:string}){
-  const [ready,setReady]=useState(false),base=part==='breast'?breastDiagram:atlasDiagrams[part];
+export function ObservationDiagram({part,widthM,loading,fertility=false,...actor}:DiagramActor&{part:ObservationPart;widthM?:number;loading:string;fertility?:boolean}){
+  const [ready,setReady]=useState(false),base=part==='breast'?breastDiagram:part==='uterus'&&fertility?fertilityDiagram:atlasDiagrams[part];
   const plate=useRef<HTMLDivElement>(null);
   useLayoutEffect(()=>{
     const node=plate.current;if(!node)return;

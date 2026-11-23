@@ -91,7 +91,7 @@ it('records only a fresh opted-in crossing, not enabling memory or restarting in
 });
 
 it.each(['screen','xr'] as const)('delivers one motor order at the physical nozzle on %s, never spraying, while VMD is paused',source=>{
-  const {root,piece,tick,emissions}=fixture(source);patchPelvic('a',{clothed:true,container:'fantasyUterine'});tick();
+  const {root,piece,tick,emissions}=fixture(source);patchPelvic('a',{clothed:true});tick();
   assignPelvic('a','standAuto',source);tick();startPelvic('a');tick();const token=st().active!.token;
   const order=()=>requestStrokeDose('a',token,'fantasyUterine');
   const part=piece.getObjectByName('play:piece:dildo')!,c=st().byAsset.a.calibration,f=samplePelvicFrame(registerPelvicSocket(root,c),c)!;

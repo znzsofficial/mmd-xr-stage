@@ -54,6 +54,16 @@ it('supersedes a frozen uterus bitmap on the actual game trial, but not on anoth
     expect(valid.close).toHaveBeenCalledOnce();expect(upload).toHaveBeenCalledOnce();expect(worker.current.postMessage).toHaveBeenCalledTimes(2);
   }finally{painter.dispose();useReproduction.setState(useReproduction.getInitialState());entropy.mockRestore();}
 });
+it('paints a paused workbench from its retained book and committed tissue, independent of the body preview',()=>{
+  const entropy=mockGameEntropy(5),worker=slowWorker(),id='actor',saved={...DEFAULT_BODY_PROFILE,day:15,reproduction:true};
+  configureReproduction(id,saved);recordInternalDose(id,1);configureReproduction(id,null);
+  useBodyState.setState({byAsset:{[id]:{...saved,reproduction:false}},draft:{assetId:id,value:{...saved,day:4,liningOverride:0}}});
+  setAtlasView(id,{motion:false});const p=atlasPainter(paper(),{assetId:id,runtimeId:'r'},'uterus',()=>{},()=>{},true);
+  try{p.tick(0);expect(worker.current.postMessage.mock.lastCall![0].options).toMatchObject({lining:sampleBody(saved).lining,
+    reproduction:{stage:'fertilized',day:15,tried:true},reproductionSeconds:12});
+    expect(useReproduction.getState().byAsset[id].enabled).toBe(false);
+  }finally{p.dispose();useReproduction.setState(useReproduction.getInitialState());entropy.mockRestore();}
+});
 it('does not display a late worker frame from an old cycle preview after the user freezes a new day',()=>{
   const worker=slowWorker();
   const b={...DEFAULT_BODY_PROFILE,day:4};useBodyState.setState({byAsset:{a:b}});

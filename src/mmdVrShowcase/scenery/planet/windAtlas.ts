@@ -3,6 +3,7 @@ import {crustRadius} from './opalTerrain';
 import {PLANET_RADIUS} from './planetLayout';
 import {moonRadius} from './moonSurface';
 import {reedCentre,reedRadius,reedGauge,reedTrunkBlocks} from './reedBiosphere';
+import {lanternCentre,lanternRadius,lanternStation,lanternTrunkBlocks} from './lanternBiosphere';
 
 export const sunDirection=new Vector3(-5,3.2,3.8).normalize();
 const homeCentre=new Vector3(0,-PLANET_RADIUS,0),north=new Vector3(0,1,0);
@@ -12,9 +13,12 @@ const glazeCentre=new Vector3(9.8,21,-30);
 const toMica=new Vector3(.77,0,-.64).normalize(),toSulfur=new Vector3(.78,0,.63).normalize();
 const glazeRadius=4.6,micaRadius=2.65,sulfurRadius=1.95;
 const micaCentre=glazeCentre.clone().addScaledVector(toMica,glazeRadius+6.95+micaRadius);
+const toAmber=new Vector3(-1,0,0),amberRadius=2.1;
+export const amberMoon={id:'amber',relief:'amber',radius:amberRadius,centre:lanternCentre.clone().addScaledVector(toAmber,lanternRadius+7.2+amberRadius),surfaceGravity:1.75,color:'#ffc169',jumpHeadings:[toAmber.clone().negate()]} as const;
 export const steppingMoons=[
   {id:'mica',relief:'mica',radius:micaRadius,centre:micaCentre,surfaceGravity:1.55,color:'#a8dddc',jumpHeadings:[toMica.clone().negate(),toSulfur]},
   {id:'sulfur',relief:'sulfur',radius:sulfurRadius,centre:micaCentre.clone().addScaledVector(toSulfur,micaRadius+6.65+sulfurRadius),surfaceGravity:1.85,color:'#ffd686',jumpHeadings:[toSulfur.clone().negate()]},
+  amberMoon,
 ] as const;
 const destinations=[
   {id:'ember',relief:'basins',instrument:'seismometer',centre:new Vector3(-18.2,5.3,-15.7),radius:4.55,surfaceGravity:2.8,color:'#f3a668',port:new Vector3(-.281,.957,-.069).normalize(),
@@ -27,9 +31,11 @@ const destinations=[
     stationUp:new Vector3(-.60,.73,.32).normalize(),duration:10.5,launchKey:'glazeWind',returnKey:'glazeReturn',sign:'04 · 玄釉星',caption:'OBSIDIAN   /   FURNACE GLASS'},
   {id:'reed',relief:'wetland',instrument:'gauge',centre:reedCentre,radius:reedRadius,surfaceGravity:2.55,color:'#8ae59e',port:new Vector3(-.02,.935,.354).normalize(),
     stationUp:reedGauge,duration:9.0,launchKey:'reedWind',returnKey:'reedReturn',sign:'05 · 苇湾星',caption:'REEDWATER   /   LAGOONS'},
+  {id:'lantern',relief:'lantern',instrument:'nursery',centre:lanternCentre,radius:lanternRadius,jumpHeadings:[toAmber],surfaceGravity:2.35,color:'#ffa996',port:new Vector3(-.397,.91,.12).normalize(),
+    stationUp:lanternStation,duration:10.5,launchKey:'lanternWind',returnKey:'lanternReturn',sign:'06 · 伞灯星',caption:'LANTERN   /   SPORE GROVES'},
 ] as const;
 export const moons=destinations.map(({stationUp:up,...m})=>({
-  ...m,station:{up,base:up.clone().multiplyScalar(moonRadius(m,up.x,up.y,up.z)).add(m.centre),r:.52,h:1.40},
+  ...m,station:{up,base:up.clone().multiplyScalar(moonRadius(m,up.x,up.y,up.z)).add(m.centre),r:m.instrument==='nursery'?.46:.52,h:m.instrument==='nursery'?.90:1.40},
 }));
 export type Moon=typeof moons[number];
 export type SteppingMoon=typeof steppingMoons[number];
@@ -38,13 +44,14 @@ export const allMoons:readonly WalkMoon[]=[...moons,...steppingMoons];
 export function moonObstructed(m:WalkMoon,p:Vector3,r:number,height:number){
   if(!('station' in m))return false;
   if(m.id==='reed'&&reedTrunkBlocks(p,r,height))return true;
+  if(m.id==='lantern'&&lanternTrunkBlocks(p,r,height))return true;
   const s=m.station,x=p.x-s.base.x,y=p.y-s.base.y,z=p.z-s.base.z,a=x*s.up.x+y*s.up.y+z*s.up.z;
   return a<s.h&&a+height>-.15&&x*x+y*y+z*z-a*a<(r+s.r)**2;
 }
 export interface WindPort { foot:Vector3; up:Vector3 }
 export const lanes=moons.map(m=>({moon:m,
   home:{up:m.port,foot:m.port.clone().multiplyScalar(crustRadius(m.port.x,m.port.y,m.port.z)).add(homeCentre)},
-  away:{up:north,foot:m.centre.clone().addScaledVector(north,m.radius)},
+  away:{up:north,foot:m.centre.clone().addScaledVector(north,moonRadius(m,0,1,0))},
   duration:m.duration,
 }));
 export type WindLane=typeof lanes[number];
@@ -75,4 +82,9 @@ type P=[number,number,number];
 export const launchViews=lanes.map(l=>({key:l.moon.launchKey,
   eye:l.home.foot.clone().addScaledVector(north,1.65).toArray() as P,
   aim:l.moon.centre.toArray() as P}));
-export const returnViews=lanes.map(l=>({key:l.moon.returnKey,eye:l.away.foot.clone().addScaledVector(north,1.65).toArray() as P,aim:[0,-1,0] as const}));
+export const returnViews=lanes.map(l=>{
+  // Look home without making the home world the orbit pivot: beyond the
+  // camera's 38 m zoom limit that would pull the eye off the return collar.
+  const eye=l.away.foot.clone().addScaledVector(north,1.65),aim=new Vector3(0,-1,0).sub(eye).setLength(6).add(eye);
+  return {key:l.moon.returnKey,eye:eye.toArray() as P,aim:aim.toArray() as P};
+});

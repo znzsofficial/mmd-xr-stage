@@ -3,7 +3,7 @@ import { useBackpack } from '../backpack';
 import { advanceBody, DEFAULT_BODY_PROFILE, moveDay, normalizeBody, type BodyProfile } from './data';
 import {clearMilkEffects,offerMilkDrain} from './lactation/events';
 import type {MilkPanel, Side} from './lactation/interaction';
-import {configureReproduction,jumpReproductiveClock} from './reproduction/store';
+import {activeGame,configureReproduction,jumpReproductiveClock} from './reproduction/store';
 import type {ReproductionGame} from './reproduction/game';
 
 export type BodySupport = { morphs:readonly string[]; bones:boolean; sides:{left:boolean;right:boolean}; clothing:'authored-only' };
@@ -44,9 +44,20 @@ export function stepBodyDay(assetId:string, days=1) {edit(assetId,p=>moveDay(p,d
  * The calendar picker still edits only the tissue study. Neither path reopens
  * a previously resolved game day. */
 export function fastForwardReproduction(assetId:string,expected:ReproductionGame){
-  const {byAsset,draft}=useBodyState.getState(),p=byAsset[assetId];if(draft||!p)return;
+  const p=useBodyState.getState().byAsset[assetId];if(!p)return;
   const days=jumpReproductiveClock(assetId,p,expected);if(!days)return;
-  useBodyState.setState({byAsset:{...byAsset,[assetId]:{...moveDay(p,days),daySeconds:0}}});
+  useBodyState.setState(s=>s.byAsset[assetId]!==p?s:{byAsset:{...s.byAsset,[assetId]:{...moveDay(p,days),daySeconds:0}}});
+}
+/** The interaction persists just its flag. Carry that flag through an open
+ * preview so a later Save cannot undo it or commit the draft's other values now. */
+export function setActorReproduction(actor:Inspection,enabled:boolean){
+  if(!interactionOwnsActor(actor,true))return;
+  const {assetId}=actor;
+  const saved=useBodyState.getState().byAsset[assetId];if(!saved&&!enabled)return;
+  const profile={...(saved??DEFAULT_BODY_PROFILE),reproduction:enabled};configureReproduction(assetId,profile,true);
+  if(!interactionOwnsActor(actor,true))return;
+  useBodyState.setState(s=>({byAsset:{...s.byAsset,[assetId]:{...(s.byAsset[assetId]??DEFAULT_BODY_PROFILE),reproduction:enabled}},
+    draft:s.draft?.assetId===assetId&&s.draft.value.reproduction!==enabled?{...s.draft,value:{...s.draft.value,reproduction:enabled}}:s.draft}));
 }
 export function drainBodySide(assetId:string, side:'left'|'right', amount=.25) {
   const draft=useBodyState.getState().draft,bag=useBackpack.getState(),live=bag.live[assetId];
@@ -59,10 +70,10 @@ export function drainBodySide(assetId:string, side:'left'|'right', amount=.25) {
   return {before,after,visible};
 }
 
-function interactionOwnsActor({assetId,runtimeId}:MilkPanel){
+function interactionOwnsActor({assetId,runtimeId}:Inspection,allowBodyDraft=false){
   const bag=useBackpack.getState(),live=bag.live[assetId];
   return bag.selected===assetId&&live?.runtimeId===runtimeId&&live.visible&&!bag.draft&&!bag.busy&&
-    useBodyState.getState().draft?.assetId!==assetId&&bag.entries.some(e=>e.id===assetId&&e.kind==='model');
+    (allowBodyDraft||useBodyState.getState().draft?.assetId!==assetId)&&bag.entries.some(e=>e.id===assetId&&e.kind==='model');
 }
 type MilkSettings=Pick<BodyProfile,'lactating'|'bareLeft'|'bareRight'|'refillSeconds'>;
 /** Stage interaction explicitly writes to the actor. Opening/closing this UI
@@ -99,6 +110,14 @@ export function disableBodyState(assetId:string) {
   const next={...byAsset}; delete next[assetId];
   configureReproduction(assetId,null);
   useBodyState.setState({byAsset:next,draft:draft?.assetId===assetId?null:draft});
+}
+
+/** The editor's clear/undo is scoped to body settings. An active independent
+ * game still needs its saved profile for the visible actor's room clock. */
+export function clearBodyEditorSettings(assetId:string){
+  if(!activeGame(assetId)){disableBodyState(assetId);return;}
+  clearMilkEffects(assetId);
+  useBodyState.setState(s=>({byAsset:{...s.byAsset,[assetId]:{...DEFAULT_BODY_PROFILE,reproduction:true}},draft:s.draft?.assetId===assetId?null:s.draft}));
 }
 
 // A late diagram frame is usable during continuous clock/refill updates, but

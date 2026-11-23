@@ -5,8 +5,8 @@ import {transport,type Traveller} from './planetTravel';
 
 export const MOON_JUMP_SPEED=1.6; // m/s; equal impulse, different heights and hang times
 
-/** The small moons have no imported actors or structures above the surface.
- * Keep the optional Ecctrl world parked on the mother planet. */
+/** Follow local radial support and the moon's station/trunk solids. The optional
+ * Ecctrl world stays parked on the mother planet throughout a lunar walk. */
 export function moonWalk(m:WalkMoon,s:Traveller,travel:Vector3,speed:number,dt:number,jump:boolean,readRadius:(m:WalkMoon,x:number,y:number,z:number)=>number=moonRadius){
   const p=s.destination.copy(s.foot).addScaledVector(travel,speed*dt);
   if(moonObstructed(m,p,.19,1.74))p.copy(s.foot);

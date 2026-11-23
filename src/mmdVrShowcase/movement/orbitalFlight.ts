@@ -23,17 +23,32 @@ export function pull(w:World|null,p:Vector3,out:Vector3){
   return out.multiplyScalar(w.surfaceGravity*(reference/Math.max(reference,r))**2*fade*fade*(3-2*fade)/Math.max(r,1e-9));
 }
 export function jumpVelocity(w:World,up:Vector3,stick:Vector3,speed:number,out:Vector3){
-  // Standing A is a local hop. A moving takeoff adds a push along the
-  // departure normal; aim by choosing the takeoff slope and stick heading.
-  const drive=Math.min(1,stick.length());
-  return out.copy(stick).projectOnPlane(up).multiplyScalar(speed)
-    .addScaledVector(up,(w.id==='home'?2.4:MOON_JUMP_SPEED)+(3.25+.52*Math.max(0,speed-2.4))*drive);
+  // A local running jump must not enter an orbit: the smallest moon's
+  // circular speed is below even the normal walking preset. Stick magnitude
+  // buys tangential travel, never a bigger vertical kick on an ordinary hop.
+  const drive=stick.length(),circular=Math.sqrt(w.surfaceGravity*w.radius);
+  if(speed>=2.39&&drive>=.96){
+    for(const other of walkWorlds){
+      if(other===w)continue;
+      out.subVectors(other.centre,w.centre);const d=out.length();
+      if(d-w.radius-other.radius>7.6)continue;
+      out.divideScalar(d);if(out.dot(up)<Math.cos(.43))continue;
+      // Aim down the hillside towards the opposing shore, not backwards,
+      // along its edge, or straight up. This is only a launch impulse; the
+      // free trajectory still has to physically hit the neighbour.
+      out.projectOnPlane(up);if(out.lengthSq()<.005||out.normalize().dot(stick)<drive*.94)continue;
+      return out.copy(stick).projectOnPlane(up).setLength(2.4).addScaledVector(up,4.85);
+    }
+  }
+  return out.copy(stick).projectOnPlane(up).multiplyScalar(speed).clampLength(0,.62*circular)
+    .addScaledVector(up,w.id==='home'?1.9:MOON_JUMP_SPEED);
 }
 
 export function startOrbit(w:World,foot:Vector3,velocity:Vector3){return {
   from:w,owner:w as World|null,foot:foot.clone(),velocity:velocity.clone(),changes:0,grazes:0,
   landing:null as World|null,point:new Vector3(),up:new Vector3(),tracked:false,part:'foot' as 'foot'|'head'|'body',
   sweep:createShellSweep(),a:new Vector3(),move:new Vector3(),next:new Vector3(),column:{floor:-Infinity,ceiling:Infinity,blocked:false},
+  rim:null as Vector3|null,side:new Vector3(),across:new Vector3(),probe:new Vector3(),
 };}
 export type Orbit=ReturnType<typeof startOrbit>;
 
@@ -49,6 +64,27 @@ function obstacle(f:Orbit,to:Vector3,up:Vector3,eye:Vector3,read?:ReadColumn){
   if(to.y+eye.y+.115>c.ceiling&&f.velocity.y>0)return 'ceiling';
 }
 
+// A wall refuses lateral travel, not gravity. If the radial fall itself runs
+// into the top of a non-walkable station, ease over the nearest lip; do not
+// freeze the foot there accumulating metres per second of downward velocity.
+function slideAtWall(f:Orbit,h:number,viewUp:Vector3,eye:Vector3,read?:ReadColumn){
+  const n=f.a.subVectors(f.foot,f.owner?.centre??homeWorld.centre).normalize(),v=Math.min(0,f.velocity.dot(n));
+  f.velocity.copy(n).multiplyScalar(v);f.next.copy(f.foot).addScaledVector(n,v*h);
+  if(obstacle(f,f.next,viewUp,eye,read)!=='wall'){f.rim=null;return;}
+  if(!f.rim){
+    f.side.set(0,0,1);if(Math.abs(n.z)>.9)f.side.set(1,0,0);
+    f.side.projectOnPlane(n).normalize();f.across.crossVectors(n,f.side);
+    for(let radius=.18;radius<2.6&&!f.rim;radius+=.18)for(let i=0;i<12;i++){
+      const a=i*Math.PI/6;f.probe.copy(f.next).addScaledVector(n,-.12).addScaledVector(f.side,radius*Math.cos(a)).addScaledVector(f.across,radius*Math.sin(a));
+      if(!obstacle(f,f.probe,viewUp,eye,read)){f.rim=f.probe.clone();break;}
+    }
+  }
+  f.velocity.set(0,0,0);f.next.copy(f.foot);
+  if(f.rim){f.side.subVectors(f.rim,f.foot).projectOnPlane(n);
+    if(f.side.lengthSq()<.015**2)f.rim=null;else f.next.add(f.side.clampLength(0,.95*h));
+    if(obstacle(f,f.next,viewUp,eye,read)==='wall'&&obstacle(f,f.foot,viewUp,eye,read)!=='wall')f.next.copy(f.foot);}
+}
+
 /** Ballistic translation, independent of renderer, tracking basis and Rapier.
  * Real tracking loss freezes this clock at the caller. Position and velocity
  * are never reset when changing wells or crossing their outer boundary. */
@@ -59,6 +95,9 @@ export function stepOrbit(f:Orbit,dt:number,viewUp:Vector3,eyeOffset:Vector3,rea
     const w=localWell(f.foot,f.owner);if(w!==f.owner){f.owner=w;f.changes++;}
     pull(w,f.foot,f.a);f.move.copy(f.velocity).multiplyScalar(h).addScaledVector(f.a,.5*h*h);
     f.next.copy(f.foot).add(f.move);f.velocity.addScaledVector(f.a,h);
+    let blocked=obstacle(f,f.next,viewUp,eyeOffset,read);
+    if(blocked==='wall'){slideAtWall(f,h,viewUp,eyeOffset,read);f.move.subVectors(f.next,f.foot);blocked=obstacle(f,f.next,viewUp,eyeOffset,read);}
+    else f.rim=null;
     const hit=f.sweep(f.foot,f.move,viewUp,eyeOffset);
     if(hit){
       f.foot.addScaledVector(f.move,hit.t);
@@ -66,19 +105,13 @@ export function stepOrbit(f:Orbit,dt:number,viewUp:Vector3,eyeOffset:Vector3,rea
       const tangent=Math.sqrt(Math.max(0,f.velocity.lengthSq()-inward*inward));
       // Fast shallow contact skims the shell. A weak field alone never
       // sticks a passing visitor to an arbitrary nearest sphere.
-      if(tangent>3.8&&inward<tangent*.65){
+      if(tangent>3.8&&inward<tangent*.65||hit.world!==f.from&&tangent>1.4&&inward<tangent*.22){
         f.velocity.projectOnPlane(hit.up).multiplyScalar(.95).addScaledVector(hit.up,Math.max(.48,inward*.38));f.grazes++;continue;
       }
       f.landing=f.owner=hit.world;f.point.copy(hit.point);f.up.copy(hit.up);f.part=hit.part;f.tracked=hit.tracked;f.velocity.set(0,0,0);return true;
     }
-    const blocked=obstacle(f,f.next,viewUp,eyeOffset,read);
     if(blocked==='floor'){f.landing=f.owner=homeWorld;f.foot.copy(f.point);f.velocity.set(0,0,0);return true;}
     if(blocked==='ceiling'){f.velocity.y=0;continue;}
-    if(blocked==='wall'){
-      // Keep radial fall under gravity while refusing the lateral step.
-      const radial=f.a.subVectors(f.foot,w?.centre??homeWorld.centre).normalize(),v=f.velocity.dot(radial);
-      f.velocity.copy(radial).multiplyScalar(Math.min(0,v));continue;
-    }
     f.foot.copy(f.next);
   }
   return false;
