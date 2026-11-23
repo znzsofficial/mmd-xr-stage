@@ -129,7 +129,7 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen
     rows.push(link(l('返回操作','Back to controls'),()=>go('use')));
   }else if(page==='fit'){
     result.status=!known?l('没有找到入口。到「模型」手动指定起点。','Opening not found. Set an origin under Model.'):
-      fit==='model'?coverage||l('可单独看角色的外阴附件，不用放置道具。','You can inspect the attachment without placing a rod.'):
+       fit==='model'?coverage||(profile.showAdapter&&profile.clothingClear?l('角色身上的外阴附件：已显示','Attachment on actor: shown'):l('角色身上的外阴附件：隐藏。观察图仍可查看。','Attachment on actor: hidden. The observation view is still available.')):
       l('看角色身上的入口标记调整；改动后需重新确认。','Fit the marker on the actor, then confirm the opening again.');
     rows.push(...fitRows({assetId,source,l,profile,support,fit,setFit,morph,names:names??[],page:morphPage,setPage:setMorphPage,clothes,clear:()=>{disablePelvic(assetId);go('use');}}));
   }else if(page==='fluid'){

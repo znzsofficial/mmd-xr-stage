@@ -211,7 +211,7 @@ it('keeps painting a moving orbit at a bounded cadence during a stream of pointe
   }finally{driver.dispose();}
 });
 
-it.each(['vagina','vulva'] as const)('stops serializing stationary %s, but repaints when the shaft shifts with an unchanged tip',focus=>{
+it.each(['vagina','vulva','uterus'] as const)('stops serializing stationary %s, but repaints when the shaft shifts with an unchanged tip',focus=>{
   const assetId='actor',runtimeId='id',sample={tip:[0,0,-.02] as const,tail:[0,0,.05] as const,shaft:[[0,0,.05],[0,0,-.02]] as const,
     outletInside:true,aligned:true,atCervix:false,depth:.02,radiusM:.024,lengthM:.09,angleDeg:0};
   setAtlasView(assetId,{motion:true});usePelvic.setState({byAsset:{actor:calibrated},sample,

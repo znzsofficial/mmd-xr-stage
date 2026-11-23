@@ -73,7 +73,8 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
     if(a?.token!==b?.token||profile!==old&&(scope!=='vulva'||!profile||!old||visibleRim(profile)!==visibleRim(old))){changed();return;}
     if(a){const x=observed(s),y=observed(p);
       const entry=scope==='pelvic'&&view.mode==='entry';
-      if((scope==='vagina'||scope==='vulva'||entry)&&x&&y&&a.running===b?.running&&sameCanalPose(x,y,scope!=='vagina')&&
+      if((scope==='vagina'||scope==='vulva'||scope==='uterus'||entry)&&x&&y&&a.running===b?.running&&sameCanalPose(x,y,scope!=='vagina')&&
+        (scope!=='uterus'||x.depth===y.depth&&x.atCervix===y.atCervix)&&
         (!entry||x.depth===y.depth&&x.angleDeg===y.angleDeg&&x.outletVisible===y.outletVisible))return;
       if(x!==y||a.running!==b?.running)changed(!x||!y||a.running!==b?.running||outletObservation(x)!==outletObservation(y));}
   }));
@@ -91,13 +92,16 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
     const liveAge=pictureSeconds?.(event,now,v.motion)??PICTURE_END;
     const replayAge=eggLens?replay?.sample(event,now,!art?.inFlight):undefined,age=replayAge??liveAge;
     const moving=replayAge!==undefined?!replay?.state.getState().paused:v.motion;
-    const anim=mode==='organ'&&scope!=='vagina'&&scope!=='vulva'&&moving&&(!eggLens||!!event&&age<PICTURE_END);
+    // The overview moves with measured contact, not a looping corpus pulse.
+    // No new pose/event/rotation means no bitmap request or texture upload.
+    const timedEncounter=eggLens||scope==='uterus';
+    const anim=mode==='organ'&&scope!=='vagina'&&scope!=='vulva'&&moving&&(!timedEncounter||!!event&&age<PICTURE_END);
     const dt=lastTime===null?0:Math.min(.10,Math.max(0,(now-lastTime)/1000));lastTime=now;
     const remaining=v.degrees-heading;
     heading=!v.motion||Math.abs(remaining)<.15?v.degrees:heading+remaining*(-Math.expm1(-23*dt));
     const turning=heading!==v.degrees;
     if(anim)time+=dt;
-    const finalFrame=eggLens&&age===PICTURE_END&&lastAge!==age;
+    const finalFrame=timedEncounter&&age===PICTURE_END&&lastAge!==age;
     if(art?.inFlight||!dirty&&!finalFrame&&(lastHeading===heading?(!anim||now-lastPaint<80):(turning&&now-lastPaint<32)))return anim||turning;
     const sample=profile?observed(pelvis):null,parked=!!sample&&!binding(pelvis)?.running;
     const zh=useLanguageStore.getState().language==='zh', yaw=heading*Math.PI/180;

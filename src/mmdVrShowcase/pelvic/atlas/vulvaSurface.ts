@@ -1,5 +1,6 @@
 import {exteriorBrush} from './foldLight';
 import {restingCut,type CutBasis,type FoldStyle,type RimState} from '../vulvaForm';
+import {sameEntranceCut,sameEntranceLoad,unloadedWall,type EntranceLoad} from './entranceWall';
 
 export const exteriorBox={left:5,right:167,top:37,bottom:215} as const;
 const origin={x:87,y:139},unit=33;
@@ -7,9 +8,9 @@ export function exteriorLens(yaw:number,radius:number){
   const co=Math.cos(yaw),si=Math.sin(yaw),scale=unit/radius;
   return (x:number,y:number,z:number)=>({x:origin.x+scale*(co*x+si*z),y:origin.y-scale*y});
 }
-type Tile={canvas:HTMLCanvasElement|OffscreenCanvas;paint:ReturnType<typeof exteriorBrush>;density:number;yaw:number;cut?:CutBasis;style?:FoldStyle;rim?:RimState};
+type Tile={canvas:HTMLCanvasElement|OffscreenCanvas;paint:ReturnType<typeof exteriorBrush>;density:number;yaw:number;cut:CutBasis;load:EntranceLoad;style?:FoldStyle;rim?:RimState};
 const tiles=new WeakMap<CanvasRenderingContext2D,Tile>();
-export function drawVulva(ctx:CanvasRenderingContext2D,yaw:number,cut=restingCut,style:FoldStyle='natural',rim:RimState='off',displayLimit=Infinity){
+export function drawVulva(ctx:CanvasRenderingContext2D,yaw:number,cut=restingCut,style:FoldStyle='natural',rim:RimState='off',displayLimit=Infinity,load=unloadedWall){
   // Includes the logical observation window's framing AND the destination
   // backing pixels. Keep enough subpixels in the smallest tile for a turned
   // crest; cap the largest at 648 × 712 (one depth/colour pair per surface).
@@ -19,11 +20,10 @@ export function drawVulva(ctx:CanvasRenderingContext2D,yaw:number,cut=restingCut
     const canvas=t?.canvas??(typeof OffscreenCanvas==='undefined'?document.createElement('canvas'):new OffscreenCanvas(w,h));
     canvas.width=w;canvas.height=h;
     const c=canvas.getContext('2d') as CanvasRenderingContext2D;
-    t={canvas,paint:exteriorBrush(c,w,h,(origin.x-left)*s,(origin.y-top)*s,unit*s),density:s,yaw:NaN};tiles.set(ctx,t);
+    t={canvas,paint:exteriorBrush(c,w,h,(origin.x-left)*s,(origin.y-top)*s,unit*s),density:s,yaw:NaN,cut:{...restingCut},load:{...unloadedWall}};tiles.set(ctx,t);
   }
-  const old=t.cut;
-  if(yaw!==t.yaw||style!==t.style||rim!==t.rim||!old||Math.abs(cut.x-old.x)+Math.abs(cut.y-old.y)+Math.abs(cut.xx-old.xx)+Math.abs(cut.xy-old.xy)+Math.abs(cut.yx-old.yx)+Math.abs(cut.yy-old.yy)>1e-6){
-    t.paint(yaw,cut,style,rim);if(old)Object.assign(old,cut);else t.cut={...cut};t.yaw=yaw;t.style=style;t.rim=rim;
+  if(yaw!==t.yaw||style!==t.style||rim!==t.rim||!sameEntranceCut(cut,t.cut)||!sameEntranceLoad(load,t.load)){
+    t.paint(yaw,cut,style,rim,load);Object.assign(t.cut,cut);Object.assign(t.load,load);t.yaw=yaw;t.style=style;t.rim=rim;
   }
   ctx.drawImage(t.canvas,left,top,right-left,bottom-top);
 }
