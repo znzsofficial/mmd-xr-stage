@@ -1,11 +1,12 @@
 # MMD XR Stage 文档
 
-**会话压缩后接续：先读[交接页](./HANDOFF.md)，再读[角色工具：摆姿、支架和局部样式](./gameplay/next-actor-tools.md)。** 查某项是否已经上线，看[发布记录](./release-history.md)；查实际测过什么，看[角色工具回归](./performance/actor-tools-regression.md)；拿到头显报告后按[分趟验收说明](./performance/next-quest-export.md)分析。[舞台可见泌乳](./gameplay/stage-lactation-proposal.md)说明哪些模型能显示，以及为什么有时只更新充盈度。
+**会话压缩后先读[交接页](./HANDOFF.md)。** 查线上功能看[发布记录](./release-history.md)；想接着改善体验看[流程与 HUD 评审](./gameplay/actor-flow-review.md)，想查帧率看[性能优先级](./performance/README.md)。[角色工具回归](./performance/actor-tools-regression.md)记录实模和模拟双眼测到了什么，[下次 Quest 导出](./performance/next-quest-export.md)列出仍缺的真机证据。
 
 | 要做什么 | 入口 |
 |---|---|
 | 导入、摆角色、观看、续场 | [文件与背包](./gameplay/asset-workflow.md) · [Blender 角色包](./gameplay/blender-characters.md) · [屏幕键鼠](./gameplay/screen-viewing.md) · [VR 控制](./gameplay/vr-controls.md) |
 | 编辑已上场的角色 | [服装、互动与身体观察](./gameplay/actor-tools.md) · [摆姿](./gameplay/pose-and-body-states.md#从站姿调成坐姿) · [胸型与观察](./gameplay/pose-and-body-states.md#先看模型上的胸型变化) · [周期](./gameplay/pose-and-body-states.md#对照两个周期日) · [泌乳效果](./gameplay/pose-and-body-states.md#泌乳目前能看到什么) · [支架与附件](./gameplay/pelvic-attachment.md) |
+| 看本轮演员功能或找回审图 | [生育进程：从排卵到着床](./gameplay/pose-and-body-states.md#生育进程从排卵玩到着床) · [分侧泌乳与遮挡](./gameplay/stage-lactation-proposal.md) · [已交付工具与本机审图索引](./gameplay/next-actor-tools.md) |
 | 找道具、手柄震动或互动玩法 | [道具接触与手柄震动](./gameplay/README.md#道具接触与手柄震动) · [已上线的四幕](./gameplay/README.md#四幕玩法) · [互动提案](./gameplay/interactive-scene-studies.md) |
 | 选地图、机位或步行路线 | [布景索引](./scenery/README.md) · [深空与风道](./scenery/opal-planet.md) · [校园环线](./scenery/campus-arcade-loop.md) · [喜院到秦淮](./scenery/jiangnan-river-street.md) |
 | 验收与查卡顿 | [下次 Quest 导出](./performance/next-quest-export.md) · [角色工具本机回归](./performance/actor-tools-regression.md) · [性能优先级](./performance/README.md) · [历次真机报告](./performance/viewing-and-diagnostics.md#已有测量) |
