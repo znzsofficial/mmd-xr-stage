@@ -3,6 +3,8 @@ import type { PoseKey } from './poseSession';
 
 const zh = {
   title: '摆姿势', adjust: '调关节', library: '已存姿势', back: '返回', keep: '保留姿势并返回', end: '恢复原动作',
+  presets: '快速体位', applied: '已应用', undone: '已撤销', unsupported: '骨架不支持灰显体位。',
+  presetName: (p: { zh: string; en: string }) => p.zh,
   frozen: '动作已定格', retry: '开始摆姿势', unavailable: '当前无法编辑这个角色。', held: '姿势已保留。', resume: '继续编辑',
   joint: '控制点', previous: '上一个', next: '下一个', rotate: '旋转轴', rotateOnly: '此关节仅可旋转',
   dragScreen: '重叠时先选控制点。拖圆心移动，按住上滚拉近、下滚推远。松手后滚轮缩放；拖外环旋转。',
@@ -17,6 +19,8 @@ const zh = {
 };
 const en: typeof zh = {
   title: 'Pose', adjust: 'Joints', library: 'Saved poses', back: 'Back', keep: 'Keep pose & return', end: 'Restore motion',
+  presets: 'Quick poses', applied: 'Applied', undone: 'Undone', unsupported: 'This rig cannot use the dimmed poses.',
+  presetName: p => p.en,
   frozen: 'Motion paused', retry: 'Start posing', unavailable: 'This character cannot be posed right now.', held: 'Pose held.', resume: 'Continue posing',
   joint: 'Control point', previous: 'Previous', next: 'Next', rotate: 'Rotation axis', rotateOnly: 'Rotation only',
   dragScreen: 'For stacked points, choose a joint above. Drag the center; scroll up to pull closer or down to push away. Release to zoom. Drag the ring to turn.',

@@ -24,3 +24,6 @@ export const cordless:PropView = {Piece:CordlessWand};
 export const plumeBrush:PropView = {Piece:FeatherBrush};
 export const roundFan:PropView = {Piece:LotusFan};
 export const eggRemote:PropView = {Piece:EggHandset,HeldEffect:EggHandFeedback};
+export {constellation} from './festival/Constellation';
+export {ribbonPen} from './festival/RibbonPen';
+export {lanternPod} from './festival/LanternPod';

@@ -11,7 +11,7 @@
 | 选地图、机位或步行路线 | [布景索引](./scenery/README.md) · [深空与风道](./scenery/opal-planet.md) · [校园环线](./scenery/campus-arcade-loop.md) · [喜院到秦淮](./scenery/jiangnan-river-street.md) |
 | 复查北台面板穿模 | [罗盘修复前后实景](./screenshots/north-instruments.webp) · [七条风道与操作](./scenery/opal-planet.md#从罗盘起飞七条往返风道) · [几何与实点证据](./scenery/opal-planet.md#北台仪表验证与维护) · [Quest 3S 短测](./performance/next-quest-export.md#北台仪表斜看与点选) |
 | 验收与查卡顿 | [下次 Quest 导出](./performance/next-quest-export.md) · [角色工具本机回归](./performance/actor-tools-regression.md) · [性能优先级](./performance/README.md) · [历次真机报告](./performance/viewing-and-diagnostics.md#已有测量) |
-| 改代码或加布景 | [舞台架构](./architecture.md) · [新布景与连接](./scenery/adding-a-set.md) · [美术样板](./scenery/art-direction.md) · [引擎取舍](./three-tooling.md) |
+| 改代码或加布景 | [舞台架构](./architecture.md) · [重力场、马达与新道具](./architecture/gravity.md) · [新布景与连接](./scenery/adding-a-set.md) · [美术样板](./scenery/art-direction.md) · [引擎取舍](./three-tooling.md) |
 
 ## 工程维护
 

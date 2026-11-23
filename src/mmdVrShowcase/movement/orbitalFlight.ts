@@ -4,26 +4,11 @@ import {stationBlocks} from '../scenery/planet/opalTerrain';
 import {MOON_JUMP_SPEED} from './moonWalk';
 import {tideBodyBlocked} from './tideContact';
 import {fixtureBodyBlocked} from './planetFixtures';
-import {altitude,createShellSweep,homeWorld,walkWorlds,type World} from './orbitalSurfaces';
+import {altitude,createShellSweep} from './orbitalSurfaces';
+import {homeWorld,walkWorlds,type World,localWell,pull} from './gravityField';
 import type {ReadColumn} from './groundMotor';
 
-const gap=(w:World,p:Vector3)=>p.distanceTo(w.centre)-w.radius;
-const reach=(w:World)=>4+w.radius*1.8;
-/** Only a nearby well can acquire. A visitor crossing the seam retains the
- * current well until another wins by half a metre, not merely one frame. */
-export function localWell(p:Vector3,owner:World|null){
-  let best=owner&&gap(owner,p)<reach(owner)+1?owner:null,score=best?gap(best,p)-.55:Infinity;
-  for(const w of walkWorlds){const d=gap(w,p);if(d<score&&d<reach(w)){best=w;score=d;}}
-  return best;
-}
-export function pull(w:World|null,p:Vector3,out:Vector3){
-  if(!w)return out.set(0,0,0);
-  out.subVectors(w.centre,p);const r=out.length(),d=r-w.radius;
-  // Ordinary stationary lunar hops retain their calibrated surface gravity.
-  // Outside that near layer pull falls as inverse square, then fades to zero.
-  const reference=w.radius+(w.id==='home'?0:1.25),fade=Math.min(1,Math.max(0,(reach(w)-d)/2));
-  return out.multiplyScalar(w.surfaceGravity*(reference/Math.max(reference,r))**2*fade*fade*(3-2*fade)/Math.max(r,1e-9));
-}
+export {localWell,pull};
 export function jumpVelocity(w:World,up:Vector3,stick:Vector3,speed:number,out:Vector3){
   // A local running jump must not enter an orbit: the smallest moon's
   // circular speed is below even the normal walking preset. Stick magnitude
@@ -60,7 +45,7 @@ function obstacle(f:Orbit,to:Vector3,up:Vector3,eye:Vector3,read?:ReadColumn){
   const h=Math.max(.25,eye.dot(up)+.115),w=f.owner;
   if(w&&fixtureBodyBlocked(w.id,to,up,eye,.16))return 'wall';
   if(w?.id==='tide'){if(tideBodyBlocked(to,up,eye))return 'wall';}
-  else if(w&&gap(w,to)<3.3&&(w.id==='home'?stationBlocks(to,.16,h):moonObstructed(w,to,.16,h)))return 'wall';
+  else if(w&&to.distanceTo(w.centre)-w.radius<3.3&&(w.id==='home'?stationBlocks(to,.16,h):moonObstructed(w,to,.16,h)))return 'wall';
   if(!read||Math.abs(to.x)>4||Math.abs(to.z)>4||to.y<-.3)return;
   const c=f.column;c.floor=-Infinity;c.ceiling=Infinity;c.blocked=false;read(to.x,to.z,f.foot.y,c);
   if(c.blocked)return 'wall';

@@ -13,6 +13,8 @@
 
 ## 按改动找入口
 
+想新增会飞、会落或会浮起的道具，先看[重力系统与扩展边界](./architecture/gravity.md)：普通房间和 11 个可步行天体如何取样，及哪些运动仍由玩家马达、演员 Bullet 或屏幕相机负责。
+
 | 要改什么 | 负责的模块 |
 |---|---|
 | 角色工具里的动态解剖图 | [`pelvic/atlas/`](../src/mmdVrShowcase/pelvic/atlas/) 的子宫动态按需使用本地 Worker；入口对位和测量剖面在 Canvas 上画[标定投影](../src/mmdVrShowcase/pelvic/sectionProjection.ts)。入口图的文字表独立异步准备，实杆不等字体。运转实测和静止实杆分开发布；待命杆位不能触发开合、计量、外喷或触觉。 |
@@ -21,6 +23,7 @@
 | 改外阴外形及受压反应 | [`vulvaForm.ts`](../src/mmdVrShowcase/pelvic/vulvaForm.ts) 定义外侧覆盖、内缘突出、自然不对称三款及偏压拟合；[`vulvaMesh.ts`](../src/mmdVrShowcase/pelvic/vulvaMesh.ts) 给舞台网格和观察画笔提供同一套共边曲面。可选膜缘只改变阴道口旁的组织；有效跨越来自逐帧求解器，图面不写事件、不启用道具。 |
 | 骨盆附件的手持／支架、剖面与计量 | [`pelvic/rig.ts`](../src/mmdVrShowcase/pelvic/rig.ts) 在角色求值后检查当帧真实喷口：有效在内计量、确认在外只外喷、其余情况消费触发但不释放。支架与剖面共用校准轨道，不从滑块推断接触。[玩家操作](./gameplay/pelvic-attachment.md) |
 | 支架手法与摆姿固定点 | [手法轨迹](../src/mmdVrShowcase/pelvic/railTechnique.ts)只存相对本次标定的归一化实杆位置和时间，回放要重新经过现场求解器。固定腕的目标位置和朝向存于[演员坐标系](../src/mmdVrShowcase/pose/poseSolver.ts)，与命名姿势一同按演员保留，不存房间里的绝对坐标。 |
+| 可复用的单演员体位 | [内置姿势](../src/mmdVrShowcase/pose/presetShapes.ts)描述躯干朝向、四肢骨段方向和支撑部位。[拟合器](../src/mmdVrShowcase/pose/presetFit.ts)作用于独立的姿势求值器，按演员骨长与脚底拟合；[编辑会话](../src/mmdVrShowcase/pose/poseSession.ts)把整次套用当成一次撤销。没有第二位演员、场景或表演账本的状态依赖。 |
 | 道具引起的临时模型形变 | [`roomPropDisplay.ts`](../src/mmdVrShowcase/stage/roomPropDisplay.ts) 管开合形态、[角色表情回应](../src/mmdVrShowcase/play/actorResponse.ts)、软头接触与持棒触觉。帧末依次叠开合形态、实测接触表情、道具接触；下次 VMD／Bullet 求值、姿势编辑或房间退出前逆序还原。同名顶点形态也不能把显示权重留进原动作。 |
 | 摆姿势、身体状态及局部剖面 | [`pose/`](../src/mmdVrShowcase/pose/) 管编辑手势、单帧动作和命名姿势；[`bodyState/`](../src/mmdVrShowcase/bodyState/) 管每个资产的身体设置、分侧乳量、预览及显示适配。只有当房间挂载演员时，才关联其骨架／形态。屏幕和 VR 使用同一套命令。[操作与验证](./gameplay/pose-and-body-states.md) |
 | 改身体设置编辑页 | [`useBodyEditor.ts`](../src/mmdVrShowcase/bodyState/useBodyEditor.ts) 负责演员归属、翻页和草稿的保存／取消／撤销。[`editor/`](../src/mmdVrShowcase/bodyState/editor/) 生成胸型与模型适配、泌乳与起始存量控件。屏幕与 XR 读取同一份控件数据。 |

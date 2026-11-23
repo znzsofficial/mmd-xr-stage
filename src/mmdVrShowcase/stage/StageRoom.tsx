@@ -46,6 +46,7 @@ import { createPropColliderFeed, isContactTool } from '../play/propColliders';
 import {createRoomPropDisplay} from './roomPropDisplay';
 import { useStagePlay } from '../play/stagePlay';
 import { PlayPiece } from '../play/HeldPlay';
+import { useScreenWristCue } from '../play/screenWristCue';
 import {useHudWorldInput} from '../components/hudWorldInput';
 import { RemoteWearable } from '../play/remote/RemoteWearable';
 import {presentRemoteWearable} from '../play/remote/wearableCollider';
@@ -173,10 +174,12 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
   const pelvic=useRef<PelvicRigHandle>(null);
   const standSample=useMemo(()=>({pieceWorld:new THREE.Matrix4(),binding:{} as object}),[]);
   function poseCharacterProp(rt:MmdRuntimeHandle){
-    const group=wristGroup.current;if(!group)return;
+    const group=wristGroup.current;if(!group)return null;
     const prop=useStagePlay.getState().character, live=prop&&useBackpack.getState().live[prop.assetId];
-    if(live&&prop&&!useMmdVrStore.getState().physicsBusy)poseWristToy(group,rt.getModelRoot(live.runtimeId),prop);
-    else group.visible=false;
+    if(live?.visible&&prop&&prop.toy===characterToy&&!useMmdVrStore.getState().physicsBusy){
+      const root=rt.getModelRoot(live.runtimeId);poseWristToy(group,root,prop);return group.visible?root:null;
+    }
+    group.visible=false;return null;
   }
   useLayoutEffect(()=>{
     const stop=useStagePlay.subscribe((s,p)=>{if(s.held!==p.held||s.character!==p.character||s.stand!==p.stand)propFeed.clear();});
@@ -187,6 +190,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
   useLayoutEffect(()=>propDisplay.subscribe(scenery),[propDisplay,scenery]);
   const characterToy = useStagePlay(s => s.character?.toy);
   const isRoomStale = useCallback(() => retired.current || !useMmdVrStore.getState().overlayOpen || useMmdVrStore.getState().prefs.scenery !== scenery || runtimeRef.current !== runtime,[scenery,runtime]);
+  const wristCue=useScreenWristCue(characterToy,{wrist:wristGroup,scene,canvas:gl.domElement,getRoot:runtime.getModelRoot,isRoomStale});
 
   useLayoutEffect(()=>{
     const milk=mountRoomMilk(scene,gl,runtime,isRoomStale);milkRoom.current=milk;
@@ -198,9 +202,8 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
     poseRoom.current=mountPoseRoom({
       open(id){if(isRoomStale())return null;propDisplay.restore();pelvic.current?.interrupt();return runtime.beginPose(id,timeRef.current);},
       close(id){propDisplay.restore();runtime.endPose(id);},
-      dirty(reseed){lastEvaluatedTimeRef.current=-Infinity;poseSettle.current=.8;
-        const id=usePoseSession.getState().runtimeId;
-        if(reseed&&id&&appliedPhysicsEnabledRef.current){propDisplay.restore();runtime.resetPhysics(timeRef.current,id);}}
+      dirty(reseed,runtimeId){lastEvaluatedTimeRef.current=-Infinity;poseSettle.current=.8;
+        if(reseed&&runtimeId&&appliedPhysicsEnabledRef.current){propDisplay.restore();runtime.resetPhysics(timeRef.current,runtimeId);}}
     });
     return ()=>{poseRoom.current?.dispose();poseRoom.current=null;bodyRoom.current=null;body.dispose();};
   },[runtime,propDisplay]);
@@ -714,7 +717,8 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
       if(store.presentation==='xr')runtimeTiming.record(performance.now() - start);
       lastEvaluatedTimeRef.current = evaluationTime;
     }
-    poseCharacterProp(rt);
+    const posedCarrier=poseCharacterProp(rt);
+    wristCue.driver.current?.advance(delta,posedCarrier);
     presentRemoteWearable(scene);
     pelvic.current?.advance(delta,frame,pelvicBlocked);
     if(!isRoomStale()&&!store.physicsBusy&&!store.physicsFatal&&!store.assetLoad.running)
@@ -764,6 +768,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
   return (
     <>
       {characterToy && <group ref={wristGroup} name="play:character" pointerEvents="none" visible={false}><PlayPiece toy={characterToy}/></group>}
+      {wristCue.art}
       <RemoteWearable getRoot={runtime.getModelRoot} isRoomStale={isRoomStale}/>
       <PelvicRig ref={pelvic} getRoot={runtime.getModelRoot} getSurface={runtime.getModelSurface}/>
       <PelvicObserver rig={pelvic}/>

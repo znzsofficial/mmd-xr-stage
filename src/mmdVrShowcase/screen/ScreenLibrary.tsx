@@ -4,7 +4,7 @@ import { nextMmdVrModelScale, previousMmdVrModelScale } from '../mmdVrAdjustment
 import { useMmdVrStore } from '../mmdVrStore';
 import { useLayoutEffect, useRef, useState } from 'react';
 import { isStoryRoom, shelfToys, STORIES, TOYS, toyLabel, type Hand, type Toy, type StoryRoom } from '../play/propCatalog';
-import { canGiveTo, giveScreenToy, ownerOf, useStagePlay } from '../play/stagePlay';
+import { canGiveTo, giveScreenToy, ownerOf, requestScreenWristUse, useStagePlay } from '../play/stagePlay';
 import type { SceneryId } from '../scenery/catalog';
 import {ScreenEnvironmentSettings} from './ScreenEnvironmentSettings';
 import { resetEncore } from '../play/encore/encoreRound';
@@ -95,6 +95,7 @@ function SelectedItem({entry,locked,frame,closeUp,move,choice,setChoice,suspende
     (panel.current.querySelector<HTMLElement>('.body-page h4, [data-actor-activity] h3')??heading.current)?.focus({preventScroll:true});
   },[editor,suspended]);
   const toy=choice??(wearing?'remoteEgg':prop?.assetId===entry.id?prop.toy:localToy??'saber');
+  const action=prop?.assetId===entry.id?TOYS[prop.toy].screenUse:undefined;
   if(!live)return null;
   // A physics rebuild briefly removes the transform record. Keeping the same
   // actor editor mounted preserves its unsaved preview while controls lock.
@@ -134,6 +135,7 @@ function SelectedItem({entry,locked,frame,closeUp,move,choice,setChoice,suspende
     {entry.kind==='model'&&<fieldset className="screen-props"><legend>{t('storyProp')}</legend>
       <select disabled={locked} aria-label={t('storyProp')} value={toy} onChange={e=>{const item=shelfToys.find(v=>v===e.target.value);if(item)setChoice(item);}}>{shelfToys.map(v=><option value={v} key={v}>{t(toyLabel(v,room))}</option>)}</select>
       {toy==='remoteEgg'?<EggFields id={entry.id} locked={locked||!live.visible}/>:<>{(['left','right'] as const).map(hand=><button key={hand} disabled={locked||!canGiveTo(live,hand)} aria-pressed={prop?.assetId===entry.id&&prop.toy===toy&&prop.hand===hand} onClick={()=>give(entry.id,toy,hand,room)}>{t(hand==='left'?'propLeft':'propRight')}</button>)}{!live.wrists?.left&&!live.wrists?.right&&<small>{t('propNoWrist')}</small>}</>}
+      {prop&&action&&<button disabled={locked||!canGiveTo(live,prop.hand)} onClick={()=>requestScreenWristUse(prop,live.runtimeId)}>{t(action.label)}</button>}
       {prop?.assetId===entry.id&&prop.toy===toy&&<><button disabled={locked} onClick={()=>useStagePlay.getState().adjust(0,0,30)}>{t('propTurn')} {prop.turn}°</button>
         {([['propLower',-15,0],['propRaise',15,0],['propCloser',0,-1],['propFarther',0,1]] as const).map(([label,a,d])=><button key={label} disabled={locked||Math.abs(prop.tilt+a)>90||Math.abs(prop.inset+d)>5} onClick={()=>useStagePlay.getState().adjust(a,d)}>{t(label)}</button>)}</>}
       {prop?.assetId===entry.id&&prop.toy!==localToy&&<button disabled={locked} onClick={()=>useStagePlay.getState().stow()}>{t('toyStow')}</button>}

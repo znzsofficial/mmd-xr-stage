@@ -181,7 +181,18 @@ function makeEditClip(live: SkinnedMesh, rest: ReturnType<typeof bindLocals>, so
   }
 
   return {
-    mesh, animation,
+    mesh, animation, evaluate,
+    hasUniqueInput(i:number) {
+      const b=bones[i], name=b.userData.mmdBoneName || b.name;
+      return animation.boneTracks[name]===tracks[i] && bones.findIndex(bone=>(bone.userData.mmdBoneName||bone.name)===name)===i;
+    },
+    // A built-in posture starts from *inputs*, not the evaluator's last VMD,
+    // frozen IK result, facial bone morph or a previous hand edit.
+    resetToBind() {
+      for (const t of tracks) { t.translations.fill(0); t.rotations.set([0,0,0,1]); t.physicsToggles[0] = -1; }
+      for (const w of morphs) w[0] = 0;
+      morphRuntime?.evaluate(0, editOptions); evaluate();
+    },
     set(i: number, p: Vector3, q: Quaternion) {
       writeInput(i, p, q);
       if (grantSources.has(i)) evaluate();

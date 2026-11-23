@@ -1,26 +1,119 @@
-<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>手持道具 · 外观近检</title>
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>手持道具 · 外观近检</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#e9e5dd;color:#2b3333;font-family:system-ui,sans-serif}main{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:#c9c4b8}figure{margin:0;min-width:0;background:#f4f1ea}section{height:clamp(195px,25vw,370px)}figcaption{padding:10px 16px 14px;font-size:16px}small{color:#5b605e;margin-left:.75em;font-variant-numeric:tabular-nums}@media(max-width:800px){main{grid-template-columns:repeat(2,1fr)}}
-</style><main id="root"></main>
+  * { box-sizing: border-box }
+  body { margin: 0; background: #e9e5dd; color: #2b3333; font-family: system-ui, sans-serif }
+  main { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px }
+  figure { margin: 0; background: #f4f1ea }
+  img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3 }
+  figcaption { display: flex; flex-wrap: wrap; align-items: baseline; gap: .25em .75em; padding: 10px 16px 14px }
+  small { color: #5b605e; font-variant-numeric: tabular-nums }
+  #status { margin: 1em }
+  @media (max-width: 800px) { main { grid-template-columns: repeat(2, minmax(0, 1fr)) } }
+  @media (max-width: 480px) { main { grid-template-columns: 1fr } }
+</style>
+<main id="root" aria-busy="true"></main>
+<p id="status" role="status">正在绘制道具…</p>
 <script type="module">
-// Dev-only contact sheet. Actual game components, unmodified geometry. One
-// isolated view of each at different magnifications, no backdrop/ground draws.
-import React,{useEffect,useLayoutEffect} from 'react';import {createRoot} from 'react-dom/client';
-import {Canvas,useThree} from '@react-three/fiber';import {useLanguageStore} from '/src/languageStore';
-import {TOYS,shelfToys} from '/src/mmdVrShowcase/play/propCatalog';import {PlayPiece} from '/src/mmdVrShowcase/play/HeldPlay';
-import {useMmdVrStore} from '/src/mmdVrShowcase/mmdVrStore';import {giveScreenToy} from '/src/mmdVrShowcase/play/stagePlay';
-const h=React.createElement, t=useLanguageStore.getState().t;
-useMmdVrStore.setState(s=>({prefs:{...s.prefs,scenery:'pool'}}));giveScreenToy('inspection','encore','left','liveHouse');
-const shots={kite:[[.33,.23,.43],[0,.004,-.068],.31],encore:[[.29,.17,.47],[0,-.004,-.075],.32],bubbles:[[.34,.17,-.37],[0,.002,-.084],.28],post:[[.28,.15,-.43],[0,-.016,-.078],.25],saber:[[.35,.26,-.21],[0,-.041,-.068],.29],dildo:[[.24,.12,.42],[0,.042,-.05],.20],wand:[[.27,.075,.40],[0,.004,-.061],.26],feather:[[.25,.07,.50],[0,.054,-.074],.36]};
-shots.lotusFan=[[.16,.14,.56],[0,.04,-.07],.42];
-function Capture({id}){
-  const {gl,scene,camera,size,invalidate}=useThree();
-  useLayoutEffect(()=>{const [p,target,span]=shots[id]??shots.post;camera.position.set(...p);camera.lookAt(...target);camera.zoom=Math.min(size.height,size.width)/span;camera.updateProjectionMatrix();invalidate();},[id,size,gl,camera,invalidate]);
-  useEffect(()=>{const frame=requestAnimationFrame(()=>{gl.render(scene,camera);const {calls,triangles}=gl.info.render;
-    document.querySelector(`[data-stats="${id}"]`).textContent=`${calls} draw · ${triangles.toLocaleString('en')} tri`;
-    (window.metrics??={})[id]={calls,triangles};});return ()=>cancelAnimationFrame(frame);},[id,gl,scene,camera,size]);
-  return h(React.Fragment,null,h('ambientLight',{intensity:.65}),h('hemisphereLight',{args:['#fff3dd','#b2adab',1.1]}),h('directionalLight',{position:[2,3,2],intensity:2.1}),h('directionalLight',{position:[-2,1,-3],intensity:1.25}),h(PlayPiece,{toy:id}));
+import { createElement as h, Fragment } from 'react';
+import { createRoot, extend, flushSync } from '@react-three/fiber';
+import * as THREE from 'three';
+import { useLanguageStore } from '/src/languageStore';
+import { TOYS, shelfToys } from '/src/mmdVrShowcase/play/propCatalog';
+import { PlayPiece } from '/src/mmdVrShowcase/play/HeldPlay';
+import { useMmdVrStore } from '/src/mmdVrShowcase/mmdVrStore';
+import { giveScreenToy } from '/src/mmdVrShowcase/play/stagePlay';
+
+const shots = { // eye, target, vertical span (metres)
+  kite:          [[.33,.23,.43],   [0,.004,-.068],  .31],
+  encore:        [[.29,.17,.47],   [0,-.004,-.075], .32],
+  bubbles:       [[.34,.17,-.37],  [0,.002,-.084],  .28],
+  post:          [[.28,.15,-.43],  [0,-.016,-.078], .25],
+  saber:         [[.35,.26,-.21],  [0,-.041,-.068], .29],
+  dildo:         [[.24,.12,.42],   [0,.042,-.05],   .20],
+  wand:          [[.27,.075,.40],  [0,.004,-.061],  .26],
+  feather:       [[.25,.07,.50],   [0,.054,-.074],  .36],
+  lotusFan:      [[.16,.14,.56],   [0,.04,-.07],    .42],
+  constellation: [[.17,.14,.48],   [0,.012,-.055],  .25],
+  ribbonPen:     [[.37,.17,-.38],  [0,-.011,-.073], .22],
+  lanternPod:    [[.30,.11,.43],   [0,.016,-.075],  .245],
+};
+const width = 960, height = 720;
+const gallery = document.querySelector('main'), status = document.querySelector('#status');
+const t = useLanguageStore.getState().t;
+window.metrics = {};
+
+function selectedToys() {
+  const filter = new URLSearchParams(location.search).get('toy');
+  if (filter === null) return shelfToys;
+  const ids = [...new Set(filter.split(',').map(id => id.trim()).filter(Boolean))];
+  if (!ids.length) throw new Error('toy 参数未指定道具');
+  const unknown = ids.filter(id => !shelfToys.includes(id));
+  if (unknown.length) throw new Error(`货架上没有：${unknown.join(', ')}`);
+  return ids;
 }
-function Figure({id}){return h('figure',null,h('section',null,h(Canvas,{orthographic:true,dpr:Math.min(devicePixelRatio,2),frameloop:'demand',gl:{alpha:true,antialias:true},camera:{near:.005,far:4}},h(Capture,{id}))),h('figcaption',null,t(TOYS[id].label),h('small',{'data-stats':id})));}
-createRoot(document.querySelector('main')).render(h(React.Fragment,null,...shelfToys.map(id=>h(Figure,{key:id,id}))));
-</script></html>
+
+function Studio({ id }) {
+  return h(Fragment, null,
+    h('ambientLight', { intensity: .65 }),
+    h('hemisphereLight', { args: ['#fff3dd', '#b2adab', 1.1] }),
+    h('directionalLight', { position: [2,3,2], intensity: 2.1 }),
+    h('directionalLight', { position: [-2,1,-3], intensity: 1.25 }),
+    h(PlayPiece, { key: id, toy: id }));
+}
+
+async function publish(id, canvas, { calls, triangles }) {
+  // Snapshot the drawing buffer before yielding; no preserveDrawingBuffer needed.
+  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+  if (!blob) throw new Error(`${id}：无法导出 PNG`);
+  const name = t(TOYS[id].label), img = new Image(width, height);
+  img.alt = name;
+  img.src = URL.createObjectURL(blob); // Keep the still saveable for the life of the page.
+  await img.decode();
+  const figure = document.createElement('figure'), caption = document.createElement('figcaption');
+  const stats = document.createElement('small');
+  figure.dataset.toy = stats.dataset.stats = id;
+  stats.textContent = `${calls} draw · ${triangles.toLocaleString('en')} tri`;
+  caption.append(name, stats);
+  figure.append(img, caption);
+  gallery.append(figure);
+  window.metrics[id] = { calls, triangles };
+}
+
+async function makeSheet() {
+  const ids = selectedToys();
+  // Keep the original pool blower and wrist mic variants without mounting a held effect or station.
+  useMmdVrStore.setState(s => ({ prefs: { ...s.prefs, scenery: 'pool' } }));
+  giveScreenToy('inspection', 'encore', 'left', 'liveHouse');
+  extend(THREE);
+  const canvas = document.createElement('canvas'), root = createRoot(canvas);
+  try {
+    await root.configure({ size: { width, height, top: 0, left: 0 }, dpr: 1, frameloop: 'never',
+      orthographic: true, camera: { near: .005, far: 4 }, gl: { alpha: true, antialias: true } });
+    for (const id of ids) {
+      const store = flushSync(() => root.render(h(Studio, { id })));
+      const { gl, camera, advance } = store.getState();
+      const [eye, target, span] = shots[id] ?? shots.post;
+      camera.position.set(...eye);
+      camera.lookAt(...target);
+      camera.zoom = height / span;
+      camera.updateProjectionMatrix();
+      gl.info.reset();
+      advance(0, false); // Exactly one frame of the committed Piece, measured and photographed together.
+      if (!gl.info.render.calls || !gl.info.render.triangles) throw new Error(`${id}：道具没有绘制`);
+      await publish(id, canvas, gl.info.render);
+    }
+  } finally {
+    root.unmount();
+  }
+}
+
+makeSheet().then(() => { status.hidden = true; }, error => {
+  status.textContent = `近检失败：${error.message}`;
+  console.error(error);
+}).finally(() => { gallery.setAttribute('aria-busy', 'false'); });
+</script>
+</html>

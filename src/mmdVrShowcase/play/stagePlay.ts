@@ -19,6 +19,18 @@ export function handleGripStart(toy:Toy,room:SceneryId,at:Vector3,dir:Vector3){
 export const canGiveTo = (actor:{visible:boolean; wrists?:Partial<Record<Hand,boolean>>}|undefined, hand:Hand) =>
   !!actor?.visible && !!actor.wrists?.[hand];
 
+// Only the mounted screen piece can accept a cue. Never put pending input in
+// the page-owned backpack or replay it when the next wrist/room mounts.
+type WristUse = (owner:CharacterToy,runtimeId:string)=>boolean;
+let wristUse:WristUse|null=null;
+export function bindScreenWristUse(use:WristUse){
+  wristUse=use;
+  return ()=>{if(wristUse===use)wristUse=null;};
+}
+export function requestScreenWristUse(owner:CharacterToy,runtimeId:string){
+  return useStagePlay.getState().character===owner && !!wristUse?.(owner,runtimeId);
+}
+
 type Play = Owners & {
   equip:(toy:Toy,hand:Hand)=>void; mountStand:(assetId:string)=>void; stow:()=>void; reset:()=>void;
   give:(assetId:string,hand:Hand)=>void; adjust:(tilt:number,inset:number,turn?:number)=>void;

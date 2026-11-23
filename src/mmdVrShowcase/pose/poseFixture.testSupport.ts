@@ -1,6 +1,7 @@
 /** Synthetic PMX 2.0 / VMD: articulated actor, native leg IK, append-driven
  * sleeve, grouped bone morph, wrist-weighted triangle and two Bullet bodies. */
-export function poseFixture(partial = false, layer: 'both' | 'body' | 'face' = 'both') {
+export function poseFixture(partial = false, layer: 'both' | 'body' | 'face' = 'both',
+  bonePosition?: (name:string,x:number,y:number,z:number)=>[number,number,number]) {
   const enc = new TextEncoder(), bytes: number[] = [], scratch = new DataView(new ArrayBuffer(4));
   const u8 = (v: number) => { bytes.push(v & 255); };
   const u16 = (v: number) => { u8(v); u8(v >> 8); };
@@ -23,7 +24,7 @@ export function poseFixture(partial = false, layer: 'both' | 'body' | 'face' = '
   vec(.6,.6,.7,1, 0,0,0, 1, .3,.3,.3); u8(1); vec(0,0,0,1,0); bytes.push(255,255,0,1,0); str(''); i32(3);
   i32(joints.length);
   joints.forEach(([name,x,y,z,parent], i) => {
-    str(name); str(name); vec(x,y,z); u8(parent); i32(i >= 18 ? 1 : 0);
+    str(name); str(name); vec(...(bonePosition?.(name,x,y,z)??[x,y,z])); u8(parent); i32(i >= 18 ? 1 : 0);
     u16(0x1e | (i === 18 ? 0x100 : i === 20 ? 0x20 : 0)); vec(0,.05,0);
     if (i === 18) { u8(11); vec(.6); }
     if (i === 20) { u8(10); i32(20); vec(.22); i32(2); u8(9); u8(0); u8(8); u8(0); }

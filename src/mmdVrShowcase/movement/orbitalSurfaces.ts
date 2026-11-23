@@ -1,15 +1,12 @@
 import {Vector3} from 'three';
-import {HOME_SURFACE_GRAVITY,PLANET_RADIUS} from '../scenery/planet/planetLayout';
 import {moonRadius,moonSegments} from '../scenery/planet/moonSurface';
 import {facetSampler} from '../scenery/planet/shellFacets';
-import {allMoons,type WalkMoon} from '../scenery/planet/windAtlas';
-import {homeShellRadius,planetCentre} from './homeSurface';
+import {allMoons} from '../scenery/planet/windAtlas';
+import {homeShellRadius} from './homeSurface';
+import {homeWorld,walkWorlds,type World} from './gravityField';
 import {clearingSupport} from '../scenery/planet/lanternClearing';
 
-export const homeWorld={id:'home',radius:PLANET_RADIUS,centre:planetCentre,surfaceGravity:HOME_SURFACE_GRAVITY} as const;
-export type World=typeof homeWorld|WalkMoon;
-// Finite, authored world geometry only. The distant system is a sky material.
-export const walkWorlds:readonly World[]=[homeWorld,...allMoons];
+export {homeWorld,walkWorlds,type World};
 const facets=new Map(allMoons.filter(w=>w.id!=='tide').map(w=>{
   const [cols,rows]=moonSegments(w);
   return [w,facetSampler(cols,rows,(x,y,z)=>moonRadius(w,x,y,z))] as const;

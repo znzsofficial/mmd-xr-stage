@@ -3,7 +3,7 @@ import { HudButton, HudLine, HudSheet } from '../components/PorcelainControls';
 import { poseActions } from './poseSession';
 import { jointHint, limbBendLabel, nextPoseName, usePoseText } from './poseText';
 import { POSE_ANGLE_STEP, POSE_AXES, POSE_BEND_STEP, usePoseTool } from './poseTool';
-import { usePoseEditor, type PoseControlsProps } from './usePoseEditor';
+import { usePoseEditor, useQuickPoses, type PoseControlsProps, type QuickPoseProps } from './usePoseEditor';
 
 const half = .315, full = 1.22;
 const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -18,7 +18,7 @@ function Line({ y, text, muted = false }: { y: number; text: string; muted?: boo
 /** Actor sheet local bounds: x ±.67, y ±.775. All naming is operable inside XR. */
 export function PoseHudControls(props: PoseControlsProps & { onBack: () => void }) {
   const s = usePoseEditor(props), t = usePoseText(), axis = usePoseTool(s => s.axis);
-  const [tab, setTab] = useState<'joints' | 'library' | 'keyboard'>('joints');
+  const [tab, setTab] = useState<'joints' | 'presets' | 'library' | 'keyboard'>('joints');
   const [draft, setDraft] = useState<string | null>(null), [chosen, setChosen] = useState(''), [saved, setSaved] = useState('');
   const [lower, setLower] = useState(false);
   const busy = s.dragging, name = draft ?? nextPoseName(t.pose, s.savedNames), clean = name.trim();
@@ -45,8 +45,8 @@ export function PoseHudControls(props: PoseControlsProps & { onBack: () => void 
       <Key x={.155} y={-.65} w={.29} text={t.erase} disabled={!name} press={() => edit(Array.from(name).slice(0,-1).join(''))}/>
       <Key x={.465} y={-.65} w={.29} text={t.clear} disabled={!name} press={() => edit('')}/>
     </> : <>
-      <Key x={-half} y={.48} w={.59} text={t.adjust} active={tab === 'joints'} disabled={busy} press={() => setTab('joints')}/>
-      <Key x={half} y={.48} w={.59} text={t.library} active={tab === 'library'} disabled={busy} press={() => setTab('library')}/>
+      {(['joints','presets','library'] as const).map((k,i) => <Key key={k} x={(i-1)*.416} y={.48} w={.385}
+        text={k === 'joints' ? t.adjust : t[k]} active={tab === k} disabled={busy} press={() => setTab(k)}/>)}
       {tab === 'joints' ? <>
         <Key x={-.47} y={.30} w={.28} text={t.previous} disabled={busy || s.keys.length < 2} press={() => keyStep(-1)}/>
         <HudLine position={[0,.30,0]} width={.60} center text={t.labels[s.selected]}/>
@@ -60,8 +60,8 @@ export function PoseHudControls(props: PoseControlsProps & { onBack: () => void 
           <Key x={half} y={-.335} w={.59} text={`${bend} +`} disabled={busy} press={() => poseActions.bend(s.selected,POSE_BEND_STEP)}/></>}
         <Key x={-half} y={-.505} w={.59} text={s.feetLocked ? t.unlock : t.lock} active={s.feetLocked}
           disabled={busy || !(poseActions.canBend('leftFoot') || poseActions.canBend('rightFoot'))} press={() => poseActions.setFeetLocked(!s.feetLocked)}/>
-        <Key x={half} y={-.505} w={.59} text={t.undo} disabled={busy || !s.canUndo} press={poseActions.undo}/>
-      </> : <>
+        <Key x={half} y={-.505} w={.59} text={t.undo} disabled={busy || !s.canUndo} press={s.undo}/>
+      </> : tab === 'presets' ? <QuickPoseKeys {...props} t={t} busy={busy} canUndo={s.canUndo} undo={s.undo}/> : <>
         <Line y={.305} text={`${t.name}: ${name}`} />
         <Key x={-half} y={.135} w={.59} text={t.editName} disabled={busy} press={() => { setDraft(name); setTab('keyboard'); }}/>
         <Key x={half} y={.135} w={.59} text={t.save} disabled={busy || !clean || s.savedNames.includes(clean)}
@@ -78,4 +78,14 @@ export function PoseHudControls(props: PoseControlsProps & { onBack: () => void 
       </> : <Key y={-.68} text={t.end} press={s.restore} disabled={busy} quiet/>}
     </>}
   </group>;
+}
+
+function QuickPoseKeys(props: QuickPoseProps) {
+  const { choices, status, apply, undo } = useQuickPoses(props);
+  return <>
+    {choices.map((p,i) => <Key key={p.id} x={i%2 ? half : -half} y={.28 - Math.floor(i/2)*.21} w={.59}
+      text={p.label} disabled={props.busy || !p.supported} press={() => apply(p.id)}/>)}
+    <Line y={-.335} text={status} muted/>
+    <Key x={half} y={-.505} w={.59} text={props.t.undo} disabled={props.busy || !props.canUndo} press={undo}/>
+  </>;
 }

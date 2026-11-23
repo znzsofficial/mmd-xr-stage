@@ -1,10 +1,11 @@
 import {STEP,type Column} from './solidColumns';
+import {ROOM_GRAVITY} from './gravityReference';
 
 export type Body={x:number;y:number;z:number;vy:number;grounded:boolean};
 export type ReadColumn=(x:number,z:number,foot:number,out:Column)=>void;
 export const groundedBody=(x:number,y:number,z:number):Body=>({x,y,z,vy:0,grounded:true});
 const usable=(c:Column,y:number,h:number)=>Number.isFinite(c.floor)&&!c.blocked&&c.floor<=y+STEP+.002&&Math.max(c.floor,y)+h<=c.ceiling+.001;
-const GRAVITY=9.81,LAUNCH=3.65;
+const LAUNCH=3.65;
 
 /** Collision is evaluated in spatial as well as time substeps. Even a sprint at
  * low FPS cannot skip a door jamb. Foot Y and gravity never enter preferences. */
@@ -26,7 +27,7 @@ export function createGroundMotor(){
       for(let i=0;i<n;i++){
         move(b,sample,dx/n,dz/n,h);sample(b.x,b.z,b.y,c);
         if(!Number.isFinite(c.floor)||c.blocked)break;
-        const next=b.y+b.vy*t-.5*GRAVITY*t*t;b.vy-=GRAVITY*t;
+        const next=b.y+b.vy*t-.5*ROOM_GRAVITY*t*t;b.vy-=ROOM_GRAVITY*t;
         if(next<=c.floor&&b.vy<=0){b.y=c.floor;b.vy=0;b.grounded=true;}
         else if(next+h>=c.ceiling&&b.vy>0){b.y=Math.max(c.floor,c.ceiling-h);b.vy=0;b.grounded=false;}
         else {b.y=Math.max(c.floor,next);b.grounded=false;}

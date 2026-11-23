@@ -8,6 +8,7 @@ import { clearCard } from './lunarCard';
 import { retractBlade, toggleBlade } from './saberLight';
 import { cycleWand, stopWand } from './wandMotor';
 import { clearRemoteEgg, cycleRemoteEgg } from './remote/remoteMotor';
+import { constellationGrip, ribbonPenGrip, lanternGrip } from './festival/fittings';
 
 export type Hand = 'left' | 'right';
 type Story = { name:Key; help:Key; left:Key; right:Key; cue:(side:Hand)=>void };
@@ -21,6 +22,8 @@ type Definition = {
   /** Point in the rendered Piece under the character's fingers, in metres;
    * pitch cancels a controller-specific handle rake when fitted to a palm. */
   grip:{point:readonly [number,number,number];pitch:number};
+  /** Named screen action at the actor's wrist. Omit held seconds for a single start frame. */
+  screenUse?:{label:Key;duration?:number};
   onGrip?:(at:Vector3, dir:Vector3)=>void;
   onEquip?:()=>void; onScreenEquip?:()=>void; onStow?:()=>void; onLeave?:()=>void;
   story?:Story;
@@ -75,6 +78,18 @@ const catalog = {
     label:'toyRemoteEgg',portable:true,home:null,homeLabel:'allSets',visit:null,view:'eggRemote',grip:{point:[0,-.025,-.046],pitch:.42},
     guide:{vr:'guideEggVr',screen:'guideEggScreen',end:'guideEggEnd'},
     onGrip:cycleRemoteEgg,onStow:clearRemoteEgg,onLeave:clearRemoteEgg,
+  },
+  constellation:{
+    label:'toyConstellation',portable:true,home:null,homeLabel:'allSets',visit:null,view:'constellation',grip:constellationGrip,
+    guide:{vr:'guideConstellationVr',screen:'guideConstellationScreen',end:'guideConstellationEnd'},screenUse:{label:'toyCueConstellation'},
+  },
+  ribbonPen:{
+    label:'toyRibbonPen',portable:true,home:null,homeLabel:'allSets',visit:null,view:'ribbonPen',grip:ribbonPenGrip,
+    guide:{vr:'guideRibbonPenVr',screen:'guideRibbonPenScreen',end:'guideRibbonPenEnd'},screenUse:{label:'toyCueRibbon',duration:1.2},
+  },
+  lanternPod:{
+    label:'toyLanternPod',portable:true,home:null,homeLabel:'allSets',visit:null,view:'lanternPod',grip:lanternGrip,
+    guide:{vr:'guideLanternVr',screen:'guideLanternScreen',end:'guideLanternEnd'},screenUse:{label:'toyCueLantern'},
   },
 } as const satisfies Record<string,Definition>;
 

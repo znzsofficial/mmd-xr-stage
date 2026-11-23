@@ -2,14 +2,14 @@ import { useId, useState } from 'react';
 import { poseActions, type PoseKey } from './poseSession';
 import { jointHint, limbBendLabel, nextPoseName, usePoseText } from './poseText';
 import { POSE_ANGLE_STEP, POSE_AXES, POSE_BEND_STEP, usePoseTool } from './poseTool';
-import { usePoseEditor, type PoseControlsProps } from './usePoseEditor';
+import { usePoseEditor, useQuickPoses, type PoseControlsProps, type QuickPoseProps } from './usePoseEditor';
 import './pose-controls.css';
 
 export { PoseHudControls } from './PoseHudControls';
 
 export function PoseScreenControls(props: PoseControlsProps) {
   const s = usePoseEditor(props), t = usePoseText(), axis = usePoseTool(s => s.axis), id = useId();
-  const [tab, setTab] = useState<'joints' | 'library'>('joints');
+  const [tab, setTab] = useState<'joints' | 'presets' | 'library'>('joints');
   const [draft, setDraft] = useState<string | null>(null), [last, setLast] = useState('');
   const [choice, setChoice] = useState('');
   const name = draft ?? nextPoseName(t.pose, s.savedNames), clean = name.trim();
@@ -26,8 +26,8 @@ export function PoseScreenControls(props: PoseControlsProps) {
     {!s.active ? <><p role="status">{s.held ? t.held : t.unavailable}</p>
       <button onClick={s.begin}>{s.held ? t.resume : t.retry}</button>{s.held && <button onClick={s.restore}>{t.end}</button>}
       {props.onBack && <button onClick={s.leave}>{t.back}</button>}</> : <>
-      <div className="pose-tabs">{(['joints', 'library'] as const).map(k => <button key={k} aria-pressed={tab === k}
-        disabled={busy} onClick={() => setTab(k)}>{k === 'joints' ? t.adjust : t.library}</button>)}</div>
+      <div className="pose-tabs">{(['joints', 'presets', 'library'] as const).map(k => <button key={k} aria-pressed={tab === k}
+        disabled={busy} onClick={() => setTab(k)}>{k === 'joints' ? t.adjust : t[k]}</button>)}</div>
       {tab === 'joints' ? <>
         <label className="pose-field">{t.joint}<select disabled={busy || !s.keys.length} value={s.selected}
           onChange={e => poseActions.select(e.target.value as PoseKey)}>{s.keys.map(k => <option key={k} value={k}>{t.labels[k]}</option>)}</select></label>
@@ -43,8 +43,8 @@ export function PoseScreenControls(props: PoseControlsProps) {
         <div className="pose-row"><label><input type="checkbox" checked={s.feetLocked} disabled={busy || !(poseActions.canBend('leftFoot') || poseActions.canBend('rightFoot'))}
           onChange={e => poseActions.setFeetLocked(e.target.checked)}/>{t.lock}</label>
           {s.wrist && <button disabled={s.wrist.disabled} aria-pressed={s.wrist.pinned} onClick={s.wrist.toggle}>{s.wrist.pinned ? t.unpin : t.pin}</button>}
-          <button disabled={busy || !s.canUndo} onClick={poseActions.undo}>{t.undo}</button></div>
-      </> : <>
+          <button disabled={busy || !s.canUndo} onClick={s.undo}>{t.undo}</button></div>
+      </> : tab === 'presets' ? <QuickPoses {...props} t={t} busy={busy} canUndo={s.canUndo} undo={s.undo}/> : <>
         <label className="pose-field" htmlFor={id}>{t.name}</label><input id={id} className="pose-name" type="text" maxLength={32} value={name}
           onChange={e => { setDraft(e.target.value); setLast(''); }} onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) save(); }}/>
         <button disabled={busy || !clean || s.savedNames.includes(clean)} onClick={save}>{t.save}</button>
@@ -56,4 +56,13 @@ export function PoseScreenControls(props: PoseControlsProps) {
       <div className="pose-exit">{props.onBack && <button disabled={busy} onClick={s.leave}>{t.keep}</button>}<button disabled={busy} onClick={s.restore}>{t.end}</button></div>
     </>}
   </div>;
+}
+
+function QuickPoses(props: QuickPoseProps) {
+  const { choices, status, apply, undo } = useQuickPoses(props);
+  return <>
+    <div className="pose-presets" role="group" aria-label={props.t.presets}>{choices.map(p =>
+      <button key={p.id} disabled={props.busy || !p.supported} onClick={() => apply(p.id)}>{p.label}</button>)}</div>
+    <div className="pose-receipt"><span role="status">{status}</span><button disabled={props.busy || !props.canUndo} onClick={undo}>{props.t.undo}</button></div>
+  </>;
 }

@@ -1,9 +1,9 @@
-import {Vector3} from 'three';
 import {PAD_RADIUS,PLANET_RADIUS as R} from '../scenery/planet/planetLayout';
 import {crustRadius,crustSegments} from '../scenery/planet/opalTerrain';
 import {facetSampler} from '../scenery/planet/shellFacets';
+import {homeWorld} from './gravityReference';
 
-export const planetCentre=new Vector3(0,-R,0);
+export const planetCentre=homeWorld.centre;
 const face=facetSampler(...crustSegments,crustRadius);
 /** The rendered crust triangles and the top of the flat landing cylinder. */
 export function homeShellRadius(x:number,y:number,z:number){

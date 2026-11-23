@@ -1,14 +1,17 @@
 import type { MmdAnimation, ThreeMmdAnimation, ThreeMmdModel } from '@yohawing/three-mmd-loader';
 import { Bone, Quaternion, Vector3 } from 'three';
 import { bindPoseClip, type ClipSnapshot } from './poseClip';
+import { posePresets, type PosePresetId } from './presetCatalog';
+import { fitPresets } from './presetFit';
 
 const wrists = ['leftHand', 'rightHand'] as const;
 export type WristKey = typeof wrists[number];
 export type PoseKey = 'pelvis' | 'torso' | 'head' | WristKey | 'leftFoot' | 'rightFoot';
 const isWrist = (key: PoseKey): key is WristKey => key === 'leftHand' || key === 'rightHand';
 export type PoseAxis = 'x' | 'y' | 'z' | Vector3;
-type WristTargets = Partial<Record<WristKey, { position: [number, number, number]; rotation: [number, number, number, number] }>>;
-export type PoseSnapshot = ClipSnapshot & { feetLocked: boolean; poles: Partial<Record<PoseKey, [number, number, number]>>; wrists: WristTargets };
+type Pin = { position: [number, number, number]; rotation: [number, number, number, number] };
+type WristTargets = Partial<Record<WristKey, Pin>>;
+export type PoseSnapshot = ClipSnapshot & { feetLocked: boolean; soles?: Partial<Record<'leftFoot'|'rightFoot', Pin>>; poles: Partial<Record<PoseKey, [number, number, number]>>; wrists: WristTargets };
 export type PoseSolver = ReturnType<typeof createPoseSolver>;
 type Limb = { base: Bone; joint: Bone; tip: Bone; pole: Vector3 };
 type Anchor = { p: Vector3; q: Quaternion };
@@ -81,6 +84,17 @@ function attachControls(model: ThreeMmdModel, clip: ReturnType<typeof bindPoseCl
   let active = true, feetLocked = false;
   const soles = new Map<typeof feet[number], Anchor>();
   const wristTargets = new Map<WristKey, Anchor>();
+  const preset = fitPresets(model.mesh,clip,limb,control.head,control.torso,neck);
+  const failedPresets = new Set<PosePresetId>();
+  function canPreset(id:PosePresetId){return active && !!preset && posePresets.some(p=>p.id===id) && !failedPresets.has(id);}
+  function applyPreset(id:PosePresetId){
+    if(!preset||!canPreset(id))return false;
+    const before=capture();
+    try {
+      if(preset(id)){lockFeet(false);wristTargets.clear();return true;}
+    } catch { /* An unusable grant/skin must not leave half a posture. */ }
+    apply(before);failedPresets.add(id);return false;
+  }
 
   function point(key: PoseKey, out: Vector3) {
     const b = control[key]; if (!active || !b) return false;
@@ -227,13 +241,16 @@ function attachControls(model: ThreeMmdModel, clip: ReturnType<typeof bindPoseCl
     for (const key of keys) if (limb[key]) poles[key] = limb[key].pole.toArray();
     const pins: WristTargets = {};
     for (const [k, { p, q }] of wristTargets) pins[k] = { position: [p.x,p.y,p.z], rotation: [q.x,q.y,q.z,q.w] };
-    return { ...clip.capture(), feetLocked, poles, wrists: pins };
+    const planted: PoseSnapshot['soles'] = {};
+    for (const [k, {p,q}] of soles) planted[k] = { position:p.toArray(), rotation:q.toArray() };
+    return { ...clip.capture(), feetLocked, poles, wrists: pins, soles: planted };
   }
   function apply(s: PoseSnapshot) {
     if (!active) return;
     clip.apply(s);
     for (const k of keys) { const p = s.poles[k]; if (limb[k] && p?.every(Number.isFinite)) limb[k].pole.fromArray(p); }
     lockFeet(s.feetLocked);
+    if(s.feetLocked)for(const k of feet){const pin=s.soles?.[k];if(pin&&soles.has(k))soles.set(k,{p:new Vector3(...pin.position),q:new Quaternion(...pin.rotation)});}
     wristTargets.clear();
     // All coordinates are in the isolated actor rig. In particular do not
     // recapture the displayed wrist here: a saved pin may be out of reach.
@@ -248,5 +265,5 @@ function attachControls(model: ThreeMmdModel, clip: ReturnType<typeof bindPoseCl
     for (const key of keys) { const p = new Vector3(); if (point(key, p)) result[key] = p; } return result;
   }, animation: clip.animation, get feetLocked() { return feetLocked; }, canBend: (key: PoseKey) => active && !!limb[key],
   get pinnedWrists() { return [...wristTargets.keys()]; }, pinWrist, wristTarget,
-  move, rotate, bend, lockFeet, capture, apply, restore, dispose: restore };
+   canPreset, applyPreset, move, rotate, bend, lockFeet, capture, apply, restore, dispose: restore };
 }
