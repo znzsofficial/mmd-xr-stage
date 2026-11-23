@@ -11,6 +11,7 @@ import { createAssetLoadQueue } from "../mmdAssetLoadQueue";
 import { createRoomMotionCache } from './roomMotionCache';
 import { createMountedModelBytePool } from './mountedModelBytes';
 import { poseFixture } from '../pose/poseFixture.testSupport';
+import { DEFAULT_BODY_PROFILE } from '../bodyState/data';
 
 vi.mock("./mmdPhysics", async (original) => ({
   ...await original<typeof import("./mmdPhysics")>(),
@@ -296,6 +297,46 @@ describe("runtime asynchronous lifecycle", () => {
       if (physics) { runtime.update(0, true, camera, 1, false, 1/90); expect(step).toHaveBeenCalled(); }
       await runtime.loadMotion(body, 'body', id); at(1.5);
       expect(wristVertex().distanceTo(armOnly)).toBeLessThan(1e-5); expect(runtime.duration).toBe(2);
+    } finally { runtime.dispose(); }
+  });
+
+  it('restores draw opacity and visual scale on a failed paused frame; only completed frames apply the body shape', async () => {
+    const model = modelFixture(), {mesh, root} = model;
+    const cloth = [mesh.material].flat()[0]; cloth.name = 'coat'; cloth.opacity = .75;
+    mesh.geometry.morphAttributes.position = [new THREE.Float32BufferAttribute([0, .1, 0], 3)];
+    mesh.morphTargetDictionary = {Fit: 0};
+    const weights = mesh.morphTargetInfluences = [0];
+    const inputs: number[][] = [];
+    let raw = .25, fail = false;
+    Object.assign(model.runtime, {seek: vi.fn()});
+    Object.assign(model, {update() {
+      inputs.push([root.scale.x, cloth.opacity, weights[0]]);
+      weights[0] = raw;
+      if (fail) throw Error('pose evaluation failed');
+    }});
+    vi.spyOn(ThreeMmdLoader.prototype, 'loadModel').mockResolvedValue(model);
+    vi.mocked(createBulletPhysicsBackend).mockResolvedValueOnce({name:'test', disabled:false, disposed:false, step:()=>({simulated:false})});
+    const runtime = createMmdRuntimeHandle(new THREE.Scene()), camera = new THREE.PerspectiveCamera();
+    const paused = () => runtime.update(0, true, camera, 1, false, 1/72);
+    try {
+      const {modelId:id} = await runtime.addModel(new File([], 'actor.pmx'), [], {physics:true, transform:{scale:.2}});
+      runtime.setMaterialOverride(id, 'coat', {opacity:.5});
+      runtime.setBodyProfile!(id, {...DEFAULT_BODY_PROFILE, morph:'Fit', fullness:.5});
+      paused(); expect(weights[0]).toBe(.625);
+
+      raw = .5; fail = true;
+      expect(paused).toThrow('pose evaluation failed');
+      expect([root.scale.x, cloth.opacity, weights[0]]).toEqual([.2, .375, .5]);
+
+      raw = .375;
+      runtime.resetPhysics(0, id); // an explicit reset recovers from the same failure
+      expect([root.scale.x, cloth.opacity, weights[0]]).toEqual([.2, .375, .375]);
+
+      raw = .125; fail = false;
+      runtime.resetPhysics(0, id); // seed only: no ordinary body presentation
+      expect([root.scale.x, cloth.opacity, weights[0]]).toEqual([.2, .375, .125]);
+      paused(); expect(weights[0]).toBe(.5625);
+      expect(inputs).toEqual([[1,.75,0], [1,.75,.25], [1,.75,.5], [1,.75,.375], [1,.75,.125]]);
     } finally { runtime.dispose(); }
   });
 

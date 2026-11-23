@@ -10,13 +10,15 @@
 | 加一个体位或一种衣物修正 | [体位数据](../../src/mmdVrShowcase/pose/presetShapes.ts)描述方向和支撑；拟合器按演员骨长落地。[裙片修正](../../src/mmdVrShowcase/mmdRuntime/poseSkirtClearance.ts)是可撤回的显示层。 | 双人联动需要两位演员共同的定位、取消与恢复规则。手动定格的防穿也不能直接推广到舞蹈每帧。 |
 | 加一颗星、一个可走区域 | [布景接入](../scenery/adding-a-set.md)负责身份、通行、摆放和机位；[重力查询](./gravity.md)可供新物体按位置采样。 | 新玩法若要接管玩家脚位，先明确它怎样进入、中断、落地并交回控制。普通道具不应修改头显原点。 |
 
-## 最值得整理的三个位置
+## 已拆出的三个入口
 
-以下行数为该版本物理行数，只用于定位。建议在下一次改到相应职责时小步拆，不把这三项当成待执行的功能任务。
+`76ef87c` 之后已完成第一次局部整理。以后按职责扩展；本轮不以行数或帧率变化作为验收目标。
 
-1. **角色运行时优先。** [`mmdRuntime.ts`](../../src/mmdVrShowcase/mmdRuntime/mmdRuntime.ts)（1,240 行）同时做角色装载、物理重建、每帧求值与姿势还原。下次加入一种身体或衣物显示层时，先收拢“求值前还原、求值后呈现、重绑时清空”的调用。普通帧与切换时机不同，要保留明确的调用顺序。验收看[运行时重建／失败回滚](../../src/mmdVrShowcase/mmdRuntime/mmdRuntimeLifecycle.test.ts)、暂停拨衣、恢复原动作和顶点还原；不要把一次拆文件算成性能提升。
-2. **房间仍应只有一个帧调度者。** [`StageRoom.tsx`](../../src/mmdVrShowcase/stage/StageRoom.tsx)（780 行）既处理房间快照，也在帧内消费移除、显隐、变换等命令。下一次增加同类命令，可先把这一组执行逻辑提成房间自己的函数；过期房间检查仍在消费命令之前，保存快照仍在释放之前。用[切房、退出和过期帧用例](../../src/mmdVrShowcase/components/MmdVrStage.test.tsx)验证。
-3. **HUD 可先按页面拆。** [`MmdVrHud.tsx`](../../src/mmdVrShowcase/components/MmdVrHud.tsx)（908 行）里已有独立的 `MaterialPanel` 和 `LoadRecoveryPanel`。下次扩这些页面时可以原样移出；B 键召回、拖动和按键释放仍由共同面板管理。用[导航](../../src/mmdVrShowcase/components/MmdVrHudNavigation.test.tsx)和[背包](../../src/mmdVrShowcase/components/BackpackHud.test.tsx)回归，再实点一次开页／返回。
+1. **演员显示与还原。** 新衣物或身体显示效果从 [`actorPoseDisplay.ts`](../../src/mmdVrShowcase/mmdRuntime/actorPoseDisplay.ts) 接入。这里明确区分普通帧还原、重绑清空、隐藏、移除和成功求值后的呈现。[运行时](../../src/mmdVrShowcase/mmdRuntime/mmdRuntime.ts)仍拥有 VMD／Bullet 时钟、单位缩放下的物理求值、失败回滚和材质还原。新增一层时同时查进入与退出，特别是暂停拨衣、重置和恢复原动作。[失败与重建回归](../../src/mmdVrShowcase/mmdRuntime/mmdRuntimeLifecycle.test.ts)
+2. **房间命令。** [`StageRoom.tsx`](../../src/mmdVrShowcase/stage/StageRoom.tsx) 仍是唯一帧调度者，检查过期代次和物理重建状态之后，才交给 [`roomModelCommands.ts`](../../src/mmdVrShowcase/stage/roomModelCommands.ts) 执行移除、显隐、变换。各队列执行后立即发布，再取下一组。房间负责物理重置及离场快照；异步放置和回场不是这一组命令。[过期帧、切景与退出](../../src/mmdVrShowcase/components/MmdVrStage.test.tsx)
+3. **XR 公共面板。** 资产详情、材质列表和参数在 [`AssetPanels.tsx`](../../src/mmdVrShowcase/components/AssetPanels.tsx)，贴图失败的详情、继续和重试在 [`LoadRecoveryPanel.tsx`](../../src/mmdVrShowcase/components/LoadRecoveryPanel.tsx)。[`MmdVrHud.tsx`](../../src/mmdVrShowcase/components/MmdVrHud.tsx) 仍决定显示哪一页，拥有 B 键召回和公共拖动状态。[导航](../../src/mmdVrShowcase/components/MmdVrHudNavigation.test.tsx) · [背包与错误优先级](../../src/mmdVrShowcase/components/BackpackHud.test.tsx)
+
+**实际验收。** 重构前后用同一套模拟 XR 扳机操作：材质详情显隐并返回、右转 15°、复位、整人显隐、移除、B 键召回；并用损坏贴图的可解析 PMX 走「继续观看 → 加载详情 → 继续观看」，角色仍在。另用本机穿裙 PMX 实点抬腿、跪撑和恢复原动作，退出后修正顶点归零。[暂停拨衣探针](../../scripts/paused-cloth-smoke.html)用实际 Bullet 检查暂停拨衣、跳播、重置与循环：暂停拨衣时腕矩阵无偏移，回到起点时腕和衣摆回到基准。以上不是实戴性能测试。
 
 ## 清理与验证预算
 

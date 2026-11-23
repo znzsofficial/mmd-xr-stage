@@ -6,6 +6,7 @@
 
 | 功能提交 | 已发布内容与验证范围 |
 |---|---|
+| `76ef87c` | [自然款外形与原模开合](./performance/actor-tools-regression.md#自然款外形与原模开合)：以作者的静息和独立开合形态作参照，收窄自绘轮廓，保留实测口径。实模实点原生键，另在屏幕和模拟双眼检查自绘形体。947 项测试通过，主域名入口及 276 份资源核对一致。[固定版](https://d7ffbcf2.mmd-xr-stage.pages.dev) |
 | `ef638f8` | [手动定格时减轻裙腿穿模](./performance/actor-tools-regression.md#手动体位的局部裙片修正)：三种裙型、15 条路径，比较实际衣料、接缝、腿部轨迹和退出还原；不改站姿或舞蹈重力。批准的[外阴 C 版](./performance/actor-tools-regression.md#外阴-c-版观察材质)用于屏幕／XR 观察及实体附件。947 项测试通过；主域名入口及 273 份资源与验证构建一致。[固定版](https://cac3f0c1.mmd-xr-stage.pages.dev) |
 | `e8dc587` | 六款[可微调的一键体位](./gameplay/pose-and-body-states.md#快速体位)，星图、彩带和水母[随身玩具](./gameplay/README.md#随身舞台特效)，按物体位置取样的[舞台重力场](./architecture/gravity.md)。屏幕和 IWER 都经过实际按键与结果检查。932 项测试通过；主域名入口及 270 份资源与验证构建一致。[固定版](https://cb131ec0.mmd-xr-stage.pages.dev) |
 | `24d4220`、`899adc7` | 母星站稳和大角度落地淡切、[07 海蚀崖口](./scenery/opal-planet.md#潮汐洞星)；独立卵子页、支架实测深度和[软壁剖面](./performance/actor-tools-regression.md#子宫全貌三枚卵子与主面板深度)。897 项测试通过；主域名入口和 268 份资源与测试构建一致。[固定版](https://eaedabed.mmd-xr-stage.pages.dev) |

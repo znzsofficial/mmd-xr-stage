@@ -19,7 +19,7 @@ import {
 import { getMmdVrRenderProfile } from "../mmdVrQuality";
 import { minSceneViewDistance } from '../mmdVrAdjustments';
 import { useMmdVrStore, type MmdVrMaterialState } from "../mmdVrStore";
-import { objectHeadingDegrees, setObjectHeadingDegrees } from "../objectHeading";
+import { objectHeadingDegrees } from "../objectHeading";
 import { roomSets } from '../scenery/roomSets';
 import { StageEnvironment } from './StageEnvironment';
 import { resolveStageLighting } from './lighting';
@@ -37,7 +37,7 @@ import {
   MMD_VR_HAPTIC_POLL_INTERVAL,
   setMmdVrHapticContacts,
 } from "../mmdVrHaptics";
-import { transformRequiresPhysicsReseed } from "../mmdVrPhysicsReseed";
+import { consumeRoomModelCommands } from "./roomModelCommands";
 import { createAssetLoadQueue, emptyAssetLoadProgress, type AssetLoadProgress } from "../mmdAssetLoadQueue";
 import { restoreStageTime, type StageSnapshot } from "../stageSnapshot";
 import { createStageActors } from "../stageActors";
@@ -405,6 +405,18 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
     setObjects(list);
   }
 
+  function publishRemovals() {
+    syncModelList();
+    syncMaterialModels();
+    syncObjects();
+    updateProgress(useMmdVrStore.getState().assetLoad);
+  }
+
+  function publishEdits() {
+    syncModelList();
+    syncObjects();
+  }
+
   // Preserve ordinary decode failures while adding/removing a particular
   // actor's repair ticket. A warning lets the actor render, but isn't a clean save.
   function updateProgress(progress: AssetLoadProgress, restoring = false) {
@@ -563,73 +575,9 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
 
     const store = useMmdVrStore.getState();
     if(!store.physicsBusy&&store.physicsEnabled===appliedPhysicsEnabledRef.current)poseRoom.current?.afterPhysics();
-    let physicsReseedNeeded = false;
-    const removals = store.physicsBusy ? [] : store.takeModelRemovals();
-    if (removals.length) {
-      for (const id of removals) {
-        actors.putAway(id);
-      }
-      syncModelList();
-      syncMaterialModels();
-      syncObjects();
-      updateProgress(useMmdVrStore.getState().assetLoad);
-    }
-    const toggles = store.physicsBusy ? [] : store.takeVisibilityToggles();
-    if (toggles.length) {
-      for (const id of toggles) {
-        const objectEntry = actors.objects.get(id);
-        if (objectEntry) {
-          objectEntry.group.visible = !objectEntry.group.visible;
-          continue;
-        }
-        const entry = runtime.listModels().find((m) => m.id === id);
-        if (entry) runtime.setModelVisible(id, !entry.visible);
-      }
-      syncModelList();
-      syncObjects();
-    }
-
-    const transformRequests = store.physicsBusy ? [] : store.takeModelTransformRequests();
-    if (transformRequests.length) {
-      const models = runtime.listModels();
-      for (const request of transformRequests) {
-        const objectEntry = actors.objects.get(request.id);
-        if (objectEntry) {
-          if (request.reset) {
-            objectEntry.group.position.set(...objectEntry.defaultPosition);
-            objectEntry.group.scale.setScalar(1);
-            objectEntry.group.rotation.y = 0;
-          }
-          if (request.scale != null) objectEntry.group.scale.setScalar(request.scale);
-          if (request.rotationY != null) setObjectHeadingDegrees(objectEntry.group, request.rotationY);
-          continue;
-        }
-        if (request.reset) {
-          const index = models.findIndex((model) => model.id === request.id);
-          const positionX = index >= 0 ? (index - (models.length - 1) / 2) * 1.1 : 0;
-          runtime.setModelTransform(request.id, {
-            positionX,
-            positionY: 0,
-            positionZ: 0,
-            rotationX: 0,
-            rotationY: 0,
-            rotationZ: 0,
-            scale: 1,
-            ...(request.scale == null ? {} : { scale: request.scale }),
-            ...(request.rotationY == null ? {} : { rotationY: request.rotationY }),
-          });
-          physicsReseedNeeded ||= transformRequiresPhysicsReseed(request);
-          continue;
-        }
-        runtime.setModelTransform(request.id, {
-          ...(request.scale == null ? {} : { scale: request.scale }),
-          ...(request.rotationY == null ? {} : { rotationY: request.rotationY }),
-        });
-        physicsReseedNeeded ||= transformRequiresPhysicsReseed(request);
-      }
-      syncModelList();
-      syncObjects();
-    }
+    const physicsReseedNeeded = !store.physicsBusy &&
+      consumeRoomModelCommands(store, actors, runtime, publishRemovals, publishEdits);
+    // A rebuild defers mounted edits, but still acknowledges an explicit reset this frame.
     const physicsResetRequested = store.physicsResetEpoch !== lastPhysicsResetEpochRef.current;
     if (physicsResetRequested) {
       lastPhysicsResetEpochRef.current = store.physicsResetEpoch;

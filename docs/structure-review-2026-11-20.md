@@ -22,7 +22,7 @@
 
 ## 4. 复用高级 HUD 的资产编辑控件
 
-**已实施。** [`MmdVrHud.tsx`](../src/mmdVrShowcase/components/MmdVrHud.tsx) 的角色与物件详情共用 `AssetEditPanel`，保留两种行高与角色专属材质入口。显隐、缩放、旋转、复位和移除作用于当前 `runtimeId`；移动作用于背包 `assetId`。[HUD 回归](../src/mmdVrShowcase/components/BackpackHud.test.tsx)覆盖两类对象、忙时锁定、松开后紧随 click 只执行一次。
+**已实施。** 角色与物件详情共用 [`AssetEditPanel`](../src/mmdVrShowcase/components/AssetPanels.tsx)，保留两种行高与角色专属材质入口。显隐、缩放、旋转、复位和移除作用于当前 `runtimeId`；移动作用于背包 `assetId`。[HUD 回归](../src/mmdVrShowcase/components/BackpackHud.test.tsx)覆盖两类对象、忙时锁定、松开后紧随 click 只执行一次。
 
 ## 5. 给重绑前的姿态清理顺序一个入口
 

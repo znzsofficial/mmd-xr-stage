@@ -476,7 +476,7 @@ src/mmdVrShowcase/
 
 当前目录按展示器、R3F 组件、MMD runtime、资产、session、时钟和 haptics 分层，整体结构足够支撑继续开发，暂不需要大规模重构。
 
-**已知维护风险**：`src/mmdVrShowcase/components/MmdVrHud.tsx` 已约 1500 行，同时包含通用 HUD 控件、主控制条、模型/物件面板、材质面板、物理设置和 FPS 显示。下一次修改 HUD 时优先拆分为通用控件、模型/物件面板、材质面板、物理设置面板和控制条组装层。
+**当时的维护风险**：公共 HUD 曾把通用控件、主控制条、模型／物件、材质和物理设置放在同一文件。资产页与恢复页现已移出，见[当前维护入口](./architecture/maintenance.md#已拆出的三个入口)。
 
 **后续拆分候选**：`src/mmdVrShowcase/components/MmdVrStage.tsx` 已约 900 行，同时负责 runtime 生命周期、资源加载、store 同步、灯光、时间轴、物理和 haptics。暂不直接拆分，避免破坏 R3F hooks、runtime ref 和 store 之间的生命周期关系；下次修改加载或物理逻辑时，再按 loader、sync、physics 边界逐步抽取。
 
