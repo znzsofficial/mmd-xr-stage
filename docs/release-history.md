@@ -6,6 +6,7 @@
 
 | 功能提交 | 已发布内容与验证范围 |
 |---|---|
+| `e6be51b` | [四款挑逗体位](./gameplay/pose-and-body-states.md#快速体位)、[外侧肉色和内缘粉红](./performance/actor-tools-regression.md#自然款外形与原模开合)、屏幕近看返回原机位、卵子结果只读回看。屏幕与 IWER 实点套用／撤销／恢复与回看，舞台附件用真实 WebGL 近检。深跪候选因第三套裙子的反例未采用；[Bullet 原生分段](./performance/bullet-step-profile.md)为离线实验。954 项测试通过，主域名入口及 281 份资源与验证构建一致。[固定版](https://f58a7382.mmd-xr-stage.pages.dev) |
 | `f815893` | [演员显示与还原、房间命令、XR 资产／恢复页](./architecture/maintenance.md#已拆出的三个入口)完成局部整理。模拟 XR 实点材质、显隐、旋转、移除和错误恢复，穿裙演员退出摆姿后修正归零；实际 Bullet 暂停拨衣、重置与循环通过。948 项测试通过；主域名入口及 278 份资源与验证构建一致。[固定版](https://6f7ef3d0.mmd-xr-stage.pages.dev) |
 | `76ef87c` | [自然款外形与原模开合](./performance/actor-tools-regression.md#自然款外形与原模开合)：以作者的静息和独立开合形态作参照，收窄自绘轮廓，保留实测口径。实模实点原生键，另在屏幕和模拟双眼检查自绘形体。947 项测试通过，主域名入口及 276 份资源核对一致。[固定版](https://d7ffbcf2.mmd-xr-stage.pages.dev) |
 | `ef638f8` | [手动定格时减轻裙腿穿模](./performance/actor-tools-regression.md#手动体位的局部裙片修正)：三种裙型、15 条路径，比较实际衣料、接缝、腿部轨迹和退出还原；不改站姿或舞蹈重力。批准的[外阴 C 版](./performance/actor-tools-regression.md#外阴-c-版观察材质)用于屏幕／XR 观察及实体附件。947 项测试通过；主域名入口及 273 份资源与验证构建一致。[固定版](https://cac3f0c1.mmd-xr-stage.pages.dev) |

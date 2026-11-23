@@ -1,8 +1,8 @@
 # 会话交接｜2026-11-23
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `f815893`](https://6f7ef3d0.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `e6be51b`](https://f58a7382.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
 
-**当前发布。** `f815893` 已上线，948 项测试通过；主域名入口及 278 份资源与验证构建一致。包括 `76ef87c` 的[默认自然款外形与原模开合](./performance/actor-tools-regression.md#自然款外形与原模开合)，沿用 C 材质；[手动摆姿裙腿修正](./performance/actor-tools-regression.md#手动体位的局部裙片修正)已在三种裙装、15 条换姿路径对照，A、B 的深跪仍有残留。本轮重构做了模拟 XR 实点及原生 Bullet 暂停拨衣；Quest 持续性能仍待实戴。[六款快速体位](./gameplay/pose-and-body-states.md#快速体位)、[三款随身玩具](./gameplay/README.md#随身舞台特效)和[重力分工](./architecture/gravity.md)继续适用。
+**当前发布。** `e6be51b` 已上线，954 项测试通过；主域名入口及 281 份资源与验证构建一致。「摆姿势 → 快速体位」现有[六款基础、四款挑逗](./gameplay/pose-and-body-states.md#快速体位)。外阴观察和附件用[外侧肉色、内缘粉红](./performance/actor-tools-regression.md#自然款外形与原模开合)，保留 C 材质的光泽分区。屏幕近看可原键回到原机位，屏幕／XR 卵子页可显式回看已确认的结果（不触发第二次交付）。[三款随身玩具](./gameplay/README.md#随身舞台特效)和[重力分工](./architecture/gravity.md)继续适用。
 
 **恢复停点。** 等玩家反馈或 Quest 3S 记录；最有用的是[深跪残留与外阴近景的分趟短测](./performance/next-quest-export.md#裙摆与外阴近景)。新试过的小腿／局部位移组合不发布：B 的右后小腿有改善，但 C 刚切入跪姿出现新的穿模。A 左大腿深处的交线在两处测试机位均被遮挡。先记录看得到的角度、哪层衣料、刚到位还是停住，见[分层证据与取舍](./performance/actor-tools-regression.md#手动体位的局部裙片修正)。
 
