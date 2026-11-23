@@ -54,7 +54,7 @@ it('unwinds the body editor above a wardrobe morph on a paused stage and then re
   try{
     const {modelId:id}=await rt.addModel(file),w=rt.getWardrobe!(id,file)!,cam=new PerspectiveCamera();
     expect(rt.getWardrobe!(id,new File(['a'],'actor.pmx'))).toBeNull();
-    w.setWeight('襟',.6);rt.setBodyProfile!(id,{...DEFAULT_BODY_PROFILE,morph:'襟',fullness:.5,cycleGain:0});
+    w.setWeight('襟',.6);rt.setBodyProfile!(id,{...DEFAULT_BODY_PROFILE,morph:'襟',fullness:.5});
     for(let i=0;i<3;i++){rt.update(1,false,cam,1,false,0);expect(split.morphTargetInfluences![0]).toBeCloseTo(.8);}
     expect(inputs).toEqual([[.34,.36],[.4,.36],[.4,.36]]);
     rt.setBodyProfile!(id,null);w.setWeight('襟',null);rt.update(2,false,cam,1,false,0);

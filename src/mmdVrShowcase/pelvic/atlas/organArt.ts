@@ -9,15 +9,15 @@ import {canalAspectX,canalAspectY,createCanalContact,fitWall,type CanalContact} 
 import type { Mesh, V } from './model';
 import type {EndometrialTissue} from '../../bodyState/data';
 import {createWallStudy,wallStride} from './uterineWall';
-import {drawReproduction} from './reproductionArt';
-import type {ReproductiveSample} from '../../bodyState/reproduction/game';
+import {drawEncounter,drawEncounterInset} from './reproductionArt';
+import type {ConceptionEvent} from '../../bodyState/reproduction/game';
 import {createExteriorStudy} from './exteriorStudy';
 import type {FoldStyle,RimState} from '../vulvaForm';
 
 export interface OrganArtOptions {
   x:number; y:number; width:number; height:number; yaw:number; time:number;
   focus?:'uterus'|'vagina'|'vulva';
-  reproduction?:ReproductiveSample;reproductionSeconds?:number;
+  event?:ConceptionEvent;encounterSeconds?:number;encounterFocus?:boolean;
   foldStyle?:FoldStyle;rim?:RimState;
   /** Illustrative normalized tissue inputs, not physical measurements. */
   lining:number; shedding:number; pressure:number; zh:boolean; tissue?:EndometrialTissue; labels?:boolean;
@@ -177,9 +177,9 @@ function annotations(ctx:CanvasRenderingContext2D,l:Lens,o:OrganArtOptions,linin
   };
   if(front){const s=l.ca>=0?-1:1;call(point(l,...ovary(s)),o.zh?'卵巢':'Ovary',false,h*.48,organPigments.ovary);
     if(o.focus==='uterus')call(point(l,...tubePath(.48,s)),o.zh?'输卵管':'Tube',false,h*.077,organPigments.myometrium);}
-  if(o.focus==='uterus')call(point(l,0,1.3,4.1),o.zh?'子宫':'Uterus',true,h*(o.reproduction ? .38 : .44),organPigments.myometrium);
-  if(o.labels&&l.ca>-.25)call(liningPt,o.zh?'子宫内膜':'Endometrium',!o.reproduction,h*.63,organPigments.endometrium);
-  if(o.labels&&!front)call(musclePt,o.zh?'子宫肌层':'Myometrium',!!o.reproduction,h*.32,organPigments.myometrium);
+  if(o.focus==='uterus')call(point(l,0,1.3,4.1),o.zh?'子宫':'Uterus',true,h*(o.event ? .38 : .44),organPigments.myometrium);
+  if(o.labels&&l.ca>-.25)call(liningPt,o.zh?'子宫内膜':'Endometrium',!o.event,h*.63,organPigments.endometrium);
+  if(o.labels&&!front)call(musclePt,o.zh?'子宫肌层':'Myometrium',!!o.event,h*.32,organPigments.myometrium);
 }
 
 const vec=new Vector3(),c0=new Vector3(),tv=new Vector3();
@@ -218,6 +218,9 @@ export function createOrganArt(){
   return {draw(ctx:CanvasRenderingContext2D,o:OrganArtOptions){
     if(!(o.width>0&&o.height>0))return;
     if(o.focus==='vulva'){exterior(ctx,o);return;}
+    if(o.encounterFocus&&o.focus==='uterus'){
+      ctx.save();ctx.translate(o.x,o.y);drawEncounter(ctx,o.event,o.width,o.height,o.zh,o.encounterSeconds,o.yaw*180/PI);ctx.restore();return;
+    }
     const canal=o.focus==='vagina';
     if(canal){
       if(!cut){cut=canalStudy();contact=createCanalContact();dynamic=[cut.posterior.a.slice(),cut.anterior.a.slice()];sleeve=sleeveTopology();}
@@ -276,7 +279,7 @@ export function createOrganArt(){
       const pt=(i:number):V=>[work[i*N]*o.width/w,work[i*N+1]*o.height/h,work[i*N+2]];
       annotations(ctx,logical,o,pt(idx),pt(Math.round((2.82+1.618)/6.437*(m4.rows-1))*m4.cols+Math.round(m4.cols*.17)));
     }
-    if(o.focus==='uterus'&&o.reproduction)drawReproduction(ctx,o.reproduction,v=>point(logical,...v),o.width,o.height,abs(logical.ca)<=.47,o.zh,o.time,o.reproductionSeconds);
+    if(o.focus==='uterus'&&o.event)drawEncounterInset(ctx,o.event,v=>point(logical,...v),o.width,o.height,abs(logical.ca)<=.47,o.zh,o.encounterSeconds,o.yaw*180/PI);
     sampleMark(ctx,logical,o);ctx.restore();
   },dispose(){canvas=null;ic=null;frame=back=near=undefined;img=undefined;meshes=undefined;cut=undefined;dynamic=undefined;sleeve=undefined;contact=undefined;
     wall.clear();work=new Float32Array(0);lastYaw=NaN;}};

@@ -20,18 +20,18 @@ it('returns to the fit caller and shares a single reversible preview across sett
   const title=()=>host.querySelector('h4')?.textContent;
   try{
     await act(()=>root.render(<BodyScreenControls assetId="a" runtimeId="m"/>));
-    expect([...host.querySelectorAll('nav button')].map(b=>b.textContent)).toEqual(['胸型','周期','泌乳']);
+    expect([...host.querySelectorAll('nav button')].map(b=>b.textContent)).toEqual(['胸型','泌乳']);
     await click('选择模型胸型');await click('返回胸型');expect(title()).toBe('身体设置');
     await click('触碰与适配');await click('模型适配');await click('返回触碰与适配');expect(title()).toBe('触碰与适配');
     await click('返回胸型');
     expect(useBodyState.getState().draft).toBeNull();
 
-    await click('泌乳');await click('开启泌乳');await click('周期');await click('下一天');
+    await click('泌乳');await click('开启泌乳');
     expect(host.querySelector('[role=status]')?.textContent).toContain('草稿未保存');
     await click('胸型');await click('触碰与适配');await click('触碰');
     expect(useBodyState.getState().byAsset.a).toEqual(saved);
-    expect(useBodyState.getState().draft?.value).toMatchObject({lactating:true,day:2,fullness:.3});
-    await click('保存到角色');expect(useBodyState.getState().byAsset.a).toMatchObject({lactating:true,day:2,fullness:.3});
+    expect(useBodyState.getState().draft?.value).toMatchObject({lactating:true,fullness:.3});
+    await click('保存到角色');expect(useBodyState.getState().byAsset.a).toMatchObject({lactating:true,fullness:.3});
     expect(host.querySelector('[role=status]')?.textContent).toBe('已保存到角色');
     await click('返回触碰与适配');await click('撤销保存');expect(useBodyState.getState().byAsset.a).toEqual(saved);
     await click('清除本角色设置');expect(useBodyState.getState().byAsset.a).toBeUndefined();
@@ -51,8 +51,8 @@ it('keeps preview on section switches and detail back, but discards it on the la
     await act(()=>root.render(<ActorTools/>));await click('触碰与适配');await click('触碰');await click('胀感与触痛');await click('关闭');
     expect(useBodyState.getState().draft).toBeNull();
     await click('返回触碰');await click('返回触碰与适配');await click('返回胸型');
-    await click('泌乳');await click('开启泌乳');await click('周期');await click('高级周期参数');await click('返回周期');
-    await click('胸型');expect(useBodyState.getState().draft?.value.lactating).toBe(true);
+    await click('泌乳');await click('开启泌乳');await click('胸型');await click('触碰与适配');await click('返回胸型');
+    expect(useBodyState.getState().draft?.value.lactating).toBe(true);
     await click('不保存并退出');expect(host.children).toHaveLength(0);expect(useBodyState.getState().draft).toBeNull();
     expect(useBodyState.getState().byAsset.b).toBeUndefined();
   }finally{await act(()=>root.unmount());clearBackpack();useBodyState.setState(useBodyState.getInitialState());vi.unstubAllGlobals();}

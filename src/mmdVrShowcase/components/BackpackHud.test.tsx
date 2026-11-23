@@ -14,12 +14,14 @@ import { useHudWorldInput } from "./hudWorldInput";
 import { useStagePlay } from '../play/stagePlay';
 import { shelfToys, TOYS } from '../play/propCatalog';
 import {useBodyState} from '../bodyState/store';
+import {chanceFor,useConception} from '../bodyState/reproduction/store';
+import {usePelvic} from '../pelvic/store';
 
 const harness = vi.hoisted(() => ({ camera: {} as unknown, b: (_: string) => {} }));
 vi.mock("@react-three/fiber", () => ({ useThree: (selector: (s: typeof harness) => unknown) => selector(harness), useFrame: vi.fn() }));
 vi.mock("@react-three/xr", () => ({ useXRInputSourceState: () => undefined, useXRControllerButtonEvent: (_: unknown, id: string, cb: typeof harness.b) => { if (id === "b-button") harness.b = cb; } }));
 vi.mock("../../shared/panelTexture", () => ({ createPanelTexture: () => ({ dispose: vi.fn() }), roundRectPath: vi.fn() }));
-vi.mock('../observation/ObservationDiagram',()=>({ObservationDiagram:({part}:{part:string})=><group name={`figure:${part}`}/>}));
+vi.mock('../observation/ObservationDiagram',()=>({ObservationDiagram:({part,fertility}:{part:string;fertility?:boolean})=><group name={`figure:${part}${fertility?':encounter':''}`}/>}));
 
 const t = useLanguageStore.getState().t;
 const bag = () => useBackpack.getState();
@@ -150,15 +152,18 @@ it('folds only the actor sheet, and resumes its unsaved section even after B rec
   expect(useBodyState.getState().draft).toBeNull();expect(button(t('bodyResume'))).toBeUndefined();
 });
 
-it('returns from fertility to the selected uterus lens, and exits a cross-link at the original interaction hub',async()=>{
+it('sets both chance endpoints in XR without mounting a prop, and opens the matching read-only encounter',async()=>{
   useBackpack.setState({selected:'a0',live:{a0:instance('actor0')}});
   useMmdVrStore.setState({overlayOpen:true,presentation:'xr'});vi.spyOn(document,'hidden','get').mockReturnValue(false);
   vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValue(null);
-  await render();await click(t('actorInteraction'));await click(t('actorInsert'));await click('子宫');
-  await click(t('actorFertility'));expect(button('插入操作')).toBeUndefined();await click(t('backToInsert'));
-  expect(host.querySelector('[name="figure:uterus"]')).toBeTruthy();await click(t('backToInteraction'));
-  await click(t('actorFertility'));await click('插入操作');expect(host.querySelector('[name="figure:uterus"]')).toBeTruthy();
-  await click(t('actorFertility'));await click(t('backToInteraction'));expect(button(t('actorMilkStock'))).toBeDefined();
+  await render();await click(t('actorInteraction'));expect(button('生育进程')).toBeUndefined();expect(button('周期')).toBeUndefined();
+  await click(t('actorInsert'));expect(host.querySelector('[name="figure:uterus:encounter"]')).toBeTruthy();expect(chanceFor('a0')).toBe(60);
+  const control=mesh(`hud-label:${t('actorChance')}`)!.parentElement!;
+  const adjust=async(label:string,n:number)=>{for(let i=0;i<n;i++)await act(async()=>control.querySelector<HTMLElement>(`[name="hud:${label}"]`)!.click());};
+  await adjust('−',12);expect(chanceFor('a0')).toBe(0);await adjust('+',20);expect(chanceFor('a0')).toBe(100);expect(useConception.getState().byAsset.a0.event).toBeUndefined();
+  await click('阴道');expect(host.querySelector('[name="figure:vagina"]')).toBeTruthy();expect(usePelvic.getState().byAsset.a0).toBeUndefined();
+  await click(t('backToInteraction'));await click(t('actorBack'));await click(t('actorObservation'));await click('子宫');
+  expect(host.querySelector('[name="figure:uterus"]')).toBeTruthy();expect(host.querySelector('[name="observation:controls"] [name="hud:+"]')).toBeNull();expect(labels()).toContain('最近结果');
   expect(useBodyState.getState().draft).toBeNull();
 });
 

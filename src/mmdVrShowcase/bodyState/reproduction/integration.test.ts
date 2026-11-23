@@ -1,72 +1,102 @@
 import {afterEach,expect,it,vi} from 'vitest';
-import {clearBackpack,useBackpack} from '../../backpack';
+import {clearBackpack,prepareBackpackEntry,syncBackpackFiles,useBackpack} from '../../backpack';
 import {useMmdVrStore} from '../../mmdVrStore';
-import {advancePelvic,assignPelvic,clearPelvicFluid,consumePelvicDose,enablePelvic,nudgePelvic,patchPelvic,publishPelvicSample,publishPelvicSupport,requestPelvicDose,setPelvicCapacity,startPelvic,usePelvic} from '../../pelvic/store';
+import {advancePelvic,assignPelvic,cancelStrokeDose,clearPelvicFluid,consumePelvicDose,enablePelvic,patchPelvic,publishPelvicSample,publishPelvicSupport,
+  requestPelvicDose,requestStrokeDose,setPelvicCapacity,startPelvic,usePelvic,type PelvicDoseTarget,type PelvicMode} from '../../pelvic/store';
 import {useStagePlay} from '../../play/stagePlay';
-import {BODY_DAY_SECONDS} from '../data';
-import {createBodyRoom} from '../room';
-import {beginBodyPreview,cancelBodyPreview,commitBodyPreview,disableBodyState,fastForwardReproduction,patchBodyPreview,useBodyState} from '../store';
-import {reproductiveSample,stageOf} from './game';
-import {activeGame,recordInternalDose,useReproduction} from './store';
-import {mockGameEntropy} from './entropy.testSupport';
+import {chanceFor,recordInternalDose,setConceptionChance,useConception} from './store';
 
-const id='asset-1',other='asset-2',live=(runtimeId:string)=>({runtimeId,visible:true,position:[0,0,0] as [number,number,number]});
-const boot=()=>useBackpack.setState({entries:[id,other].map(id=>({id,kind:'model',path:'same.pmx',file:new File([],'same.pmx')})),selected:id,live:{[id]:live('r'),[other]:live('b')}});
-const save=(changes:Parameters<typeof patchBodyPreview>[1],assetId=id)=>{expect(beginBodyPreview(assetId,true)).toBe(true);patchBodyPreview(assetId,changes);commitBodyPreview(assetId);};
-const game=()=>activeGame(id)!;
-const jump=()=>fastForwardReproduction(id,game());
-const stage=useMmdVrStore.getInitialState();
-afterEach(()=>{clearBackpack();useStagePlay.getState().reset();useMmdVrStore.setState(stage);vi.restoreAllMocks();});
+const bag=useBackpack.getState,ledger=useConception.getState,event=(id:string)=>ledger().byAsset[id]?.event;
+const live=(runtimeId:string)=>({runtimeId,visible:true,position:[0,0,0] as [number,number,number]});
+const inside={outletInside:true,outletVisible:false},outside={outletInside:false,outletVisible:true},hidden={outletInside:false,outletVisible:false};
+function setup(source:'xr'|'screen'='screen'){
+  const files=[new File([],'same.pmx'),new File([],'same.pmx'),new File([],'stage.glb')];
+  syncBackpackFiles(files);
+  const [a,b,object]=files.map(f=>bag().entries.find(e=>e.file===f)!.id);
+  bag().publishLive({[a]:live('r1'),[b]:live('r2'),[object]:live('object')});bag().select(a);
+  useMmdVrStore.setState({overlayOpen:true,presentation:source,physicsBusy:false,physicsFatal:false});
+  return {a,b,object,files};
+}
+function mount(id:string,mode:PelvicMode='standManual'){
+  bag().select(id);expect(enablePelvic(id,true)).toBe(true);expect(patchPelvic(id,{clothingClear:true})).toBe(true);
+  publishPelvicSupport(id,{kind:'bones',runtimeId:bag().live[id].runtimeId,anchorName:'lower body'});
+  expect(assignPelvic(id,mode,mode==='xrManual'?'xr':'screen')).toBe(true);
+  expect(startPelvic(id)).toBe(true);return usePelvic.getState().active!.token;
+}
+function queue(id:string,token:number,target:PelvicDoseTarget){
+  const displayed=target==='external'?outside:inside;
+  expect(publishPelvicSample(token,{...displayed,tip:[0,0,0],tail:[0,0,.08],depth:displayed.outletInside?.02:0,lengthM:.09,radiusM:.02,angleDeg:0,aligned:true,atCervix:false})).toBe(true);
+  expect(requestPelvicDose(id,target,token)).toBe(true);
+}
+function consume(token:number,outlet=inside){advancePelvic(token,.015);return consumePelvicDose(token,outlet);}
+afterEach(()=>{clearBackpack();useStagePlay.getState().reset();useMmdVrStore.setState(useMmdVrStore.getInitialState());vi.restoreAllMocks();});
 
-it('draws a fresh seed for each actor and page, while disabling and restoring an existing actor preserves its actual trial',()=>{
-  const entropy=mockGameEntropy(5,2,1);boot();save({day:15,reproduction:true});recordInternalDose(id,1);const first=game();
-  expect(first.trial?.implants).toBe(true);save({reproduction:false});save({reproduction:true});expect(game()).toBe(first);
-  useBackpack.getState().select(other);save({day:15,reproduction:true},other);expect(activeGame(other)!.seed).not.toBe(first.seed);
-  expect(game()).toBe(first);clearBackpack();boot();save({day:15,reproduction:true});recordInternalDose(id,1);
-  expect(game().seed).not.toBe(first.seed);expect(stageOf(game())).toBe('unfertilized');expect(entropy).toHaveBeenCalledTimes(3);
-});
-
-it('keeps one page-owned game across a draft, disable/enable, runtime replacement and painter-free room clocks',()=>{
-  const entropy=mockGameEntropy(5);boot();const support={morphs:[],bones:false,sides:{left:false,right:false},clothing:'authored-only' as const};
-  const room=()=>createBodyRoom({getBodySupport:()=>support,setBodyProfile:()=>false},()=>{});
-  const first=room();try{
-    save({day:23});first.advance(360);expect(useReproduction.getState().byAsset).toEqual({});
-    beginBodyPreview(id);patchBodyPreview(id,{reproduction:true,day:15});first.advance(120);expect(game()).toBeUndefined();cancelBodyPreview(id);
-    expect(entropy).not.toHaveBeenCalled();
-    save({reproduction:true});const opened=game();expect(opened).toMatchObject({day:23,eggs:0,trial:null});first.advance(360);expect(game()).toBe(opened);
-    jump();expect(reproductiveSample(game())).toMatchObject({day:29,round:2,stage:'waiting',eggs:0,chance:0});
-    jump();const eggs=game();expect(reproductiveSample(eggs)).toMatchObject({day:43,round:2,stage:'ovulated',chance:60,tried:false});
-    expect(eggs.eggs).toBeGreaterThan(0);expect(useBodyState.getState().byAsset[id].day).toBe(15);
-    save({day:2,locked:false});beginBodyPreview(id);patchBodyPreview(id,{day:26,length:45});expect(game()).toBe(eggs);
-    first.advance(BODY_DAY_SECONDS/2);cancelBodyPreview(id);expect(game()).toBe(eggs);
-    disableBodyState(id);first.advance(BODY_DAY_SECONDS);expect(game()).toBeUndefined();save({reproduction:true,locked:false});expect(game()).toBe(eggs);
-    expect(activeGame(other)).toBeUndefined();first.dispose();useBackpack.getState().publishLive({[id]:live('next')});
-    const second=room();try{
-      second.advance(BODY_DAY_SECONDS/2-1);expect(game()).toBe(eggs);
-      second.advance(1);const next=game();expect(next).toMatchObject({day:44,round:eggs.round,release:eggs.release,side:eggs.side,eggs:eggs.eggs,trial:null});
-      expect(reproductiveSample(next)).toMatchObject({stage:'ovulated',chance:48});
-      save({day:15});expect(game()).toBe(next); // Saving the tissue release day again cannot reopen the 60% window.
-    }finally{second.dispose();}
-    clearBackpack();expect(useReproduction.getState().byAsset).toEqual({});expect(entropy).toHaveBeenCalledTimes(1);
-  }finally{first.dispose();}
-});
-
-it('records a trial only after a current inside delivery with positive retained amount; no replay from fluid, outside, missed or full compartments',()=>{
-  mockGameEntropy(5);boot();useMmdVrStore.setState({overlayOpen:true,presentation:'screen',physicsBusy:false,physicsFatal:false});
-  enablePelvic(id,true);patchPelvic(id,{clothingClear:true});publishPelvicSupport(id,{kind:'bones',runtimeId:'r',anchorName:'lower body'});
-  assignPelvic(id,'standManual','screen');startPelvic(id);const token=usePelvic.getState().active!.token;
-  const inside={outletInside:true,outletVisible:false},outside={outletInside:false,outletVisible:true};
-  function send(target:'external'|'vaginal'|'fantasyUterine',actual:typeof inside){
-    const displayed=target==='external'?outside:inside;
-    publishPelvicSample(token,{...displayed,tip:[0,0,0],tail:[0,0,.08],depth:0,lengthM:.09,radiusM:.02,angleDeg:0,aligned:true,atCervix:false});
-    expect(requestPelvicDose(id,target)).toBe(true);advancePelvic(token,.015);return consumePelvicDose(token,actual);
+it('edits only the selected visible model instance; no configuration, bad amount or non-model can create an event',()=>{
+  const {a,b,object}=setup();const draw=vi.spyOn(Math,'random');
+  expect(chanceFor(a)).toBe(60);expect(setConceptionChance(a,'r2',70)).toBe(false);
+  expect(setConceptionChance(b,'r2',70)).toBe(false);expect(setConceptionChance(a,'r1',NaN)).toBe(false);
+  bag().select(object);expect(setConceptionChance(object,'object',70)).toBe(false);bag().select(a);
+  useBackpack.setState({live:{...bag().live,[a]:{...live('r1'),visible:false}}});expect(setConceptionChance(a,'r1',70)).toBe(false);
+  bag().publishLive({...bag().live,[a]:live('r1')});bag().beginPlace(a);expect(setConceptionChance(a,'r1',70)).toBe(false);bag().cancelPlace();
+  for(const amount of [0,-1,Infinity,NaN])recordInternalDose(a,amount);
+  expect(ledger().byAsset).toEqual({});
+  for(const [input,expected] of [[-5,0],[155,100],[37.5,37.5]]){
+    expect(setConceptionChance(a,'r1',input)).toBe(true);expect(chanceFor(a)).toBe(expected);expect(event(a)).toBeUndefined();
   }
-  setPelvicCapacity(id,1);expect(send('vaginal',inside)).toBe('internal');expect(game()).toBeUndefined();
-  save({reproduction:true});jump();const virgin=game();nudgePelvic(id,1);expect(send('external',outside)).toBe('external');
-  expect(send('vaginal',outside)).toBe('none');expect(send('vaginal',inside)).toBe('internal');expect(game()).toBe(virgin); // overflow only
-  clearPelvicFluid(id);setPelvicCapacity(id,2);expect(game()).toBe(virgin);
-  patchPelvic(id,{container:'fantasyUterine'});expect(send('fantasyUterine',inside)).toBe('internal');const result=game();
-  expect(stageOf(result)).toBe('fertilized');expect(send('fantasyUterine',inside)).toBe('internal');expect(game()).toBe(result);
-  expect(activeGame(other)).toBeUndefined();save({day:1});expect(game()).toBe(result);
-  for(let i=0;i<5;i++)jump();expect(stageOf(game())).toBe('pregnant');
+  expect(draw).not.toHaveBeenCalled();expect(chanceFor(b)).toBe(60);
+});
+
+it('uses delivery-time odds and the retained compartment; the same command cannot roll on another frame',()=>{
+  const {a}=setup(),t=mount(a);const draw=vi.spyOn(Math,'random').mockReturnValueOnce(.60).mockReturnValueOnce(.599);
+  const now=vi.spyOn(performance,'now').mockReturnValue(1234);
+  queue(a,t,'vaginal');expect(event(a)).toBeUndefined();expect(consume(t)).toBe('internal');
+  const first=event(a)!;expect(first).toMatchObject({at:1234,chance:60,success:false,target:'vaginal'});
+  expect(consumePelvicDose(t,inside)).toBe('none');expect(consume(t)).toBe('none');expect(event(a)).toBe(first);
+
+  queue(a,t,'vaginal');expect(consume(t)).toBe('internal');const second=event(a)!;
+  expect(second).toMatchObject({at:1234,chance:60,success:true,target:'vaginal'});expect(second.id).not.toBe(first.id);
+  setConceptionChance(a,'r1',0);queue(a,t,'fantasyUterine');setConceptionChance(a,'r1',100);
+  expect(event(a)).toBe(second);now.mockReturnValue(1300);expect(consume(t)).toBe('internal');const third=event(a)!;
+  expect(third).toMatchObject({at:1300,chance:100,success:true,target:'fantasyUterine'});expect(third.id).not.toBe(second.id);
+  patchPelvic(a,{container:'vaginal'});setConceptionChance(a,'r1',0);
+  expect(chanceFor(a)).toBe(0);expect(event(a)).toBe(third);expect(event(a)?.target).toBe('fantasyUterine');
+  queue(a,t,'vaginal');expect(consume(t)).toBe('internal');expect(event(a)).toMatchObject({chance:0,success:false,target:'vaginal'});
+  expect(usePelvic.getState().byAsset[a].fluid).toEqual({vaginal:3,fantasyUterine:1});expect(draw).toHaveBeenCalledTimes(2);
+});
+
+it('requires positive retention: missed, exterior, cancelled and wholly overflowing doses do not roll',()=>{
+  const {a}=setup(),t=mount(a);const draw=vi.spyOn(Math,'random').mockReturnValue(.5);
+  for(const [target,outlet,route] of [['vaginal',outside,'none'],['vaginal',hidden,'none'],['external',inside,'none'],['external',outside,'external']] as const){
+    queue(a,t,target);expect(consume(t,outlet)).toBe(route);expect(consume(t)).toBe('none');
+  }
+  const auto=mount(a,'standAuto');expect(requestStrokeDose(a,auto,'vaginal')).toBe(true);
+  expect(cancelStrokeDose(usePelvic.getState().strokeOrder!.id)).toBe(true);advancePelvic(auto,.015);
+  expect(consumePelvicDose(auto,{...inside,motion:'enter'})).toBe('none');expect(event(a)).toBeUndefined();expect(draw).not.toHaveBeenCalled();
+
+  const manual=mount(a);setPelvicCapacity(a,1.25);
+  for(let i=0;i<2;i++){queue(a,manual,'vaginal');expect(consume(manual)).toBe('internal');}
+  const partial=event(a);expect(partial).toBeDefined();expect(draw).toHaveBeenCalledTimes(2);
+  queue(a,manual,'vaginal');expect(consume(manual)).toBe('internal');
+  expect(usePelvic.getState().byAsset[a]).toMatchObject({fluid:{vaginal:1.25},overflow:1.75});
+  clearPelvicFluid(a);expect(event(a)).toBe(partial);expect(draw).toHaveBeenCalledTimes(2);
+});
+
+it('keeps actors separate through selection, room change and re-entry; deleting a file removes only its account',()=>{
+  const {a,b,files}=setup(),first=mount(a);setConceptionChance(a,'r1',0);
+  queue(a,first,'vaginal');expect(consume(first)).toBe('internal');const savedA=event(a)!;
+  queue(a,first,'vaginal');const second=mount(b);expect(consume(first)).toBe('none');expect(event(b)).toBeUndefined();
+  setConceptionChance(b,'r2',100);queue(b,second,'fantasyUterine');expect(consume(second)).toBe('internal');const savedB=event(b)!;
+  expect(savedB).toMatchObject({chance:100,success:true});expect(event(a)).toBe(savedA);
+  queue(b,second,'vaginal');useMmdVrStore.getState().setPrefs({scenery:'clinic'});expect(consume(second)).toBe('none');
+  prepareBackpackEntry(true);bag().publishLive({[a]:live('new'),[b]:live('new2')});bag().select(a);
+  expect(setConceptionChance(a,'r1',25)).toBe(false);expect(event(a)).toBe(savedA);expect(event(b)).toBe(savedB);
+  syncBackpackFiles([files[1]]);expect(ledger().byAsset[a]).toBeUndefined();expect(chanceFor(a)).toBe(60);expect(event(b)).toBe(savedB);
+  syncBackpackFiles(files);expect(ledger().byAsset[a]).toBeUndefined();clearBackpack();expect(ledger().byAsset).toEqual({});
+});
+
+it('records a world-hand delivery for its bound actor after the menu closes',()=>{
+  const {a,b}=setup('xr'),t=mount(a,'xrManual');setConceptionChance(a,'r1',100);
+  expect(consumePelvicDose(t,inside,true)).toBe('none');bag().select(null);expect(consumePelvicDose(t,inside,true)).toBe('internal');
+  const saved=event(a);expect(saved).toMatchObject({chance:100,success:true,target:'vaginal'});expect(event(b)).toBeUndefined();
+  advancePelvic(t,.015);expect(consumePelvicDose(t,inside,false)).toBe('none');expect(event(a)).toBe(saved);
 });

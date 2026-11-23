@@ -4,12 +4,10 @@ import {useBackpack} from '../backpack';
 import {useMmdVrStore} from '../mmdVrStore';
 import {actions,destination,line,type Action,type Row} from './controlRows';
 import {DEFAULT_BODY_PROFILE,type BodyProfile} from './data';
-import {action,editorControls,mainPages,pageTitle,parentPage,type DetailParents,type Page} from './editor/controls';
-import {cycleRows,daysPerPage} from './editor/cyclePages';
+import {action,editorControls,mainPages,pageTitle,parentPage,type Page} from './editor/controls';
 import {lactationRows} from './editor/lactationPages';
 import {shapeRows} from './editor/shapePages';
-import {beginBodyPreview,cancelBodyPreview,clearBodyEditorSettings,commitBodyPreview,inspectBody,patchBodyPreview,stepBodyDay,useBodyState} from './store';
-import {activeGame} from './reproduction/store';
+import {beginBodyPreview,cancelBodyPreview,disableBodyState,commitBodyPreview,inspectBody,patchBodyPreview,useBodyState} from './store';
 
 export type BodyActor = {assetId:string;runtimeId:string};
 export type BodyEditorEntry = {initialSection?:typeof mainPages[number];backLabel?:string};
@@ -18,9 +16,8 @@ export function useBodyEditor({assetId,runtimeId,initialSection='chest',backLabe
   const zh=useLanguageStore(s=>s.language==='zh');
   const sectionLabel=useLanguageStore(s=>s.t('actorBodyState'));
   const l=(cn:string,en:string)=>zh?cn:en;
-  const [page,setPage]=useState<Page>(initialSection),[parents,setParents]=useState<DetailParents>({});
+  const [page,setPage]=useState<Page>(initialSection),[fitParent,setFitParent]=useState<Page>('more');
   const [morphPage,setMorphPage]=useState(0);
-  const [calendarIndex,setCalendarIndex]=useState(0);
   const [undo,setUndo]=useState<{kind:'save'|'clear';previous:BodyProfile|undefined}|null>(null);
   const [feedback,setFeedback]=useState<'discarded'|'restored'|null>(null);
   const saved=useBodyState(s=>s.byAsset[assetId]);
@@ -33,11 +30,10 @@ export function useBodyEditor({assetId,runtimeId,initialSection='chest',backLabe
   useLayoutEffect(()=>inspectBody(assetId,runtimeId),[assetId,runtimeId]);
 
   function go(to:Page){
-    if(to==='fit'||to==='calendar')setParents(old=>({...old,[to]:page}));
-    if(to==='calendar')setCalendarIndex(Math.floor(((draft??saved??DEFAULT_BODY_PROFILE).day-1)/daysPerPage));
+    if(to==='fit')setFitParent(page);
     setPage(to);
   }
-  const up=parentPage(page,parents);
+  const up=parentPage(page,fitParent);
   const parentName=up?pageTitle(up,l):'';
   const back=up?l(`返回${parentName}`,`Back to ${parentName}`):draft?l('不保存并退出','Exit without saving'):backLabel??l('返回角色','Back to actor');
   const nav=up||hidden?[]:mainPages.map(to=>action(pageTitle(to,l),()=>go(to),{active:to===page}));
@@ -65,7 +61,7 @@ export function useBodyEditor({assetId,runtimeId,initialSection='chest',backLabe
     }
   };
   const ui=editorControls(l,saved,draft,go,patch);
-  const disable=()=>{if(!canEditNow()||!saved)return;clearBodyEditorSettings(assetId);setUndo({kind:'clear',previous:saved});setFeedback(null);setPage('chest');};
+  const disable=()=>{if(!canEditNow()||!saved)return;disableBodyState(assetId);setUndo({kind:'clear',previous:saved});setFeedback(null);setPage('chest');};
   function rows():Row[]{
     switch(page){
       case 'more':
@@ -74,10 +70,6 @@ export function useBodyEditor({assetId,runtimeId,initialSection='chest',backLabe
           ...(saved&&!draft?[actions(action(l('清除本角色设置','Clear actor settings'),disable,{danger:true}))]:[])];
       case 'chest': case 'fit': case 'morphs': case 'contact': case 'sensitivity':
         return shapeRows(page,ui,support,{page:morphPage,setPage:setMorphPage});
-      case 'cycle': case 'compare': case 'calendar': case 'rhythm': case 'lining': case 'secretions':
-        return cycleRows(page,ui,days=>{if(start())stepBodyDay(assetId,days);},{index:calendarIndex,setIndex:setCalendarIndex,
-          choose:day=>{if(day!==ui.p.day)patch({day,daySeconds:0});setPage(parents.calendar??'cycle');},
-        });
       case 'milk':return lactationRows(ui);
     }
   }
@@ -90,8 +82,8 @@ export function useBodyEditor({assetId,runtimeId,initialSection='chest',backLabe
   }else if(undo){
     footer.push(action(undo.kind==='clear'?l('撤销清除','Undo clear'):l('撤销保存','Undo save'),()=>{
       if(!canEditNow())return;
-      if(!undo.previous)clearBodyEditorSettings(assetId);
-      else if(start()){patchBodyPreview(assetId,{...undo.previous,reproduction:!!activeGame(assetId)});commitBodyPreview(assetId);}
+      if(!undo.previous)disableBodyState(assetId);
+      else if(start()){patchBodyPreview(assetId,undo.previous);commitBodyPreview(assetId);}
       else return;
       setUndo(null);setFeedback('restored');
     },{quiet:true}));

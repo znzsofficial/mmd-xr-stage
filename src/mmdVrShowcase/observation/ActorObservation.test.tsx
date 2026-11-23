@@ -15,11 +15,11 @@ afterEach(()=>{useBodyState.setState(useBodyState.getInitialState());usePelvic.s
   breastViews.setState({actors:{}});useAtlasSettings.setState({actors:{}});
   useLanguageStore.setState(useLanguageStore.getInitialState());vi.restoreAllMocks();vi.unstubAllGlobals();});
 
-it('opens the requested part directly, shows each organ’s own balance, and leaves the simulation and caller’s draft alone on return',async()=>{
+it('shows the chosen organ’s measurements and keeps uterine labels read-only without adding a calendar',async()=>{
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);vi.stubGlobal('requestAnimationFrame',()=>1);vi.stubGlobal('cancelAnimationFrame',()=>{});
   vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValue(null);
   useLanguageStore.setState({language:'zh'});
-  const saved={...DEFAULT_BODY_PROFILE,day:18},draft={assetId:'a',value:{...saved,day:22,lactating:true,left:.25,right:.75}};
+  const saved={...DEFAULT_BODY_PROFILE},draft={assetId:'a',value:{...saved,lactating:true,left:.25,right:.75}};
   const p={calibration:defaultPelvicCalibration,clothingClear:false,clothed:true,showAdapter:false,container:'vaginal' as const,rimMode:'remember' as const,
     fluid:{vaginal:1.5,fantasyUterine:3},capacity:{vaginal:4,fantasyUterine:16},drained:0,overflow:0,speedHz:1,stroke:.7};
   useBodyState.setState({byAsset:{a:saved},draft});usePelvic.setState({byAsset:{a:p}});
@@ -28,10 +28,10 @@ it('opens the requested part directly, shows each organ’s own balance, and lea
   try{
     await act(async()=>root.render(<ObservationScreenControls assetId="a" runtimeId="r" initialPart="vagina" onBack={onBack} backLabel="返回插入"/>));
     expect(button('阴道').getAttribute('aria-pressed')).toBe('true');expect(el.textContent).toContain('阴道精液1.5 / 4 游戏单位');expect(el.textContent).toContain('无杆位采样');
-    expect(el.textContent).toContain('当前预览');expect(el.textContent).toContain('22 / 28');
+    expect(el.textContent).toContain('当前预览');
     for(const name of ['子宫','外阴','乳房']){await act(async()=>button(name).click());
       expect(button(name).getAttribute('aria-pressed')).toBe('true');for(const preset of ['正面','斜面','侧面'])expect(button(preset).closest('details')).toBeNull();
-      if(name==='子宫')expect(el.textContent).toContain('宫腔精液3 / 16 游戏单位');
+      if(name==='子宫'){await act(async()=>button('结构标注').click());expect([...el.querySelectorAll('dt')].map(n=>n.textContent)).toEqual(['受孕率（游戏）','最近结果']);}
       if(name==='外阴'){await act(async()=>button('侧面').click());expect(el.textContent).toContain('等待有效跨越');}}
     expect(el.textContent).toContain('25% / 75%');await act(async()=>button('返回插入').click());expect(onBack).toHaveBeenCalledOnce();
   }finally{await act(async()=>root.unmount());}

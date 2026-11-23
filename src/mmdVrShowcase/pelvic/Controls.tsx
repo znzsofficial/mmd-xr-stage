@@ -42,7 +42,7 @@ function ScreenRow({row,blocked,actor}:{row:Row;blocked:boolean;actor:PelvicActo
       style={{'--progress':`${(row.value-row.range[0])/(row.range[1]-row.range[0])*100}%`} as CSSProperties}
       disabled={blocked||row.disabled} onChange={e=>row.change(e.currentTarget.valueAsNumber)}/></label>;
 }
-function ScreenEditor({assetId,runtimeId,onBack,lens,onFertility,...navigation}:ScreenProps) {
+function ScreenEditor({assetId,runtimeId,onBack,lens,...navigation}:ScreenProps) {
   const vm=usePelvicControls({assetId,runtimeId},'screen',navigation);
   const page=useRef<HTMLDivElement>(null);
   useLayoutEffect(()=>{
@@ -51,7 +51,7 @@ function ScreenEditor({assetId,runtimeId,onBack,lens,onFertility,...navigation}:
   return <div className="pelvic-screen" ref={page} role="group" aria-label={vm.title}>
     <header className="pelvic-heading"><h3>{vm.title}</h3>{vm.stop&&<ScreenKeys items={[vm.stop]} blocked={vm.blocked} stop/>}{onBack&&<button type="button" className="pelvic-key pelvic-back" onClick={onBack}>{vm.back}</button>}</header>
     <div className="pelvic-body" data-chart={vm.chart} data-live={vm.live}>
-      {vm.live?<div className="pelvic-live-plate"><LivePelvicScreenView assetId={assetId} runtimeId={runtimeId} lens={lens} onFertility={onFertility}/></div>:
+      {vm.live?<div className="pelvic-live-plate"><LivePelvicScreenView assetId={assetId} runtimeId={runtimeId} lens={lens}/></div>:
         vm.chart&&<div className="pelvic-plate"><AtlasScreenPanel assetId={assetId} runtimeId={runtimeId}/></div>}
       <div className="pelvic-operation">
         {vm.enabled&&<nav className="pelvic-nav" aria-label={vm.title}><ScreenKeys items={vm.tabs} blocked={false}/></nav>}
@@ -123,7 +123,7 @@ function HudColumn({items,from,w,blocked,actor,live}:{items:HudRow[];from:number
     </group>;
   })}</>;
 }
-function HudEditor({assetId,runtimeId,onBack,lens,onFertility,...navigation}:HudProps) {
+function HudEditor({assetId,runtimeId,onBack,lens,...navigation}:HudProps) {
   const vm=usePelvicControls({assetId,runtimeId},'xr',navigation), split=vm.chart||vm.live,width=split?panelW:1.34;
   const cw=split?editorW:width-.1;
   // Note wrapping must not allocate a measurement canvas on each sampling or
@@ -135,14 +135,13 @@ function HudEditor({assetId,runtimeId,onBack,lens,onFertility,...navigation}:Hud
   const plateTop=top-.21,contentTop=vm.enabled?top-.365:plateTop,stopH=vm.stop?.label ? .135+rowGap : 0;
   const statusH=vm.motorReadout?0:((vm.live?Math.max(3,statusLines.length):statusLines.length)*35+5)/density;
   const columnHeight=(a:HudRow[])=>a.reduce((sum,r)=>sum+r.h+rowGap,0);
-  const liveH=onFertility?1.52:1.36;
-  const h=Math.max(top-contentTop+stopH+statusH+rowGap+columnHeight(rows),top-plateTop+(vm.live?liveH:vm.chart?chartH:0))+.036;
+  const h=Math.max(top-contentTop+stopH+statusH+rowGap+columnHeight(rows),top-plateTop+(vm.live?1.36:vm.chart?chartH:0))+.036;
   return <group name="pelvic:controls" pointerEventsOrder={1} pointerEventsType={{allow:['ray']}}>
     <group position-y={top-h/2}><PrivateSheet size={[width,h]}/></group>
     <PrivateLine position={[-.20,top-.087,0]} width={width-.51} title text={vm.title}/>
     <PrivateButton position={[width/2-.218,top-.087,0]} size={[.337,.135]} label={vm.back} variant="quiet" onPress={onBack}/>
     {vm.enabled&&<group position={[split?rightX:0,top-.253,0]}><HudKeys items={vm.tabs} blocked={false} w={cw} tabs live={vm.live}/></group>}
-    {vm.live?<group position={[leftX,plateTop-1.36/2,0]}><LivePelvicHudView assetId={assetId} runtimeId={runtimeId} widthM={chartW} lens={lens} onFertility={onFertility}/></group>:
+    {vm.live?<group position={[leftX,plateTop-1.36/2,0]}><LivePelvicHudView assetId={assetId} runtimeId={runtimeId} widthM={chartW} lens={lens}/></group>:
       vm.chart&&<group position={[leftX,plateTop-chartH/2,0]}><AtlasHudPanel assetId={assetId} runtimeId={runtimeId} widthM={chartW}/></group>}
     <group position-x={split?rightX:0}>
       {vm.stop&&<group position-y={contentTop-.0675}><HudKeys items={[vm.stop]} w={cw} blocked={vm.blocked} stop/></group>}

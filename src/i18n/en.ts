@@ -5,7 +5,7 @@ export const en: Record<keyof ZhMessages, string> = {
   actorPelvic:'Pelvic attachment',
   screenInspectStand:'Look at stand',
   actorPose:'Pose actor', actorBodyState:'Body settings',
-  actorFertility:'Fertility',backToFertility:'Back to fertility',actorChestShape:'Chest shape',actorCycle:'Cycle',actorMilkStock:'Milk supply',
+  actorChance:'Conception chance (game)',actorChestShape:'Chest shape',actorMilkStock:'Milk supply',
   bodyPeek:'View on stage',bodyResume:'Preview · resume editing',
   actorAllItems:'All items',actorBack:'Back to actor',actorFold:'Hide tools',
   actorWardrobe:'Clothing',actorInteraction:'Interact',actorObservation:'Body view',actorInsert:'Insertion',actorMilk:'Lactation',backToMilk:'Back to lactation',backToInsert:'Back to insertion',backToInteraction:'Back to interactions',

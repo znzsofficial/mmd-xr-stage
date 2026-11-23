@@ -3,7 +3,6 @@ import {useLanguageStore} from '../../languageStore';
 import { HudButton, HudLine, HudSheet } from '../components/PorcelainControls';
 import { HudSlider } from '../components/HudValues';
 import { bodySpan as span, HudActions, ScreenActions } from './BodyActions';
-import { HudLiningDiagram, ScreenLiningDiagram } from './LiningDiagram';
 import type { Row } from './controlRows';
 import { useBodyEditor, type BodyActor, type BodyEditorEntry } from './useBodyEditor';
 import './body-controls.css';
@@ -20,9 +19,6 @@ function ScreenRow({ row, blocked }:RowProps) {
     case 'actions': return <ScreenActions items={row.items} blocked={blocked}/>;
     case 'text': return <p className="body-note">{row.text}</p>;
     case 'destination': return <ScreenDestination row={row} blocked={blocked}/>;
-    case 'reading': return <p className="body-reading"><span>{row.label}</span><strong>{row.value}</strong></p>;
-    case 'dayGrid': return <div className="body-day-grid"><ScreenActions items={row.items} blocked={blocked}/></div>;
-    case 'liningPair': return <ScreenLiningDiagram {...row.pair}/>;
     case 'morph': return <label className="body-select">{row.label}<select disabled={blocked||(!row.names.length&&!row.value)}
       value={row.value??''} onChange={e=>row.choose(e.currentTarget.value||null)}><option value="">{row.none}</option>
       {row.value&&!row.names.includes(row.value)&&<option value={row.value} disabled>{row.value}</option>}
@@ -63,10 +59,7 @@ export function BodyScreenControls(props: ScreenEditorProps) {
 }
 
 const stableSliderInteraction = () => {}; // The actor anchor stays still while pointing.
-const dayColumns=5,dayPitch=.18;
 function rowHeight(row: Row) {
-  if (row.kind === 'liningPair') return .52;
-  if (row.kind === 'dayGrid') return dayPitch*Math.ceil(row.items.length/dayColumns);
   if (row.kind === 'text') return .105;
   if (row.kind === 'destination') return .245;
   return row.kind === 'field' && row.scrub ? .26 : .175;
@@ -77,11 +70,6 @@ function HudRow({ row, blocked }: RowProps) {
     case 'text': return <HudLine position={[0,0,0]} role="muted" width={span} center text={row.text}/>;
     case 'destination': return <><HudButton position={[0,.042,0]} size={[span,.14]} label={row.action.label} onPress={row.action.run} disabled={blocked||row.action.disabled}/>
       <HudLine position={[0,-.076,0]} role="muted" width={span} center text={row.detail}/></>;
-    case 'reading': return <HudLine position={[0,0,0]} role="title" width={span} center text={`${row.label} · ${row.value}`}/>;
-    case 'dayGrid': return <>{row.items.map((a,i)=><HudButton key={a.label} label={a.label} active={a.active} disabled={blocked} onPress={a.run}
-      position={[(i%dayColumns-(dayColumns-1)/2)*span/dayColumns,rowHeight(row)/2-(Math.floor(i/dayColumns)+.5)*dayPitch,0]}
-      size={[span/dayColumns-.025,.14]}/>)}</>;
-    case 'liningPair': return <HudLiningDiagram {...row.pair}/>;
     case 'morph': return <HudButton position={[0,0,0]} size={[span,.14]} label={`${row.label}: ${row.value??row.none}`}
       disabled={blocked||(!row.names.length&&!row.value)} onPress={row.browse}/>;
     case 'field': return <>

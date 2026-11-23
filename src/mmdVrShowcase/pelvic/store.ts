@@ -334,7 +334,7 @@ export function consumePelvicDose(token:number,outlet:Pick<PelvicContact,'outlet
   }
   const p=state().byAsset[a.assetId],k=p.container,amount=Math.min(limits.dose,p.capacity[k]-p.fluid[k]);
   const next={...p,fluid:{...p.fluid,[k]:p.fluid[k]+amount},overflow:p.overflow+(limits.dose-amount)};
-  recordInternalDose(a.assetId,amount);
+  if(amount>0)recordInternalDose(a.assetId,amount,k);
   usePelvic.setState(s=>({byAsset:{...s.byAsset,[a.assetId]:next},...(s.strokeOrder?{strokeOrder:null,strokeReceipt:'delivered' as const}:{})}));return 'internal';
 }
 export function setPelvicCapacity(assetId:string,capacity:number){

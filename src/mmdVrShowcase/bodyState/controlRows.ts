@@ -1,5 +1,3 @@
-import type { LiningPair } from './LiningDiagram';
-
 export type Action = { label: string; short?:string; run: () => void; active?: boolean; primary?: boolean; disabled?: boolean; quiet?: boolean; danger?:boolean };
 export type Field = { kind: 'field'; label: string; formatted: string; value: number; min: number; max: number; step: number; change: (n: number) => void; disabled?: boolean; scrub?: boolean };
 export type BreastReading = {
@@ -7,9 +5,6 @@ export type BreastReading = {
 };
 export type Row = { kind: 'actions'; items: Action[] } | Field | { kind: 'text'; text: string }
   | {kind:'destination';action:Action;detail:string}
-  | {kind:'reading';label:string;value:string}
-  | {kind:'dayGrid';items:Action[]}
-  | {kind:'liningPair';pair:LiningPair}
   | { kind: 'morph'; label: string; names: readonly string[]; value: string|null; none: string; choose: (name: string|null) => void; browse: () => void };
 
 export const actions = (...items: Action[]): Row => ({ kind:'actions',items });

@@ -1,53 +1,81 @@
 import {expect,it} from 'vitest';
-import {DEFAULT_BODY_PROFILE as defaults} from '../../bodyState/data';
-import {nextMilestone,progressDays,receiveDose,reproductiveSample,startGame} from '../../bodyState/reproduction/game';
-import {encounterCut,encounterSwimmers} from './conceptionStudy';
-import {activeSites} from './reproductionArt';
+import type {ConceptionEvent} from '../../bodyState/reproduction/game';
+import {encounterCut,encounterSwimmers,paintConceptionLens} from './conceptionStudy';
+import {lensView,nuclei,SHELL,type V} from './encounterGeometry';
 
-const ovulation={...defaults,day:15};
-it('allows the same close-up before either outcome, then gives the membrane a single squeeze and afterglow only on fusion',()=>{
-  const open=reproductiveSample(startGame('asset-1',ovulation)),success=reproductiveSample(receiveDose(startGame('asset-1',ovulation))),
-    miss=reproductiveSample(receiveDose(startGame('asset-2',ovulation)));
-  expect(encounterCut(open,4)).toMatchObject({close:0,warmth:0,title:undefined});
-  expect(encounterCut(success,4)).toEqual(encounterCut(miss,4));expect(encounterCut(miss,4)).toMatchObject({close:1,title:'ring'});
-  expect(encounterCut(success,7.05)).toMatchObject({title:'fusion',press:1,lift:0});const recoil=encounterCut(success,7.98);
-  expect(recoil).toMatchObject({press:0,warmth:1});expect(recoil.lift).toBeCloseTo(1,3);
-  expect(encounterCut(success,9.4).warmth).toBeGreaterThan(.5);expect(encounterCut(success,12)).toMatchObject({close:0,press:0,lift:0,warmth:0,title:'zygote'});
-  for(let t=0;t<=12;t+=.25)expect(encounterCut(miss,t)).toMatchObject({press:0,lift:0,warmth:0});
-  expect(encounterCut(miss,12).title).toBe('miss');
-});
-it('keeps a quiet released ovum, even after an earlier out-of-window delivery; failure has swimmers but no membrane crossing',()=>{
-  const early=receiveDose(startGame('asset-2',{...defaults,day:10})),open=progressDays(early,5,defaults),failed=receiveDose(open);
-  const before=reproductiveSample(open),after=reproductiveSample(failed);
-  expect(before.exposed).toBe(true);expect(encounterSwimmers(before,4)).toEqual([]);expect(after.stage).toBe('unfertilized');
-  expect(encounterSwimmers(after,4)).toHaveLength(6);
-  for(let t=0;t<=12;t+=.125)for(const head of encounterSwimmers(after,t)){
-    expect(head.fusion).toBe(0);expect(Math.hypot(head.x,head.y)).toBeGreaterThan(.56);
+const hit:ConceptionEvent={id:11,side:-1,at:1200,chance:100,success:true};
+const miss:ConceptionEvent={...hit,id:12,at:1600,chance:0,success:false};
+const distance=(a:V,b:V)=>Math.hypot(a[0]-b[0],a[1]-b[1],a[2]-b[2]);
+const radius=(p:V)=>Math.hypot(...p);
+it('holds one quiet egg without a delivery; both events get the same approach but only the recorded success changes the membrane',()=>{
+  for(const t of [0,4.5,7.1,9.3,12]){
+    expect(encounterSwimmers(undefined,t)).toHaveLength(0);expect(encounterCut(undefined,t)).toEqual({close:0,press:0,lift:0,warmth:0,title:undefined});
+    expect(nuclei(undefined,t)).toEqual(nuclei(undefined,0));
   }
-  expect(encounterSwimmers(after,12)).toEqual([]);
+  expect(encounterSwimmers(miss,4.5)).toEqual(encounterSwimmers(hit,4.5));expect(encounterCut(miss,4.5)).toEqual(encounterCut(hit,4.5));
+  expect(encounterSwimmers(miss,4.5)).toHaveLength(6);
+  for(let t=0;t<=12;t+=.125){
+    expect(encounterCut(miss,t)).toMatchObject({press:0,lift:0,warmth:0});expect(nuclei(miss,t).paternal).toBeNull();
+    for(const swimmer of encounterSwimmers(miss,t)){
+      const {head,axis,size}=swimmer,nose:V=[head[0]+.148*size*axis[0],head[1]+.148*size*axis[1],head[2]+.148*size*axis[2]];
+      expect(radius(nose)).toBeGreaterThan(SHELL+.035);expect(Math.min(...swimmer.tail.map(radius))).toBeGreaterThan(SHELL+.04);
+    }
+  }
+  expect(encounterCut(hit,7)).toMatchObject({title:'fusion',press:1});expect(encounterCut(hit,7.98)).toMatchObject({warmth:1,press:0});
+  expect(encounterCut(miss,8).title).toBe('disperse');expect(encounterCut(miss,12).title).toBe('miss');
+  // Switching to the latest miss must work immediately after a settled win.
+  expect(nuclei(hit,12).united).toBe(1);expect(nuclei(miss,0)).toEqual(nuclei(undefined,0));
+  for(const event of [hit,miss])expect(encounterSwimmers(event,12)).toHaveLength(0);
 });
 
-it('gives the six independent swimmers real travel; only one enters, and only one embryo develops from two ovulations',()=>{
-  const two=startGame('asset-18',ovulation),fertilized=receiveDose(two),s=reproductiveSample(fertilized);
-  expect(s).toMatchObject({eggs:2,secondOvum:true,stage:'fertilized'});expect(activeSites(s)).toHaveLength(2);
-  const ring=encounterSwimmers(s,4.5);expect(ring).toHaveLength(6);
-  expect(new Set(ring.map(h=>`${Math.sign(h.x)},${Math.sign(h.y)}`)).size).toBe(4);
-  // A head may turn and nearly return to its original position. Measure the
-  // path it actually swims during the ring phase, not a two-frame chord.
-  const frames=Array.from({length:25},(_,i)=>encounterSwimmers(s,3.2+i/10));
-  for(const head of ring){
-    const track=frames.map(frame=>frame.find(h=>h.index===head.index)!);
-    const travel=track.slice(1).reduce((sum,h,i)=>sum+Math.hypot(h.x-track[i].x,h.y-track[i].y),0);
-    expect(travel,`travel of swimmer ${head.index} in lens radii`).toBeGreaterThan(.08);
-    expect(track.at(-1)!.beat).toBeGreaterThan(track[0].beat);
+it('admits exactly one entrant: cap first, then head, midpiece, then the trailing end; the two internal nuclei approach before one settled cell',()=>{
+  const crossing=new Set<number>(),times=[Infinity,Infinity,Infinity,Infinity];let tailInkAtCrossing=0;
+  for(let i=0;i<=220;i++){
+    const t=5+i*.025;
+    for(const p of encounterSwimmers(hit,t)){
+      if(radius(p.head)<SHELL||p.tail.some(v=>radius(v)<SHELL))crossing.add(p.index);
+      if(p.index!==0)continue;const nose=p.head.map((v,k)=>v+p.axis[k]*.148*p.size) as V;
+      const parts=[nose,p.head,p.tail[0],p.tail.at(-1)!];parts.forEach((v,j)=>{if(times[j]===Infinity&&radius(v)<SHELL){times[j]=t;if(j===3)tailInkAtCrossing=p.tailInk;}});
+    }
   }
-  const entering=new Set<number>();for(let t=0;t<=12;t+=.08)for(const head of encounterSwimmers(s,t))if(Math.hypot(head.x,head.y)<.47){expect(head.fusion).toBeGreaterThan(0);entering.add(head.index);}
-  expect(entering.size).toBe(1);expect(encounterSwimmers(s,12)).toHaveLength(0);
-  let g=fertilized;const cells=[];
-  for(let step=0;step<4;step++){
-    g=progressDays(g,nextMilestone(g).days,defaults);const sample=reproductiveSample(g);
-    if(sample.stage==='transit')cells.push(sample.cells);expect(encounterSwimmers(sample,4)).toHaveLength(0);
-    if(step>=1)expect(activeSites(sample)).toHaveLength(1);
+  expect([...crossing]).toEqual([0]);for(let i=1;i<times.length;i++)expect(times[i]-times[i-1]).toBeGreaterThan(.15);
+  expect(times[3]).toBeLessThan(9.8);expect(tailInkAtCrossing).toBeGreaterThan(.75);
+  expect(nuclei(hit,7.98).paternal).toBeNull();
+  const overlap=encounterSwimmers(hit,8.62).find(p=>p.index===0)!,forming=nuclei(hit,8.62);
+  expect(distance(overlap.head,forming.paternal!)).toBeLessThan(.001);expect(overlap.headInk+forming.drawn).toBeCloseTo(1);
+  const separations=[8.88,9.72,10.83,11.48,12].map(t=>{const n=nuclei(hit,t);return distance(n.paternal!,n.maternal);});
+  expect(separations[0]).toBeGreaterThan(.30);for(let j=1;j<separations.length;j++)expect(separations[j]).toBeLessThan(separations[j-1]);
+  expect(separations.at(-1)).toBeLessThan(.00001);expect(encounterCut(hit,12)).toMatchObject({warmth:0,title:'zygote'});
+  // Incoming event records, rather than the chance dial or a renderer roll,
+  // own the outcome. A previously recorded 60% success is the same take.
+  expect(encounterSwimmers({...hit,chance:60},7.6)).toEqual(encounterSwimmers(hit,7.6));
+});
+
+it('projects the same waving cohort through front, oblique and side: depth order changes, the silhouettes are not screen rotations',()=>{
+  const frame=encounterSwimmers(hit,4.5),[front,oblique,side]=[0,38,90].map(lensView);
+  for(const {head,tail} of frame){
+    const a=front(head),b=side(head),c=oblique(head);expect(c[1]).toBe(a[1]);expect(b[1]).toBe(a[1]);
+    expect(b[0]).toBeCloseTo(a[2]);expect(c[0]).toBeCloseTo(a[0]*Math.cos(38*Math.PI/180)+a[2]*Math.sin(38*Math.PI/180));
+    expect(Math.max(...tail.map(v=>v[2]))-Math.min(...tail.map(v=>v[2]))).toBeGreaterThan(.025);
   }
-  expect(cells).toEqual([2,4,8]);expect(reproductiveSample(g).stage).toBe('cavity');
+  const hero=encounterSwimmers(hit,6.6)[0];expect(front(hero.head)[2]).toBeGreaterThan(.25);expect(side(hero.head)[2]).toBeLessThan(-.25);
+  const next=encounterSwimmers(hit,4.68),bend=(s:typeof hero):V=>s.tail.at(-1)!.map((v,k)=>v-s.head[k]) as V;
+  expect(frame.filter((s,i)=>distance(bend(s),bend(next[i]))>.02).length).toBeGreaterThanOrEqual(4);
+  const moving=encounterSwimmers(hit,7.6);expect(encounterSwimmers(hit,4.5)).toEqual(frame);expect(moving).not.toEqual(frame);
+});
+
+// Record drawing commands without a DOM or second renderer. This exercises
+// the public brush used by both sizes, including the caption opt-out.
+function impression(event:ConceptionEvent|undefined,age:number,degrees:number,caption:boolean){
+  const marks:(string|number)[][]=[],gradient={addColorStop(){}};
+  const base={globalAlpha:1,createLinearGradient:()=>gradient,createRadialGradient:()=>gradient};
+  const c=new Proxy(base,{get:(o,k)=>k in o?Reflect.get(o,k):(...args:(string|number)[])=>marks.push([String(k),...args])}) as unknown as CanvasRenderingContext2D;
+  paintConceptionLens(c,event,100,100,82,true,2.5,age,encounterCut(event,age),degrees,caption);return marks;
+}
+it('retains an exact held frame, rotates the real brush in either lens and honours the caption switch',()=>{
+  const a=impression(hit,7.6,38,false);expect(a.some(op=>op[0]==='fillText')).toBe(false);
+  const titled=impression(hit,7.6,38,true);expect(titled.find(op=>op[0]==='fillText')?.[1]).toBe('精卵融合');
+  expect(impression(hit,7.6,0,false)).not.toEqual(a);expect(impression(hit,7.6,90,false)).not.toEqual(a);expect(impression(hit,7.6,38,false)).toEqual(a);
+  expect(impression(undefined,12,38,true).find(op=>op[0]==='fillText')?.[1]).toBe('卵子');
+  expect(impression(miss,12,38,true).find(op=>op[0]==='fillText')?.[1]).toBe('未受精');
 });

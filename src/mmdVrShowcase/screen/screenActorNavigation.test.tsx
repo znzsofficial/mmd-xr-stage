@@ -6,7 +6,7 @@ import {clearBackpack,useBackpack} from '../backpack';
 import {beginBodyPreview,patchBodyPreview,useBodyState} from '../bodyState/store';
 import {useMmdVrStore} from '../mmdVrStore';
 import {enablePelvic,usePelvic} from '../pelvic/store';
-import {useReproduction} from '../bodyState/reproduction/store';
+import {useConception} from '../bodyState/reproduction/store';
 import {ScreenStage} from './ScreenStage';
 
 // Stand in for a completed scene pick. The real ray first selects in the
@@ -17,7 +17,7 @@ vi.mock('../components/MmdVrStage',()=>({MmdVrStageContent:()=>null}));
 vi.mock('../play/StoryStations',()=>({StoryStations:()=>null}));
 vi.mock('./ScreenCamera',async()=>{const {useLayoutEffect}=await import('react');return {ScreenCamera:({onReady}:{onReady:(v:boolean)=>void})=>{useLayoutEffect(()=>onReady(true),[onReady]);return null;}};});
 vi.mock('../music/ScreenMusic',()=>({ScreenMusic:()=>null}));
-vi.mock('../observation/ObservationDiagram',()=>({ObservationDiagram:({part}:{part:string})=><canvas data-part={part}/>}));
+vi.mock('../observation/ObservationDiagram',()=>({ObservationDiagram:({part,fertility}:{part:string;fertility?:boolean})=><canvas data-part={part} data-encounter={fertility||undefined}/>}));
 
 HTMLDialogElement.prototype.showModal=function(){this.open=true;};
 HTMLDialogElement.prototype.close=function(){this.open=false;};
@@ -71,7 +71,8 @@ it('shows each bound file even with duplicate basenames and unbinds the selected
 it('can inspect a fresh actor without enabling an attachment or creating a body draft',async()=>{
   await click('pick b');await click('身体观察');
   expect(['乳房','外阴','阴道','子宫'].filter(x=>!button(x))).toEqual([]);
-  await click('子宫');expect(button('生育进程')).toBeUndefined();expect(useReproduction.getState().byAsset.b).toBeUndefined();
+  await click('子宫');expect(activeSheet()?.querySelector('[data-part="uterus"]:not([data-encounter])')).toBeTruthy();
+  expect(activeSheet()?.querySelector('.uterus-record')?.textContent).toContain('受孕率（游戏）60%');expect(useConception.getState().byAsset.b).toBeUndefined();
   await click('阴道');expect(usePelvic.getState().byAsset.b).toBeUndefined();
   expect(useBodyState.getState().draft).toBeNull();expect(useBodyState.getState().byAsset.b).toBeUndefined();
   await click('返回角色');await click('互动');await click('插入');
@@ -79,19 +80,18 @@ it('can inspect a fresh actor without enabling an attachment or creating a body 
   expect(button('服装')).toBeTruthy();expect(usePelvic.getState().active).toBeNull();
 });
 
-it('links fertility and the insertion close-up in either direction without stacking visits or retargeting a dose',async()=>{
+it('opens insertion on the encounter lens, keeps a chosen view across clothing and leaves the release target alone',async()=>{
   vi.spyOn(document,'hidden','get').mockReturnValue(false);
   await click('pick b');await act(()=>{useMmdVrStore.setState({overlayOpen:true,presentation:'screen'});expect(enablePelvic('b',true)).toBe(true);});
   const profile=usePelvic.getState().byAsset.b;
-  await click('互动');await click('生育进程');await click('插入操作');
-  const uterus=()=>expect(button('子宫').getAttribute('aria-pressed')).toBe('true');
-  uterus();await click('生育进程');await click('返回互动');expect(button('初始乳量')).toBeDefined();
-  await click('插入');await click('阴道');expect(button('生育进程')).toBeUndefined();
-  await click('子宫');await click('斜面');await click('生育进程');expect(button('插入操作')).toBeUndefined();
-  await click('返回插入');uterus();expect(button('斜面').getAttribute('aria-pressed')).toBe('true');
+  await click('互动');expect([...host.querySelectorAll('.activity-links button')].map(k=>k.textContent)).toEqual(['插入','泌乳','胸型','初始乳量']);
+  await click('插入');expect(button('子宫').getAttribute('aria-pressed')).toBe('true');expect(activeSheet()?.querySelector('[data-part="uterus"][data-encounter]')).toBeTruthy();
+  await click('外阴');await click('斜面');await click('调整服装');await click('返回插入');
+  expect(button('外阴').getAttribute('aria-pressed')).toBe('true');expect(button('斜面').getAttribute('aria-pressed')).toBe('true');
+  expect(activeSheet()?.querySelector('[data-encounter]')).toBeNull();expect(activeSheet()?.querySelector('input[aria-label="受孕率（游戏）"]')).toBeTruthy();
   await click('返回互动');expect(button('初始乳量')).toBeDefined();
   expect(usePelvic.getState().byAsset.b).toBe(profile);expect(profile.container).toBe('vaginal');
-  expect(useBodyState.getState().draft).toBeNull();expect(useReproduction.getState().byAsset.b).toBeUndefined();
+  expect(useBodyState.getState().draft).toBeNull();expect(useConception.getState().byAsset.b).toBeUndefined();
 });
 
 async function startPreview(){

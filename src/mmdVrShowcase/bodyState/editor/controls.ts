@@ -1,5 +1,5 @@
 import {type Action, type Field} from '../controlRows';
-import {BODY_DAY_SECONDS, DEFAULT_BODY_PROFILE, bodyRanges, sampleBody, type BodyProfile} from '../data';
+import {DEFAULT_BODY_PROFILE, BODY_BOUNDS, type BodyProfile} from '../data';
 
 // Screen and XR share section names, navigation and the actor's working copy.
 const pages = {
@@ -7,24 +7,16 @@ const pages = {
   more: ['触碰与适配', 'Touch & model fit', 'chest'],
   fit: ['模型适配', 'Shape source', 'more'],
   morphs: ['选择形态键', 'Choose a morph', 'fit'],
-  cycle: ['周期', 'Cycle', null],
-  calendar: ['选择周期日', 'Choose a cycle day', 'cycle'],
-  compare: ['两日内膜对照', 'Compare lining by day', 'cycle'],
-  rhythm: ['高级周期参数', 'Advanced cycle settings', 'cycle'],
-  lining: ['内膜与分泌物', 'Lining & secretions', 'rhythm'],
-  secretions: ['内膜与分泌物', 'Lining & secretions', 'rhythm'],
   contact: ['触碰', 'Touch', 'more'],
   sensitivity: ['触痛', 'Tenderness', 'contact'],
   milk: ['泌乳', 'Lactation', null],
 } as const;
 
 export type Page = keyof typeof pages;
-export const mainPages = ['chest','cycle','milk'] as const;
+export const mainPages = ['chest','milk'] as const;
 export type Localize = (zh: string, en: string) => string;
 export const pageTitle = (page: Page, l: Localize) => l(pages[page][0], pages[page][1]);
-export type DetailParents = Partial<Record<'fit'|'calendar',Page>>;
-export const parentPage = (page: Page, parents: DetailParents): Page|null =>
-  ((page === 'fit' || page === 'calendar') && parents[page]) || pages[page][2];
+export const parentPage = (page: Page, fitParent:Page): Page|null => page==='fit'?fitParent:pages[page][2];
 export const percent = (n: number) => `${Math.round(n*100)}%`;
 // A refilling side can hold less than a tenth of a percent.
 export const milkFill = (value:number) => {
@@ -34,26 +26,22 @@ export const milkFill = (value:number) => {
   return `${tenths/10}%`;
 };
 export const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min,n));
-export const atDay = (p: BodyProfile) => p.day + Math.floor(p.daySeconds/BODY_DAY_SECONDS*10+1e-8)/10;
 export const action = (label: string, run: () => void, options: Omit<Partial<Action>,'label'|'run'> = {}): Action => ({label,run,...options});
 
-type FieldKey = 'length'|'bleedDays'|'peakDays'|'lutealDays'|'compression'|'rebound'|'refillSeconds'|'fullness'|'cycleGain'|'liningGain'|'secretionGain'|'sensitivity'|'left'|'right';
-type ToggleKey = 'ovulation';
+type FieldKey = keyof typeof BODY_BOUNDS;
 type Patch = (changes: Partial<BodyProfile>) => void;
 
 /** Page builders read a profile and describe controls. All actual mutations
  * come back through the owning editor's preview commands, never on a read. */
 export function editorControls(l: Localize, saved: BodyProfile|undefined, draft: BodyProfile|null, go: (page:Page)=>void, patch: Patch) {
-  const base = saved ?? DEFAULT_BODY_PROFILE, p = draft ?? base, bounds = bodyRanges(p);
+  const base = saved ?? DEFAULT_BODY_PROFILE, p = draft ?? base;
   const field = (label: string, key: FieldKey, step: number, format: (n:number)=>string = String, disabled=false): Field => {
-    const [min,max] = key in bounds ? bounds[key as keyof typeof bounds] : [0,1];
+    const [min,max] = BODY_BOUNDS[key];
     return {kind:'field',label,value:p[key],formatted:format(p[key]),min,max,step,disabled,
-      scrub:key==='length'||key==='refillSeconds'||key==='fullness'||key==='left'||key==='right', change:n=>patch({[key]:+clamp(n,min,max).toFixed(3)})};
+      scrub:key==='refillSeconds'||key==='fullness'||key==='left'||key==='right', change:n=>patch({[key]:+clamp(n,min,max).toFixed(3)})};
   };
   const link = (page:Page, label=pageTitle(page,l), active?:boolean) => action(label,()=>go(page),{active,quiet:true});
-  const toggle = (label:string,key:ToggleKey) => action(label,()=>patch({[key]:!p[key]}),{active:p[key]});
-  const day = (n:number) => {const value=+n.toFixed(1);return l(`第 ${value} 天`,`Day ${value}`);};
-  return {l,p,base,saved,inDraft:!!draft,effective:sampleBody(p),go,patch,field,toggle,link,day};
+  return {l,p,base,saved,inDraft:!!draft,go,patch,field,link};
 }
 
 export type EditorControls = ReturnType<typeof editorControls>;

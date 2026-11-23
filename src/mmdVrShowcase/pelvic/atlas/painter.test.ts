@@ -1,82 +1,132 @@
 import {afterEach,expect,it,vi} from 'vitest';
+import {useBackpack} from '../../backpack';
 import {usePelvic} from '../store';
 import {defaultPelvicCalibration} from '../contract';
 import {useBodyState} from '../../bodyState/store';
-import {DEFAULT_BODY_PROFILE,sampleBody} from '../../bodyState/data';
-import {configureReproduction,recordInternalDose,useReproduction} from '../../bodyState/reproduction/store';
-import {mockGameEntropy} from '../../bodyState/reproduction/entropy.testSupport';
+import {DEFAULT_BODY_PROFILE} from '../../bodyState/data';
+import {chanceFor,recordInternalDose,setConceptionChance,useConception,type ConceptionEvent} from '../../bodyState/reproduction/store';
 import {atlasPainter} from './painter';
 import {setAtlasView,useAtlasSettings} from './view';
 import {useLanguageStore} from '../../../languageStore';
 
 const art=vi.hoisted(()=>({draw:vi.fn(),dispose:vi.fn()}));
 vi.mock('./organArt',()=>({createOrganArt:()=>art}));
-afterEach(()=>{vi.clearAllMocks();vi.unstubAllGlobals();useAtlasSettings.setState({actors:{}});usePelvic.setState(usePelvic.getInitialState());useBodyState.setState(useBodyState.getInitialState());useLanguageStore.setState(useLanguageStore.getInitialState());});
+afterEach(()=>{
+  useBackpack.setState(useBackpack.getInitialState());useAtlasSettings.setState({actors:{}});
+  usePelvic.setState(usePelvic.getInitialState());useBodyState.setState(useBodyState.getInitialState());useConception.setState(useConception.getInitialState());
+  useLanguageStore.setState(useLanguageStore.getInitialState());vi.clearAllMocks();vi.unstubAllGlobals();
+});
 function paper(){
   const ctx=new Proxy({}, {get:()=>()=>{},set:()=>true});
   return {width:688,height:564,dataset:{},setAttribute:()=>{},getAttribute:()=>null,getContext:()=>ctx} as unknown as HTMLCanvasElement;
 }
 const calibrated={calibration:defaultPelvicCalibration,clothingClear:true,container:'fantasyUterine' as const,showAdapter:false,
   fluid:{vaginal:1,fantasyUterine:3},capacity:{vaginal:4,fantasyUterine:12},drained:0,overflow:0,stroke:.5,speedHz:1};
-it('freezes only illustrative motion: camera and actual dose data stay live without starting a simulated rod or changing the day',()=>{
-  const assetId='actor',runtimeId='instance';
-  const body={...DEFAULT_BODY_PROFILE,day:3};useBodyState.setState({byAsset:{[assetId]:body}});
-  const p=calibrated;
-  usePelvic.setState({byAsset:{[assetId]:p}});const wake=vi.fn();
-  const driver=atlasPainter(paper(),{assetId,runtimeId},'uterus',wake,()=>{}),last=()=>art.draw.mock.lastCall![1];
+const actor={assetId:'a',runtimeId:'r'};
+function seedEvent(success:boolean):ConceptionEvent{
+  const event:ConceptionEvent={id:37,at:1000,chance:60,success,side:-1};
+  useConception.setState({byAsset:{a:{chance:60,event}}});return event;
+}
+const lastDraw=()=>art.draw.mock.lastCall![1];
+it('holds the displayed encounter when frozen, while actual balances and camera angle remain live',()=>{
+  const event=seedEvent(true),wake=vi.fn(),upload=vi.fn();setAtlasView('a',{motion:true,degrees:0});
+  usePelvic.setState({byAsset:{a:calibrated}});
+  const p=atlasPainter(paper(),actor,'uterus',wake,upload);
   try{
-    driver.tick(100);driver.tick(200);expect(last().time).toBeGreaterThan(0);
-    setAtlasView(assetId,{motion:false,degrees:90});expect(driver.tick(220)).toBe(false);
-    const stopped=last().time,count=art.draw.mock.calls.length;driver.tick(800);expect(art.draw.mock.calls.length).toBe(count);
-    usePelvic.setState({byAsset:{[assetId]:{...p,fluid:{...p.fluid,fantasyUterine:6}}}});driver.tick(850);
-    expect(last()).toMatchObject({time:stopped,yaw:Math.PI/2,fluid:.5,lining:sampleBody(body).lining,sample:null});
-    setAtlasView(assetId,{degrees:0});driver.tick(900);expect(last().yaw).toBe(0);expect(usePelvic.getState().active).toBeNull();
-    expect(useBodyState.getState().byAsset[assetId]).toBe(body);
-  }finally{driver.dispose();}const n=wake.mock.calls.length;setAtlasView(assetId,{degrees:30});expect(wake).toHaveBeenCalledTimes(n);
+    p.tick(event.at+4000);expect(lastDraw()).toMatchObject({event,encounterSeconds:4,fluid:.25,sample:null});
+    setAtlasView('a',{motion:false,degrees:90});p.tick(event.at+4100);
+    const {time,encounterSeconds}=lastDraw(),n=upload.mock.calls.length;
+    expect(encounterSeconds).toBe(4);p.tick(event.at+15000);expect(upload).toHaveBeenCalledTimes(n);
+    usePelvic.setState({byAsset:{a:{...calibrated,fluid:{...calibrated.fluid,fantasyUterine:6}}}});p.tick(event.at+15100);
+    expect(upload).toHaveBeenCalledTimes(n+1);expect(lastDraw()).toMatchObject({time,encounterSeconds,yaw:Math.PI/2,fluid:.5,uterineFluid:.5,sample:null});
+    expect(usePelvic.getState().active).toBeNull();
+  }finally{p.dispose();}
+  const n=wake.mock.calls.length;setAtlasView('a',{degrees:30});expect(wake).toHaveBeenCalledTimes(n);
 });
 
 function slowWorker(){
   let worker:Stub;
   class Stub{constructor(){worker=this;}postMessage=vi.fn();terminate=vi.fn();onmessage?:Function;}
   vi.stubGlobal('Worker',Stub);vi.stubGlobal('OffscreenCanvas',class {transferToImageBitmap(){}});
-  return {get current(){return worker;},reply(){const b={close:vi.fn()};worker.onmessage!({data:{bitmap:b}});return b;}};
+  return {get current(){return worker;},options:()=>worker.postMessage.mock.lastCall![0].options,
+    reply(){const b={close:vi.fn()};worker.onmessage!({data:{bitmap:b}});return b;}};
 }
-it('supersedes a frozen uterus bitmap on the actual game trial, but not on another actor’s trial or a replayed dose',()=>{
-  const entropy=mockGameEntropy(5,1);
-  const worker=slowWorker(),upload=vi.fn(),assetId='asset-1',other='asset-2',profile={...DEFAULT_BODY_PROFILE,day:15,reproduction:true};
-  configureReproduction(assetId,profile);configureReproduction(other,profile);setAtlasView(assetId,{motion:false});
-  const painter=atlasPainter(paper(),{assetId,runtimeId:'r'},'uterus',()=>{},upload),options=()=>worker.current.postMessage.mock.lastCall![0].options;
+it('replaces a ready bitmap on real delivery; next-dose odds and another actor’s delivery leave the new frame valid',()=>{
+  useBackpack.setState({entries:['a','b'].map(id=>({id,kind:'model' as const,path:'fixture.pmx',file:new File([],'fixture.pmx')})),
+    selected:'a',live:{a:{runtimeId:'r',visible:true,position:[0,0,0]}}});
+  expect(setConceptionChance('a','r',100)).toBe(true);setAtlasView('a',{motion:false});
+  const worker=slowWorker(),upload=vi.fn(),p=atlasPainter(paper(),actor,'uterus',()=>{},upload,true);
   try{
-    painter.tick(0);expect(options().reproduction).toMatchObject({eggs:1,chance:60,tried:false,stage:'ovulated'});
-    const obsolete=worker.reply();recordInternalDose(other,1);recordInternalDose(assetId,1);painter.tick(1);
-    expect(obsolete.close).toHaveBeenCalledOnce();expect(upload).not.toHaveBeenCalled();expect(options()).toMatchObject({time:0,reproductionSeconds:12,reproduction:{tried:true,stage:'fertilized',implanted:false}});
-    expect(options().reproduction).not.toHaveProperty('trial');const valid=worker.reply();recordInternalDose(assetId,1);recordInternalDose(other,1);painter.tick(2);
-    expect(valid.close).toHaveBeenCalledOnce();expect(upload).toHaveBeenCalledOnce();expect(worker.current.postMessage).toHaveBeenCalledTimes(2);
-  }finally{painter.dispose();useReproduction.setState(useReproduction.getInitialState());entropy.mockRestore();}
+    p.tick(0);expect(worker.options().event).toBeUndefined();const obsolete=worker.reply();
+    recordInternalDose('a',1);const event=useConception.getState().byAsset.a.event!;
+    expect(event).toMatchObject({chance:100,success:true});p.tick(event.at);
+    expect(obsolete.close).toHaveBeenCalledOnce();expect(upload).not.toHaveBeenCalled();
+    expect(worker.options()).toMatchObject({event,encounterFocus:true,encounterSeconds:12});
+    const valid=worker.reply();expect(setConceptionChance('a','r',0)).toBe(true);expect(chanceFor('a')).toBe(0);
+    recordInternalDose('a',0);recordInternalDose('b',1);expect(useConception.getState().byAsset.b.event).toBeDefined();
+    expect(useConception.getState().byAsset.a.event).toBe(event);expect(upload).not.toHaveBeenCalled();
+    p.tick(event.at+100);expect(valid.close).toHaveBeenCalledOnce();expect(upload).toHaveBeenCalledOnce();
+    p.tick(event.at+1000);expect(worker.current.postMessage).toHaveBeenCalledTimes(2);
+    recordInternalDose('a',1);p.tick(event.at+1010);
+    expect(worker.options().event).toMatchObject({success:false,chance:0});expect(worker.options().event.id).not.toBe(event.id);
+    expect(worker.current.postMessage).toHaveBeenCalledTimes(3);
+  }finally{p.dispose();}
 });
-it('paints a paused workbench from its retained book and committed tissue, independent of the body preview',()=>{
-  const entropy=mockGameEntropy(5),worker=slowWorker(),id='actor',saved={...DEFAULT_BODY_PROFILE,day:15,reproduction:true};
-  configureReproduction(id,saved);recordInternalDose(id,1);configureReproduction(id,null);
-  useBodyState.setState({byAsset:{[id]:{...saved,reproduction:false}},draft:{assetId:id,value:{...saved,day:4,liningOverride:0}}});
-  setAtlasView(id,{motion:false});const p=atlasPainter(paper(),{assetId:id,runtimeId:'r'},'uterus',()=>{},()=>{},true);
-  try{p.tick(0);expect(worker.current.postMessage.mock.lastCall![0].options).toMatchObject({lining:sampleBody(saved).lining,
-    reproduction:{stage:'fertilized',day:15,tried:true},reproductionSeconds:12});
-    expect(useReproduction.getState().byAsset[id].enabled).toBe(false);
-  }finally{p.dispose();useReproduction.setState(useReproduction.getInitialState());entropy.mockRestore();}
-});
-it('does not display a late worker frame from an old cycle preview after the user freezes a new day',()=>{
-  const worker=slowWorker();
-  const b={...DEFAULT_BODY_PROFILE,day:4};useBodyState.setState({byAsset:{a:b}});
-  const canvas=paper(),upload=vi.fn(),driver=atlasPainter(canvas,{assetId:'a',runtimeId:'m'},'body',()=>{},upload);
+
+it('reopens mid-encounter at the age of the same delivery instead of replaying the start',()=>{
+  const event=seedEvent(false),wake=vi.fn();setAtlasView('a',{motion:true});
+  const open=()=>atlasPainter(paper(),actor,'uterus',wake,()=>{},true),first=open();
   try{
-    driver.tick(1);expect(worker.current.postMessage).toHaveBeenCalledOnce();
-    useBodyState.setState({draft:{assetId:'a',value:{...b,day:22}}});setAtlasView('a',{motion:false});driver.tick(31);
-    const b1=worker.reply();driver.tick(35);
-    expect(b1.close).toHaveBeenCalledOnce();expect(upload).not.toHaveBeenCalled();expect(worker.current.postMessage).toHaveBeenCalledTimes(2);
-    const b2=worker.reply();expect(upload).not.toHaveBeenCalled();driver.tick(38);
-    expect(b2.close).toHaveBeenCalledOnce();expect(upload).toHaveBeenCalledOnce();
-    expect(worker.current.postMessage.mock.lastCall![0].options.lining).toBe(sampleBody({...b,day:22}).lining);
-  }finally{driver.dispose();}
+    first.tick(event.at+2000);expect(lastDraw()).toMatchObject({event,encounterSeconds:2,encounterFocus:true});
+    useConception.setState({byAsset:{a:{event,chance:95},b:{chance:100,event:{...event,id:38,at:event.at+2000,success:true,chance:100}}}});
+    expect(wake).not.toHaveBeenCalled();first.tick(event.at+3500);expect(lastDraw()).toMatchObject({event,encounterSeconds:3.5});
+  }finally{first.dispose();}
+  const reopened=open();
+  try{reopened.tick(event.at+7500);expect(lastDraw()).toMatchObject({event,encounterSeconds:7.5,encounterFocus:true});}
+  finally{reopened.dispose();}
+  expect(useConception.getState().byAsset.a.event).toBe(event);
+});
+
+it.each([true,false])('uploads the exact 12-second frame once, then rests (success=%s)',success=>{
+  const event=seedEvent(success),worker=slowWorker(),upload=vi.fn(),wake=vi.fn();setAtlasView('a',{motion:true});
+  const p=atlasPainter(paper(),actor,'uterus',wake,upload,true);
+  try{
+    const end=event.at+12000;p.tick(end-10);expect(worker.options().encounterSeconds).toBeCloseTo(11.99);
+    worker.reply();expect(p.tick(end-9)).toBe(true);expect(upload).toHaveBeenCalledOnce();
+    // Cross the endpoint inside the normal frame-rate limit. A request for
+    // 11.99 is not the terminal image, even though no animation time remains.
+    p.tick(end);expect(worker.current.postMessage).toHaveBeenCalledTimes(2);
+    expect(worker.options()).toMatchObject({event,encounterSeconds:12});wake.mockClear();const terminal=worker.reply();expect(wake).toHaveBeenCalled();
+    expect(upload).toHaveBeenCalledOnce();expect(p.tick(end+1)).toBe(false);
+    expect(terminal.close).toHaveBeenCalledOnce();expect(upload).toHaveBeenCalledTimes(2);
+    for(const elapsed of [80,250,5000])expect(p.tick(end+elapsed)).toBe(false);
+    expect(worker.current.postMessage).toHaveBeenCalledTimes(2);expect(upload).toHaveBeenCalledTimes(2);
+  }finally{p.dispose();}
+});
+
+it('holds an idle egg before any event and responds to rotation without waiting for a delivery',()=>{
+  const wake=vi.fn(),upload=vi.fn();setAtlasView('a',{motion:true,degrees:0});
+  const p=atlasPainter(paper(),actor,'uterus',wake,upload,true);
+  try{
+    expect(p.tick(0)).toBe(false);expect(lastDraw()).toMatchObject({encounterFocus:true,yaw:0,sample:null});
+    expect(lastDraw().event).toBeUndefined();expect(useConception.getState().byAsset.a).toBeUndefined();
+    usePelvic.setState({byAsset:{a:calibrated},active:{...actor,mode:'standAuto',source:'screen',token:1,running:true,position:.3,awaitingWorld:false}});
+    for(const t of [100,1000,10000])expect(p.tick(t)).toBe(false);
+    expect(upload).toHaveBeenCalledOnce();wake.mockClear();setAtlasView('a',{degrees:90});expect(wake).toHaveBeenCalled();
+    p.tick(10050);expect(upload).toHaveBeenCalledTimes(2);expect(lastDraw().yaw).toBeGreaterThan(0);
+    expect(lastDraw().event).toBeUndefined();expect(lastDraw().sample).toBeNull();
+  }finally{p.dispose();}
+});
+
+it('discards the late worker reply for a previous angle and paints the new angle only on the destination frame',()=>{
+  const worker=slowWorker(),upload=vi.fn(),canvas=paper();setAtlasView('a',{motion:false,degrees:0});
+  const p=atlasPainter(canvas,actor,'uterus',()=>{},upload);
+  try{
+    p.tick(0);setAtlasView('a',{degrees:90});p.tick(1);const stale=worker.reply();p.tick(2);
+    expect(stale.close).toHaveBeenCalledOnce();expect(upload).not.toHaveBeenCalled();expect(worker.current.postMessage).toHaveBeenCalledTimes(2);
+    expect(worker.options().yaw).toBe(Math.PI/2);const fresh=worker.reply();expect(upload).not.toHaveBeenCalled();
+    p.tick(3);expect(canvas.dataset.angle).toBe('90');expect(fresh.close).toHaveBeenCalledOnce();expect(upload).toHaveBeenCalledOnce();
+  }finally{p.dispose();}
 });
 
 it('publishes the frozen first frame of A even if B acquires the active socket before the worker replies',()=>{
@@ -91,24 +141,9 @@ it('publishes the frozen first frame of A even if B acquires the active socket b
   }finally{driver.dispose();}
 });
 
-it('opens an unsaved cycle at the read-only defaults and discards a cancelled first preview before it can reach the canvas',()=>{
-  const worker=slowWorker(),upload=vi.fn();setAtlasView('a',{motion:false});
-  const driver=atlasPainter(paper(),{assetId:'a',runtimeId:'ra'},'body',()=>{},upload);
-  const options=()=>worker.current.postMessage.mock.lastCall![0].options;
-  try{
-    driver.tick(0);const initial=options();expect(initial.lining).toBe(sampleBody(DEFAULT_BODY_PROFILE).lining);
-    worker.reply();driver.tick(1);expect(upload).toHaveBeenCalledOnce();
-    useBodyState.setState({draft:{assetId:'a',value:{...DEFAULT_BODY_PROFILE,day:11,liningOverride:.05}}});
-    driver.tick(2);expect(options().lining).toBe(.05);const obsolete=worker.reply();
-    useBodyState.setState({draft:null});driver.tick(3);
-    expect(obsolete.close).toHaveBeenCalledOnce();expect(upload).toHaveBeenCalledOnce();expect(options()).toEqual(initial);
-    worker.reply();driver.tick(4);expect(upload).toHaveBeenCalledTimes(2);expect(useBodyState.getState().byAsset).toEqual({});
-  }finally{driver.dispose();}
-});
-
 it('drops a hidden completion and resumes a frozen view without catching up or publishing from the message callback',()=>{
-  const worker=slowWorker(),upload=vi.fn();setAtlasView('a',{motion:false});useBodyState.setState({byAsset:{a:{...DEFAULT_BODY_PROFILE}}});
-  const driver=atlasPainter(paper(),{assetId:'a',runtimeId:'r'},'body',()=>{},upload);
+  const worker=slowWorker(),upload=vi.fn();setAtlasView('a',{motion:false});
+  const driver=atlasPainter(paper(),actor,'body',()=>{},upload);
   try{
     driver.tick(0);driver.suspend();expect(worker.reply().close).toHaveBeenCalledOnce();expect(upload).not.toHaveBeenCalled();
     driver.tick(8900);expect(worker.current.postMessage).toHaveBeenCalledTimes(2);const b=worker.reply();expect(upload).not.toHaveBeenCalled();
@@ -117,27 +152,16 @@ it('drops a hidden completion and resumes a frozen view without catching up or p
   }finally{driver.dispose();}
 });
 
-it('does not rasterize a frozen, locked cycle diagram for unrelated refill ticks',()=>{
-  const body={...DEFAULT_BODY_PROFILE,locked:true,lactating:true};useBodyState.setState({byAsset:{a:body}});setAtlasView('a',{motion:false});
-  const upload=vi.fn(),driver=atlasPainter(paper(),{assetId:'a',runtimeId:'r'},'body',()=>{},upload);
+it.each(['body','uterus'] as const)('uses the same %s reference across saved body settings, preview edits and cancellation',scope=>{
+  const worker=slowWorker(),upload=vi.fn(),wake=vi.fn();setAtlasView('a',{motion:false,degrees:0});
+  const driver=atlasPainter(paper(),actor,scope,wake,upload);
   try{
-    driver.tick(0);for(let i=1;i<=4;i++){useBodyState.setState({byAsset:{a:{...body,left:.5+i*.001}}});driver.tick(i*250);}
-    expect(upload).toHaveBeenCalledOnce();
-  }finally{driver.dispose();}
-});
-
-it('repaints a fixed-thickness frozen section when its gland and vessel architecture changes',()=>{
-  const worker=slowWorker(),start={...DEFAULT_BODY_PROFILE,day:23,liningOverride:.55};
-  setAtlasView('a',{motion:false});useBodyState.setState({byAsset:{a:start}});
-  const driver=atlasPainter(paper(),{assetId:'a',runtimeId:'r'},'body',()=>{},()=>{});
-  try{
-    driver.tick(0);const first=worker.current.postMessage.mock.lastCall![0].options,oldBitmap=worker.reply();
-    const updated={...start,ovulation:false};useBodyState.setState({byAsset:{a:updated}});driver.tick(50);
-    const next=worker.current.postMessage.mock.lastCall![0].options;
-    expect(oldBitmap.close).toHaveBeenCalledOnce();expect(worker.current.postMessage).toHaveBeenCalledTimes(2);
-    expect(first.tissue).toEqual(sampleBody(start).tissue);expect(next.tissue).toEqual(sampleBody(updated).tissue);
-    expect(first.tissue.functionalDepth).toBe(next.tissue.functionalDepth);expect(first.tissue.glandCoil).toBeGreaterThan(next.tissue.glandCoil);
-    expect(next.time).toBe(first.time);
+    driver.tick(0);const reference=worker.options();worker.reply();wake.mockClear();
+    useBodyState.setState({byAsset:{a:{...DEFAULT_BODY_PROFILE,fullness:.9}},draft:{assetId:'a',value:{...DEFAULT_BODY_PROFILE,left:.1}}});
+    driver.tick(100);expect(upload).toHaveBeenCalledOnce();expect(worker.current.postMessage).toHaveBeenCalledOnce();expect(wake).not.toHaveBeenCalled();
+    setAtlasView('a',{degrees:90});driver.tick(110);expect(worker.options()).toEqual({...reference,yaw:Math.PI/2});
+    worker.reply();useBodyState.setState({draft:null});driver.tick(120);
+    expect(worker.current.postMessage).toHaveBeenCalledTimes(2);expect(upload).toHaveBeenCalledTimes(2);
   }finally{driver.dispose();}
 });
 
@@ -158,8 +182,8 @@ it('invalidates a ready bitmap on a stop-limit crossing but keeps the body view 
 });
 
 it('keeps painting a moving orbit at a bounded cadence during a stream of pointer events',()=>{
-  useBodyState.setState({byAsset:{a:{...DEFAULT_BODY_PROFILE}}});setAtlasView('a',{degrees:0,motion:true});
-  const driver=atlasPainter(paper(),{assetId:'a',runtimeId:'r'},'body',()=>{},()=>{});
+  setAtlasView('a',{degrees:0,motion:true});
+  const driver=atlasPainter(paper(),actor,'body',()=>{},()=>{});
   try{
     driver.tick(0);for(let deg=1;deg<=18;deg++){setAtlasView('a',{degrees:deg});driver.tick(deg*8);}
     expect(art.draw.mock.calls.length).toBeGreaterThan(1);expect(art.draw.mock.calls.length).toBeLessThanOrEqual(5);
@@ -184,17 +208,18 @@ it.each(['vulva','vagina','uterus'] as const)('observes %s without enabling a so
   try{
     driver.tick(0);expect(canvas.dataset.view).toBe(focus);expect(latest()).toMatchObject({focus,time:0,sample:null,pressure:0});
     expect(useBodyState.getState()).toMatchObject({draft:null,byAsset:{}});expect(usePelvic.getState()).toMatchObject({active:null,byAsset:{}});
-    const body={...DEFAULT_BODY_PROFILE,day:22};useBodyState.setState({byAsset:{a:body}});
     const sample={tip:[0,0,-.04] as const,tail:[0,0,.03] as const,outletInside:true,aligned:true,atCervix:false,depth:.04,radiusM:.02,lengthM:.1,angleDeg:0};
     const a={assetId:'a',runtimeId:'previous',running:true,position:.99,token:47,mode:'standAuto' as const,source:'xr' as const,awaitingWorld:false};
     const profile={...calibrated,container:'vaginal' as const,fluid:{vaginal:2,fantasyUterine:3}};
     usePelvic.setState({byAsset:{a:profile},active:a,sample});driver.tick(20);expect(latest().sample).toBeNull();
     usePelvic.setState({active:{...a,runtimeId:'r',token:48}});
     for(const degrees of [0,38,90]){setAtlasView('a',{degrees});driver.tick(60+degrees);expect(latest()).toMatchObject({focus,time:0,sample,parked:false,
-      yaw:degrees*Math.PI/180,tissue:sampleBody(body).tissue,vaginalFluid:.5,uterineFluid:focus==='uterus'?.25:undefined});expect(latest().pressure).toBeCloseTo(.4);}
+      yaw:degrees*Math.PI/180,vaginalFluid:.5,uterineFluid:focus==='uterus'?.25:undefined});expect(latest().pressure).toBeCloseTo(.4);}
+    const moved={...sample,depth:.06,tip:[0,0,-.06] as const};usePelvic.setState({sample:moved});driver.tick(200);
+    expect(latest()).toMatchObject({sample:moved,parked:false,time:0});expect(latest().pressure).toBeCloseTo(.6);
     const parked={...sample,outletInside:false};usePelvic.setState({active:{...a,runtimeId:'r',token:49,running:false},sample:null,parkedSample:parked});driver.tick(300);
     expect(latest()).toMatchObject({sample:parked,parked:true,pressure:0,time:0});
     usePelvic.setState({active:null,parkedSample:null});driver.tick(500);expect(latest().sample).toBeNull();
-    expect(usePelvic.getState().byAsset.a).toBe(profile);expect(useBodyState.getState().byAsset.a).toBe(body);
+    expect(usePelvic.getState().byAsset.a).toBe(profile);expect(useBodyState.getState()).toMatchObject({draft:null,byAsset:{}});
   }finally{driver.dispose();}
 });

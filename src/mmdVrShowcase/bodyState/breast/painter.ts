@@ -1,8 +1,8 @@
 import {useLanguageStore} from '../../../languageStore';
 import type {DiagramActor,DiagramDriver} from '../../components/ActorDiagram';
 import {diagramOutput} from '../../components/diagramOutput';
-import {DEFAULT_BODY_PROFILE,sampleBody} from '../data';
-import {fromBodyClock,fromMilkInteraction,useBodyState} from '../store';
+import {DEFAULT_BODY_PROFILE} from '../data';
+import {fromMilkRefill,fromMilkInteraction,useBodyState} from '../store';
 import {createBreastArt,type BreastArtFrame} from './art';
 import {areolaNames} from './art/areola';
 import {MILK_FULLNESS_GAIN} from './art/teardrop';
@@ -14,7 +14,7 @@ type State=ReturnType<typeof useBodyState.getState>;
 const profile=(s:State,id:string)=>s.draft?.assetId===id?s.draft.value:s.byAsset[id]??DEFAULT_BODY_PROFILE;
 function parameters(s:State,id:string){
   const p=profile(s,id);
-  return {fullness:sampleBody(p).fullness,lactating:p.lactating,left:p.lactating?p.left:0,right:p.lactating?p.right:0};
+  return {fullness:p.fullness,lactating:p.lactating,left:p.lactating?p.left:0,right:p.lactating?p.right:0};
 }
 const same=(a:ReturnType<typeof parameters>,b:ReturnType<typeof parameters>)=>a.fullness===b.fullness&&a.lactating===b.lactating&&a.left===b.left&&a.right===b.right;
 
@@ -41,12 +41,12 @@ export function breastPainter(canvas:HTMLCanvasElement,{assetId}:DiagramActor,wa
         const scrubbing=draft&&sameOwner&&value.fullness!==profile(p,assetId).fullness&&next.lactating===sample.lactating;
         const view=readBreastView(assetId);
         const debit=sameOwner&&sample.lactating&&next.lactating&&(draft||fromMilkInteraction(value))&&
-          !fromBodyClock(value)&&(next.left<sample.left||next.right<sample.right);
+          !fromMilkRefill(value)&&(next.left<sample.left||next.right<sample.right);
         if(!sameOwner||!view.motion||view.section||next.lactating!==sample.lactating)reset();
         else if(scrubbing)lag.adjust(next.fullness-sample.fullness);
          else if(debit){leftLag.adjust(MILK_FULLNESS_GAIN*Math.min(0,next.left-sample.left));rightLag.adjust(MILK_FULLNESS_GAIN*Math.min(0,next.right-sample.right));}
-        else if(!fromBodyClock(value))reset();
-        sample=next;changed(!sameOwner||!(scrubbing||fromBodyClock(value)||fromMilkInteraction(value)));
+         else if(!fromMilkRefill(value))reset();
+         sample=next;changed(!sameOwner||!(scrubbing||fromMilkRefill(value)||fromMilkInteraction(value)));
       }
     })];
   return {tick(now){

@@ -31,7 +31,7 @@ it('unwinds a changed VMD weight and compact split-clothing maps before each pau
   const rt=createMmdRuntimeHandle(new Scene());
   try{
     const {modelId:id}=await rt.addModel(new File(['x'],'one.pmx'));
-    const shape={...defaults,morph:'Custom shape',fullness:.5,cycleGain:0,lactating:true};
+    const shape={...defaults,morph:'Custom shape',fullness:.5,lactating:true};
     expect(rt.getBodySupport!(id)).toMatchObject({morphs:['Blink','Custom shape'],bones:false});
     expect(rt.setBodyProfile!(id,shape)).toBe(true);
     for(let n=0;n<100;n++){
@@ -62,13 +62,13 @@ function rig(){
   return {m,c,t,bones};
 }
 
-it('weighted skin and clothing return to the day’s fuller pose after release; trunk and arms stay authored',()=>{
+it('weighted skin and clothing return to the actor’s fuller pose after release; trunk and arms stay authored',()=>{
   const {m,c,t,bones}=rig(),chest=fitChestCompression(m)!,display=createBodyDisplay(m,chest);
   const vert=(i:number)=>m.getVertexPosition(i,new Vector3()),origin=c.position.clone(),skin=vert(0),fabric=vert(2),torso=t.matrixWorld.clone();
   expect(display.support).toMatchObject({bones:true,sides:{left:true,right:false}});
-  display.configure({...defaults,fullness:.5,cycleGain:0});display.apply();
+  display.configure({...defaults,fullness:.5});display.apply();
   const half=vert(2);
-  display.configure({...defaults,fullness:1,cycleGain:0});display.apply();
+  display.configure({...defaults,fullness:1});display.apply();
   const daily=vert(0),cloth=vert(2);
   // Check the rendered surface travel in shoulder-width units, not the scale
   // on an unweighted bone. Half travel remains a useful intermediate result.
@@ -100,7 +100,7 @@ it('accepts a weighted LeftBreast below Breastbone without deforming the sternum
   const display=createBodyDisplay(m,null),vert=(i:number)=>m.getVertexPosition(i,new Vector3());
   const child=vert(0),sternum=vert(1),parentMatrix=t.matrixWorld.clone();
   expect(display.support.bones).toBe(true);
-  display.configure({...defaults,fullness:1,cycleGain:0});display.apply();
+  display.configure({...defaults,fullness:1});display.apply();
   expect(vert(0).z).toBeGreaterThan(child.z);expect(vert(1)).toEqual(sternum);expect(t.matrixWorld).toEqual(parentMatrix);
 });
 
@@ -127,7 +127,7 @@ function contours(roll:number,unit:number,reflected:boolean){
   const display=createBodyDisplay(m,fitChestCompression(m));expect(display.support.bones).toBe(true);
   const snapshot=()=>weights.filter((_,i)=>i%4===0).map((_,i)=>m.getVertexPosition(i,new Vector3()).applyMatrix4(m.matrixWorld));
   const base=snapshot(),rotation=c.quaternion.clone();
-  function travel(t:number){display.configure({...defaults,fullness:t,cycleGain:0});display.apply();return snapshot().map((v,i)=>
+  function travel(t:number){display.configure({...defaults,fullness:t});display.apply();return snapshot().map((v,i)=>
     scene.worldToLocal(v).sub(scene.worldToLocal(base[i].clone())).divideScalar(unit));}
   const mid=travel(.5),high=travel(1);display.configure(null);display.apply();
   expect(c.quaternion.equals(rotation)).toBe(true);expect(snapshot()).toEqual(base);return {mid,high};

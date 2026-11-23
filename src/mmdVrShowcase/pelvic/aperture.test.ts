@@ -58,7 +58,7 @@ it('layers actual rig amounts above a nonzero interpolated VMD and day shape on 
   const model = actor(), { mesh, bodies, bone } = model;
   place('a', model); expect(setApertureMorph('a', morph)).toBe(true);
   const layer = createApertureLayer(), day = createBodyDisplay(mesh, null);
-  day.configure({ ...DEFAULT_BODY_PROFILE, morph, fullness: .35, cycleGain: 0 });
+  day.configure({ ...DEFAULT_BODY_PROFILE, morph, fullness: .35 });
   const vmd = await new ThreeMmdLoader().loadAnimation(poseFixture().vmd);
   const rt = new DefaultMmdRuntime({ physics: 'none' }); rt.setAnimation(vmd.animation, mesh);
   const weights = mesh.morphTargetInfluences!;

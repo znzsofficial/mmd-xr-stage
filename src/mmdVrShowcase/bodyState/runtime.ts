@@ -2,7 +2,7 @@ import type { Bone, SkinnedMesh } from 'three';
 import { wandMorphNames } from '../play/wandResponse';
 import type { fitChestCompression } from '../mmdRuntime/chestCompression';
 import type { BodySupport } from './store';
-import { sampleBody, type BodyProfile } from './data';
+import type { BodyProfile } from './data';
 import { fitChestContours } from './chestContour';
 
 type Settings = Pick<BodyProfile,'morph'|'fullness'|'compression'|'rebound'>;
@@ -53,7 +53,7 @@ export function createBodyDisplay(mesh:SkinnedMesh,chest:Chest){
   }
   return {support,restore,
     configure(profile:BodyProfile|null){
-      const next=profile?{morph:profile.morph,fullness:sampleBody(profile).fullness,compression:profile.compression,rebound:profile.rebound}:null;
+      const next=profile?{morph:profile.morph,fullness:profile.fullness,compression:profile.compression,rebound:profile.rebound}:null;
       if(current?.fullness===next?.fullness && current?.morph===next?.morph && current?.compression===next?.compression && current?.rebound===next?.rebound)return false;
       // Only change the desired input here. Pressure (and a possible wand
       // overlay) may still sit above this frame: unwind LIFO in update().

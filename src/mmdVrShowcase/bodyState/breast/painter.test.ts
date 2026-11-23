@@ -1,5 +1,5 @@
 import {afterEach,expect,it,vi} from 'vitest';
-import {DEFAULT_BODY_PROFILE,sampleBody} from '../data';
+import {DEFAULT_BODY_PROFILE} from '../data';
 import {advanceLiveBodies,useBodyState} from '../store';
 import {breastPainter} from './painter';
 import {breastViews,setBreastView} from './view';
@@ -15,13 +15,13 @@ function slowWorker(){
 }
 afterEach(()=>{useBodyState.setState(useBodyState.getInitialState());breastViews.setState({actors:{}});vi.unstubAllGlobals();});
 
-it('uses the local day and draft without enabling a profile; even while frozen, only enabled left/right stores affect the picture',()=>{
+it('uses the actor’s draft shape without enabling a profile; even while frozen, only enabled left/right stores affect the picture',()=>{
   const w=slowWorker(),upload=vi.fn();setBreastView('a',{degrees:90,motion:false});
-  const driver=breastPainter(canvas(),{assetId:'a',runtimeId:'r'},()=>{},upload),p={...DEFAULT_BODY_PROFILE,day:23,left:.2,right:.8};
+  const driver=breastPainter(canvas(),{assetId:'a',runtimeId:'r'},()=>{},upload),p={...DEFAULT_BODY_PROFILE,fullness:.28,left:.2,right:.8};
   try{
     driver.tick(0);expect(useBodyState.getState().byAsset).toEqual({});expect(w.frame).toMatchObject({fullness:0,lactating:false,left:0,right:0,degrees:90,time:0,section:false,labels:false});
     w.reply();driver.tick(50);useBodyState.setState({byAsset:{b:p}});driver.tick(100);expect(w.current.postMessage).toHaveBeenCalledOnce();
-    useBodyState.setState({draft:{assetId:'a',value:p}});driver.tick(150);expect(w.frame.fullness).toBe(sampleBody(p).fullness);
+    useBodyState.setState({draft:{assetId:'a',value:p}});driver.tick(150);expect(w.frame.fullness).toBe(p.fullness);
     w.reply();driver.tick(200);useBodyState.setState({draft:{assetId:'a',value:{...p,left:.3}}});driver.tick(250);expect(w.current.postMessage).toHaveBeenCalledTimes(2);
     useBodyState.setState({draft:{assetId:'a',value:{...p,lactating:true}}});driver.tick(300);expect(w.frame).toMatchObject({lactating:true,left:.2,right:.8,time:0});
     const stale=w.reply();useBodyState.setState({draft:null});driver.tick(350);expect(stale.close).toHaveBeenCalledOnce();

@@ -29,13 +29,13 @@ it('sets independent starting levels without pressing: the draft holds them, the
     await click('泌乳');expect(state().draft).toBeNull();expect(button('关闭泌乳')?.getAttribute('aria-pressed')).toBe('true');
     expect(host.querySelector('input[type=checkbox]')).toBeNull();expect(button('排出左侧')).toBeUndefined();expect(button('乳房观察')).toBeUndefined();
     await set('左侧起始存量',.05);await set('右侧起始存量',.65);await set('从空回充到满',60);await click('开启泌乳');
-    await click('周期');await click('自动过日');await act(()=>advanceLiveBodies(['a'],120));await click('泌乳');
-    expect(state().byAsset.a).toBe(saved);expect(state().draft?.value).toMatchObject({lactating:true,day:2,left:.05,right:.65,refillSeconds:60});
+    await click('胸型');await act(()=>advanceLiveBodies(['a'],120));await click('泌乳');
+    expect(state().byAsset.a).toBe(saved);expect(state().draft?.value).toMatchObject({lactating:true,left:.05,right:.65,refillSeconds:60});
     await click('放弃改动');expect(state().draft).toBeNull();expect(state().byAsset.a).toBe(saved);
     expect(host.querySelector('[role=status]')?.textContent).toContain('已放弃');
 
     await click('开启泌乳');await set('左侧起始存量',.2);await set('从空回充到满',30);await click('保存到角色');
-    expect(state().draft).toBeNull();expect(state().byAsset.a).toMatchObject({left:.2,right:.8,bareRight:true,refillSeconds:30,lactating:true,locked:true});
+    expect(state().draft).toBeNull();expect(state().byAsset.a).toMatchObject({left:.2,right:.8,bareRight:true,refillSeconds:30,lactating:true});
     await act(()=>advanceLiveBodies(['a'],9));expect(state().byAsset.a.left).toBeCloseTo(.5);expect(state().byAsset.a.right).toBe(1);
     expect(input('左侧起始存量').getAttribute('aria-valuetext')).toBe('50%');
     await act(()=>useMmdVrStore.setState({physicsBusy:true}));expect(button('撤销保存')?.disabled).toBe(true);

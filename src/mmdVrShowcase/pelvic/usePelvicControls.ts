@@ -2,6 +2,8 @@ import {useLayoutEffect,useRef,useState} from 'react';
 import {useLanguageStore} from '../../languageStore';
 import {useBackpack} from '../backpack';
 import {useMmdVrStore} from '../mmdVrStore';
+import {useHudWorldInput} from '../components/hudWorldInput';
+import {chanceFor,setConceptionChance,useConception} from '../bodyState/reproduction/store';
 import {useStagePlay} from '../play/stagePlay';
 import type {PelvicActor} from './Section';
 import {useApertureMorph} from './apertureConfig';
@@ -22,6 +24,13 @@ export type PelvicNavigation={onClothing?:()=>void;onFace?:()=>void;backLabel?:s
 export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen'|'xr',{onClothing,onFace,backLabel}:PelvicNavigation) {
   const zh=useLanguageStore(s=>s.language==='zh'),l=(a:string,b:string)=>zh?a:b;
   const [page,go]=useState<Page>('use'),[fit,setFit]=useState<Fit>('position');
+  const chance=useConception(s=>chanceFor(assetId,s));
+  const chanceLabel=useLanguageStore(s=>s.t('actorChance')),epoch=useMmdVrStore(s=>s.entryEpoch),scenery=useMmdVrStore(s=>s.prefs.scenery);
+  const chanceRow=field(chanceLabel,chance,'%',[0,100],5,n=>{
+    const stage=useMmdVrStore.getState();
+    if(document.hidden||!stage.overlayOpen||stage.presentation!==source||stage.entryEpoch!==epoch||stage.prefs.scenery!==scenery||stage.physicsBusy||stage.physicsFatal||stage.assetLoad.running||source==='xr'&&useHudWorldInput.getState().blocked)return;
+    setConceptionChance(assetId,runtimeId,n);
+  });
   const pending=useRef<(()=>void)|null>(null);
   useLayoutEffect(()=>()=>{pending.current?.();pending.current=null;},[assetId,runtimeId,source,page]);
   const [listPage,setListPage]=useState(0),[morphPage,setMorphPage]=useState(0);
@@ -56,7 +65,7 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen
   if(!profile){
     result.status=l('成年角色 · 尚未放置支架','Adult character · no stand placed');
     rows.push(buttons(...modes.map(([m,label])=>key(label,()=>{pending.current?.();pending.current=prepareFirstStand(assetId,runtimeId,source,m);}))));
-    rows.push(link(l('成年角色入口设置','Adult opening settings'),()=>{if(enablePelvic(assetId,true))go('fit');}));
+    rows.push(chanceRow,link(l('成年角色入口设置','Adult opening settings'),()=>{if(enablePelvic(assetId,true))go('fit');}));
     if(onClothing)rows.push(link(l('调整服装','Clothing'),onClothing));
     return result;
   }
@@ -173,12 +182,13 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen
         if(running)stopPelvic(assetId);else startPelvic(assetId);
       },{id:'motor-power',pressToken:token,stop:running,primary:!running,disabled:!running&&(!ready||signal!=='parked')});
       rows.push(buttons(motor,key(l('取消释放','Cancel release'),()=>{if(order)cancelStrokeDose(order.id);},{id:'cancel-dose',pressToken:order?.id,disabled:!order})),
-        buttons(...insideKeys()),{kind:'strokeReading'},
+        buttons(...insideKeys()),{kind:'strokeReading'},chanceRow,
         field(l('每秒往复','Cycles per second'),profile.speedHz,' Hz',lim.speedHz,.1,n=>patchPelvic(assetId,{speedHz:n})));
     }else if(mode&&(running||ready)){
       if(mode==='standManual'&&!replaying)rows.push(jogKeys());
       rows.push(balance(),mode==='xrManual'?targetKeys():buttons(...insideKeys(),outsideKey()));
     }
+    if(!result.motorReadout)rows.push(chanceRow);
     rows.push(buttons(key(clothesLabel,onClothing??clothes),...(onFace?[key(l('近看表情','Frame face'),onFace)]:[])));
     const takes=!!profile.technique||mode==='standManual'&&ready;
     if(known||takes)rows.push(buttons(...(known?[key(l('更多操作','More controls'),()=>go('holder'))]:[]),

@@ -2,7 +2,6 @@ import { useBackpack } from '../backpack';
 import type { MmdRuntimeHandle } from '../mmdRuntime/mmdRuntime';
 import { advanceLiveBodies, cancelBodyPreview, fromMilkInteraction, useBodyState, type BodySupport } from './store';
 import type { BodyProfile } from './data';
-import {advanceReproductiveClock} from './reproduction/store';
 
 type Binding = {runtimeId:string; profile:BodyProfile|null; draft:boolean; elapsed:number; visible:boolean;
   support:BodySupport; published:BodySupport & {runtimeId:string}};
@@ -49,9 +48,7 @@ export function createBodyRoom(runtime:Pick<MmdRuntimeHandle,'getBodySupport'|'s
     advance(delta:number){
       if(disposed||!Number.isFinite(delta)||delta<=0)return;
       for(const [id,b] of bindings){
-        const saved=b.draft?useBodyState.getState().byAsset[id]:b.profile;
-        if(b.visible&&saved?.reproduction)advanceReproductiveClock(id,saved,delta);
-        if(!b.visible || !b.profile || b.profile.locked&&(b.draft||!b.profile.lactating||Math.min(b.profile.left,b.profile.right)===1))continue;
+        if(!b.visible||b.draft||!b.profile?.lactating||Math.min(b.profile.left,b.profile.right)===1)continue;
         // No per-frame UI writes. The caller has already excluded hidden-tab,
         // paused-session and busy time; do not derive delta from an absolute time.
         b.elapsed+=delta;

@@ -8,7 +8,7 @@ web
 
 ## Users
 
-The confirmed primary user watches MMD scenes on Quest 3S, mainly using controllers. Hand tracking is used to try physical interaction with models. Viewing is the primary activity; settings are adjusted occasionally.
+The primary user plays with imported adult characters on Quest 3S, mainly using controllers, and also watches MMD scenes. They try physical interaction with hand tracking and adjust settings occasionally.
 
 The viewer imports game characters. Built-in modelling means places for those characters: a sunlit classroom, pool terrace, meadow and sky. Prioritize environmental detail, convincing sunlight and responsive local asset loading over bundled characters.
 
@@ -18,13 +18,15 @@ The viewer especially likes fantastical settings such as the Opal Planetoid. Giv
 
 At arm’s length, different surfaces should respond to light like different materials: a sealed cabinet side, the grain of a wood shelf and a paper carton should not all read as the same coloured plastic. Give close-up assets appropriate edge profiles, roughness, subtle surface normals and contact shade; compare them in the actual stage under the same lighting.
 
-For future character features, the user's reference is Koikatsu's Free H mode: direct, player-controlled intimate interaction with chosen adult characters matters more than playing dance clips. Keep dance playback available. Treat the exact interaction controls, partner setup and supported import formats as design choices still to be validated.
+For character play, the user's reference is Koikatsu's Free H mode: player-controlled sexual interaction between adults and the visible fertilization event take priority over playing dance clips. Dance playback remains available. Partner setup and support for additional import formats still need validation.
 
 When proposing adult content, describe what the player can do with a chosen adult character or prop and what responds. A wedding room, romantic lighting or themed décor alone does not meet that request.
 
 Selecting a character presents Clothing, Interact and Body view on screen and in XR. The player can choose to keep clothing on during calibrated rod interaction; visual exposure and simulated inside contact are independent. Place the release destination beside the action. Body view is reachable without equipping a prop and offers named parts and camera angles. For lactation the player should be able to look at the character while holding a side, and know before pressing when only a numerical response is possible.
 
-Interact is the home for the actor's game flow. Play and advance fertility here with the live figure in sight. Body settings is a section of this same sheet for reversible shape, tissue-cycle and starting-stock edits; it is not a prerequisite for entering an interaction. Keep Body view read-only.
+Only **Interact → Insertion** sets the actor's game conception chance (0–100%, default 60%). Each release verified inside with a positive retained amount uses that percentage once. On the left, sperm approach the egg; one fuses on success, or they disperse. The event ends there. Looking again, switching actor or scene, or changing the chance leaves that result intact until the actor receives another qualifying delivery.
+
+Pregnancy and physiological calendar management are outside the product direction. Do not propose ovulation schedules, implantation, gestational weeks or belly growth as follow-ups. Clothing, body shape and left/right milk stock remain independent actor tools. Body settings previews shape and starting stock; Body view is read-only.
 
 In the dildo controls, use the plain player-facing terms 精液 / semen, 阴道 / vagina and 宫腔 / uterus. The spray, organ view and measurement key use the same milky white. Keep quantities in game units and show the actual cervical stop; the selected destination does not need a “fantasy” prefix.
 
@@ -38,7 +40,7 @@ The desired silhouette is a flowing teardrop: narrow above, widest in the lower 
 
 ## Product Purpose
 
-MMD XR Stage loads local model, animation and environment assets into an immersive WebXR stage. Success means dependable entry and playback, unobstructed viewing, and settings that are easy to reach and dismiss.
+MMD XR Stage loads local model, animation and environment assets into an immersive WebXR stage. Players can interact with a chosen adult character and see its response while operating the controls. Dependable entry and playback, unobstructed viewing, and settings that are easy to reach and dismiss also matter.
 
 When a headset is not in use, the same stage can be watched with a keyboard, mouse or touch. Screen viewing and VR share the current tab's local files and set layouts.
 

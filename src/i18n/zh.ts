@@ -3,7 +3,7 @@ export const zh = {
   actorPelvic:'骨盆附件',
   screenInspectStand:'近看支架',
   actorPose:'摆姿势', actorBodyState:'身体设置',
-  actorFertility:'生育进程',backToFertility:'返回生育进程',actorChestShape:'胸型',actorCycle:'周期',actorMilkStock:'初始乳量',
+  actorChance:'受孕率（游戏）',actorChestShape:'胸型',actorMilkStock:'初始乳量',
   bodyPeek:'收起看角色',bodyResume:'预览中 · 继续编辑',
   actorAllItems:'全部背包',actorBack:'返回角色',actorFold:'收起',
   actorWardrobe:'服装',actorInteraction:'互动',actorObservation:'身体观察',actorInsert:'插入',actorMilk:'泌乳',backToMilk:'返回泌乳',backToInsert:'返回插入',backToInteraction:'返回互动',
