@@ -71,9 +71,12 @@ it('forms distinct paired crests and returns the actual mesh buffers to their re
       const m=rows.findIndex(r=>Math.abs(r.sites[0].y)<1e-8),section=rows[m].sites.map((_,i)=>point(h,m,i));
       const crests=section.filter((p,i)=>i>0&&i+1<section.length&&p.z>section[i-1].z&&p.z>section[i+1].z);
       expect(crests).toHaveLength(2);
-      const [minor,major]=crests;expect(major.x*side-minor.x*side).toBeGreaterThan(.7*f.radiusM);
+      // In the natural profile the two ridges sit alongside the seam,
+      // inside a single calibrated radius rather than on a broad pad.
+      const [minor,major]=crests,gap=(major.x-minor.x)*side;
+      expect(gap).toBeGreaterThan(.32*f.radiusM);expect(major.x*side).toBeLessThan(.85*f.radiusM);
       const valley=Math.min(...section.filter(p=>(p.x-minor.x)*side>0&&(major.x-p.x)*side>0).map(p=>p.z));
-      expect(Math.min(minor.z,major.z)-valley).toBeGreaterThan(.28*f.radiusM);
+      expect(Math.min(minor.z,major.z)-valley).toBeGreaterThan(.20*f.radiusM);
       // The seam rises into the anterior hood and the shallower posterior bridge.
       const peaks=[1,-1].map(dir=>Math.max(...rows.map((r,i)=>r.sites[0].y*dir>.7?point(h,i,0).z:0)));
       expect(peaks[0]).toBeGreaterThan(1.3*peaks[1]);expect(peaks[1]).toBeGreaterThan(.10*f.radiusM);

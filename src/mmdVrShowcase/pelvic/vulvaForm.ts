@@ -34,7 +34,7 @@ export function visibleRim(p?:{rimMode?:RimMode;rimMemory?:'left'|'right'|'cente
   return p?.rimMode==='remember'?p.rimMemory??'elastic':p?.rimMode==='elastic'?'elastic':'off';
 }
 export type Landmark='glans'|'hood'|'urethra';
-type Site=FormPoint & {station:number;cos:number;sin:number;side:number;weight:number;roll:number;pad:number;scallop:number;blend:number;gloss:number;contactShade:number;lip:number;cushion:number;silhouette:number;margin:number;glans:number;hood:number;undercurl:number;meatus:number;well:number};
+type Site=FormPoint & {station:number;cos:number;sin:number;side:number;weight:number;roll:number;pad:number;scallop:number;blend:number;gloss:number;contactShade:number;lip:number;cushion:number;silhouette:number;margin:number;glans:number;hood:number;undercurl:number;meatus:number;well:number;naturalX:number;naturalY:number;naturalZ:number;naturalFan:number};
 export type CutBasis={x:number;y:number;xx:number;xy:number;yx:number;yy:number};
 type Row={sites:Site[]};
 const sq=(x:number)=>x*x,gauss=(x:number)=>Math.exp(-x*x);
@@ -126,7 +126,15 @@ function makeHalf(side:1|-1){
       // before the anterior commissure; nothing spans the entry plane.
       const margin=(j>=0&&j<=rimSamples/2?gauss((sin+.48)/.66)*cos*cos:0)*gauss((width-.118)/.12)*Math.min(1,width/.08);
       const center=ext?(bed+fourchette)*envelope-.22*(1-envelope)*ext+relief:0;
-      return {x:x+weight*slitHalfWidth*cos,y:y+forward,station:y,z:width===0?center:z,cos,sin,side,weight,roll,pad,scallop,blend,gloss,contactShade,lip,cushion,silhouette,margin,glans,hood,undercurl,meatus,well};
+      // Resting folds meet in a long, quiet seam. Bed the lateral skirts
+      // down before the skin margin, and tuck the posterior end back toward
+      // the body. Keep the measured cut and anterior midline independent.
+      const lower=1-smooth(-1.30,.48,y),lateral=smooth(.63,1.81,width);
+      const naturalX=x*(.48+.15*smooth(-1.36,1.64,y))-.63*side*sweep*inner*Math.min(1,width/.20);
+      const naturalY=forward+y+.30*Math.max(0,-slitHalfLength-y);
+      const naturalZ=(width===0?center:z)*(1-.23*lip)-.32*lateral*envelope-.12*lower*smooth(1.22,1.96,-y);
+      const naturalFan=smooth(.02,.31,width)*(1-smooth(.38,1.66,width))*lower*labial;
+      return {x:x+weight*slitHalfWidth*cos,y:y+forward,station:y,z:width===0?center:z,cos,sin,side,weight,roll,pad,scallop,blend,gloss,contactShade,lip,cushion,silhouette,margin,glans,hood,undercurl,meatus,well,naturalX:naturalX+weight*slitHalfWidth*cos,naturalY,naturalZ,naturalFan};
     });rows.push({sites});
   }
   return {side,rows};
@@ -149,14 +157,15 @@ export function fitSite(site:Site,radius:number,cut:CutBasis,out:FormPoint,style
   // slender lateral pad and a longer, undulating free edge. In the third
   // cut the right minor fold is low and the left cushion sits posteriorly.
   const asym=style==='natural',covered=style==='soft';
-  const fold=asym?1-side*.42:covered?.46:1.50,fullness=asym?1+side*.16:covered?1.46:.70;
-  const outer=asym?side*.28*Math.sin(1.24*site.y+.7):covered?.25:-.21;
+  const fold=asym?.85-side*.12:covered?.46:1.50,fullness=asym?1+side*.055:covered?1.46:.70;
+  const outer=asym?side*.055*Math.sin(1.24*site.y+.7):covered?.25:-.21;
   const rimShape=rim==='off'?0:site.margin;
   const settled=rim==='center'?.66:rim===(side<0?'left':'right')?1:0;
-  out.x=radius*(site.x+side*(outer*silhouette+(fold-1)*.18*lip-(fullness-1)*.54*cushion+.09*fold*ripple+.14*load*roll+.18*rimShape*settled))+site.weight*dx;
-  out.y=radius*site.y+site.weight*dy;
+  const fan=asym?site.naturalFan*load:0;
+  out.x=radius*((asym?site.naturalX:site.x)+side*(outer*silhouette+(fold-1)*.18*lip-(fullness-1)*.54*cushion+(asym?.035:.09)*fold*ripple+.14*load*roll+.15*fan+.18*rimShape*settled))+site.weight*dx;
+  out.y=radius*(asym?site.naturalY:site.y)+site.weight*dy;
   // Shallow contact raises the loaded lip; a fuller crossing rolls it outward
   // and compresses the cushion. A still pose stays still.
-  out.z=radius*(site.z+.14*fold*ripple+.37*(fold-1)*lip+.53*(fullness-1)*cushion+roll*load*(.54-.64*load)-pad*.25*load+rimShape*(.254-.18*settled)/(1+.78*load));
+  out.z=radius*((asym?site.naturalZ:site.z)+(asym?.055:.14)*fold*ripple+.37*(fold-1)*lip+.53*(fullness-1)*cushion+roll*load*(.54-.64*load)-pad*.25*load-.07*fan+rimShape*(.254-.18*settled)/(1+.78*load));
   return out;
 }

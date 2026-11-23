@@ -55,7 +55,9 @@ it('moves the real stand nozzle along the calibrated curve on a frozen VMD, mete
   expect(shell.visible).toBe(true);shell.geometry.computeBoundingBox();expect(shell.geometry.boundingBox!.max.z-shell.geometry.boundingBox!.min.z).toBeGreaterThan(.007);
   function throughLip(x:number){shell.updateWorldMatrix(true,false);return new Raycaster(shell.localToWorld(new Vector3(x,0,.07)),
     new Vector3(0,0,-1).transformDirection(shell.matrixWorld)).intersectObject(shell,false).length;}
-  expect(throughLip(.006)).toBe(0);expect(throughLip(.037)).toBeGreaterThan(0);
+  // Probe the actual lateral tissue rather than the previous wide profile's
+  // 37 mm footprint. The 6 mm point switches from a hole to tissue on stop.
+  expect(throughLip(.006)).toBe(0);expect(throughLip(.021)).toBeGreaterThan(0);
   const before=nozzle.copy(part.localToWorld(new Vector3(0,tipHeight,centerZ(tipHeight))));root.position.x+=.006;tick();
   expect(part.localToWorld(new Vector3(0,tipHeight,centerZ(tipHeight))).x-before.x).toBeCloseTo(.006);expect(driver.getStandBinding()).toBe(key);
   const anchor=new Vector3();expect(driver.getObserverAnchor(anchor)).toBe(true);expect(anchor.distanceTo(root.position)).toBeLessThan(1e-7);
