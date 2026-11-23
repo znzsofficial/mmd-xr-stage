@@ -6,6 +6,7 @@
 
 | 功能提交 | 已发布内容与验证范围 |
 |---|---|
+| `24d4220`、`899adc7` | 母星站稳和大角度落地淡切、[07 海蚀崖口](./scenery/opal-planet.md#潮汐洞星)；独立卵子页、支架实测深度和[软壁剖面](./performance/actor-tools-regression.md#子宫全貌三枚卵子与主面板深度)。897 项测试通过；主域名入口和 268 份资源与测试构建一致。[固定版](https://eaedabed.mmd-xr-stage.pages.dev) |
 | `63b88ad` | 母星航向盘、三处采谱读头和七条风线仪表修整；喷嘴贴实际壳面，实体支架不挡字，背面和侧面碰撞与射线一致。[对照及实测](./scenery/opal-planet.md#母星沿白脊采谱)。880 项测试通过；主域名入口及 263 份资源与验证构建一致。[固定版](https://2cedc07b.mmd-xr-stage.pages.dev/?set=glassPlanet&view=screen) |
 | `855cceb` | 07 号风道通往潮汐洞星。自然潮汐、码头拨潮、涉水贝阶、常干高路、演员干台和可从洞内看到的苇湾星倒影。[实景与验证](./scenery/opal-planet.md#潮汐洞星)。864 项测试通过；主域名入口及 261 份资源 SHA-256 一致。[固定版](https://39ddb5de.mmd-xr-stage.pages.dev/?set=glassPlanet&view=screen) |
 | `754ffb5` | 插入操作内按演员设置游戏受孕率，实际体内留存的一笔交付独立判定；同一批精子的游近、头尾先后进入、原核靠近和失败散开。移除生理日历和长孕期玩法。845 项测试通过；屏幕参考模型和 IWER 的 0%／100% 两笔真实交付见[实测条件](./performance/actor-tools-regression.md#按实际释放判定受精)。主域名入口及 256 份资源与构建一致。[固定版](https://eed3526f.mmd-xr-stage.pages.dev) |
