@@ -1,8 +1,8 @@
 # 会话交接｜2026-11-23
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `e8dc587`](https://cb131ec0.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `ef638f8`](https://cac3f0c1.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
 
-**当前发布。** `e8dc587` 已上线，932 项测试通过；主域名入口及 270 份资源与验证构建一致。屏幕与 IWER 均用参考 PMX 实点了[六款快速体位](./gameplay/pose-and-body-states.md#快速体位)，并在舞台验证了[三款随身玩具](./gameplay/README.md#随身舞台特效)。[重力分工与扩展边界](./architecture/gravity.md)已整理。
+**当前发布。** `ef638f8` 已上线，947 项测试通过；主域名入口及 273 份资源与验证构建一致。开启角色物理后的[手动摆姿裙腿修正](./performance/actor-tools-regression.md#手动体位的局部裙片修正)已在三种裙装、15 条换姿路径对照，旧版直腿表现保留；A、B 的深跪仍可见残留。选定的[外阴 C 材质](./performance/actor-tools-regression.md#外阴-c-版观察材质)已用于观察图和露出时的实体附件。屏幕／模拟 XR 均实走操作，Quest 持续性能仍待实戴。[六款快速体位](./gameplay/pose-and-body-states.md#快速体位)、[三款随身玩具](./gameplay/README.md#随身舞台特效)和[重力分工](./architecture/gravity.md)继续适用。
 
 **星系接续。** [地平线与长跳对照](./scenery/opal-planet.md#从罗盘起飞七条往返风道)：触地恢复地面速度，松杆停住，大角度到站用短淡切。06 号牌两端已分别检查降低眼高时的读面与射线；[07 潮汐洞星](./scenery/opal-planet.md#潮汐洞星)改成非对称白垩崖口，水位、低道、高路、干台和倒影均保留。星系统一存布局，角色可摆在母星北台、菌圃台和洞内干台。
 
@@ -16,7 +16,7 @@
 
 **待真机。** 有北台反馈时，优先做[牌面斜看与点选](./performance/next-quest-export.md#北台仪表斜看与点选)。潮池月影的双眼观感、普通跨星落地后不按 Y 行走的舒适度、受精瞬间可读性、同屏互动帧率、抓点与震感也仍缺当前版佩戴反馈。[按问题选一趟](./performance/next-quest-export.md)；地台／草坪各 15 分钟的持续 72 FPS 另验。
 
-**其余项目：** 16 景（10 个主入口）、13 件道具、[四幕玩法](./gameplay/README.md#四幕玩法)、[母星采谱与跳岛](./scenery/opal-planet.md)均已上线。新的外阴近景材质是本机 A/B/C 选样，未上线。抬腿及跪姿已有裙腿穿模对照（本机 `local-review/verification/skirt/`），不能把体位可用当成布料已修复。恋活卡因不接受逐卡手动导出而搁置；[Blender 角色包](./gameplay/blender-characters.md)已交付。
+**其余项目：** 16 景（10 个主入口）、13 件道具、[四幕玩法](./gameplay/README.md#四幕玩法)、[母星采谱与跳岛](./scenery/opal-planet.md)均已上线。本机 `local-review/README.md` 索引三裙型同帧对照、C 材质小图和实际模型照片。恋活卡因不接受逐卡手动导出而搁置；[Blender 角色包](./gameplay/blender-characters.md)已交付。
 
 [双角色持具、撤出回流](./gameplay/pelvic-attachment.md#假阳具玩法候选尚未实现)、[灯影／霜岬回波](./gameplay/interactive-scene-studies.md)与[三个新景](./scenery/next-modeling-round.md#婚礼之后的新景候选未排期)未排期；[暂停物理休眠](./performance/README.md#回场与后续验收)先取证。
 
