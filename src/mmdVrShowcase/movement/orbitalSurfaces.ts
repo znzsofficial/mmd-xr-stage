@@ -1,29 +1,27 @@
 import {Vector3} from 'three';
-import {crustRadius,crustSegments} from '../scenery/planet/opalTerrain';
-import {HOME_SURFACE_GRAVITY,PAD_RADIUS,PLANET_RADIUS} from '../scenery/planet/planetLayout';
+import {HOME_SURFACE_GRAVITY,PLANET_RADIUS} from '../scenery/planet/planetLayout';
 import {moonRadius,moonSegments} from '../scenery/planet/moonSurface';
 import {facetSampler} from '../scenery/planet/shellFacets';
 import {allMoons,type WalkMoon} from '../scenery/planet/windAtlas';
-import {planetCentre} from './planetTravel';
+import {homeShellRadius,planetCentre} from './homeSurface';
 import {clearingSupport} from '../scenery/planet/lanternClearing';
 
 export const homeWorld={id:'home',radius:PLANET_RADIUS,centre:planetCentre,surfaceGravity:HOME_SURFACE_GRAVITY} as const;
 export type World=typeof homeWorld|WalkMoon;
 // Finite, authored world geometry only. The distant system is a sky material.
 export const walkWorlds:readonly World[]=[homeWorld,...allMoons];
-const facets=new Map(walkWorlds.filter(w=>w.id!=='tide').map(w=>{
-  const [cols,rows]=w.id==='home'?crustSegments:moonSegments(w);
-  return [w,facetSampler(cols,rows,w.id==='home'?crustRadius:(x,y,z)=>moonRadius(w,x,y,z))] as const;
+const facets=new Map(allMoons.filter(w=>w.id!=='tide').map(w=>{
+  const [cols,rows]=moonSegments(w);
+  return [w,facetSampler(cols,rows,(x,y,z)=>moonRadius(w,x,y,z))] as const;
 }));
 export function shellRadius(w:World,x:number,y:number,z:number){
+  if(w.id==='home')return homeShellRadius(x,y,z);
   // The grotto uses its own cut floor mesh, not SphereGeometry meridian cells.
   if(w.id==='tide')return moonRadius(w,x,y,z);
   // A chord can bridge a depression in the continuous relief. Use the safe
   // outer one so neither the visible rock nor its walking surface is crossed.
   const face=facets.get(w)!(x,y,z);
-  if(w.id!=='home')return Math.max(face,moonRadius(w,x,y,z),w.id==='lantern'?clearingSupport(x,y,z):0);
-  const pad=y>0?PLANET_RADIUS/y:Infinity;
-  return Math.max(face,crustRadius(x,y,z),y>0&&(x*x+z*z)*pad*pad<=PAD_RADIUS**2?pad:0);
+  return Math.max(face,moonRadius(w,x,y,z),w.id==='lantern'?clearingSupport(x,y,z):0);
 }
 export function altitude(w:World,p:Vector3){
   const x=p.x-w.centre.x,y=p.y-w.centre.y,z=p.z-w.centre.z,r=Math.hypot(x,y,z);

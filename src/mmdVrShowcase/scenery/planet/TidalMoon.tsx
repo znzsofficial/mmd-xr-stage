@@ -71,7 +71,7 @@ export function TidalMoon(){
     uniforms.water.value=level;uniforms.clock.value+=Math.min(dt,.10);
   });
   useEffect(()=>()=>{pool.dispose();map.dispose();},[pool,map]);
-  return <group name="tide:moon"><TideCavern/><group ref={shore} position={[tideCentre.x,seaBase(),tideCentre.z]} userData={{playerCollision:false}}>
+  return <group name="tide:moon"><TideCavern clock={clock}/><group ref={shore} position={[tideCentre.x,seaBase(),tideCentre.z]} userData={{playerCollision:false}}>
     <mesh ref={water} position-y={ebbLevel} name="tide:pool" geometry={pool} renderOrder={1} raycast={noPick} pointerEvents="none">
       <shaderMaterial vertexShader={tideWaterVertex} fragmentShader={tideWaterFragment} uniforms={u} transparent depthWrite={false} side={DoubleSide} forceSinglePass/>
     </mesh><TideSounder clock={clock}/>

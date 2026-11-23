@@ -85,7 +85,7 @@ export const en: Record<keyof ZhMessages, string> = {
   sceneryPeople:'Scene people',sceneryPeopleOn:'Scene people: on',sceneryPeopleOff:'Scene people: off',
   clinicDesk:'Consultation desk',
   moveNormal:'Normal mode',moveFree:'Free mode',moveJumpHint:'Left stick to walk · A to jump',moveFlyHint:'Right stick to fly up/down · No collision',
-  planetHorizonManual:'Horizon: manual (Y after landing)', planetHorizonAuto:'Horizon: auto-align on landing',
+  planetHorizonManual:'Local hops: level as you walk', planetHorizonAuto:'Local hops: level on landing',
   moveSlow:'Slow',moveCruise:'Cruise',moveFast:'Fast',moveSprint:'Sprint',
   clinicDeskSide:'Beside the consultation desk',
   classWindowPortrait:'Window-light portrait',

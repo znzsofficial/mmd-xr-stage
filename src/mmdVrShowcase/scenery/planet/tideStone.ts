@@ -1,6 +1,8 @@
 import {BufferGeometry,Color,Float32BufferAttribute,Vector3} from 'three';
 import {coil,PaintedParts,turn} from '../../play/modelParts';
-import {apseBeds,apseRockX,apseStrike,apseWing,bedFlare,caveBackThickness,caveBed,caveCrest,caveLip,caveMouth,caveRear,caveSoffit,caveZ,easeTide,finLean,finWidth,tideChart,tideFins,tideFloor,tidePiles,tideRadius,tideRelief} from './tideLayout';
+import {apseRockX,caveBackThickness,caveBed,caveCrest,caveLip,caveMouth,caveRear,caveSoffit,caveZ,easeTide,lipCourses,seaWindow,tideChart,tideFloor,tidePiles,tideRadius,tideRelief,windowCut} from './tideLayout';
+import {bluffBeds,bluffVertex,breakwaters} from './tideBreakwater';
+import {chalk,tideLimestone,type StoneFace} from './tideArt';
 
 class Skin {
   p:number[]=[];uv:number[]=[];rgb:number[]=[];ix:number[]=[];
@@ -10,7 +12,6 @@ class Skin {
     g.setAttribute('uv',new Float32BufferAttribute(this.uv,2));g.setAttribute('color',new Float32BufferAttribute(this.rgb,3));
     g.setIndex(this.ix);g.computeVertexNormals();g.computeBoundingSphere();return g;}
 }
-const tau=Math.PI*2;
 export function tideTerrain(far=false){
   const shore=new Skin(),globe=new Skin(),{minX,maxX,minZ,maxZ}=tideChart;
   const cols=tideChart.cols/(far?4:1),rows=tideChart.rows/(far?4:1),shade=new Color(),rim:number[][]=[];
@@ -19,75 +20,53 @@ export function tideTerrain(far=false){
     const x=xOf(i),z=zOf(j),y=tideFloor(x,z),k=shade.setRGB(1,1,1);
     // The mouth lights a swathe of floor past the wet shelves. Keep the room
     // exposure alone; this is a local contact/sky-occlusion bake on the geology.
-    const indoors=easeTide(1.8,4.2,x)*(1-easeTide(2.68,3.1,Math.abs(z)));
-    const shadow=indoors*(.18+.19*easeTide(.25,1.9,Math.abs(z)));
-    k.setRGB(1-shadow*.85,1-shadow*.94,1-shadow*1.04);
+    const indoors=easeTide(-.35,2.35,x-caveMouth(z)),shadow=indoors*(.18+.22*easeTide(.35,2.35,Math.abs(z)));
+    // The face of a cut tread exposes peach sandstone; its level surface
+    // stays pale. At the chamber fore-edge two blue-grey beds rise to the
+    // cream actor platform. These colours stop when the rock face ends.
+    const slopeX=(tideFloor(x+.045,z)-tideFloor(x-.045,z))/.09;
+    const tread=easeTide(1.09,1.48,x)*(1-easeTide(2.72,2.99,x))*(1-easeTide(.61,1.01,Math.abs(z)))*easeTide(.12,.78,-slopeX);
+    const face=easeTide(3.03,3.31,x)*(1-easeTide(4.58,4.80,x))*easeTide(.17,1.04,slopeX);
+    const path=easeTide(.77,1.3,z)*(1-easeTide(1.75,2.17,z))*easeTide(.65,1.48,x)*(1-easeTide(5.65,6.64,x));
+    k.setRGB((1-shadow*1.14)*(1-.19*tread-.51*face-.10*path),(1-shadow*.96)*(1-.32*tread-.41*face-.18*path),(1-shadow*.60)*(1-.39*tread-.17*face-.23*path));
     shore.point(x,y,z,i/cols,1-j/rows,k);
     if(i&&j){const d=j*(cols+1)+i,a=d-cols-2,b=a+1,c=d-1;shore.ix.push(a,c,b,b,c,d);}
   }
   for(let i=0;i<cols;i++)rim.push([xOf(i),minZ]);for(let j=0;j<rows;j++)rim.push([maxX,zOf(j)]);
   for(let i=cols;i>0;i--)rim.push([xOf(i),maxZ]);for(let j=rows;j>0;j--)rim.push([minX,zOf(j)]);
-  const peat=new Color('#637a78'),lime=new Color('#b2a493'),salt=new Color('#cbbca2');
+  const shale=new Color('#6176a0'),lime=new Color('#deb991'),salt=new Color('#f4ddba');
   // Connect the metric board to the rest of the globe at its actual vertices.
   // Thin out the perimeter twice once clear of that seam. No second polar cap.
-  let prev:number[]=[];const bands=far?24:42;
+  let prev:number[]=[];const bands=far?17:42;
   for(let j=0;j<bands;j++){
     const stride=j===0?1:far||j===1?2:4,ids:number[]=[];
     for(let i=0;i<rim.length;i+=stride){const [bx,bz]=rim[i],d=Math.hypot(bx,bz),pole=Math.asin(d/tideRadius);
       const theta=pole+(Math.PI-pole)*j/bands,sy=Math.cos(theta),sr=Math.sin(theta),sx=bx/d*sr,sz=bz/d*sr;
       const rad=tideRadius+(sy<0?tideRelief(sx,sy,sz):0),x=sx*rad,z=sz*rad,y=sy*rad-tideRadius;
-      const field=.46*x+.31*y+.38*z+.65*Math.sin(.77*x-.43*z)+.29*Math.cos(.83*y+.17*x);
-      shade.copy(peat).lerp(lime,.49+.31*Math.sin(field)+.16*Math.cos(2*field+.3*z));
-      shade.lerp(salt,.31*Math.exp(-((Math.sin(1.8*field+.21*z)/.18)**2)));
-      ids.push(globe.point(x,y,z,x*.30+z*.19,field*.34+.15*y,shade));
+      const field=y+.25*x-.14*z+.74*Math.sin(.29*x-.19*z);
+      shade.copy(shale).lerp(lime,easeTide(-12,-5,field)).lerp(salt,.61*easeTide(-4.5,.5,field));
+      shade.lerp(salt,.15*easeTide(-.4,.88,Math.cos(.93*field+.36*Math.sin(.72*z))));
+      ids.push(globe.point(x,y,z,x*.33+z*.12,y*.36+.11*z,shade));
     }
     if(j){const skip=prev.length/ids.length;
       for(let i=0;i<ids.length;i++){const next=(i+1)%ids.length,p=i*skip,a=prev[p],b=prev[(p+1)%prev.length],n=ids[i],m=ids[next];
         if(skip===1)globe.ix.push(a,b,n,b,m,n);else globe.ix.push(a,b,n,b,prev[(p+2)%prev.length],m,b,m,n);}}
     prev=ids;
   }
-  const south=globe.point(0,-2*tideRadius-tideRelief(0,-1,0),0,0,0,peat);
+  const south=globe.point(0,-2*tideRadius-tideRelief(0,-1,0),0,0,0,shale);
   for(let i=0;i<prev.length;i++)globe.ix.push(prev[i],prev[(i+1)%prev.length],south);
   return {shore:shore.finish(),globe:globe.finish()};
 }
 
-const basalt=new Color('#495e62'),oxidized=new Color('#9d8170'),chalk=new Color('#eed3ac'),cut=new Color('#afb3a5'),wet=new Color('#526e74');
-const cold=new Color('#41656c'),shade=new Color('#344850'),ochre=new Color('#a57560'),slate=new Color('#688083'),cream=new Color('#ffdfaf'),pearl=new Color('#b5d7c9');
 export function tideCaveRock(far=false){
-  const g=new Skin(),c=new Color(),across=far?28:88,along=far?14:42;
-  function sample(x:number,y:number,z:number,face:'inside'|'outside'|'edge'|'apse',t=0){
-    // A lifted bedding plane shows both on the intrados and on the eroded
-    // front cut. The common tide notch is concentrated at the foot of the rock.
-    const stratum=y+.22*z-.094*x+.13*Math.sin(1.32*x+1.8*z)+.048*Math.cos(3.6*z-.95*x);
-    const band=Math.sin(6.4*stratum+.41*Math.cos(.89*x));
-    const chalkBed=Math.exp(-((Math.sin(3.65*stratum)/.21)**2));
-    c.copy(basalt).lerp(oxidized,.38+.25*band+.13*Math.cos(2*x+z));
-    c.lerp(cut,.17+.42*chalkBed).lerp(wet,.43*(1-easeTide(-.31,.34,y)));
-    c.lerp(chalk,.32*Math.exp(-(((y-.11-.04*Math.cos(5*x))/ .09)**2)));
-    if(face==='edge'){
-      c.lerp(cut,.40+.20*Math.cos(5*t+.36*z)).lerp(chalk,.68*Math.exp(-((Math.sin(11.6*t+.62*Math.cos(3.41*z))/.35)**2)));
-    }else if(face==='inside'){
-      const ribs=.21+.20*Math.sin(1.29*x+z*.71),h=y+.105*x-.22*Math.sin(1.46*x+z*.8);
-      c.copy(slate).lerp(ochre,.29+.21*Math.cos(1.84*x+1.3*z)).lerp(shade,.48*easeTide(1.4,3.85,y));
-      for(const [mark,width] of [[.04,.072],[.43,.11],[1.04,.068],[1.85,.18],[2.61,.098]]){
-        const f=(h-mark-ribs)/width;
-        c.lerp(shade,.55*Math.exp(-((f+1.05)**2))).lerp(Math.abs(mark-.43)<.01?pearl:chalk,.80*Math.exp(-(f*f))*(.67+.27*Math.sin(1.17*x+1.5*z+mark)));
-      }
-      c.multiplyScalar(.98-.20*easeTide(2,7,x));
-    }else if(face==='apse'){
-      const wing=apseWing(z),strike=apseStrike(y,z),sky=.10*Math.cos(1.7*z+.41*y)+.05*Math.cos(2*y);
-      c.copy(cold).lerp(shade,.31+sky).lerp(ochre,wing*(.52+.23*Math.cos(1.7*z-.61*y)));
-      // The exposed cut brightens, then turns sharply into marine shadow
-      // under a projecting shelf. A calm, recessed cool vein behind the head.
-      for(const [mark,width] of apseBeds){const b=(strike-mark)/width;
-        c.lerp(shade,wing*.76*Math.exp(-((b+1.0)**2)/.31));
-        c.lerp(slate,wing*.63*bedFlare(strike,mark,width));
-        c.lerp(z>0?cream:pearl,wing*(.80+.13*Math.cos(z*4.5-mark))*Math.exp(-((b+.10)**2)/.19));
-        c.lerp(chalk,.39*wing*Math.exp(-((b-.79)**2)/.057));
-      }
-    }
-    else c.lerp(cut,.14+.17*Math.cos(.5*x-.47*z));
-    return g.point(x,y,z,.53*x+.23*z+.12*y,(face==='apse'?apseStrike(y,z):stratum)*.54+.071*z,c);
+  const g=new Skin(),c=new Color(),along=far?7:32;
+  const z0=seaWindow.z-seaWindow.r,z1=seaWindow.z+seaWindow.r;
+  const segments=[[-caveZ,z0,far?10:22],[z0,z1,far?24:34],[z1,caveZ,far?22:44]],stations=[-caveZ];
+  for(const [a,b,n] of segments)for(let i=1;i<=n;i++)stations.push(a+(b-a)*i/n);
+  const across=stations.length-1,zOf=(v:number)=>stations[Math.round(v*across)];
+  function sample(x:number,y:number,z:number,face:StoneFace,t=0){
+    tideLimestone(c,x,y,z,face,t);
+    return g.point(x,y,z,.48*x+.26*z,y*.52+.13*z-.05*x,c);
   }
   function sheet(w:number,h:number,make:(u:number,v:number)=>number,flip=false){
     const base=g.p.length/3;
@@ -98,25 +77,45 @@ export function tideCaveRock(far=false){
     }
   }
   for(const outside of [false,true])sheet(along,across,(u,v)=>{
-    const z=(2*v-1)*caveZ,lip=outside?caveLip(z,1):caveMouth(z),x=lip+(caveRear(z)-lip)*u;
+    const z=zOf(v),lip=outside?caveLip(z,1):caveMouth(z),x=lip+(caveRear(z)-lip)*u;
     return sample(x,outside?caveCrest(x,z):caveSoffit(x,z),z,outside?'outside':'inside');
   },outside);
-  sheet(far?5:18,across,(t,v)=>{const z=(2*v-1)*caveZ,x=caveLip(z,t),inner=caveSoffit(caveMouth(z),z),outer=caveCrest(caveLip(z,1),z);
+  sheet(lipCourses.length-1,across,(u,v)=>{const t=lipCourses[Math.round(u*(lipCourses.length-1))][0],z=zOf(v),x=caveLip(z,t),inner=caveSoffit(caveMouth(z),z),outer=caveCrest(caveLip(z,1),z);
     return sample(x,inner+(outer-inner)*t,z,'edge',t);},true);
-  sheet(far?12:68,across,(t,v)=>{const z=(2*v-1)*caveZ,rear=caveRear(z),roof=caveSoffit(rear,z),floor=caveBed(rear,z),y=floor+(roof-floor)*t;
-    return sample(apseRockX(z,y,rear,roof),y,z,'apse');},true);
-  sheet(6,across,(u,v)=>{const z=(2*v-1)*caveZ,x=caveRear(z)+u*caveBackThickness;
+  // Split BOTH skins of the rear outcrop and connect their cut edges. The
+  // visitor sees through a deep cheek, not a transparent decal on the apse.
+  // All sheets share Z stations, including the exact tips of the opening.
+  for(const [za,zb,count] of segments){
+    const zAt=(v:number)=>za+(zb-za)*v;
+    for(const upper of [false,true]){
+      for(const outside of [false,true])sheet(outside?(far?2:6):(far?9:30),count,(t,v)=>{
+        const z=zAt(v),rear=caveRear(z),bed=caveBed(rear,z),roof=caveSoffit(rear,z),outer=rear+caveBackThickness;
+        const cut=windowCut(z,upper,bed,roof),lo=upper?cut:outside?caveBed(outer,z):bed,hi=upper?(outside?caveCrest(outer,z):roof):cut;
+        // The shell falls away behind the actor. Do not spend half the
+        // contact mesh below the stage and miss a visible shelf break.
+        const buried=!outside&&lo<-.65&&hi>-.25;
+        const y=buried?(t<.1?lo+(-.4-lo)*t/.1:-.4+(hi+.4)*(t-.1)/.9):lo+(hi-lo)*t;
+        return sample(outside?outer:apseRockX(z,y,rear,roof),y,z,outside?'outside':'apse');
+      },!outside);
+      if(za===z0)sheet(far?1:6,count,(t,v)=>{
+        const z=zAt(v),rear=caveRear(z),bed=caveBed(rear,z),roof=caveSoffit(rear,z),y=windowCut(z,upper,bed,roof),inside=apseRockX(z,y,rear,roof);
+        return sample(inside+(rear+caveBackThickness-inside)*t,y,z,'window',upper?-.01-.99*t:t);
+      },!upper);
+    }
+  }
+  sheet(3,across,(u,v)=>{const z=zOf(v),x=caveRear(z)+u*caveBackThickness;
     return sample(x,caveCrest(x,z),z,'outside');},true);
-  sheet(8,across,(t,v)=>{const z=(2*v-1)*caveZ,x=caveRear(z)+caveBackThickness,bed=caveBed(x,z);
-    return sample(x,bed+(caveCrest(x,z)-bed)*t,z,'outside');});
   // The end of each flanking bank and the end of the roof are closed solids.
   for(const side of [-1,1])sheet(along,3,(u,t)=>{const z=side*caveZ,x=caveLip(z,t)+(caveRear(z)+caveBackThickness-caveLip(z,t))*u;
     return sample(x,caveBed(x,z)+(caveCrest(x,z)-caveBed(x,z))*t,z,'outside');},side<0);
-  for(const f of tideFins){const foot=tideFloor(f.x,f.z);
-    sheet(12,9,(u,t)=>{const a=tau*u,w=finWidth(t),x=f.x+finLean(t)+f.rx*w*Math.cos(a),z=f.z+f.rz*w*Math.sin(a);
-      return sample(x,foot-.10+(f.h+.10)*t,z,'edge',t);},true);
-    sheet(12,1,(u,t)=>{const a=tau*u,w=(1-t)*finWidth(1);
-      return sample(f.x+finLean(1)+f.rx*w*Math.cos(a),foot+f.h+.012*t,f.z+f.rz*w*Math.sin(a),'outside');},true);
+  for(const b of breakwaters){const end=bluffBeds.length-1;
+    // Individual facets share their vertical edges within a bed; the broad
+    // cross-cut faces and their narrow bevels are not smoothed into a blob.
+    for(let i=0;i<b.plan.length;i++)sheet(1,end,(u,v)=>{
+      const j=Math.round(v*end),[x,y,z]=bluffVertex(b,i+u,j);
+      return sample(x,y,z,'bluff',j/end);
+    },true);
+    sheet(1,b.plan.length,(u,v)=>{const [x,y,z]=bluffVertex(b,Math.round(v*b.plan.length),end,1-u);return sample(x,y,z,'outside');});
   }
   return g.finish();
 }
@@ -131,10 +130,10 @@ export function tideForeshore(){
     g.add(at(turn([[r*.96,.030],[r*.96,.064],[r*.90,.065]],10)),'#64847f');
   }
   const up=new Vector3(0,1,0),normal=new Vector3(),centre=new Vector3();
-  const cos=Math.cos,sin=Math.sin,reef=new Skin(),old=new Color('#ac9385'),valve=new Color('#d6b99e'),inner=new Color('#bcc9ba'),c=new Color();
+  const cos=Math.cos,sin=Math.sin,reef=new Skin(),old=new Color('#c4afa7'),valve=new Color('#eed6b7'),inner=new Color('#bdc9dc'),c=new Color();
   for(const [bx,bz,scale,lean] of [[2.53,-2.18,1,.42],[2.71,-2.16,.63,-.44],[5.02,2.22,.92,-.35],[5.13,2.20,.71,.62],
     [5.31,2.24,.54,.15],[6.21,-2.20,.81,-.63],[6.34,-2.19,.60,.26]]){
-    const y=caveSoffit(bx,bz);if(y<.02)continue;
+    const y=caveSoffit(bx,bz);if(y<.02||bx<caveMouth(bz)+.25)continue;
     normal.set((caveSoffit(bx+.01,bz)-caveSoffit(bx-.01,bz))/.02,-1,(caveSoffit(bx,bz+.01)-caveSoffit(bx,bz-.01))/.02).normalize();
     const u=new Vector3().crossVectors(normal,up).normalize(),v=new Vector3().crossVectors(normal,u),start=reef.p.length/3;
     const sectors=32;

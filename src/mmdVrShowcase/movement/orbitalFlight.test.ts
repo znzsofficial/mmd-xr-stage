@@ -8,7 +8,7 @@ import {facetSampler} from '../scenery/planet/shellFacets';
 import {altitude,createShellSweep,homeWorld,shellRadius,walkWorlds,type World} from './orbitalSurfaces';
 import {jumpVelocity,localWell,pull,startOrbit,stepOrbit} from './orbitalFlight';
 import {tideBodyBlocked} from './tideContact';
-import {tideDatum,tideFloor} from '../scenery/planet/tideLayout';
+import {caveMouth,tideDatum,tideFloor} from '../scenery/planet/tideLayout';
 
 const moon=(id:string)=>allMoons.find(m=>m.id===id)!;
 const surface=(w:World,n:Vector3)=>w.centre.clone().addScaledVector(n,shellRadius(w,n.x,n.y,n.z));
@@ -100,8 +100,9 @@ it.each(walkWorlds)('$id: ordinary stick jumps remain bounded on this world, eve
 });
 
 it('refuses a grotto hop from inside the flank; beside the flank a real hop rises, stays clear of the rock and settles',()=>{
-  const w=moon('tide'),x=2.54;
+  const w=moon('tide');
   for(const [z,clear] of [[-2.61,false],[-1.28,true]] as const){
+    const x=clear?2.54:caveMouth(z)+.40;
     const foot=new Vector3(w.centre.x+x,tideDatum+tideFloor(x,z),w.centre.z+z),up=foot.clone().sub(w.centre).normalize(),eye=up.clone().multiplyScalar(1.75);
     expect(tideBodyBlocked(foot,up,eye)).toBe(!clear);
     const stick=new Vector3(0,0,1).projectOnPlane(up).normalize(),f=startOrbit(w,foot,jumpVelocity(w,up,stick,1.2,new Vector3()));

@@ -4,7 +4,9 @@ import {createRoot} from 'react-dom/client';
 import {Group,Scene,Vector3} from 'three';
 import {expect,it,vi} from 'vitest';
 import PlanetMotor from './PlanetMotor';
-import {surfaceStep,type PlanetDriver,type Traveller} from './planetTravel';
+import type {PlanetDriver,Traveller} from './planetTravel';
+import {homeStride} from './homeStride';
+import {altitude,homeWorld} from './orbitalSurfaces';
 import {samplePlanetMovement} from './planetDiagnostics';
 import {useMmdVrStore} from '../mmdVrStore';
 import {lanes} from '../scenery/planet/windAtlas';
@@ -12,10 +14,11 @@ import {surveyReaderBlocks,surveySites} from '../scenery/planet/opalSurvey';
 import {useBackpack} from '../backpack';
 
 const h=vi.hoisted(()=>{let resolve!:()=>void;const promise=new Promise<void>(r=>{resolve=r;});
-  return {module:{promise,resolve},ready:true,frame:null as Function|null,seed:vi.fn(),step:vi.fn()};});
+  return {module:{promise,resolve},ready:true,denied:false,frame:null as Function|null,seed:vi.fn(),step:vi.fn()};});
 vi.mock('@react-three/fiber',()=>({useFrame:(cb:Function)=>{h.frame=cb;}}));
 vi.mock('@react-three/xr',()=>({useXRInputSourceState:()=>undefined}));
 vi.mock('./PlanetPhysics',async()=>{await h.module.promise;return {default:({driver}:{driver:RefObject<PlanetDriver|null>})=>{
+  if(h.denied)throw new Error('optional WASM unavailable');
   useLayoutEffect(()=>{driver.current={ready:()=>h.ready,seed:h.seed,step:h.step,stop:()=>{}};
     return()=>{driver.current=null;};},[driver]);return null;}};});
 
@@ -85,35 +88,69 @@ it('consumes airborne wind presses and parks a ready suspension through an ordin
   }finally{h.step.mockReset();await act(async()=>root.unmount());useMmdVrStore.setState(old);vi.unstubAllGlobals();}
 });
 
-it.each(['ready at takeoff','ready during hop'])('%s: small same-world landings keep the idle horizon and accept walking without Y',async when=>{
-  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);const old=useMmdVrStore.getState();
-  useMmdVrStore.setState({prefs:{...old.prefs,scenery:'glassPlanet',movementMode:'normal',walkSpeedPref:'normal',normalEyeOffset:0}});
+it.each(['ready at takeoff','ready during hop','automatic'])('%s: small ordinary hops honour the idle-horizon preference without gating walking on Y',async when=>{
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);const old=useMmdVrStore.getState(),automatic=when==='automatic',initiallyReady=when!=='ready during hop';
+  useMmdVrStore.setState({prefs:{...old.prefs,scenery:'glassPlanet',movementMode:'normal',walkSpeedPref:'normal',normalEyeOffset:0,planetAutoLanding:automatic}});
   const root=createRoot(document.createElement('div')),origin=new Group(),scene=new Scene();
   const input=(hand:string)=>({handedness:hand,targetRayMode:'tracked-pointer',profiles:['meta-quest-touch-plus'],gamepad:{mapping:'xr-standard',axes:[0,0,0,0],buttons:Array.from({length:6},()=>({pressed:false}))}});
   const left=input('left'),right=input('right'),p={x:.16,y:1.66,z:-.23},a=right.gamepad.buttons[4],stick=left.gamepad.axes;
   const tick=()=>h.frame!({gl:{xr:{getReferenceSpace:()=>({})}},scene},1/90,{session:{visibilityState:'visible',inputSources:[left,right]},getViewerPose:()=>({transform:{position:p,orientation:{x:0,y:0,z:0,w:1}}})});
   const foot=()=>new Vector3(p.x,0,p.z).applyMatrix4(origin.matrixWorld);
-  let loose=false;h.module.resolve();h.ready=when==='ready at takeoff';h.seed.mockClear();h.step.mockClear();
-  // A temporarily unsupported, descending suspension within its near-ground
-  // band must keep its owner. Feed a real walking step and then the noisy cast.
+  let loose=false;const stride=homeStride();h.module.resolve();h.ready=initiallyReady;h.seed.mockClear();h.step.mockClear();
+  // Feed a moving suspension with a noisy altitude through the real sole solver.
   h.step.mockImplementation((s:Traveller,dt:number,x:number,forward:number)=>{
     const drive=new Vector3().crossVectors(s.dir,s.up).multiplyScalar(x).addScaledVector(s.dir,forward);
-    surfaceStep(s,drive,2.4,dt,false,()=>{},p.y+.1);
-    if(loose){s.grounded=false;s.velocity.addScaledVector(s.up,-.5);}
+    const noisy=s.foot.clone().addScaledVector(drive,2.4*dt).addScaledVector(s.up,loose?.09:0);
+    stride(s,noisy,drive.lengthSq()>0,dt,()=>{});
   });
   try{
     await act(async()=>root.render(<PlanetMotor originRef={{current:origin}} dragging={false}/>));tick();
     const launch=origin.quaternion.clone(),start=foot();stick[3]=-(.16+.84*.15);a.pressed=true;tick();
     expect(samplePlanetMovement()?.location).toBe('orbit');a.pressed=false;stick[3]=0;p.x+=.10;h.ready=true;
-    for(let i=0;i<700&&samplePlanetMovement()?.location==='orbit';i++){tick();expect(origin.quaternion.angleTo(launch)).toBeLessThan(1e-6);}
-    expect(samplePlanetMovement()).toMatchObject({location:'home',orbitalJumps:1,orbitalLandings:1,awaitingAlignment:false,alignments:0});
-    const landed=foot(),horizon=origin.quaternion.clone();expect(landed.distanceTo(start)).toBeGreaterThan(.4);
+    for(let i=0;i<700&&samplePlanetMovement()?.location==='orbit';i++){tick();if(!automatic||samplePlanetMovement()?.location==='orbit')expect(origin.quaternion.angleTo(launch)).toBeLessThan(1e-6);}
+    expect(samplePlanetMovement()).toMatchObject({location:'home',orbitalJumps:1,orbitalLandings:1,awaitingAlignment:false,autoAligning:false,alignments:automatic?1:0});
+    const landed=foot(),horizon=origin.quaternion.clone();expect(landed.distanceTo(start)).toBeGreaterThan(.4);if(automatic)expect(horizon.angleTo(launch)).toBeGreaterThan(.02);
     for(let i=0;i<30;i++)tick();expect(origin.quaternion.angleTo(horizon)).toBeLessThan(1e-6);
-    expect(h.seed).toHaveBeenCalledTimes(when==='ready at takeoff'?2:1);
+    expect(h.seed).toHaveBeenCalledTimes(initiallyReady?2:1);
     loose=true;stick[3]=-1;for(let i=0;i<30;i++)tick();loose=false;for(let i=0;i<60;i++)tick();
-    expect(foot().distanceTo(landed)).toBeGreaterThan(2.25);expect(samplePlanetMovement()).toMatchObject({backend:'rapier',orbitalJumps:1,awaitingAlignment:false,alignments:0});
-    expect(h.seed).toHaveBeenCalledTimes(when==='ready at takeoff'?2:1);
+    expect(foot().distanceTo(landed)).toBeGreaterThan(2.25);expect(samplePlanetMovement()).toMatchObject({backend:'rapier',orbitalJumps:1,awaitingAlignment:false,alignments:automatic?1:0});
+    expect(h.seed).toHaveBeenCalledTimes(initiallyReady?2:1);
   }finally{h.step.mockReset();await act(async()=>root.unmount());useMmdVrStore.setState(old);h.ready=true;vi.unstubAllGlobals();}
+});
+
+it.each(['suspension','no WASM'])('%s: held-A east-flank reproduction lands once; released stick has no idle slide and long travel follows the changing normal',async backend=>{
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);const old=useMmdVrStore.getState();
+  useMmdVrStore.setState({prefs:{...old.prefs,scenery:'glassPlanet',movementMode:'normal',walkSpeedPref:'normal',normalEyeOffset:.2}});
+  const root=createRoot(document.createElement('div'),{onCaughtError:()=>{}}),origin=new Group(),scene=new Scene(),dt=1/90;
+  const source=(hand:string)=>({handedness:hand,targetRayMode:'tracked-pointer',profiles:['meta-quest-touch-plus'],gamepad:{mapping:'xr-standard',axes:[0,0,0,0],buttons:Array.from({length:6},()=>({pressed:false}))}});
+  const left=source('left'),right=source('right'),p=new Vector3(.16,1.63,-.21),a=right.gamepad.buttons[4];
+  const tick=()=>h.frame!({gl:{xr:{getReferenceSpace:()=>({})}},scene},dt,{session:{visibilityState:'visible',inputSources:[left,right]},getViewerPose:()=>({transform:{position:p,orientation:{x:0,y:0,z:0,w:1}}})});
+  const up=()=>new Vector3(0,1,0).applyQuaternion(origin.quaternion),eye=()=>p.clone().applyMatrix4(origin.matrixWorld),foot=()=>eye().addScaledVector(up(),-p.y-.2);
+  const stride=homeStride(),seeds:{p:Vector3;speed:number}[]=[];let bodySteps=0;
+  h.ready=backend==='suspension';h.denied=!h.ready;h.module.resolve();h.seed.mockImplementation((s:Traveller)=>seeds.push({p:s.foot.clone(),speed:s.velocity.length()}));
+  h.step.mockImplementation((s:Traveller,d:number,x:number,f:number)=>{bodySteps++;
+    // A messy collision-resolved capsule (spring/radial noise + idle creep).
+    const dir=new Vector3().crossVectors(s.dir,s.up).multiplyScalar(x||(f?0:.2)).addScaledVector(s.dir,f);
+    stride(s,s.foot.clone().addScaledVector(dir,2.4*d).addScaledVector(s.up,bodySteps%2?.08:-.03),!!(x||f),d,()=>{});
+  });
+  function record(seconds:number,onFrame?:()=>void){let distance=0,last=foot();for(let i=0;i<Math.round(seconds/dt);i++){
+    tick();const now=foot();distance+=last.distanceTo(now);last=now;onFrame?.();
+  }return distance;}
+  try{
+    await act(async()=>root.render(<PlanetMotor originRef={{current:origin}} dragging={false}/>));tick();
+    left.gamepad.axes[2]=.99;expect(record(2.2)).toBeGreaterThan(4.5);a.pressed=true;const stepsBefore=bodySteps;
+    tick();expect(samplePlanetMovement()?.location).toBe('orbit');expect(bodySteps).toBe(stepsBefore);
+    let peak=0;record(3.6-dt,()=>{if(samplePlanetMovement()?.location==='orbit'){peak=Math.max(peak,altitude(homeWorld,foot()));expect(bodySteps).toBe(stepsBefore);}});
+    expect(peak).toBeGreaterThan(.5);left.gamepad.axes[2]=0;
+    expect(record(2.4)).toBeLessThan(.001);expect(altitude(homeWorld,foot())).toBeCloseTo(0,4);
+    const before=up();a.pressed=false;record(3*dt);left.gamepad.axes[2]=.99;
+    expect(record(4.4,()=>{const radial=foot().sub(homeWorld.centre).normalize();expect(radial.dot(up())).toBeGreaterThan(.98); })).toBeGreaterThan(7);
+    expect(before.angleTo(up())).toBeGreaterThan(.45);left.gamepad.axes[2]=0;expect(record(1.2)).toBeLessThan(.001);
+    expect(samplePlanetMovement()).toMatchObject({backend:h.denied?'failed':'rapier',location:'home',grounded:true,orbitalJumps:1,orbitalLandings:1,autoAligning:false});
+    if(h.ready){expect(seeds).toHaveLength(2);expect(seeds[1].speed).toBe(0);expect(altitude(homeWorld,seeds[1].p)).toBeCloseTo(0,5);}
+    // Tracked standing height/calibration never includes flight altitude.
+    expect(useMmdVrStore.getState().prefs.normalEyeOffset).toBe(.2);expect(eye().distanceTo(foot())).toBeCloseTo(1.83,7);
+  }finally{h.step.mockReset();h.seed.mockReset();await act(async()=>root.unmount());useMmdVrStore.setState(old);h.ready=true;h.denied=false;vi.unstubAllGlobals();}
 });
 
 it('free flight can carry the actual eye through the north compass and leave normal movement at the saved foot',async()=>{

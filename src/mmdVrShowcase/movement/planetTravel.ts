@@ -1,12 +1,14 @@
 import {Quaternion,Vector3} from 'three';
-import {homeGravity,PAD_RADIUS,PLANET_RADIUS as R} from '../scenery/planet/planetLayout';
+import {homeGravity,PLANET_RADIUS as R} from '../scenery/planet/planetLayout';
 import type {ReadColumn} from './groundMotor';
 import {STEP} from './solidColumns';
-import {crustRadius,stationBlocks} from '../scenery/planet/opalTerrain';
+import {stationBlocks} from '../scenery/planet/opalTerrain';
 import {fixtureBodyBlocked} from './planetFixtures';
 import {headMargin} from './eyeHeight';
 
-export const planetCentre=new Vector3(0,-R,0),north=new Vector3(0,1,0);
+import {homeShellRadius,planetCentre} from './homeSurface';
+export {planetCentre};
+export const north=new Vector3(0,1,0);
 // Ecctrl's .3 m half-capsule + .3 m radius + .2 m suspension.
 export const bodyAboveFoot=.8;
 export function createTraveller(){return {
@@ -23,24 +25,22 @@ export function transport(s:Traveller,centre=planetCentre){
 // actors are authored on this pad only. Use their real column on its near side.
 function support(s:Traveller,p:Vector3,read:ReadColumn,height:number){
   const n=s.radial.subVectors(p,planetCentre).normalize();
-  const crust=crustRadius(n.x,n.y,n.z);if(stationBlocks(p,.22,height))return NaN;
+  const crust=homeShellRadius(n.x,n.y,n.z);if(stationBlocks(p,.22,height))return NaN;
   if(n.y<=.8)return crust;
-  const pad=R/n.y,px=n.x*pad,pz=n.z*pad;
-  const floor=Math.hypot(px,pz)<=PAD_RADIUS?0:crust*n.y-R;
-  const c=s.col;c.floor=floor;c.blocked=false;c.ceiling=Infinity;
-  read(px,pz,s.foot.y,c);
+  const c=s.col;c.floor=crust*n.y-R;c.blocked=false;c.ceiling=Infinity;
+  read(p.x,p.z,s.foot.y,c);
   return c.blocked||Math.max(c.floor,s.foot.y)+height>c.ceiling ? NaN : Math.max(crust,(R+c.floor)/n.y);
 }
 
 const eye=new Vector3(),view=new Vector3(),nextEye=new Vector3(),nextView=new Vector3(),rotation=new Quaternion();
 function fallbackStep(s:Traveller,travel:Vector3,speed:number,dt:number,jump:boolean,read:ReadColumn,height:number){
-  const radius=s.foot.distanceTo(planetCentre),v=jump&&s.grounded?1.45:s.velocity.dot(s.up),gravity=homeGravity(radius);
+  const radius=s.foot.distanceTo(planetCentre),v=s.grounded?(jump?1.45:0):s.velocity.dot(s.up),gravity=homeGravity(radius);
   function candidate(move:boolean){
     const p=s.destination.copy(s.foot);if(move)p.addScaledVector(travel,speed*dt);
     const floor=support(s,p,read,height);if(!Number.isFinite(floor))return false;
     let vy=v-gravity*dt,r=radius+v*dt-.5*gravity*dt*dt;
     // Follow reachable downhill support on the flat north pad.
-    if(s.grounded&&!jump&&floor<=radius&&radius-floor<=STEP)r=floor;
+    if(s.grounded&&!jump&&radius-floor<=STEP)r=floor;
     if(s.radial.y>.8&&Number.isFinite(s.col.ceiling)&&vy>0){
       const max=(R+s.col.ceiling-height)/s.radial.y;
       if(r>max){r=max;vy=0;}
@@ -70,6 +70,6 @@ export function surfaceStep(s:Traveller,travel:Vector3,speed:number,dt:number,ju
 export interface PlanetDriver {
   ready():boolean;
   seed(s:Traveller):void;
-  step(s:Traveller,dt:number,x:number,forward:number,jump:boolean,localEye:Vector3):void;
+  step(s:Traveller,dt:number,x:number,forward:number,localEye:Vector3,read:ReadColumn):void;
   stop():void;
 }

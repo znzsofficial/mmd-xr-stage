@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import {act,useLayoutEffect,type RefObject} from 'react';
 import {createRoot} from 'react-dom/client';
-import {Group,Quaternion,Scene,Vector3} from 'three';
+import {Group,Quaternion,Scene,Vector3,type Mesh,type MeshBasicMaterial} from 'three';
 import {expect,it,vi} from 'vitest';
 import {useMmdVrStore} from '../mmdVrStore';
 import {lanes} from '../scenery/planet/windAtlas';
+import {WALK_SPEED} from '../mmdVrQuality';
 import {leapRoutes,twinPad} from '../scenery/planet/leapAtlas';
 import {shellRadius} from './orbitalSurfaces';
 import PlanetMotor from './PlanetMotor';
@@ -26,17 +27,21 @@ it.each(['recall','other wind','unmarked','unmarked auto'] as const)('X/A/Y and 
   const root=createRoot(document.createElement('div')),origin=new Group(),scene=new Scene();
   const input=(hand:string)=>({handedness:hand,targetRayMode:'tracked-pointer',profiles:['meta-quest-touch-plus'],
      gamepad:{mapping:'xr-standard',axes:[0,0,0,0],buttons:Array.from({length:6},()=>({pressed:false}))}});
-  const left=input('left'),right=input('right'),axes=left.gamepad.axes,x=left.gamepad.buttons[4],a=right.gamepad.buttons[4],y=left.gamepad.buttons[5];
+  const left=input('left'),right=input('right'),axes=left.gamepad.axes,x=left.gamepad.buttons[4],a=right.gamepad.buttons[4];
   const p={x:.17,y:1.65,z:-.21},pose={transform:{position:p,orientation:{x:0,y:0,z:0,w:1}}};let tracked=true;
   const dt=1/90,session={visibilityState:'visible',inputSources:[left,right]},xr={getReferenceSpace:()=>({})};
   const tick=(count=1)=>{for(let i=0;i<count;i++)h.frame!({gl:{xr},scene},dt,{session,getViewerPose:()=>tracked?pose:null});};
   const foot=()=>new Vector3(p.x,0,p.z).applyMatrix4(origin.matrixWorld),up=()=>new Vector3(0,1,0).applyQuaternion(origin.quaternion);
   const report=()=>samplePlanetMovement()!,lane=lanes.find(l=>l.moon.id==='salt')!,pad=twinPad(lane.moon)!;
-  const align=()=>{if(report().awaitingAlignment||report().autoAligning){
-    if(auto||report().autoAligning){for(let i=0;i<1000&&(report().awaitingAlignment||report().autoAligning);i++){const prev=origin.quaternion.clone();tick();expect(origin.quaternion.angleTo(prev)).toBeLessThan(dt*.88);}
-      expect(report()).toMatchObject({awaitingAlignment:false,autoAligning:false});}
-    else{y.pressed=false;tick();y.pressed=true;tick();y.pressed=false;}
-  }};
+  const cover=()=>scene.getObjectByName('player:landing-cut') as Mesh<never,MeshBasicMaterial>|undefined;
+  function finishLanding(){
+    const covered=report().autoAligning;let cuts=0;
+    for(let i=0;i<18&&report().autoAligning;i++){
+      const prev=origin.quaternion.clone();tick();if(origin.quaternion.angleTo(prev)>.08){cuts++;expect(cover()?.material.opacity).toBe(1);}
+    }
+    expect(cuts).toBe(covered?1:0);expect(cover()?.visible??false).toBe(false);
+    expect(report()).toMatchObject({awaitingAlignment:false,autoAligning:false});
+  }
   const walkTo=(target:Vector3)=>{
     const axis=(value:number)=>value===0?0:Math.sign(value)*.16+.84*value;
     for(let i=0;i<500&&foot().distanceTo(target)>.05;i++){
@@ -52,8 +57,10 @@ it.each(['recall','other wind','unmarked','unmarked auto'] as const)('X/A/Y and 
     // here, not queued for the frame when the mother surface supports us.
     a.pressed=true;tick();x.pressed=true;tick(210);expect(report()).toMatchObject({location:'home',windDepartures:0});
     x.pressed=a.pressed=false;tick();
-    align();const approach=lane.home.foot.clone().sub(foot()).applyQuaternion(origin.quaternion.clone().invert());p.x+=approach.x;p.z+=approach.z;
-    tick(3);x.pressed=true;tick();expect(report().location).toBe('wind');tick(1000);x.pressed=false;tick();align();expect(report().location).toBe('salt');
+    finishLanding();const approach=lane.home.foot.clone().sub(foot()).applyQuaternion(origin.quaternion.clone().invert());p.x+=approach.x;p.z+=approach.z;
+    tick(3);x.pressed=true;tick();expect(report().location).toBe('wind');const windHeading=origin.quaternion.clone();
+    for(let i=0;i<1000&&report().location==='wind';i++){tick();if(report().location==='wind')expect(origin.quaternion.angleTo(windHeading)).toBeLessThan(1e-6);}
+    finishLanding();expect(report().location).toBe('salt');expect(up().distanceTo(lane.away.up)).toBeLessThan(1e-6);x.pressed=false;tick();
     // At the north wind collar this is a normal radial jump under salt's 1.25 m/s².
     const launch=foot();a.pressed=true;tick();x.pressed=true;tick(89);expect(foot().y-launch.y).toBeCloseTo(1.6-.625,5);tick(160);
     expect(report()).toMatchObject({location:'salt',windDepartures:1});x.pressed=a.pressed=false;tick();
@@ -67,16 +74,15 @@ it.each(['recall','other wind','unmarked','unmarked auto'] as const)('X/A/Y and 
         walkTo(at);const stick=axis.projectOnPlane(up()).normalize().applyQuaternion(origin.quaternion.clone().invert());
         const map=(v:number)=>v===0?0:Math.sign(v)*.16+.84*v;
         axes[2]=map(stick.x);axes[3]=map(stick.z);const before=origin.quaternion.clone(),captures=report().orbitalLandings;
-        a.pressed=true;y.pressed=true;tick();axes[2]=axes[3]=0;
+        a.pressed=true;tick();axes[2]=axes[3]=0;
         expect(report().location).toBe('orbit');h.ready=true;for(let i=0;i<400&&report().location==='orbit';i++)tick();
         expect(report()).toMatchObject({location:to,gravityOwner:to,grounded:true,awaitingAlignment:false,autoAligning:true,twinDepartures:0,orbitalLandings:captures+1});
         expect(origin.quaternion.angleTo(before)).toBeLessThan(1e-6);expect(h.seed).not.toHaveBeenCalled();
-        // Leave Y alone. The counted travel is the motor's grounded sole,
-        // not the metres the displayed head covers rolling out of the shell.
-        const walked=report().groundedWalkM;
-        if(auto){tick(30);expect(report()).toMatchObject({grounded:true,groundedWalkM:walked});}
-        axes[2]=.85;tick(140);axes[2]=0;expect(report().groundedWalkM-walked).toBeGreaterThan(.7);
-        align();const supported=foot(),normal=supported.clone().sub(other.centre).normalize();
+        // Hold A continuously; the *first* grounded frame accepts a full
+        // dry-land step even while the cover is still closing. No Y input.
+        const walked=report().groundedWalkM;axes[2]=1;tick();expect(report().groundedWalkM-walked).toBeGreaterThan(.018);
+        finishLanding();tick(20);axes[2]=0;expect(report().groundedWalkM-walked).toBeGreaterThan(.86);
+        const supported=foot(),normal=supported.clone().sub(other.centre).normalize();
         expect(up().dot(normal)).toBeGreaterThan(.9999);expect(supported.distanceTo(other.centre)).toBeCloseTo(shellRadius(other,normal.x,normal.y,normal.z),4);
         a.pressed=false;tick();
       }
@@ -92,17 +98,19 @@ it.each(['recall','other wind','unmarked','unmarked auto'] as const)('X/A/Y and 
     a.pressed=true;
     for(let i=0;i<800&&!done;i++){
       if(i===45){h.ready=true;tracked=false;const frozen=origin.matrixWorld.clone();tick(180);expect(origin.matrixWorld.equals(frozen)).toBe(true);tracked=true;}
-      if(i===63){drift.set(.08,0,.11);p.x+=drift.x;p.z+=drift.z;y.pressed=true;}
+      if(i===63){drift.set(.08,0,.11);p.x+=drift.x;p.z+=drift.z;}
       tick();done=stepTwinLeap(leap,dt,expectedFoot,expectedUp);qExpected.premultiply(rot.setFromUnitVectors(lastUp,expectedUp)).normalize();lastUp.copy(expectedUp);
       expect(origin.quaternion.angleTo(q0)).toBeLessThan(1e-6);
       expect(foot().distanceTo(drift.clone().applyQuaternion(q0).add(expectedFoot).addScaledVector(expectedUp,p.y).addScaledVector(initialUp,-p.y))).toBeLessThan(1e-6);
       if(report().location==='twinLeap'&&report().gravityOwner==='glaze')seenSeam=true;
     }
-    expect(done&&seenSeam).toBe(true);tick(180);expect(report()).toMatchObject({location:'glaze',gravityOwner:'glaze',twinDepartures:1,twinLandings:1});
-    expect(report().awaitingAlignment).toBe(true);expect(origin.quaternion.angleTo(q0)).toBeLessThan(1e-6);
-    align();expect(origin.quaternion.angleTo(qExpected)).toBeLessThan(1e-6);expect(report().awaitingAlignment).toBe(false);
+    expect(done&&seenSeam).toBe(true);expect(report()).toMatchObject({location:'glaze',gravityOwner:'glaze',twinDepartures:1,twinLandings:1,awaitingAlignment:false,autoAligning:true});
+    // A real lean during the cover is neither a cut trigger nor frozen input.
+    const beforeLean=foot(),extra=.075;p.x+=extra;tick();expect(foot().sub(beforeLean).distanceTo(new Vector3(extra,0,0).applyQuaternion(q0))).toBeLessThan(1e-7);p.x-=extra;
+    finishLanding();expect(origin.quaternion.angleTo(qExpected)).toBeLessThan(1e-6);tick(180);
     expect(h.stop).toHaveBeenCalledOnce();expect(h.seed).not.toHaveBeenCalled();expect(h.step).not.toHaveBeenCalled();
-    a.pressed=false;tick();a.pressed=true;tick(500);align();expect(report()).toMatchObject({location:'salt',twinDepartures:2,twinLandings:2});
+    a.pressed=false;tick();a.pressed=true;tick();const back=origin.quaternion.clone();for(let i=0;i<500&&report().location==='twinLeap';i++){tick();expect(back.angleTo(origin.quaternion)).toBeLessThan(1e-6);}
+    finishLanding();expect(report()).toMatchObject({location:'salt',twinDepartures:2,twinLandings:2});
     const homePad=foot();expect(homePad.distanceTo(pad.foot)).toBeLessThan(.03);
     a.pressed=false;tick();a.pressed=true;tick();
     for(let i=0;i<500&&report().gravityOwner==='salt';i++)tick();
@@ -118,20 +126,52 @@ it.each(['recall','other wind','unmarked','unmarked auto'] as const)('X/A/Y and 
       expect(report()).toMatchObject({location:'home',gravityOwner:'home',twinDepartures:4,twinLandings:2});
       expect(foot().distanceTo(new Vector3(0,0,1.9))).toBeLessThan(1e-8);
     }else{
-       tick(400);align();const otherLane=lanes.find(l=>l.moon.id==='glaze')!;
+        tick(400);finishLanding();const otherLane=lanes.find(l=>l.moon.id==='glaze')!;
       for(const [from,to] of [['glaze','mica'],['mica','sulfur'],['sulfur','mica'],['mica','glaze']]){
         const crossing=leapRoutes.find(r=>r.pad.id===from&&r.target.id===to)!;
         a.pressed=false;tick();walkTo(crossing.pad.foot);
-         a.pressed=true;tick(400);align();expect(report()).toMatchObject({location:to,gravityOwner:to});
+          a.pressed=true;tick(400);finishLanding();expect(report()).toMatchObject({location:to,gravityOwner:to});
         expect(foot().distanceTo(crossing.target.foot)).toBeLessThan(.03);
       }
       expect(h.seed).not.toHaveBeenCalled();expect(h.step).not.toHaveBeenCalled();
       a.pressed=false;tick();walkTo(otherLane.away.foot);
       x.pressed=true;tick();expect(report().location).toBe('wind');for(let i=0;i<1100&&report().location==='wind';i++)tick();
-       expect(h.seed).not.toHaveBeenCalled();align();tick();
+        expect(h.seed).not.toHaveBeenCalled();finishLanding();tick();
       expect(report()).toMatchObject({location:'home',gravityOwner:'home',windLandings:2,twinDepartures:8,twinLandings:7});
       expect(foot().distanceTo(otherLane.home.foot)).toBeLessThan(.001);
     }
-    expect(h.seed).toHaveBeenCalledOnce();tick();expect(h.step).toHaveBeenCalledOnce();
+    expect(h.seed).toHaveBeenCalledOnce();const steps=h.step.mock.calls.length;tick();expect(h.step).toHaveBeenCalledTimes(steps+1);
+  }finally{await act(async()=>root.unmount());useMmdVrStore.setState(old);vi.unstubAllGlobals();}
+});
+
+it.each(['slow','normal','fast','sprint'] as const)('%s: lantern dry ground resumes the same stick speed on the first frame after a held-A hop',async tier=>{
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);const old=useMmdVrStore.getState();
+  useMmdVrStore.setState({prefs:{...old.prefs,scenery:'glassPlanet',movementMode:'normal',walkSpeedPref:tier,normalEyeOffset:0}});
+  const root=createRoot(document.createElement('div')),origin=new Group(),scene=new Scene(),dt=1/90,lane=lanes.find(l=>l.moon.id==='lantern')!;
+  const input=(hand:string)=>({handedness:hand,targetRayMode:'tracked-pointer',profiles:['meta-quest-touch-plus'],gamepad:{mapping:'xr-standard',axes:[0,0,0,0],buttons:Array.from({length:6},()=>({pressed:false}))}});
+  const l=input('left'),r=input('right'),p=new Vector3(0,1.63,0),report=()=>samplePlanetMovement()!;
+  const tick=()=>h.frame!({gl:{xr:{getReferenceSpace:()=>({})}},scene},dt,{session:{visibilityState:'visible',inputSources:[l,r]},getViewerPose:()=>({transform:{position:p,orientation:{x:0,y:0,z:0,w:1}}})});
+  const foot=()=>new Vector3(p.x,0,p.z).applyMatrix4(origin.matrixWorld),measure=()=>{const before=foot();tick();return foot().distanceTo(before)/dt;};
+  h.ready=false;
+  try{
+    await act(async()=>root.render(<PlanetMotor originRef={{current:origin}} dragging={false}/>));tick();
+    for(let i=0;i<800&&foot().distanceTo(lane.home.foot)>.35;i++){
+      const d=lane.home.foot.clone().sub(foot()).applyQuaternion(origin.quaternion.clone().invert());
+      const norm=Math.hypot(d.x,d.z);l.gamepad.axes[2]=.16*Math.sign(d.x)+.84*d.x/norm;l.gamepad.axes[3]=.16*Math.sign(d.z)+.84*d.z/norm;tick();
+    }
+    l.gamepad.axes[2]=l.gamepad.axes[3]=0;tick();expect(foot().distanceTo(lane.home.foot)).toBeLessThan(.35);
+    l.gamepad.buttons[4].pressed=true;tick();expect(report().location).toBe('wind');for(let i=0;i<1100&&(report().location==='wind'||report().autoAligning);i++)tick();
+    expect(report().location).toBe('lantern');l.gamepad.buttons[4].pressed=false;l.gamepad.axes[3]=-.8;
+    const control=measure();expect(control).toBeCloseTo(WALK_SPEED[tier]*(.8-.16)/.84,1);
+    r.gamepad.buttons[4].pressed=true;tick();expect(report().location).toBe('orbit');
+    for(let i=0;i<600&&report().location==='orbit';i++)tick();
+    expect(report()).toMatchObject({location:'lantern',grounded:true,orbitalLandings:1});
+    const covered=report().autoAligning,first=measure(),before=report().groundedWalkM;for(let i=0;i<12;i++)tick();
+    // Even when the display is covered the destination sole advances at the
+    // calibrated dry speed. Once uncovered actual XR translation agrees.
+    const speed=(report().groundedWalkM-before)/(12*dt);expect(speed/control).toBeGreaterThan(.91);expect(speed/control).toBeLessThan(1.15);
+    if(!covered)expect(first/control).toBeGreaterThan(.96);
+    for(let i=0;i<9;i++)tick();expect(measure()/control).toBeGreaterThan(.96);
+    expect(report()).toMatchObject({location:'lantern',orbitalJumps:1,orbitalLandings:1,autoAligning:false});
   }finally{await act(async()=>root.unmount());useMmdVrStore.setState(old);vi.unstubAllGlobals();}
 });

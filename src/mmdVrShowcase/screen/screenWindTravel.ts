@@ -6,6 +6,7 @@ import {moonWalk} from '../movement/moonWalk';
 import {startTwinLeap,stepTwinLeap,type TwinLeap} from '../movement/twinLeap';
 import {tideChart,tideDatum,tideFloor} from '../scenery/planet/tideLayout';
 import {tideWalkFactor} from '../scenery/planet/tideSession';
+import {tideShots} from '../scenery/planet/tideShots';
 
 // Inspection camera stays level. During a jump its eye follows the same foot
 // and local vertical as XR; mouse orbit, wheel or a new shot releases it.
@@ -13,6 +14,7 @@ export function screenWindTravel(look:(direction:Vector3,weight:number,range:num
   let ride:Ride|null=null,leap:TwinLeap|null=null,hopping:WalkMoon|null=null,launch=false;
   let standing:WalkMoon|null=null,height=1.65;
   const traveller=createTraveller(),lastEye=new Vector3(),still=new Vector3(),foot=new Vector3(),up=new Vector3(),direction=new Vector3(),eyeOffset=new Vector3(),eyeAxis=north.clone();
+  const grottoAim=tideShots.find(s=>s.key==='tideShellSteps')!.aim;
   function stand(m:WalkMoon,p:Vector3,n:Vector3,axis=n){
     standing=m;traveller.foot.copy(p);traveller.up.copy(n);traveller.basis.setFromUnitVectors(north,n);
     traveller.velocity.set(0,0,0);traveller.grounded=true;eyeAxis.copy(axis);lastEye.copy(p).addScaledVector(eyeAxis,height);
@@ -82,7 +84,9 @@ export function screenWindTravel(look:(direction:Vector3,weight:number,range:num
       // instrument and horizon. Never steer the tracked headset on arrival.
       const blend=Math.min(1,Math.max(0,(ride.time/ride.lane.duration-.55)*3.6));
       if(blend){const station=ride.lane.moon.station;
-        if(ride.returning)direction.set(0,.47,.22);else direction.copy(station.base).addScaledVector(station.up,.73);
+        if(ride.returning)direction.set(0,.47,.22);
+        else if(ride.lane.moon.id==='tide')direction.fromArray(grottoAim); // Frame the arch, not the gauge's foot.
+        else direction.copy(station.base).addScaledVector(station.up,.73);
         direction.sub(delta);const range=direction.length();look(direction.normalize(),1-Math.exp(-3.0*dt*blend),range);}
       delta.sub(eye);if(done){if(!ride.returning)stand(ride.lane.moon,foot,up);ride=null;}
     },

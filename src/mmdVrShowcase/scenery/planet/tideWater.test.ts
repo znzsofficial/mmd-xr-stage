@@ -4,6 +4,7 @@ import {ebbLevel,floodLevel} from './tideClock';
 import {tideCentre,tideDatum,tideDeck,tideFloor,tideWaterFootprint} from './tideLayout';
 import {tidePool} from './tideWater';
 import {reedCentre} from './reedBiosphere';
+import {tideShots} from './tideShots';
 
 it('floods the stair treads but not the side path, deck or return terminal, and never dries the rock pool',()=>{
   for(const x of [2.01,2.37,2.76,3.05]){expect(tideFloor(x,0)).toBeGreaterThan(ebbLevel);expect(tideFloor(x,0)).toBeLessThan(floodLevel);}
@@ -17,7 +18,8 @@ it('floods the stair treads but not the side path, deck or return terminal, and 
 });
 
 it('places the reflection of the actual neighbouring world on wetted rock at high water',()=>{
-  const eye=new Vector3(tideCentre.x+4.6,tideDatum+tideFloor(4.6,-1.6)+1.15,tideCentre.z-1.6);
+  const shot=tideShots.find(v=>v.key==='tideMoonrise')!,eye=new Vector3().fromArray(shot.eye);
+  expect(tideFloor(eye.x-tideCentre.x,eye.z-tideCentre.z)).toBeGreaterThan(floodLevel);
   const mirror=reedCentre.clone();mirror.y=2*(tideDatum+floodLevel)-mirror.y;
   const t=(eye.y-tideDatum-floodLevel)/(eye.y-mirror.y),hit=eye.clone().lerp(mirror,t);
   expect(tideWaterFootprint(hit.x-tideCentre.x,hit.z-tideCentre.z)).toBe(true);

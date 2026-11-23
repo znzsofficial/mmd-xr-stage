@@ -1,50 +1,30 @@
-import {Quaternion,Vector3} from 'three';
-import {createShellSweep} from './orbitalSurfaces';
-import {north} from './planetTravel';
-import {tideBodyBlocked} from './tideContact';
-import {fixtureBodyBlocked} from './planetFixtures';
-import type {WindTerminalWorld} from '../scenery/planet/windTerminalLayout';
+import {BackSide,Mesh,MeshBasicMaterial,Quaternion,SphereGeometry,Vector3,type Scene} from 'three';
 
-export const landingTurnRate=Math.PI/3.6; // maximum angular speed, 50°/s
+export const smallLandingAngle=Math.PI/9;
+const dim=.055,reveal=.105;
 
-/** The navigation sole already belongs to the destination. This second pose
- * is only the displayed XR floor while the visitor rises from a body/head hit.
- * The destination is read again each frame, including while walking away. */
-export function standingArrival(foot:Vector3,basis:Quaternion){return {
-  foot:foot.clone(),basis:basis.clone(),rate:0,blocked:false,sweep:createShellSweep(),q:new Quaternion(),goal:new Vector3(),delta:new Vector3(),
-  eye:new Vector3(),up:new Vector3(),normal:new Vector3(),escape:new Vector3(),sole:new Vector3(),end:{eye:new Vector3(),up:new Vector3()},
-};}
-export type StandingArrival=ReturnType<typeof standingArrival>;
+/** A single covered cut, never a rolling camera. The old pose is display-only:
+ * the destination motor already owns the foot and reads the full stick. */
+export function landingCut(foot:Vector3,basis:Quaternion){return {foot:foot.clone(),basis:basis.clone(),time:0,cut:false,opacity:0};}
+export type LandingCut=ReturnType<typeof landingCut>;
 
-export function riseToFeet(s:StandingArrival,dt:number,localEye:Vector3,target:Vector3,targetBasis:Quaternion,world:WindTerminalWorld){
-  const time=Math.min(.05,Math.max(0,dt)),count=Math.max(1,Math.ceil(time*120)),h=time/count;
-  s.normal.copy(north).applyQuaternion(targetBasis);s.blocked=false;
-  for(let i=0;i<count;i++){
-    s.up.copy(north).applyQuaternion(s.basis);s.eye.copy(localEye).applyQuaternion(s.basis);
-    const angle=s.basis.angleTo(targetBasis);s.rate=Math.min(landingTurnRate,s.rate+2.2*h,Math.sqrt(4.4*angle));
-    s.q.copy(s.basis).rotateTowards(targetBasis,s.rate*h);
-    s.end.up.copy(north).applyQuaternion(s.q);s.end.eye.copy(localEye).applyQuaternion(s.q);
-    // Keep the entire tilted body on the outer side of the contact plane.
-    // As the head turns out, the displayed soles can approach the real floor.
-    s.sole.copy(s.end.eye).addScaledVector(s.end.up,.15-localEye.y);
-    const lift=Math.max(0,.15-s.sole.dot(s.normal),.115-s.end.eye.dot(s.normal));
-    s.goal.copy(target).addScaledVector(s.normal,lift);
-    s.delta.subVectors(s.goal,s.foot).clampLength(0,2.4*h);
-    const hit=s.sweep(s.foot,s.delta,s.up,s.eye,s.end);
-    if(!hit){
-      s.goal.copy(s.foot).add(s.delta);
-      if(tideBodyBlocked(s.goal,s.end.up,s.end.eye)||fixtureBodyBlocked(world,s.goal,s.end.up,s.end.eye,.16)){s.blocked=true;break;}
-      s.foot.add(s.delta);s.basis.copy(s.q);
+export function advanceCut(c:LandingCut,dt:number){
+  c.time+=Math.min(.05,Math.max(0,dt));
+  if(!c.cut&&c.time>=dim){c.cut=true;c.time=dim;} // always render a fully covered frame at the actual switch
+  c.opacity=c.cut?Math.max(0,1-(c.time-dim)/reveal):c.time/dim;
+  return c.cut&&c.opacity===0;
+}
+
+/** Same opacity for both eyes, unaffected by tracking translation. Invisible
+ * on all ordinary frames, excluded from rays, solids and the shadow pass. */
+export function landingCover(){
+  let mesh:Mesh<SphereGeometry,MeshBasicMaterial>|undefined;
+  return {paint(scene:Scene,eye:Vector3,opacity:number){
+    if(!opacity){if(mesh)mesh.visible=false;return;}
+    if(!mesh){mesh=new Mesh(new SphereGeometry(1,12,8),new MeshBasicMaterial({side:BackSide,color:0,transparent:true,depthWrite:false,depthTest:false,toneMapped:false,fog:false}));
+      mesh.name='player:landing-cut';mesh.raycast=()=>{};mesh.frustumCulled=false;mesh.renderOrder=1e6;
     }
-    else {
-      // A slope may rise above its radial tangent plane. Don't keep trying
-      // the same blocked screw motion: retreat from the measured contact
-      // before rotating. The retreat is swept too, even between two shells.
-      s.escape.copy(hit.up).multiplyScalar(1.6*h);
-      s.goal.copy(s.foot).add(s.escape);
-      if(!s.sweep(s.foot,s.escape,s.up,s.eye)&&!tideBodyBlocked(s.goal,s.up,s.eye)&&!fixtureBodyBlocked(world,s.goal,s.up,s.eye,.16))s.foot.add(s.escape);
-      else {s.blocked=true;break;}
-    }
-  }
-  return s.basis.angleTo(targetBasis)<1e-6&&s.foot.distanceToSquared(target)<1e-10;
+    if(mesh.parent!==scene)scene.add(mesh);
+    mesh.position.copy(eye);mesh.visible=true;mesh.material.opacity=opacity;
+  },dispose(){if(mesh){mesh.removeFromParent();mesh.geometry.dispose();mesh.material.dispose();mesh=undefined;}}};
 }

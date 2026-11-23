@@ -73,6 +73,20 @@ it('the glass wins the first triangle hit from both diagonals, the collar and th
     const normal=new Vector3(0,0,1).applyQuaternion(q),right=new Vector3(1,0,0).applyQuaternion(q);
     const eyes=[0,-42,42].map(a=>{const rad=a*Math.PI/180;return face.clone().addScaledVector(normal,1.6*Math.cos(rad)).addScaledVector(right,1.6*Math.sin(rad));});
     eyes.push(port.foot.clone().addScaledVector(port.up,1.62));if(!back)eyes.push(new Vector3(0,1.62,0),new Vector3(0,1.62,1.9));
+    // Route 06 was reported buried. Follow the *ground*, not the tilted sign's
+    // plane, from the north landing and diagonally from the nursery side.
+    if(lane.moon.id==='lantern'){
+      const centre=back?lane.moon.centre:new Vector3(0,-PLANET_RADIUS,0);
+      const rock=group.find(m=>m.name===(back?'lunar shell':'opal crust'))!;
+      const start=back?port.foot.clone().addScaledVector(site.front,2.4).addScaledVector(right,-1.1):new Vector3(0,0,1.9);
+      for(const t of [0,.40,.75,1]){
+        const outward=start.clone().lerp(port.foot,t).sub(centre).normalize();
+        ray.set(centre.clone().addScaledVector(outward,20),outward.clone().negate());ray.far=20;
+        const foot=ray.intersectObject(rock)[0].point;
+        if(!back&&Math.hypot(foot.x,foot.z)<2.8)foot.y=0;
+        for(const height of [.83,1.63])eyes.push(foot.clone().addScaledVector(outward,height));
+      }
+    }
     const points=[[0,0],[-.98,-.98],[.98,-.98],[-.98,.98],[.98,.98]];
     for(const [j,eye] of eyes.entries())for(const [u,v] of points){
       const target=new Vector3(u*windFace.width/2,v*windFace.height/2,0).applyQuaternion(q).add(face);

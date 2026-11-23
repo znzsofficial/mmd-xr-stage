@@ -3,7 +3,7 @@ import {useThree} from '@react-three/fiber';
 import {CuboidCollider,TrimeshCollider,CylinderCollider,Physics,RigidBody,useRapier} from '@react-three/rapier';
 import {Ecctrl,type EcctrlHandle} from 'ecctrl';
 import {useCustomGravity} from 'ecctrl/gravity';
-import {Matrix4,Vector3,type InstancedMesh} from 'three';
+import {Matrix4,Quaternion,Vector3,type InstancedMesh} from 'three';
 import {useMmdVrStore} from '../mmdVrStore';
 import {useBackpack} from '../backpack';
 import {WALK_SPEED} from '../mmdVrQuality';
@@ -11,7 +11,8 @@ import {actorBodies} from './actorBodies';
 import {homeGravity,PAD_RADIUS,PLANET_RADIUS as R} from '../scenery/planet/planetLayout';
 import {makeCrust,stations} from '../scenery/planet/opalTerrain';
 
-import {planetCentre as centre,bodyAboveFoot,transport,type PlanetDriver} from './planetTravel';
+import {planetCentre as centre,bodyAboveFoot,type PlanetDriver} from './planetTravel';
+import {homeStride} from './homeStride';
 import {headMargin} from './eyeHeight';
 import {homeFixtureBoxes} from './planetFixtures';
 const zero={x:0,y:0,z:0};
@@ -52,27 +53,35 @@ function Walker({driver}:Props){
   },[]);
   useLayoutEffect(()=>{
     const at=new Vector3(),radial=new Vector3(),headShape=new rapier.Ball(headMargin);
-    const oldFoot=new Vector3(),from=new Vector3(),delta=new Vector3();
+    const oldFoot=new Vector3(),oldUp=new Vector3(),from=new Vector3(),delta=new Vector3(),candidate=new Vector3(),stride=homeStride();
+    const oldBasis=new Quaternion();
     const d:PlanetDriver={
       ready:()=>!!player.current?.body?.isValid(),
       seed(s){const b=player.current!.body!;b.setEnabled(true);
+        player.current!.setMovement({joystick:{x:0,y:0},jump:false});b.resetForces(true);b.resetTorques(true);
         b.setTranslation(at.copy(s.foot).addScaledVector(s.up,bodyAboveFoot),true);b.setRotation(s.basis,true);
         b.setLinvel(s.velocity,true);b.setAngvel(zero,true);},
-      step(s,dt,x,forward,jump,localEye){const c=player.current!,b=c.body!;
-        oldFoot.copy(s.foot);from.copy(localEye).applyQuaternion(s.basis).add(oldFoot);
-        c.setForwardDir(s.dir);c.setMovement({joystick:{x,y:forward},jump});
+      step(s,dt,x,forward,localEye,read){const c=player.current!,b=c.body!;
+        oldFoot.copy(s.foot);oldUp.copy(s.up);oldBasis.copy(s.basis);from.copy(localEye).applyQuaternion(s.basis).add(oldFoot);
+        c.setForwardDir(s.dir);c.setMovement({joystick:{x,y:forward},jump:false});
         if(dt>0)step(Math.min(1/60,dt)); // Ecctrl applies one impulse per render
         at.copy(b.translation());radial.subVectors(at,centre).normalize();
-        s.foot.copy(at).addScaledVector(radial,-bodyAboveFoot);transport(s);
+        stride(s,candidate.copy(at).addScaledVector(radial,-bodyAboveFoot),!!(x||forward),dt,read);
         // The small suspension capsule ends below a standing head. Sweep the
         // calibrated head through virtual travel; real tracked lean remains
         // unmodified. Ignore our own body when testing that virtual travel.
         delta.copy(localEye).applyQuaternion(s.basis).add(s.foot).sub(from);
         if(delta.lengthSq()>1e-9&&world.castShape(from,s.basis,delta,headShape,0,1,false,undefined,undefined,c.collider,b)){
-          s.foot.copy(oldFoot);transport(s);b.setTranslation(at.copy(s.foot).addScaledVector(s.up,bodyAboveFoot),true);b.setLinvel(zero,true);
+          s.foot.copy(oldFoot);s.up.copy(oldUp);s.basis.copy(oldBasis);s.grounded=true;s.velocity.set(0,0,0);
         }
-        s.velocity.copy(b.linvel());s.grounded=c.isOnGround;},
-      stop(){const c=player.current;c?.setMovement({joystick:{x:0,y:0},jump:false});c?.body?.setEnabled(false);},
+        b.setTranslation(at.copy(s.foot).addScaledVector(s.up,bodyAboveFoot),true);
+        // Preserve the bounded body's tangent velocity (not distance / display
+        // dt at a slow frame rate). Never integrate spring or landing velocity.
+        const walking=!!(x||forward)&&s.velocity.lengthSq()>0;
+        b.setLinvel(walking?at.copy(b.linvel()).projectOnPlane(s.up):zero,true);
+      },
+      stop(){const c=player.current,b=c?.body;c?.setMovement({joystick:{x:0,y:0},jump:false});
+        if(b){b.setLinvel(zero,true);b.setAngvel(zero,true);b.resetForces(true);b.resetTorques(true);b.setEnabled(false);}},
     };
     driver.current=d;return()=>{if(driver.current===d)driver.current=null;};
   },[driver,rapier,step,world]);
