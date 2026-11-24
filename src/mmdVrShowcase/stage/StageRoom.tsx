@@ -406,11 +406,18 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
     setObjects(list);
   }
 
+  // A removed actor may have owned a repair ticket. Refresh the outstanding
+  // failures before deciding whether this layout may replace the last good one.
+  function commitActorLayout() {
+    updateProgress(useMmdVrStore.getState().assetLoad);
+    saveRoom();
+  }
+
   function publishRemovals() {
     syncModelList();
     syncMaterialModels();
     syncObjects();
-    updateProgress(useMmdVrStore.getState().assetLoad);
+    commitActorLayout();
   }
 
   function publishEdits() {
@@ -540,8 +547,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
         if (command.type === "motion" && command.file && runtime.duration > 0) { timeRef.current = 0; pendingSeekSeed.current = true; setPlaying(true); }
         setMmdVrClockTime(timeRef.current, true);
         if (!runtime.duration) setPlaying(false);
-        updateProgress(useMmdVrStore.getState().assetLoad);
-        saveRoom();
+        commitActorLayout();
         useBackpack.getState().finishCommand(command, undefined, work);
         if (warning) useBackpack.setState({ error: warning });
         // Only a completed fresh manual model drop (not a move/restore/import).

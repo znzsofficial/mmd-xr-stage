@@ -177,6 +177,31 @@ it('restores the last complete layout on a renderer replacement and releases the
   }finally{await exit();}
 });
 
+it.each(['backpack','asset details'] as const)('keeps the actor removed via %s and restores its dancing neighbour on renderer replacement',async(entry)=>{
+  const a=file('removed.pmx'),b=file('dancer.pmx'),dance=file('solo.vmd');
+  const {place,id,bag,store,root,exit}=await setupBag([a,b,dance]);
+  try{
+    await place(a);await place(b,2,35);await act(async()=>bag().applyMotion(id(b),dance,'body'));
+    const oldFrame=harness.frame!,oldRuntime=runtimeWith(b),removed=bag().live[id(a)].runtimeId;
+    await act(async()=>{
+      if(entry==='backpack')bag().putAway(id(a));
+      else {store().enqueueModelRemoval(removed);oldFrame({},1/90);}
+    });
+    expect(Object.keys(bag().live)).toEqual([id(b)]);
+    harness.three={...harness.three,gl:{}};
+    await act(async()=>root.render(<StrictMode><LifecycleHarness/></StrictMode>));
+    expect(Object.keys(bag().live)).toEqual([id(b)]);
+    const next=runtimeWith(b),survivor=bag().live[id(b)].runtimeId;
+    expect(next).not.toBe(oldRuntime);
+    const restored=next.exportProjectModels();
+    expect(restored).toMatchObject([{id:survivor,transform:{positionX:2,rotationY:35}}]);
+    expect(restored[0].modelFile).toBe(b);expect(restored[0].bodyMotionFile).toBe(dance);
+    await act(async()=>{store().requestModelRotation(survivor,55);oldFrame({},1/90);});
+    expect(store().pendingModelTransforms).toHaveLength(1);
+    await act(async()=>harness.frame!({},1/90));expect(store().models[0].rotationY).toBe(55);
+  }finally{await exit();}
+});
+
 it('a retired frame cannot drain the replacement room’s pending model commands',async()=>{
   const actor=file('target.pmx'),{place,store,bag,id,exit}=await setupBag([actor]);
   try{
@@ -613,6 +638,21 @@ it("repairs a dynamic actor with texture warnings without replacing either the l
     expect(neighborSource.reads).toHaveBeenCalledOnce();
     expect(load.mock.calls.filter(([source]) => neighborSource.owns(source))).toHaveLength(1);
   } finally { await exit(); }
+});
+
+it('commits detail removals only after the last outstanding actor repair is gone',async()=>{
+  const a=file('first.pmx'),b=file('second.pmx'),c=file('damaged.pmx');
+  const {place,id,bag,store,exit,load}=await setupBag([a,b,c]);
+  const remove=(f:File)=>act(async()=>{store().enqueueModelRemoval(bag().live[id(f)].runtimeId);harness.frame!({},1/90);});
+  try{
+    await place(a);await place(b);
+    const damaged=loadedCharacter();Object.assign(damaged.diagnostics,{textures:[{code:'TEXTURE_RESOLVE_FAILED',path:'missing.png'}]});
+    load.mockResolvedValueOnce(damaged);await place(c);
+    const lastGood=bag().layouts.floor!;expect(lastGood.models).toHaveLength(2);
+    await remove(a);expect(store().assetLoad.failures).toHaveLength(1);expect(bag().layouts.floor).toBe(lastGood);
+    await remove(c);expect(store().assetLoad.failures).toEqual([]);
+    const committed=bag().layouts.floor!;expect(committed.models).toHaveLength(1);expect(committed.models[0].file).toBe(b);
+  }finally{await exit();}
 });
 
 it("fits a fresh humanoid once, then honors the viewer's size on the next drop", async () => {
