@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import {act,useLayoutEffect,type RefObject} from 'react';
 import {createRoot} from 'react-dom/client';
-import {Group,Scene,Vector3} from 'three';
+import {Group,Quaternion,Scene,Vector3} from 'three';
 import {expect,it,vi} from 'vitest';
 import PlanetMotor from './PlanetMotor';
 import type {PlanetDriver,Traveller} from './planetTravel';
@@ -32,7 +32,7 @@ it('keeps both sticks live with no profile and no physics module, then hands off
   try{
     await act(async()=>root.render(<PlanetMotor originRef={{current:origin}} dragging={false}/>));
     for(let i=0;i<90;i++)tick();
-    expect(samplePlanetMovement()).toMatchObject({backend:'pending',walkInputFrames:90,snapTurns:1,left:'native',right:'native',orbitalJumps:0,awaitingAlignment:false});
+    expect(samplePlanetMovement()).toMatchObject({backend:'pending',walkInputFrames:90,snapTurns:1,left:'native',right:'native',orbitalJumps:0});
     expect(samplePlanetMovement()!.footTravelM).toBeGreaterThan(2.3);
     sources[0].gamepad.axes[3]=0;tick();const previous=origin.matrixWorld.clone();
     await act(async()=>{h.module.resolve();await h.module.promise;});tick();
@@ -80,7 +80,6 @@ it('consumes airborne wind presses and parks a ready suspension through an ordin
     a.pressed=true;tick();a.pressed=false;x.pressed=true;tick();
     expect(samplePlanetMovement()).toMatchObject({location:'orbit',windDepartures:0});expect(h.step).not.toHaveBeenCalled();
     x.pressed=false;tick();x.pressed=true;for(let i=0;i<300;i++)tick();
-    if(samplePlanetMovement()?.awaitingAlignment){left.gamepad.buttons.push({pressed:true});tick();left.gamepad.buttons[5].pressed=false;tick();}
     const actual=new Vector3(p.x,0,p.z).applyMatrix4(origin.matrixWorld),toCollar=lane.home.foot.clone().sub(actual).applyQuaternion(origin.quaternion.clone().invert());p.x+=toCollar.x;p.z+=toCollar.z;
     tick();tick();
     expect(samplePlanetMovement()?.windDepartures).toBe(0);x.pressed=false;tick();x.pressed=true;tick();
@@ -88,32 +87,36 @@ it('consumes airborne wind presses and parks a ready suspension through an ordin
   }finally{h.step.mockReset();await act(async()=>root.unmount());useMmdVrStore.setState(old);vi.unstubAllGlobals();}
 });
 
-it.each(['ready at takeoff','ready during hop','automatic'])('%s: small ordinary hops honour the idle-horizon preference without gating walking on Y',async when=>{
-  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);const old=useMmdVrStore.getState(),automatic=when==='automatic',initiallyReady=when!=='ready during hop';
-  useMmdVrStore.setState({prefs:{...old.prefs,scenery:'glassPlanet',movementMode:'normal',walkSpeedPref:'normal',normalEyeOffset:0,planetAutoLanding:automatic}});
+it.each(['ready at takeoff','ready during hop'])('%s: side-looking hop carries exactly the travelled curvature from the first step; only Y levels it',async when=>{
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);const old=useMmdVrStore.getState(),initiallyReady=when!=='ready during hop';
+  useMmdVrStore.setState({prefs:{...old.prefs,scenery:'glassPlanet',movementMode:'normal',walkSpeedPref:'normal',normalEyeOffset:0}});
   const root=createRoot(document.createElement('div')),origin=new Group(),scene=new Scene();
   const input=(hand:string)=>({handedness:hand,targetRayMode:'tracked-pointer',profiles:['meta-quest-touch-plus'],gamepad:{mapping:'xr-standard',axes:[0,0,0,0],buttons:Array.from({length:6},()=>({pressed:false}))}});
   const left=input('left'),right=input('right'),p={x:.16,y:1.66,z:-.23},a=right.gamepad.buttons[4],stick=left.gamepad.axes;
-  const tick=()=>h.frame!({gl:{xr:{getReferenceSpace:()=>({})}},scene},1/90,{session:{visibilityState:'visible',inputSources:[left,right]},getViewerPose:()=>({transform:{position:p,orientation:{x:0,y:0,z:0,w:1}}})});
+  const head=new Quaternion().setFromAxisAngle(new Vector3(0,1,0),.83);
+  const tick=()=>h.frame!({gl:{xr:{getReferenceSpace:()=>({})}},scene},1/90,{session:{visibilityState:'visible',inputSources:[left,right]},getViewerPose:()=>({transform:{position:p,orientation:head}})});
   const foot=()=>new Vector3(p.x,0,p.z).applyMatrix4(origin.matrixWorld);
-  let loose=false;const stride=homeStride();h.module.resolve();h.ready=initiallyReady;h.seed.mockClear();h.step.mockClear();
+  let loose=false;const stride=homeStride(),support=new Vector3();h.module.resolve();h.ready=initiallyReady;h.seed.mockClear();h.step.mockClear();
   // Feed a moving suspension with a noisy altitude through the real sole solver.
   h.step.mockImplementation((s:Traveller,dt:number,x:number,forward:number)=>{
     const drive=new Vector3().crossVectors(s.dir,s.up).multiplyScalar(x).addScaledVector(s.dir,forward);
     const noisy=s.foot.clone().addScaledVector(drive,2.4*dt).addScaledVector(s.up,loose?.09:0);
-    stride(s,noisy,drive.lengthSq()>0,dt,()=>{});
+    stride(s,noisy,drive.lengthSq()>0,dt,()=>{});support.copy(s.up);
   });
   try{
     await act(async()=>root.render(<PlanetMotor originRef={{current:origin}} dragging={false}/>));tick();
     const launch=origin.quaternion.clone(),start=foot();stick[3]=-(.16+.84*.15);a.pressed=true;tick();
     expect(samplePlanetMovement()?.location).toBe('orbit');a.pressed=false;stick[3]=0;p.x+=.10;h.ready=true;
-    for(let i=0;i<700&&samplePlanetMovement()?.location==='orbit';i++){tick();if(!automatic||samplePlanetMovement()?.location==='orbit')expect(origin.quaternion.angleTo(launch)).toBeLessThan(1e-6);}
-    expect(samplePlanetMovement()).toMatchObject({location:'home',orbitalJumps:1,orbitalLandings:1,awaitingAlignment:false,autoAligning:false,alignments:automatic?1:0});
-    const landed=foot(),horizon=origin.quaternion.clone();expect(landed.distanceTo(start)).toBeGreaterThan(.4);if(automatic)expect(horizon.angleTo(launch)).toBeGreaterThan(.02);
+    for(let i=0;i<700&&samplePlanetMovement()?.location==='orbit';i++){head.setFromAxisAngle(new Vector3(0,1,0),1.1);tick();expect(origin.quaternion.angleTo(launch)).toBeLessThan(1e-6);}
+    expect(samplePlanetMovement()).toMatchObject({location:'home',orbitalJumps:1,orbitalLandings:1,alignments:0});
+    const landed=foot(),horizon=origin.quaternion.clone();expect(landed.distanceTo(start)).toBeGreaterThan(.4);
     for(let i=0;i<30;i++)tick();expect(origin.quaternion.angleTo(horizon)).toBeLessThan(1e-6);
     expect(h.seed).toHaveBeenCalledTimes(initiallyReady?2:1);
-    loose=true;stick[3]=-1;for(let i=0;i<30;i++)tick();loose=false;for(let i=0;i<60;i++)tick();
-    expect(foot().distanceTo(landed)).toBeGreaterThan(2.25);expect(samplePlanetMovement()).toMatchObject({backend:'rapier',orbitalJumps:1,awaitingAlignment:false,alignments:automatic?1:0});
+    loose=true;stick[3]=-1;const before=support.clone(),expected=horizon.clone(),arc=new Quaternion();
+    for(let i=0;i<90;i++){if(i===30)loose=false;tick();expected.premultiply(arc.setFromUnitVectors(before,support));before.copy(support);expect(origin.quaternion.angleTo(expected)).toBeLessThan(1e-6);}
+    expect(foot().distanceTo(landed)).toBeGreaterThan(2.25);expect(samplePlanetMovement()).toMatchObject({backend:'rapier',orbitalJumps:1,alignments:0});
+    stick[3]=0;left.gamepad.buttons[5].pressed=true;tick();tick();expect(samplePlanetMovement()?.alignments).toBe(1);
+    expect(new Vector3(0,1,0).applyQuaternion(origin.quaternion).distanceTo(support)).toBeLessThan(1e-8);
     expect(h.seed).toHaveBeenCalledTimes(initiallyReady?2:1);
   }finally{h.step.mockReset();await act(async()=>root.unmount());useMmdVrStore.setState(old);h.ready=true;vi.unstubAllGlobals();}
 });
@@ -144,9 +147,10 @@ it.each(['suspension','no WASM'])('%s: held-A east-flank reproduction lands once
     expect(peak).toBeGreaterThan(.5);left.gamepad.axes[2]=0;
     expect(record(2.4)).toBeLessThan(.001);expect(altitude(homeWorld,foot())).toBeCloseTo(0,4);
     const before=up();a.pressed=false;record(3*dt);left.gamepad.axes[2]=.99;
-    expect(record(4.4,()=>{const radial=foot().sub(homeWorld.centre).normalize();expect(radial.dot(up())).toBeGreaterThan(.98); })).toBeGreaterThan(7);
+    const residual=foot().sub(homeWorld.centre).normalize().angleTo(before);
+    expect(record(4.4,()=>{const radial=foot().sub(homeWorld.centre).normalize();expect(radial.angleTo(up())).toBeCloseTo(residual,3); })).toBeGreaterThan(7);
     expect(before.angleTo(up())).toBeGreaterThan(.45);left.gamepad.axes[2]=0;expect(record(1.2)).toBeLessThan(.001);
-    expect(samplePlanetMovement()).toMatchObject({backend:h.denied?'failed':'rapier',location:'home',grounded:true,orbitalJumps:1,orbitalLandings:1,autoAligning:false});
+    expect(samplePlanetMovement()).toMatchObject({backend:h.denied?'failed':'rapier',location:'home',grounded:true,orbitalJumps:1,orbitalLandings:1,alignments:0});
     if(h.ready){expect(seeds).toHaveLength(2);expect(seeds[1].speed).toBe(0);expect(altitude(homeWorld,seeds[1].p)).toBeCloseTo(0,5);}
     // Tracked standing height/calibration never includes flight altitude.
     expect(useMmdVrStore.getState().prefs.normalEyeOffset).toBe(.2);expect(eye().distanceTo(foot())).toBeCloseTo(1.83,7);

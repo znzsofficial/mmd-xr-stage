@@ -73,15 +73,15 @@ export function windPoint(l:WindLane,t:number,out:Vector3){
   return out.copy(l.home.foot).multiplyScalar(v*v*v+a).addScaledVector(l.home.up,9*a)
     .addScaledVector(l.away.foot,t*t*t+b).addScaledVector(l.away.up,l.approach*b);
 }
-export function startRide(lane:WindLane,returning:boolean,actual:Vector3){
-  return {lane,returning,time:0,offset:actual.clone().sub((returning?lane.away:lane.home).foot)};
+export function startRide(lane:WindLane,returning:boolean,actual:Vector3,startUp=(returning?lane.away:lane.home).up){
+  return {lane,returning,startUp:startUp.clone(),time:0,offset:actual.clone().sub((returning?lane.away:lane.home).foot)};
 }
 export type Ride=ReturnType<typeof startRide>;
 export function rideStep(ride:Ride,dt:number,foot:Vector3,up:Vector3){
   ride.time=Math.min(ride.lane.duration,ride.time+Math.max(0,Math.min(.05,dt)));
   const f=ride.time/ride.lane.duration,k=f*f*(3-2*f),t=ride.returning?1-k:k;
   windPoint(ride.lane,t,foot).addScaledVector(ride.offset,1-k);
-  up.copy(ride.lane.home.up).lerp(ride.lane.away.up,t).normalize();
+  up.copy(ride.startUp).lerp((ride.returning?ride.lane.home:ride.lane.away).up,k).normalize();
   return f===1;
 }
 

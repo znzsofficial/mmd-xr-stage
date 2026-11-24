@@ -9,7 +9,12 @@ import type {ObservationPart} from './ActorObservation';
 // Mount with the part as key. Model generation happens in the local Worker;
 // readiness is its first painted frame, not loading a module or receiving mail.
 export function ObservationDiagram({part,widthM,loading,replay,...actor}:DiagramActor&{part:ObservationPart;widthM?:number;loading:string;replay?:EggReplay}){
-  const [ready,setReady]=useState(false),base=useMemo(()=>part==='egg'&&replay?eggReplayDiagram(replay):part==='breast'?breastDiagram:atlasDiagrams[part],[part,replay]);
+  const base=useMemo(()=>part==='egg'&&replay?eggReplayDiagram(replay):part==='breast'?breastDiagram:atlasDiagrams[part],[part,replay]);
+  return <ObservationPlate {...actor} base={base} widthM={widthM} loading={loading}/>;
+}
+
+export function ObservationPlate({base,widthM,loading,...actor}:DiagramActor&{base:DiagramSpec;widthM?:number;loading:string}){
+  const [ready,setReady]=useState(false);
   const plate=useRef<HTMLDivElement>(null);
   useLayoutEffect(()=>{
     const node=plate.current;if(!node)return;

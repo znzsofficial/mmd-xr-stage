@@ -32,7 +32,7 @@ export function jumpVelocity(w:World,up:Vector3,stick:Vector3,speed:number,out:V
 }
 
 export function startOrbit(w:World,foot:Vector3,velocity:Vector3){return {
-  from:w,owner:w as World|null,foot:foot.clone(),velocity:velocity.clone(),changes:0,grazes:0,first:true,
+  from:w,owner:w as World|null,foot:foot.clone(),velocity:velocity.clone(),changes:0,grazes:0,first:true,trackedHeight:0,
   landing:null as World|null,point:new Vector3(),up:new Vector3(),tracked:false,part:'foot' as 'foot'|'head'|'body',
   sweep:createShellSweep(),a:new Vector3(),move:new Vector3(),next:new Vector3(),column:{floor:-Infinity,ceiling:Infinity,blocked:false},
   rim:null as Vector3|null,fixtureLip:null as Vector3|null,side:new Vector3(),across:new Vector3(),probe:new Vector3(),
@@ -42,9 +42,9 @@ export type Orbit=ReturnType<typeof startOrbit>;
 // Obstructions on the imported north pad and the finite station/tree proxies
 // remain solids during a jump. Flying in the free movement mode bypasses this.
 function obstacle(f:Orbit,to:Vector3,up:Vector3,eye:Vector3,read?:ReadColumn){
-  const h=Math.max(.25,eye.dot(up)+.115),w=f.owner;
-  if(w&&fixtureBodyBlocked(w.id,to,up,eye,.16))return 'wall';
-  if(w?.id==='tide'){if(tideBodyBlocked(to,up,eye))return 'wall';}
+  const h=Math.max(.25,f.trackedHeight+.115),w=f.owner;
+  if(w&&fixtureBodyBlocked(w.id,to,up,eye,.16,f.trackedHeight))return 'wall';
+  if(w?.id==='tide'){if(tideBodyBlocked(to,up,eye,f.trackedHeight))return 'wall';}
   else if(w&&to.distanceTo(w.centre)-w.radius<3.3&&(w.id==='home'?stationBlocks(to,.16,h):moonObstructed(w,to,.16,h)))return 'wall';
   if(!read||Math.abs(to.x)>4||Math.abs(to.z)>4||to.y<-.3)return;
   const c=f.column;c.floor=-Infinity;c.ceiling=Infinity;c.blocked=false;read(to.x,to.z,f.foot.y,c);
@@ -57,7 +57,7 @@ function obstacle(f:Orbit,to:Vector3,up:Vector3,eye:Vector3,read?:ReadColumn){
 // into the top of a non-walkable station, ease over the nearest lip; do not
 // freeze the foot there accumulating metres per second of downward velocity.
 function slideAtWall(f:Orbit,h:number,viewUp:Vector3,eye:Vector3,read?:ReadColumn){
-  const onFixture=!!f.owner&&fixtureBodyBlocked(f.owner.id,f.next,viewUp,eye,.16);
+  const onFixture=!!f.owner&&fixtureBodyBlocked(f.owner.id,f.next,viewUp,eye,.16,f.trackedHeight);
   const n=f.a.subVectors(f.foot,f.owner?.centre??homeWorld.centre).normalize(),v=Math.min(0,f.velocity.dot(n));
   f.velocity.copy(n).multiplyScalar(v);f.next.copy(f.foot).addScaledVector(n,v*h);
   if(obstacle(f,f.next,viewUp,eye,read)!=='wall'){f.rim=null;return;}
@@ -97,8 +97,9 @@ function slideToLip(f:Orbit,h:number,up:Vector3,eye:Vector3,read?:ReadColumn){
 /** Ballistic translation, independent of renderer, tracking basis and Rapier.
  * Real tracking loss freezes this clock at the caller. Position and velocity
  * are never reset when changing wells or crossing their outer boundary. */
-export function stepOrbit(f:Orbit,dt:number,viewUp:Vector3,eyeOffset:Vector3,read?:ReadColumn){
+export function stepOrbit(f:Orbit,dt:number,viewUp:Vector3,eyeOffset:Vector3,read?:ReadColumn,trackedHeight=eyeOffset.dot(viewUp)){
   if(f.landing)return true;
+  f.trackedHeight=trackedHeight;
   const time=Math.max(0,Math.min(.15,dt)),steps=Math.max(1,Math.ceil(time*120),Math.ceil(f.velocity.length()*time/.065)),h=time/steps;
   if(time>0&&f.first){
     f.first=false;
@@ -107,7 +108,7 @@ export function stepOrbit(f:Orbit,dt:number,viewUp:Vector3,eyeOffset:Vector3,rea
     // volume. Refuse the impulse on its existing support instead of sending
     // an already intersecting body sideways in search of a landing.
     const w=f.from;
-    if((fixtureBodyBlocked(w.id,f.foot,viewUp,eyeOffset,.16)||w.id==='tide'&&tideBodyBlocked(f.foot,viewUp,eyeOffset))&&Math.abs(altitude(w,f.foot))<.001){
+    if((fixtureBodyBlocked(w.id,f.foot,viewUp,eyeOffset,.16,trackedHeight)||w.id==='tide'&&tideBodyBlocked(f.foot,viewUp,eyeOffset,trackedHeight))&&Math.abs(altitude(w,f.foot))<.001){
       f.landing=w;f.point.copy(f.foot);f.up.subVectors(f.foot,w.centre).normalize();f.velocity.set(0,0,0);return true;
     }
   }
@@ -119,7 +120,7 @@ export function stepOrbit(f:Orbit,dt:number,viewUp:Vector3,eyeOffset:Vector3,rea
     let blocked=obstacle(f,f.next,viewUp,eyeOffset,read);
     if(blocked==='wall'){slideAtWall(f,h,viewUp,eyeOffset,read);f.move.subVectors(f.next,f.foot);blocked=obstacle(f,f.next,viewUp,eyeOffset,read);}
     else f.rim=null;
-    const hit=f.sweep(f.foot,f.move,viewUp,eyeOffset);
+     const hit=f.sweep(f.foot,f.move,viewUp,eyeOffset,trackedHeight);
     if(hit){
       f.foot.addScaledVector(f.move,hit.t);
       const inward=Math.max(0,-f.velocity.dot(hit.up));

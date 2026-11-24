@@ -1,15 +1,16 @@
 import type {Part} from '../SceneryBatch';
 import {BED,BED_STEP,DOOR_WIDTH,DOOR_X,DOOR_Z,DRESSER,DRESSING_STOOL,GALLERY_Y as floor,PRIVATE_HEADER,PRIVATE_TOP,PRIVATE_WALLS,QUARTERS as room} from './songhouseLayout';
 import type {Skin} from './songhouseGeometry';
+import {chamberLeaves,folio,folioUv,leafXZ,screenBody} from './chamberFolio';
 
 type V=Part['p'];
 type Makers={
-  box:(x:number,y:number,z:number,w:number,h:number,d:number,c:string,ry?:number)=>void;
+  box:(x:number,y:number,z:number,w:number,h:number,d:number,c:string,ry?:number,rx?:number)=>void;
   tube:(x:number,y:number,z:number,w:number,h:number,d:number,c:string,rx?:number,rz?:number)=>void;
   bead:(x:number,y:number,z:number,w:number,h:number,d:number,c:string)=>void;
   line:(a:V,b:V,w:number,c:string,d?:number)=>void;
   lantern:(x:number,z:number,hook:number,size:number,peach?:boolean)=>void;
-  fabric:Skin; art:Skin;
+  fabric:Skin; art:Skin; paintedLeaves:Skin;
 };
 const lacquer='#643e39',edge='#a67450',gilt='#c4a078',jade='#5b7271',paper='#e5d3ba',silk='#a7656b';
 const tiles={board:[8,8,504,222],quilt:[8,242,504,504],plum:[526,8,1016,375],border:[526,397,824,504],mat:[844,397,1016,504],bronze:[533,15,600,66]};
@@ -137,6 +138,26 @@ export function furnishQuarters(m:Makers){
   }
   const step=BED_STEP;box(step.x,.17,step.z,step.w,.079,step.d,edge);for(const k of [-1,1])box(step.x+k*.63,.07,step.z,.13,.14,.29,lacquer);
 
+  const {bottom,top,artBottom,artTop}=screenBody;
+  for(const [i,l] of chamberLeaves.entries()){
+    // An inset painted field on a dark lacquer ground. Brass hinges and the
+    // stepped apron read at grazing angles without individual mesh/materials.
+    const place=(u:number,y:number,n:number):V=>{const [x,z]=leafXZ(l,u,n);return at(x,y,z);};
+    const rail=(u:number,y:number,n:number,w:number,h:number,d:number,color:string)=>{
+      const [x,z]=leafXZ(l,u,n);box(x,y,z,w,h,d,color,l.yaw);
+    };
+    rail(0,(bottom+top)/2,0,l.w,top-bottom,l.d,lacquer);
+    for(const s of [-1,1]){
+      const u=s*(l.w/2-.055);rail(u,bottom/2,0,.054,bottom,.089,lacquer);rail(u,.026,0,.067,.052,.13,edge);
+      rail(s*(l.w/2-.021),1,.029,.012,1.32,.008,gilt);
+    }
+    for(const y of [artBottom-.017,artTop+.018])rail(0,y,.028,l.w-.034,.022,.010,edge);
+    if(i<2)for(const y of [.44,1.46]){const [x,z]=leafXZ(l,l.w/2,0);tube(x,y,z,.041,.13,.041,gilt);}
+    const u=l.w/2-.033,n=l.d/2+.001;
+    m.paintedLeaves.quad(place(-u,artBottom,n),place(u,artBottom,n),place(u,artTop,n),place(-u,artTop,n),'#ffffff',
+      [[i/3,0],[(i+1)/3,0],[(i+1)/3,1],[i/3,1]].map(([a,b])=>folioUv(0,a,b)));
+  }
+
   const table=DRESSER,tx=table.x,tz=table.z;
   box(tx,.83,tz,table.w-.09,.18,table.d-.04,lacquer);box(tx,.94,tz,table.w,.055,table.d,edge);
   for(const k of [-1,1]){
@@ -152,6 +173,15 @@ export function furnishQuarters(m:Makers){
     tube(tx+off,.971+h/2,tz+.047,r,h,r,off<0?silk:jade);tube(tx+off,.98+h,tz+.047,r+.011,.025,r+.011,gilt);
   }
   box(tx+.34,1.002,tz+.22,.23,.060,.073,jade,-.15);for(let i=0;i<8;i++)box(tx+.25+i*.025,.987,tz+.273+i*.003,.014,.022,.08,edge,-.15);
+  const bx=tx+folio.offsetX,bz=tz+folio.offsetZ;
+  // Lacquer reading rest, indigo cloth boards, gilt page edges and the red
+  // silk ribbon sticking out from the bottom of the sewn binding.
+  const layer=(u:number,v:number,n:number,w:number,h:number,d:number,c:string)=>m.box(bx+u,
+    floor+folio.height+v*Math.cos(folio.tilt)-n*Math.sin(folio.tilt),bz+v*Math.sin(folio.tilt)+n*Math.cos(folio.tilt),w,h,d,c,0,folio.tilt);
+  layer(0,0,-.027,folio.w+.032,folio.h+.019,.017,lacquer);layer(0,0,-.016,folio.w+.016,folio.h+.009,.009,'#455e62');
+  layer(0,0,-.009,folio.w,folio.h,.011,'#cfb493');layer(0,0,-.0028,folio.w-.002,folio.h-.001,.004,'#f2ddbb');
+  layer(.046,-folio.h/2-.015,-.007,.023,.055,.004,'#994c45');
+  for(const s of [-1,1])box(bx+s*.21,1.045,bz-.11,.032,.148,.035,lacquer);
   const st=DRESSING_STOOL;box(st.x,.395,st.z,st.w,.13,st.d,lacquer);box(st.x,.454,st.z,st.w-.06,.038,st.d-.055,jade);
   for(const k of [-1,1])for(const j of [-1,1])box(st.x+k*.185,.17,st.z+j*.143,.054,.34,.055,lacquer);
 }

@@ -16,9 +16,12 @@ export function createTraveller(){return {
   destination:new Vector3(),radial:new Vector3(),arc:new Quaternion(),col:{floor:0,ceiling:Infinity,blocked:false},
 };}
 export type Traveller=ReturnType<typeof createTraveller>;
+export function carryFrame(s:Traveller,up:Vector3){
+  s.basis.premultiply(s.arc.setFromUnitVectors(s.up,up)).normalize();s.up.copy(up);
+}
 export function transport(s:Traveller,centre=planetCentre){
   s.radial.subVectors(s.foot,centre).normalize();
-  s.basis.premultiply(s.arc.setFromUnitVectors(s.up,s.radial)).normalize();s.up.copy(s.radial);
+  carryFrame(s,s.radial);
 }
 
 // Radial support on the sphere or the tangent landing pad. Imported props &
@@ -47,7 +50,7 @@ function fallbackStep(s:Traveller,travel:Vector3,speed:number,dt:number,jump:boo
     }
     p.copy(planetCentre).addScaledVector(s.radial,Math.max(floor,r));
     rotation.setFromUnitVectors(s.up,s.radial);nextEye.copy(eye).applyQuaternion(rotation);nextView.copy(view).applyQuaternion(rotation);
-    if(fixtureBodyBlocked('home',p,nextView,nextEye,.22))return false;
+    if(fixtureBodyBlocked('home',p,nextView,nextEye,.22,height-headMargin))return false;
     s.grounded=r<=floor+.000001&&vy<=0;
     s.foot.copy(p);transport(s);s.velocity.copy(travel).multiplyScalar(move?speed:0).projectOnPlane(s.up).addScaledVector(s.up,s.grounded?0:vy);return true;
   }

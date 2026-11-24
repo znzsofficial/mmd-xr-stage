@@ -15,7 +15,7 @@ import { createPelvicInput, isMountedVisible, mountPelvicInput, samplePelvicNozz
 import { measuredRailPosition, pelvicRailTravel } from './path';
 import {createStandHold} from './rigHold';
 import {visibleRim} from './vulvaForm';
-import { advancePelvic, clearPelvicSupport, consumePelvicDose, discardPelvicDoses, endPelvic, interruptPelvic,
+import { advancePelvic, canDrawAdapter, clearPelvicSupport, consumePelvicDose, discardPelvicDoses, endPelvic, interruptPelvic,
   presentRailTechnique, publishParkedSample, publishPelvicSample, publishPelvicSupport, rememberRimEntry, usePelvic, PELVIC_LIMITS, type PelvicSample, type PelvicSupport } from './store';
 
 export type PelvicRigProps={getRoot:(runtimeId:string)=>Object3D|null;getSurface?:(runtimeId:string)=>WandModel|null};
@@ -41,7 +41,7 @@ function bind(o:Options,id:string,live:BackpackLive,root:Object3D,c:PelvicCalibr
   const support:PelvicSupport={runtimeId,kind:socket?.kind??'missing',anchorName:socket?.anchor.name??'',manualSeed:manualSeed(root,live),
     responseMorphs:surface?.root===root?faceMorphNames(surface.mesh):undefined};
   const responseFrame:ActorContactFrame={root,runtimeId,assetId:id,token:-1,motion:'outside',depthM:0,dt:0};
-  return {root,runtimeId,c,socket,support,responseFrame,frame:null as PelvicFrame|null,guard:null as ReturnType<typeof createGarmentGuard>|null,port:createPortDrawing(o.host,id)};
+  return {root,runtimeId,c,socket,support,responseFrame,frame:null as PelvicFrame|null,guard:null as ReturnType<typeof createGarmentGuard>|null,showShell:false,port:createPortDrawing(o.host,id)};
 }
 function observations(){
   const axis=new Vector3(),tailToTip=new Vector3(),inward=new Vector3(0,0,-1);
@@ -67,7 +67,7 @@ export function mountPelvicRig(o:Options):PelvicRigHandle&{dispose:()=>void}{
   const bindings=new Map<string,Binding>(),solver=createPelvicSolver(),sample=observations(),railWorld=new Matrix4(),observer=new Vector3();
   const spray:GripFrame={at:new Vector3(),dir:new Vector3(),action:'off',usable:false,dt:0},hold=createStandHold();
   let rimEdge:'left'|'right'|'center'|null=null;
-  let token=-1,owner:object|null=null,actor:Object3D|null=null,source:XRInputSource|null=null,epoch=0,aperture:Aperture|null=null,response:ActorContactFrame|null=null,
+   let token=-1,owner:object|null=null,actor:Object3D|null=null,source:XRInputSource|null=null,epoch=0,aperture:Aperture|null=null,response:ActorContactFrame|null=null,heldContact:PelvicContact|undefined,
     standKey:object|null=null,stand:ReturnType<typeof createStandDrawing>|null=null,session:XRSession|null=null,disposed=false,hasObserver=false;
   const input=createPelvicInput(o.scene,()=>{
     const a=usePelvic.getState().active,h=useStagePlay.getState().held;
@@ -75,7 +75,7 @@ export function mountPelvicRig(o:Options):PelvicRigHandle&{dispose:()=>void}{
   }),unmountInput=mountPelvicInput(o.scene,input);
 
   function hideStand(){if(stand)stand.body.visible=false;const piece=o.standPiece();if(piece)piece.visible=false;standKey=null;hold.clear();}
-  function reset(clearInput=true){solver.reset();rimEdge=null;source=null;epoch=0;aperture=null;response=null;hasObserver=false;hideStand();if(clearInput)input.clear();}
+  function reset(clearInput=true){solver.reset();rimEdge=null;source=null;epoch=0;aperture=null;response=null;heldContact=undefined;hasObserver=false;hideStand();if(clearInput)input.clear();}
   function currentRoomToken(){
     const state=usePelvic.getState(),a=state.active,play=useStagePlay.getState();if(!a)return null;
     const b=bindings.get(a.assetId);
@@ -124,18 +124,19 @@ export function mountPelvicRig(o:Options):PelvicRigHandle&{dispose:()=>void}{
           // Invalidate temporal evidence, but keep garment buffers and art.
           b.c=c;if(id===a?.assetId){standKey=null;solver.reset();aperture=null;}
         }
-        if(a?.assetId!==id&&bag.selected!==id&&!(profile.showAdapter&&profile.clothingClear)){
+        if(a?.assetId!==id&&bag.selected!==id&&!profile.showAdapter){
           b.port.group.visible=false;if(usePelvic.getState().support[id]!==b.support)publishPelvicSupport(id,b.support);continue;
         }
         b.frame=samplePelvicFrame(b.socket,b.c,b.frame??undefined);
-        const obstruction=b.frame?(b.guard??=createGarmentGuard(root,o.getSurface?.(live.runtimeId)))(b.frame):undefined,kind=b.frame?b.socket!.kind:'missing';
+        const obstruction=b.frame?(b.guard??=createGarmentGuard(root,o.getSurface?.(live.runtimeId)))(b.frame,profile.showAdapter&&!!(profile.clothingClear||profile.adapterSkinFit)):undefined,kind=b.frame?b.socket!.kind:'missing';
         const garmentNames=b.guard?.garmentNames,blockerName=obstruction==='garment'?b.guard?.blockerName():undefined;
         if(b.support.obstruction!==obstruction||b.support.kind!==kind||b.support.garmentNames!==garmentNames||b.support.blockerName!==blockerName)
           b.support={...b.support,kind,obstruction,garmentNames,blockerName};
         if(usePelvic.getState().support[id]!==b.support)publishPelvicSupport(id,b.support);
+        b.showShell=!!(b.frame&&b.guard?.printReady()&&canDrawAdapter(profile,b.support));
         if(!b.frame)b.port.group.visible=false;
-        else if(!a?.running||a.assetId!==id)b.port.draw(b.frame,profile.showAdapter&&profile.clothingClear&&!obstruction,bag.selected===id,undefined,visibleRim(profile));
-        else if(obstruction||!profile.clothingClear)b.port.group.visible=false; // also on early-return frames without a mounted piece
+        else if(!a?.running||a.assetId!==id)b.port.draw(b.frame,b.showShell,bag.selected===id,undefined,visibleRim(profile),b.guard?.print());
+        else b.port.group.visible=false; // a running piece draws only after its pose is known (including a verified hold)
       }
       if(!a){if(owner)reset();token=-1;owner=actor=null;return;}
       const b=bindings.get(a.assetId),profile=state.byAsset[a.assetId],play=useStagePlay.getState(),manual=a.mode==='xrManual',currentOwner=manual?play.held:play.stand,f=b?.frame;
@@ -167,7 +168,9 @@ export function mountPelvicRig(o:Options):PelvicRigHandle&{dispose:()=>void}{
              typeof document!=='undefined'&&document.hidden||!hold.matches(f,piece)){interrupt();return;}
            discardPelvicDoses(token,true);
            if(a.take?.kind==='record')presentRailTechnique(token,delta,null);
-           if(!exposed){b.port.draw(f,false,bag.selected===a.assetId);
+            const show=b.showShell;
+            b.port.draw(f,show,bag.selected===a.assetId,exposed||show?heldContact:undefined,visibleRim(profile),b.guard?.print());
+            if(!exposed){
              if(state.sample?.outletVisible)publishPelvicSample(token,{...state.sample,outletVisible:false,exteriorCovered:true});
             }else aperture=lastAperture;
             // This particular stand is still verified at the last measured
@@ -204,11 +207,12 @@ export function mountPelvicRig(o:Options):PelvicRigHandle&{dispose:()=>void}{
       else if(contact.motion==='enter')rimEdge=Math.abs(contact.outletLocal.x)<.04*f.radiusM?'center':contact.outletLocal.x<0?'left':'right';
       else if(contact.motion!=='inside')rimEdge=null;
       if(rimEdge&&contact.outletInside){rememberRimEntry(a.token,rimEdge);rimEdge=null;}
-      const amount=b.port.draw(f,exposed&&profile.showAdapter,bag.selected===a.assetId,exposed?contact:undefined,visibleRim(usePelvic.getState().byAsset[a.assetId]));
-      if(amount>0)aperture={assetId:a.assetId,runtimeId:a.runtimeId,amount};
+      const show=b.showShell;
+      const amount=b.port.draw(f,show,bag.selected===a.assetId,exposed||show?contact:undefined,visibleRim(usePelvic.getState().byAsset[a.assetId]),b.guard?.print());
+      if(exposed&&amount>0)aperture={assetId:a.assetId,runtimeId:a.runtimeId,amount};
       if(a.mode==='standAuto'&&((!rebound&&!contact.continuous)||!reading.aligned||(!contact.outletInside&&contact.outletLocal.z < -1e-6)))discardPelvicDoses(a.token);
       if(contact.motion){response=b.responseFrame;response.motion=contact.motion;response.token=a.token;response.dt=delta;response.depthM=contact.depthM/f.scale;}
-      if(!manual)hold.record(f,piece);
+      if(!manual){hold.record(f,piece);heldContact=contact;}
       observer.setFromMatrixPosition(f.world);hasObserver=true;
       const route=consumePelvicDose(a.token,contact,queued?.f.action==='start');
       // A stopped/restarted motor can reuse its emitter without a stopped frame.

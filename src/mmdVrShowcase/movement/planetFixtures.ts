@@ -14,8 +14,7 @@ const sole=new Vector3();
 /** Evaluate a virtual move using this frame's actual tracking, not a camera
  * position saved before the visitor leaned. Tracked offsets run from motor
  * sole to eye, in world axes. The motor itself still occupies its own feet. */
-export function fixtureBodyBlocked(world:WindTerminalWorld,foot:Vector3,up:Vector3,eye:Vector3,r:number){
-  const height=eye.dot(up);
+export function fixtureBodyBlocked(world:WindTerminalWorld,foot:Vector3,up:Vector3,eye:Vector3,r:number,height=eye.dot(up)){
   sole.copy(foot).add(eye).addScaledVector(up,-height);
   return blocks(world,sole,r,Math.max(.24,height+headMargin),up)||
     sole.distanceToSquared(foot)>1e-6&&blocks(world,foot,r,.24,up);

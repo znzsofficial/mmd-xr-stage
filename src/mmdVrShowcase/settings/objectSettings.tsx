@@ -30,8 +30,7 @@ export function PlayerSettings() {
     <HudLine position={[0,.58,0]} width={1.85} role="title" text={t('hudSelfTitle')}/>
     <HudButton position={[-.49,.38,0]} size={[.88,.17]} active={!free} label={t('moveNormal')} onPress={()=>set({movementMode:'normal'})}/>
     <HudButton position={[.49,.38,0]} size={[.88,.17]} active={free} label={t('moveFree')} onPress={()=>set({movementMode:'free'})}/>
-    {!free&&p.scenery==='glassPlanet'?<HudButton position={[0,.18,0]} size={[1.85,.15]} label={t(p.planetAutoLanding?'planetHorizonAuto':'planetHorizonManual')} active={p.planetAutoLanding} onPress={()=>set({planetAutoLanding:!p.planetAutoLanding})}/>
-      :<HudLine position={[0,.18,0]} width={1.85} role="muted" text={t(free?'moveFlyHint':'moveJumpHint')}/>}
+    <HudLine position={[0,.18,0]} width={1.85} role="muted" text={t(free?'moveFlyHint':p.scenery==='glassPlanet'?'planetJumpHint':'moveJumpHint')}/>
     <HudButton position={[-.49,-.06,0]} size={[.88,.17]} label={`${t(labels[tier])} · ${WALK_SPEED[tier]} m/s`} onPress={()=>set({walkSpeedPref:next[tier]})}/>
     <HudButton position={[.49,-.06,0]} size={[.88,.17]} label={`${t('settingsMmdVrSnapTurn')}: ${p.snapTurnDegrees}°`} onPress={()=>set({snapTurnDegrees:p.snapTurnDegrees===15?30:p.snapTurnDegrees===30?45:15})}/>
     {!free&&<><HudLine position={[-.56,-.31,0]} width={.75} text={`${t('settingsEyeOffset')}  ${p.normalEyeOffset>0?'+':''}${Math.round(p.normalEyeOffset*100)} cm`}/>

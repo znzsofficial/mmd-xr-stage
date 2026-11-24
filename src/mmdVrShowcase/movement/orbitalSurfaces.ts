@@ -31,9 +31,8 @@ export function altitude(w:World,p:Vector3){
  * In addition to the tracked column the motor sole keeps its own support. */
 export function createShellSweep(){
   const point=new Vector3(),rel=new Vector3(),probe=new Vector3(),radial=new Vector3();
-  const turnDelta=new Vector3(),du=new Vector3();
   const hit={world:homeWorld as World,t:1,point:new Vector3(),up:new Vector3(),part:'foot' as 'foot'|'body'|'head',tracked:false};
-  let found=false,settling=false;
+  let found=false;
   function section(start:Vector3,delta:Vector3,radius:number,part:typeof hit.part){
     const d2=delta.lengthSq(),distance=Math.sqrt(d2);if(distance<1e-12)return;
     for(const w of walkWorlds){
@@ -45,10 +44,7 @@ export function createShellSweep(){
       const ga=gap(a);
       // When tracking or a walking sole starts in a slope, only travel which
       // goes further in is obstructed. Never separate the real headset.
-      // While settling the last fraction of a millimetre onto known support,
-      // an outside-only uncertainty interval isn't an obstacle before the
-      // endpoint. Keep a 0.2 mm contact slop (still sweep the full interval).
-      const threshold=settling?Math.min(-.0002,ga-.00015):ga>.0003?0:Math.min(0,ga)-.00015;
+      const threshold=ga>.0003?0:Math.min(0,ga)-.00015;
       // |d (r-relief)/d metres| < 12 for these bounded shell profiles.
       // Reject a whole interval by this bound, not just its endpoints. A
       // sub-mm grazing interval terminates conservatively on its outside.
@@ -65,22 +61,18 @@ export function createShellSweep(){
       found=true;hit.world=w;hit.t=t;hit.up.copy(radial);hit.point.copy(w.centre).addScaledVector(radial,shellRadius(w,radial.x,radial.y,radial.z));hit.part=part;hit.tracked=start===point;
     }
   }
-  return function sweep(foot:Vector3,delta:Vector3,up:Vector3,eyeOffset:Vector3,end?:{up:Vector3;eye:Vector3}){
-    found=false;settling=!!end;hit.t=1;section(foot,delta,0,'foot');
+  return function sweep(foot:Vector3,delta:Vector3,up:Vector3,eyeOffset:Vector3,trackedHeight=eyeOffset.dot(up)){
+    found=false;hit.t=1;section(foot,delta,0,'foot');
     // Eye offset is the unmodified, calibrated tracking vector in world axes.
-    const trackedHeight=eyeOffset.dot(up),h=Math.min(3,Math.max(.18,trackedHeight)),n=Math.max(1,Math.ceil(h/.18));
+    const h=Math.min(3,Math.max(.18,trackedHeight)),n=Math.max(1,Math.ceil(h/.18));
     point.copy(foot).add(eyeOffset).addScaledVector(up,-trackedHeight);
-    const motion=end?turnDelta:delta;
-    if(end){du.subVectors(end.up,up);motion.subVectors(end.eye,eyeOffset).add(delta).addScaledVector(du,-trackedHeight);}
-    if(point.distanceToSquared(foot)>1e-8)section(point,motion,0,'foot');
+    if(point.distanceToSquared(foot)>1e-8)section(point,delta,0,'foot');
     point.addScaledVector(up,.15);
-    if(end)motion.addScaledVector(du,.15);
     for(let i=0;i<=n;i++){
-      const head=i===n;section(point,motion,head?.115:.15,head?'head':'body');
+      const head=i===n;section(point,delta,head?.115:.15,head?'head':'body');
       point.addScaledVector(up,(h-.15)/n);
-      if(end)motion.addScaledVector(du,(h-.15)/n);
     }
-    if(trackedHeight!==h)section(point.copy(foot).add(eyeOffset),end?turnDelta.subVectors(end.eye,eyeOffset).add(delta):delta,.115,'head');
+    if(trackedHeight!==h)section(point.copy(foot).add(eyeOffset),delta,.115,'head');
     return found?hit:null;
   };
 }

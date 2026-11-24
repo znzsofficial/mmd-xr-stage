@@ -1,9 +1,10 @@
-import {BufferAttribute, Matrix3, Matrix4, Vector3, type Bone, type Material, type SkinnedMesh} from 'three';
+import {BufferAttribute, Matrix3, Matrix4, Quaternion, Vector3, type Bone, type Material, type SkinnedMesh} from 'three';
 import type {MmdModel} from '@yohawing/three-mmd-loader/parser';
 import {ThighShell} from './thighShell';
 import {fitClothStrain,type ClothPoint} from './clothStrain';
 import {ClothCrossing} from './clothCrossing';
 import {clothMorphGuard} from './clothMorphGuard';
+import {fitRaisedSkirt} from './raisedSkirt';
 
 type Body=ReturnType<MmdModel['rigidBodies']>[number];
 type Patch={mesh:SkinnedMesh; material:Material; positions:BufferAttribute; vertices:Vertex[]; faces:Vertex[]; touched:Vertex[]; shown:boolean; base:number};
@@ -120,10 +121,10 @@ export function fitPoseSkirt(mesh:SkinnedMesh){
     }
   }
   if(!patches.length||legs.some(l=>!l.skin))return null;
-  return poseLayer(mesh,legs,pelvis,patches,palette);
+  return poseLayer(mesh,legs,pelvis,patches,palette,skirts);
 }
 
-function poseLayer(mesh:SkinnedMesh,legs:Fit[],pelvis:number,patches:Patch[],palette:Map<number,Matrix4>){
+function poseLayer(mesh:SkinnedMesh,legs:Fit[],pelvis:number,patches:Patch[],palette:Map<number,Matrix4>,skirts:Map<number,number>){
   const {bones,boneInverses}=mesh.skeleton, shell:Shell[]=[];
   const checked=new Map<number,Matrix4>(),relevant=new Map<SkinnedMesh,Set<number>>();
   const addPoints=(body:SkinnedMesh,indices:Iterable<number>)=>{let ids=relevant.get(body);if(!ids)relevant.set(body,ids=new Set());for(const i of indices)ids.add(i);};
@@ -154,11 +155,19 @@ function poseLayer(mesh:SkinnedMesh,legs:Fit[],pelvis:number,patches:Patch[],pal
   for(const [body,map] of byMesh)addPoints(body,map.keys());
   for(const n of nodes)if(!n.movable)addPoints(n.mesh,[n.index]);
   const morph=clothMorphGuard(mesh,relevant,new Set(byMesh.keys()));
+  const roll=fitRaisedSkirt(mesh,pelvis,legs.map(l=>l.hip),legs.map(l=>l.knee),skirts);
+  function bindDisplacement(v:Vertex,base:number,d:Vector3){const e=skinMat.elements;e.fill(0);
+    for(let j=0;j<v.weights.length;j++){const m=v.transforms[j].elements,w=v.weights[j];for(let k=0;k<12;k++)e[k]+=w*m[k];}
+    inverse.setFromMatrix4(skinMat);if(Math.abs(inverse.determinant())<.08){d.set(0,0,0);return;}
+    v.localInverse.copy(inverse).invert();if(base!==1)v.localInverse.multiplyScalar(1/base);
+    if(!(delta.copy(d).applyMatrix3(v.localInverse).lengthSq()<(legs[0].length*.24)**2))d.set(0,0,0);
+  }
   // Bind-frame positions are authoritative. The same attribute is shared by
   // body/colour/shadow/outline draws; the CPU skin and the renderer see it too.
   let suspended=false,measured=false;
-  function restore(){if(suspended)return;for(const patch of patches)for(const {index,rest} of patch.touched)patch.positions.setXYZ(index,rest.x,rest.y,rest.z);suspended=true;}
-  function clear(){restore();for(const patch of patches){uploadTouched(patch);patch.touched.length=0;}shell.length=0;measured=false;}
+  function restorePositions(){if(suspended)return;for(const patch of patches)for(const {index,rest} of patch.touched)patch.positions.setXYZ(index,rest.x,rest.y,rest.z);suspended=true;}
+  function restore(){roll?.restore();restorePositions();}
+  function clear(){roll?.clear();restorePositions();for(const patch of patches){uploadTouched(patch);patch.touched.length=0;}shell.length=0;measured=false;}
   function boneToModel(i:number,m:Matrix4){return m.multiplyMatrices(modelInverse,bones[i].matrixWorld);}
   function seed(){
     clear();if(morph.blocked())return;
@@ -178,6 +187,19 @@ function poseLayer(mesh:SkinnedMesh,legs:Fit[],pelvis:number,patches:Patch[],pal
       shell.push({field,crossing,toModel,toLocal,side,length:l.length});
     }
     for(const [i,m] of checked)boneToModel(i,m);
+    if(shell.length===2)roll?.seed((side,deform)=>{
+      const s=shell[side],l=legs[side],hip=V().setFromMatrixPosition(s.toModel),axis=V().set(0,1,0).transformDirection(s.toModel);
+      const down=atBind(mesh,l.knee).sub(l.bind).transformDirection(deform),sweep=new Quaternion().setFromUnitVectors(down,axis),mid=l.bind.clone().lerp(legs[1-side].bind,.5);
+      // The final thigh may already be above the fabric. Test its actual skin
+      // through the raising arc against the originally hanging front sheet.
+      for(const t of [0,.33,.67]){const turn=new Matrix4().makeRotationFromQuaternion(new Quaternion().slerp(sweep,t));
+        const m=s.toLocal.clone().multiply(new Matrix4().makeTranslation(hip.x,hip.y,hip.z)).multiply(turn).multiply(new Matrix4().makeTranslation(-hip.x,-hip.y,-hip.z)).multiply(deform);
+        for(const patch of patches){if(!patch.material.visible||patch.material.opacity<.04)continue;
+          for(let i=0;i<patch.faces.length;i+=3){const a=patch.faces[i],b=patch.faces[i+1],c=patch.faces[i+2];if(!(a.mask&b.mask&c.mask&(1<<side)))continue;
+            if((a.rest.x-mid.x)*(l.bind.x-mid.x)<0||(a.rest.z-mid.z)*(legs[0].bind.x-legs[1].bind.x)<0)continue;
+            if(s.crossing.crosses(q.copy(a.rest).applyMatrix4(m),u.copy(b.rest).applyMatrix4(m),w.copy(c.rest).applyMatrix4(m)))return true;}}
+      }return false;
+    },shell);
   }
   function present(){
     if(!shell.length)return;
@@ -185,13 +207,14 @@ function poseLayer(mesh:SkinnedMesh,legs:Fit[],pelvis:number,patches:Patch[],pal
     modelInverse.copy(mesh.matrixWorld).invert();
     for(const [i,m] of checked){const a=boneToModel(i,local).elements,b=m.elements;
       for(let k=0;k<16;k++)if(Math.abs(a[k]-b[k])>1e-4){clear();return;}}
+    roll?.present();
     let unchanged=measured;
     for(const [i,m] of palette){local.copy(mesh.bindMatrixInverse).multiply(bones[i].matrixWorld).multiply(boneInverses[i]).multiply(mesh.bindMatrix);
       if(unchanged&&!m.equals(local))unchanged=false;m.copy(local);}
     for(const patch of patches){const visible=patch.material.visible&&patch.material.opacity>=.04,b=morph.base(patch.mesh);if(patch.shown!==visible||patch.base!==b)unchanged=false;patch.shown=visible;patch.base=b;}
     if(unchanged){if(suspended)for(const patch of patches)for(const {index,shown} of patch.touched)patch.positions.setXYZ(index,shown.x,shown.y,shown.z);
       suspended=false;return;}
-    restore();measured=true;
+    restorePositions();measured=true;
     for(let i=0;i<movableCount;i++){nodes[i].d.set(0,0,0);nodes[i].blocked=false;}
     let moved=false;
     for(const patch of patches){
@@ -277,14 +300,23 @@ function poseLayer(mesh:SkinnedMesh,legs:Fit[],pelvis:number,patches:Patch[],pal
       // A point that cannot represent the proposed displacement in bind space
       // must be fixed BEFORE the face checks; dropping it afterwards would
       // invalidate the common cluster scale at its neighbours.
-      for(const patch of patches)for(const v of patch.vertices){const d=nodes[v.weld].d;if(!d.lengthSq())continue;
-        const e=skinMat.elements;e.fill(0);
-        for(let j=0;j<v.weights.length;j++){const m=v.transforms[j].elements,w=v.weights[j];for(let k=0;k<12;k++)e[k]+=w*m[k];}
-        inverse.setFromMatrix4(skinMat);if(Math.abs(inverse.determinant())<.08){d.set(0,0,0);continue;}
-        v.localInverse.copy(inverse).invert();if(patch.base!==1)v.localInverse.multiplyScalar(1/patch.base);
-        if(!(delta.copy(d).applyMatrix3(v.localInverse).lengthSq()<(legs[0].length*.24)**2))d.set(0,0,0);
-      }
+      for(const patch of patches)for(const v of patch.vertices){const d=nodes[v.weld].d;if(d.lengthSq())bindDisplacement(v,patch.base,d);}
       limitStrain();
+    }
+    if(roll?.active){
+      // Bound-space seams share the same point. A hidden incident material
+      // must not be pulled out through the visible part of the gathered hem.
+      for(const patch of patches)for(const v of patch.vertices)nodes[v.weld].blocked=false;
+      for(const patch of patches)if(!patch.shown)for(const v of patch.vertices)nodes[v.weld].blocked=true;
+      for(const patch of patches)if(patch.shown)for(const v of patch.vertices){const n=nodes[v.weld];if(n.blocked)continue;n.blocked=true;
+        delta.copy(n.d);roll.supportVertex(v.rest,n.p,delta);if(delta.equals(n.d))continue;
+        n.d.copy(delta);moved=true;
+      }
+      // The belly fit can start a previously untouched seam. Each duplicate
+      // needs its own absolute-morph factor and skin inverse before upload.
+      for(const patch of patches)for(const v of patch.vertices){const d=nodes[v.weld].d;if(d.lengthSq())bindDisplacement(v,patch.base,d);}
+    }
+    if(moved){
       for(const patch of patches){for(const v of patch.vertices){const d=nodes[v.weld].d;if(!d.lengthSq())continue;
           v.shown.copy(d).applyMatrix3(v.localInverse).add(v.rest);patch.positions.setXYZ(v.index,v.shown.x,v.shown.y,v.shown.z);patch.touched.push(v);}
         uploadTouched(patch);

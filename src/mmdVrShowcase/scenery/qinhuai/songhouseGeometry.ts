@@ -181,6 +181,6 @@ export function makeSonghouse(){
   }willow(-10.2,23.35,3.75);willow(7.76,23.49,4.05);
   const art=new Skin();slab(QUARTERS,-.18,GALLERY_Y-.042,'#806e60');boards(QUARTERS,GALLERY_Y,['#a48269','#a8866d','#ad8e73']);
   roof(QUARTERS.x,QUARTERS.z,3.63,3.49,PRIVATE_TOP+.15,1.13);
-  furnishQuarters({box,tube,bead,line,lantern,fabric,art});
-  return {boxes,round,facets,glow,roofs:roofs.finish(),prints:prints.finish(),hulls:hulls.finish(),fabric:fabric.finish(),close:makeSonghouseClose(boxes),quarters:art.finish()};
+  const paintedLeaves=new Skin();furnishQuarters({box,tube,bead,line,lantern,fabric,art,paintedLeaves});
+  return {boxes,round,facets,glow,roofs:roofs.finish(),prints:prints.finish(),hulls:hulls.finish(),fabric:fabric.finish(),close:makeSonghouseClose(boxes),quarters:art.finish(),paintedLeaves:paintedLeaves.finish()};
 }

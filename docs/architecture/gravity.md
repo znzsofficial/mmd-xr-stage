@@ -37,13 +37,15 @@ chip.velocity.addScaledVector(a, dt);
 |---|---|
 | 普通房间行走／跳 | [`groundMotor`](../../src/mmdVrShowcase/movement/groundMotor.ts) 用同一 9.81 常量推进竖直速度。地板、台阶、侧墙和顶棚由柱形空间查询决定；加速度本身不能判断落脚。 |
 | XR 母星、卫星地面 | [`PlanetMotor`](../../src/mmdVrShowcase/movement/PlanetMotor.tsx) 持有脚位和 XR 原点。母星的可选 [Ecctrl/Rapier 适配器](../../src/mmdVrShowcase/movement/PlanetPhysics.tsx) 给玩家胶囊施加按脚底半径计算的母星引力，并用实际支撑修正脚位。WASM 未就绪或失败走 [JS 后备](../../src/mmdVrShowcase/movement/planetTravel.ts)；卫星用 [`moonWalk`](../../src/mmdVrShowcase/movement/moonWalk.ts) 沿实际壳面走，母星驱动停放。 |
-| XR 离地、普通跨井 | [`orbitalFlight`](../../src/mmdVrShowcase/movement/orbitalFlight.ts) 对速度和脚位做子步积分；换井保留动量。[壳面扫掠](../../src/mmdVrShowcase/movement/orbitalSurfaces.ts)检查脚、身体和头，实际接触才落地或擦过。落地后的脚底接管、速度清零与视平线切换归 `PlanetMotor`。 |
+| XR 离地、普通跨井 | [`orbitalFlight`](../../src/mmdVrShowcase/movement/orbitalFlight.ts) 对速度和脚位做子步积分；换井保留动量。[壳面扫掠](../../src/mmdVrShowcase/movement/orbitalSurfaces.ts)检查脚、身体和头，实际接触才落地或擦过。[落地交接](../../src/mmdVrShowcase/movement/orbitContact.ts)让马达接管脚位并清零速度，保留触地前的视野；主动按 Y 才回正。[两种飞行的区别与实测](../performance/planet-horizon.md)。 |
 | 足印助跳、风道、自由飞行 | [足印助跳](../../src/mmdVrShowcase/movement/twinLeap.ts)校准发射冲量，在指定两星间积分，含专用横向辅助加速度。风道由图册的 `rideStep` 沿预制曲线运送；自由飞行由摇杆直接平移，不受重力或实体约束。这些是玩家的不同走法，风道和自由飞行没有另开物理引擎。 |
 | PMX 头发、裙摆、手部接触 | [演员运行时](../../src/mmdVrShowcase/mmdRuntime/mmdRuntime.ts)给每个开启物理的模型创建独立 [MMD Bullet 世界](../../src/mmdVrShowcase/mmdRuntime/mmdPhysics.ts)，按模型刚体、关节与接触代理求解。舞台不会把角色位置处的行星引力灌进 Bullet。 |
 | 视觉粒子 | [盐晶与火星](../../src/mmdVrShowcase/scenery/planet/StationFallout.tsx)在着色器里按发射点的固定局部轴与本星重力画抛物线；既有[液滴](../../src/mmdVrShowcase/bodyState/lactation/droplets.ts)离开出口后沿世界 −Y 下落。它们不扫壳面，也不是 Bullet 刚体。是否需要沿途重新选井，取决于效果能否飞离发射点附近。 |
 | 屏幕观看 | 检视相机有自己的轨道、缩放和平移。[街道与电玩厅](../../src/mmdVrShowcase/screen/streetTravel.ts)的贴地步行复用普通地面马达；[星系游览](../../src/mmdVrShowcase/screen/screenWindTravel.ts)复用风道、月面步行和足印助跳，普通空格小跳用 `moonWalk` 在本星起落。它没有挂 XR 母星 Rapier，也不等同于 XR 的任意地点跨井弹道。 |
 
 ## 何时值得再拆
+
+[现版重力采样与壳面扫掠对照](../performance/orbital-review.md)：记录桌面计时、候选原型逐值误差及仍缺的真机证据。
 
 - **加一颗可步行星或一个视觉玩具**：已有 `allMoons` 记录自动参与选井；地形、可落脚面和抵达路线仍需单独创作。玩具只需采样位置并管理自己的速度、寿命和绘制，不需要改玩家状态机。
 - **加一种场**（例如某个房间内有侧向吸附区）：先在查询层定义生效范围、重叠优先级与出界行为，用两个独立物体穿越边界验证。若还要让玩家走上侧墙，必须另做支撑、碰撞、头部余量和视平线接管；改一个向量并不足够。

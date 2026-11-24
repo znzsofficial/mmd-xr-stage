@@ -129,9 +129,9 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen
     rows.push(link(l('返回操作','Back to controls'),()=>go('use')));
   }else if(page==='fit'){
     result.status=!known?l('没有找到入口。到「模型」手动指定起点。','Opening not found. Set an origin under Model.'):
-       fit==='model'?coverage||(profile.showAdapter&&profile.clothingClear?l('角色身上的外阴附件：已显示','Attachment on actor: shown'):l('角色身上的外阴附件：隐藏。观察图仍可查看。','Attachment on actor: hidden. The observation view is still available.')):
+       fit==='model'?[profile.showAdapter?l('外阴附件已开启','Vulva attachment on'):l('外阴附件已关闭','Vulva attachment off'),coverage].filter(Boolean).join(' · '):
       l('看角色身上的入口标记调整；改动后需重新确认。','Fit the marker on the actor, then confirm the opening again.');
-    rows.push(...fitRows({assetId,source,l,profile,support,fit,setFit,morph,names:names??[],page:morphPage,setPage:setMorphPage,clothes,clear:()=>{disablePelvic(assetId);go('use');}}));
+    rows.push(...fitRows({assetId,runtimeId,source,l,profile,support,fit,setFit,morph,names:names??[],page:morphPage,setPage:setMorphPage,clothes,clear:()=>{disablePelvic(assetId);go('use');}}));
   }else if(page==='fluid'){
     const c=profile.container,uterine=c==='fantasyUterine',amount=profile.fluid[c];
     result.status=`${uterine?l('宫腔','Uterus'):l('阴道','Vagina')} · ${amount} / ${profile.capacity[c]} ${l('单位','units')}`;

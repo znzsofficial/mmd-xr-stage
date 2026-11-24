@@ -6,6 +6,7 @@ import { garmentKeys } from '../wardrobe/slots';
 import {pelvicRailTravel} from './path';
 import {PELVIC_LIMITS} from './stateTypes';
 import type { PelvicFrame } from './contract';
+import {createGarmentPrint,halfX,halfY,type GarmentPrint} from './garmentPrint';
 
 // A name/tag only selects surfaces to CHECK. It is never evidence of an
 // uncovered entrance. Unknown/merged materials still require manual review.
@@ -26,10 +27,10 @@ const chunksPerSample=128,trianglesPerSample=1400,maxPoseValues=131072;
 export function createGarmentGuard(root:Object3D,surface?:WandModel|null){
   const keys=()=>surface?garmentKeys(surface.mesh):undefined;
   let registered=keys(),guard=indexGarmentGuard(root,surface,registered);
-  const probe=Object.assign((frame:PelvicFrame):Obstruction=>{
+  const probe=Object.assign((frame:PelvicFrame,withPrint=false):Obstruction=>{
     if(registered!==keys()){registered=keys();guard=indexGarmentGuard(root,surface,registered);probe.garmentNames=guard.garmentNames;}
-    return guard(frame);
-  },{blockerName:()=>guard.blockerName(),garmentNames:guard.garmentNames});return probe;
+    return guard(frame,withPrint);
+  },{blockerName:()=>guard.blockerName(),print:()=>guard.print(),printReady:()=>guard.printReady(),garmentNames:guard.garmentNames});return probe;
 }
 function indexGarmentGuard(root:Object3D,surface?:WandModel|null,registered?:ReadonlySet<string>){
   const layers:Layer[]=[], chunks:Chunk[]=[],bodies:Body[]=[];
@@ -56,7 +57,7 @@ function indexGarmentGuard(root:Object3D,surface?:WandModel|null,registered?:Rea
     add(body,surface.mesh,body===surface.mesh?surface.renderOrderMeshes:[]);}
   else root.traverse(o=>{const m=o as SkinnedMesh;if(m.isMesh)add(m,m.isSkinnedMesh?m:null);});
   const p=new Vector3(),a=new Vector3(),b=new Vector3(),c=new Vector3(), tri=new Triangle(a,b,c);
-  const world=new Box3(),tmp=new Box3(),zone=new Box3(),worldZone=new Box3();
+  const world=new Box3(),tmp=new Box3(),zone=new Box3(),printZone=new Box3(),worldZone=new Box3();
   function* build(){for(const layer of layers){if(layer.oversize)continue;const {mesh,start,end}=layer,g=mesh.geometry,{position,skinIndex,skinWeight,matricesSdefEnabled:sdef,matricesQdefEnabled:qdef}=g.attributes;
     for(let lo=start;lo<end;lo+=96){const hi=Math.min(lo+96,end),rest=new Box3(),bones=new Set<number>();let linear=true;
        for(let j=lo;j<hi;j++){const i=g.index?.getX(j)??j;rest.expandByPoint(p.fromBufferAttribute(position,i));
@@ -77,13 +78,16 @@ function indexGarmentGuard(root:Object3D,surface?:WandModel|null,registered?:Rea
   let cursor=0,blocker:Layer|null=null,changed=false,finite=true,at=0;
   function record(n:number){if(!Number.isFinite(n))finite=false;if(previous[at]!==n){previous[at]=n;changed=true;}at++;}
   function recordArray(a:ArrayLike<number>){for(let i=0;i<a.length;i++)record(a[i]);}
-  function restart(){cursor=0;blocker=null;}
-  function probe(frame:PelvicFrame):Obstruction{
+  let print:ReturnType<typeof createGarmentPrint>|undefined,wanted=false,published:GarmentPrint|null=null,printed=false,inkCursor=0;
+  function clearPrint(){inkCursor=0;published=null;printed=false;print?.reset();}
+  function restart(){cursor=0;blocker=null;clearPrint();}
+  function probe(frame:PelvicFrame,withPrint=false):Obstruction{
+    if(wanted!==withPrint){wanted=withPrint;clearPrint();if(wanted)print??=createGarmentPrint();}
     changed=false;at=0;finite=true;let any=false;
     for(const body of bodies)body.shown=false;
     for(const l of layers){const shown=rendered(l);if(l.shown!==shown){changed=true;l.shown=shown;}
        if(shown){if(l.oversize||l.invalid){restart();return 'unverified';}l.body.shown=true;any=true;}}
-    if(!any){restart();return;}
+    if(!any){restart();printed=true;return;}
     if(!ready){const stop=performance.now()+.8;for(let i=0;i<chunksPerSample;i++){if(builder.next().done){ready=true;break;}if(performance.now()>=stop)break;}
        if(!ready||layers.some(l=>l.shown&&l.invalid))return 'unverified';}
     recordArray(frame.world.elements);recordArray(frame.inverse.elements);record(frame.radiusM);record(frame.lengthM);record(frame.scale);
@@ -99,15 +103,24 @@ function indexGarmentGuard(root:Object3D,surface?:WandModel|null,registered?:Rea
     if(!finite||!(frame.radiusM>0&&frame.scale>0&&frame.lengthM>0)){restart();return 'unverified';}
     if(changed||previous.length!==at)restart();
     previous.length=at;
-    if(blocker)return 'garment';
-    if(cursor===chunks.length)return;
+    if((blocker||cursor===chunks.length)&&(!wanted||printed))return blocker?'garment':undefined;
     // A short exterior approach plus the recessed seat, in calibrated metres.
     // A lifted skirt well above this volume does not veto a clear port.
      const r=frame.radiusM;zone.min.set(-r,-r,-.35*r);zone.max.set(r,r,Math.max(.075*frame.scale,2*r,-pelvicRailTravel(frame,PELVIC_LIMITS.position[0])));
-    worldZone.copy(zone).applyMatrix4(frame.world);
+    // The accessory print has its own cursor. Turning the attachment on must
+    // never delay or invalidate a previously verified outlet or a running take.
+    if(!blocker&&cursor<chunks.length&&!scan(false,zone,r,frame))return 'unverified';
+    if(wanted&&!printed){printZone.min.set(-r*halfX,-r*halfY,-.35*r);printZone.max.set(r*halfX,r*halfY,zone.max.z);
+      if(scan(true,printZone,r,frame)){print!.commit();published=print!.value;printed=true;}}
+    return blocker?'garment':undefined;
+  }
+  function scan(ink:boolean,query:Box3,r:number,frame:PelvicFrame){
+    worldZone.copy(query).applyMatrix4(frame.world);
     let current:Layer|null=null,tested=0,visited=0;
-    for(;cursor<chunks.length;cursor++){if(++visited>chunksPerSample)return 'unverified';
-      const chunk=chunks[cursor],{layer:l}=chunk;if(!l.shown)continue;
+    for(let i=ink?inkCursor:cursor;i<chunks.length;i++){
+      if(ink)inkCursor=i;else cursor=i;
+      if(++visited>chunksPerSample)return false;
+      const chunk=chunks[i],{layer:l}=chunk;if(!l.shown)continue;
       if(l!==current){current=l;l.pose?.begin();}
       const g=l.mesh.geometry;
       if(chunk.linear&&(l.pose?!l.pose.active.length:!l.mesh.morphTargetInfluences?.some(x=>x!==0))){
@@ -117,15 +130,16 @@ function indexGarmentGuard(root:Object3D,surface?:WandModel|null,registered?:Rea
       }
       // Stop at a chunk boundary. No partially examined chunk counts toward a
       // clear result; even a frame of all broad-phase rejects has bounded work.
-      tested+=(chunk.end-chunk.start)/3;if(tested>trianglesPerSample)return 'unverified';
+      tested+=(chunk.end-chunk.start)/3;if(tested>trianglesPerSample)return false;
       for(let j=chunk.start;j+2<chunk.end;j+=3){
         for(let k=0;k<3;k++){const i=g.index?.getX(j+k)??j+k,out=k===0?a:k===1?b:c;
           if(l.pose)l.pose.vertex(i,out);else l.mesh.getVertexPosition(i,out).applyMatrix4(l.mesh.matrixWorld);
-           out.applyMatrix4(frame.inverse);if(!Number.isFinite(out.x+out.y+out.z)){restart();return 'unverified';}}
+           out.applyMatrix4(frame.inverse);if(!Number.isFinite(out.x+out.y+out.z)){if(ink)clearPrint();else restart();return false;}}
         // Treat patterned/cutout garments conservatively, including backfaces.
-         if(zone.intersectsTriangle(tri)){blocker=l;return 'garment';}
+        if(query.intersectsTriangle(tri)){if(!ink){blocker=l;return true;}print!.triangle(a,b,c,r);}
       }
     }
+    if(ink)inkCursor=chunks.length;else cursor=chunks.length;return true;
   }
-  return Object.assign(probe,{garmentNames:[...new Set(layers.map(l=>l.key))],blockerName:()=>blocker?.key});
+  return Object.assign(probe,{garmentNames:[...new Set(layers.map(l=>l.key))],blockerName:()=>blocker?.key,print:()=>published,printReady:()=>printed});
 }

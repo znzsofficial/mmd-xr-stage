@@ -5,8 +5,8 @@ const sample=new Vector3(),eye=new Vector3();
 /** World-vertical rock columns, but the player stands along the local lunar
  * vertical. Cover the actual tracked sole–eye segment, including a lateral
  * room-scale offset. The motor sole itself remains a separate probe. */
-export function tideBodyBlocked(foot:Vector3,up:Vector3,offset:Vector3){
-  const h=offset.dot(up),dx=offset.x-h*up.x,dz=offset.z-h*up.z,dy=offset.y-h*up.y;
+export function tideBodyBlocked(foot:Vector3,up:Vector3,offset:Vector3,h=offset.dot(up)){
+  const dx=offset.x-h*up.x,dz=offset.z-h*up.z,dy=offset.y-h*up.y;
   const x=foot.x-tideCentre.x,z=foot.z-tideCentre.z;
   const reachX=.70+Math.abs(dx)+Math.abs(up.x*h),reachZ=.70+Math.abs(dz)+Math.abs(up.z*h);
   if(x<tideChart.minX-reachX||x>tideChart.maxX+reachX||z<tideChart.minZ-reachZ||z>tideChart.maxZ+reachZ)return false;

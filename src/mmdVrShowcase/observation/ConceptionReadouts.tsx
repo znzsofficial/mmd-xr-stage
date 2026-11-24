@@ -10,10 +10,10 @@ export const CONCEPTION_REVEAL_MS=RESULT_REVEAL_SECONDS*1000;
 
 /** One wake per delivery. Looking away, returning or changing the chance
  * never restarts the encounter or reveals a previous actor's result. */
-export function useConceptionReadout(id:string,part:ObservationPart,moving:boolean,showChance:boolean){
-  const {eggId}=useAtlasView(id),active=part==='egg'||part==='uterus';
+export function useConceptionReadout(id:string,part:ObservationPart,moving:boolean,showChance:boolean,showRecord=true){
+  const {eggId}=useAtlasView(id),active=showRecord&&(part==='egg'||part==='uterus');
   const egg=useConception(s=>part==='egg'?eggsFor(id,s).find(e=>e.id===eggId):undefined);
-  const last=useConception(s=>part==='uterus'?s.byAsset[id]?.event:undefined),event=egg?.event??last;
+  const last=useConception(s=>active&&part==='uterus'?s.byAsset[id]?.event:undefined),event=egg?.event??last;
   const chance=useConception(s=>active&&showChance?chanceFor(id,s):null);
   const chanceLabel=useLanguageStore(s=>s.t('actorChance')),zh=useLanguageStore(s=>s.language==='zh');
   const [revealed,reveal]=useState<typeof event>();

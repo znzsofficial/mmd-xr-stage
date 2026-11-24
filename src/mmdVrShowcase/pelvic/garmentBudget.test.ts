@@ -2,6 +2,7 @@ import { Bone, Box3, BufferGeometry, Float32BufferAttribute, Group, Matrix4, Mes
 import { afterEach, expect, it, vi } from 'vitest';
 import type { PelvicFrame } from './contract';
 import { createGarmentGuard, type Obstruction } from './garment';
+import {halfX,halfY,printH,printW} from './garmentPrint';
 import {applyMaterialVisibility} from '../mmdRuntime/mmdRuntimeMaterials';
 import {extractMaterialNames} from '../mmdRuntime/mmdRuntimeEntry';
 import type {ThreeMmdModel} from '@yohawing/three-mmd-loader';
@@ -15,6 +16,24 @@ function misses(){const g=geometry([0,2,.02, 2,0,.02, 2,2,.02]);
   g.setIndex(Array.from({length:9000},(_,i)=>i%3));return new Mesh(g,cloth());}
 function settle(read:()=>Obstruction){for(let i=0;i<256;i++){const r=read();if(r!=='unverified')return r;}
   throw Error('garment scan never finished');}
+
+it('keeps the outlet covered while the separate attachment print uncovers one side, then follows the other side',()=>{
+  const f=frame(),r=f.radiusM;
+  const panel=new Mesh(geometry([-.08,-.1,.012, .002,-.1,.012, .002,.1,.012, -.08,-.1,.012, .002,.1,.012, -.08,.1,.012]),cloth());
+  const guard=createGarmentGuard(panel),read=()=>guard(f,true);
+  const pixel=(x:number,y:number)=>guard.print()!.pixels[Math.floor((y/r/halfY+1)*printH/2)*printW+Math.floor((x/r/halfX+1)*printW/2)];
+  expect(settle(read)).toBe('garment');expect([pixel(-r,0),pixel(r,0)]).toEqual([255,0]);const version=guard.print()!.version;
+  expect(read()).toBe('garment');expect(guard.print()!.version).toBe(version);
+  panel.position.x+=.078;expect(settle(read)).toBe('garment');expect([pixel(-r,0),pixel(r,0)]).toEqual([0,255]);
+  panel.visible=false;expect(read()).toBeUndefined();expect(guard.print()).toBeNull();
+});
+
+it('can enable the larger garment print during a confirmed stroke without invalidating its outlet',()=>{
+  const f=frame(),guard=createGarmentGuard(misses());expect(settle(()=>guard(f))).toBeUndefined();
+  expect(guard(f,true)).toBeUndefined();expect(guard.printReady()).toBe(false);
+  for(let i=0;i<8&&!guard.printReady();i++)expect(guard(f,true)).toBeUndefined();
+  expect(guard.printReady()).toBe(true);expect(guard.print()?.covered).toBe(0);
+});
 
 it('reaches a blocker after 3000 misses, then proves clearance only after rechecking the moved cloth',()=>{
   const root=new Group(),last=new Mesh(geometry([-.01,-.01,.02, .01,-.01,.02, 0,.01,.02]),cloth());root.add(misses(),last);

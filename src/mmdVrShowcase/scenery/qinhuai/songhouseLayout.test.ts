@@ -1,6 +1,7 @@
 import {expect,it} from 'vitest';
 import {canPlaceInScenery,resolvePlacementHeight,visiblePick} from '../placementAreas';
-import {BED,BED_STEP,DOOR_X,DOOR_Z,DRESSER,DRESSING_STOOL,moveInSonghouse,PRIVATE_SPOTS,SCREEN_ENTRY,SHOTS,songhouseClear,songhouseHeight,STAGE_Y,GALLERY_Y,XR_ENTRY} from './songhouseLayout';
+import {BED,BED_STEP,DOOR_X,DOOR_Z,DRESSER,DRESSING_STOOL,moveInSonghouse,PRIVATE_SPOTS,SCREEN_ENTRY,SHOTS,songhouseClear,songhouseHeight,songhouseSightline,STAGE_Y,GALLERY_Y,XR_ENTRY} from './songhouseLayout';
+import {chamberLeaves,folio,leafXZ,screenBody} from './chamberFolio';
 
 it('walks the quay, enters through the façade, climbs the stage and returns up the outside stair',()=>{
   let pos=XR_ENTRY;
@@ -51,4 +52,24 @@ it('admits a ray through the open leaves, not through the jamb, bed, roof or low
   expect(ray(BED.x,4.02,-11.44,BED.x,-14.01)).toBe(false);
   expect(ray(-9.21,4.08,-13.33,-11.39,-13.53)).toBe(false);
   expect(ray(-10.13,7.2,-10.77,...PRIVATE_SPOTS[1])).toBe(false);
+});
+
+it('reads the front of every folded silk leaf from the doorway and cannot walk, place, or point through it',()=>{
+  for(const l of chamberLeaves){
+    const pt=(n:number,y:number)=>{const [x,z]=leafXZ(l,0,n);return {x,y:GALLERY_Y+y,z};};
+    expect(songhouseSightline({x:DOOR_X,y:GALLERY_Y+1.62,z:DOOR_Z-.26},pt(.030,1.19))).toBe(true);
+    expect(songhouseClear(l.x,l.z)).toBe(false);expect(canPlaceInScenery('qinhuai',l.x,l.z)).toBe(false);
+    expect(songhouseSightline(pt(.14,1.3),pt(-.14,1.28))).toBe(false);
+    expect(songhouseSightline(pt(.10,screenBody.top+.06),pt(-.10,screenBody.top+.06))).toBe(true);
+    expect(songhouseSightline(pt(.10,.08),pt(-.10,.08))).toBe(true); // between the feet
+  }
+});
+
+it('picks the open illustrated pages over the desk, but not through the cabinet, chamber wall or the back of the book',()=>{
+  const to={x:DRESSER.x+folio.offsetX,y:GALLERY_Y+folio.height+.002,z:DRESSER.z+folio.offsetZ};
+  const [x,y,z]=SHOTS.find(s=>s.key==='qinhuaiAlbum')!.eye;
+  expect(songhouseSightline({x,y,z},to)).toBe(true);
+  expect(songhouseSightline({...to,y:to.y-.33,z:to.z+.24},to)).toBe(false);
+  expect(songhouseSightline({x:-8.02,y:4.04,z:-6.30},to)).toBe(false);
+  expect(songhouseSightline({...to,y:to.y-.031,z:to.z-.020},to)).toBe(false);
 });

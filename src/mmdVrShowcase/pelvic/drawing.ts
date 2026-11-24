@@ -3,7 +3,8 @@ import { createSealShell, makeCarriage, makeStandFoot, makeTracks } from './rigA
 import { pelvicSeal, type PelvicContact, type PelvicFrame } from './geometry';
 import {readAtlasView} from './atlas/view';
 import type {FoldStyle,RimState} from './vulvaForm';
-import {createTissueMaterial,createVulvaRoughness} from './vulvaStageFinish';
+import {createTissueCover,createTissueMaterial,createVulvaRoughness} from './vulvaStageFinish';
+import type {GarmentPrint} from './garmentPrint';
 
 const closed:PelvicContact={inside:false,depthM:0,atCervix:false,outletInside:false,outletVisible:false,outletLocal:new Vector3(),shaftLocal:[]};
 const parentInverse=new Matrix4();
@@ -18,22 +19,25 @@ export function placeWorld(node:Object3D,world:Matrix4){
 export function createPortDrawing(host:Object3D,assetId:string){
   const group=new Group();group.name=`pelvic:adapter:${assetId}`;group.visible=false;host.add(group);
   const finish=createVulvaRoughness();
-  const shellMaterial=createTissueMaterial(finish);
+  const cover=createTissueCover(),shellMaterial=createTissueMaterial(finish,cover);
   const seed={radiusM:.02},seal=pelvicSeal(seed,closed,true)!,shell=createSealShell();
   const molded=new Mesh(shell.geom,shellMaterial);molded.name='pelvic:seal';group.add(molded);
   const mark=new Mesh(new TorusGeometry(1,.055,8,40),new MeshStandardMaterial({color:'#6dc6bd',roughness:.64,wireframe:false}));
   mark.visible=false;mark.name='pelvic:calibration-guide';group.add(mark);
   let lastRadius=-1,wasOpen=false,lastStyle:FoldStyle|undefined,lastRim:RimState|undefined;
-  return {group,draw(f:PelvicFrame,showShell:boolean,preview:boolean,contact:PelvicContact=closed,rim:RimState='off'){
+  return {group,draw(f:PelvicFrame,showShell:boolean,preview:boolean,contact:PelvicContact=closed,rim:RimState='off',print?:GarmentPrint|null){
     placeWorld(group,f.world);group.visible=showShell||preview;mark.visible=preview&&!showShell;molded.visible=showShell;
     if(!contact.outletInside)contact=closed;
     if(mark.visible)mark.scale.set(f.radiusM*1.62,f.radiusM*1.72,f.radiusM);
     const style=showShell?readAtlasView(assetId).foldStyle:undefined;
-    if(!contact.inside&&(!showShell||(!wasOpen&&lastStyle===style&&lastRim===rim&&Math.abs(lastRadius-f.radiusM)<=1e-8)))return 0;
-    const opening=pelvicSeal(f,contact,true,seal)!;
-    if(showShell){shell.fit(opening,f.radiusM,style,rim);lastRadius=f.radiusM;lastStyle=style;lastRim=rim;wasOpen=opening.openness>0;}
-    return opening.openness;
-  },dispose(){group.removeFromParent();shell.geom.dispose();finish.dispose();shellMaterial.dispose();mark.geometry.dispose();mark.material.dispose();}};
+    let amount=0;
+    if(contact.inside||showShell&&(wasOpen||lastStyle!==style||lastRim!==rim||Math.abs(lastRadius-f.radiusM)>1e-8)){
+      const opening=pelvicSeal(f,contact,true,seal)!;amount=opening.openness;
+      if(showShell){shell.fit(opening,f.radiusM,style,rim);lastRadius=f.radiusM;lastStyle=style;lastRim=rim;wasOpen=amount>0;}
+    }
+    if(showShell){if(!shell.geom.boundingBox)shell.geom.computeBoundingBox();molded.visible=cover.apply(print,f.radiusM,shell.geom.boundingBox!);}
+    return amount;
+  },dispose(){group.removeFromParent();shell.geom.dispose();finish.dispose();cover.dispose();shellMaterial.dispose();mark.geometry.dispose();mark.material.dispose();}};
 }
 
 export function createStandDrawing(host:Object3D){

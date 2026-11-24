@@ -14,7 +14,7 @@ import { queuePelvicGrip } from './input';
 import {setAtlasView} from './atlas/view';
 import { pelvicRailMatrix, registerPelvicSocket, samplePelvicFrame } from './geometry';
 import { assignPelvic, clearRailTechnique, enablePelvic, nudgePelvic, patchPelvic, requestPelvicDose, requestStrokeDose, saveRailTechnique,
-  setActorResponse, startPelvic, startRailTechnique, stopPelvic, usePelvic } from './store';
+   setActorResponse, setPelvicAdapter, startPelvic, startRailTechnique, stopPelvic, usePelvic } from './store';
 
 const st=usePelvic.getState,initialStage=useMmdVrStore.getState();
 const cleanup:(()=>void)[]=[];
@@ -215,6 +215,18 @@ it('checks live skinned clothing, suppressing surface effects without cancelling
   m.visible=false;tick();expect(st().support.a.obstruction).toBeUndefined();expect(driver.getAperture()).toBeTruthy();stopPelvic('a');patchPelvic('a',{showAdapter:false});
   useStagePlay.getState().stow();useBackpack.getState().select(null);m.visible=true;tick();expect(st().support.a.obstruction).toBeUndefined();
   useBackpack.getState().select('a');tick();expect(st().support.a.obstruction).toBe('garment');g.dispose();m.dispose();
+});
+
+it('keeps a fitted shell armed through covering, uncovering and re-covering without a rod or exposure confirmation',()=>{
+  const {root,scene,tick}=fixture('screen');const g=new BoxGeometry(.20,.20,.004),m=new MeshBasicMaterial({name:'Pleated Skirt'});
+  const skirt=new Mesh(g,m);root.add(skirt);cleanup.push(()=>{g.dispose();m.dispose();});
+  patchPelvic('a',{clothed:true});tick();const shell=scene.getObjectByName('pelvic:seal')!,shown=()=>shell.visible&&shell.parent!.visible;
+  expect(st().support.a.obstruction).toBe('garment');expect(setPelvicAdapter('a','stale',true)).toBe(false);
+  expect(setPelvicAdapter('a','m',true)).toBe(true);tick();expect(shown()).toBe(false);
+  useBackpack.getState().select(null);skirt.position.y=.35;tick();expect(shown()).toBe(true);
+  skirt.position.y=0;tick();expect(shown()).toBe(false);expect(st().byAsset.a).toMatchObject({showAdapter:true,clothingClear:false,clothed:true});
+  useBackpack.getState().select('a');expect(setPelvicAdapter('a','m',false)).toBe(true);m.visible=false;tick();expect(shown()).toBe(false);
+  expect(st().active).toBeNull();expect(useStagePlay.getState().stand).toBeNull();
 });
 
 it.each(['Pleated Skirt','Body with painted outfit'])('supports an explicit clothed crossing with %s without opening the surface or spraying under it',name=>{

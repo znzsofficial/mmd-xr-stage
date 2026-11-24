@@ -28,6 +28,8 @@ Open **Interact → Insertion** on the whole uterus. The adjacent **Egg** tab al
 
 Pregnancy and physiological calendar management are outside the product direction. Do not propose ovulation schedules, implantation, gestational weeks or belly growth as follow-ups. Clothing, body shape and left/right milk stock remain independent actor tools. Body settings previews shape and starting stock; Body view is read-only.
 
+The optional Pregnancy reference in Body view is an illustration chosen by the viewer, not an actor condition. Opening or rotating it must not change the character, their milk or eggs, or the live insertion sheet. A fitted external attachment, separately, can stay enabled under clothes: only uncovered areas should be visible when the garment moves.
+
 In the dildo controls, use the plain player-facing terms 精液 / semen, 阴道 / vagina and 宫腔 / uterus. The spray, organ view and measurement key use the same milky white. Keep quantities in game units and show the actual cervical stop; the selected destination does not need a “fantasy” prefix.
 
 An anatomical illustration here is a live game view. The player can rotate the same anatomy and see changes in tissue, instrument position and simulated liquid. Use local rendering rather than a gallery of static generated pictures or an external image API; keep illustrative motion separate from measured state.

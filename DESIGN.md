@@ -139,6 +139,8 @@ For the vaginal close-up the walls are the subject. Use an asymmetric longitudin
 
 Quest review accepted the external peach/coral colours. When the external opening widens, its centre should reveal a short folded inner surface with depth and oblique occlusion rather than a flat swatch. In the whole-uterus view, retain the ovaries and tubes while showing the measured shaft and local wall response in the lower tract. An axis line alone does not communicate insertion; the physical stop is the cervix, not inside the uterine cavity. These are observation views, independent of whether the optional actor attachment is visible.
 
+Keep **Everyday view / Pregnancy reference** together above the part tabs in Body observation. The heading, Back control and angle keys stay put when the viewer compares the two. Label the reference anatomy as an illustration. Where a measured canal or external view is present, keep the actual actor reading beside a same-angle locator rather than replacing it with a fictional reading. The insertion workbench keeps its ordinary live monitor.
+
 The optional XR FPS readout uses gold text over plum. The neutral scene background and grid keep their stage colors. The placement stamp and pose markers use dark/light contrast plus their existing footprint, cross and joint shapes; validity must not depend on color alone.
 
 Hand and controller rays share a `#79baff` beam and a hollow hit marker with a white inner band and ink outer rim. Both bands use the existing cursor quad, independent of scene exposure. The 39 mm cursor quad and 7 mm beam are visuals; neither enlarges the interaction target. Live House scenery colors are intentionally separate from the HUD palette.

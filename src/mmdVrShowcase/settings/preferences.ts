@@ -34,7 +34,6 @@ export interface MmdVrPrefs {
   gridPref: MmdVrTogglePref;
   walkSpeedPref: MmdVrWalkSpeedPref;
   movementMode: MovementMode;
-  planetAutoLanding: boolean;
   /** Calibration above the tracked floor, in metres. Never a motor position. */
   normalEyeOffset: number;
   lightPreset: MmdVrLightPreset;
@@ -102,7 +101,6 @@ export function normalizeMmdVrPrefs(parsed: Partial<MmdVrPrefs> & {liveHouseEnab
     gridPref: normalizeImmersiveToggle(parsed.gridPref),
     walkSpeedPref: walk === 'fast' || walk === 'normal' || walk === 'slow' || walk === 'sprint' ? walk : 'auto',
     movementMode: parsed.movementMode === 'free' ? 'free' : 'normal',
-    planetAutoLanding: parsed.planetAutoLanding === true,
     normalEyeOffset: typeof parsed.normalEyeOffset==='number' && Number.isFinite(parsed.normalEyeOffset)
       ? Math.round(Math.max(-.8,Math.min(.8,parsed.normalEyeOffset))*10)/10 : 0,
     lightPreset,

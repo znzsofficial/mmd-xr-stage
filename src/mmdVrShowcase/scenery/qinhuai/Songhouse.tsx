@@ -7,6 +7,8 @@ import {makeSonghouse} from './songhouseGeometry';
 import silkUrl from './songhouse-silk.webp';
 import closeUrl from './songhouse-close.webp';
 import quartersUrl from './quarters-silk.webp';
+import folioUrl from './chamber-paintings.webp';
+import {DressingAlbum} from './DressingAlbum';
 
 const tileCourses:MeshStandardMaterial['onBeforeCompile']=shader=>{
   shader.vertexShader='varying vec2 tileUv;\n'+shader.vertexShader.replace('#include <uv_vertex>','#include <uv_vertex>\n tileUv=uv;');
@@ -56,8 +58,9 @@ export function QinhuaiWater(){return <mesh name="qinhuai:water" position={[0,-.
     }`}/></mesh>;}
 export function Songhouse({shadows}:{shadows:boolean}){
   const p=useMemo(makeSonghouse,[]),map=useBakedSurface(silkUrl),close=useBakedSurface(closeUrl),quarters=useBakedSurface(quartersUrl);
-  useEffect(()=>()=>{for(const g of [p.roofs,p.fabric,p.prints,p.hulls,p.close,p.quarters])g.dispose();},[p]);
-  return <group name="qinhuai:songhouse" pointerEvents="none">
+  const folioMap=useBakedSurface(folioUrl);
+  useEffect(()=>()=>{for(const g of [p.roofs,p.fabric,p.prints,p.hulls,p.close,p.quarters,p.paintedLeaves])g.dispose();},[p]);
+  return <><group name="qinhuai:songhouse" pointerEvents="none">
     <Batch name="qinhuai:joinery" parts={p.boxes} shade={joinery}/><Batch name="qinhuai:columns" parts={p.round} round casts={shadows}/>
     <mesh name="qinhuai:curtains" geometry={p.fabric} raycast={noPick}><meshStandardMaterial side={DoubleSide} vertexColors roughness={.89}/></mesh><Batch name="qinhuai:tea-and-finials" parts={p.facets} foliage/>
     <Batch name="qinhuai:lantern-paper" parts={p.glow} round lit/>
@@ -66,6 +69,7 @@ export function Songhouse({shadows}:{shadows:boolean}){
     {map&&<mesh name="qinhuai:folding-screen-and-signs" geometry={p.prints} raycast={noPick}><meshStandardMaterial key={map.uuid} map={map} roughness={.89}/></mesh>}
     <mesh name="qinhuai:lacquer-rope-and-stone" geometry={p.close} raycast={noPick}><meshStandardMaterial key={close?.uuid??'unpainted'} map={close} color={close?'#ffffff':'#927961'} side={DoubleSide} roughness={.73}/></mesh>
     <mesh name="qinhuai:quarters-silks" geometry={p.quarters} raycast={noPick}><meshStandardMaterial key={quarters?.uuid??'unpainted'} map={quarters} color={quarters?'#ffffff':'#ab907f'} side={DoubleSide} roughness={.88}/></mesh>
+    {folioMap&&<mesh name="qinhuai:bedside-silk" geometry={p.paintedLeaves} raycast={noPick}><meshStandardMaterial map={folioMap} roughness={.92}/></mesh>}
     <QinhuaiWater/>
-  </group>;
+  </group>{folioMap&&<DressingAlbum map={folioMap}/>}</>;
 }

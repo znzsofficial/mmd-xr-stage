@@ -17,6 +17,9 @@ export type PelvicProfile = {
    * belong to this fit and are cleared when its calibration changes. */
   calibration:PelvicCalibration; clothingClear:boolean; clothed?:boolean; container:PelvicContainer;
   apertureMorph?:string|null; showAdapter:boolean;
+  /** The player fitted the optional mesh to underlying skin. This is not
+   * evidence that the rod's exterior outlet is exposed. */
+  adapterSkinFit?:boolean;
   /** A chosen game event, local to this backpack actor. No medical meaning. */
   rimMode?:RimMode; rimMemory?:'left'|'right'|'center';
   /** Auto from the mounted face by default; null turns actor response off. */
@@ -48,6 +51,9 @@ export type PelvicSupport = {
   garmentNames?:readonly string[]; blockerName?:string;
   responseMorphs?:readonly string[];
 };
+
+export const canDrawAdapter=(p:PelvicProfile,s:PelvicSupport)=>p.showAdapter&&
+  !!(p.clothingClear||p.adapterSkinFit)&&s.kind!=='missing'&&s.obstruction!=='unverified';
 
 export function canStartAtOpening(p:PelvicProfile,s:PelvicSupport|undefined){
   return !!s&&s.kind!=='missing'&&(!!p.clothed||p.clothingClear&&!s.obstruction);

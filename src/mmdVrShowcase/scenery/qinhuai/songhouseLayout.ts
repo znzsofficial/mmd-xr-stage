@@ -1,4 +1,5 @@
 import {quayOpening} from '../routes/riverStreet/plan';
+import {chamberLeaves,folio,screenBody} from './chamberFolio';
 
 // Metres. The elevated decks have closed plinths: there is only one
 // supported playing level at each (x,z). The stairs are travel, not actor slots.
@@ -23,6 +24,8 @@ export const BED=rect(-7.59,-12.94,2.72,1.92), BED_STEP=rect(BED.x,-11.80,1.72,.
 export const DRESSER=rect(-10.36,-13.42,1.82,.76), DRESSING_STOOL=rect(DRESSER.x+.04,-12.56,.53,.46);
 export const PRIVATE_SPOTS=[[-7.61,-10.06],[-10.13,-10.77]] as const;
 const upperSolid=(r:Rect,lo:number,hi:number)=>solid(r,GALLERY_Y+lo,GALLERY_Y+hi);
+const foldedScreen=chamberLeaves.map(l=>({...l,slabs:[upperSolid(rect(0,0,l.w,l.d),screenBody.bottom,screenBody.top),
+  ...[-1,1].flatMap(s=>{const x=s*(l.w/2-.055);return [upperSolid(rect(x,0,.067,.13),0,.052),upperSolid(rect(x,0,.054,.089),.052,screenBody.bottom)];})]}));
 const privateSolids=[...PRIVATE_WALLS,PRIVATE_HEADER,upperSolid(BED,0,.78),upperSolid(BED_STEP,0,.21),
   upperSolid(rect(BED.x,BED.z-.87,2.68,.16),.76,1.65),upperSolid(BED,1.94,2.23),
   ...[-1,1].flatMap(k=>[
@@ -42,7 +45,8 @@ export const SHOTS=[
   {key:'qinQuay',eye:[2.72,1.64,7.8],aim:[-1.54,1.16,14.12]},
   {key:'qinSeats',eye:[1.4,1.42,2.74],aim:[-.95,1.54,-5.7]},
   {key:'qinGallery',eye:[-6.38,4.36,-1.71],aim:[.10,1.52,-5.38]},
-  {key:'qinhuaiPrivate',eye:[-6.28,4.29,-8.24],aim:[-8.78,3.42,-12.18]},
+  {key:'qinhuaiPrivate',eye:[-6.28,4.29,-8.24],aim:[-8.78,3.20,-12.18]},
+  {key:'qinhuaiAlbum',eye:[-10.83,4.30,-12.28],aim:[DRESSER.x+folio.offsetX,GALLERY_Y+folio.height,DRESSER.z+folio.offsetZ]},
   {key:'qinMusic',eye:[2.32,1.98,-4.22],aim:[4.13,1.57,-6.78]},
   {key:'qinLanding',eye:SCREEN_ENTRY[0],aim:SCREEN_ENTRY[1]},
 ] as const;
@@ -86,6 +90,7 @@ export function songhouseClear(x:number,z:number,placing=false){
   if(placing&&(near(STAIRS,x,z,c)||near(DAIS_STEPS,x,z,c)))return false;
   if(surface(x-c,z)===null||surface(x+c,z)===null||surface(x,z+c)===null||surface(x,z-c)===null)return false;
   if(stairCheeks.some(r=>near(r,x,z,c))||apronSides.some(r=>near(r,x,z,c)))return false;
+  for(const l of foldedScreen){const dx=x-l.x,dz=z-l.z,u=dx*l.cos-dz*l.sin,n=dx*l.sin+dz*l.cos;if(l.slabs.some(r=>near(r,u,n,c)))return false;}
   return !fixed.some(r=>r.top>h+.024&&r.bottom<h+1.7&&near(r,x,z,c));
 }
 export function moveInSonghouse(x:number,z:number,dx:number,dz:number){
@@ -105,16 +110,27 @@ export const PICK_DECKS=[{...STAGE,y:STAGE_Y},{...GALLERY,y:GALLERY_Y},{...QUART
 const occluders=[...fixed,...CEILINGS,solid(HEADER,HEADER.bottom,5.03),...PICK_DECKS.map(r=>solid(r,-.08,r.y)),...STAIR_TREADS,...DAIS_TREADS,
   ...stairCheeks.flatMap(r=>STAIR_TREADS.map(t=>({...t,x:r.x,w:r.w,top:t.top+.88}))),
   solid(rect(0,-5.24,9.2,.25),3.51,3.96)];
-export function songhousePlacementVisible(from:{x:number;y:number;z:number},x:number,y:number,z:number){
-  if(![from.x,from.y,from.z,x,y,z].every(Number.isFinite)||Math.abs(y-songhouseHeight(x,z))>.025||from.y<=y)return false;
-  // Clip the segment, not its ground projection: a ray may pass over a tea
-  // table, but not through the stage fascia, a folded screen or gallery rail.
-  return !occluders.some(r=>{
+type Point={x:number;y:number;z:number};
+function hitsSolid(from:Point,to:Point,r:ReturnType<typeof solid>){
     let lo=0,hi=1;
     const slab=(p:number,d:number,min:number,max:number)=>{
       if(Math.abs(d)<1e-8)return p>=min&&p<=max;
       const a=(min-p)/d,b=(max-p)/d;lo=Math.max(lo,Math.min(a,b));hi=Math.min(hi,Math.max(a,b));return lo<=hi;
     };
-    return slab(from.x,x-from.x,r.x-r.w/2,r.x+r.w/2)&&slab(from.z,z-from.z,r.z-r.d/2,r.z+r.d/2)&&slab(from.y,y+.012-from.y,r.bottom,r.top);
+    return slab(from.x,to.x-from.x,r.x-r.w/2,r.x+r.w/2)&&slab(from.z,to.z-from.z,r.z-r.d/2,r.z+r.d/2)&&slab(from.y,to.y-from.y,r.bottom,r.top);
+}
+const restSlab=solid(rect(0,-.0175,folio.w+.016,.031),-folio.h/2,folio.h/2);
+function inFolioFrame(p:Point):Point{
+  const dy=p.y-(GALLERY_Y+folio.height),dz=p.z-(DRESSER.z+folio.offsetZ),c=Math.cos(folio.tilt),s=Math.sin(folio.tilt);
+  return {x:p.x-DRESSER.x-folio.offsetX,y:dy*c+dz*s,z:-dy*s+dz*c};
+}
+export function songhouseSightline(from:Point,to:Point){
+  if(![from.x,from.y,from.z,to.x,to.y,to.z].every(Number.isFinite)||occluders.some(r=>hitsSolid(from,to,r))||hitsSolid(inFolioFrame(from),inFolioFrame(to),restSlab))return false;
+  return !foldedScreen.some(l=>{
+    const local=(p:Point)=>({x:(p.x-l.x)*l.cos-(p.z-l.z)*l.sin,z:(p.x-l.x)*l.sin+(p.z-l.z)*l.cos,y:p.y});
+    const a=local(from),b=local(to);return l.slabs.some(r=>hitsSolid(a,b,r));
   });
+}
+export function songhousePlacementVisible(from:Point,x:number,y:number,z:number){
+  return Math.abs(y-songhouseHeight(x,z))<=.025&&from.y>y&&songhouseSightline(from,{x,y:y+.012,z});
 }

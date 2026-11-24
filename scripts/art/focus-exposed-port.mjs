@@ -8,13 +8,13 @@
 import {_roots} from '@react-three/fiber';
 import {Box3,Vector3} from 'three';
 import {useBackpack} from '/src/mmdVrShowcase/backpack.ts';
-import {usePelvic} from '/src/mmdVrShowcase/pelvic/store.ts';
+import {canDrawAdapter,usePelvic} from '/src/mmdVrShowcase/pelvic/store.ts';
 import {useMmdVrStore} from '/src/mmdVrShowcase/mmdVrStore.ts';
 
 export function captureExposedPort(angles=[-38,0,38,82]){
   const bag=useBackpack.getState(),id=bag.selected,actor=id&&bag.live[id],state=usePelvic.getState(),fit=state.byAsset[id],support=state.support[id];
   const product=useMmdVrStore.getState();
-  if(!actor?.visible||!fit?.showAdapter||!fit.clothingClear||support?.runtimeId!==actor.runtimeId||support.kind==='missing'||support.obstruction)
+  if(!actor?.visible||!fit||support?.runtimeId!==actor.runtimeId||!canDrawAdapter(fit,support))
     throw Error('Select the existing exposed, calibrated stage attachment; a diagram or calibration guide is not the shell.');
   if(product.playing||product.presentation!=='screen'||document.hidden)throw Error('Pause playback on the visible screen stage.');
   const match=[..._roots.values()].map(root=>root.store.getState()).find(r=>r.scene.getObjectByName(`pelvic:adapter:${id}`));
