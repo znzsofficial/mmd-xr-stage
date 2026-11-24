@@ -15,7 +15,7 @@ export const usePoseSession=create<SessionState>(()=>({...idle,names:{}}));
 // Presets are data belonging to a File in this page's backpack. Only the
 // current room can own a solver or hold a reference to its skeleton.
 const library=new Map<string,Map<string,PoseSnapshot>>();
-type Room={open:(id:string)=>PoseSolver|null;close:(id:string)=>void;dirty:(reseed?:boolean,runtimeId?:string)=>void};
+type Room={open:(id:string)=>PoseSolver|null;close:(id:string)=>void;dirty:(reseed?:boolean,runtimeId?:string)=>void;refitSkirt?:(runtimeId:string)=>void};
 let room:Room|null=null;
 type Editor={id:string;asset:string;solver:PoseSolver;history:PoseSnapshot[];drag:PoseSnapshot|null;moved:boolean;wasPlaying:boolean};
 let active:Editor|null=null;
@@ -74,15 +74,19 @@ function remember(before:PoseSnapshot){
   active.history.push(before);if(active.history.length>24)active.history.shift();
   if(!ui().canUndo)usePoseSession.setState({canUndo:true});
 }
-function change(edit:(s:PoseSolver)=>boolean,reseed=false){
+const changesSkirtSupport=(key:PoseKey)=>key==='pelvis'||key==='torso'||key==='leftFoot'||key==='rightFoot';
+function change(edit:(s:PoseSolver)=>boolean,reseed=false,refit=false){
   if(!active||!ui().editing||active.drag)return false;
   const a=active,before=a.solver.capture();if(!edit(a.solver))return false;
-  remember(before);room?.dirty(reseed,a.id);return true;
+  remember(before);if(refit)room?.refitSkirt?.(a.id);room?.dirty(reseed,a.id);return true;
 }
 function finishDrag(cancel=false){
   const a=active;if(!a?.drag)return;
   const before=a.drag;a.drag=null;
-  if(a.moved){if(cancel){a.solver.apply(before);room?.dirty(true,a.id);}else remember(before);}
+  if(a.moved){if(cancel){a.solver.apply(before);room?.dirty(true,a.id);}else{
+    remember(before);
+    if(changesSkirtSupport(ui().selected)){room?.refitSkirt?.(a.id);room?.dirty(false,a.id);}
+  }}
   a.moved=false;usePoseSession.setState({dragging:false});
 }
 export const poseActions={begin,end:()=>finish(true),
@@ -104,9 +108,9 @@ export const poseActions={begin,end:()=>finish(true),
     active.drag=active.solver.capture();active.moved=false;usePoseSession.setState({selected:key,dragging:true});return true;},
   move(key:PoseKey,target:Vector3){if(!active?.drag||ui().selected!==key||!active.solver.move(key,target))return false;
     active.moved=true;room?.dirty();return true;},finishDrag,
-  rotate(key:PoseKey,axis:'x'|'y'|'z',radians:number){if(!active?.drag)return change(s=>s.rotate(key,axis,radians));
+  rotate(key:PoseKey,axis:'x'|'y'|'z',radians:number){if(!active?.drag)return change(s=>s.rotate(key,axis,radians),false,changesSkirtSupport(key));
     if(ui().selected!==key||!active.solver.rotate(key,axis,radians))return false;active.moved=true;room?.dirty();return true;},
-  bend:(key:PoseKey,radians:number)=>change(s=>s.bend(key,radians)),
+  bend:(key:PoseKey,radians:number)=>change(s=>s.bend(key,radians),false,changesSkirtSupport(key)),
   setFeetLocked(value:boolean){if(active&&ui().feetLocked!==value&&change(s=>{s.lockFeet(value);return s.feetLocked===value;}))usePoseSession.setState({feetLocked:value});},
   setWristPinned(asset:string,id:string,key:WristKey,value:boolean){
     const a=active;if(!a||a.asset!==asset||a.id!==id||ui().selected!==key||!change(s=>s.pinWrist(key,value)))return false;

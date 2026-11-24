@@ -12,6 +12,7 @@ import { FINGERTIP_MASK, TrackedPressure } from './trackedPressure';
 export type ActorDisplayEntry = RuntimeEntry & {
   editor?: PoseSolver;
   poseSkirt?: ReturnType<typeof fitPoseSkirt>;
+  skirtRefitPending?:boolean;
   chest?: ReturnType<typeof fitChestCompression>;
   bodyDisplay?: ReturnType<typeof createBodyDisplay>;
   wardrobe?: WardrobeModel;
@@ -44,6 +45,7 @@ export function restorePoseBeforeFrame(entry: ActorDisplayEntry, physicsOn: bool
 
 // A new evaluator or explicit physics reset must not inherit any filter history.
 export function clearPoseForRebind(entry: ActorDisplayEntry) {
+  entry.skirtRefitPending=false;
   entry.poseSkirt?.clear();
   restoreBodyLayers(entry);
   entry.chest?.reset();
@@ -69,6 +71,7 @@ export function releaseRemovedPose(entry: ActorDisplayEntry) {
 }
 
 export function seedEditedSkirt(entry: ActorDisplayEntry) {
+  entry.skirtRefitPending=false;
   if (entry.poseSkirt === undefined) entry.poseSkirt = fitPoseSkirt(entry.model.mesh);
   entry.poseSkirt?.seed();
   entry.poseSkirt?.present();
@@ -106,5 +109,10 @@ export function presentEvaluatedPose(entry: ActorDisplayEntry, seconds: number, 
     } else if (bodyParams?.compression === 0) entry.fingertip?.reset();
   } else entry.chest?.reset();
   if (bodyBonesChanged) entry.model.mesh.skeleton.update();
-  if (physicsOn && entry.editor) entry.poseSkirt?.present();
+  if (physicsOn && entry.editor) {
+    // A completed foot/torso edit can invalidate the old field without any
+    // discontinuity in Bullet. Fit the final displayed pose, once, after IK
+    // and the body/wardrobe layers. Don't restart cloth simulation on release.
+    if(entry.skirtRefitPending)seedEditedSkirt(entry);else entry.poseSkirt?.present();
+  }
 }

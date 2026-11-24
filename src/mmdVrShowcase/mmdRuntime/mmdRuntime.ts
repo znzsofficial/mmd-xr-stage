@@ -110,6 +110,7 @@ export type MmdRuntimeHandle = {
   getModelRoot: (id: string | null) => THREE.Object3D | null;
   beginPose: (id:string,seconds:number)=>PoseSolver|null;
   endPose: (id:string)=>void;
+  requestSkirtRefit:(id:string)=>void;
   getModelSurface: (id:string) => Pick<ThreeMmdModel,'root'|'mesh'|'renderOrderMeshes'>|null;
   getBodySupport?: (id:string) => BodySupport|null;
   getWardrobe?: (id:string,file:File) => WardrobeModel|null;
@@ -903,6 +904,9 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
         console.warn('[mmdVr] Could not edit this skeleton',error);return null;
       }finally{presentDraws(entry.model.mesh);}
     },endPose,
+    requestSkirtRefit(id){const entry=entries.get(id);
+      if(entry?.editor&&entry.visible&&physicsWanted&&options.poseSkirtClearance!==false)entry.skirtRefitPending=true;
+    },
     setModelVisible(id, visible) {
       const entry = entries.get(id);
       if (!entry) return;
@@ -936,8 +940,20 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
     setMaterialOverride(modelId, materialName, patch) {
       const entry = entries.get(modelId);
       if (!entry) return;
+      // The player's multiplier composes with the material's authored alpha.
+      // Observe the actual visible layer, not just the slider value.
+      const slot=patch.opacity===undefined?-1:entry.materialNames.indexOf(materialName);
+      const mat=slot<0?undefined:getMeshMaterials(entry.model.mesh)[slot];
+      const previousOpacity=mat?.opacity;
       entry.materialOverrides[materialName] = mergeMaterialOverride(entry.materialOverrides[materialName], patch);
-      if (patch.opacity !== undefined) applyMaterialVisibility(entry);
+      if (patch.opacity !== undefined){
+        applyMaterialVisibility(entry);
+        const next=mat?.opacity;
+        // The contact layers use .04 for cloth/legs and .5 for a dressed
+        // abdomen. Editing transparency within one band does not change fit.
+        if(entry.editor&&entry.poseSkirt&&next!==undefined&&previousOpacity!==undefined&&
+          ((next>=.04)!==(previousOpacity>=.04)||(next>=.5)!==(previousOpacity>=.5)))entry.skirtRefitPending=true;
+      }
       applyMaterialOverride(entry, materialName, lightingContext());
       if ("aoMapFile" in patch || "emissionMapFile" in patch || "maskMapFile" in patch) {
         refreshMaterialTextures(entry);
@@ -997,8 +1013,10 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
     setMaterialVisible(modelId, materialName, visible) {
       const entry = entries.get(modelId);
       if (!entry) return;
+      const changed=(entry.materialVisible[materialName]!==false)!==visible;
       entry.materialVisible[materialName] = visible;
       applyMaterialVisibility(entry);
+      if(changed&&entry.editor&&entry.poseSkirt)entry.skirtRefitPending=true;
     },
     async setPhysicsEnabled(enabled,work) {
       const queued=work?performance.now():0;

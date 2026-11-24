@@ -2,6 +2,9 @@ import {Matrix4,Quaternion,Vector3,type Bone,type SkinnedMesh} from 'three';
 import {fitAbdomenSupport} from './abdomenSupport';
 import type {ThighShell} from './thighShell';
 import {fitSkirtWeave,type WeaveColumn} from './skirtWeave';
+import {fitHipPanelSlide,type HipSurface} from './hipPanelSlide';
+import type {ClothCrossing} from './clothCrossing';
+import {fitHipSkinDepth} from './hipSkinDepth';
 
 const V=()=>new Vector3(),Q=()=>new Quaternion(),smooth=(a:number,b:number,x:number)=>{x=Math.max(0,Math.min(1,(x-a)/(b-a)));return x*x*(3-2*x);};
 type Link={bone:Bone;child:Bone;raw:Quaternion;rawPos:Vector3;world:Quaternion;bindQ:Quaternion;along:number};
@@ -17,7 +20,7 @@ export function fitRaisedSkirt(mesh:SkinnedMesh,pelvis:number,hips:number[],knee
   const children=(b:Bone)=>b.children.filter((v):v is Bone=>(v as Bone).isBone);
   const chains:(WeaveColumn&{links:Link[];side:number;arc:number})[]=[];
   for(const [i,mask]of allowed){const b=bones[i];if(allowed.has(id.get(b.parent as Bone)!))continue;
-    const anchor=rest(i).applyMatrix4(invBase);if(anchor.y<-.16||anchor.y>.65||anchor.z<=0)continue;
+    const anchor=rest(i).applyMatrix4(invBase);if(anchor.y<-.16||anchor.y>.65||Math.abs(Math.atan2(anchor.x,anchor.z))>2.06)continue;
     const gain=smooth(.19,.93,anchor.z/Math.hypot(anchor.x,anchor.z));
     const links:Link[]=[];let bone=b,arc=0,permit=mask;
     for(let j=0;j<40;j++){const cc=children(bone);if(cc.length!==1)break;const child=cc[0],ci=id.get(child)!;
@@ -26,19 +29,19 @@ export function fitRaisedSkirt(mesh:SkinnedMesh,pelvis:number,hips:number[],knee
       const bindQ=Q().setFromRotationMatrix(new Matrix4().extractRotation(invBase.clone().multiply(boneInverses[id.get(bone)!].clone().invert())));
       links.push({bone,child,raw:Q(),rawPos:V(),world:Q(),bindQ,along:arc+dist*.5});arc+=dist;bone=child;
       if(!allowed.has(ci))break;permit&=allowed.get(ci)!;}
-    if(links.length>=3&&arc>.16&&arc<1.35&&(permit&(anchor.x>=0?1:2))){const bind=[...links.map(l=>l.bone),links[links.length-1].child].map(b=>rest(id.get(b)!).applyMatrix4(invBase));
+    if(links.length>=3&&arc>.16&&arc<(gain?1.35:1.8)&&(permit&(anchor.x>=0?1:2))){const bind=[...links.map(l=>l.bone),links[links.length-1].child].map(b=>rest(id.get(b)!).applyMatrix4(invBase));
       chains.push({links,gain,side:anchor.x>=0?0:1,angle:Math.atan2(anchor.x,anchor.z),bind,raw:bind.map(V),posed:bind.map(V),arc});}
   }
   if(chains.filter(c=>c.gain>0).length<3)return null;
   const weave=fitSkirtWeave(chains),pelvisToWorld=new Matrix4(),worldToPelvis=new Matrix4(),knee=V(),from=V(),deltaQ=Q(),parentQ=Q(),rot=new Matrix4();
   const near=V(),dir=V(),out=V(),old=V(),sideAxis=V(),axis=V(),hint=Q(),align=Q(),bodyQ=Q(),frameQ=Q(),modelToLap=new Matrix4(),lapToModel=new Matrix4();
-  const thighs:{field:ThighShell;toLocal:Matrix4;toLap:Matrix4;length:number}[]=[];
+  const thighs:HipSurface[]=[];
   const torso=new Set(bones.flatMap((b,i)=>[b.name,b.userData.mmdBoneName,b.userData.mmdEnglishBoneName].some(n=>typeof n==='string'&&/^(下半身|腰|上半身[2２3３]?|lowerbody|pelvis|hips|waist|upperbody[23]?|spine[0-3]?|chest)$/i.test(n.replace(/[ _.-]/g,'')))?[i]:[]));
-  let support:ReturnType<typeof fitAbdomenSupport>|undefined,applied=false,armed=false;const pressure=[0,0];
-  function restore(){if(!applied)return;for(const {links,gain} of chains){if(!gain)continue;for(const l of links){l.bone.quaternion.copy(l.raw);l.bone.position.copy(l.rawPos);}links[0].bone.updateWorldMatrix(true,true);}mesh.skeleton.update();applied=false;}
+  let support:ReturnType<typeof fitAbdomenSupport>|undefined,slide:ReturnType<typeof fitHipPanelSlide>|undefined,applied=false,armed=false,finished=false;const pressure=[0,0];
+  function restore(){if(!applied)return;for(const {links} of chains){for(const l of links){l.bone.quaternion.copy(l.raw);l.bone.position.copy(l.rawPos);}links[0].bone.updateWorldMatrix(true,true);}mesh.skeleton.update();applied=false;}
   function clearSkin(p:Vector3){support!.outside(p,.047);
     for(const s of thighs){const depth=s.field.clearance(near.copy(p).applyMatrix4(s.toLocal),out);if(depth>-.022)p.addScaledVector(out.transformDirection(s.toLap),(depth+.022)*s.length);}}
-  return {restore,clear(){restore();armed=false;},seed(contact:(side:number,bindToModel:Matrix4)=>boolean,shells:{field:ThighShell;toLocal:Matrix4;toModel:Matrix4;length:number}[]){restore();armed=false;thighs.length=0;
+  return {restore,clear(){restore();armed=false;},seed(contact:(side:number,bindToModel:Matrix4)=>boolean,shells:{field:ThighShell;crossing?:ClothCrossing;material?:unknown;toLocal:Matrix4;toModel:Matrix4;length:number}[]){restore();armed=false;thighs.length=0;
     pelvisToWorld.multiplyMatrices(bones[pelvis].matrixWorld,boneInverses[pelvis]).multiply(base);worldToPelvis.copy(pelvisToWorld).invert();
     if(V().set(0,0,1).transformDirection(pelvisToWorld).y<.72)return;
     const bindToModel=mesh.matrixWorld.clone().invert().multiply(pelvisToWorld).multiply(invBase);
@@ -57,12 +60,23 @@ export function fitRaisedSkirt(mesh:SkinnedMesh,pelvis:number,hips:number[],knee
       if(p.z<support.front(p.x,p.y)-.012)buried++;}
     if(!hinges||buried*2>=hinges)return;
     lapToModel.copy(mesh.matrixWorld).invert().multiply(pelvisToWorld);modelToLap.copy(lapToModel).invert();
-    for(const s of shells)thighs.push({field:s.field,toLocal:s.toLocal.clone().multiply(lapToModel),toLap:modelToLap.clone().multiply(s.toModel),length:s.length/length});
-    armed=true;
+    const audit=new Map<unknown,ReturnType<typeof fitHipSkinDepth>>();for(const [side,s]of shells.entries()){
+      const toLocal=s.toLocal.clone().multiply(lapToModel),toLap=modelToLap.clone().multiply(s.toModel);
+      // The thigh may lie directly across the front of the gathered waist:
+      // pushing that wing laterally would make it float away from the hip.
+      // Test the measured upper shaft in the apron band at its actual waist
+      // depth. This is a pose-local no-slide region, not a preset-name switch.
+      const hinge=chains.filter(c=>c.side===side&&Math.abs(c.angle)>.55&&Math.abs(c.angle)<1.3);
+      const waist=hinge.length?hinge.reduce((v,c)=>v+c.bind[0].y,0)/hinge.length:0;
+      const face=support.front(0,waist+.1);const shaft=axis.set(0,1,0).transformDirection(toLap),origin=out.setFromMatrixPosition(toLap);
+      const at=(face-origin.z)/shaft.z,along=origin.y+at*shaft.y,blocked=at>0&&at<1&&along>waist-.14&&along<waist+.17;
+      if(!blocked&&!audit.has(s.material))audit.set(s.material,fitHipSkinDepth(mesh,s.material,hips,worldToPelvis));
+      thighs.push({field:s.field,crossing:s.crossing,depth:blocked?undefined:audit.get(s.material)??undefined,toLocal,toLap,length:s.length/length});}
+    slide??=fitHipPanelSlide(mesh,chains,invBase);armed=true;
   },present(){if(!armed||applied||!support)return;
     pelvisToWorld.multiplyMatrices(mesh.matrixWorld,lapToModel);worldToPelvis.copy(pelvisToWorld).invert();
     if(!support.valid(worldToPelvis)){armed=false;return;}
-    bodyQ.setFromRotationMatrix(rot.extractRotation(pelvisToWorld));
+    finished=false;bodyQ.setFromRotationMatrix(rot.extractRotation(pelvisToWorld));
     for(const {links,gain,side,raw,posed,bind,arc}of chains){
       raw[links.length].setFromMatrixPosition(links[links.length-1].child.matrixWorld).applyMatrix4(worldToPelvis);
       for(const [j,l]of links.entries()){l.raw.copy(l.bone.quaternion);l.rawPos.copy(l.bone.position);l.world.setFromRotationMatrix(rot.extractRotation(l.bone.matrixWorld)).normalize();
@@ -98,6 +112,7 @@ export function fitRaisedSkirt(mesh:SkinnedMesh,pelvis:number,hips:number[],knee
         parentQ.setFromRotationMatrix(rot.extractRotation(parent.matrixWorld)).normalize();l.bone.quaternion.copy(parentQ.invert().multiply(deltaQ));l.bone.updateWorldMatrix(false,false);}
       links[0].bone.updateWorldMatrix(false,true);
     }mesh.skeleton.update();applied=true;},
+    finish(cached=false){if(!applied||finished||!slide)return;slide(worldToPelvis,pelvisToWorld,thighs,cached);mesh.skeleton.update();finished=true;},
     get active(){return applied;},
     // The cage follows skin, but the face/lining may sit to either side of
     // its weighted bones. Test the drawn vertex against the same support.

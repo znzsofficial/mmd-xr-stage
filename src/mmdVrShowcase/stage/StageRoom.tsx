@@ -202,6 +202,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
     poseRoom.current=mountPoseRoom({
       open(id){if(isRoomStale())return null;propDisplay.restore();pelvic.current?.interrupt();return runtime.beginPose(id,timeRef.current);},
       close(id){propDisplay.restore();runtime.endPose(id);},
+      refitSkirt(id){if(!isRoomStale())runtime.requestSkirtRefit(id);},
       dirty(reseed,runtimeId){lastEvaluatedTimeRef.current=-Infinity;poseSettle.current=.8;
         if(reseed&&runtimeId&&appliedPhysicsEnabledRef.current){propDisplay.restore();runtime.resetPhysics(timeRef.current,runtimeId);}}
     });

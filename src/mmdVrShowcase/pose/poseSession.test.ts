@@ -15,12 +15,13 @@ it('treats one real drag as one undo, cancels unfinished edits on recall, and on
   let x=0;const snapshot=():PoseSnapshot=>({bones:[x],poles:{},morphs:[],feetLocked:true,wrists:{}});
   const open=vi.fn(()=>{x=0;return {keys:['pelvis'],feetLocked:true,pinnedWrists:[],canMove:()=>true,move:(_:string,p:Vector3)=>{x=p.y;return true;},
     capture:snapshot,apply:(s:PoseSnapshot)=>{x=s.bones[0];}} as unknown as PoseSolver;});
-  const close=vi.fn(()=>{x=0;}),stop=mountPoseRoom({open,close,dirty:()=>{}});
+  const close=vi.fn(()=>{x=0;}),refitSkirt=vi.fn(),dirty=vi.fn(),stop=mountPoseRoom({open,close,dirty,refitSkirt});
   const drag=(...ys:number[])=>{pose.startDrag('pelvis');for(const y of ys)pose.move('pelvis',new Vector3(0,y,0));};
   try{
     expect(pose.begin('a','m1')).toBe(true);expect(useMmdVrStore.getState().playing).toBe(false);
-    drag(-.2,-.4);pose.finishDrag();pose.save('Bench');expect(pose.undo()).toBe(true);expect(x).toBe(0);expect(pose.undo()).toBe(false);
-    drag(-.1);useHudWorldInput.setState({blocked:true});expect(x).toBe(0);expect(usePoseSession.getState().editing).toBe(false);
+    drag(-.2,-.4);expect(refitSkirt).not.toHaveBeenCalled();pose.finishDrag();expect(refitSkirt.mock.calls).toEqual([['m1']]);
+    expect(dirty).toHaveBeenLastCalledWith(false,'m1');pose.save('Bench');expect(pose.undo()).toBe(true);expect(x).toBe(0);expect(pose.undo()).toBe(false);
+    drag(-.1);useHudWorldInput.setState({blocked:true});expect(x).toBe(0);expect(usePoseSession.getState().editing).toBe(false);expect(refitSkirt).toHaveBeenCalledTimes(1);
     useHudWorldInput.setState({blocked:false});expect(pose.load('b','m2','Bench')).toBe(false);
     pose.load('a','m1','Bench');expect(x).toBe(-.4);
     pose.hold();useMmdVrStore.setState({physicsBusy:true});expect(x).toBe(0);
