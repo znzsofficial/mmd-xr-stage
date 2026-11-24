@@ -1,10 +1,10 @@
 # 会话交接｜2026-11-24
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `a6b6edd`](https://8ed595b8.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `b80ade1`](https://ed9e72bb.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
 
-**当前发布。** `a6b6edd` 已上线，990 项测试通过；主域名和固定版入口及 303 份资源与验证构建一致。[子宫孕态参考](./gameplay/observation-reference.md)中的胎体改为日系蜷睡肖像，短发、睡脸与贴颊小手随模型旋转。正、斜、侧面及标注已在屏幕和模拟双眼实点；本机对照在 `local-review/art/fetal-portrait/`。此前的母星走速、贴坡与净空修复，外阴／阴道独立参考，[仰卧前裙](./performance/supine-skirt.md)、衣下附件和[月蘅馆画册](./scenery/qinhuai.md#月蘅馆--青楼内室)继续适用。
+**当前发布。** `b80ade1` 已上线，996 项测试通过；主域名入口及 305 份资源与验证构建一致。[微调腿姿与深跪小腿](./performance/pose-cloth-contact.md)：松手按新腿姿恢复裙摆贴合，保留 Bullet 运动；深跪稀疏裙的穿入深度有所减小。[仰卧侧边](./performance/supine-side-skirt.md)改成衣边和饰件一起滑移，严格抬腿不强推；残余穿面和一次性拟合成本已记录。上版[孕态参考的蜷睡肖像](./gameplay/observation-reference.md)等内容继续适用。
 
-**下一次实戴。** 想先看模型：打开「身体观察 → 孕态参考」，分别在外阴、阴道、子宫的同角度来回对照日常。想试行星：北台先轻推再满推，确认靠近仪表不窜步；去卫星按 A 普通跳，注意落地与头顶净空，退出后导出 JSON。裙摆另选三款仰卧看[前片是否回到小腹](./performance/supine-skirt.md)。[Quest 操作与导出](./performance/next-quest-export.md#只测本版选一趟)。
+**下一次实戴。** 开角色物理，在仰卧抬腿中选左脚踝，膝盖朝向 +10° 后保留；看前裙是否仍在小腹。再试仰卧屈膝或分膝捧腿，注意侧边、腰饰与刚到位的停顿。稀疏裙四点跪撑从右后低位看，需区分初到与两秒。行星轻推、低顶与孕态参考的镜片观感仍待玩家反馈。[Quest 操作与导出](./performance/next-quest-export.md#只测本版选一趟)。
 
 **上一次实戴（改图前）。** 11 月 23 日 15:11Z 的报告与玩家反馈均已记录：姿势初看可以，未逐一验证；外阴配色可以；入口显平、总览只有轴线是本次改图的原因。裙腿仍穿但有所减轻；再现时记录可见侧、衣层和是否停住后还穿。不采用在 C 初跪时变差的小腿修正组合，见[分层证据与取舍](./performance/actor-tools-regression.md#手动体位的局部裙片修正)。
 
