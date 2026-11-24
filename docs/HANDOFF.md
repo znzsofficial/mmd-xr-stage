@@ -1,8 +1,8 @@
 # 会话交接｜2026-11-24
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `85a63f1`](https://8896e3a0.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `a6b6edd`](https://8ed595b8.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
 
-**当前发布。** `85a63f1` 已上线，990 项测试通过；主域名入口及 300 份资源与验证构建一致。母星轻推和低频步进、印外擦坡、手动回正净空与输入恢复已修，普通跳减少重复查壳面。身体观察里的[外阴、阴道、子宫孕态参考](./gameplay/observation-reference.md)均为独立可旋转主图；实测读数单列，不写入角色状态。上一版[仰卧前裙](./performance/supine-skirt.md)、衣下附件和[月蘅馆画册](./scenery/qinhuai.md#月蘅馆--青楼内室)继续适用。
+**当前发布。** `a6b6edd` 已上线，990 项测试通过；主域名和固定版入口及 303 份资源与验证构建一致。[子宫孕态参考](./gameplay/observation-reference.md)中的胎体改为日系蜷睡肖像，短发、睡脸与贴颊小手随模型旋转。正、斜、侧面及标注已在屏幕和模拟双眼实点；本机对照在 `local-review/art/fetal-portrait/`。此前的母星走速、贴坡与净空修复，外阴／阴道独立参考，[仰卧前裙](./performance/supine-skirt.md)、衣下附件和[月蘅馆画册](./scenery/qinhuai.md#月蘅馆--青楼内室)继续适用。
 
 **下一次实戴。** 想先看模型：打开「身体观察 → 孕态参考」，分别在外阴、阴道、子宫的同角度来回对照日常。想试行星：北台先轻推再满推，确认靠近仪表不窜步；去卫星按 A 普通跳，注意落地与头顶净空，退出后导出 JSON。裙摆另选三款仰卧看[前片是否回到小腹](./performance/supine-skirt.md)。[Quest 操作与导出](./performance/next-quest-export.md#只测本版选一趟)。
 
