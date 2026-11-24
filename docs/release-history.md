@@ -12,6 +12,7 @@
 
 | 功能提交 | 已发布内容与验证范围 |
 |---|---|
+| `56b5b96` | [穿衣互动、图面与角色回应](./gameplay/actor-tools.md)。角色首页直接进入插入或泌乳，实时模型支持原框放大、横拖旋转，XR 标题可移动面板；眼睑、嘴形及头部按实测节奏变化。实模屏幕、360 px 触摸与模拟 XR 扳机已验；Quest 镜片及手感待验。[固定版](https://01ccb3ab.mmd-xr-stage.pages.dev) |
 | `b80ade1` | [关节微调后重新贴合与深跪小腿](./performance/pose-cloth-contact.md)、[仰卧侧边成片滑移](./performance/supine-side-skirt.md)。三种原始裙装、原生 Bullet、同帧原材质与实际屏幕／模拟 XR 验收；普通抬腿侧髋与部分深跪还有交线，并非舞蹈通用防穿。996 项测试通过；主域名入口及 305 份资源 SHA-256 与验证构建一致。[固定版](https://ed9e72bb.mmd-xr-stage.pages.dev) |
 | `a6b6edd` | 「身体观察 → 孕态参考 → 子宫」换为可旋转的日系蜷睡胎体：短发分束、闭合眼睑、贴颊小手与错开的膝足，脐带连接新腹面。屏幕及模拟双眼实点三角度、标注和日常／参考往返，990 项测试通过。[固定版](https://8ed595b8.mmd-xr-stage.pages.dev) |
 | `85a63f1` | [星球重力四项修复与扫掠性能](./performance/orbital-review.md)：轻推、低频步进、贴坡、人工站姿和输入恢复；旧井强度归零不再压住有效邻井。屏幕与模拟双眼实际对照[外阴、阴道、子宫独立参考主图](./gameplay/observation-reference.md)，图外读数与实时接触分开。990 项测试通过；主域名入口及 300 份资源与验证构建 SHA-256 一致；真机帧率另验。[固定版](https://8896e3a0.mmd-xr-stage.pages.dev) |

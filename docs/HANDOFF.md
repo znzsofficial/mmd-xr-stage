@@ -1,8 +1,8 @@
 # 会话交接｜2026-11-24
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `b80ade1`](https://ed9e72bb.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `56b5b96`](https://01ccb3ab.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
 
-**当前发布与停点。** `b80ade1` 已上线，996 项测试通过；主域名入口及 305 份资源与验收构建的 SHA-256 一致。发布、推送和本机验收均已完成，无在途实现。下一步等这版的 Quest 反馈。上版 `a6b6edd` 是本轮裙摆对照的基线，也是[子宫参考图蜷睡肖像](./gameplay/observation-reference.md)的发布版。
+**当前发布。** `56b5b96` 已部署。选角色直接进插入或泌乳，穿衣时仍可并排看 HUD 模型。图面可放大、横拖；在 XR 拖标题挪面板。角色按实测进退速度组合眼口和轻微头部动作，停留和撤出各有不同。[操作与适配范围](./gameplay/actor-tools.md) · [手机与模拟双眼对照](./gameplay/actor-flow-review.md)。实戴要看头显里能否同时看清衣着角色、实时模型和操作键。裙摆专项仍可单独复查[上一固定版](https://ed9e72bb.mmd-xr-stage.pages.dev)。
 
 **裙摆接续。** 先区分两个现象：① 仰卧抬腿后微调左膝，前裙曾重新掉回腿间；现版已在屏幕和模拟双眼验证松手后仍堆在小腹。② 未微调的普通抬腿，侧髋最深约 28 mm 的几何穿入仍在；强推会让衣边飘宽、穿得更深，未采用。分膝捧腿停 2 秒时外裙横穿面 53→18，里衬 39→0；这是[同帧蒙皮测量](./performance/supine-side-skirt.md)，不是露腿面积。稀疏裙从站立进四点跪撑最深 28.2→17.3 mm，从抬腿进跪则仍为 12.8 mm，见[换姿方向与黑斑反例](./performance/pose-cloth-contact.md)。这些结果只覆盖开物理的手动摆姿。
 
