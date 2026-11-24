@@ -1,6 +1,6 @@
 # 会话交接｜2026-11-24
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `6d0ae28`](https://70055dbb.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [目录整理版 `e581a0c`](https://7ee70117.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
 
 **当前发布。** `6d0ae28` 已部署。修复从 XR 详情移除演员后立即重建渲染器会把该演员带回的问题：背包和详情共用[完整布局的提交步骤](./architecture/maintenance.md#移除演员后恢复哪份布局)。双演员回归核对留场演员的动作与位置、旧帧隔离及未修复告警，模拟 XR 扳机已验详情移除。此前[主 HUD 拖动跟随](./gameplay/vr-controls.md)及[穿衣互动与观察图](./gameplay/actor-tools.md)继续适用。
 
