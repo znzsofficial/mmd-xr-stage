@@ -1,6 +1,6 @@
 import { useLanguageStore } from '../../languageStore';
-import { minSceneViewDistance, MMD_VR_VIEW_DISTANCE_MAX } from '../mmdVrAdjustments';
-import { getMmdVrRenderProfile } from '../mmdVrQuality';
+import { minSceneViewDistance, MMD_VR_VIEW_DISTANCE_MAX } from '../settings/mmdVrAdjustments';
+import { getMmdVrRenderProfile } from '../settings/mmdVrQuality';
 import { useMmdVrStore } from '../mmdVrStore';
 import { hasSceneryPeople } from '../scenery/catalog';
 import { lightNames, sceneEffects } from '../settings/environmentDisplay';

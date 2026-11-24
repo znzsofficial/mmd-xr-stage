@@ -1,7 +1,7 @@
 import { BufferGeometry, Float32BufferAttribute, Group, MeshBasicMaterial, PerspectiveCamera, Scene, Skeleton, SkinnedMesh } from 'three';
 import { ThreeMmdLoader, type ThreeMmdModel } from '@yohawing/three-mmd-loader';
 import { afterEach, expect, it, vi } from 'vitest';
-import { clearBackpack, syncBackpackFiles, useBackpack } from '../backpack';
+import { clearBackpack, syncBackpackFiles, useBackpack } from '../backpack/store';
 import { DEFAULT_BODY_PROFILE } from '../bodyState/data';
 import { createMmdRuntimeHandle } from '../mmdRuntime/mmdRuntime';
 import { DEFAULT_MATERIAL_OVERRIDE } from '../mmdRuntime/mmdRuntimeMaterials';

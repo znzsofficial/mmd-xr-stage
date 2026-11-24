@@ -39,7 +39,7 @@
 
 ## 验收一件新道具
 
-- `pnpm exec vitest run src/mmdVrShowcase/play src/mmdVrShowcase/components/BackpackHud.test.tsx`，再做类型检查。测试新效果实际的开始、持续和结束，以及换腕时应该保留的状态。
+- `pnpm exec vitest run src/mmdVrShowcase/play src/mmdVrShowcase/backpack/BackpackHud.test.tsx`，再做类型检查。测试新效果实际的开始、持续和结束，以及换腕时应该保留的状态。
 - IWER 或手柄：右 B → 背包 → 玩具，翻到目标页；用扳机打开／关闭用法，选自己的左／右手。先在非所属景试，再进所属景试。打开菜单时握住侧键，关菜单后不应误触。试观看菜单的快速收回，以及任意货架页的收回。
 - 已放置的角色：递给可用的一侧腕骨、换腕、调握姿、播放，再隐藏或收回角色。缺腕、不可见时不应吞掉玩家的道具。
 - 屏幕：背包目录、用法、前往所属景和角色手腕按钮应与 VR 指向同一件。切景再回来，不恢复上一景的持物、飞行或画面。模拟器能验证输入链，Quest 光学可读性与手柄握感需真机判断。

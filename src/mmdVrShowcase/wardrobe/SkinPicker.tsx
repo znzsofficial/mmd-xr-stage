@@ -1,8 +1,8 @@
 import { useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useLanguageStore } from '../../languageStore';
 import { relativePath } from '../../mmdImport/folderFiles';
-import { useBackpack } from '../backpack';
-import { HudButton, HudLine, HudSheet } from '../components/PorcelainControls';
+import { useBackpack } from '../backpack/store';
+import { HudButton, HudLine, HudSheet } from '../hud/PorcelainControls';
 import { selectSkin } from './actions';
 import type { FinderProps } from './SlotFinder';
 import type { ClothingSlot } from './slots';

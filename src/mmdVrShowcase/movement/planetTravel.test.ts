@@ -2,7 +2,7 @@ import {expect,it} from 'vitest';
 import {Vector3} from 'three';
 import {newStick,readStick} from './controllerInput';
 import {createTraveller,planetCentre,surfaceStep,transport} from './planetTravel';
-import {WALK_SPEED} from '../mmdVrQuality';
+import {WALK_SPEED} from '../settings/mmdVrQuality';
 import {crustRadius} from '../scenery/planet/opalTerrain';
 
 it('reads the current Touch Plus source while its profile is pending, ignores hand/pad axes and drops disconnected state',()=>{

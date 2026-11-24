@@ -3,7 +3,7 @@ import {act} from 'react';
 import {createRoot} from 'react-dom/client';
 import {expect,it,vi} from 'vitest';
 import {useLanguageStore} from '../../languageStore';
-import {clearBackpack,useBackpack} from '../backpack';
+import {clearBackpack,useBackpack} from '../backpack/store';
 import {useConception,type ConceptionEvent} from '../bodyState/reproduction/store';
 import {useMmdVrStore} from '../mmdVrStore';
 import {readAtlasView,setAtlasView} from '../pelvic/atlas/view';

@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { MmdVrPrepApp } from "./mmdVrShowcase/MmdVrPrepApp";
+import { MmdVrPrepApp } from "./mmdVrShowcase/prep/MmdVrPrepApp";
 import { initializeBrowserColorScheme } from "./system/theme";
 import "./styles.css";
 import {openStageLink} from './mmdVrShowcase/screen/enterScreen';

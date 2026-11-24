@@ -1,8 +1,8 @@
 import { afterEach, expect, it } from 'vitest';
 import { Bone, BoxGeometry, Float32BufferAttribute, Group, Mesh, MeshBasicMaterial, Raycaster, Scene, Skeleton, SkinnedMesh, Uint16BufferAttribute, Vector3 } from 'three';
-import { clearBackpack, useBackpack } from '../backpack';
+import { clearBackpack, useBackpack } from '../backpack/store';
 import { useMmdVrStore } from '../mmdVrStore';
-import { useHudWorldInput } from '../components/hudWorldInput';
+import { useHudWorldInput } from '../hud/hudWorldInput';
 import { useStagePlay } from '../play/stagePlay';
 import {faceFixture} from '../play/faceFixture.testSupport';
 import {createRoomPropDisplay} from '../stage/roomPropDisplay';

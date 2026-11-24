@@ -1,7 +1,7 @@
 import { Component, useLayoutEffect, type ReactNode } from "react";
 import { useMmdVrStore } from "./mmdVrStore";
-import { MmdVrScene } from "./MmdVrScene";
-import { useMmdVrEntryLifetime } from "./useMmdVrEntryLifetime";
+import { MmdVrScene } from "./xr/MmdVrScene";
+import { useMmdVrEntryLifetime } from "./xr/useMmdVrEntryLifetime";
 import { ScreenStage } from './screen/ScreenStage';
 import { useStageMusic } from './music/stageMusic';
 

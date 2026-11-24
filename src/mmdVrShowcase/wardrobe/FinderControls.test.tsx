@@ -3,7 +3,7 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BufferGeometry, Float32BufferAttribute, MeshBasicMaterial, SkinnedMesh, Texture, TextureLoader } from 'three';
 import { expect, it, vi } from 'vitest';
-import { clearBackpack, useBackpack } from '../backpack';
+import { clearBackpack, useBackpack } from '../backpack/store';
 import { useMmdVrStore } from '../mmdVrStore';
 import { createWardrobeModel } from './model';
 import { WardrobeScreenControls } from './WardrobeControls';

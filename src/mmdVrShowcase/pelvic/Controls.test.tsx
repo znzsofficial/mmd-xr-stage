@@ -4,7 +4,7 @@ import {createRoot} from 'react-dom/client';
 import {afterEach,expect,it,vi} from 'vitest';
 import {Group,Mesh,MeshBasicMaterial,Scene,Vector3} from 'three';
 import {useLanguageStore} from '../../languageStore';
-import {clearBackpack,useBackpack} from '../backpack';
+import {clearBackpack,useBackpack} from '../backpack/store';
 import {useMmdVrStore} from '../mmdVrStore';
 import {PelvicScreenControls} from './Controls';
 import {advancePelvic,assignPelvic,consumePelvicDose,enablePelvic,interruptPelvic,patchPelvic,publishParkedSample,publishPelvicSample,publishPelvicSupport,usePelvic,type PelvicSample} from './store';

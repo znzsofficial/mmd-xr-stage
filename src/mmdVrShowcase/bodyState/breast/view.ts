@@ -1,5 +1,5 @@
 import {create} from 'zustand';
-import {useBackpack} from '../../backpack';
+import {useBackpack} from '../../backpack/store';
 import {defaultAreolaStyle,type AreolaStyle} from './art/areola';
 
 export type BreastView={degrees:number;motion:boolean;section:boolean;labels:boolean;areolaStyle:AreolaStyle};

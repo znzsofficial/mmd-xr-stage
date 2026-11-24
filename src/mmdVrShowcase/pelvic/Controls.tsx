@@ -11,7 +11,7 @@ import { usePelvicControls, type PelvicNavigation } from './usePelvicControls';
 import type {Row,Key} from './controlRows';
 import './controls.css';
 import './workbench.css';
-import {ActorHudTitle} from '../components/actorHudDrag';
+import {ActorHudTitle} from '../hud/actorHudDrag';
 
 export { PelvicLiveSection } from './Section';
 type ScreenProps=PelvicActor&PelvicNavigation&LiveMonitorNavigation&{onBack?:()=>void};

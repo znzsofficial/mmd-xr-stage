@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useLanguageStore } from '../../languageStore';
-import { HudButton, HudLine } from '../components/PorcelainControls';
-import { HudSlider, ValueLabel } from '../components/HudValues';
+import { HudButton, HudLine } from '../hud/PorcelainControls';
+import { HudSlider, ValueLabel } from '../hud/HudValues';
 import { useMmdVrStore } from '../mmdVrStore';
 import { normalizeMmdVrExposure } from './preferences';
-import { getMmdVrRenderProfile, WALK_SPEED } from '../mmdVrQuality';
-import { minSceneViewDistance, mmdVrViewDistanceToSlider, mmdVrSliderToViewDistance } from '../mmdVrAdjustments';
+import { getMmdVrRenderProfile, WALK_SPEED } from './mmdVrQuality';
+import { minSceneViewDistance, mmdVrViewDistanceToSlider, mmdVrSliderToViewDistance } from './mmdVrAdjustments';
 import { hasSceneryPeople } from '../scenery/catalog';
 import { lightNames, sceneEffects } from './environmentDisplay';
 

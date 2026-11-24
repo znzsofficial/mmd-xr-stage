@@ -4,9 +4,9 @@ import { createRoot } from 'react-dom/client';
 import type { ThreeEvent } from '@react-three/fiber';
 import { Vector3 } from 'three';
 import { expect, it, vi } from 'vitest';
-import { useBackpack } from '../../backpack';
+import { useBackpack } from '../../backpack/store';
 import { useMmdVrStore } from '../../mmdVrStore';
-import { useHudWorldInput } from '../../components/hudWorldInput';
+import { useHudWorldInput } from '../../hud/hudWorldInput';
 import { useSceneAction } from './useSceneAction';
 
 async function withSwitch(mode: 'xr'|'screen', verify: (input: () => ReturnType<typeof useSceneAction>, action: ReturnType<typeof vi.fn>) => Promise<void>) {

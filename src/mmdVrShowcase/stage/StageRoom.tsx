@@ -1,6 +1,6 @@
 import { useFrame, useThree } from "@react-three/fiber";
-import { runtimeTiming } from "../runtimeTiming";
-import {elapsed,type PhysicsSwitchWork} from '../physicsSwitchWork';
+import { runtimeTiming } from "../diagnostics/runtimeTiming";
+import {elapsed,type PhysicsSwitchWork} from '../diagnostics/physicsSwitchWork';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import * as THREE from "three";
 import {
@@ -8,46 +8,46 @@ import {
   type MmdRuntimeHandle,
 } from "../mmdRuntime/mmdRuntime";
 import { useLanguageStore } from "../../languageStore";
-import type { MmdVrAssetSlot } from "../mmdVrAssets";
-import { invalidateBackpackCommands, saveBackpackLayout, useBackpack } from "../backpack";
+import type { MmdVrAssetSlot } from "../backpack/sessionAssets";
+import { invalidateBackpackCommands, saveBackpackLayout, useBackpack } from "../backpack/store";
 import {
   clampMmdVrSimulationDelta,
   resetMmdVrClock,
   setMmdVrClockDuration,
   setMmdVrClockTime,
-} from "../mmdVrClock";
-import { getMmdVrRenderProfile } from "../mmdVrQuality";
-import { minSceneViewDistance } from '../mmdVrAdjustments';
+} from "./mmdVrClock";
+import { getMmdVrRenderProfile } from "../settings/mmdVrQuality";
+import { minSceneViewDistance } from '../settings/mmdVrAdjustments';
 import { useMmdVrStore, type MmdVrMaterialState } from "../mmdVrStore";
-import { objectHeadingDegrees } from "../objectHeading";
+import { objectHeadingDegrees } from "./objectHeading";
 import { roomSets } from '../scenery/roomSets';
 import { StageEnvironment } from './StageEnvironment';
 import { resolveStageLighting } from './lighting';
 import {getVelvetLight,resolveVelvetLight,subscribeVelvetLight} from '../scenery/velvet/velvetLight';
-import {xrRoomRestoreTiming} from '../roomRestoreTiming';
+import {xrRoomRestoreTiming} from '../diagnostics/roomRestoreTiming';
 import type {RoomMotionCache} from '../mmdRuntime/roomMotionCache';
 import {scheduleBulletModuleWarm} from '../mmdRuntime/bulletModule';
 import type {RoomAlphaTiles} from '../mmdRuntime/roomAlphaTiles';
 import { createRoomRuntime } from './createRoomRuntime';
-import { createPlacementWork } from '../placementWork';
+import { createPlacementWork } from '../diagnostics/placementWork';
 import type { SceneryId } from "../scenery/catalog";
 import { resolvePlacementHeight } from "../scenery/placementAreas";
 import {
   clearMmdVrHapticContacts,
   MMD_VR_HAPTIC_POLL_INTERVAL,
   setMmdVrHapticContacts,
-} from "../mmdVrHaptics";
+} from "../xr/contact/mmdVrHaptics";
 import { consumeRoomModelCommands } from "./roomModelCommands";
-import { createAssetLoadQueue, emptyAssetLoadProgress, type AssetLoadProgress } from "../mmdAssetLoadQueue";
-import { restoreStageTime, type StageSnapshot } from "../stageSnapshot";
-import { createStageActors } from "../stageActors";
+import { createAssetLoadQueue, emptyAssetLoadProgress, type AssetLoadProgress } from "./loading/mmdAssetLoadQueue";
+import { restoreStageTime, type StageSnapshot } from "./stageSnapshot";
+import { createStageActors } from "./stageActors";
 import { poseWristToy } from '../play/wristSocket';
 import { createPropColliderFeed, isContactTool } from '../play/propColliders';
 import {createRoomPropDisplay} from './roomPropDisplay';
 import { useStagePlay } from '../play/stagePlay';
 import { PlayPiece } from '../play/HeldPlay';
 import { useScreenWristCue } from '../play/screenWristCue';
-import {useHudWorldInput} from '../components/hudWorldInput';
+import {useHudWorldInput} from '../hud/hudWorldInput';
 import { RemoteWearable } from '../play/remote/RemoteWearable';
 import {presentRemoteWearable} from '../play/remote/wearableCollider';
 import {mountPoseRoom,usePoseSession} from '../pose/poseSession';

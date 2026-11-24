@@ -2,7 +2,7 @@ import {useLayoutEffect,useRef,useState} from 'react';
 import {useStore} from 'zustand';
 import {useLanguageStore} from '../../languageStore';
 import {ObservationDiagram,ObservationPlate} from './ObservationDiagram';
-import {ActorHudTitle} from '../components/actorHudDrag';
+import {ActorHudTitle} from '../hud/actorHudDrag';
 import {createReferenceBook} from './reference/diagrams';
 import {useEggReplay} from './useEggReplay';
 import {EggReplayKey} from './EggReplayKey';

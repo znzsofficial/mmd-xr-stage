@@ -1,4 +1,4 @@
-import type {BackpackEntry,BackpackLive} from '../backpack';
+import type {BackpackEntry,BackpackLive} from '../backpack/store';
 import {BODY_RADIUS,type Column} from './solidColumns';
 
 // Navigation only: a narrow body at each visible actor's root, not the full

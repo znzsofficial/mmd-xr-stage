@@ -1,5 +1,5 @@
 import {useLanguageStore} from '../../languageStore';
-import type {BackpackLive} from '../backpack';
+import type {BackpackLive} from '../backpack/store';
 import {useRemoteEgg,bindRemoteEgg,adjustRemoteEgg,selectEggPattern,stopRemoteEgg,removeRemoteEgg,onEggWearer,resetEggOffset} from '../play/remoteEgg';
 import {eggPatterns,eggAxes,eggAxesIndices} from '../play/propControlLabels';
 import {useStagePlay} from '../play/stagePlay';

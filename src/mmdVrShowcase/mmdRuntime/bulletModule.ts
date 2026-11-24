@@ -1,4 +1,4 @@
-import type { PhysicsSwitchWork } from '../physicsSwitchWork';
+import type { PhysicsSwitchWork } from '../diagnostics/physicsSwitchWork';
 
 // Page-wide code/WASM instance only. Each explicit enable still creates its
 // own backend and owns its world. Never put stage, model or File references here.

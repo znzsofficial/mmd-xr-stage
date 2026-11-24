@@ -11,7 +11,7 @@ import {samplePlanetMovement} from './planetDiagnostics';
 import {useMmdVrStore} from '../mmdVrStore';
 import {lanes} from '../scenery/planet/windAtlas';
 import {surveyReaderBlocks,surveySites} from '../scenery/planet/opalSurvey';
-import {useBackpack} from '../backpack';
+import {useBackpack} from '../backpack/store';
 
 const h=vi.hoisted(()=>{let resolve!:()=>void;const promise=new Promise<void>(r=>{resolve=r;});
   return {module:{promise,resolve},ready:true,denied:false,session:null as EventTarget|null,frame:null as Function|null,seed:vi.fn(),step:vi.fn()};});

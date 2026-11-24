@@ -25,7 +25,7 @@ const {createMmdRuntimeHandle, close} = await loadNodeBulletStage((base, options
   row.module = m;
   return row.native = createCustomBulletMmdPhysicsBackend(m, options);
 });
-const {handContactShape,handReferenceRadius} = await import('../../src/mmdVrShowcase/handContactProfile.ts');
+const {handContactShape,handReferenceRadius} = await import('../../src/mmdVrShowcase/xr/contact/handContactProfile.ts');
 const {propColliderShape} = await import('../../src/mmdVrShowcase/play/propColliders.ts');
 const sum = a => a.reduce((s,v)=>s+v,0), mean = a => sum(a)/a.length;
 const ms = x => +x.toFixed(5), meanNs = ns => ms(ns/(frames*blocks*1e6));

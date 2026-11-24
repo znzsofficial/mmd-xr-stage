@@ -1,4 +1,4 @@
-import {ActorHudDiagram,ActorScreenDiagram,type DiagramSpec} from '../../components/ActorDiagram';
+import {ActorHudDiagram,ActorScreenDiagram,type DiagramSpec} from '../../observation/ActorDiagram';
 import {SECTION_W,SECTION_H} from '../sectionPaint';
 import {atlasPainter,type AtlasActor,type AtlasScope} from './painter';
 import {readAtlasView,setAtlasView} from './view';

@@ -1,5 +1,5 @@
 import {Vector3,type Object3D,type SkinnedMesh} from 'three';
-import type {BackpackLive} from '../backpack';
+import type {BackpackLive} from '../backpack/store';
 
 export type CloseUpFocus = 'body' | 'face';
 export type ScreenCloseUp = {active:CloseUpFocus|null; toggle(focus:CloseUpFocus,assetId:string,runtimeId:string):void};

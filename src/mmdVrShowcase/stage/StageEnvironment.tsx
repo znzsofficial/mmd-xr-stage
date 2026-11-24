@@ -9,7 +9,7 @@ import { RiverSky } from '../scenery/qinhuai/Songhouse';
 import { RoomSet, roomSets } from '../scenery/roomSets';
 import { StreetScenery } from '../scenery/routes/StreetScenery';
 import { hasStageLamps } from '../settings/stageLamps';
-import type { MmdVrRenderProfile } from '../mmdVrQuality';
+import type { MmdVrRenderProfile } from '../settings/mmdVrQuality';
 import type { MmdVrPrefs } from '../settings/preferences';
 import type { StageLighting } from './lighting';
 

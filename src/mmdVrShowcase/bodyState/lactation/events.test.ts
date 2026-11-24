@@ -1,5 +1,5 @@
 import {expect,it} from 'vitest';
-import {clearBackpack,useBackpack} from '../../backpack';
+import {clearBackpack,useBackpack} from '../../backpack/store';
 import {beginBodyPreview,cancelBodyPreview,commitBodyPreview,drainBodySide,patchBodyPreview,advanceLiveBodies,useBodyState} from '../store';
 import {subscribeMilkEffects,type MilkEffectEvent} from './events';
 

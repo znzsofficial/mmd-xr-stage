@@ -1,5 +1,5 @@
 import { useId, useState } from 'react';
-import { HudButton, HudLine, HudSheet } from '../components/PorcelainControls';
+import { HudButton, HudLine, HudSheet } from '../hud/PorcelainControls';
 import type { WardrobeProps } from './actions';
 import { useWardrobe } from './useWardrobe';
 import { SlotFinder } from './SlotFinder';

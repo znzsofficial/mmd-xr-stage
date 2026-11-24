@@ -10,7 +10,7 @@
 
 **上一次实戴（改图前）。** 11 月 23 日 15:11Z 的报告与玩家反馈均已记录：姿势初看可以，未逐一验证；外阴配色可以；入口显平、总览只有轴线是本次改图的原因。裙腿仍穿但有所减轻；再现时记录可见侧、衣层和是否停住后还穿。不采用在 C 初跪时变差的小腿修正组合，见[分层证据与取舍](./performance/actor-tools-regression.md#手动体位的局部裙片修正)。
 
-**架构接续。** [第一次局部整理](./architecture/maintenance.md#已拆出的三个入口)完成。新增演员显示效果从 `actorPoseDisplay.ts` 接入；移除／显隐／变换归 `roomModelCommands.ts`；XR 资产详情与加载恢复页已移出公共 HUD。运行时仍拥有物理时钟，只有当前房间可以消费命令。后续可回到实际玩法，不必继续按文件大小拆分。
+**源码目录。** 从[目录导航](./architecture.md#源码目录)找文件：B 键主面板在 `hud/`，背包和放置在 `backpack/`，观看会话与共享房间在 `stage/`，性能报告在 `diagnostics/`。原 `components/` 下的文件和测试已归回各自功能目录。职责分界见[局部整理记录](./architecture/maintenance.md)，线上功能版本仍为 `6d0ae28`。
 
 **星系接续。** [母星的轻推与满推](./performance/home-walk.md)、[贴坡和偏置低顶](./performance/orbital-skims.md)、[手动 Y、眼高与失追](./performance/planet-stance-input.md)已按原反例复核。风道／足印仍沿途带动视野，印外捕获不自动回正。整身粗筛与端点复用已落地，近切线的单次递归尖峰仍在；下一步读导出的 `planetMovement.shellWork`，先看真机实际游玩是否触发。[完整 CPU 对照](./performance/planet-shell-sweep.md)。
 

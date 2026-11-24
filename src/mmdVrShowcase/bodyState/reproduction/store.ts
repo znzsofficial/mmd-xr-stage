@@ -1,5 +1,5 @@
 import {create} from 'zustand';
-import {useBackpack} from '../../backpack';
+import {useBackpack} from '../../backpack/store';
 import {DEFAULT_CHANCE,MAX_EGGS,resolveConception,type ConceptionEvent,type Ovum} from './game';
 
 export {MAX_EGGS,type ConceptionEvent,type Ovum} from './game';

@@ -4,11 +4,11 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MmdVrOverlay } from "./MmdVrOverlay";
 import { useMmdVrStore } from "./mmdVrStore";
-import { endMmdVrSession } from "./mmdVrSession";
-import { MmdVrScene } from "./MmdVrScene";
+import { endMmdVrSession } from "./xr/mmdVrSession";
+import { MmdVrScene } from "./xr/MmdVrScene";
 
-vi.mock("./mmdVrSession", () => ({ endMmdVrSession: vi.fn(async () => {}), getMmdVrSessionSnapshot: () => ({ generation: 1 }) }));
-vi.mock("./MmdVrScene", () => ({ MmdVrScene: vi.fn(() => null) }));
+vi.mock("./xr/mmdVrSession", () => ({ endMmdVrSession: vi.fn(async () => {}), getMmdVrSessionSnapshot: () => ({ generation: 1 }) }));
+vi.mock("./xr/MmdVrScene", () => ({ MmdVrScene: vi.fn(() => null) }));
 
 let root: Root;
 let container: HTMLDivElement;

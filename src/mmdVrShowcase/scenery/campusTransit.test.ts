@@ -1,6 +1,6 @@
 import {expect,it} from 'vitest';
 import {useMmdVrStore} from '../mmdVrStore';
-import {clearBackpack, syncBackpackFiles, useBackpack} from '../backpack';
+import {clearBackpack, syncBackpackFiles, useBackpack} from '../backpack/store';
 import {walkBetweenZones} from './campusTransit';
 import {roomLinks} from './connections';
 

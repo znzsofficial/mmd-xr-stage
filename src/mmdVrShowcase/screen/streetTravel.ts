@@ -1,5 +1,5 @@
 import {type Scene,Vector3} from 'three';
-import {useBackpack} from '../backpack';
+import {useBackpack} from '../backpack/store';
 import {createGroundMotor,groundedBody,type ReadColumn} from '../movement/groundMotor';
 import {createSolidColumns,playerSolidRoots} from '../movement/solidColumns';
 import {actorBodies,sampleBodies} from '../movement/actorBodies';

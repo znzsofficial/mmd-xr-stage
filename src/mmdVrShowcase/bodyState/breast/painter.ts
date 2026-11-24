@@ -1,6 +1,6 @@
 import {useLanguageStore} from '../../../languageStore';
-import type {DiagramActor,DiagramDriver} from '../../components/ActorDiagram';
-import {diagramOutput} from '../../components/diagramOutput';
+import type {DiagramActor,DiagramDriver} from '../../observation/ActorDiagram';
+import {diagramOutput} from '../../observation/diagramOutput';
 import {DEFAULT_BODY_PROFILE} from '../data';
 import {fromMilkRefill,fromMilkInteraction,useBodyState} from '../store';
 import {createBreastArt,type BreastArtFrame} from './art';

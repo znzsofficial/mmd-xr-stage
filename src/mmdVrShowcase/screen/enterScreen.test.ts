@@ -1,8 +1,8 @@
 import { afterEach, expect, it } from 'vitest';
-import { clearBackpack, syncBackpackFiles, useBackpack } from '../backpack';
-import { getMmdVrSessionAssets } from '../mmdVrAssets';
+import { clearBackpack, syncBackpackFiles, useBackpack } from '../backpack/store';
+import { getMmdVrSessionAssets } from '../backpack/sessionAssets';
 import { useMmdVrStore } from '../mmdVrStore';
-import type { StageSnapshot } from '../stageSnapshot';
+import type { StageSnapshot } from '../stage/stageSnapshot';
 import { enterScreen } from './enterScreen';
 
 const get=useMmdVrStore.getState;

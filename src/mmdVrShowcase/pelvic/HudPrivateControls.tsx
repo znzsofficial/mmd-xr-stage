@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { ThreeEvent } from '@react-three/fiber';
 import { Shape, ShapeGeometry } from 'three';
 import { PRIVATE_COLORS as c, PRIVATE_TITLE_FACE, buttonInks, type ButtonVariant } from './palette';
-import { useHudKeyTexture, type KeyPainter } from '../components/useHudKeyTexture';
+import { useHudKeyTexture, type KeyPainter } from '../hud/useHudKeyTexture';
 
 type Point = [number, number, number];
 type Size = [number, number];

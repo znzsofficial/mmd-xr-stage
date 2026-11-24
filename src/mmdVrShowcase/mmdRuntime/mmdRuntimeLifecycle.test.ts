@@ -6,8 +6,8 @@ import { createLocalTextureResolver, createMmdRuntimeHandle } from "./mmdRuntime
 import { expandAssetFiles } from "../../mmdImport/importArchive";
 import { BlobWriter, TextReader, ZipWriter } from "@zip.js/zip.js";
 import { bindCompanion } from "../../mmdImport/assetPaths";
-import { createModelLoadTask } from "../modelLoadTask";
-import { createAssetLoadQueue } from "../mmdAssetLoadQueue";
+import { createModelLoadTask } from "../stage/loading/modelLoadTask";
+import { createAssetLoadQueue } from "../stage/loading/mmdAssetLoadQueue";
 import { createRoomMotionCache } from './roomMotionCache';
 import { createMountedModelBytePool } from './mountedModelBytes';
 import { poseFixture } from '../pose/poseFixture.testSupport';

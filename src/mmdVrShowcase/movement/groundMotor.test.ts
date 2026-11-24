@@ -4,7 +4,7 @@ import {createGroundMotor,groundedBody,type ReadColumn} from './groundMotor';
 import {createSolidColumns} from './solidColumns';
 import {roomGround,roomEntry} from './roomGround';
 import {sceneryIds} from '../scenery/catalog';
-import {WALK_SPEED} from '../mmdVrQuality';
+import {WALK_SPEED} from '../settings/mmdVrQuality';
 import {normalizeMmdVrPrefs} from '../settings/preferences';
 import {actorBodies,sampleBodies} from './actorBodies';
 import {eyeLift,headMargin} from './eyeHeight';
@@ -74,7 +74,7 @@ it('drops cached geometry when a solid is added, removed, or a placed prop moves
 });
 
 it('keeps a character’s rest-body proxy separate from clothing, hidden actors and GLB solids',()=>{
-  const bounds:import('../backpack').BackpackLive={runtimeId:'actor',position:[0,0,0],visible:true,bounds:{center:[0,.85,0],size:[3.5,1.7,1]}};
+  const bounds:import('../backpack/store').BackpackLive={runtimeId:'actor',position:[0,0,0],visible:true,bounds:{center:[0,.85,0],size:[3.5,1.7,1]}};
   const entries=[{id:'a',kind:'model' as const,file:new File([],'a.pmx'),path:'a.pmx'}];
   const bodies=actorBodies(entries,{a:bounds}),c={floor:0,ceiling:Infinity,blocked:false};
   sampleBodies(bodies,.7,0,0,c);expect(c.blocked).toBe(false);sampleBodies(bodies,0,0,0,c);expect(c.blocked).toBe(true);

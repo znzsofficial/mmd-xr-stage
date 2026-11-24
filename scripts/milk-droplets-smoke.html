@@ -9,7 +9,7 @@ import {createMilkOutlets} from '/src/mmdVrShowcase/bodyState/lactation/outlets'
 import {mountRoomMilk} from '/src/mmdVrShowcase/bodyState/lactation/roomMilk';
 import {beginBodyPreview,cancelBodyPreview,drainBodySide,patchBodyPreview,useBodyState} from '/src/mmdVrShowcase/bodyState/store';
 import {useMmdVrStore} from '/src/mmdVrShowcase/mmdVrStore';
-import {syncBackpackFiles,useBackpack} from '/src/mmdVrShowcase/backpack';
+import {syncBackpackFiles,useBackpack} from '/src/mmdVrShowcase/backpack/store';
 
 const W=512,H=512,status=document.querySelector('#status');
 function check(ok,why){if(!ok)throw Error(why);}

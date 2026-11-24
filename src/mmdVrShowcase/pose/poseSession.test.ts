@@ -1,7 +1,7 @@
 import {expect,it,vi} from 'vitest';
 import {Vector3} from 'three';
-import {useBackpack} from '../backpack';
-import {useHudWorldInput} from '../components/hudWorldInput';
+import {useBackpack} from '../backpack/store';
+import {useHudWorldInput} from '../hud/hudWorldInput';
 import {useMmdVrStore} from '../mmdVrStore';
 import type {PoseSnapshot,PoseSolver} from './poseSolver';
 import {mountPoseRoom,poseActions as pose,usePoseSession} from './poseSession';

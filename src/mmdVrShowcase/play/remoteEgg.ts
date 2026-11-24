@@ -1,4 +1,4 @@
-import { useBackpack } from '../backpack';
+import { useBackpack } from '../backpack/store';
 import { useStagePlay } from './stagePlay';
 import { clearRemoteEgg, startEggBinding, useRemoteEgg } from './remote/remoteMotor';
 

@@ -1,6 +1,6 @@
 import {useLanguageStore} from '../../languageStore';
 import {useMmdVrStore} from '../mmdVrStore';
-import {getMmdVrRenderProfile,formatMmdVrProfileSummary} from '../mmdVrQuality';
+import {getMmdVrRenderProfile,formatMmdVrProfileSummary} from '../settings/mmdVrQuality';
 import {questPresets,currentQuestPreset} from '../settings/questPresets';
 import {PrepIcon} from './PrepIcon';
 function OptionGroup<T extends string>({

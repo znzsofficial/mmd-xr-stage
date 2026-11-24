@@ -1,9 +1,9 @@
 import {useState} from 'react';
 import {useLanguageStore} from '../../languageStore';
-import {useBackpack} from '../backpack';
+import {useBackpack} from '../backpack/store';
 import {chanceFor,eggsFor,forceOvulation,MAX_EGGS,setConceptionChance,useConception} from '../bodyState/reproduction/store';
-import type {DiagramActor} from '../components/ActorDiagram';
-import {useHudWorldInput} from '../components/hudWorldInput';
+import type {DiagramActor} from './ActorDiagram';
+import {useHudWorldInput} from '../hud/hudWorldInput';
 import {useMmdVrStore} from '../mmdVrStore';
 import {PrivateButton,PrivateLine} from '../pelvic/HudPrivateControls';
 import {HudField,ScreenField} from '../pelvic/WorkbenchField';

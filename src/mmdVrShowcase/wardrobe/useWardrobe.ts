@@ -1,6 +1,6 @@
 import { useReducer, useState, useSyncExternalStore } from 'react';
 import { useLanguageStore } from '../../languageStore';
-import { useBackpack } from '../backpack';
+import { useBackpack } from '../backpack/store';
 import { useMmdVrStore } from '../mmdVrStore';
 import { usePelvic } from '../pelvic/store';
 import { editWardrobe, hasWardrobeUndo, resolveActor, restoreOutfit, type WardrobeProps } from './actions';

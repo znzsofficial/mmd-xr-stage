@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {ThreeMmdLoader} from '@yohawing/three-mmd-loader';
 import {createMmdRuntimeHandle} from '../src/mmdVrShowcase/mmdRuntime/mmdRuntime.ts';
-import {prepareMmdVrModel} from '../src/mmdVrShowcase/prepareMmdVrModel.ts';
+import {prepareMmdVrModel} from '../src/mmdVrShowcase/stage/loading/prepareMmdVrModel.ts';
 import {clothSmokeFixture} from './cloth-smoke-fixture.js';
 
 async function run(files){

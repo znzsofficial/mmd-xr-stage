@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react';
-import { LiveHouse } from '../components/LiveHouse';
+import { LiveHouse } from './LiveHouse';
 import { AstralCourt } from './AstralCourt';
 import { DawnChapel } from './DawnChapel';
 import { Classroom } from './Classroom';

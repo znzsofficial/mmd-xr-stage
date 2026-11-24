@@ -1,5 +1,5 @@
 import { ThreeMmdLoader, type ThreeMmdAnimation } from '@yohawing/three-mmd-loader';
-import type { RestoreMotionWork } from '../roomRestoreTiming';
+import type { RestoreMotionWork } from '../diagnostics/roomRestoreTiming';
 import type { MmdMotionSlot } from './mmdRuntime';
 
 // Limits are on source bytes, not JS heap. Keep the ordinary LRU small;

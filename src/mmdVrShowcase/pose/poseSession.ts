@@ -1,8 +1,8 @@
 import {create} from 'zustand';
 import type {Vector3} from 'three';
-import {useBackpack} from '../backpack';
+import {useBackpack} from '../backpack/store';
 import {useMmdVrStore} from '../mmdVrStore';
-import {useHudWorldInput} from '../components/hudWorldInput';
+import {useHudWorldInput} from '../hud/hudWorldInput';
 import type {PoseKey,PoseSnapshot,PoseSolver,WristKey} from './poseSolver';
 import type {PosePresetId} from './presetCatalog';
 export type {PoseKey};

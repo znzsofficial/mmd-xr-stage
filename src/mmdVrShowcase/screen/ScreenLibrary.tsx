@@ -1,6 +1,6 @@
 import { useLanguageStore } from '../../languageStore';
-import { useBackpack, type BackpackEntry } from '../backpack';
-import { nextMmdVrModelScale, previousMmdVrModelScale } from '../mmdVrAdjustments';
+import { useBackpack, type BackpackEntry } from '../backpack/store';
+import { nextMmdVrModelScale, previousMmdVrModelScale } from '../settings/mmdVrAdjustments';
 import { useMmdVrStore } from '../mmdVrStore';
 import { useLayoutEffect, useRef, useState } from 'react';
 import { isStoryRoom, shelfToys, STORIES, TOYS, toyLabel, type Hand, type Toy, type StoryRoom } from '../play/propCatalog';

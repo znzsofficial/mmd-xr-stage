@@ -3,7 +3,7 @@ import {useFrame} from '@react-three/fiber';
 import {useXR,useXRInputSourceState} from '@react-three/xr';
 import {Quaternion,Vector3,type Group} from 'three';
 import {useMmdVrStore} from '../mmdVrStore';
-import {WALK_SPEED} from '../mmdVrQuality';
+import {WALK_SPEED} from '../settings/mmdVrQuality';
 import {newStick,readStick,stickAxis} from './controllerInput';
 import {carryFrame,createTraveller,north,surfaceStep,transport,type PlanetDriver} from './planetTravel';
 import {observePlanet,planetCounters} from './planetDiagnostics';
@@ -18,7 +18,7 @@ import {startTwinLeap,stepTwinLeap,type TwinLeap} from './twinLeap';
 import {jumpVelocity,startOrbit,stepOrbit,type Orbit} from './orbitalFlight';
 import {homeWorld,shellRadius} from './orbitalSurfaces';
 import {seatOrbitContact} from './orbitContact';
-import {useBackpack} from '../backpack';
+import {useBackpack} from '../backpack/store';
 
 class PhysicsBoundary extends Component<{failed:()=>void;children:ReactNode},{failed:boolean}>{
   state={failed:false};static getDerivedStateFromError(){return {failed:true};}

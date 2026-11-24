@@ -4,8 +4,8 @@
 <script type="module">
 import * as T from 'three';
 import {createMmdRuntimeHandle} from '../src/mmdVrShowcase/mmdRuntime/mmdRuntime.ts';
-import {prepareMmdVrModel} from '../src/mmdVrShowcase/prepareMmdVrModel.ts';
-import {handContactShape,handReferenceRadius} from '../src/mmdVrShowcase/handContactProfile.ts';
+import {prepareMmdVrModel} from '../src/mmdVrShowcase/stage/loading/prepareMmdVrModel.ts';
+import {handContactShape,handReferenceRadius} from '../src/mmdVrShowcase/xr/contact/handContactProfile.ts';
 window.compare=async()=>{
  const files=[...document.querySelector('input').files],pmx=files.find(f=>/\.pmx$/i.test(f.name)),vmd=files.find(f=>/\.vmd$/i.test(f.name));if(!pmx||!vmd)throw Error('Select a model and motion.');
  const camera=new T.PerspectiveCamera(),park=new T.Matrix4().makeTranslation(0,-1000,0),controllers=[park,park],hands=Array(12).fill(park),variants=[];

@@ -6,10 +6,10 @@ import type {
   MmdPhysicsMutableNumericBuffer,
   MmdPhysicsStepContext,
 } from "@yohawing/three-mmd-loader/physics";
-import type { MmdPhysicsQuality } from "../mmdPhysicsQuality";
+import type { MmdPhysicsQuality } from "../settings/mmdPhysicsQuality";
 import { ColliderReentry, syntheticColliderBody } from "./colliderReentry";
 import {isActorPalm} from './actorPalms';
-import {elapsed,type PhysicsSwitchWork} from '../physicsSwitchWork';
+import {elapsed,type PhysicsSwitchWork} from '../diagnostics/physicsSwitchWork';
 import {getBulletModule} from './bulletModule';
 
 export type { MmdPhysicsQuality };

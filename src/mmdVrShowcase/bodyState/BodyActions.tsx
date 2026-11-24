@@ -1,4 +1,4 @@
-import { HudButton } from '../components/PorcelainControls';
+import { HudButton } from '../hud/PorcelainControls';
 import type { Action } from './controlRows';
 
 export const bodySpan = 1.45;

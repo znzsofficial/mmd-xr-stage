@@ -1,5 +1,5 @@
 import {afterEach,expect,it,vi} from 'vitest';
-import {clearBackpack,prepareBackpackEntry,syncBackpackFiles,useBackpack} from '../../backpack';
+import {clearBackpack,prepareBackpackEntry,syncBackpackFiles,useBackpack} from '../../backpack/store';
 import {useMmdVrStore} from '../../mmdVrStore';
 import {advancePelvic,assignPelvic,cancelStrokeDose,clearPelvicFluid,consumePelvicDose,enablePelvic,patchPelvic,publishPelvicSample,publishPelvicSupport,
   requestPelvicDose,requestStrokeDose,setPelvicCapacity,startPelvic,usePelvic,type PelvicDoseTarget,type PelvicMode} from '../../pelvic/store';

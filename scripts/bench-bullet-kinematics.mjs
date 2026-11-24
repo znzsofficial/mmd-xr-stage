@@ -38,7 +38,7 @@ const {bullet,createMmdRuntimeHandle,close}=await loadNodeBulletStage((module,op
 });
 const set=bullet._mmd_anim_bullet_world_set_rigidbody_transform;
 bullet._mmd_anim_bullet_world_set_rigidbody_transform=(...args)=>{if(timing)timing.writes++;return set(...args);};
-const {handContactShape,handReferenceRadius}=await import('../src/mmdVrShowcase/handContactProfile.ts');
+const {handContactShape,handReferenceRadius}=await import('../src/mmdVrShowcase/xr/contact/handContactProfile.ts');
 const controls=[park,park],hands=Array(12).fill(park),props=Array(8).fill(park);
 const avg=a=>a.reduce((s,v)=>s+v,0)/a.length,p95=a=>a.toSorted((a,b)=>a-b)[Math.ceil(.95*a.length)-1];
 let boneSamples=0,vertexSamples=0,contactSamples=0,maxContacts=0;

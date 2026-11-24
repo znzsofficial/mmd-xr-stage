@@ -1,5 +1,5 @@
 import {Matrix4,Vector3} from 'three';
-import {handContactShape} from '../handContactProfile';
+import {handContactShape} from '../xr/contact/handContactProfile';
 
 export const FINGERTIP_MASK = 0xfbe; // all twelve slots except the two wrists
 

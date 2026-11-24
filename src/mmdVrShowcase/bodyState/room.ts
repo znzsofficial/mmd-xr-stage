@@ -1,4 +1,4 @@
-import { useBackpack } from '../backpack';
+import { useBackpack } from '../backpack/store';
 import type { MmdRuntimeHandle } from '../mmdRuntime/mmdRuntime';
 import { advanceLiveBodies, cancelBodyPreview, fromMilkInteraction, useBodyState, type BodySupport } from './store';
 import type { BodyProfile } from './data';

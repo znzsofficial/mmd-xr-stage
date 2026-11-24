@@ -1,6 +1,6 @@
-import { useBackpack } from '../backpack';
+import { useBackpack } from '../backpack/store';
 import { setActorMilk, useBodyState } from '../bodyState/store';
-import { useHudWorldInput } from '../components/hudWorldInput';
+import { useHudWorldInput } from '../hud/hudWorldInput';
 import { useMmdVrStore } from '../mmdVrStore';
 import { patchPelvic, usePelvic } from '../pelvic/store';
 import type { WardrobeModel } from './model';

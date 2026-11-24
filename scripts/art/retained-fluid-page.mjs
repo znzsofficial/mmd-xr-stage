@@ -5,7 +5,7 @@
 //   const sheets=await page.evaluate(async()=>
 //     (await import('/scripts/art/retained-fluid-page.mjs')).captureRetainedFluid());
 //   // Write sheets[*].png (base64) ONLY under local-review/art/retained-fluid/.
-import {useBackpack} from '/src/mmdVrShowcase/backpack.ts';
+import {useBackpack} from '/src/mmdVrShowcase/backpack/store.ts';
 import {drainPelvic,usePelvic} from '/src/mmdVrShowcase/pelvic/store.ts';
 import {setAtlasView,useAtlasSettings} from '/src/mmdVrShowcase/pelvic/atlas/view.ts';
 

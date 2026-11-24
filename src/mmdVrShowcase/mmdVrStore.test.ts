@@ -16,7 +16,7 @@ import {
   mmdVrViewDistanceToSlider,
   nextMmdVrModelScale,
   previousMmdVrModelScale,
-} from "./mmdVrAdjustments";
+} from "./settings/mmdVrAdjustments";
 
 describe("MMD VR adjustments", () => {
   it("retains a complete failure report on exit and clears it for a fresh entry", () => {

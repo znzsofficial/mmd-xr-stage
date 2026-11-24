@@ -1,6 +1,6 @@
 import {useLayoutEffect,useRef,useState} from 'react';
 import {useLanguageStore} from '../../languageStore';
-import {useBackpack} from '../backpack';
+import {useBackpack} from '../backpack/store';
 import {useMmdVrStore} from '../mmdVrStore';
 import {useStagePlay} from '../play/stagePlay';
 import type {PelvicActor} from './Section';

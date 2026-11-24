@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client';
 import { BoxGeometry, Group, Mesh, MeshBasicMaterial, Scene, Vector3 } from 'three';
 import { expect,it,vi } from 'vitest';
 import { useLanguageStore } from '../../../languageStore';
-import { clearBackpack,useBackpack } from '../../backpack';
+import { clearBackpack,useBackpack } from '../../backpack/store';
 import { useMmdVrStore } from '../../mmdVrStore';
 import { EggFields,fitScreenEgg } from '../../screen/ContactPropFields';
 import { createRoomPropDisplay } from '../../stage/roomPropDisplay';

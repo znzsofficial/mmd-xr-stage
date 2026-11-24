@@ -4,8 +4,8 @@
 <script type="module">
 import * as THREE from 'three';
 import {createMmdRuntimeHandle} from '/src/mmdVrShowcase/mmdRuntime/mmdRuntime.ts';
-import {prepareMmdVrModel} from '/src/mmdVrShowcase/prepareMmdVrModel.ts';
-import {handContactShape,handReferenceRadius} from '/src/mmdVrShowcase/handContactProfile.ts';
+import {prepareMmdVrModel} from '/src/mmdVrShowcase/stage/loading/prepareMmdVrModel.ts';
+import {handContactShape,handReferenceRadius} from '/src/mmdVrShowcase/xr/contact/handContactProfile.ts';
 import {clothSmokeFixture} from './cloth-smoke-fixture.js';
 
 async function compare(files) {

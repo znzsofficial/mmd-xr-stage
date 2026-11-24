@@ -1,4 +1,4 @@
-import {ActorHudDiagram,ActorScreenDiagram,type DiagramActor,type DiagramSpec} from '../../components/ActorDiagram';
+import {ActorHudDiagram,ActorScreenDiagram,type DiagramActor,type DiagramSpec} from '../../observation/ActorDiagram';
 import {breastPainter,BREAST_WIDTH,BREAST_HEIGHT} from './painter';
 import {readBreastView,setBreastView} from './view';
 

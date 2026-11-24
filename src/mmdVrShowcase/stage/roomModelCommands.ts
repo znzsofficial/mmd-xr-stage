@@ -1,8 +1,8 @@
 import type { MmdRuntimeHandle } from "../mmdRuntime/mmdRuntime";
-import { transformRequiresPhysicsReseed } from "../mmdVrPhysicsReseed";
+import { transformRequiresPhysicsReseed } from "./mmdVrPhysicsReseed";
 import type { useMmdVrStore } from "../mmdVrStore";
-import { setObjectHeadingDegrees } from "../objectHeading";
-import type { createStageActors } from "../stageActors";
+import { setObjectHeadingDegrees } from "./objectHeading";
+import type { createStageActors } from "./stageActors";
 
 type CommandQueues = Pick<ReturnType<typeof useMmdVrStore.getState>,
   "takeModelRemovals" | "takeVisibilityToggles" | "takeModelTransformRequests">;

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { HudButton, HudLine, HudSheet } from '../components/PorcelainControls';
+import { HudButton, HudLine, HudSheet } from '../hud/PorcelainControls';
 import { poseActions } from './poseSession';
 import { jointHint, limbBendLabel, nextPoseName, usePoseText } from './poseText';
 import { POSE_ANGLE_STEP, POSE_AXES, POSE_BEND_STEP, usePoseTool } from './poseTool';

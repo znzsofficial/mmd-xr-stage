@@ -1,5 +1,5 @@
 import { useLayoutEffect, useState } from 'react';
-import { useHudWorldInput } from '../components/hudWorldInput';
+import { useHudWorldInput } from '../hud/hudWorldInput';
 import { useMmdVrStore } from '../mmdVrStore';
 import { poseActions, usePoseSession } from './poseSession';
 import { posePresets, presetGroups, type PosePresetId } from './presetCatalog';

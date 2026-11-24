@@ -1,14 +1,14 @@
 import type { Camera, Scene, WebGLRenderer } from 'three';
-import { handContactShape, handReferenceRadius } from '../handContactProfile';
+import { handContactShape, handReferenceRadius } from '../xr/contact/handContactProfile';
 import { createMmdRuntimeHandle } from '../mmdRuntime/mmdRuntime';
 import type { RoomAlphaTiles } from '../mmdRuntime/roomAlphaTiles';
 import type { RoomMotionCache } from '../mmdRuntime/roomMotionCache';
-import { getMmdVrControllerColliderMatrices } from '../mmdVrControllerColliders';
-import { getMmdVrHandColliderMatrices } from '../mmdVrHandColliders';
+import { getMmdVrControllerColliderMatrices } from '../xr/contact/controllerSlots';
+import { getMmdVrHandColliderMatrices } from '../xr/contact/handSlots';
 import { useMmdVrStore } from '../mmdVrStore';
-import { prepareMmdVrModel } from '../prepareMmdVrModel';
-import { prepareModelGpu } from '../prepareModelGpu';
-import { runtimeTiming } from '../runtimeTiming';
+import { prepareMmdVrModel } from './loading/prepareMmdVrModel';
+import { prepareModelGpu } from './loading/prepareModelGpu';
+import { runtimeTiming } from '../diagnostics/runtimeTiming';
 import { propColliderShape, type createPropColliderFeed } from '../play/propColliders';
 
 const friction = { low: .2, medium: .5, high: .9 } as const;

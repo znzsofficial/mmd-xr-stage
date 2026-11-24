@@ -1,4 +1,4 @@
-import { createMmdVrHapticDriver, getMmdVrHapticFeedback, type MmdVrHapticLevel } from '../../mmdVrHaptics';
+import { createMmdVrHapticDriver, getMmdVrHapticFeedback, type MmdVrHapticLevel } from '../../xr/contact/mmdVrHaptics';
 import type { GripFrame } from '../propView';
 import { useStagePlay } from '../stagePlay';
 import { eggPowerAt, useRemoteEgg } from './remoteMotor';

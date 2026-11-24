@@ -5,7 +5,7 @@ import {createHomeCapsule} from './homeCapsule';
 import {addHomeTerrainSolids} from './homeTerrainSolids';
 import {createTraveller,planetCentre,surfaceStep,transport,type Traveller} from './planetTravel';
 import {stickAxis} from './controllerInput';
-import {WALK_SPEED} from '../mmdVrQuality';
+import {WALK_SPEED} from '../settings/mmdVrQuality';
 
 let world:Rapier.World,d:ReturnType<typeof createHomeCapsule>;
 const eye=new Vector3(0,1.65,0),noop=()=>{};

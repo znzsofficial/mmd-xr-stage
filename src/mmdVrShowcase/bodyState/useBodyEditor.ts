@@ -1,6 +1,6 @@
 import {useLayoutEffect,useState} from 'react';
 import {useLanguageStore} from '../../languageStore';
-import {useBackpack} from '../backpack';
+import {useBackpack} from '../backpack/store';
 import {useMmdVrStore} from '../mmdVrStore';
 import {actions,destination,line,type Action,type Row} from './controlRows';
 import {DEFAULT_BODY_PROFILE,type BodyProfile} from './data';

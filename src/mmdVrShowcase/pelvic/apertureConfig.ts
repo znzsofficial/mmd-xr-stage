@@ -1,4 +1,4 @@
-import { useBackpack } from '../backpack';
+import { useBackpack } from '../backpack/store';
 import { usePelvic } from './store';
 
 /** An explicit choice on the existing asset profile, never a runtime model ID

@@ -1,6 +1,6 @@
 import { Matrix4, Vector3, type Group, type Object3D, type Scene } from 'three';
-import { useBackpack, type BackpackLive } from '../backpack';
-import { useHudWorldInput } from '../components/hudWorldInput';
+import { useBackpack, type BackpackLive } from '../backpack/store';
+import { useHudWorldInput } from '../hud/hudWorldInput';
 import { useMmdVrStore } from '../mmdVrStore';
 import { useStagePlay } from '../play/stagePlay';
 import type { GripFrame } from '../play/propView';

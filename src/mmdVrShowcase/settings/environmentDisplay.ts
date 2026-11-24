@@ -1,5 +1,5 @@
 import type { TranslationKey } from '../../languageStore';
-import type { MmdVrRenderProfile } from '../mmdVrQuality';
+import type { MmdVrRenderProfile } from './mmdVrQuality';
 import { showSceneryGrid } from '../scenery/catalog';
 import type { MmdVrLightPreset, MmdVrPrefs } from './preferences';
 import { hasStageLamps } from './stageLamps';

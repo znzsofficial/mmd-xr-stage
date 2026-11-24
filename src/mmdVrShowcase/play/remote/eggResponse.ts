@@ -1,5 +1,5 @@
 import type { Scene } from 'three';
-import { useBackpack } from '../../backpack';
+import { useBackpack } from '../../backpack/store';
 import { actorFacePalette } from '../actorResponse';
 import { createVertexMorphLayer } from '../vertexMorphLayer';
 import type { WandModel } from '../wandSurface';

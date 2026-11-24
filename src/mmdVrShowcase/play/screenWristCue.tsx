@@ -1,6 +1,6 @@
 import {useLayoutEffect,useRef,type RefObject} from 'react';
 import {Vector3,type Group,type Object3D,type Scene} from 'three';
-import {useBackpack} from '../backpack';
+import {useBackpack} from '../backpack/store';
 import {useMmdVrStore} from '../mmdVrStore';
 import {TOYS,type Toy} from './propCatalog';
 import type {GripFrame,PropView} from './propView';

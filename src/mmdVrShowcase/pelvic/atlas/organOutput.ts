@@ -1,4 +1,4 @@
-import {diagramOutput} from '../../components/diagramOutput';
+import {diagramOutput} from '../../observation/diagramOutput';
 import {createOrganArt,type OrganArtOptions} from './organArt';
 
 export const organOutput=(wake:(result:'ready'|'retry')=>void)=>diagramOutput<OrganArtOptions>(

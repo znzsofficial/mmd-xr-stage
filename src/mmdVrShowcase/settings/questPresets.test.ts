@@ -1,6 +1,6 @@
 import {expect,it} from 'vitest';
 import {normalizeMmdVrPrefs} from './preferences';
-import {getMmdVrRenderProfile} from '../mmdVrQuality';
+import {getMmdVrRenderProfile} from './mmdVrQuality';
 import {currentQuestPreset,questPresets} from './questPresets';
 
 it('keeps locomotion independent of the selected device preset and recognises deliberate overrides',()=>{

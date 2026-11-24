@@ -3,7 +3,7 @@ import {act} from 'react';
 import {createRoot} from 'react-dom/client';
 import {Group,Scene,type Vector3,type WebGLRenderer} from 'three';
 import {expect,it,vi} from 'vitest';
-import {clearBackpack,useBackpack} from '../backpack';
+import {clearBackpack,useBackpack} from '../backpack/store';
 import {mountRoomMilk} from '../bodyState/lactation/roomMilk';
 import {DEFAULT_BODY_PROFILE} from '../bodyState/data';
 import {useBodyState} from '../bodyState/store';

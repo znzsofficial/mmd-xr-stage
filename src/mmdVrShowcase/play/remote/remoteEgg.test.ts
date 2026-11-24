@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { Vector3 } from 'three';
-import { clearBackpack, syncBackpackFiles, useBackpack } from '../../backpack';
+import { clearBackpack, syncBackpackFiles, useBackpack } from '../../backpack/store';
 import { adjustRemoteEgg, bindRemoteEgg, cycleRemoteEgg, removeRemoteEgg, stopRemoteEgg, resetEggOffset, useRemoteEgg } from '../remoteEgg';
 import { handleGripStart, useStagePlay } from '../stagePlay';
 import { createEggFeedback } from './eggFeedback';

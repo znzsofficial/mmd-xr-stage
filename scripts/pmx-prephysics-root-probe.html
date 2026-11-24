@@ -4,8 +4,8 @@
 <script type="module">
 import * as T from 'three';
 import {createMmdRuntimeHandle} from '../src/mmdVrShowcase/mmdRuntime/mmdRuntime.ts';
-import {prepareMmdVrModel} from '../src/mmdVrShowcase/prepareMmdVrModel.ts';
-import {handContactShape,handReferenceRadius} from '../src/mmdVrShowcase/handContactProfile.ts';
+import {prepareMmdVrModel} from '../src/mmdVrShowcase/stage/loading/prepareMmdVrModel.ts';
+import {handContactShape,handReferenceRadius} from '../src/mmdVrShowcase/xr/contact/handContactProfile.ts';
 
 const mean=xs=>xs.reduce((a,b)=>a+b,0)/xs.length;
 const median=xs=>{const s=xs.toSorted((a,b)=>a-b),i=s.length>>1;return s.length%2?s[i]:(s[i-1]+s[i])/2};

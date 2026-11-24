@@ -25,7 +25,7 @@ function sceneReadyWithPrep(): Plugin {
         const chunk = bundle[name];
         if (seen.has(name) || chunk?.type !== "chunk") return false;
         seen.add(name);
-        return chunk.moduleIds.some(id => id.replaceAll("\\", "/").endsWith("/mmdVrShowcase/MmdVrScene.tsx"))
+        return chunk.moduleIds.some(id => id.replaceAll("\\", "/").endsWith("/mmdVrShowcase/xr/MmdVrScene.tsx"))
           || chunk.imports.some(hasScene);
       }
       const prep = Object.values(bundle).find(c => c.type === "chunk" && c.isEntry && c.facadeModuleId?.endsWith("index.html"));

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { Matrix4, Vector3 } from 'three';
-import { clearBackpack, useBackpack } from '../backpack';
-import { useHudWorldInput } from '../components/hudWorldInput';
+import { clearBackpack, useBackpack } from '../backpack/store';
+import { useHudWorldInput } from '../hud/hudWorldInput';
 import { useMmdVrStore } from '../mmdVrStore';
 import { giveScreenToy, useStagePlay } from '../play/stagePlay';
 import { siliconeOutlet } from '../play/siliconeProfile';

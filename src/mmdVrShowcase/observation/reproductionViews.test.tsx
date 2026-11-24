@@ -3,7 +3,7 @@ import {act} from 'react';
 import {createRoot} from 'react-dom/client';
 import {expect,it,vi} from 'vitest';
 import {Group,Mesh,MeshBasicMaterial,Scene} from 'three';
-import {clearBackpack,useBackpack} from '../backpack';
+import {clearBackpack,useBackpack} from '../backpack/store';
 import {chanceFor,eggsFor,useConception} from '../bodyState/reproduction/store';
 import {useBodyState} from '../bodyState/store';
 import {useMmdVrStore} from '../mmdVrStore';

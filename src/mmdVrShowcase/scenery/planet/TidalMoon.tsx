@@ -2,7 +2,7 @@ import {useEffect,useLayoutEffect,useMemo,useRef} from 'react';
 import {useFrame,useThree} from '@react-three/fiber';
 import {Box3,DoubleSide,Ray,Vector3,type Group,type Mesh,type BufferGeometry,type ShaderMaterial} from 'three';
 import {useLanguageStore} from '../../../languageStore';
-import {useBackpack} from '../../backpack';
+import {useBackpack} from '../../backpack/store';
 import {PaintedParts,ball,box,ring,rod,turn} from '../../play/modelParts';
 import {noPick,paintedSurface} from '../sceneryPaint';
 import {useSceneAction} from '../input/useSceneAction';

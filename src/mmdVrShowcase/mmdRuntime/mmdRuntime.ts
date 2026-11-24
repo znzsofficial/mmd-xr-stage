@@ -9,7 +9,7 @@ import {
 import type { MmdPhysicsBackend } from "@yohawing/three-mmd-loader/physics";
 import { DefaultMmdRuntime, MmdAnimRuntime } from "@yohawing/three-mmd-loader/runtime";
 import * as THREE from "three";
-import { placementLoaderProfile } from '../placementWork';
+import { placementLoaderProfile } from '../diagnostics/placementWork';
 import {mountedModelBytePool, type ModelByteLease} from './mountedModelBytes';
 import { PhysicsPoseDisplay } from "./physicsPoseDisplay";
 import {
@@ -24,7 +24,7 @@ import { restoreDraws, presentDraws } from '../wardrobe/draws';
 import { prepareMilkOutlets, type SampleMilkOutlet } from '../bodyState/lactation/outlets';
 import type { BodyProfile } from '../bodyState/data';
 import type { BodySupport } from '../bodyState/store';
-import {elapsed,type PhysicsSwitchWork} from '../physicsSwitchWork';
+import {elapsed,type PhysicsSwitchWork} from '../diagnostics/physicsSwitchWork';
 import { createLocalTextureResolver } from "./localTextureResolver";
 export { createLocalTextureResolver } from "./localTextureResolver";
 import { createBulletPhysicsBackend, type ColliderShapeFactory, type MmdPhysicsQuality } from "./mmdPhysics";
@@ -87,7 +87,7 @@ export type MmdProjectModelAssets = {
 };
 
 export type MmdAddModelOptions = {
-  work?: import('../placementWork').PlacementWork;
+  work?: import('../diagnostics/placementWork').PlacementWork;
   isStale?: () => boolean;
   physics?: boolean;
   preferredId?: string;
@@ -122,7 +122,7 @@ export type MmdRuntimeHandle = {
   setModelTransform: (id: string, patch: Partial<MmdModelTransform>) => void;
   /** When true, update() will not overwrite root TRS from entry.transform (gizmo drag). */
   setModelGizmoLock: (id: string, locked: boolean) => void;
-  loadMotion: (file: File, slot?: MmdMotionSlot, modelId?: string | null, isStale?: () => boolean, work?: import('../roomRestoreTiming').RestoreMotionWork) => Promise<void>;
+  loadMotion: (file: File, slot?: MmdMotionSlot, modelId?: string | null, isStale?: () => boolean, work?: import('../diagnostics/roomRestoreTiming').RestoreMotionWork) => Promise<void>;
   clearMotion: (modelId: string, slot: MmdMotionSlot) => void;
   setMorphWeight: (modelId: string, morphName: string, weight: number) => void;
   setMaterialVisible: (modelId: string, materialName: string, visible: boolean) => void;
@@ -389,7 +389,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
     lastPhysicsSeconds.delete(id);
   }
 
-  function commitMotion(entry: RuntimeEntryWithPhysics, slot: MmdMotionSlot, file: File | null, animation: ThreeMmdAnimation | null, work?: import('../roomRestoreTiming').RestoreMotionWork) {
+  function commitMotion(entry: RuntimeEntryWithPhysics, slot: MmdMotionSlot, file: File | null, animation: ThreeMmdAnimation | null, work?: import('../diagnostics/roomRestoreTiming').RestoreMotionWork) {
     endPose(entry.id);
     const candidate = { ...entry };
     candidate[`${slot}Animation`] = animation;

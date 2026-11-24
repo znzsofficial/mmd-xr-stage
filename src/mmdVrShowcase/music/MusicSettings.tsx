@@ -1,6 +1,6 @@
 import { useLanguageStore } from '../../languageStore';
-import { HudSlider, ValueLabel } from '../components/HudValues';
-import { HudButton, HudLine } from '../components/PorcelainControls';
+import { HudSlider, ValueLabel } from '../hud/HudValues';
+import { HudButton, HudLine } from '../hud/PorcelainControls';
 import { useStageMusic } from './stageMusic';
 
 export function MusicSettings({ onDrag }: { onDrag: (active: boolean) => void }) {

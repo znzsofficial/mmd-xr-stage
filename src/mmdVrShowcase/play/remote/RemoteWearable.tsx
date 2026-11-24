@@ -1,7 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useLayoutEffect, useMemo, useRef } from 'react';
 import type { Group, Object3D } from 'three';
-import { useBackpack } from '../../backpack';
+import { useBackpack } from '../../backpack/store';
 import { useMmdVrStore } from '../../mmdVrStore';
 import { useRemoteEgg } from '../remoteEgg';
 import { checkEggTracking,watchEggSession } from './eggTracking';

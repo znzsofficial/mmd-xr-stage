@@ -7,7 +7,7 @@
 //   // each frame: {degrees,png (base64),geometry,roughnessMap,exposure,draws}
 import {_roots} from '@react-three/fiber';
 import {Box3,Vector3} from 'three';
-import {useBackpack} from '/src/mmdVrShowcase/backpack.ts';
+import {useBackpack} from '/src/mmdVrShowcase/backpack/store.ts';
 import {canDrawAdapter,usePelvic} from '/src/mmdVrShowcase/pelvic/store.ts';
 import {useMmdVrStore} from '/src/mmdVrShowcase/mmdVrStore.ts';
 

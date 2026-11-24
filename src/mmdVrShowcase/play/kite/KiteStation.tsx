@@ -1,7 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useLayoutEffect, useMemo, useRef } from 'react';
 import { BufferAttribute, BufferGeometry, Color, DoubleSide, DynamicDrawUsage, Group, Object3D, Vector3 } from 'three';
-import { useBackpack } from '../../backpack';
+import { useBackpack } from '../../backpack/store';
 import { useMmdVrStore } from '../../mmdVrStore';
 import { noPick } from '../../scenery/sceneryPaint';
 import { MEADOW_SEAT } from '../../scenery/meadowLandmarks';

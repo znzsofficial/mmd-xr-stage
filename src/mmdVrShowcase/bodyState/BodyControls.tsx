@@ -1,7 +1,7 @@
 import {useId,useLayoutEffect,useRef} from 'react';
 import {useLanguageStore} from '../../languageStore';
-import { HudButton, HudLine, HudSheet } from '../components/PorcelainControls';
-import { HudSlider } from '../components/HudValues';
+import { HudButton, HudLine, HudSheet } from '../hud/PorcelainControls';
+import { HudSlider } from '../hud/HudValues';
 import { bodySpan as span, HudActions, ScreenActions } from './BodyActions';
 import type { Row } from './controlRows';
 import { useBodyEditor, type BodyActor, type BodyEditorEntry } from './useBodyEditor';

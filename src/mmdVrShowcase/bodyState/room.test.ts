@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { clearBackpack, useBackpack } from '../backpack';
+import { clearBackpack, useBackpack } from '../backpack/store';
 import { createBodyRoom } from './room';
 import type { BodyProfile } from './data';
 import { beginBodyPreview, cancelBodyPreview, commitBodyPreview, debitActorMilk, disableBodyState, inspectBody, patchBodyPreview, setActorMilk, useBodyState, type BodySupport } from './store';

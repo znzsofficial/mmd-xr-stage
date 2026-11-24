@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, type RefObject } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { PerspectiveCamera, Vector3 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { useBackpack } from '../backpack';
+import { useBackpack } from '../backpack/store';
 import { useMmdVrStore } from '../mmdVrStore';
 import { useLanguageStore } from '../../languageStore';
 import type { SceneryId } from '../scenery/catalog';

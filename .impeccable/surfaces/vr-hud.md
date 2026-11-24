@@ -1,6 +1,6 @@
 # Stage HUD · screen and XR
 
-Mode: Operate. Targets: `screen/ScreenStage.tsx` and `components/MmdVrHud.tsx` under `src/mmdVrShowcase/`. The viewer uses a mouse, touch or Quest controllers to choose an actor, make an adjustment and return to watching.
+Mode: Operate. Targets: `screen/ScreenStage.tsx` and `hud/MmdVrHud.tsx` under `src/mmdVrShowcase/`. The viewer uses a mouse, touch or Quest controllers to choose an actor, make an adjustment and return to watching.
 
 ## Direction contract
 

@@ -1,4 +1,4 @@
-import {useBackpack} from '../backpack';
+import {useBackpack} from '../backpack/store';
 import {useMmdVrStore} from '../mmdVrStore';
 import type {RoomLink} from './connections';
 import ground from './meadow-walk.webp';

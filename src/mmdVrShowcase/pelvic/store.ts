@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { useBackpack } from '../backpack';
-import { useHudWorldInput } from '../components/hudWorldInput';
+import { useBackpack } from '../backpack/store';
+import { useHudWorldInput } from '../hud/hudWorldInput';
 import { useMmdVrStore } from '../mmdVrStore';
 import { useStagePlay, type Hand } from '../play/stagePlay';
 import { defaultPelvicCalibration, type ContactMotion, type PelvicCalibration, type PelvicContact, type PelvicXYZ } from './contract';

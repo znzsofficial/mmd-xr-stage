@@ -1,6 +1,6 @@
 import * as T from 'three';
 import {createMmdRuntimeHandle} from '../../src/mmdVrShowcase/mmdRuntime/mmdRuntime.ts';
-import {prepareMmdVrModel} from '../../src/mmdVrShowcase/prepareMmdVrModel.ts';
+import {prepareMmdVrModel} from '../../src/mmdVrShowcase/stage/loading/prepareMmdVrModel.ts';
 
 export async function current(canvas,pmx,files,vmd,on){
   const renderer=new T.WebGLRenderer({canvas,antialias:false,preserveDrawingBuffer:true});

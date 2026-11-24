@@ -1,6 +1,6 @@
 import { useImperativeHandle, useLayoutEffect, useMemo, useRef, type Ref } from 'react';
 import { CanvasTexture, Group, LinearFilter, Mesh, SRGBColorSpace, Vector3 } from 'three';
-import { HUD_COLORS as color } from '../hudAppearance';
+import { HUD_COLORS as color } from '../hud/hudAppearance';
 import type { PoseKey } from './poseSession';
 import { usePoseText } from './poseText';
 

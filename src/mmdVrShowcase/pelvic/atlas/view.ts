@@ -1,5 +1,5 @@
 import {create} from 'zustand';
-import {useBackpack} from '../../backpack';
+import {useBackpack} from '../../backpack/store';
 import type {FoldStyle} from '../vulvaForm';
 import {MAX_EGGS} from '../../bodyState/reproduction/game';
 

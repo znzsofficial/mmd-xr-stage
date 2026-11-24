@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest';
 import { Group, InstancedMesh, Matrix4, Scene, Vector3, type WebGLRenderer } from 'three';
-import { clearBackpack, syncBackpackFiles, useBackpack } from '../../backpack';
+import { clearBackpack, syncBackpackFiles, useBackpack } from '../../backpack/store';
 import { useMmdVrStore } from '../../mmdVrStore';
 import {advanceLiveBodies,setActorMilk,useBodyState} from '../store';
 import {openMilkPanel,pressMilk,releaseMilk,useMilkInteraction} from './interaction';

@@ -1,6 +1,6 @@
 import { ThreeMmdLoader, disposeMmdModel } from '@yohawing/three-mmd-loader';
 import { expect, it } from 'vitest';
-import { useBackpack } from '../backpack';
+import { useBackpack } from '../backpack/store';
 import { useMmdVrStore } from '../mmdVrStore';
 import { poseFixture } from './poseFixture.testSupport';
 import { mountPoseRoom, poseActions as pose, usePoseSession } from './poseSession';

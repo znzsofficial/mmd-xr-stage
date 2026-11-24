@@ -5,7 +5,7 @@ import {Group,Quaternion,Scene,Vector3} from 'three';
 import {expect,it,vi} from 'vitest';
 import {useMmdVrStore} from '../mmdVrStore';
 import {lanes,rideStep,startRide} from '../scenery/planet/windAtlas';
-import {WALK_SPEED} from '../mmdVrQuality';
+import {WALK_SPEED} from '../settings/mmdVrQuality';
 import {leapRoutes,twinPad} from '../scenery/planet/leapAtlas';
 import {altitude,shellRadius} from './orbitalSurfaces';
 import {jumpVelocity,startOrbit,stepOrbit} from './orbitalFlight';

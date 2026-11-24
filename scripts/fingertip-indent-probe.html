@@ -7,7 +7,7 @@ import {createMmdRuntimeHandle} from '../src/mmdVrShowcase/mmdRuntime/mmdRuntime
 import {fitChestCompression} from '../src/mmdVrShowcase/mmdRuntime/chestCompression.ts';
 import {beginFingertipFit} from '../src/mmdVrShowcase/mmdRuntime/fingertipIndent.ts';
 import {TrackedPressure} from '../src/mmdVrShowcase/mmdRuntime/trackedPressure.ts';
-import {handContactShape} from '../src/mmdVrShowcase/handContactProfile.ts';
+import {handContactShape} from '../src/mmdVrShowcase/xr/contact/handContactProfile.ts';
 window.compare=async()=>{
   const files=[...document.querySelector('input').files],file=files.find(f=>/\.pmx$/i.test(f.name));
   const scene=new T.Scene(),cam=new T.PerspectiveCamera(28,1,.01,20),v=()=>new T.Vector3();

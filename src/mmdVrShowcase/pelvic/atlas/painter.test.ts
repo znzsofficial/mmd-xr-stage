@@ -1,5 +1,5 @@
 import {afterEach,expect,it,vi} from 'vitest';
-import {useBackpack} from '../../backpack';
+import {useBackpack} from '../../backpack/store';
 import {usePelvic} from '../store';
 import {defaultPelvicCalibration} from '../contract';
 import {useBodyState} from '../../bodyState/store';

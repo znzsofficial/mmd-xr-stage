@@ -2,7 +2,7 @@
 import {act,type ReactNode} from 'react';
 import {createRoot} from 'react-dom/client';
 import {afterEach,beforeEach,expect,it,vi} from 'vitest';
-import {clearBackpack,useBackpack} from '../backpack';
+import {clearBackpack,useBackpack} from '../backpack/store';
 import {beginBodyPreview,patchBodyPreview,useBodyState} from '../bodyState/store';
 import {useMmdVrStore} from '../mmdVrStore';
 import {enablePelvic,usePelvic} from '../pelvic/store';
@@ -11,9 +11,9 @@ import {ScreenStage} from './ScreenStage';
 
 // Stand in for a completed scene pick. The real ray first selects in the
 // backpack and then calls the same no-argument callback, even for re-picks.
-vi.mock('../components/BackpackPlacement',()=>({BackpackPlacement:({onScreenPick}:{onScreenPick:()=>void})=><>{['a','b'].map(id=><button key={id} onClick={()=>{useBackpack.getState().select(id);onScreenPick();}}>pick {id}</button>)}</>}));
+vi.mock('../backpack/BackpackPlacement',()=>({BackpackPlacement:({onScreenPick}:{onScreenPick:()=>void})=><>{['a','b'].map(id=><button key={id} onClick={()=>{useBackpack.getState().select(id);onScreenPick();}}>pick {id}</button>)}</>}));
 vi.mock('@react-three/fiber',async original=>({...await original(),Canvas:({children}:{children:ReactNode})=><div>{children}</div>}));
-vi.mock('../components/MmdVrStage',()=>({MmdVrStageContent:()=>null}));
+vi.mock('../stage/MmdVrStage',()=>({MmdVrStageContent:()=>null}));
 vi.mock('../play/StoryStations',()=>({StoryStations:()=>null}));
 vi.mock('./ScreenCamera',async()=>{const {useLayoutEffect}=await import('react');return {ScreenCamera:({onReady}:{onReady:(v:boolean)=>void})=>{useLayoutEffect(()=>onReady(true),[onReady]);return null;}};});
 vi.mock('../music/ScreenMusic',()=>({ScreenMusic:()=>null}));

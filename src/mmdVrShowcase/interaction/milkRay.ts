@@ -1,5 +1,5 @@
 import {Raycaster,type Mesh,type WebGLRenderer} from 'three';
-import {useHudWorldInput} from '../components/hudWorldInput';
+import {useHudWorldInput} from '../hud/hudWorldInput';
 import {xrPoseSampler} from '../pose/xrPoseSample';
 
 /** A native selectstart normally has its own active frame. The pointer

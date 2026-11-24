@@ -1,5 +1,5 @@
-import { prepareBackpackEntry, useBackpack } from '../backpack';
-import { beginMmdVrAssetSession } from '../mmdVrAssets';
+import { prepareBackpackEntry, useBackpack } from '../backpack/store';
+import { beginMmdVrAssetSession } from '../backpack/sessionAssets';
 import { useMmdVrStore } from '../mmdVrStore';
 import { isSceneryId } from '../scenery/catalog';
 

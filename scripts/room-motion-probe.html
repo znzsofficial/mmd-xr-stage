@@ -5,7 +5,7 @@
 import * as T from 'three';
 import {createMmdRuntimeHandle} from '../src/mmdVrShowcase/mmdRuntime/mmdRuntime.ts';
 import {createRoomMotionCache} from '../src/mmdVrShowcase/mmdRuntime/roomMotionCache.ts';
-import {prepareMmdVrModel} from '../src/mmdVrShowcase/prepareMmdVrModel.ts';
+import {prepareMmdVrModel} from '../src/mmdVrShowcase/stage/loading/prepareMmdVrModel.ts';
 window.compare=async()=>{
  const files=[...document.querySelector('input').files],pmx=files.find(f=>/\.pmx$/i.test(f.name)),vmd=files.find(f=>/\.vmd$/i.test(f.name));if(!pmx||!vmd)throw Error('Select the required files');
  const physics=new URLSearchParams(location.search).get('physics')!=='off';

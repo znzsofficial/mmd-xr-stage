@@ -8,9 +8,9 @@ import {createLocalTextureResolver} from '../src/mmdVrShowcase/mmdRuntime/localT
 import {disposeLoadedModelObject} from '../src/mmdVrShowcase/mmdRuntime/mmdRuntimeEntry.ts';
 import {createRoomAlphaTiles} from '../src/mmdVrShowcase/mmdRuntime/roomAlphaTiles.ts';
 import {createMmdRuntimeHandle} from '../src/mmdVrShowcase/mmdRuntime/mmdRuntime.ts';
-import {prepareModelGpu} from '../src/mmdVrShowcase/prepareModelGpu.ts';
-import {prepareMmdVrModel} from '../src/mmdVrShowcase/prepareMmdVrModel.ts';
-import {createPlacementWork} from '../src/mmdVrShowcase/placementWork.ts';
+import {prepareModelGpu} from '../src/mmdVrShowcase/stage/loading/prepareModelGpu.ts';
+import {prepareMmdVrModel} from '../src/mmdVrShowcase/stage/loading/prepareMmdVrModel.ts';
+import {createPlacementWork} from '../src/mmdVrShowcase/diagnostics/placementWork.ts';
 
 window.compare=async()=>{
   const files=[...document.querySelector('input').files], pmx=files.find(f=>/\.pmx$/i.test(f.name));

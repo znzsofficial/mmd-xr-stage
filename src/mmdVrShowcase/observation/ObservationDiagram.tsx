@@ -1,5 +1,5 @@
 import {useLayoutEffect,useMemo,useRef,useState} from 'react';
-import {ActorHudDiagram,ActorScreenDiagram,type DiagramActor,type DiagramSpec} from '../components/ActorDiagram';
+import {ActorHudDiagram,ActorScreenDiagram,type DiagramActor,type DiagramSpec} from './ActorDiagram';
 import {breastDiagram} from '../bodyState/breast/BreastGraphic';
 import {atlasDiagrams,eggReplayDiagram} from '../pelvic/atlas/AtlasGraphic';
 import type {EggReplay} from '../bodyState/reproduction/eggReplay';

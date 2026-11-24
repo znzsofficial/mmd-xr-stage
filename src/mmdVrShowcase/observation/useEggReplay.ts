@@ -1,7 +1,7 @@
 import {useLayoutEffect,useState} from 'react';
 import {useStore} from 'zustand';
 import {useLanguageStore} from '../../languageStore';
-import {useBackpack} from '../backpack';
+import {useBackpack} from '../backpack/store';
 import {createEggReplay} from '../bodyState/reproduction/eggReplay';
 import {eggsFor,useConception,type ConceptionEvent} from '../bodyState/reproduction/store';
 import {useMmdVrStore} from '../mmdVrStore';

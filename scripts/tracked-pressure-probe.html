@@ -3,7 +3,7 @@
 import * as T from 'three';
 import {createMmdRuntimeHandle} from '../src/mmdVrShowcase/mmdRuntime/mmdRuntime.ts';
 import {fitChestCompression} from '../src/mmdVrShowcase/mmdRuntime/chestCompression.ts';
-import {handContactShape} from '../src/mmdVrShowcase/handContactProfile.ts';
+import {handContactShape} from '../src/mmdVrShowcase/xr/contact/handContactProfile.ts';
 window.compare=async()=>{const files=Array.from(document.querySelector('input').files),file=files.find(f=>/\.pmx$/i.test(f.name)),rows=[];
  for(const [slot,scale] of [[0,.1],[7,.15]]){const parked=()=>new T.Matrix4().makeTranslation(0,-1000,0),hands=Array.from({length:12},parked),controllers=[parked(),parked()],scene=new T.Scene(),cam=new T.PerspectiveCamera();
  const rt=createMmdRuntimeHandle(scene,{chestCompression:()=>false,handColliders:()=>hands,controllerColliders:()=>controllers,handShape:handContactShape,handColliderRadius:()=>.033});

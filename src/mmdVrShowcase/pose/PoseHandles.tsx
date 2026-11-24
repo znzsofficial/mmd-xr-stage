@@ -1,8 +1,8 @@
 import { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import { Group, MathUtils, PerspectiveCamera, Quaternion, type Ray, Raycaster, Vector3 } from 'three';
-import { useBackpack } from '../backpack';
-import { useHudWorldInput } from '../components/hudWorldInput';
+import { useBackpack } from '../backpack/store';
+import { useHudWorldInput } from '../hud/hudWorldInput';
 import { useMmdVrStore } from '../mmdVrStore';
 import { carryPoseCenter, poseDial, screenPoseTranslation } from './poseGesture';
 import { PoseGuide, type PoseGuideUpdate } from './PoseGuide';

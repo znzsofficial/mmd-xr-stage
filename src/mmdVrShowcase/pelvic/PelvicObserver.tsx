@@ -1,8 +1,8 @@
 import {useFrame} from '@react-three/fiber';
 import {useMemo,useRef,type RefObject} from 'react';
 import {Group,Vector3} from 'three';
-import {useBackpack} from '../backpack';
-import {useHudWorldInput} from '../components/hudWorldInput';
+import {useBackpack} from '../backpack/store';
+import {useHudWorldInput} from '../hud/hudWorldInput';
 import {useMmdVrStore} from '../mmdVrStore';
 import {usePelvic} from './store';
 import {PelvicLiveSection} from './Section';

@@ -1,6 +1,6 @@
 import { useLayoutEffect, useReducer, useState } from 'react';
 import { useLanguageStore } from '../../languageStore';
-import { HudButton, HudLine, HudSheet } from '../components/PorcelainControls';
+import { HudButton, HudLine, HudSheet } from '../hud/PorcelainControls';
 import { useMmdVrStore } from '../mmdVrStore';
 import { editWardrobe, registerPiece, resolveActor, type WardrobeProps } from './actions';
 import type { WardrobeModel } from './model';

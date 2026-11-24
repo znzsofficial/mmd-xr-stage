@@ -5,8 +5,8 @@ import {
   type ImmersiveAntialiasPref, type ImmersiveDprPref, type ImmersiveFramebufferScalePref,
   type ImmersiveFoveationPref, type ImmersiveRenderQuality, type ImmersiveTogglePref,
 } from '../../xr/qualityAxes';
-import { normalizeMmdVrViewDistance } from '../mmdVrAdjustments';
-import type { MmdVrHapticLevel } from '../mmdVrHaptics';
+import { normalizeMmdVrViewDistance } from './mmdVrAdjustments';
+import type { MmdVrHapticLevel } from '../xr/contact/mmdVrHaptics';
 import { resolveScenery, type SceneryId } from '../scenery/catalog';
 
 export type MmdVrRenderQuality = ImmersiveRenderQuality;

@@ -2,7 +2,7 @@
 
 ## Project Shape
 
-- For shared stage changes start at `docs/architecture.md`. `components/MmdVrStage.tsx` owns the viewing-session caches and room generation; `stage/StageRoom.tsx` owns the mounted runtime and snapshot validity. Put shared render-only scenery in `stage/StageEnvironment.tsx` and preference normalization in `settings/preferences.ts`.
+- For shared stage changes start at `docs/architecture.md`. `stage/MmdVrStage.tsx` owns the viewing-session caches and room generation; `stage/StageRoom.tsx` owns the mounted runtime and snapshot validity. Put shared render-only scenery in `stage/StageEnvironment.tsx` and preference normalization in `settings/preferences.ts`.
 
 - Built-in modelling is environment content for imported characters. Use `scenery/catalog.ts` as the set identity across prep, HUD, layouts and reports. Author placeable ground together with the layout: a point inside furniture or over pool water cannot be accepted just because the pointing plane intersects it.
 - For a click/release switch built into scenery, use `scenery/input/useSceneAction` with the room's actual sightline. A second ray must not steal or cancel the first ray's press; a placement, HUD or room transition invalidates it even if React batches the transition. Keep the resulting light, cloth or instrument state with its owner.
@@ -19,8 +19,9 @@
 
 - When resuming this work, read `docs/HANDOFF.md` first. Keep it short; put play status and instructions in `docs/gameplay/`, modelling in `docs/scenery/`, and timing evidence plus optimization priorities in `docs/performance/`. Read `PRODUCT.md` and `DESIGN.md` before UI edits. All in-stage HUD pages share the adult visual-novel theme, including everyday settings, clothing, pose, interaction and observation. Keep prep and stage lighting independent.
 
-- Single-purpose WebGL + WebXR MMD showcase for Meta Quest. Prep page at `/` (`index.html` -> `src/main.tsx` -> `src/mmdVrShowcase/MmdVrPrepApp`), XR scene entered from there.
+- Single-purpose WebGL + WebXR MMD showcase for Meta Quest. Prep page at `/` (`index.html` -> `src/main.tsx` -> `src/mmdVrShowcase/prep/MmdVrPrepApp`), XR scene entered from there.
 - `src/mmdVrShowcase/` owns the entire product surface: prep UI, XR session, scene, HUD, colliders, haptics, physics reseed.
+- Keep the product root for its shared overlay and page store. Colocate tests with the feature they exercise. Main XR menu code belongs in `hud/`, file ownership and placement in `backpack/`, model load/preparation in `stage/loading/`, and frame measurements and exports in `diagnostics/`. See [the directory map](docs/architecture.md#源码目录).
 - `src/xr/` owns XR detection, session creation (`createProductXrSession`), pending-session attachment, and quality axes. One XR store + session per product surface; never share instances.
 - XR startup follows requesting/created/bound/presenting in the session slot; active means the current renderer delivered an XRFrame, not just requestSession success. Scope cleanup to its generation. R3F owns the renderer created by Canvas's gl props; do not add another gl.dispose. See `docs/xr-session-lifecycle.md`.
 - Do not write runtimeRef or publish store state inside useMemo. StrictMode can retain one computed runtime while the ref points at the discarded one, making model loads look stale. Publish the committed handle in a layout effect.

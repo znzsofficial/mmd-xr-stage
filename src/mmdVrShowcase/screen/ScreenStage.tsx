@@ -1,11 +1,11 @@
 import { Canvas } from '@react-three/fiber';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLanguageStore } from '../../languageStore';
-import { useBackpack } from '../backpack';
-import { BackpackPlacement } from '../components/BackpackPlacement';
-import { MmdVrStageContent } from '../components/MmdVrStage';
-import { getMmdVrClock } from '../mmdVrClock';
-import { getMmdVrRenderProfile } from '../mmdVrQuality';
+import { useBackpack } from '../backpack/store';
+import { BackpackPlacement } from '../backpack/BackpackPlacement';
+import { MmdVrStageContent } from '../stage/MmdVrStage';
+import { getMmdVrClock } from '../stage/mmdVrClock';
+import { getMmdVrRenderProfile } from '../settings/mmdVrQuality';
 import { useMmdVrStore } from '../mmdVrStore';
 import { isStoryRoom } from '../play/stagePlay';
 import { StoryStations } from '../play/StoryStations';

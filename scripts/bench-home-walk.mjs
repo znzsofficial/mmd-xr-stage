@@ -10,7 +10,7 @@ registerHooks({resolve(s,c,next){return next(c.parentURL?.includes('/src/')&&/^\
 const root='../src/mmdVrShowcase/';
 const {createHomeCapsule}=await import(root+'movement/homeCapsule.ts'),{addHomeTerrainSolids}=await import(root+'movement/homeTerrainSolids.ts');
 const {createTraveller,surfaceStep,transport}=await import(root+'movement/planetTravel.ts');
-const {stickAxis}=await import(root+'movement/controllerInput.ts'),{WALK_SPEED}=await import(root+'mmdVrQuality.ts');
+const {stickAxis}=await import(root+'movement/controllerInput.ts'),{WALK_SPEED}=await import(root+'settings/mmdVrQuality.ts');
 await Rapier.init();
 const world=new Rapier.World({x:0,y:0,z:0});addHomeTerrainSolids(Rapier,world);
 const d=createHomeCapsule(Rapier,world,()=>WALK_SPEED.normal),eye=new Vector3(0,1.65,0),last=new Vector3(),travel=new Vector3(),noop=()=>{};

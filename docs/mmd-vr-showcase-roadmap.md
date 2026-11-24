@@ -142,7 +142,9 @@
 
 ---
 
-## 3. 工程结构（当前）
+## 3. 工程结构（路线图编写时）
+
+下面保留当时的工程草图；现在的入口与文件位置见[源码目录](./architecture.md#源码目录)。
 
 ```
 src/xr/                      # 与 VR 桌面共用的 WebXR 核心
@@ -478,7 +480,7 @@ src/mmdVrShowcase/
 
 **当时的维护风险**：公共 HUD 曾把通用控件、主控制条、模型／物件、材质和物理设置放在同一文件。资产页与恢复页现已移出，见[当前维护入口](./architecture/maintenance.md#已拆出的三个入口)。
 
-**后续拆分候选**：`src/mmdVrShowcase/components/MmdVrStage.tsx` 已约 900 行，同时负责 runtime 生命周期、资源加载、store 同步、灯光、时间轴、物理和 haptics。暂不直接拆分，避免破坏 R3F hooks、runtime ref 和 store 之间的生命周期关系；下次修改加载或物理逻辑时，再按 loader、sync、physics 边界逐步抽取。
+**后续拆分候选**：`src/mmdVrShowcase/stage/MmdVrStage.tsx` 已约 900 行，同时负责 runtime 生命周期、资源加载、store 同步、灯光、时间轴、物理和 haptics。暂不直接拆分，避免破坏 R3F hooks、runtime ref 和 store 之间的生命周期关系；下次修改加载或物理逻辑时，再按 loader、sync、physics 边界逐步抽取。
 
 **暂不拆分**：`mmdVrStore.ts`、`mmdRuntime.ts` 和 `MmdVrPlayerRig.tsx` 当前职责仍可理解。store/runtime 的拆分需要先明确跨状态和内部 entry 依赖，不按行数机械拆分。
 

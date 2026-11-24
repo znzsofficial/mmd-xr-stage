@@ -1,8 +1,8 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useLayoutEffect, useMemo, useRef } from 'react';
 import { Group, Matrix4, Vector3 } from 'three';
-import { useBackpack } from '../backpack';
-import { useHudWorldInput } from '../components/hudWorldInput';
+import { useBackpack } from '../backpack/store';
+import { useHudWorldInput } from '../hud/hudWorldInput';
 import { useMmdVrStore } from '../mmdVrStore';
 import { TOYS, type Toy, type Hand } from './propCatalog';
 import { canUseGrip, gripLatch, handleGripStart, useStagePlay } from './stagePlay';

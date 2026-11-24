@@ -1,8 +1,8 @@
 import {useLanguageStore} from '../../../languageStore';
 import {createStore} from 'zustand/vanilla';
 import {breastViews,readBreastView,setBreastView} from '../../bodyState/breast/view';
-import type {DiagramSpec} from '../../components/ActorDiagram';
-import {diagramOutput} from '../../components/diagramOutput';
+import type {DiagramSpec} from '../ActorDiagram';
+import {diagramOutput} from '../diagramOutput';
 import {readAtlasView,setAtlasView,useAtlasSettings} from '../../pelvic/atlas/view';
 import {createReferenceArt,type ReferenceFrame,type ReferencePart} from './art';
 

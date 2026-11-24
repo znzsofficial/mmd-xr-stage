@@ -1,14 +1,14 @@
 import { create } from "zustand";
-import { emptyAssetLoadProgress, type AssetLoadProgress } from "./mmdAssetLoadQueue";
-import type { StageSnapshot } from "./stageSnapshot";
+import { emptyAssetLoadProgress, type AssetLoadProgress } from "./stage/loading/mmdAssetLoadQueue";
+import type { StageSnapshot } from "./stage/stageSnapshot";
 import { LIGHT_ORDER, normalizeMmdVrPrefs, prefsStorage, type MmdVrPrefs } from './settings/preferences';
-import { endMmdVrAssetSession } from "./mmdVrAssets";
-import { invalidateBackpackCommands, useBackpack } from "./backpack";
-import { resetMmdVrClock } from "./mmdVrClock";
+import { endMmdVrAssetSession } from "./backpack/sessionAssets";
+import { invalidateBackpackCommands, useBackpack } from "./backpack/store";
+import { resetMmdVrClock } from "./stage/mmdVrClock";
 import { resetViewOnMenuSwitch } from "./scenery/catalog";
-import { normalizeMmdVrModelScale } from "./mmdVrAdjustments";
+import { normalizeMmdVrModelScale } from "./settings/mmdVrAdjustments";
 
-export { normalizeMmdVrHeightOffset, normalizeMmdVrModelScale } from "./mmdVrAdjustments";
+export { normalizeMmdVrHeightOffset, normalizeMmdVrModelScale } from "./settings/mmdVrAdjustments";
 
 // Keep existing store imports working; the settings module owns the schema.
 export type { MmdVrPrefs, MmdVrRenderQuality, MmdVrDprPref, MmdVrFrameRatePref, MmdVrAntialiasPref,
@@ -99,8 +99,8 @@ type MmdVrStore = {
   physicsResetEpoch: number;
   requestPhysicsReset: () => void;
   physicsBusy: boolean;
-  physicsSwitchWork?:import('./physicsSwitchWork').PhysicsSwitchWork;
-  setPhysicsBusy: (busy: boolean,work?:import('./physicsSwitchWork').PhysicsSwitchWork) => void;
+  physicsSwitchWork?:import('./diagnostics/physicsSwitchWork').PhysicsSwitchWork;
+  setPhysicsBusy: (busy: boolean,work?:import('./diagnostics/physicsSwitchWork').PhysicsSwitchWork) => void;
   physicsContactCount: number;
   setPhysicsContactCount: (count: number) => void;
   physicsControllerContactCounts: [number, number];

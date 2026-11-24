@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { useBackpack } from '../backpack';
+import { useBackpack } from '../backpack/store';
 import { refillMilk, DEFAULT_BODY_PROFILE, normalizeBody, type BodyProfile } from './data';
 import {clearMilkEffects,offerMilkDrain} from './lactation/events';
 import type {MilkPanel, Side} from './lactation/interaction';

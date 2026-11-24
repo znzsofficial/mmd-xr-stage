@@ -1,7 +1,7 @@
 import { DefaultMmdRuntime, ThreeMmdLoader, disposeMmdModel, type ThreeMmdModel } from '@yohawing/three-mmd-loader';
 import { Vector3 } from 'three';
 import { expect, it } from 'vitest';
-import { useBackpack } from '../backpack';
+import { useBackpack } from '../backpack/store';
 import { useMmdVrStore } from '../mmdVrStore';
 import { poseFixture } from './poseFixture.testSupport';
 import { createPoseSolver, type PoseKey, type PoseSolver } from './poseSolver';

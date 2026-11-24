@@ -3,7 +3,7 @@ import {act} from 'react';
 import {createRoot} from 'react-dom/client';
 import {expect,it,vi} from 'vitest';
 import {useLanguageStore} from '../../languageStore';
-import {clearBackpack,useBackpack} from '../backpack';
+import {clearBackpack,useBackpack} from '../backpack/store';
 import {beginBodyPreview,patchBodyPreview,useBodyState} from '../bodyState/store';
 import {useMmdVrStore} from '../mmdVrStore';
 import {ScreenLibrary} from './ScreenLibrary';

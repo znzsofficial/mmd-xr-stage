@@ -1,5 +1,5 @@
 import { Vector3, type Object3D, type Scene, type SkinnedMesh } from 'three';
-import {createMmdVrHapticDriver,createMmdVrHapticGate,getMmdVrHapticFeedback,type MmdVrHapticLevel} from '../mmdVrHaptics';
+import {createMmdVrHapticDriver,createMmdVrHapticGate,getMmdVrHapticFeedback,type MmdVrHapticLevel} from '../xr/contact/mmdVrHaptics';
 import {findWandInput,type ContactToy,type WandHead} from './wandHead';
 import {useWandResponse,type WandResponse} from './wandResponse';
 import {createWandSurface,type WandModel} from './wandSurface';

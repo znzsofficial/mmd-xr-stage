@@ -1,5 +1,5 @@
 import { CanvasTexture, SRGBColorSpace } from 'three';
-import { HUD_COLORS } from '../hudAppearance';
+import { HUD_COLORS } from '../hud/hudAppearance';
 
 /** World-space registration marks: open center so the underlying joint
  * remains visible. One textured quad per control, independent of stage exposure. */

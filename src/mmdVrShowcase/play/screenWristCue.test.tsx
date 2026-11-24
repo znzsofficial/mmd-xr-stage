@@ -4,7 +4,7 @@ import {createRoot} from 'react-dom/client';
 import {Bone,Group,Mesh,MeshBasicMaterial,Scene,Skeleton,SkinnedMesh,Vector3} from 'three';
 import {expect,it,vi} from 'vitest';
 import {useLanguageStore} from '../../languageStore';
-import {clearBackpack,useBackpack} from '../backpack';
+import {clearBackpack,useBackpack} from '../backpack/store';
 import {useMmdVrStore} from '../mmdVrStore';
 import {ScreenLibrary} from '../screen/ScreenLibrary';
 import {makeSilkSpool,ribbonPenOutlet} from './festival/drawingToyModels';

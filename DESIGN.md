@@ -162,7 +162,7 @@ Button textures are 88 px high, with width `max(256, round(88 × geometryWidth /
 
 ## Layout
 
-The public watch strip opens a scenery picker or backpack. Pickers and advanced settings replace the strip at its recalled location. Explicit selection opens an anchored tool sheet beside the asset. On screen, the same actions appear beside the picture, with a persistent transport strip below. Preserve widths, mobile scrolling and the space for the 3D view. Local sheets and common XR controls share `components/PorcelainControls.tsx` (historical filename).
+The public watch strip opens a scenery picker or backpack. Pickers and advanced settings replace the strip at its recalled location. Explicit selection opens an anchored tool sheet beside the asset. On screen, the same actions appear beside the picture, with a persistent transport strip below. Preserve widths, mobile scrolling and the space for the 3D view. Local sheets and common XR controls share `hud/PorcelainControls.tsx` (historical filename).
 
 Geometry dimensions below are **local Three.js units**, meter-based in the XR scene before parent transforms; they are not texture pixels. Model/object control groups additionally scale by 1.2.
 

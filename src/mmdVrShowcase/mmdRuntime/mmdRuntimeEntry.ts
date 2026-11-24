@@ -222,7 +222,7 @@ function wrapMergedAnimation(animation: MmdAnimation): ThreeMmdAnimation {
   };
 }
 
-export function recomputeEntryAnimation(entry: RuntimeEntry, work?: import('../roomRestoreTiming').RestoreMotionWork) {
+export function recomputeEntryAnimation(entry: RuntimeEntry, work?: import('../diagnostics/roomRestoreTiming').RestoreMotionWork) {
   const body = entry.bodyAnimation?.animation ?? null;
   const face = entry.faceAnimation?.animation ?? null;
   const camera = entry.cameraAnimation?.animation ?? null;

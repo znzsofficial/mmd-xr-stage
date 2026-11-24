@@ -1,7 +1,7 @@
 import { DefaultMmdRuntime, ThreeMmdLoader } from '@yohawing/three-mmd-loader';
 import { Bone, BufferGeometry, Float32BufferAttribute, Group, MeshBasicMaterial, Skeleton, SkinnedMesh, Uint16BufferAttribute, Vector3 } from 'three';
 import { afterEach, beforeEach, expect, it } from 'vitest';
-import { clearBackpack, useBackpack } from '../backpack';
+import { clearBackpack, useBackpack } from '../backpack/store';
 import { DEFAULT_BODY_PROFILE } from '../bodyState/data';
 import { createBodyDisplay } from '../bodyState/runtime';
 import { useMmdVrStore } from '../mmdVrStore';

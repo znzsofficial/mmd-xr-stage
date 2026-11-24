@@ -2,7 +2,7 @@ import {useEffect,useMemo,useRef} from 'react';
 import {useFrame} from '@react-three/fiber';
 import {Box3,Mesh,Ray,Vector3,type Group} from 'three';
 import {useLanguageStore} from '../../../languageStore';
-import {useBackpack} from '../../backpack';
+import {useBackpack} from '../../backpack/store';
 import {useSceneAction} from '../input/useSceneAction';
 import {noPick,paintedSurface} from '../sceneryPaint';
 import {cutStep,sampleBit,sampleInk,surveySight,surveySites,type SurveyPlace,type SurveyState} from './opalSurvey';

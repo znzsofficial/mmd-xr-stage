@@ -1,5 +1,5 @@
 import {useCallback,useEffect,useState} from 'react';
-import {useBackpack} from '../backpack';
+import {useBackpack} from '../backpack/store';
 import {useBodyState} from '../bodyState/store';
 import {useMmdVrStore} from '../mmdVrStore';
 import type {SceneryId} from '../scenery/catalog';

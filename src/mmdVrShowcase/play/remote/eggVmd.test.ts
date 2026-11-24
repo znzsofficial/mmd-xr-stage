@@ -1,7 +1,7 @@
 import { DefaultMmdRuntime,ThreeMmdLoader } from '@yohawing/three-mmd-loader';
 import { Group, Scene } from 'three';
 import { expect,it,vi } from 'vitest';
-import { clearBackpack,useBackpack } from '../../backpack';
+import { clearBackpack,useBackpack } from '../../backpack/store';
 import { useMmdVrStore } from '../../mmdVrStore';
 import { poseFixture } from '../../pose/poseFixture.testSupport';
 import { createRoomPropDisplay } from '../../stage/roomPropDisplay';

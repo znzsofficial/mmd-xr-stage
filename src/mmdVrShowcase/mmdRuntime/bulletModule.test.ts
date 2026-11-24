@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import type { PhysicsSwitchWork } from '../physicsSwitchWork';
+import type { PhysicsSwitchWork } from '../diagnostics/physicsSwitchWork';
 
 const api = vi.hoisted(() => ({loadCustomBulletMmdModule: vi.fn(), createCustomBulletMmdPhysicsBackend: vi.fn()}));
 vi.mock('@yohawing/three-mmd-loader/physics', () => api);
