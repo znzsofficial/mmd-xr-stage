@@ -12,6 +12,7 @@
 
 | 功能提交 | 已发布内容与验证范围 |
 |---|---|
+| `b0c49f7` | [主 HUD 拖动时实时面向头显](./gameplay/vr-controls.md)。IWER 复现旧版紧凑／展开面板松手补转约 24°／9°；相同横拖、持握侧移头部后，两者松手补转均为 0°，关闭跟随时角度固定。998 项测试通过；主域名入口、主 JS/CSS、星球模块和两份 WASM 与验收构建一致。[固定版](https://00820eaa.mmd-xr-stage.pages.dev) |
 | `56b5b96` | [穿衣互动、图面与角色回应](./gameplay/actor-tools.md)。角色首页直接进入插入或泌乳，实时模型支持原框放大、横拖旋转，XR 标题可移动面板；眼睑、嘴形及头部按实测节奏变化。实模屏幕、360 px 触摸与模拟 XR 扳机已验；Quest 镜片及手感待验。[固定版](https://01ccb3ab.mmd-xr-stage.pages.dev) |
 | `b80ade1` | [关节微调后重新贴合与深跪小腿](./performance/pose-cloth-contact.md)、[仰卧侧边成片滑移](./performance/supine-side-skirt.md)。三种原始裙装、原生 Bullet、同帧原材质与实际屏幕／模拟 XR 验收；普通抬腿侧髋与部分深跪还有交线，并非舞蹈通用防穿。996 项测试通过；主域名入口及 305 份资源 SHA-256 与验证构建一致。[固定版](https://ed9e72bb.mmd-xr-stage.pages.dev) |
 | `a6b6edd` | 「身体观察 → 孕态参考 → 子宫」换为可旋转的日系蜷睡胎体：短发分束、闭合眼睑、贴颊小手与错开的膝足，脐带连接新腹面。屏幕及模拟双眼实点三角度、标注和日常／参考往返，990 项测试通过。[固定版](https://8ed595b8.mmd-xr-stage.pages.dev) |
