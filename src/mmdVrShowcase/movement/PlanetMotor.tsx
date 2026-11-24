@@ -1,6 +1,6 @@
 import {Component,lazy,Suspense,useLayoutEffect,useRef,useState,type ReactNode,type RefObject} from 'react';
 import {useFrame} from '@react-three/fiber';
-import {useXRInputSourceState} from '@react-three/xr';
+import {useXR,useXRInputSourceState} from '@react-three/xr';
 import {Quaternion,Vector3,type Group} from 'three';
 import {useMmdVrStore} from '../mmdVrStore';
 import {WALK_SPEED} from '../mmdVrQuality';
@@ -8,10 +8,11 @@ import {newStick,readStick,stickAxis} from './controllerInput';
 import {carryFrame,createTraveller,north,surfaceStep,transport,type PlanetDriver} from './planetTravel';
 import {observePlanet,planetCounters} from './planetDiagnostics';
 import {createPlanetPad} from './planetPad';
-import {eyeLift,headMargin} from './eyeHeight';
+import {headMargin} from './eyeHeight';
 import {departureAt,rideStep,startRide,type WalkMoon,type Ride} from '../scenery/planet/windAtlas';
 import {moonWalk} from './moonWalk';
-import {tideEyeLift} from './tideContact';
+import {alignPlanetStance,fitPlanetLift} from './planetStance';
+import {interruptPlanetEdges,watchPlanetEdges} from './planetInputEdges';
 import {tideWalkFactor} from '../scenery/planet/tideSession';
 import {startTwinLeap,stepTwinLeap,type TwinLeap} from './twinLeap';
 import {jumpVelocity,startOrbit,stepOrbit,type Orbit} from './orbitalFlight';
@@ -31,11 +32,12 @@ const noTilt=new Quaternion();
 // Only the optional physics adapter may suspend, never the input/frame callback.
 export default function PlanetMotor({originRef,dragging}:Props){
   const left=useXRInputSourceState('controller','left'),right=useXRInputSourceState('controller','right');
+  const session=useXR(s=>s.session);
   const driver=useRef<PlanetDriver|null>(null);
   const [Physics]=useState(()=>lazy(()=>import('./PlanetPhysics')));
   const [s]=useState(()=>({...createTraveller(),l:newStick(),r:newStick(),offset:new Vector3(),tmp:new Vector3(),travel:new Vector3(),
-    safe:new Vector3(),safeOffset:new Vector3(),prev:new Vector3(),localEye:new Vector3(),head:new Quaternion(),safeBasis:new Quaternion(),epoch:-1,free:false,snap:true,a:false,
-    active:null as PlanetDriver|null,parked:null as PlanetDriver|null,diag:planetCounters(),pad:createPlanetPad(),lastLift:0,
+    safe:new Vector3(),safeOffset:new Vector3(),prev:new Vector3(),localEye:new Vector3(),head:new Quaternion(),safeBasis:new Quaternion(),epoch:-1,free:false,snap:false,a:true,
+    active:null as PlanetDriver|null,parked:null as PlanetDriver|null,diag:planetCounters(),pad:createPlanetPad(),lastLift:0,safeLift:0,eyeSetting:NaN,
     moon:null as WalkMoon|null,safeMoon:null as WalkMoon|null,ride:null as Ride|null,leap:null as TwinLeap|null,orbit:null as Orbit|null,
     xDown:false,yDown:false,windSupportFrames:2,worldEye:new Vector3(),
     // Rigid transform from the navigation sole to the displayed tracking frame.
@@ -43,8 +45,9 @@ export default function PlanetMotor({originRef,dragging}:Props){
     // adopting the new physical sole must not teleport the eyes into the rock.
     seat:new Vector3(),safeSeat:new Vector3(),display:new Quaternion(),viewUp:new Vector3(),groundTilt:new Quaternion(),safeTilt:new Quaternion()}));
   useLayoutEffect(()=>{const unbind=observePlanet(s.diag);return()=>{unbind();s.pad.dispose();};},[s]);
+  useLayoutEffect(()=>{if(session)return watchPlanetEdges(session,s);},[session,s]);
   useFrame(({gl,scene},elapsed,frame)=>{
-    const origin=originRef.current,space=gl.xr.getReferenceSpace();if(!origin||!frame)return;
+    const origin=originRef.current,space=gl.xr.getReferenceSpace();if(!origin||!frame||frame.session!==session)return;
     const {prefs,viewEpoch}=useMmdVrStore.getState(),{diag}=s,d=driver.current;
     diag.frames++;readStick(frame.session.inputSources,'left',left,s.l);readStick(frame.session.inputSources,'right',right,s.r);
     diag.left=s.l.via;diag.right=s.r.via;
@@ -54,19 +57,19 @@ export default function PlanetMotor({originRef,dragging}:Props){
     const pose=space&&(!frame.session.visibilityState||frame.session.visibilityState==='visible')&&frame.getViewerPose(space);
     const ready=d?.ready()?d:null;if(diag.backend!=='failed')diag.backend=ready?'rapier':'pending';
     if(!ready)s.parked=null;
-    if(!pose){s.snap=false;s.a=s.xDown=s.yDown=true;s.windSupportFrames=0;if(s.active){if(s.active===ready)ready.stop();s.active=null;s.velocity.set(0,0,0);}return;}
+    if(!pose){interruptPlanetEdges(s);if(s.active){if(s.active===ready)ready.stop();s.active=null;s.velocity.set(0,0,0);}return;}
     diag.poseFrames++;
     const {position:p,orientation:q}=pose.transform,free=prefs.movementMode==='free';
     const dt=Math.min(.05,Math.max(0,elapsed)),speed=WALK_SPEED[prefs.walkSpeedPref==='auto'?'normal':prefs.walkSpeedPref];
     const reset=s.epoch!==viewEpoch;
     if(reset){s.moon=s.safeMoon=null;s.ride=null;s.leap=null;s.orbit=null;s.xDown=s.l.primary;s.yDown=s.l.align;s.epoch=viewEpoch;s.up.copy(north);s.basis.identity();s.groundTilt.identity();s.safeTilt.identity();s.seat.set(0,0,0);s.safeSeat.set(0,0,0);s.offset.set(p.x,0,p.z);s.foot.set(0,0,1.9);transport(s);
-      s.safe.copy(s.foot);s.safeBasis.copy(s.basis);s.safeOffset.copy(s.offset);s.grounded=true;s.velocity.set(0,0,0);s.active=null;s.a=s.r.primary;s.snap=true;s.free=false;s.windSupportFrames=2;}
+      s.safe.copy(s.foot);s.safeBasis.copy(s.basis);s.safeOffset.copy(s.offset);s.grounded=true;s.velocity.set(0,0,0);s.active=null;s.a=s.r.primary;s.snap=false;s.free=false;s.windSupportFrames=2;s.lastLift=s.safeLift=0;s.eyeSetting=NaN;}
     if(free!==s.free){
        if(free){s.ride=null;s.leap=null;s.orbit=null;s.basis.multiply(s.groundTilt);s.foot.add(s.seat.applyQuaternion(s.basis));s.seat.set(0,0,0);s.groundTilt.identity();s.up.copy(north).applyQuaternion(s.basis);if(!reset)s.foot.addScaledVector(s.up,s.lastLift);}
-       else{s.foot.copy(s.safe);s.basis.copy(s.safeBasis);s.groundTilt.copy(s.safeTilt);s.seat.copy(s.safeSeat);s.offset.copy(s.safeOffset);s.up.copy(north).applyQuaternion(s.basis);s.moon=s.safeMoon;s.velocity.set(0,0,0);s.grounded=true;}
+       else{s.foot.copy(s.safe);s.basis.copy(s.safeBasis);s.groundTilt.copy(s.safeTilt);s.seat.copy(s.safeSeat);s.offset.copy(s.safeOffset);s.up.copy(north).applyQuaternion(s.basis);s.moon=s.safeMoon;s.velocity.set(0,0,0);s.grounded=true;s.lastLift=s.safeLift;s.eyeSetting=NaN;}
        s.active=null;s.free=free;s.a=s.r.primary;s.xDown=s.l.primary;s.yDown=s.l.align;
     }
-    if(Math.abs(s.r.x)<.5)s.snap=true;
+    if(s.r.via==='none')s.snap=false;else if(Math.abs(s.r.x)<.5&&Math.abs(s.r.y)<.5)s.snap=true;
     if(dragging)s.snap=false;
     if(Math.abs(s.r.x)>.65&&s.snap){const angle=-Math.sign(s.r.x)*prefs.snapTurnDegrees*Math.PI/180;s.snap=false;diag.snapTurns++;
       s.tmp.set(p.x,0,p.z).sub(s.offset).applyAxisAngle(north,-angle);s.offset.set(p.x,0,p.z).sub(s.tmp);
@@ -80,22 +83,20 @@ export default function PlanetMotor({originRef,dragging}:Props){
     // Read the tracked yaw in the navigation tangent frame, also when looking
     // into an opposing shell. Projecting the old horizon may collapse an axis.
     s.dir.normalize().applyQuaternion(s.basis);
-    const x=dragging?0:stickAxis(s.l.x),forward=dragging?0:-stickAxis(s.l.y),jump=!dragging&&s.r.primary&&!s.a;s.a=s.r.primary||s.r.via==='none';
+    const x=dragging?0:stickAxis(s.l.x),forward=dragging?0:-stickAxis(s.l.y),jump=!dragging&&s.r.primary&&!s.a;s.a=s.r.primary||!s.r.primaryKnown;
     s.travel.crossVectors(s.dir,s.up).multiplyScalar(x).addScaledVector(s.dir,forward).clampLength(0,1);
     s.localEye.copy(p).sub(s.offset);
     const align=!free&&s.grounded&&(!s.groundTilt.equals(noTilt)||s.seat.lengthSq()>1e-10)&&!dragging&&s.l.align&&!s.yDown&&!useBackpack.getState().draft;
-    s.yDown=s.l.align||s.l.via==='none';
-    if(align){s.seat.set(0,0,0);s.groundTilt.identity();diag.alignments++;s.display.copy(s.basis);s.viewUp.copy(s.up);}
+    s.yDown=s.l.align||!s.l.alignKnown;
+    if(!free&&(!s.moon||s.orbit)&&!s.ride)s.pad.update(scene);
+    if(align&&alignPlanetStance(s.moon??homeWorld,s,s.localEye,s.lastLift,s.pad.read)){diag.alignments++;s.eyeSetting=NaN;}
     s.localEye.add(s.seat);
-    let room=Infinity;
-    if(!free&&(!s.moon||s.orbit)&&!s.ride){s.pad.update(scene);
-       if(prefs.normalEyeOffset>0&&s.viewUp.y>.8){
-         const eye=s.tmp.copy(s.localEye).applyQuaternion(s.display).add(s.foot),c=s.pad.column(eye.x,eye.z,s.foot.y);
-         room=(c.ceiling-(s.grounded?s.foot.y:c.floor))/s.viewUp.y;
-      }}
-    let lift=free?0:eyeLift(prefs.normalEyeOffset,p.y,room);
-    if(lift>0&&s.moon?.id==='tide'&&!s.ride)lift=tideEyeLift(s.foot,s.viewUp,s.worldEye.copy(s.localEye).applyQuaternion(s.display),lift);
-    s.lastLift=lift;s.localEye.y+=lift;
+    if(free)s.lastLift=0;
+    else if(s.eyeSetting!==prefs.normalEyeOffset){
+      s.eyeSetting=prefs.normalEyeOffset;
+      s.lastLift=fitPlanetLift(s.orbit?s.orbit.owner:s.moon??homeWorld,s.foot,s.viewUp,s.worldEye.copy(s.localEye).applyQuaternion(s.display),p.y,s.lastLift,s.eyeSetting,s.pad.read);
+    }
+    const lift=s.lastLift;s.localEye.y+=lift;
     s.prev.copy(s.foot);
     // Require two supported frames and a fresh X; an airborne press is never a booking.
     s.windSupportFrames=!free&&!s.ride&&!s.leap&&!s.orbit&&!jump&&s.grounded?Math.min(2,s.windSupportFrames+1):0;
@@ -106,7 +107,7 @@ export default function PlanetMotor({originRef,dragging}:Props){
       const lane=departureAt(actual,s.moon);
       if(lane){s.foot.copy(actual);s.offset.set(p.x,0,p.z);s.safeOffset.copy(s.offset);s.ride=startRide(lane,!!s.moon,s.foot,s.up);s.safe.copy(s.foot);s.safeBasis.copy(s.basis);s.grounded=false;s.velocity.set(0,0,0);s.active=null;diag.windDepartures++;}
     }
-    s.xDown=s.l.primary||s.l.via==='none';
+    s.xDown=s.l.primary||!s.l.primaryKnown;
     if(s.moon&&jump&&s.grounded&&!s.ride&&!s.leap&&!free&&!useBackpack.getState().draft){
       const actual=s.tmp.set(p.x-s.offset.x,0,p.z-s.offset.z).applyQuaternion(s.display).add(s.foot);
       s.leap=startTwinLeap(s.moon,actual,s.up);
@@ -154,7 +155,7 @@ export default function PlanetMotor({originRef,dragging}:Props){
       s.active=null;
       surfaceStep(s,s.travel,speed,dt,false,s.pad.read,Math.max(.24,p.y+lift+headMargin),s.worldEye.copy(s.localEye).applyQuaternion(s.display),s.viewUp);
     }
-    if(!free&&s.grounded){s.safe.copy(s.foot);s.safeBasis.copy(s.basis);s.safeOffset.copy(s.offset);s.safeTilt.copy(s.groundTilt);s.safeSeat.copy(s.seat);s.safeMoon=s.moon;}
+    if(!free&&s.grounded){s.safe.copy(s.foot);s.safeBasis.copy(s.basis);s.safeOffset.copy(s.offset);s.safeTilt.copy(s.groundTilt);s.safeSeat.copy(s.seat);s.safeMoon=s.moon;s.safeLift=lift;}
     diag.grounded=!free&&s.grounded;
     if(groundFrame&&diag.grounded&&s.travel.lengthSq()>0)diag.groundedWalkM+=s.prev.distanceTo(s.foot);
     diag.gravityOwner=free||s.ride?null:s.orbit?s.orbit.owner?.id??null:s.moon?.id??'home';

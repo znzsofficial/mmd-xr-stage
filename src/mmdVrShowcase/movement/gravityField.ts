@@ -14,9 +14,13 @@ const reach=(w:World)=>4+w.radius*1.8;
 /** A nearby well can acquire; in an overlap the challenger must beat the
  * previous nominal surface distance by 0.55 m. No shared active world. */
 export function localWell(p:Vector3,previous:World|null):World|null{
-  let best=previous&&gap(previous,p)<reach(previous)+1?previous:null;
-  let score=best?gap(best,p)-.55:Infinity;
+  const previousGap=previous?gap(previous,p):Infinity;
+  let best=previous&&previousGap<reach(previous)+1?previous:null;
+  // Outside the fade the old ID is useful for drifting, but a powerless
+  // well must not beat a live one. Bias only a well that still pulls here.
+  let score=best&&previousGap<reach(best)?previousGap-.55:Infinity;
   for(const w of walkWorlds){
+    if(w===previous)continue;
     const d=gap(w,p);
     if(d<score&&d<reach(w)){best=w;score=d;}
   }

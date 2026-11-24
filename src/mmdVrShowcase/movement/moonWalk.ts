@@ -51,7 +51,7 @@ function walkStep(m:WalkMoon,s:Traveller,travel:Vector3,speed:number,dt:number,j
 }
 
 /** Follow local radial support and the moon's station/trunk solids. The optional
- * Ecctrl world stays parked on the mother planet throughout a lunar walk. */
+ * Rapier world stays parked on the mother planet throughout a lunar walk. */
 export function moonWalk(m:WalkMoon,s:Traveller,travel:Vector3,speed:number,dt:number,jump:boolean,readRadius:Radius=moonRadius,eye?:Vector3,viewUp=s.up,height=eye?.dot(viewUp)??1.65){
   if(!jump&&s.grounded&&(!speed||!travel.lengthSq())){s.arc.identity();s.velocity.set(0,0,0);return;}
   // A fast walking preset or a slow screen frame cannot step through a post.

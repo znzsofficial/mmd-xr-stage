@@ -4,6 +4,7 @@ import {facetSampler} from '../scenery/planet/shellFacets';
 import {allMoons} from '../scenery/planet/windAtlas';
 import {homeShellRadius} from './homeSurface';
 import {homeWorld,walkWorlds,type World} from './gravityField';
+import {recordShellSweep} from './sweepWork';
 import {clearingSupport} from '../scenery/planet/lanternClearing';
 
 export {homeWorld,walkWorlds,type World};
@@ -20,10 +21,14 @@ export function shellRadius(w:World,x:number,y:number,z:number){
   const face=facets.get(w)!(x,y,z);
   return Math.max(face,moonRadius(w,x,y,z),w.id==='lantern'?clearingSupport(x,y,z):0);
 }
-export function altitude(w:World,p:Vector3){
-  const x=p.x-w.centre.x,y=p.y-w.centre.y,z=p.z-w.centre.z,r=Math.hypot(x,y,z);
+function radialAltitude(w:World,x:number,y:number,z:number){
+  const r=Math.hypot(x,y,z);
   return r>1e-10?r-shellRadius(w,x/r,y/r,z/r):-w.radius;
 }
+export function altitude(w:World,p:Vector3){return radialAltitude(w,p.x-w.centre.x,p.y-w.centre.y,p.z-w.centre.z);}
+
+const outerShell=(w:World)=>w.radius+(w.id==='home'||w.id==='tide'?4:1.4);
+type EndSample={pass:number;world:World;radius:number;x:number;y:number;z:number;alt:number};
 
 /** Read the CURRENT tracked offset at both ends of the virtual move: a
  * physical lean is never a virtual displacement to undo. A spine of
@@ -32,16 +37,30 @@ export function altitude(w:World,p:Vector3){
 export function createShellSweep(){
   const point=new Vector3(),rel=new Vector3(),probe=new Vector3(),radial=new Vector3();
   const hit={world:homeWorld as World,t:1,point:new Vector3(),up:new Vector3(),part:'foot' as 'foot'|'body'|'head',tracked:false};
-  let found=false;
+  const candidates:World[]=[],work:number[]=[],ends:EndSample[]=[];
+  let found=false,count=0,pass=0,slot=0,d2=0,distance=0;
   function section(start:Vector3,delta:Vector3,radius:number,part:typeof hit.part){
-    const d2=delta.lengthSq(),distance=Math.sqrt(d2);if(distance<1e-12)return;
-    for(const w of walkWorlds){
+    const index=slot++;
+    for(let i=0;i<count;i++){
+      const w=candidates[i];
       rel.subVectors(start,w.centre);
-      const outer=w.radius+(w.id==='home'||w.id==='tide'?4:1.4)+radius,projection=rel.dot(delta)/d2;
+      const outer=outerShell(w)+radius,projection=rel.dot(delta)/d2;
       const disc=projection*projection-(rel.lengthSq()-outer*outer)/d2;if(disc<0)continue;
       const half=Math.sqrt(disc),a=Math.max(0,-projection-half),b=Math.min(hit.t,-projection+half);if(b<=a)continue;
-      const gap=(t:number)=>altitude(w,probe.copy(start).addScaledVector(delta,t))-radius;
-      const ga=gap(a);
+      // Only reuse the actual end of the preceding sweep. Slots are hints: a
+      // changed spine, offset or well must still match the exact terrain input.
+      // Cache raw altitude on the static shell, never a section radius or hit.
+      probe.copy(start).addScaledVector(delta,a).sub(w.centre);
+      const end=ends[index],same=a===0&&end?.pass===pass-1&&end.world===w&&end.radius===w.radius&&
+        Object.is(end.x,probe.x)&&Object.is(end.y,probe.y)&&Object.is(end.z,probe.z);
+      let evaluations=same?1:2; // the full right endpoint, and a non-cached left endpoint
+      const ga=(same?end.alt:radialAltitude(w,probe.x,probe.y,probe.z))-radius;
+      probe.copy(start).addScaledVector(delta,b).sub(w.centre);
+      const alt=radialAltitude(w,probe.x,probe.y,probe.z);
+      if(b===1){
+        const sample=end??(ends[index]={pass,world:w,radius:w.radius,x:0,y:0,z:0,alt:0});
+        sample.pass=pass;sample.world=w;sample.radius=w.radius;sample.x=probe.x;sample.y=probe.y;sample.z=probe.z;sample.alt=alt;
+      }
       // When tracking or a walking sole starts in a slope, only travel which
       // goes further in is obstructed. Never separate the real headset.
       const threshold=ga>.0003?0:Math.min(0,ga)-.00015;
@@ -53,19 +72,29 @@ export function createShellSweep(){
         const span=(hi-lo)*distance;
         if(Math.min(left,right)-6*span>threshold)return Infinity;
         if(span<.00002)return lo;
-        const mid=(lo+hi)/2,m=gap(mid),t=first(lo,mid,left,m);
+        evaluations++;
+        const mid=(lo+hi)/2,m=altitude(w,probe.copy(start).addScaledVector(delta,mid))-radius,t=first(lo,mid,left,m);
         return Number.isFinite(t)?t:first(mid,hi,m,right);
       }
-      const t=first(a,b,ga,gap(b));if(!(t<hit.t))continue;
+      const t=first(a,b,ga,alt-radius);work[i]+=evaluations;if(!(t<hit.t))continue;
       probe.copy(start).addScaledVector(delta,t);radial.subVectors(probe,w.centre).normalize();
       found=true;hit.world=w;hit.t=t;hit.up.copy(radial);hit.point.copy(w.centre).addScaledVector(radial,shellRadius(w,radial.x,radial.y,radial.z));hit.part=part;hit.tracked=start===point;
     }
   }
   return function sweep(foot:Vector3,delta:Vector3,up:Vector3,eyeOffset:Vector3,trackedHeight=eyeOffset.dot(up)){
-    found=false;hit.t=1;section(foot,delta,0,'foot');
+    found=false;hit.t=1;pass++;slot=count=0;
+    d2=delta.lengthSq();distance=Math.sqrt(d2);if(distance<1e-12){recordShellSweep(0,null);return null;}
     // Eye offset is the unmodified, calibrated tracking vector in world axes.
     const h=Math.min(3,Math.max(.18,trackedHeight)),n=Math.max(1,Math.ceil(h/.18));
     point.copy(foot).add(eyeOffset).addScaledVector(up,-trackedHeight);
+    // Triangle inequality about the motor foot: enclose the tracked sole and
+    // its entire spine, the unclamped eye, the round sections and the travel.
+    // The micrometre of slack covers round-off in the spine's repeated adds.
+    const extent=Math.max(foot.distanceTo(point)+h*up.length(),eyeOffset.length())+.150001+distance;
+    for(const w of walkWorlds){const outer=outerShell(w)+extent;
+      if(foot.distanceToSquared(w.centre)<=outer*outer){work[count]=0;candidates[count++]=w;}}
+    if(!count){recordShellSweep(0,null);return null;}
+    section(foot,delta,0,'foot');
     if(point.distanceToSquared(foot)>1e-8)section(point,delta,0,'foot');
     point.addScaledVector(up,.15);
     for(let i=0;i<=n;i++){
@@ -73,6 +102,9 @@ export function createShellSweep(){
       point.addScaledVector(up,(h-.15)/n);
     }
     if(trackedHeight!==h)section(point.copy(foot).add(eyeOffset),delta,.115,'head');
+    let total=0,peak=0,worst:World['id']|null=null;
+    for(let i=0;i<count;i++){total+=work[i];if(work[i]>peak){peak=work[i];worst=candidates[i].id;}}
+    recordShellSweep(total,worst);
     return found?hit:null;
   };
 }

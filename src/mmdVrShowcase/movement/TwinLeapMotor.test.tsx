@@ -14,14 +14,15 @@ import {samplePlanetMovement} from './planetDiagnostics';
 import {startTwinLeap,stepTwinLeap} from './twinLeap';
 import type {PlanetDriver} from './planetTravel';
 
-const h=vi.hoisted(()=>({frame:null as Function|null,ready:false,seed:vi.fn(),step:vi.fn(),stop:vi.fn()}));
+const h=vi.hoisted(()=>({frame:null as Function|null,session:null as EventTarget|null,ready:false,seed:vi.fn(),step:vi.fn(),stop:vi.fn()}));
+function visit<T>(inputSources:T[]){const session=Object.assign(new EventTarget(),{inputSources,visibilityState:'visible'});h.session=session;return session;}
 vi.mock('@react-three/fiber',()=>({useFrame:(cb:Function)=>{h.frame=cb;}}));
-vi.mock('@react-three/xr',()=>({useXRInputSourceState:()=>undefined}));
+vi.mock('@react-three/xr',()=>({useXRInputSourceState:()=>undefined,useXR:()=>h.session}));
 vi.mock('./PlanetPhysics',()=>({default:({driver}:{driver:RefObject<PlanetDriver|null>})=>{
   useLayoutEffect(()=>{driver.current={ready:()=>h.ready,seed:h.seed,step:h.step,stop:h.stop};
     return()=>{driver.current=null;};},[driver]);return null;}}));
 
-it.each(['recall','other wind','unmarked'] as const)('X/A/Y and stick axes: round trip, tracking loss, free, then hand back to mother via %s',async exit=>{
+it.each(['recall','other wind','unmarked','return board'] as const)('X/A/Y and stick axes: round trip, tracking loss, free, then hand back to mother via %s',async exit=>{
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);
   h.ready=false;h.seed.mockClear();h.step.mockClear();h.stop.mockClear();
   const old=useMmdVrStore.getState();useMmdVrStore.setState({prefs:{...old.prefs,scenery:'glassPlanet',movementMode:'normal',walkSpeedPref:'normal',normalEyeOffset:0}});
@@ -30,7 +31,7 @@ it.each(['recall','other wind','unmarked'] as const)('X/A/Y and stick axes: roun
      gamepad:{mapping:'xr-standard',axes:[0,0,0,0],buttons:Array.from({length:6},()=>({pressed:false}))}});
   const left=input('left'),right=input('right'),axes=left.gamepad.axes,x=left.gamepad.buttons[4],a=right.gamepad.buttons[4];
   const p={x:.17,y:1.65,z:-.21},pose={transform:{position:p,orientation:new Quaternion()}};let tracked=true;
-  const dt=1/90,session={visibilityState:'visible',inputSources:[left,right]},xr={getReferenceSpace:()=>({})};
+  const dt=1/90,session=visit([left,right]),xr={getReferenceSpace:()=>({})};
   const tick=(count=1)=>{for(let i=0;i<count;i++)h.frame!({gl:{xr},scene},dt,{session,getViewerPose:()=>tracked?pose:null});};
   const foot=()=>new Vector3(p.x,0,p.z).applyMatrix4(origin.matrixWorld),up=()=>new Vector3(0,1,0).applyQuaternion(origin.quaternion);
   const report=()=>samplePlanetMovement()!,lane=lanes.find(l=>l.moon.id==='salt')!,pad=twinPad(lane.moon)!;
@@ -63,7 +64,7 @@ it.each(['recall','other wind','unmarked'] as const)('X/A/Y and stick axes: roun
     const launch=foot();a.pressed=true;tick();x.pressed=true;tick(89);expect(foot().y-launch.y).toBeCloseTo(1.6-.625,5);tick(160);
     expect(report()).toMatchObject({location:'salt',windDepartures:1});x.pressed=a.pressed=false;tick();
     expect(report().twinDepartures).toBe(0);
-    if(exit==='unmarked'){
+    if(exit==='unmarked'||exit==='return board'){
       for(const [from,to] of [['salt','glaze'],['glaze','salt']]){
         const m=lanes.find(l=>l.moon.id===from)!.moon,other=lanes.find(l=>l.moon.id===to)!.moon;
         const axis=other.centre.clone().sub(m.centre).normalize();
@@ -79,7 +80,26 @@ it.each(['recall','other wind','unmarked'] as const)('X/A/Y and stick axes: roun
           expect(altitude(other,foot().add(eyeOffset))).toBeGreaterThan(.10);if(done)break;}
         expect(report()).toMatchObject({location:to,gravityOwner:to,grounded:true,twinDepartures:0,orbitalLandings:captures+1});
         expect(origin.quaternion.angleTo(before)).toBeLessThan(1e-6);expect(h.seed).not.toHaveBeenCalled();
-        const socket=origin.worldToLocal(flight.point.clone()),prior=flight.up.clone(),walked=report().groundedWalkM;axes[2]=1;
+        const socket=origin.worldToLocal(flight.point.clone()),prior=flight.up.clone(),walked=report().groundedWalkM;
+        if(exit==='return board'){
+          // Manual Y at the reviewed motor sole. Drive there with the old
+          // horizon and the actual stick, not a reset/teleport of the origin.
+          const trap=new Vector3(8.553291,25.382072,-30.578724),nav=before.clone().premultiply(new Quaternion().setFromUnitVectors(launchNormal,flight.up));
+          const sole=()=>origin.localToWorld(socket.clone());turnHead(0);a.pressed=false;tick();
+          for(let k=0;k<650&&sole().distanceTo(trap)>.008;k++){
+            const at=sole(),n=at.clone().sub(other.centre).normalize(),d=trap.clone().sub(at).projectOnPlane(n),gain=Math.min(.85,8*d.length());
+            d.normalize().applyQuaternion(nav.clone().invert());axes[2]=map(d.x*gain);axes[3]=map(d.z*gain);tick();
+            nav.premultiply(new Quaternion().setFromUnitVectors(n,sole().sub(other.centre).normalize()));
+          }
+          expect(sole().distanceTo(trap)).toBeLessThan(.008);axes[2]=axes[3]=0;tick();
+          const rest=origin.matrixWorld.clone(),count=report().alignments,y=left.gamepad.buttons[5];
+          y.pressed=true;tick();expect(report().alignments).toBe(count);expect(origin.matrixWorld.equals(rest)).toBe(true);
+          const back=new Vector3(-1,0,0).projectOnPlane(sole().sub(other.centre).normalize()).normalize().applyQuaternion(nav.clone().invert());
+          axes[2]=map(back.x);axes[3]=map(back.z);tick(30);expect(sole().distanceTo(trap)).toBeGreaterThan(.4);
+          expect(report().alignments).toBe(count);axes[2]=axes[3]=0;y.pressed=false;tick();y.pressed=true;tick();
+          expect(report().alignments).toBe(count+1);expect(up().dot(foot().sub(other.centre).normalize())).toBeGreaterThan(.99999);return;
+        }
+        axes[2]=1;
         for(let i=0;i<21;i++){const basis=origin.quaternion.clone();tick();const support=origin.localToWorld(socket.clone()),radial=support.clone().sub(other.centre).normalize();
           expect(altitude(other,support)).toBeCloseTo(0,3);expect(origin.quaternion.angleTo(basis.premultiply(swing.setFromUnitVectors(prior,radial)))).toBeLessThan(1e-4);prior.copy(radial);
           expect(altitude(other,foot().addScaledVector(up(),p.y))).toBeGreaterThan(.09);}
@@ -151,7 +171,7 @@ it.each(['slow','normal','fast','sprint'] as const)('%s: lantern dry ground resu
   const root=createRoot(document.createElement('div')),origin=new Group(),scene=new Scene(),dt=1/90,lane=lanes.find(l=>l.moon.id==='lantern')!;
   const input=(hand:string)=>({handedness:hand,targetRayMode:'tracked-pointer',profiles:['meta-quest-touch-plus'],gamepad:{mapping:'xr-standard',axes:[0,0,0,0],buttons:Array.from({length:6},()=>({pressed:false}))}});
   const l=input('left'),r=input('right'),p=new Vector3(0,1.63,0),report=()=>samplePlanetMovement()!;
-  const tick=()=>h.frame!({gl:{xr:{getReferenceSpace:()=>({})}},scene},dt,{session:{visibilityState:'visible',inputSources:[l,r]},getViewerPose:()=>({transform:{position:p,orientation:{x:0,y:0,z:0,w:1}}})});
+  const session=visit([l,r]),tick=()=>h.frame!({gl:{xr:{getReferenceSpace:()=>({})}},scene},dt,{session,getViewerPose:()=>({transform:{position:p,orientation:{x:0,y:0,z:0,w:1}}})});
   const foot=()=>new Vector3(p.x,0,p.z).applyMatrix4(origin.matrixWorld),measure=()=>{const before=foot();tick();return foot().distanceTo(before)/dt;};
   h.ready=false;
   try{

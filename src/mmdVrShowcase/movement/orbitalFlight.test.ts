@@ -29,15 +29,20 @@ it.each([[salt,glaze],[glaze,salt]])('non-footprint running launch %o → %o kee
   const up=axis.clone().multiplyScalar(Math.cos(.30)).addScaledVector(new Vector3(0,1,0),Math.sin(.30));
   const foot=surface(from,up),stick=axis.clone().projectOnPlane(up).normalize(),head=up.clone().multiplyScalar(1.95);
   expect(leapAt(from,foot)).toBeUndefined();
-  for(const dt of [1/120,1/72,.135]){
+  let support:Vector3|undefined;
+  for(const cadence of [[1/20],[1/36],[1/72],[1/90],[1/120],[1/144],[.05,1/90,1/144,1/36],[.135]]){
     const f=startOrbit(from,foot,jumpVelocity(from,up,stick,2.4,new Vector3()));
-    for(let i=0;i<7/dt&&!f.landing;i++){
+    expect(f.velocity.dot(up)).toBeCloseTo(4.85,6);expect(f.velocity.dot(stick)).toBeCloseTo(2.4,6);
+    for(let i=0,t=0;t<7&&!f.landing;i++){
+      const dt=cadence[i%cadence.length];t+=dt;
       const prev=f.foot.clone(),speed=f.velocity.length();stepOrbit(f,dt,up,head);
       expect(f.foot.distanceTo(prev)).toBeLessThanOrEqual(speed*dt+2*dt**2+.0001);
       for(const w of [from,to])for(const h of [0,.35,.85,1.3,1.95])expect(altitude(w,f.foot.clone().addScaledVector(up,h))).toBeGreaterThan(-.001);
     }
     expect(f.landing).toBe(to);expect(f.changes).toBe(1);expect(altitude(to,f.point)).toBeCloseTo(0,6);
-    expect(f.part).toBe('head');
+    expect(f.part).toBe('head');expect(f.velocity.lengthSq()).toBe(0);
+    expect(f.up.angleTo(f.point.clone().sub(to.centre))).toBeLessThan(1e-6);
+    if(support)expect(f.point.distanceTo(support)).toBeLessThan(1e-6);else support=f.point.clone();
   }
 });
 

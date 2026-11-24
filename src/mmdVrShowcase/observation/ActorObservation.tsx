@@ -3,7 +3,6 @@ import {useStore} from 'zustand';
 import {useLanguageStore} from '../../languageStore';
 import {ObservationDiagram,ObservationPlate} from './ObservationDiagram';
 import {createReferenceBook} from './reference/diagrams';
-import {tractContexts} from './reference/tractContext';
 import {useEggReplay} from './useEggReplay';
 import {EggReplayKey} from './EggReplayKey';
 import {HudConceptionReadout,ScreenConceptionReadout,useConceptionReadout} from './ConceptionReadouts';
@@ -28,11 +27,11 @@ const words={
   zh:{title:'身体观察',back:'返回角色',breast:'乳房',vulva:'外阴',vagina:'阴道',uterus:'子宫',egg:'卵子',part:'观察部位',angle:'观察角度',front:'正面',oblique:'斜面',side:'侧面',
     freeze:'定格图像',play:'播放图像',drag:'横拖图面旋转',labels:'结构标注',cut:'剖面',source:'数据来源',standard:'默认示意',preview:'当前预览',saved:'角色设定',
     fullness:'饱满度',milk:'存量（左 / 右）',rod:'杆位',none:'无杆位采样',depth:'在内深度',vaginal:'阴道精液',unit:'游戏单位',
-    study:'图示',daily:'日常观察',reference:'孕态参考',uterineStudy:'子宫与胎体参考',breastExterior:'乳房外观参考',breastSection:'乳腺剖面参考',eggRecord:'角色卵子记录',actorMilk:'角色乳量（左 / 右）'},
+    study:'图示',daily:'日常观察',reference:'孕态参考',uterineStudy:'子宫剖面示意',vulvarStudy:'外阴静息示意',vaginalStudy:'阴道壁剖面示意',breastExterior:'乳房外观参考',breastSection:'乳腺剖面参考',eggRecord:'角色卵子记录',actorMilk:'角色乳量（左 / 右）',actorRod:'角色实测杆位',actorDepth:'实测在内深度',actorFluid:'角色阴道存量'},
   en:{title:'Body observation',back:'Back to actor',breast:'Breast',vulva:'Vulva',vagina:'Vagina',uterus:'Uterus',egg:'Egg',part:'Body part',angle:'View angle',front:'Front',oblique:'Oblique',side:'Side',
     freeze:'Freeze figure',play:'Animate figure',drag:'Drag across the figure to rotate',labels:'Labels',cut:'Cutaway',source:'Source',standard:'Default study',preview:'Current preview',saved:'Actor settings',
     fullness:'Fullness',milk:'Stored (L / R)',rod:'Rod',none:'No rod sample',depth:'Inside depth',vaginal:'Vaginal semen',unit:'game u.',
-    study:'Figure',daily:'Everyday view',reference:'Pregnancy reference',uterineStudy:'Uterus and fetus study',breastExterior:'Breast exterior study',breastSection:'Glandular section study',eggRecord:'Actor egg record',actorMilk:'Actor milk (L / R)'},
+    study:'Figure',daily:'Everyday view',reference:'Pregnancy reference',uterineStudy:'Uterine section',vulvarStudy:'Resting vulva study',vaginalStudy:'Vaginal wall study',breastExterior:'Breast exterior study',breastSection:'Glandular section study',eggRecord:'Actor egg record',actorMilk:'Actor milk (L / R)',actorRod:'Measured actor rod',actorDepth:'Measured depth',actorFluid:'Actor vaginal stock'},
 };
 function useView({assetId,runtimeId,initialPart='breast'}:ObservationProps){
   const [part,choose]=useState(initialPart),[reference,setReference]=useState(false);
@@ -43,19 +42,19 @@ function useView({assetId,runtimeId,initialPart='breast'}:ObservationProps){
   const view=breast?chest:atlas;
   const set=breast?setBreastView:setAtlasView;
   const {degrees,motion}=view;
-  const independent=reference&&(breast||part==='uterus'),paired=reference&&(part==='vagina'||part==='vulva');
+  const independent=reference&&part!=='egg';
   const record=useConceptionReadout(assetId,part,motion,true,!independent),replay=useEggReplay(assetId,runtimeId,record?.replayable);
   const moving=replay.playing?!replay.paused:motion;
-  const spec=independent?book[part]:paired?tractContexts[part]:undefined;
+  const spec=independent?book[part]:undefined;
   const section=independent?plate.section:chest.section,labels=independent?(breast?plate.breastLabels:plate.uterusLabels):view.labels;
-  return {part,choose,t,zh,degrees,record,replay,spec,reference,paired,independent,turn:(degrees:number)=>set(assetId,{degrees}),
+  return {part,choose,t,zh,degrees,record,replay,spec,reference,independent,turn:(degrees:number)=>set(assetId,{degrees}),
     studies:[{label:t.daily,active:!reference,press:()=>setReference(false)},{label:t.reference,active:reference,press:()=>setReference(true)}],
-    caption:!reference?'':breast?(section?t.breastSection:t.breastExterior):part==='uterus'?t.uterineStudy:part==='egg'?t.eggRecord:'',
+    caption:!reference?'':breast?(section?t.breastSection:t.breastExterior):part==='uterus'?t.uterineStudy:part==='vulva'?t.vulvarStudy:part==='vagina'?t.vaginalStudy:t.eggRecord,
     eggs:eggs?.map(e=>({label:`${t.egg} ${e.id}`,active:e.id===atlas.eggId,press:()=>setAtlasView(assetId,{eggId:e.id})})),
     transport:{label:moving?t.freeze:t.play,active:!moving,press:()=>replay.playing?replay.player.pause(moving):set(assetId,{motion:!motion})},
     areola:breast&&!reference&&!chest.section?areolaStyles.map(style=>({label:areolaNames[zh?'zh':'en'][style],active:style===chest.areolaStyle,
       press:()=>setBreastView(assetId,{areolaStyle:style})})):[],areolaLabel:zh?'乳晕与乳头':'Areola & nipple',
-    shapes:part==='vulva'&&!paired?foldStyles.map(f=>({label:foldNames[zh?'zh':'en'][f],active:f===atlas.foldStyle,press:()=>setAtlasView(assetId,{foldStyle:f})})):[],
+    shapes:part==='vulva'&&!reference?foldStyles.map(f=>({label:foldNames[zh?'zh':'en'][f],active:f===atlas.foldStyle,press:()=>setAtlasView(assetId,{foldStyle:f})})):[],
     options:[...(breast?[{label:t.cut,active:section,press:()=>independent?book.settings.setState({section:!section}):setBreastView(assetId,{section:!section})}]:[]),
       ...(part==='uterus'||breast&&section?[{label:t.labels,active:labels,press:()=>independent?book.settings.setState(breast?{breastLabels:!labels}:{uterusLabels:!labels}):set(assetId,{labels:!labels})}]:[])],
   };
@@ -69,7 +68,13 @@ function useReadings(assetId:string,runtimeId:string,{part,zh,t,independent}:Ret
   const rod=usePelvic(s=>p?actorRodSample(s,assetId,runtimeId):null);
   const running=usePelvic(s=>!!p&&actorBinding(s,assetId,runtimeId)?.running===true);
   if(reproduction)return [];
-  if(independent)return saved?.lactating?[{label:t.actorMilk,value:`${percent(saved.left)} / ${percent(saved.right)}`}]:[];
+  if(independent){
+    if(!pelvic)return saved?.lactating?[{label:t.actorMilk,value:`${percent(saved.left)} / ${percent(saved.right)}`}]:[];
+    const lines=[{label:t.actorRod,value:rod?outletLabel(rod,zh,!running):t.none}];
+    if(running&&rod?.outletInside)lines.push({label:t.actorDepth,value:`${(rod.depth*100).toFixed(1)} cm`});
+    if(part==='vagina'&&p)lines.push({label:t.actorFluid,value:`${+p.fluid.vaginal.toFixed(2)} / ${+p.capacity.vaginal.toFixed(2)} ${t.unit}`});
+    return lines;
+  }
   const lines=[{label:t.source,value:saved?(draft?t.preview:t.saved):t.standard}];
   if(part==='breast'&&saved){
     lines.push({label:t.fullness,value:percent(saved.fullness)});
@@ -123,8 +128,8 @@ function Hud(props:ObservationProps){
   // The actor anchor can sit near either edge of the forward view. Keep the
   // sheet close to the width of the actor menu; long rod verdicts get a full
   // line under the figure, not a narrow rail at the outside edge of one eye.
-  const rod=readings.find(r=>r.label===t.rod),fields=readings.filter(r=>r!==rod);
-  const rodY=view.paired?-.83:part==='vulva'?-.67:-.592,firstY=rod?rodY-.104:view.areola.length?-.735:-.592;
+  const rod=readings.find(r=>r.label===t.rod||r.label===t.actorRod),fields=readings.filter(r=>r!==rod);
+  const rodY=part==='vulva'&&!view.independent?-.67:-.592,firstY=rod?rodY-.104:view.areola.length?-.735:-.592;
   const recordY=part==='egg'?-.675:-.592,bottom=record?recordY-.19:firstY-Math.max(0,Math.floor((fields.length-1)/2))*.11-.08;
   return <group name="observation:controls" pointerEventsOrder={1} pointerEventsType={{allow:['ray']}}>
     <group position-y={(.86+bottom)/2}><PrivateSheet size={[1.51,.86-bottom]}/></group>
@@ -136,10 +141,10 @@ function Hud(props:ObservationProps){
     {presets.map((k,i)=><PrivateButton key={k} position={[left+(i-1)*.295,.222,0]} size={[.273,.142]} label={t[k]} active={degrees===atlasAngles[k]} onPress={()=>turn(atlasAngles[k])}/>)}
     {view.independent?<PrivateLine position={[right,.222,0]} width={rail} text={view.caption}/>:
       <PrivateButton position={[right,.222,0]} size={[rail,.142]} label={view.transport.label} active={view.transport.active} onPress={view.transport.press}/>}
-    <group position={view.paired?[0,-.257,0]:[left,-.194,0]}><Figure {...actor} view={view} widthM={view.paired?1.38:art}/></group>
+    <group position={[left,-.194,0]}><Figure {...actor} view={view} widthM={art}/></group>
     {view.reference&&part==='egg'&&<PrivateLine position={[left,-.591,0]} width={art} text={view.caption}/>}
-    <PrivateLine position={view.paired?[-.36,-.707,0]:[right,.04,0]} width={rail} text={t.angle} value={`${degrees}°`}/>
-    <PrivateSlider position={view.paired?[.28,-.707,0]:[right,-.088,0]} width={view.paired?.79:rail} disabled={false} value={(degrees+90)/180} onChange={v=>turn(v*180-90)}/>
+    <PrivateLine position={[right,.04,0]} width={rail} text={t.angle} value={`${degrees}°`}/>
+    <PrivateSlider position={[right,-.088,0]} width={rail} disabled={false} value={(degrees+90)/180} onChange={v=>turn(v*180-90)}/>
     {view.options.map((a,i)=><PrivateButton key={a.label} position={[right,-.26-i*.17,0]} size={[rail,.14]} label={a.label} active={a.active} onPress={a.press}/>)}
     {view.shapes.map((a,i)=><PrivateButton key={a.label} position={[right,-.22-i*.15,0]} size={[rail,.135]} label={a.label} active={a.active} onPress={a.press}/>)}
     {view.eggs?.map((e,i)=><PrivateButton key={e.label} position={[right,-.23-i*.152,0]} size={[rail,.135]} label={e.label} active={e.active} onPress={e.press}/>)}

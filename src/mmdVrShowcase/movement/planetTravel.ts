@@ -9,7 +9,7 @@ import {headMargin} from './eyeHeight';
 import {homeShellRadius,planetCentre} from './homeSurface';
 export {planetCentre};
 export const north=new Vector3(0,1,0);
-// Ecctrl's .3 m half-capsule + .3 m radius + .2 m suspension.
+// The original capsule seat: .3 m half-length + .3 m radius + .2 m sole gap.
 export const bodyAboveFoot=.8;
 export function createTraveller(){return {
   foot:new Vector3(0,0,1.9),up:north.clone(),basis:new Quaternion(),dir:new Vector3(),velocity:new Vector3(),grounded:true,

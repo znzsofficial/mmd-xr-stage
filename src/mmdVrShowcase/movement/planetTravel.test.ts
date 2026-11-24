@@ -8,11 +8,12 @@ import {crustRadius} from '../scenery/planet/opalTerrain';
 it('reads the current Touch Plus source while its profile is pending, ignores hand/pad axes and drops disconnected state',()=>{
   const source={handedness:'right',targetRayMode:'tracked-pointer',profiles:['meta-quest-touch-plus'],gamepad:{mapping:'xr-standard',axes:[1,-1,-.77,.63],buttons:[{},{},{},{},{pressed:true}]}};
   const sources=(...s:unknown[])=>s as XRInputSourceArray,out=newStick();
-  readStick(sources({...source,hand:{}},source),'right',undefined,out);expect(out).toEqual({via:'native',x:-.77,y:.63,primary:true,align:false});
+  readStick(sources({...source,hand:{}},source),'right',undefined,out);expect(out).toEqual({via:'native',x:-.77,y:.63,primary:true,align:false,primaryKnown:true,alignKnown:false});
   const short={...source,gamepad:{...source.gamepad,axes:[1,-1],buttons:[]}} as unknown as XRInputSource;
   const profile={inputSource:short,gamepad:{'xr-standard-thumbstick':{xAxis:-.3,yAxis:.4}}};
-  readStick(sources(short),'right',profile,out);expect(out).toEqual({via:'profile',x:-.3,y:.4,primary:false,align:false});
-  readStick(sources({...short}),'right',profile,out);expect(out).toEqual({via:'none',x:0,y:0,primary:false,align:false});
+  readStick(sources(short),'right',profile,out);expect(out).toEqual({via:'profile',x:-.3,y:.4,primary:false,align:false,primaryKnown:false,alignKnown:false});
+  readStick(sources({...short}),'right',profile,out);expect(out).toEqual({via:'none',x:0,y:0,primary:false,align:false,primaryKnown:false,alignKnown:false});
+  readStick(sources(short),'right',{inputSource:short,gamepad:{'xr-standard-thumbstick':{}}},out);expect(out.via).toBe('none');
   const left={...short,handedness:'left'} as XRInputSource;
   readStick(sources(left),'left',{inputSource:left,gamepad:{'x-button':{state:'pressed'}}},out);expect(out.primary).toBe(true);
   readStick(sources(left),'left',{inputSource:left,gamepad:{'y-button':{state:'pressed'}}},out);expect(out.align).toBe(true);expect(out.primary).toBe(false);

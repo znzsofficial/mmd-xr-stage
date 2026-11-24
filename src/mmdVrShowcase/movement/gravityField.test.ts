@@ -46,3 +46,11 @@ it('weakens with altitude, fades at the edge, and clears a previous well in deep
   expect(sampleStageGravity('glassPlanet',at(100),homeWorld,out)).toBeNull();
   expect(out.toArray()).toEqual([0,0,0]);
 });
+
+it('captures a drifting object at the faded sulfur boundary when glaze already exerts gravity',()=>{
+  const point=new Vector3(20.915205,24.200860,-29.515221),acc=new Vector3(),fresh=new Vector3();
+  const sulfur=allMoons.find(m=>m.id==='sulfur')!,glaze=allMoons.find(m=>m.id==='glaze')!;
+  expect(sampleStageGravity('glassPlanet',point,null,fresh)).toBe(glaze);
+  expect(sampleStageGravity('glassPlanet',point,sulfur,acc)).toBe(glaze);
+  expect(acc.length()).toBeGreaterThan(.9);expect(acc.equals(fresh)).toBe(true);
+});

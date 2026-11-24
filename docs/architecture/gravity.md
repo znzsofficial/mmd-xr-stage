@@ -29,14 +29,14 @@ chip.velocity.addScaledVector(a, dt);
 
 普通房间返回 `null`，但 `out` 是 `(0, -9.81, 0)`；星系深空也返回 `null`，`out` 才是零。是否有重力应读 `out`，不能只看返回值。比如彩纸随局部引力落，天灯的浮升可取局部引力的反向；零场中的漂移由玩具自己决定。效果无须加入碰撞世界，也不读玩家的 `gravityOwner`。
 
-普通跨星弹道和查询共用 `localWell` / `pull`。选井看距**名义球面**的距离，不把所有星的力量相加；两个井重叠时，另一颗要近过 0.55 米才抢走原归属。因此，两件从不同方向来的道具即使瞬间同点，也可能各自受到相反的引力。母星近场按参考半径封顶；卫星为保留小跳手感，恒定区到名义半径外 1.25 米。再远按距离平方反比减弱，在井的最后两米平滑衰减至零；刚出界的一小段还能保留上一颗星的身份。场查询不推进时间，不生成网格，也不判断表面接触。
+普通跨星弹道和查询共用 `localWell` / `pull`。选井看距**名义球面**的距离，不把所有星的力量相加；两个仍有引力的井重叠时，另一颗要近过 0.55 米才抢走原归属。因此，两件从不同方向来的道具即使瞬间同点，也可能各自受到相反的引力。母星近场按参考半径封顶；卫星为保留小跳手感，恒定区到名义半径外 1.25 米。再远按距离平方反比减弱，在井的最后两米平滑衰减至零；刚出界时若附近没有其他井，可短暂保留旧身份。若另一颗星在该处仍有引力，零强度旧井立即让位，避免物体悬停在两个引力井之间。场查询不推进时间，不生成网格，也不判断表面接触。
 
 ## 玩家脚位、演员和相机分别由谁负责
 
 | 路径 | 实际职责 |
 |---|---|
 | 普通房间行走／跳 | [`groundMotor`](../../src/mmdVrShowcase/movement/groundMotor.ts) 用同一 9.81 常量推进竖直速度。地板、台阶、侧墙和顶棚由柱形空间查询决定；加速度本身不能判断落脚。 |
-| XR 母星、卫星地面 | [`PlanetMotor`](../../src/mmdVrShowcase/movement/PlanetMotor.tsx) 持有脚位和 XR 原点。母星的可选 [Ecctrl/Rapier 适配器](../../src/mmdVrShowcase/movement/PlanetPhysics.tsx) 给玩家胶囊施加按脚底半径计算的母星引力，并用实际支撑修正脚位。WASM 未就绪或失败走 [JS 后备](../../src/mmdVrShowcase/movement/planetTravel.ts)；卫星用 [`moonWalk`](../../src/mmdVrShowcase/movement/moonWalk.ts) 沿实际壳面走，母星驱动停放。 |
+| XR 母星、卫星地面 | [`PlanetMotor`](../../src/mmdVrShowcase/movement/PlanetMotor.tsx) 持有脚位和 XR 原点。母星的[按需物理适配器](../../src/mmdVrShowcase/movement/PlanetPhysics.tsx)直接驱动 [Rapier 胶囊](../../src/mmdVrShowcase/movement/homeCapsule.ts)：在每个子步按实际杆量施加切向冲量与径向重力，按支撑校正脚位。[五档走速对照](../performance/home-walk.md)。WASM 未就绪或失败走 [JS 后备](../../src/mmdVrShowcase/movement/planetTravel.ts)；卫星用 [`moonWalk`](../../src/mmdVrShowcase/movement/moonWalk.ts) 沿实际壳面走，母星驱动停放。 |
 | XR 离地、普通跨井 | [`orbitalFlight`](../../src/mmdVrShowcase/movement/orbitalFlight.ts) 对速度和脚位做子步积分；换井保留动量。[壳面扫掠](../../src/mmdVrShowcase/movement/orbitalSurfaces.ts)检查脚、身体和头，实际接触才落地或擦过。[落地交接](../../src/mmdVrShowcase/movement/orbitContact.ts)让马达接管脚位并清零速度，保留触地前的视野；主动按 Y 才回正。[两种飞行的区别与实测](../performance/planet-horizon.md)。 |
 | 足印助跳、风道、自由飞行 | [足印助跳](../../src/mmdVrShowcase/movement/twinLeap.ts)校准发射冲量，在指定两星间积分，含专用横向辅助加速度。风道由图册的 `rideStep` 沿预制曲线运送；自由飞行由摇杆直接平移，不受重力或实体约束。这些是玩家的不同走法，风道和自由飞行没有另开物理引擎。 |
 | PMX 头发、裙摆、手部接触 | [演员运行时](../../src/mmdVrShowcase/mmdRuntime/mmdRuntime.ts)给每个开启物理的模型创建独立 [MMD Bullet 世界](../../src/mmdVrShowcase/mmdRuntime/mmdPhysics.ts)，按模型刚体、关节与接触代理求解。舞台不会把角色位置处的行星引力灌进 Bullet。 |

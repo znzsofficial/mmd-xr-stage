@@ -12,7 +12,6 @@ import {readAtlasView,setAtlasView,useAtlasSettings} from '../pelvic/atlas/view'
 import {usePelvic,type PelvicSample} from '../pelvic/store';
 import {ObservationScreenControls} from './ActorObservation';
 import {LivePelvicScreenView} from './LivePelvicView';
-import {tractContexts} from './reference/tractContext';
 import {createReferenceBook} from './reference/diagrams';
 
 afterEach(()=>{useBodyState.setState(useBodyState.getInitialState());useConception.setState(useConception.getInitialState());usePelvic.setState(usePelvic.getInitialState());
@@ -49,7 +48,7 @@ it('keeps one choice across parts, isolates insertion and keeps the reference of
     expect(sheet().querySelector('canvas')?.dataset).toMatchObject({angle:'90',section:'true'});
     expect(readBreastView('a').section).toBe(false);await click('子宫');await click('结构标注');await painted('reference-uterus');expect(sheet().textContent).not.toContain('已受精');expect(readAtlasView('a').labels).toBe(false);
     expect(monitor().textContent).not.toContain('孕态参考');expect(monitor().textContent).toContain('已受精');
-    await click('阴道');await painted('reference-context-vagina');await click('外阴');await painted('reference-context-vulva');
+    await click('阴道');await painted('reference-vagina');await click('外阴');await painted('reference-vulva');
     await click('卵子');await painted('egg');expect(sheet().textContent).toContain('角色卵子记录');expect(sheet().textContent).toContain('已受精');expect(btn('强制排卵')).toBeUndefined();
     await click('子宫');expect(btn('孕态参考').getAttribute('aria-pressed')).toBe('true');await click('日常观察');await painted('uterus');
     await click('孕态参考');await show('a',false);await show('a');expect(btn('日常观察').getAttribute('aria-pressed')).toBe('true');
@@ -58,24 +57,28 @@ it('keeps one choice across parts, isolates insertion and keeps the reference of
   }finally{await act(()=>root.unmount());}
 });
 
-it.each(['vagina','vulva'] as const)('pairs the %s map with the painted angle and the real current sample, including loss of contact',part=>{
-  const {workers}=surface(),canvas=document.createElement('canvas'),spec=tractContexts[part],upload=vi.fn();canvas.width=spec.width*2;canvas.height=spec.height*2;
+it.each(['vagina','vulva'] as const)('keeps %s at rest while real actor readings change below the picture, and restores the live brush at the same angle',async part=>{
+  const {workers,frame}=surface(),el=document.createElement('div'),root=createRoot(el);
   const sample:PelvicSample={tip:[0,0,.04],tail:[0,0,-.04],radiusM:.019,lengthM:.1,depth:.04,outletInside:true,atCervix:false,aligned:true,angleDeg:0};
   usePelvic.setState({byAsset:{a:{calibration:defaultPelvicCalibration,showAdapter:false,clothingClear:false,clothed:true,speedHz:1,stroke:.7,container:'vaginal',
     fluid:{vaginal:2,fantasyUterine:0},capacity:{vaginal:4,fantasyUterine:16},overflow:0,drained:0}},active:{assetId:'a',runtimeId:'r',mode:'standAuto',source:'xr',token:3,running:true,awaitingWorld:false,position:.9},sample});
-  setAtlasView('a',{degrees:0,motion:true});const painter=spec.open(canvas,{assetId:'a',runtimeId:'r'},()=>{},upload);
-  const options=()=>workers[0].postMessage.mock.lastCall![0].options,deliver=()=>workers[0].onmessage!({data:{bitmap:{close(){}}}});
+  setAtlasView('a',{degrees:38,motion:false});const click=(name:string)=>act(()=>[...el.querySelectorAll('button')].find(b=>b.textContent===name)!.click());
   try{
-    painter.tick(0);expect(options()).toMatchObject({focus:part,sample,vaginalFluid:.5});setAtlasView('a',{degrees:90});deliver();painter.tick(40);
-    expect(canvas.dataset.angle).toBe('0');const pending=options().yaw*180/Math.PI;expect(pending).toBeGreaterThan(0);expect(pending).toBeLessThan(90);
-    deliver();painter.tick(80);expect(Number(canvas.dataset.angle)).toBe(Math.round(pending));expect(workers).toHaveLength(1);
-    usePelvic.setState({sample:null});setAtlasView('a',{degrees:38,motion:false});deliver();painter.tick(120);
-    expect(options()).toMatchObject({sample:null,pressure:0,vaginalFluid:.5});deliver();painter.tick(160);expect(canvas.dataset.angle).toBe('38');
-    upload.mockClear();painter.tick(6000);expect(upload).not.toHaveBeenCalled();expect(usePelvic.getState().active?.position).toBe(.9);
-  }finally{painter.dispose();}
+    await act(()=>root.render(<ObservationScreenControls assetId="a" runtimeId="r" initialPart={part} onBack={()=>{}}/>));await click('孕态参考');await frame(0);
+    const w=workers.at(-1)!;expect(w.postMessage.mock.lastCall![0].options).toEqual({part,degrees:38,width:344,height:282,zh:true,section:false,labels:false});
+    w.onmessage!({data:{bitmap:{close(){}}}});await frame(40);
+    const image=el.querySelector('canvas')!;expect(image.dataset.view).toBe(`reference-${part}`);expect(image.getAttribute('aria-label')).not.toContain('喷口');
+    expect(el.textContent).toContain('角色实测杆位喷口在内');expect(el.textContent).toContain('实测在内深度4.0 cm');
+    await act(()=>usePelvic.setState({sample:null}));await frame(1000);expect(w.postMessage).toHaveBeenCalledOnce();
+    expect(el.textContent).toContain('角色实测杆位无杆位采样');expect(el.textContent).not.toContain('实测在内深度');
+    if(part==='vagina')expect(el.textContent).toContain('角色阴道存量2 / 4 游戏单位');
+    await act(()=>usePelvic.setState({sample}));await click('侧面');await frame(1100);await click('日常观察');await frame(1200);
+    const live=workers.at(-1)!.postMessage.mock.lastCall![0].options;expect(live).toMatchObject({focus:part,sample,vaginalFluid:.5});expect(live.yaw).toBeCloseTo(Math.PI/2);
+    expect(usePelvic.getState().active?.position).toBe(.9);
+  }finally{await act(()=>root.unmount());}
 });
 
-it.each(['uterus','breast'] as const)('holds the %s reference through elapsed time and actor ledger changes; no bitmap is published after exit',part=>{
+it.each(['uterus','breast','vagina','vulva'] as const)('holds the %s reference through elapsed time and actor ledger changes; no bitmap is published after exit',part=>{
   const {workers}=surface(),spec=createReferenceBook()[part],upload=vi.fn(),canvas=document.createElement('canvas');canvas.width=spec.width*2;canvas.height=spec.height*2;
   const painter=spec.open(canvas,{assetId:'a',runtimeId:'r'},()=>{},upload);painter.tick(0);
   const worker=workers[0],reply=worker.onmessage!,send=()=>{const bitmap={close:vi.fn()};reply({data:{bitmap}});return bitmap;};

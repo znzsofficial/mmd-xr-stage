@@ -4,7 +4,7 @@ This file records notices for third-party code copied into the repository rather
 
 ## Planetoid locomotion (npm packages)
 
-The on-demand XR planet module uses [Ecctrl 2.0.2](https://github.com/pmndrs/ecctrl) (MIT, © 2023–2026 Erdong Chen), [React Three Rapier 2.2.0](https://github.com/pmndrs/react-three-rapier) and [Rapier JS 0.19.2](https://github.com/dimforge/rapier.js) (Apache-2.0). Its WASM is distributed in the compat package. These are independent of the MMD Bullet backend.
+The on-demand XR planet module uses [React Three Rapier 2.2.0](https://github.com/pmndrs/react-three-rapier) and [Rapier JS 0.19.2](https://github.com/dimforge/rapier.js) (Apache-2.0). Its WASM is distributed in the compat package. The standalone planet experiment and retained earlier release modules use [Ecctrl 2.0.2](https://github.com/pmndrs/ecctrl) (MIT, © 2023–2026 Erdong Chen). These are independent of the MMD Bullet backend.
 
 ## @webxr-input-profiles/assets 1.0.20
 
@@ -42,7 +42,7 @@ SOFTWARE.
 
 ## Noto Sans SC
 
-Noto Sans SC is provided by Google Inc. through `@fontsource-variable/noto-sans-sc` version 5.3.0 and is licensed under the SIL Open Font License, Version 1.1. The complete license text is included in [`licenses/Noto-Sans-SC-OFL-1.1.txt`](./licenses/Noto-Sans-SC-OFL-1.1.txt).
+Noto Sans SC is provided by Google Inc. through `@fontsource-variable/noto-sans-sc` version 5.3.0 and is licensed under the [SIL Open Font License, Version 1.1](https://openfontlicense.org/open-font-license-official-text/).
 
 ## @zip.js/zip.js 2.15.0
 

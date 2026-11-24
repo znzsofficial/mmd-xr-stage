@@ -48,7 +48,7 @@
 
 ![双星引力海峡，以及盐晶折射仪与玻岩退火窑近景](../screenshots/twin-wells.webp)
 
-**维护入口：** [星表与航线](../../src/mmdVrShowcase/scenery/planet/windAtlas.ts)供渲染和移动共用；[脚下高度](../../src/mmdVrShowcase/scenery/planet/moonSurface.ts)与可见壳面一致。[跨跳](../../src/mmdVrShowcase/movement/twinLeap.ts)用 1/120 秒步长积分，触及目标壳面才着陆。[测试](../../src/mmdVrShowcase/movement/twinLeap.test.ts)覆盖踏印边缘、不同帧率与两米身高净空。母星 Ecctrl 在离星期间停用，返航时从实际脚位接管。
+**维护入口：** [星表与航线](../../src/mmdVrShowcase/scenery/planet/windAtlas.ts)供渲染和移动共用；[脚下高度](../../src/mmdVrShowcase/scenery/planet/moonSurface.ts)与可见壳面一致。[跨跳](../../src/mmdVrShowcase/movement/twinLeap.ts)用 1/120 秒步长积分，触及目标壳面才着陆。[测试](../../src/mmdVrShowcase/movement/twinLeap.test.ts)覆盖踏印边缘、不同帧率与两米身高净空。母星物理在离星期间停用，返航时从实际脚位接管。
 
 ### 伞灯星和琥珀屿
 
@@ -114,6 +114,6 @@
 
 ### 移动实现与真机待验
 
-[球面移动](../../src/mmdVrShowcase/movement/PlanetMotor.tsx)从第一帧读当前手柄；[地形](../../src/mmdVrShowcase/scenery/planet/opalTerrain.ts)供脚下支撑、可见壳面和碰撞共用。仅 XR 进入母星时加载 [Ecctrl/Rapier](../../src/mmdVrShowcase/movement/PlanetPhysics.tsx)，就绪后从当前脚位、朝向和速度接管，每帧最多推进 1/60 秒。模拟双眼 XR 已验延迟／拒绝加载、球背走跳与 B 召回。母星参考重力为 2.5 m/s²，不进入角色 Bullet 世界。[球面探针](../../experiments/three-planet-wheel/README.md) · [历次发布证据](../release-history.md)
+[球面移动](../../src/mmdVrShowcase/movement/PlanetMotor.tsx)从第一帧读当前手柄；[地形](../../src/mmdVrShowcase/scenery/planet/opalTerrain.ts)供脚下支撑、可见壳面和碰撞共用。仅 XR 进入母星时加载 [Rapier](../../src/mmdVrShowcase/movement/PlanetPhysics.tsx)，就绪后从当前脚位、朝向和速度接管，每个子步最长 1/60 秒，一帧最多消耗 50 毫秒。母星参考重力为 2.5 m/s²，不进入角色 Bullet 世界。[母星走速对照](../performance/home-walk.md) · [早期球面探针](../../experiments/three-planet-wheel/README.md) · [历次发布证据](../release-history.md)
 
 **Quest 3S 实际使用反馈：** 用户确认已可正常行走，体验还可以。11 月 20 日 14:43Z 的「只有 B 有效」是旧版现象，当时两次空场共 21 个窗口、中位 117 FPS，未记录输入，原因未证实。若复发，对照 `windows[].planetMovement` 的姿态帧、摇杆计数与 `snapTurns`、`footTravelM`。可选的[跨跳与深空观感](../performance/next-quest-export.md#星球跨跳与深空观感可选)另记。

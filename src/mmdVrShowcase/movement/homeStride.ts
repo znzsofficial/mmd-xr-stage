@@ -4,9 +4,9 @@ import {transport,type Traveller} from './planetTravel';
 import type {ReadColumn} from './groundMotor';
 import {STEP} from './solidColumns';
 
-/** Ecctrl supplies the collision-resolved horizontal stride. Its spring is a
- * body suspension, not the player's sole, ground detector or airborne motor.
- * Measure actual relief and imported floors even during suspension warm-up. */
+/** The dynamic capsule supplies a collision-resolved stride, not the player's
+ * sole or airborne motor. Measure actual relief and imported floors at its
+ * radial projection, including on the first walking step after a handoff. */
 export function homeStride(){
   const direction=new Vector3(),previous=new Vector3();
   return (s:Traveller,candidate:Vector3,moving:boolean,dt:number,read:ReadColumn)=>{

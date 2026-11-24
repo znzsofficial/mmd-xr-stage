@@ -1,11 +1,22 @@
 import {TAU,type V} from '../../bodyState/breast/art/geometry';
-import {grid,type Mesh} from '../../bodyState/breast/art/mesh';
+import {grid,VERTEX_STRIDE,type Mesh} from '../../bodyState/breast/art/mesh';
 
 // Only illustration-space coordinates. No model, simulation or actor inputs.
 export type Layer=readonly [Mesh,number];
 export type Mark={at:V;zh:string;en:string};
 export type Study={layers:Layer[];marks:Mark[]};
 export const blend=(a:V,b:V,t:number):V=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];
+/** Open sheet. grid's default seam normal is for a periodic ring; estimate
+ * the two open-edge normals from one-sided tangents instead. */
+export function sheet(rows:number,cols:number,vertex:(u:number,t:number)=>V,paint:(u:number,t:number)=>V,flip=1):Layer{
+  const m=grid(rows,cols,vertex,paint),v=m.data;
+  for(let row=0;row<rows;row++)for(const col of [0,cols-1]){
+    const at=(j:number,i:number)=>(j*cols+i)*VERTEX_STRIDE,k=at(row,col),diff=(a:number,b:number):V=>[v[b]-v[a],v[b+1]-v[a+1],v[b+2]-v[a+2]];
+    v.set(unit(cross(diff(at(row,Math.max(0,col-1)),at(row,Math.min(cols-1,col+1))),
+      diff(at(Math.max(0,row-1),col),at(Math.min(rows-1,row+1),col)))),k+3);
+  }
+  return [m,flip];
+}
 export function oval(center:V,r:V,color:V,form:(p:V)=>V=p=>p):Layer{
   return [grid(21,33,(u,t)=>{const a=u*TAU,b=(t-.5)*Math.PI,h=Math.cos(b);
     const p=form([r[0]*Math.sin(a)*h,r[1]*Math.sin(b),r[2]*Math.cos(a)*h]);

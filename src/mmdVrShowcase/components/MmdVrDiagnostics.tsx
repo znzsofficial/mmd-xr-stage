@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import { runtimeTiming } from "../runtimeTiming";
 import {xrRoomRestoreTiming} from '../roomRestoreTiming';
 import {samplePlanetMovement} from '../movement/planetDiagnostics';
+import {discardSweepWork,finishSweepFrame,takeSweepWork} from '../movement/sweepWork';
 import {takeFigureWork} from '../diagramTiming';
 import {usePelvic} from '../pelvic/store';
 import { useBackpack } from "../backpack";
@@ -17,9 +18,11 @@ export function MmdVrDiagnostics({ requested }: { requested: RenderRequest }) {
   const lastSession = useRef<XRSession | null>(null);
   const recording = useRef<ReturnType<typeof createPerformanceRecording> | null>(null);
   function finish() {
+    discardSweepWork();
     xrRoomRestoreTiming.cancel();
     if (recording.current) {
       lastSession.current?.removeEventListener("visibilitychange", recording.current.interrupt);
+      lastSession.current?.removeEventListener("visibilitychange", discardSweepWork);
       const report = recording.current.finish();
       if (report) useLastPerformanceReport.setState({ report });
     }
@@ -45,6 +48,7 @@ export function MmdVrDiagnostics({ requested }: { requested: RenderRequest }) {
         takeFigureWork(session);
         recording.current = createPerformanceRecording(requested, useMmdVrStore.getState().entryStartedAt);
         session.addEventListener("visibilitychange", recording.current.interrupt);
+        session.addEventListener("visibilitychange", discardSweepWork);
       }
       useRenderDiagnostics.getState().set(readRenderDiagnostics(gl, requested, null));
     }
@@ -59,12 +63,14 @@ export function MmdVrDiagnostics({ requested }: { requested: RenderRequest }) {
     }
     else recording.current?.interrupt();
     if (!visibleFrame || !Number.isFinite(delta) || delta <= 0 || delta > 0.5) {
+      discardSweepWork();
       cadence.current.reset();
       takeFigureWork(session);
       runtimeTiming.readAndReset();
       if (useRenderDiagnostics.getState().current?.fps != null) useRenderDiagnostics.getState().set(readRenderDiagnostics(gl, requested, null));
       return;
     }
+    finishSweepFrame();
     const measured = cadence.current.sample(delta);
     if (measured) {
       const data = readRenderDiagnostics(gl, requested, measured, runtimeTiming.readAndReset());
@@ -73,7 +79,7 @@ export function MmdVrDiagnostics({ requested }: { requested: RenderRequest }) {
       recording.current?.sample(data, { models: s.models.length, objects: s.objects.length, playing: s.playing,
         ...(figureWork&&{figureWork}),...(rod.active&&{rodState:!rod.active.running?'parked':rod.sample?.outletInside?'inside':'running'}),
         physics: s.physicsEnabled, scenery: s.prefs.scenery, liveHouse: s.prefs.scenery === "liveHouse", shadows: gl.shadowMap.enabled,
-        ...(s.prefs.scenery==='glassPlanet'&&{planetMovement:samplePlanetMovement()}),
+        ...(s.prefs.scenery==='glassPlanet'&&{planetMovement:samplePlanetMovement(takeSweepWork())}),
         actorPalmClothRequested:s.prefs.actorPalmCloth, heldToy: useStagePlay.getState().held?.toy ?? null });
     }
   });
