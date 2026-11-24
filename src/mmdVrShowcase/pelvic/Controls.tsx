@@ -11,6 +11,7 @@ import { usePelvicControls, type PelvicNavigation } from './usePelvicControls';
 import type {Row,Key} from './controlRows';
 import './controls.css';
 import './workbench.css';
+import {ActorHudTitle} from '../components/actorHudDrag';
 
 export { PelvicLiveSection } from './Section';
 type ScreenProps=PelvicActor&PelvicNavigation&LiveMonitorNavigation&{onBack?:()=>void};
@@ -133,7 +134,7 @@ function HudEditor({assetId,runtimeId,onBack,lens,...navigation}:HudProps) {
   const h=Math.max(top-contentTop+stopH+statusH+rowGap+columnHeight(rows),top-plateTop+(vm.live?livePaneHeight:vm.chart?chartH:0))+.036;
   return <group name="pelvic:controls" pointerEventsOrder={1} pointerEventsType={{allow:['ray']}}>
     <group position-y={top-h/2}><PrivateSheet size={[width,h]}/></group>
-    <PrivateLine position={[-.20,top-.087,0]} width={width-.51} title text={vm.title}/>
+    <ActorHudTitle position={[-.20,top-.087,0]} width={width-.51} text={vm.title}/>
     <PrivateButton position={[width/2-.218,top-.087,0]} size={[.337,.135]} label={vm.back} variant="quiet" onPress={onBack}/>
     {vm.enabled&&<group position={[split?rightX:0,top-.253,0]}><HudKeys items={vm.tabs} blocked={false} w={cw} tabs live={vm.live}/></group>}
     {vm.live?<group position={[leftX,plateTop,0]}><LivePelvicHudView assetId={assetId} runtimeId={runtimeId} widthM={chartW} lens={lens} blocked={vm.blocked}/></group>:

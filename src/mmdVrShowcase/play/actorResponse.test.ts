@@ -30,18 +30,27 @@ it('reads contact at the real rail: two taps, movement, jittering dwell, renewed
     }
     step(.001);
     for(let i=1;i<=40;i++)step(.001+.001*i);
-    expect(a.z(0)).toBeCloseTo(.1*raw);expect(a.z(1)).toBeGreaterThan(.073);expect(a.z(2)).toBeLessThan(.001);expect(single.z(0)).toBeGreaterThan(.073);
+    const advancing=a.z(1);expect(a.z(0)).toBeCloseTo(.1*raw);expect(advancing).toBeGreaterThan(.06);expect(a.z(2)).toBeGreaterThan(.025);expect(single.z(0)).toBeGreaterThan(advancing);
     // Same valid admission, same VMD time: sub-millimetre hand tremor isn't a stroke.
     for(let i=0;i<82;i++)step(.041+(i%2?1:-1)*.0003);
-    expect(a.z(1)).toBeLessThan(.0001);expect(a.z(2)).toBeCloseTo(.034,4);expect(single.z(0)).toBeCloseTo(.034,4);
+    expect(a.z(1)).toBeLessThan(advancing*.55);expect(a.z(2)).toBeGreaterThan(.03);expect(single.z(0)).toBeCloseTo(a.z(1)+a.z(2),4);
     for(let i=1;i<=35;i++){t+=dt;step(.041+.001*i);}
-    expect(a.z(1)).toBeGreaterThan(.07);expect(a.z(2)).toBeLessThan(.002);
+    expect(a.z(1)).toBeGreaterThan(.06);expect(a.z(2)).toBeGreaterThan(.025);
     for(let i=1;i<=17;i++)step(.076-i*.005);
     expect(a.z(3)).toBeGreaterThan(.015);
     for(let i=0;i<40;i++)step(-.009);
     expect(a.mesh.morphTargetInfluences).toEqual([raw,0,0,0]);expect(a.z(0)).toBeCloseTo(.1*raw);
     expect(single.z(0)).toBe(0);
   }finally{display.reset();mono.reset();a.dispose();single.dispose();}
+});
+
+it('shows measured pace on the same face and restores the head exactly, even on a model without face channels',()=>{
+  const a=faceFixture(),blank=faceFixture(undefined,[]),display=createActorResponse();
+  try{for(const m of [a,blank]){m.bone.name='Head';m.bone.rotation.z=.31;const raw=m.bone.quaternion.clone();
+    function pose(speed:number){display.reset();for(let i=0;i<=34;i++){display.present({root:m.root,assetId:'a',runtimeId:'a',token:1,motion:i?'inside':'enter',depthM:.002+i*speed/90,dt:1/90},m,undefined);}return {pitch:m.bone.quaternion.angleTo(raw),mouth:m===a?a.z(1):0};}
+    const slow=pose(.018),fast=pose(.15);expect(fast.pitch-slow.pitch).toBeGreaterThan(.04);if(m===a)expect(fast.mouth-slow.mouth).toBeGreaterThan(.035);
+    display.present(null,null,undefined);expect(m.bone.quaternion.toArray()).toEqual(raw.toArray());
+  }}finally{display.reset();a.dispose();blank.dispose();}
 });
 
 it('never guesses a garment, group, bone, missing attribute, mixed alias or nameless PMX morph; explicit single-face choice stays local and is exactly reversible',()=>{

@@ -145,7 +145,7 @@ it("cancels new placement explicitly or with right B without issuing a stage com
 
 it('folds only the actor sheet, and resumes its unsaved section even after B recalls the public menu',async()=>{
   useBackpack.setState({selected:'a0',live:{a0:instance('actor0'),a1:instance('actor1')}});
-  await render();expect(button(t('actorBodyState'))).toBeUndefined();await click(t('actorInteraction'));await click(t('actorMilkStock'));await click('开启泌乳');
+  await render();await click(t('actorBodyState'));await click('泌乳');await click('开启泌乳');
   await click(t('bodyPeek'));expect(button('放弃改动')).toBeUndefined();
   expect(useBodyState.getState().draft?.value.lactating).toBe(true);
   await click(t('bodyResume'));expect(button('关闭泌乳')).toBeDefined();expect(button('排出左侧')).toBeUndefined();
@@ -159,7 +159,7 @@ it('sets both chance endpoints in XR without mounting a prop, and opens the matc
   useBackpack.setState({selected:'a0',live:{a0:instance('actor0')}});
   useMmdVrStore.setState({overlayOpen:true,presentation:'xr'});vi.spyOn(document,'hidden','get').mockReturnValue(false);
   vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValue(null);
-  await render();await click(t('actorInteraction'));expect(button('生育进程')).toBeUndefined();expect(button('周期')).toBeUndefined();
+  await render();expect(button('生育进程')).toBeUndefined();expect(button('周期')).toBeUndefined();
   await click(t('actorInsert'));expect(host.querySelector('[name="figure:uterus"]')).toBeTruthy();expect(mesh(`hud-label:${t('actorChance')}`)).toBeUndefined();
   await click('卵子');expect(host.querySelector('[name="figure:egg"]')).toBeTruthy();expect(chanceFor('a0')).toBe(60);
   const control=mesh(`hud-label:${t('actorChance')}`)!.parentElement!;
@@ -170,7 +170,7 @@ it('sets both chance endpoints in XR without mounting a prop, and opens the matc
   for(const [label,degrees] of [['正面',0],['斜面',38],['侧面',90]] as const){await click(label);expect(readAtlasView('a0')).toMatchObject({degrees,eggId:1});}
   expect(useConception.getState().byAsset.a0.eggs).toBe(eggs);
   await click('阴道');expect(host.querySelector('[name="figure:vagina"]')).toBeTruthy();expect(usePelvic.getState().byAsset.a0).toBeUndefined();
-  await click(t('backToInteraction'));await click(t('actorBack'));await click(t('actorObservation'));await click('子宫');
+  await click(t('actorBack'));await click(t('actorObservation'));await click('子宫');
   expect(host.querySelector('[name="figure:uterus"]')).toBeTruthy();expect(host.querySelector('[name="observation:controls"] [name="hud:+"]')).toBeNull();expect(labels()).toContain('最近结果');
   expect(useBodyState.getState().draft).toBeNull();
 });
@@ -180,7 +180,7 @@ it('hands off the metre readout to the passive hand figure when starting dismiss
   useMmdVrStore.setState({overlayOpen:true,presentation:'xr'});vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValue(null);
   enablePelvic('a0',true);patchPelvic('a0',{clothed:true});publishPelvicSupport('a0',{runtimeId:'actor0',kind:'bones',anchorName:'hips'});
   await act(()=>root.render(<><BackpackWorldTools/><PelvicObserver rig={{current:null}}/></>));
-  await click(t('actorInteraction'));await click(t('actorInsert'));await click('更多操作');await click('交给左手');
+  await click(t('actorInsert'));await click('更多操作');await click('交给左手');
   expect(mesh('hud-label:实际到达')).toBeDefined();expect(mesh('hud-label:目标深度')).toBeUndefined();
   await click('开始手持并收起面板');const active=usePelvic.getState().active!;
   expect(active).toMatchObject({mode:'xrManual',running:true});expect(bag().selected).toBeNull();

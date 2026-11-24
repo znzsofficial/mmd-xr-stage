@@ -2,6 +2,7 @@ import {useLayoutEffect,useRef,useState} from 'react';
 import {useStore} from 'zustand';
 import {useLanguageStore} from '../../languageStore';
 import {ObservationDiagram,ObservationPlate} from './ObservationDiagram';
+import {ActorHudTitle} from '../components/actorHudDrag';
 import {createReferenceBook} from './reference/diagrams';
 import {useEggReplay} from './useEggReplay';
 import {EggReplayKey} from './EggReplayKey';
@@ -133,7 +134,7 @@ function Hud(props:ObservationProps){
   const recordY=part==='egg'?-.675:-.592,bottom=record?recordY-.19:firstY-Math.max(0,Math.floor((fields.length-1)/2))*.11-.08;
   return <group name="observation:controls" pointerEventsOrder={1} pointerEventsType={{allow:['ray']}}>
     <group position-y={(.86+bottom)/2}><PrivateSheet size={[1.51,.86-bottom]}/></group>
-    <PrivateLine position={[-.265,.767,0]} width={.90} title text={t.title}/>
+    <ActorHudTitle position={[-.265,.767,0]} width={.90} text={t.title}/>
     <PrivateButton position={[right,.767,0]} size={[rail,.14]} label={backLabel??t.back} variant="quiet" onPress={onBack}/>
     <PrivateLine position={[-.533,.586,0]} width={.335} text={t.study}/>
     {view.studies.map((s,i)=><PrivateButton key={s.label} position={[-.116+i*.553,.586,0]} size={[.525,.14]} label={s.label} active={s.active} onPress={s.press}/>)}

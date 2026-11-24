@@ -15,7 +15,7 @@ import {requestScreenWristUse,useStagePlay} from './stagePlay';
 import {poseWristToy} from './wristSocket';
 
 vi.mock('../pose/PoseControls',()=>({PoseScreenControls:()=>null}));
-vi.mock('../interaction/ActorActivities',()=>({ActorActivities:()=>null}));
+vi.mock('../interaction/ActorActivities',async original=>({...await original(),ActorActivities:()=>null}));
 
 it('draws from a selected actor’s visible winding eye and never transfers a pending stroke',async()=>{
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);

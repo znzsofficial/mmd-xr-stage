@@ -31,7 +31,7 @@ vi.mock('../observation/ObservationDiagram',()=>({ObservationDiagram:()=>null}))
 const initial=useMmdVrStore.getState(),bag=useBackpack.getState(),pelvic=usePelvic.getState();
 const button=(name:string)=>[...host.querySelectorAll('button')].find(b=>b.textContent===name);
 const click=(name:string)=>act(()=>button(name)!.click());
-async function openMilk(){await click('pick actor');await click('互动');await click('泌乳');}
+async function openMilk(){await click('pick actor');await click('泌乳');}
 const snapshot=()=>({eye:camera.position.clone(),aim:orbit.target.clone(),up:camera.up.clone(),rotation:camera.quaternion.clone(),fov:camera.fov,zoom:camera.zoom});
 function expectView(saved:ReturnType<typeof snapshot>){
   expect(camera.position.distanceTo(saved.eye)).toBeLessThan(1e-8);expect(orbit.target.distanceTo(saved.aim)).toBeLessThan(1e-8);
@@ -68,7 +68,7 @@ it('returns both close-up keys to the original hand-composed orbital view, even 
   const close=snapshot();move();wheel(120);drag();expect(camera.position.distanceTo(close.eye)).toBeGreaterThan(.05);
   await click('返回原机位');expect(button('近看角色')).toBe(milkKey);expectView(saved);
   wheel(-120);expect(camera.position.distanceTo(saved.aim)).toBeLessThan(saved.eye.distanceTo(saved.aim));
-  const second=snapshot();await click('近看角色');const chest=snapshot();await click('返回互动');
+  const second=snapshot();await click('近看角色');const chest=snapshot();await click('返回角色');
   await act(()=>{expect(enablePelvic('a',true)).toBe(true);});await click('插入');expectView(chest);
   const faceKey=button('近看表情')!;await click('近看表情');expect(button('返回原机位')).toBe(faceKey);
   expect(orbit.target.y).toBeGreaterThan(chest.aim.y);await click('返回原机位');expect(button('近看表情')).toBe(faceKey);expectView(second);

@@ -1,6 +1,5 @@
 import {useLayoutEffect,useRef,useState,type ReactNode} from 'react';
 import {useLanguageStore} from '../../languageStore';
-import {HudButton,HudLine,HudSheet} from '../components/PorcelainControls';
 import {ObservationScreenControls,ObservationHudControls} from '../observation/ActorObservation';
 import {PelvicScreenControls,PelvicHudControls} from '../pelvic/Controls';
 import {WardrobeScreenControls,WardrobeHudControls} from '../wardrobe/WardrobeControls';
@@ -9,56 +8,37 @@ import {BodyScreenControls,BodyHudControls} from '../bodyState/BodyControls';
 import type {ObservationAtlasPart} from '../pelvic/atlas/painter';
 import type {ScreenCloseUp} from '../screen/upperBodyView';
 
-export type ActivityEntry='wardrobe'|'interact'|'observe';
-const activities=[['insert','actorInsert'],['milk','actorMilk']] as const;
-const settings=[['chest','actorChestShape'],['milkSettings','actorMilkStock']] as const;
-type Page=ActivityEntry|typeof activities[number][0]|typeof settings[number][0];
+export const actorActions=[['insert','actorInsert'],['milk','actorMilk']] as const;
+export type ActivityEntry='wardrobe'|'observe'|'body'|typeof actorActions[number][0];
 type Props={assetId:string;runtimeId:string;entry:ActivityEntry;onBack:()=>void;closeUp?:ScreenCloseUp;hud?:boolean;suspended?:boolean;onPeek?:()=>void};
 
-function ScreenPage({page,children}:{page:Page;children:ReactNode}){
+function ScreenPage({page,children}:{page:ActivityEntry;children:ReactNode}){
   const host=useRef<HTMLDivElement>(null);
   useLayoutEffect(()=>{
     const panel=host.current?.closest<HTMLElement>('.screen-library');if(panel)panel.scrollTop=0;
-    // A button in the previous sheet has been removed. Keep keyboard users
-    // in this sheet, not at the start of the stage's dialog.
     const heading=host.current?.querySelector<HTMLElement>('h3,h4');
     if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});}
   },[page]);
   return <div ref={host} data-actor-activity={page}>{children}</div>;
 }
 
-/** A short actor-local trail. Returning from clothing or a diagram goes back
- * to the initiating interaction; the mounted room still owns its simulation. */
+/** Clothing and observation can be opened from a running interaction. Back
+ * returns to the invoking tool; the mounted room still owns the simulation. */
 function ActivityTrail({entry,onBack,closeUp,hud=false,suspended,onPeek,...actor}:Props){
-  const t=useLanguageStore(s=>s.t),[trail,setTrail]=useState<readonly Page[]>([entry]);
+  const t=useLanguageStore(s=>s.t),[detail,open]=useState<'wardrobe'|'observe'|null>(null);
   const [part,select]=useState<ObservationAtlasPart>('uterus');
-  const page=trail[trail.length-1],previous=trail[trail.length-2];
-  const go=(next:Page)=>setTrail(old=>{const at=old.indexOf(next);return at<0?[...old,next]:old.slice(0,at+1);});
-  const back=()=>{if(!previous)onBack();else setTrail(old=>old.slice(0,-1));};
-  const backLabel=t(previous==='insert'?'backToInsert':previous==='milk'?'backToMilk':previous==='interact'?'backToInteraction':'actorBack');
-  const child={...actor,onBack:back,backLabel};
+  const page=detail??entry;
+  const backLabel=t(detail&&entry==='insert'?'backToInsert':detail&&entry==='milk'?'backToMilk':'actorBack');
+  const child={...actor,onBack:detail?()=>open(null):onBack,backLabel};
   const focus=page==='insert'?'face':'body';
   const cameraKey=!hud&&closeUp?{label:t(closeUp.active===focus?'screenReturnView':focus==='face'?'screenFrameFace':'screenCloseUp'),press:()=>closeUp.toggle(focus,actor.assetId,actor.runtimeId)}:undefined;
   let content:ReactNode;
   switch(page){
     case 'wardrobe': {const View=hud?WardrobeHudControls:WardrobeScreenControls;content=<View {...child}/>;break;}
     case 'observe': {const View=hud?ObservationHudControls:ObservationScreenControls;content=<View {...child}/>;break;}
-    case 'insert': {const View=hud?PelvicHudControls:PelvicScreenControls;content=<View {...child} lens={{part,select}} onClothing={()=>go('wardrobe')} cameraKey={cameraKey}/>;break;}
-    case 'milk': {const View=hud?MilkHudControls:MilkScreenControls;content=<View {...child} onObserve={()=>go('observe')} onClothing={()=>go('wardrobe')} cameraKey={cameraKey}/>;break;}
-    case 'chest':case 'milkSettings': {
-      const initialSection=page==='milkSettings'?'milk':page;
-      content=hud?<BodyHudControls {...child} initialSection={initialSection} suspended={suspended} onPeek={onPeek}/>:
-        <BodyScreenControls {...child} initialSection={initialSection} suspended={suspended}/>;break;
-    }
-    case 'interact': content=hud?<group name="actor:interaction">
-      <HudSheet size={[1.55,.90]}/><HudLine position={[-.30,.32,0]} width={.86} role="title" text={t('actorInteraction')}/>
-      <HudButton position={[.49,.32,0]} size={[.47,.14]} variant="quiet" label={backLabel} onPress={back}/>
-      {activities.map(([to,key],i)=><HudButton key={to} position={[(i-.5)*.73,.105,0]} size={[.70,.16]} label={t(key)} onPress={()=>go(to)}/>)}
-      <HudLine position={[0,-.13,0]} width={1.44} role="title" text={t('actorBodyState')}/>
-      {settings.map(([to,key],i)=><HudButton key={to} position={[(i-.5)*.73,-.32,0]} size={[.70,.145]} label={t(key)} onPress={()=>go(to)}/>)}
-    </group>:<div className="screen-activity-choices"><div className="screen-library-head"><h3>{t('actorInteraction')}</h3><button onClick={back}>{backLabel}</button></div>
-      <div className="activity-links">{activities.map(([to,key])=><button key={to} onClick={()=>go(to)}>{t(key)}</button>)}</div>
-      <section><h4>{t('actorBodyState')}</h4><div className="activity-links">{settings.map(([to,key])=><button key={to} onClick={()=>go(to)}>{t(key)}</button>)}</div></section></div>;
+    case 'insert': {const View=hud?PelvicHudControls:PelvicScreenControls;content=<View {...child} lens={{part,select}} onClothing={()=>open('wardrobe')} cameraKey={cameraKey}/>;break;}
+    case 'milk': {const View=hud?MilkHudControls:MilkScreenControls;content=<View {...child} onObserve={()=>open('observe')} onClothing={()=>open('wardrobe')} cameraKey={cameraKey}/>;break;}
+    case 'body': content=hud?<BodyHudControls {...child} suspended={suspended} onPeek={onPeek}/>:<BodyScreenControls {...child} suspended={suspended}/>;break;
   }
   return hud?content:<ScreenPage page={page}>{content}</ScreenPage>;
 }

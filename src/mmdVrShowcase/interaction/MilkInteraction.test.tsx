@@ -37,7 +37,7 @@ it('holds over a real DOM target, ignores taps and a competing touch, stops on s
     const both=by('按住双侧');both.focus();await act(()=>{both.dispatchEvent(new KeyboardEvent('keydown',{key:' ',bubbles:true}));});await tick();await tick(.17);
     expect(scene.getObjectByName('body:milk-droplets')?.visible).toBe(true);const second=stock();expect(second.left).toBeLessThan(first.left);expect(second.right).toBeLessThan(first.right);
     await click('看乳房');expect(onObserve).toHaveBeenCalledOnce();await tick(.17);expect(stock()).toBe(second);
-    await act(()=>root.render(null));await mount();await click('返回互动');expect(onBack).toHaveBeenCalledOnce();expect(stock()).toBe(second);expect(useBodyState.getState().draft).toBeNull();
+    await act(()=>root.render(null));await mount();await click('返回角色');expect(onBack).toHaveBeenCalledOnce();expect(stock()).toBe(second);expect(useBodyState.getState().draft).toBeNull();
   }finally{await act(()=>root.unmount());room.dispose();host.remove();clearBackpack();useMmdVrStore.getState().closeOverlay();useBodyState.setState(useBodyState.getInitialState());
     if(old)Object.defineProperty(document,'elementFromPoint',old);else Reflect.deleteProperty(document,'elementFromPoint');vi.restoreAllMocks();vi.unstubAllGlobals();}
 });

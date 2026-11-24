@@ -4,6 +4,9 @@ import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 
 const files = [
+  ['ed9e72bb','index-CKCtIR3-.css','75da3c7d0c8215881758efa5310b6c717b10379c72452eab8efdc2f19257b3b5'],
+  ['ed9e72bb','index-D_indnZA.js','77252acd3a61bf45bbd8ca56e6549eadc31a68f40bc93a2fabcd1482d171366f'],
+  ['ed9e72bb','PlanetPhysics-CRBE_lqd.js','548efa39f6969ce09e7e0f1017b3b5b5e9e935d707babbd7a9f35935e24e6457'],
   ['8ed595b8','index-6B9g8vnD.js','7d5f46b61bee9cc44fe29ca2043a903d5306b9b45822f24b0a41f5871404cada'],
   ['8ed595b8','PlanetPhysics-B4cf9yTa.js','292281c75af287b774fc5ad78a3c1cb63feaa599fdbe3bf0497a246c271793fe'],
   ['8896e3a0','index-CxZJDf4C.js','b094c3cd028b12aa98f250330cbf46cd19e7563e0de780d8372756a85b864f22'],

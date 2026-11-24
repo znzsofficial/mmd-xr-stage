@@ -8,6 +8,7 @@ import {DEFAULT_BODY_PROFILE} from '../bodyState/data';
 import {openMilkPanel,pressMilk,releaseMilk,useMilkInteraction,type MilkMode,type MilkPanel,type OutletState} from '../bodyState/lactation/interaction';
 import {setActorMilk,useBodyState} from '../bodyState/store';
 import {HudButton,HudLine,HudSheet} from '../components/PorcelainControls';
+import {ActorHudTitle} from '../components/actorHudDrag';
 import {useHudWorldInput} from '../components/hudWorldInput';
 import {paintHudButton} from '../hudAppearance';
 import {useMmdVrStore} from '../mmdVrStore';
@@ -40,7 +41,7 @@ function useMilkPage({assetId,runtimeId}:Props){
   return {panel,p,settings,l,held,sideName,holdLabel,change,disabled,locked:!stage||!live||draft,stop,
     setSettings:(next:boolean)=>{stop();setSettings(next);},
     status:(s:typeof sides[number])=>p[s]<=0?l('已空 · 回充中','Empty · refilling'):status(snapshot?.[s]),
-    title:l('泌乳互动','Milk interaction'),back:l('返回互动','Back to interaction'),observe:l('看乳房','View breasts'),
+    title:l('泌乳互动','Milk interaction'),back:l('返回角色','Back to actor'),observe:l('看乳房','View breasts'),
     settingsLabel:l('确认露出','Confirm exposure'),enable:l('开启泌乳','Enable lactation'),
     hint:draft?l('先保存或放弃身体草稿。','Save or discard the body draft first.'):shortTap?l('轻点未排出，请按住到存量下降。','Tap was too brief. Hold until the amount drops.'):l('按住排出，松开停止；用量立即记入角色。','Hold to express, release to stop. The amount is saved immediately.'),
     fill:(s:typeof sides[number])=>`${Math.round(p[s]*100)}%`,
@@ -119,7 +120,7 @@ export function MilkHudControls(props:Props){
   const page=useMilkPage(props),{p,l}=page;
   const go=(fn:()=>void)=>{page.stop();fn();};
   return <group name="milk:interaction"><HudSheet size={[1.51,1.03]}/>
-    <HudLine position={[-.25,.406,0]} width={.93} role="title" text={page.settings?page.settingsLabel:page.title}/>
+    <ActorHudTitle position={[-.25,.406,0]} width={.93} text={page.settings?page.settingsLabel:page.title}/>
     <HudButton position={[.48,.406,0]} size={[.45,.14]} variant="quiet" label={page.settings?l('返回泌乳','Back to milk'):page.back}
       onPress={()=>page.settings?page.setSettings(false):go(props.onBack)}/>
     {page.settings?<>

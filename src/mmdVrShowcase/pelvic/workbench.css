@@ -98,6 +98,8 @@
   .pelvic-live-plate .live-pelvic-view:not([data-part=egg]) .live-pelvic-heading { grid-area:3/2;align-self:start }
   .pelvic-live-plate .live-pelvic-view:not([data-part=egg]) .live-pelvic-heading:has(small:empty) { display:none }
   .pelvic-live-plate .live-pelvic-view:is([data-part=uterus],[data-part=vagina]) .observation-art { grid-area:2/1/5/2 }
+  .pelvic-live-plate .live-pelvic-view:is([data-part=uterus],[data-part=vagina],[data-part=vulva]) { grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) }
+  .pelvic-live-plate .live-pelvic-view:is([data-part=uterus],[data-part=vagina]) .observation-art canvas { max-height:clamp(9rem,19dvh,10.5rem) }
   .pelvic-live-plate .live-pelvic-view:not([data-part=egg]) .live-pelvic-angles { grid-area:2/2;align-self:start }
   .pelvic-live-plate .live-pelvic-view:is([data-part=uterus],[data-part=vagina]) .live-monitor-detail { grid-area:4/2;align-self:start }
   .pelvic-live-plate .live-pelvic-view[data-part=vulva] { grid-template-rows:2.75rem 2.75rem minmax(0,1fr) auto }

@@ -20,7 +20,7 @@ it('preserves the open actor preview while physics rebuilds the transform, and d
   const show=(locked:boolean)=>root.render(<ScreenLibrary view="item" visit={1} locked={locked} close={()=>{}} frame={()=>{}} openItem={()=>{}} openBackpack={()=>{}}/>);
   const click=(label:string)=>[...host.querySelectorAll('button')].find(b=>b.textContent===label)!.click();
   try{
-    await act(()=>show(false));await act(()=>click(useLanguageStore.getState().t('actorInteraction')));await act(()=>click('胸型'));
+    await act(()=>show(false));await act(()=>click(useLanguageStore.getState().t('actorBodyState')));
     await act(()=>{expect(beginBodyPreview('a',true)).toBe(true);patchBodyPreview('a',{fullness:.7});});
     const slider=host.querySelector<HTMLInputElement>('.body-screen input[type="range"]')!;
     await act(()=>{useMmdVrStore.setState({models:[],physicsBusy:true});show(true);});
@@ -29,6 +29,6 @@ it('preserves the open actor preview while physics rebuilds the transform, and d
     expect(slider.disabled).toBe(false);expect(slider.valueAsNumber).toBe(.7);
     await act(()=>host.querySelector<HTMLButtonElement>('.body-page button')!.click());
     expect(useBodyState.getState().draft).toBeNull();expect(useBodyState.getState().byAsset).toEqual({});
-    expect(host.querySelector('[data-actor-activity="interact"]')).toBeTruthy();
+    expect(host.querySelector('.screen-actor-activities')).toBeTruthy();
   }finally{await act(()=>root.unmount());clearBackpack();useMmdVrStore.setState(stage);vi.unstubAllGlobals();}
 });

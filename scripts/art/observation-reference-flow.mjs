@@ -40,7 +40,7 @@ export async function observationReferenceFlow(page,{xr=false,capture=async()=>{
   if(cut.some((x,i)=>x===skin[i]))throw Error('Cutaway did not change the reference');await press('剖面');
   await press('卵子');const egg=await take('egg');await press('日常观察');const daily=await frame('egg');if(daily.caption!==egg.caption)throw Error('Egg record changed');
   await press('孕态参考');await press('返回角色');await press('身体观察');await frame('breast');await press('返回角色');
-  await press('互动');await press('插入');await take('uterus',undefined,undefined,undefined,'insertion-');
+  await press('插入');await take('uterus',undefined,undefined,undefined,'insertion-');
   if(xr?await page.evaluate(()=>qa.ui().includes('hud:孕态参考')):await page.getByRole('button',{name:'孕态参考',exact:true}).count())throw Error('Reference selector leaked into insertion');
   return rows;
 }

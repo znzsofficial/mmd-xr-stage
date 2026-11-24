@@ -58,14 +58,8 @@
 .screen-actor-sheet > .screen-library-head h2{flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .screen-library-head :is(h2,h3):focus:not(:focus-visible){outline:none}
 .screen-actor-primary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.4rem;margin-bottom:.85rem}
-.screen-actor-activities{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.35rem;margin:0 0 .75rem}
+.screen-actor-activities{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.35rem;margin:0 0 .75rem}
 .screen-actor-activities button{min-width:0;min-height:2.75rem;padding-inline:.25rem}
-.screen-activity-choices>.screen-library-head{margin-block:.65rem}
-.screen-activity-choices .activity-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.35rem}
-.screen-activity-choices .activity-links button{min-width:0;min-height:2.75rem;padding-inline:.25rem;overflow-wrap:anywhere}
-.screen-activity-choices section{border-top:1px solid var(--line);padding-top:.75rem}
-.screen-activity-choices h4{margin:0 0 .45rem}
-.screen-actor-home>.screen-actor-primary>button:last-child:nth-child(odd){grid-column:1/-1}
 .screen-stage .screen-actor-primary button{padding:.55rem .65rem;min-height:2.75rem;text-align:left}
 .screen-actor-home > .screen-buttons{border-top:1px solid var(--line);padding-top:.75rem}
 .screen-actor-sheet > .screen-actor-home{border:0;padding:0}

@@ -10,7 +10,7 @@ import {ScreenEnvironmentSettings} from './ScreenEnvironmentSettings';
 import { resetEncore } from '../play/encore/encoreRound';
 import {EggFields,fitScreenEgg,WandFields} from './ContactPropFields';
 import {useRemoteEgg} from '../play/remoteEgg';
-import {ActorActivities,type ActivityEntry} from '../interaction/ActorActivities';
+import {actorActions,ActorActivities,type ActivityEntry} from '../interaction/ActorActivities';
 import {PoseScreenControls} from '../pose/PoseControls';
 import type {ScreenCloseUp} from './upperBodyView';
 
@@ -127,10 +127,11 @@ function SelectedItem({entry,locked,frame,closeUp,move,choice,setChoice,suspende
       </>}
     </section>:<section className="screen-tools screen-actor-home">
     {entry.kind==='model'?<><nav className="screen-actor-activities" aria-label={actorName}>
-      {([['wardrobe','actorWardrobe'],['interact','actorInteraction'],['observe','actorObservation']] as const).map(([id,key])=><button key={id} data-main={id==='interact'||undefined} disabled={locked||!live.visible} onClick={()=>setEditor(id)}>{t(key)}</button>)}
+      {actorActions.map(([id,key])=><button key={id} data-main={id==='insert'||undefined} disabled={locked||!live.visible} onClick={()=>setEditor(id)}>{t(key)}</button>)}
     </nav><div className="screen-actor-primary">
+      {([['wardrobe','actorWardrobe'],['pose','actorPose'],['observe','actorObservation']] as const).map(([id,key])=><button key={id} disabled={locked||!live.visible} onClick={()=>setEditor(id)}>{t(key)}</button>)}
+      <button disabled={locked||!live.visible} onClick={()=>setEditor('body')}>{t('actorBodyState')}</button>
       <button disabled={locked||!transform} onClick={()=>setEditor('position')}>{t('watchArrange')}</button><button disabled={locked} onClick={()=>setEditor('motion')}>{t('hudMotions')}</button>
-       <button disabled={locked||!live.visible} onClick={()=>setEditor('pose')}>{t('actorPose')}</button>
     </div></>:positioning}
     <div className="screen-buttons"><button onClick={frame}>{t('screenFit')}</button><button disabled={locked} onClick={()=>stage.enqueueVisibilityToggle(live.runtimeId)}>{t(live.visible?'screenHideAsset':'screenShowAsset')}</button></div>
     {entry.kind==='model'&&<fieldset className="screen-props"><legend>{t('storyProp')}</legend>
