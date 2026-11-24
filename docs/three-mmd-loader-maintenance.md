@@ -1,6 +1,6 @@
 # three-mmd-loader 近期维护记录
 
-最后更新：2026-11-17
+最后更新：2026-11-25
 
 文档索引：[docs/README.md](./README.md)
 
@@ -22,7 +22,7 @@
 - `@yohawing/three-mmd-loader@0.8.6`
 - `mmd-anim WASM 0.5.4`
 - Bullet 运行资产：`public/mmd/0.8.6/mmd_bullet.js`、`public/mmd/0.8.6/mmd_bullet.wasm`；版本化目录保证 ABI 配套的 JS/WASM 同步更新
-- pnpm patch：`patches/@yohawing__three-mmd-loader@0.8.6.patch`（rigid-body range contact 查询 + three r186/r187 TSL self-shadow 兼容降级，见下文）
+- 舞台安装的是官方 `0.8.6` + [pnpm patch](../patches/@yohawing__three-mmd-loader@0.8.6.patch)。同一组扩展已移植到 [fork 的 TypeScript 源码 `82147af`](https://github.com/znzsofficial/three-mmd-loader/commit/82147af4a1bcde3817165adb474c618c9b9f9f4e)，但 fork 提交不是新的 npm 发布版。
 - `pnpm-workspace.yaml` 中的 `patchedDependencies` 负责应用补丁
 - **测试中出现 `THREE_CJS_DEPRECATED` 时先看调用栈**：r187 的 `three.cjs` 会对 `require('three')` 告警。本项目实测调用方为 `meshline@3.3.1/dist/index.cjs` 与 `@react-three/fiber@9.8.2` 的 CJS 构建，来源是 Vitest 在 Node／jsdom 中解析 XR 依赖链。`vite.config.ts` 在测试模式让这条链使用包自带的 `module` 入口；不用改业务代码的 ESM 导入，也不要屏蔽 Node 的警告。生产构建另用 `singleThreeRuntime` 检查只有一份 Three.js。Node 关于 `localStorage` 的实验性提示是另一回事。
 - 还包含重获追踪刚体中心查询与 CCD IK 活跃节点矩阵优化。升级后执行 `ccdSolverParity.test.ts` 并与原求解器对照；补丁 hash 以 `pnpm-lock.yaml` 为准。
@@ -313,12 +313,7 @@ gh pr checks 40 --repo yohawing/three-mmd-loader
 
 ### 同步上游
 
-```bash
-git fetch upstream
-git switch main
-git merge --ff-only upstream/main
-git push fork main
-```
+自 `82147af` 起，`fork/main` 持有舞台扩展，不再是官方 `main` 的镜像。跟进上游时，在 fork 当前 `main` 基础上开集成分支，合并新版，逐项核对补丁后再正常推送；不要用官方分支覆盖 fork 的扩展。官方 `v0.8.6` 标签仍指向 `9c47b94`。
 
 贡献分支有 review 修改时，先确认 upstream 是否已前进，再按上游偏好 rebase 或 merge。不要 force-push，除非明确获得批准。
 
@@ -370,9 +365,9 @@ git push fork main
 
 ### 新版本发布后
 
-1. 确认 release/npm 包是否包含 rigid-body range contact 查询。
+1. 对照 [fork 扩展清单](https://github.com/znzsofficial/three-mmd-loader/blob/82147af4a1bcde3817165adb474c618c9b9f9f4e/docs/XR_STAGE_FORK.md)核对实际发布包的 API 和运行行为。2026-11-25 本次同步已用 fork 打包产物和舞台锁定的 Three r187 进行类型检查及 52 项专项回归；fork 自身 r184 下 808 项通过、5 项跳过。fork 对仍提供公开接口的 r184 保留实验性自阴影；r187 缺接口时与舞台补丁一样降级。
 2. 在独立分支更新 `@yohawing/three-mmd-loader` 版本。
-3. 仅当发布包已覆盖 range query 时，删除 `patchedDependencies` 条目和 patch 文件。
+3. 只移除发布包已覆盖的补丁段。所有仍在使用的扩展都有替代实现并通过舞台回归后，才能删除 loader 的整个 `patchedDependencies` 条目和 patch 文件。
 4. 同步版本化 Bullet 资产目录，更新 `mmdRuntime/bulletModule.ts` 脚本路径（预热和显式开物理共用）。
 5. 运行 `pnpm install` 更新 lockfile，确认旧 patch hash 消失。
 6. 重跑 TypeScript、指定物理/触觉测试、完整测试和 build。
