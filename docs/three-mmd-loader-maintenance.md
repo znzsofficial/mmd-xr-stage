@@ -6,7 +6,7 @@
 
 ## 用途
 
-本文记录 NekoVirtOS 对 `@yohawing/three-mmd-loader` 的近期排查、本地补丁、上游提交和后续维护步骤。更新依赖、处理上游 review 或移除 pnpm patch 前，应先查阅本文。
+本文分别记录舞台实际安装的 loader、fork 的源码，以及准备给上游的改动。拆分前 NekoVirtOS 的修复和旧版本验证保留在后文，按当时版本解读。
 
 ## 仓库与依赖
 
@@ -34,6 +34,18 @@
 - 材质加载时只复用图片 alpha 采样，不复用各材质的 UV 判定。舞台另为同一观看内的重复加载提供有界缓存（最多 8 张、合计不超过 2 MiB），只接受同一 `File` 身份、尺寸匹配的静态 PNG。核对不可读重试、退出清理及默认贴图的释放。升级后跑 `materialAlphaTileParity.test.ts`、`roomAlphaTiles.test.ts` 和[真实回场探针](./performance/load-work-room-alpha.md)。
 
 上游仓库提交了 `package-lock.json`，开发与 CI 均用 npm；在 loader 检出目录用 npm 维护依赖和 lockfile，舞台仓库用 pnpm。
+
+## 共享骨架去重的上游候选
+
+**状态（2026-11-25）：只准备，未投稿。** 上游 [#47](https://github.com/yohawing/three-mmd-loader/pull/47) 是维护者的 `0.9.0` 发布 PR，不是我们的优化 PR。核对时仍为 open，head 为 `347bf20`。它已经处理 three r186/r187 的 TSL 导入兼容并提供 `debugPhysicsContactsForRigidBodyRange`；不重复投稿。这不意味着舞台当前安装的 `0.8.6` 可以撤掉补丁。
+
+**候选改什么。** #47 的 JS 和 WASM `tick` 仍在世界矩阵更新后，逐个 `SkinnedMesh` 调 `skeleton.update()`。身体、材质代理和描边共用同一 `Skeleton` 时会重复算同一组蒙皮矩阵。候选只在这一次遍历中按 `Skeleton` 对象去重，保留换绑、不同绑定逆矩阵和下一次 tick 的更新，不改公开 API 或原生 ABI。它与 #47 解决的 morph 纹理显存问题不同。CCD IK 是另一个候选，要在新基线上单独测，不并入本次。
+
+**本地准备包。** loader 工作树 `three-mmd-loader-palette-pr`，分支 `perf/dedupe-render-palettes`，直接基于 #47 而不是 fork/main。`4629aab` 是实现和回归，`1d444f0` 是可单独取舍的基准。舞台本机 `local-review/upstream/render-palettes/` 有英文 `PR.md`、恢复说明和两份 `format-patch`，无需从包含其他扩展的 fork 重新拆提交。
+
+**验证口径。** 两个新用例在 #47 原码上都复现每套骨架更新两次；修后 61 项相关测试通过，包括 JS 路径及使用假求值器、真实 Three 骨架的 WASM 包装层。Node 26.12.1 / Three r184，512 骨合成层级，预热后做 20 对测试，每个版本每批 80 tick、交替先后，取各批均值的中位数：35 个网格共享一套骨架，渲染同步 35→1 次、898.5→94.2 µs/tick；35 套独立骨架仍为 35 次、1347.4→1374.3 µs/tick，没有收益。另用 384×240 WebGL 对照静止、弯曲、换绑三帧，各帧 RGBA 均零像素差。该草稿未运行上游完整原生构建及 CI，不据此推算 Quest 帧率。
+
+**合并后再做。** 确认 #47 已合入，检查届时 `upstream/main` 的两个 tick 路径。若问题仍在，从新的 main 只移植上述两个提交，复跑相关测试和基准并更新 PR 草稿；若上游已去重则不再提交。这个时点与 npm 发版、舞台升级是三件不同的事。
 
 ## 已解决问题
 

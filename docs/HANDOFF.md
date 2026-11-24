@@ -1,8 +1,10 @@
-# 会话交接｜2026-11-24
+# 会话交接｜2026-11-25
 
 [正式舞台](https://mmd-xr-stage.pages.dev) · [目录整理版 `e581a0c`](https://7ee70117.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
 
-**当前发布。** `6d0ae28` 已部署。修复从 XR 详情移除演员后立即重建渲染器会把该演员带回的问题：背包和详情共用[完整布局的提交步骤](./architecture/maintenance.md#移除演员后恢复哪份布局)。双演员回归核对留场演员的动作与位置、旧帧隔离及未修复告警，模拟 XR 扳机已验详情移除。此前[主 HUD 拖动跟随](./gameplay/vr-controls.md)及[穿衣互动与观察图](./gameplay/actor-tools.md)继续适用。
+**恢复停点：loader 上游贡献。** 共享骨架去重的代码、公开合成基准和英文 PR 草稿已准备，仅在本机 `perf/dedupe-render-palettes` 分支，尚未推送或开 PR。11 月 25 日核对，上游发布 PR [#47](https://github.com/yohawing/three-mmd-loader/pull/47) 仍未合并。下次先看它的状态；合并后才在新的 `upstream/main` 上复现，若已修就不提。[基线、两个提交、复验条件及准备包位置](./three-mmd-loader-maintenance.md#共享骨架去重的上游候选)
+
+**当前发布。** 线上是 `e581a0c`，目录整理后的 313 个发布文件与 `6d0ae28` 逐字节相同，1001 项测试通过。舞台仍用官方 loader `0.8.6` + pnpm 补丁；同步到 [fork/main 的 `82147af`](https://github.com/znzsofficial/three-mmd-loader/commit/82147af4a1bcde3817165adb474c618c9b9f9f4e) 没有替换线上依赖。最近的功能修复是[移除演员后恢复正确布局](./architecture/maintenance.md#移除演员后恢复哪份布局)；[B 键主 HUD 拖动时面向头显](./gameplay/vr-controls.md)和[穿衣互动的实时观察图](./gameplay/actor-tools.md)均已发布，镜片观感与手感待实戴。
 
 **裙摆接续。** 先区分两个现象：① 仰卧抬腿后微调左膝，前裙曾重新掉回腿间；现版已在屏幕和模拟双眼验证松手后仍堆在小腹。② 未微调的普通抬腿，侧髋最深约 28 mm 的几何穿入仍在；强推会让衣边飘宽、穿得更深，未采用。分膝捧腿停 2 秒时外裙横穿面 53→18，里衬 39→0；这是[同帧蒙皮测量](./performance/supine-side-skirt.md)，不是露腿面积。稀疏裙从站立进四点跪撑最深 28.2→17.3 mm，从抬腿进跪则仍为 12.8 mm，见[换姿方向与黑斑反例](./performance/pose-cloth-contact.md)。这些结果只覆盖开物理的手动摆姿。
 
@@ -10,11 +12,11 @@
 
 **上一次实戴（改图前）。** 11 月 23 日 15:11Z 的报告与玩家反馈均已记录：姿势初看可以，未逐一验证；外阴配色可以；入口显平、总览只有轴线是本次改图的原因。裙腿仍穿但有所减轻；再现时记录可见侧、衣层和是否停住后还穿。不采用在 C 初跪时变差的小腿修正组合，见[分层证据与取舍](./performance/actor-tools-regression.md#手动体位的局部裙片修正)。
 
-**源码目录。** 从[目录导航](./architecture.md#源码目录)找文件：B 键主面板在 `hud/`，背包和放置在 `backpack/`，观看会话与共享房间在 `stage/`，性能报告在 `diagnostics/`。原 `components/` 下的文件和测试已归回各自功能目录。职责分界见[局部整理记录](./architecture/maintenance.md)，线上功能版本仍为 `6d0ae28`。
+**源码目录。** 从[目录导航](./architecture.md#源码目录)找文件：B 键主面板在 `hud/`，背包和放置在 `backpack/`，观看会话与共享房间在 `stage/`，性能报告在 `diagnostics/`。原 `components/` 下的文件和测试已归回各自功能目录。职责分界见[局部整理记录](./architecture/maintenance.md)。
 
 **星系接续。** [母星的轻推与满推](./performance/home-walk.md)、[贴坡和偏置低顶](./performance/orbital-skims.md)、[手动 Y、眼高与失追](./performance/planet-stance-input.md)已按原反例复核。风道／足印仍沿途带动视野，印外捕获不自动回正。整身粗筛与端点复用已落地，近切线的单次递归尖峰仍在；下一步读导出的 `planetMovement.shellWork`，先看真机实际游玩是否触发。[完整 CPU 对照](./performance/planet-shell-sweep.md)。
 
-**演员玩法边界。** 「互动 → 插入」默认看子宫全貌。只在「卵子」手动新增卵子（默认零枚、最多三枚）与设置游戏概率（默认 60%）。实际体内正量留存且有未受精卵子才判定一次；改变观察部位或概率不会补判。玩法止于[融合或散开](./gameplay/pelvic-attachment.md#一次释放的受精演出)。主面板直接调支架深度，外阴图下调膜缘。阴道图按实测杆身撑开和回拢，阴道与宫腔分别显示实际存量。旧版生育日历和孕周不是当前玩法。
+**演员玩法边界。** 角色首页直接点「插入」，默认看子宫全貌。只在「卵子」手动新增卵子（默认零枚、最多三枚）与设置游戏概率（默认 60%）。实际体内正量留存且有未受精卵子才判定一次；改变观察部位或概率不会补判。玩法止于[融合或散开](./gameplay/pelvic-attachment.md#一次释放的受精演出)。主面板直接调支架深度，外阴图下调膜缘。阴道图按实测杆身撑开和回拢，阴道与宫腔分别显示实际存量。旧版生育日历和孕周不是当前玩法。
 
 **性能优先级。** 最新[真机互动短测](./performance/viewing-and-diagnostics.md#已有测量)在琉璃小行星，阴影开、动作暂停；单人无支架无图关／开物理窗口中位 67／30 FPS，开物理且支架运行并显示图的 28 窗中位 20.5 FPS，非锁机位对照。一次图 tick 峰值 120.7 ms，缺观察部位和 Worker/GPU 时间；无图时物理也慢。[原生 Bullet 桌面分段](./performance/bullet-step-profile.md)仅作调查方向，不换算为头显耗时。
 
