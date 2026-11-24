@@ -1,38 +1,9 @@
 import type {V} from '../../bodyState/breast/art/geometry';
-import {grid,VERTEX_STRIDE} from '../../bodyState/breast/art/mesh';
+import {grid} from '../../bodyState/breast/art/mesh';
 import {blend,oval,sheet,strand,type Layer,type Study} from './forms';
+import {createCurledPortrait,fetalNavel} from './curledPortrait';
 
-const skin:V=[248,199,168],warm:V=[220,151,139],wall:V=[200,130,131],lining:V=[167,103,120],rim:V=[246,195,165];
-const placeFigure=([x,y,z]:V):V=>[x*.80-.095,y*.80+.08,z*.80+.073];
-const navel=placeFigure([.151,.255,.332]);
-const head:V=[-.17,.66,.25];
-// The chin folds toward the hands. The head's own yaw separates the nose,
-// forehead and ear in both the anterior and sagittal views.
-function skull([x,y,z]:V):V{
-  const tilt=.29,turn=-.52,Y=y*Math.cos(tilt)-z*Math.sin(tilt),Z=y*Math.sin(tilt)+z*Math.cos(tilt);
-  return [x*Math.cos(turn)+Z*Math.sin(turn),Y,Z*Math.cos(turn)-x*Math.sin(turn)];
-}
-function face(x:number,y:number,z:number):V{const p=skull([x,y,z]);return [p[0]+head[0],p[1]+head[1],p[2]+head[2]];}
-function curledFigure():Layer[]{
-  const limbs:Layer[]=[oval([.10,.30,.20],[.188,.30,.142],skin,([x,y,z])=>[x-.43*y,y,z+.06*(y/.30)**2]),
-    oval(head,[.214,.222,.198],skin,([x,y,z])=>skull([x*(.94+.18*y/.222),y,z+.026*Math.exp(-(((y+.113)/.053)**2))*Math.max(0,z/.198)])),
-    oval(face(0,-.036,.187),[.037,.040,.039],skin,skull),oval(face(0,-.117,.154),[.061,.045,.033],skin,skull)];
-  limbs.push(strand([[-.039,-.093,.182],[-.010,-.090,.192],[.002,-.092,.194],[.014,-.090,.192],[.040,-.094,.180]].map(([x,y,z],i)=>[...face(x,y,z),i===0||i===4?.001:.004]),[167,102,101]));
-  for(const s of [-1,1]){
-    limbs.push(oval(face(.193*s,-.016,-.002),[.034,.048,.027],warm,skull));
-    limbs.push(strand([[-.128,-.006,.157],[-.098,-.021,.177],[-.064,-.023,.190],[-.037,-.016,.196]].map(([x,y,z],i)=>[...face(x*s,y,z),i===1||i===2?.006:.002]),[125,79,78]));
-    const dz=.07*s;
-    // Thigh returns toward the belly, calf folds underneath. Offset the far
-    // knee, heel and wrist, so the pose reads through the whole half turn.
-    limbs.push(strand([[.19,.12,.19+dz,.072],[.30,.14,.28+dz,.089],[.32+.04*s,.28,.33+dz,.069],
-      [.24+.04*s,.23,.40+dz,.047],[.11+.04*s,.12,.41+dz,.033],[.07+.04*s,.11,.42+dz,.017]],skin));
-    limbs.push(oval([.085+.04*s,.12,.42+dz],[.077,.032,.041],skin,([x,y,z])=>[x,y+.28*x,z]));
-    limbs.push(strand([[-.01+s*.09,.47,.22+dz*.45,.055],[.037+s*.13,.36,.29+dz*.55,.052],
-      [.01+s*.13,.35,.36+dz*.60,.042],[-.042+s*.081,.45,.39+dz*.62,.030],[-.071+s*.073,.48,.39+dz*.64,.014]],skin));
-    limbs.push(oval([-.064+s*.074,.48,.39+dz*.64],[.037,.047,.027],skin));
-  }
-  return limbs;
-}
+const wall:V=[200,130,131],lining:V=[167,103,120],rim:V=[246,195,165];
 // Illustration units. The lumen narrows to the internal os; the fundal wall
 // also has true axial thickness, not a stroke at the silhouette.
 function chamber(t:number,a:number,inner:boolean):V{
@@ -92,12 +63,10 @@ export function createUterineStudy(){
     adnexa.push(strand([[...ostium,.033],[.71*s,.71,.12,.025],[.77*s,.63,.125,.022],[.80*s,.53,.04,.025],[.80*s,.47,.016,.034],[.77*s,.44,.04,.018]],wall));
     adnexa.push(oval([s*.745,.42,.018],[.066,.091,.057],[227,176,152],([x,y,z])=>[x+.23*s*y,y,z]));
   }
-  const fetus=curledFigure();
-  for(const [mesh] of fetus)for(let k=0;k<mesh.data.length;k+=VERTEX_STRIDE)mesh.data.set(placeFigure([mesh.data[k],mesh.data[k+1],mesh.data[k+2]]),k);
-  layers.push(...placenta(),...fetus);
-  const root=disc(-.06,.05),loop:V=[.196,.050,.21];
+  layers.push(...placenta(),...createCurledPortrait());
+  const root=disc(-.06,.05),loop:V=[.306,.124,.286];
   layers.push(strand([[...root,.022],[.405,.51,-.028,.024],[.431,.365,-.033,.025],[.390,.184,.028,.025],
-    [...loop,.025],[.095,.079,.328,.024],[.032,.178,.375,.023],[...navel,.018]], [232,186,173]));
+    [...loop,.025],[.208,.110,.339,.024],[.107,.154,.351,.023],[.057,.240,.308,.021],[...fetalNavel,.018]], [232,186,173]));
   return {adnexa,layers:[...halfShell(chamber,51),...halfShell(cervix,21),...halfShell(vaginalCuff,25,true),...layers],
     marks:[{at:chamber(.73,cutAzimuth(1),false),zh:'宫壁',en:'Uterine wall'},{at:root,zh:'胎盘',en:'Placenta'},
       {at:loop,zh:'脐带',en:'Cord'},{at:cervix(.50,cutAzimuth(0),false),zh:'宫颈',en:'Cervix'}]} satisfies Study&{adnexa:Layer[]};

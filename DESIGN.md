@@ -141,6 +141,8 @@ Quest review accepted the external peach/coral colours. When the external openin
 
 Keep **Everyday view / Pregnancy reference** together above the part tabs in Body observation. The heading, Back control and angle keys stay put when the viewer compares the two. For the vulva, vagina and uterus the main plate itself must show the tissue and organ in the chosen view, at the same angle as the everyday plate. Adding a locator beside an unchanged everyday drawing does not make it a reference model. Label the reference as an illustration, not a current actor condition. The insertion workbench keeps its ordinary live monitor; egg records and replay are independent.
 
+Inside the uterine reference, use a sleeping anime portrait: tapered eyelids, short swept locks, warm cel shadows and an asymmetric curled pose. Judge the face, hand, knee and foot silhouettes in the whole organ at 156 px as well as at screen size. Keep the umbilical attachment on the belly and the maternal structures legible through rotation.
+
 The optional XR FPS readout uses gold text over plum. The neutral scene background and grid keep their stage colors. The placement stamp and pose markers use dark/light contrast plus their existing footprint, cross and joint shapes; validity must not depend on color alone.
 
 Hand and controller rays share a `#79baff` beam and a hollow hit marker with a white inner band and ink outer rim. Both bands use the existing cursor quad, independent of scene exposure. The 39 mm cursor quad and 7 mm beam are visuals; neither enlarges the interaction target. Live House scenery colors are intentionally separate from the HUD palette.
