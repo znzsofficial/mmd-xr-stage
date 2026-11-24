@@ -1,8 +1,8 @@
 # 会话交接｜2026-11-24
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `d685552`](https://bd8f7bb5.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `85a63f1`](https://8896e3a0.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
 
-**当前发布。** `d685552` 已上线，966 项测试通过；主域名入口及 292 份资源与验证构建一致。三款仰卧中的前裙可随腿向小腹堆折；外置附件可先装在衣下；身体观察有[日常／孕态参考](./gameplay/observation-reference.md)；[月蘅馆](./scenery/qinhuai.md#月蘅馆--青楼内室)增加床侧折屏和可翻三开的画册。星球飞行改为连续视野。原先的十个体位、观察图和只读结果回看仍适用。
+**当前发布。** `85a63f1` 已上线，990 项测试通过；主域名入口及 300 份资源与验证构建一致。母星轻推和低频步进、印外擦坡、手动回正净空与输入恢复已修，普通跳减少重复查壳面。身体观察里的[外阴、阴道、子宫孕态参考](./gameplay/observation-reference.md)均为独立可旋转主图；实测读数单列，不写入角色状态。上一版[仰卧前裙](./performance/supine-skirt.md)、衣下附件和[月蘅馆画册](./scenery/qinhuai.md#月蘅馆--青楼内室)继续适用。
 
 **下一次实戴。** 想先看模型：打开「身体观察 → 孕态参考」，分别在外阴、阴道、子宫的同角度来回对照日常。想试行星：北台先轻推再满推，确认靠近仪表不窜步；去卫星按 A 普通跳，注意落地与头顶净空，退出后导出 JSON。裙摆另选三款仰卧看[前片是否回到小腹](./performance/supine-skirt.md)。[Quest 操作与导出](./performance/next-quest-export.md#只测本版选一趟)。
 

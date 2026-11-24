@@ -12,6 +12,7 @@
 
 | 功能提交 | 已发布内容与验证范围 |
 |---|---|
+| `85a63f1` | [星球重力四项修复与扫掠性能](./performance/orbital-review.md)：轻推、低频步进、贴坡、人工站姿和输入恢复；旧井强度归零不再压住有效邻井。屏幕与模拟双眼实际对照[外阴、阴道、子宫独立参考主图](./gameplay/observation-reference.md)，图外读数与实时接触分开。990 项测试通过；主域名入口及 300 份资源与验证构建 SHA-256 一致；真机帧率另验。[固定版](https://8896e3a0.mmd-xr-stage.pages.dev) |
 | `d685552` | [仰卧前裙向小腹堆折](./performance/supine-skirt.md)，[外置附件可在衣下开启](./gameplay/actor-tools.md)，[身体观察切换孕态参考](./gameplay/observation-reference.md)，[月蘅馆折屏与三开画册](./scenery/qinhuai.md)；[行星风道、足印连续视野，普通捕获不强制回正](./performance/planet-horizon.md)。原始参考演员和模拟双眼实操；966 项测试通过，主域名入口及 292 份资源逐个 SHA-256 相同。另有独立[重力复核](./performance/orbital-review.md)，其中候选优化不是已发布修复。[固定版](https://bd8f7bb5.mmd-xr-stage.pages.dev) |
 | `3fced36` | 根据 11 月 23 日[实戴记录](./performance/viewing-and-diagnostics.md#已有测量)，改善[插入观察图](./gameplay/actor-tools.md)：外阴入口增加有遮挡的短段内壁，子宫总览以下段实测杆身及局部软壁替代短轴线。屏幕实模与模拟 XR 验证浅入、限位、撤回、自动往复，在场角色默认无实体附件。964 项测试通过，主域名入口及 284 份资源核对一致。[固定版](https://4ace7a30.mmd-xr-stage.pages.dev) |
 | `e6be51b` | [四款挑逗体位](./gameplay/pose-and-body-states.md#快速体位)、[外侧肉色和内缘粉红](./performance/actor-tools-regression.md#自然款外形与原模开合)、屏幕近看返回原机位、卵子结果只读回看。屏幕与 IWER 实点套用／撤销／恢复与回看，舞台附件用真实 WebGL 近检。深跪候选因第三套裙子的反例未采用；[Bullet 原生分段](./performance/bullet-step-profile.md)为离线实验。954 项测试通过，主域名入口及 281 份资源与验证构建一致。[固定版](https://f58a7382.mmd-xr-stage.pages.dev) |
