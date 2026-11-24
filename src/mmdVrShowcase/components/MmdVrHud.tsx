@@ -1,7 +1,7 @@
 import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { useXRControllerButtonEvent, useXRInputSourceState } from "@react-three/xr";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { placeHudInFront } from "../hudPlacement";
+import { dragHud, faceHud, hudEye, placeHudInFront } from "../hudPlacement";
 import * as THREE from "three";
 import { createPanelTexture, roundRectPath } from "../../shared/panelTexture";
 import { getMmdVrClock } from "../mmdVrClock";
@@ -34,17 +34,13 @@ let introducedWatch = false; // one first-empty-stage hint per document, never p
 const PROGRESS_PAD = 16;
 const PANEL_DEFAULT_POSITION: [number, number, number] = [0, 1.45, -1.8];
 
-export function clampMmdVrHudPosition(position: THREE.Vector3): [number, number, number] {
-  return [
-    Math.min(1.8, Math.max(-1.8, position.x)),
-    Math.min(2.25, Math.max(0.65, position.y)),
-    Math.min(-0.5, Math.max(-5, position.z)),
-  ];
-}
+export {clampMmdVrHudPosition} from '../hudPlacement';
 
 type HudDragState = {
   pointerId: number;
-  offset: THREE.Vector3;
+  grip: THREE.Vector3;
+  hit: THREE.Vector3;
+  sampledEye: boolean;
   rayDistance: number;
 };
 
@@ -166,6 +162,7 @@ function DragHandle({
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const dragRef = useRef<HudDragState | null>(null);
+  const eye = useMemo(()=>new THREE.Vector3(),[]);
   const [dragging, setDragging] = useState(false);
   const texture = useMemo(
     () => createPanelTexture(720, 72, ({ ctx, width, height }) => {
@@ -188,10 +185,20 @@ function DragHandle({
   useEffect(() => () => texture.dispose(), [texture]);
   useEffect(() => () => finish(), [onDragChange]);
 
+  useFrame(({camera,gl},_,frame)=>{
+    const d=dragRef.current,panel=groupRef.current?.parent;
+    if(!d||!panel?.parent)return;
+    if(!hudEye(eye,panel.parent,camera,gl.xr,frame))return;
+    d.sampledEye=true;
+    dragHud(panel,d.hit,d.grip,eye,useMmdVrStore.getState().prefs.panelFollowUser);
+  });
+
   function finish(pointerId?: number) {
     const drag = dragRef.current;
     if (!drag || (pointerId != null && drag.pointerId !== pointerId)) return;
     dragRef.current = null;
+    const panel=groupRef.current?.parent;
+    if(panel)onPositionChange(panel.position.toArray());
     setDragging(false);
     onDragChange(false);
   }
@@ -202,11 +209,13 @@ function DragHandle({
     const parent = panel?.parent;
     if (!panel || !parent) return;
     e.stopPropagation();
-    if (dragRef.current) return;
+    if (dragRef.current || e.button!==0) return;
     const localHit = parent.worldToLocal(e.point.clone());
     dragRef.current = {
       pointerId: e.pointerId,
-      offset: panel.position.clone().sub(localHit),
+      grip: panel.worldToLocal(e.point.clone()).multiply(panel.scale),
+      hit: localHit,
+      sampledEye:false,
       rayDistance: e.ray.origin.distanceTo(e.point),
     };
     setDragging(true);
@@ -224,16 +233,17 @@ function DragHandle({
     const parent = panel?.parent;
     if (!drag || !panel || !parent || drag.pointerId !== e.pointerId) return;
     e.stopPropagation();
-    const worldHit = e.ray.at(drag.rayDistance, new THREE.Vector3());
-    const local = parent.worldToLocal(worldHit).add(drag.offset);
-    const next = clampMmdVrHudPosition(local);
-    panel.position.set(...next);
-    onPositionChange(next);
+    parent.worldToLocal(e.ray.at(drag.rayDistance, drag.hit));
   }
 
   function end(e: ThreeEvent<PointerEvent>) {
-    if (dragRef.current?.pointerId !== e.pointerId) return;
+    const d=dragRef.current,panel=groupRef.current?.parent;
+    if (!d || d.pointerId !== e.pointerId) return;
     e.stopPropagation();
+    if(e.type==='pointerup'&&d.sampledEye&&panel?.parent){
+      panel.parent.worldToLocal(e.ray.at(d.rayDistance,d.hit));
+      dragHud(panel,d.hit,d.grip,eye,useMmdVrStore.getState().prefs.panelFollowUser);
+    }
     finish(e.pointerId);
     try {
       (e.target as unknown as { releasePointerCapture?: (id: number) => void }).releasePointerCapture?.(e.pointerId);
@@ -245,6 +255,7 @@ function DragHandle({
   return (
     <group ref={groupRef} position={position}>
       <mesh
+        name="hud:panel-drag"
         renderOrder={40}
         onPointerDown={begin}
         onPointerMove={move}
@@ -591,12 +602,7 @@ export function MmdVrControlBar({onExit,busy,onDragChange:reportInteraction}:{on
       queueMicrotask(() => { if (panelGroupRef.current === group) setPanelPosition(position); });
     }
     if (!useMmdVrStore.getState().prefs.panelFollowUser || interacting.current) return;
-    camera.getWorldPosition(billboardTarget);
-    parent.worldToLocal(billboardTarget);
-    const dx = billboardTarget.x - group.position.x;
-    const dz = billboardTarget.z - group.position.z;
-    if (dx * dx + dz * dz < 1e-8) return;
-    group.rotation.y = Math.atan2(dx, dz);
+    if(hudEye(billboardTarget,parent,camera,gl.xr,frame))faceHud(group,billboardTarget);
   });
   const status =
     physicsError ?? statusLine ??

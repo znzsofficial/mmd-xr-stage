@@ -1,6 +1,21 @@
 import { expect, it } from "vitest";
 import * as THREE from "three";
-import { placeHudInFront } from "./hudPlacement";
+import { dragHud, faceHud, placeHudInFront } from "./hudPlacement";
+
+it('keeps an off-centre grip on the ray while the panel and tracked head move; release does not turn it again',()=>{
+  const panel=new THREE.Group(),eye=new THREE.Vector3(.18,1.65,-.1),grip=new THREE.Vector3(-.79,.215,.012);
+  const hit=new THREE.Vector3(-.8,1.68,-1.8);
+  for(const dx of [0,.25,.65,.92,.66,.31]){
+    hit.x=dx-.8;eye.x=.18+dx*.4;dragHud(panel,hit,grip,eye,true);
+    expect(panel.localToWorld(grip.clone()).distanceTo(hit)).toBeLessThan(1e-8);
+    const normal=new THREE.Vector3(0,0,1).applyQuaternion(panel.quaternion);
+    expect(normal.dot(eye.clone().sub(panel.position).setY(0).normalize())).toBeCloseTo(1,12);
+  }
+  hit.x=4;dragHud(panel,hit,grip,eye,true);const bounded=panel.quaternion.clone();
+  expect(panel.position.x).toBe(1.8);faceHud(panel,eye);expect(panel.quaternion.toArray()).toEqual(bounded.toArray());
+  hit.x=0;dragHud(panel,hit,grip,eye,false);expect(panel.quaternion.toArray()).toEqual(bounded.toArray());
+  expect(panel.localToWorld(grip.clone()).distanceTo(hit)).toBeLessThan(1e-8);
+});
 
 it('keeps the recalled HUD readable relative to the floor at the stellar equator and antipode',()=>{
   const origin=new THREE.Group(),camera=new THREE.PerspectiveCamera(),panel=new THREE.Group();origin.add(camera,panel);

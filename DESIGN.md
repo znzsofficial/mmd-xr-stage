@@ -170,7 +170,7 @@ Geometry dimensions below are **local Three.js units**, meter-based in the XR sc
 - Expanded header shares Y=0.83. The left rail uses 0.47 × 0.18 keys at 0.25 intervals. Task content and playback footer (Y=-0.95) occupy the same panel.
 - Default button width is 0.36; effective height is `max(0.13, requestedHeight)`. Transport buttons are 0.5 × 0.14. Drag geometry is 0.92 × 0.11.
 - Slider default width is 0.74, track height 0.012, thumb radius 0.036; invisible interaction plane is `(width + 0.12) × 0.16`.
-- Recall places the panel 1.8 m horizontally ahead of the head and 0.12 m below eye height. All pages share panel position. Following is yaw-only and pauses during interaction.
+- Recall places the main HUD 1.8 m horizontally ahead of the head and 0.12 m below eye height. When “Face me” is on, dragging its handle keeps the HUD upright and facing the tracked head throughout the hold. Rotate around the point the ray grabbed, including on the offset compact handle. Scrubbing a value or the playback timeline still holds the panel steady.
 
 This spatial UI has no CSS viewport breakpoints. Watch/expanded modes and paged content control density. Recovery/detail planes are 3.2 × 1.05 with 1280 × 420 textures.
 
