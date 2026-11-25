@@ -19,6 +19,8 @@ pnpm run deploy
 
 发布前检查构建 exit code；不要用 `| Select-Object` 等过滤管道掩盖失败。合并前完成必要验证和构建，合并后复用制品及时部署。验证生产 HTML 引用、JS/CSS/Bullet/动画 WASM 的内容哈希；HTTP 200 本身不能证明资源存在，因为 SPA 回退可能返回 HTML。验证 URL 加新的 cache-buster，勿复用旧查询参数。
 
+旧分块最多六路并行取回。可用 `STAGE_LEGACY_ASSETS` 指向留存的旧构建 `assets/` 目录：只读取清单列出的名字，每个文件仍验原 SHA-256，缺项从固定部署补齐。私有测试目录不是发布依赖。
+
 本机 Git 推送已验证需显式代理：
 
 ```bash

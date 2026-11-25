@@ -2,6 +2,7 @@
 // Only verified immutable Pages assets; never replace new code or index.html.
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
+import { join } from 'node:path';
 
 const files = [
   ['d9d044ee','index-sngQjYf_.js','f7dc7830aef23e13a16c889ae25b9205705a00396f26b635aeb1204a2572b2a2'],
@@ -231,16 +232,26 @@ const files = [
   ["d55e5a7f", "vendor-mmd-B024cD5e.js", "e765b2d02f0db182191aab998b459520d2a70ff46d7c85159d2098f74c43f75c"],
   ["d55e5a7f", "emulate-M6ay1N5Q.js", "fc6816057946f69b0e74edf88c1cdf25176f5c8aa67a7394971c87364594fe41"],
 ];
-await Promise.all(files.map(async ([id, file, expected]) => {
+async function retain([id, file, expected]) {
   const path = new URL(`../dist/assets/${file}`, import.meta.url);
   const verify = bytes => {
     if (createHash("sha256").update(bytes).digest("hex") !== expected) throw new Error(`Unexpected content: ${file}`);
   };
   try { verify(await readFile(path)); return; } catch (error) { if (error.code !== "ENOENT") throw error; }
-  const res = await fetch(`https://${id}.mmd-xr-stage.pages.dev/assets/${file}`, { signal: AbortSignal.timeout(45000) });
-  if (!res.ok) throw new Error(`${file}: HTTP ${res.status}`);
-  const bytes = Buffer.from(await res.arrayBuffer());
+  let bytes;
+  if (process.env.STAGE_LEGACY_ASSETS) {
+    try { bytes = await readFile(join(process.env.STAGE_LEGACY_ASSETS, file)); }
+    catch (error) { if (error.code !== 'ENOENT') throw error; }
+  }
+  if (!bytes) {
+    const res = await fetch(`https://${id}.mmd-xr-stage.pages.dev/assets/${file}`, { signal: AbortSignal.timeout(45000) });
+    if (!res.ok) throw new Error(`${file}: HTTP ${res.status}`);
+    bytes = Buffer.from(await res.arrayBuffer());
+  }
   verify(bytes);
   await writeFile(path, bytes, { flag: "wx" });
-}));
+}
+// A clean build may need hundreds of immutable files from different origins.
+const pending = files.values();
+await Promise.all(Array.from({length: 6}, async () => { for (const file of pending) await retain(file); }));
 console.log("Verified legacy XR entry files:", files.length);
