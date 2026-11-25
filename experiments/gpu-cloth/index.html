@@ -1,0 +1,9 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="data:,"><title>原衣裙摆实验 · MMD XR Stage</title>
+<style>
+:root{color-scheme:dark;font:1rem/1.5 system-ui,sans-serif;background:#201820;color:#fff1df}body{max-width:64rem;margin:1rem auto;padding:0 1rem}h1{font:600 1.7rem Georgia,serif;margin:.5em 0}canvas{width:100%;height:clamp(240px,52vh,560px);display:block;background:#352b34;touch-action:none}button,select,.picker{font:inherit;background:#402d3b;color:inherit;padding:.45em .8em;border:1px solid #997852;border-radius:.3em;cursor:pointer}button:disabled,select:disabled{opacity:.55}.picker input{max-width:14rem}section{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin:.65rem 0}small,output{color:#dfc6ce}output{display:block;font-variant-numeric:tabular-nums}a{color:#e4c28b}p{margin:.45rem 0}
+</style><main><a href="/">返回舞台</a><h1>原衣裙摆实验</h1>
+<p>打开带裙骨的 PMX；选整个模型目录可带上原贴图。文件只在本机读取。</p>
+<section><button id="swatch">试用样裙</button><label class="picker">模型目录 <input id="folder" type="file" webkitdirectory multiple></label><label class="picker">PMX 与贴图 <input id="file" type="file" multiple accept=".pmx,image/*,.tga,.dds"></label><select id="model" hidden aria-label="目录里的角色"></select></section>
+<canvas aria-label="裙摆实时对照，左右拖动可环视"></canvas><p id="status" role="status">等待模型</p>
+<section><label>求解 <select id="mode" disabled><option value="bullet">原版 Bullet</option><option value="cut">移除裙链</option><option value="gpu" selected>GPU 裙摆</option></select></label><button id="pose" disabled>仰卧抬腿</button><button id="stroke" disabled>拨一次裙摆</button><button id="xr" disabled>进入 VR</button><button id="save" disabled>导出对照 JSON</button></section><output id="meter"></output>
+<small>屏幕：拖动画面转视角，滚轮拉近。VR：右 A 换姿势，左 X 切求解方式，用手柄靠近裙边拨动；退出后导出。各档站稳至少 10 秒再切换。</small></main><script type="module" src="./main.js"></script></html>

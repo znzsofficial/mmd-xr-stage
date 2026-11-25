@@ -1,13 +1,13 @@
 # 会话交接｜2026-11-25
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [当前固定版 `b91325b`](https://6b27603e.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md) · [文档索引](./README.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [WebGPU 实验入口](https://mmd-xr-stage.pages.dev/labs/cloth/) · [舞台基线 `b91325b`](https://6b27603e.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md) · [文档索引](./README.md)
 
-**恢复停点：泳池和教室已上线，下一步是 Quest 3S 同机位复测。** 当前构建通过 1019 项测试，主域入口和 16 份资源与验收制品一致。没有待发布的产品改动。旧版与新版在桌面和模拟双眼上都已走过；少画三角形是实测结果，Quest 帧率提升不是。
+**恢复停点：Quest 3S 上试独立的[原衣裙摆实验](./performance/gpu-cloth-lab.md)。** 正式舞台的 WebGL、动作、布料默认行为仍是 `b91325b`。新增实验页有三档求解、原衣导入、样裙和 JSON；桌面 GPU 实测不代表 Quest。校园的同机位帧率复测仍独立待做。
 
 ## 从这里继续
 
 - **查场景帧率：**选泳池计时台或教室后门，按[单景真机对照](./performance/next-quest-export.md#泳池或教室同机位真机对照)跑 `6061e24` 与 `b91325b`。先空场，加入演员或开物理另算。若两版帧率都顶住刷新率，只记录几何提交和镜片观感；无需据此继续削水面或课桌材质。
-- **查单人开物理仍慢：**先分普通站立、保持手动体位、持续播舞。[站姿减抖](./performance/xr-runtime-performance.md#默认站立开物理后的反复轻抖)不休眠 Bullet；[手动姿势报告](./performance/pose-cloth-contact.md#保持一个姿势也会花时间吗)有 `skirtWork` 区分首次拟合与持续显示。若慢在播舞的原生步进，[48 个桌面窗口](./performance/bullet-step-profile.md#求解器内部准备迭代与收尾)均以约束迭代为首；关节、接触与摩擦在主迭代里尚未分开计时，不直接调低求解精度。
+- **查单人开物理仍慢：**先分普通站立、保持手动体位、持续播舞。[站姿减抖](./performance/xr-runtime-performance.md#默认站立开物理后的反复轻抖)不休眠 Bullet；[手动姿势报告](./performance/pose-cloth-contact.md#保持一个姿势也会花时间吗)有 `skirtWork`。持续播舞已做[关节行与接触／摩擦行的独立计时](./performance/bullet-step-profile.md#主迭代行循环)：48/48 窗以关节行为重，占非 split 迭代约七成。若继续查原后端，先量哪些约束行每遍实际执行，不直接调低求解精度。
 - **继续 loader 上游贡献：**舞台仍用官方 `0.8.6` 加 pnpm 补丁，完整扩展在自己的 `fork/main@82147af`。独立候选 `perf/dedupe-render-palettes` 只含 `4629aab`、`1d444f0`，工作树干净、未推送、未投稿。11 月 25 日复核维护者的 [#47](https://github.com/yohawing/three-mmd-loader/pull/47) 仍 open（`347bf20`）。等合并后在新 `upstream/main` 检查 JS 和 WASM 两条路径：若已去重则不提；否则只移植这两个提交，复跑基准。[英文草稿与恢复说明的位置](./three-mmd-loader-maintenance.md#共享骨架去重的上游候选)
 
 ## 已交付和证据边界
