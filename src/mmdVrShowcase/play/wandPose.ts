@@ -10,7 +10,7 @@ export function createWandPose(mesh:SkinnedMesh,source:SkinnedMesh){
   const g=mesh.geometry,{position,skinWeight:w,skinIndex:ix,matricesSdefEnabled:sdef,matricesQdefEnabled:qdef}=g.attributes;
   const attrs=g.morphAttributes.position??[], remap=mesh.userData.mmdMorphSplitBody?.morphTargetIndices;
   const active:{attr:Attribute;weight:number}[]=[], weights=attrs.map(attr=>({attr,weight:0}));
-  const palette:PaletteEntry[]=[], outer=new Matrix4(), p=v(), temp=v(), base=v(), t=v();
+  const palette:PaletteEntry[]=[], outer=new Matrix4(),toRig=new Matrix4(),rigToWorld=new Matrix4(),invBind=mesh.bindMatrix.clone().invert(),p=v(), temp=v(), base=v(), t=v();
   const q=new Quaternion(), dual=new Quaternion(), posQ=new Quaternion();
   const stamps=new Uint32Array(position.count), points=new Float32Array(position.count*3);
   let epoch=0, skin=false;
@@ -21,12 +21,13 @@ export function createWandPose(mesh:SkinnedMesh,source:SkinnedMesh){
       b.world.multiplyMatrices(outer,b.matrix).multiply(mesh.bindMatrix);
       // Largest row norm bounds each axis of a transformed sphere's AABB.
       const e=b.world.elements;b.scale=Math.sqrt(Math.max(e[0]**2+e[4]**2+e[8]**2,e[1]**2+e[5]**2+e[9]**2,e[2]**2+e[6]**2+e[10]**2));
-      if(sdef||qdef)b.rotation.setFromRotationMatrix(b.matrix);
+      if(sdef||qdef){b.matrix.premultiply(toRig);b.rotation.setFromRotationMatrix(b.matrix);}
       if(qdef){const m=b.matrix.elements;posQ.set(m[12]/2,m[13]/2,m[14]/2,0);b.dual.multiplyQuaternions(posQ,b.rotation);}
     }return b;
   }
   function begin(){
     epoch++;active.length=0;outer.multiplyMatrices(mesh.matrixWorld,mesh.bindMatrixInverse);
+    if(sdef||qdef){toRig.multiplyMatrices(mesh.bindMatrix,mesh.bindMatrixInverse);rigToWorld.multiplyMatrices(mesh.matrixWorld,invBind);}
     skin=!!(w&&ix&&mesh.skeleton?.bones.length);
     for(let i=0;i<attrs.length;i++){
       const f=source.morphTargetInfluences?.[remap?.[i]??i]??0;
@@ -50,23 +51,22 @@ export function createWandPose(mesh:SkinnedMesh,source:SkinnedMesh){
       }
       const len=Math.max(1e-6,q.length());q.set(q.x/len,q.y/len,q.z/len,q.w/len);
       out.copy(p).applyMatrix4(mesh.bindMatrix).applyQuaternion(q);
-      dual.multiply(q.conjugate());out.add(t.set(dual.x,dual.y,dual.z).multiplyScalar(2/len)).applyMatrix4(outer);
+      dual.multiply(q.conjugate());out.add(t.set(dual.x,dual.y,dual.z).multiplyScalar(2/len)).applyMatrix4(rigToWorld);
     }else if(sdef?.getX(i)>=.5){
       const b0=bone(ix.getX(i)),b1=bone(ix.getY(i)),mix=w.getY(i),r0=b0.rotation,r1=b1.rotation;
-      // Match the shader's slerp (PMX models can have a scaled root, so
-      // the extracted quaternions are not necessarily unit quaternions).
+      // Match the shader's sign and near-coincident branch, in rig space.
       const dot=r0.dot(r1),c=Math.abs(dot),sign=dot<0?-1:1;
       const theta=c>.999999?0:Math.acos(c),s=Math.sin(theta);
       const f0=theta?Math.sin((1-mix)*theta)/s:1-mix, f1=sign*(theta?Math.sin(mix*theta)/s:mix);
       q.set(f0*r0.x+f1*r1.x,f0*r0.y+f1*r1.y,f0*r0.z+f1*r1.z,f0*r0.w+f1*r1.w);if(!theta)q.normalize();
       out.copy(p).applyMatrix4(mesh.bindMatrix).sub(t.fromBufferAttribute(g.attributes.matricesSdefC,i)).applyQuaternion(q)
         .addScaledVector(t.fromBufferAttribute(g.attributes.matricesSdefRW0,i).applyMatrix4(b0.matrix),w.getX(i))
-        .addScaledVector(t.fromBufferAttribute(g.attributes.matricesSdefRW1,i).applyMatrix4(b1.matrix),mix).applyMatrix4(outer);
+        .addScaledVector(t.fromBufferAttribute(g.attributes.matricesSdefRW1,i).applyMatrix4(b1.matrix),mix).applyMatrix4(rigToWorld);
     }else{
       out.set(0,0,0);
       for(let j=0;j<4;j++){const f=w.getComponent(i,j);if(f)out.addScaledVector(t.copy(p).applyMatrix4(bone(ix.getComponent(i,j)).world),f);}
     }
     stamps[i]=epoch;out.toArray(points,i*3);return out;
   }
-  return {begin,bone,vertex,active,outer};
+  return {begin,bone,vertex,active,outer:(sdef||qdef)?rigToWorld:outer};
 }

@@ -36,7 +36,7 @@ function clampRange(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-const ENHANCE_SHADER_REV = "v9-toon-highlight-shoulder";
+const ENHANCE_SHADER_REV = "v10-enhancement-uv-linear-emission";
 
 /** Self-contained CubeUV PMREM sampling (subset of three's cube_uv_reflection_fragment). */
 const CUBE_UV_HELPERS = `
@@ -130,7 +130,7 @@ export function attachMmdMaterialEnhance(material: THREE.Material) {
     uniforms.mmdEnhanceRoughness = { value: 0.55 };
     uniforms.mmdEnhanceOcclusion = { value: 1 };
     uniforms.mmdEnhanceEmission = { value: 0 };
-    uniforms.mmdEnhanceEmissionColor = { value: new THREE.Color("#ffffff").convertSRGBToLinear() };
+    uniforms.mmdEnhanceEmissionColor = { value: new THREE.Color(1, 1, 1) };
     uniforms.mmdEnhanceEnvInfluence = { value: 0 };
     uniforms.mmdEnhanceAmbient = { value: 0.55 };
     uniforms.mmdBalancedColor = { value: 1 };
@@ -191,6 +191,8 @@ export function attachMmdMaterialEnhance(material: THREE.Material) {
     );
 
     if (!shader.fragmentShader.includes(INJECT_MARKER)) return;
+    // Three's uv chunks provide vMapUv with albedo, or raw UV0 via USE_UV without it.
+    if (!shader.map) shader.defines = { ...shader.defines, USE_UV: "" };
 
     shader.fragmentShader = shader.fragmentShader.replace(
       INJECT_MARKER,
@@ -207,7 +209,7 @@ export function attachMmdMaterialEnhance(material: THREE.Material) {
         "  #ifdef USE_MAP",
         "    vec2 ywMmdEnhanceUv = vMapUv;",
         "  #else",
-        "    vec2 ywMmdEnhanceUv = vec2( 0.5 );",
+        "    vec2 ywMmdEnhanceUv = vUv;",
         "  #endif",
         // AO / mask / emission maps only need UVs; do not require USE_MAP (albedo).
         "  if ( mmdEnhanceHasMaskMap > 0.5 ) {",
@@ -236,7 +238,6 @@ export function attachMmdMaterialEnhance(material: THREE.Material) {
         "  } else {",
         "    ywMmdColor = ywMmdColor * ( 0.72 + ywMmdAmb * 0.55 ) + ywMmdEnhanceBaseColor * ywMmdAmb * 0.22;",
         "  }",
-        "  ywMmdColor += ywMmdEnhanceEmissionColor * ( 0.5 + mmdEnhanceEmission );",
         "  vec3 ywMmdF0 = mix( vec3( 0.04 ), ywMmdEnhanceBaseColor, ywMmdEnhanceMetallic );",
         "  vec3 ywMmdDiffuseCol = ywMmdEnhanceBaseColor * ( 1.0 - ywMmdEnhanceMetallic );",
         // --- IBL from PMREM CubeUV ---
@@ -295,8 +296,9 @@ export function attachMmdMaterialEnhance(material: THREE.Material) {
         "    if ( mmdEnhanceLightingModel > 0.5 ) ywEnvLit += ywMmdDirDiff + ywMmdDirSpec;",
         "    ywMmdColor = mix( ywMmdEnhanceBaseColor * ( 0.55 + ywMmdAmb * 0.4 ), ywEnvLit, 0.92 );",
         "  }",
-        // Keep HDR headroom for tone mapping; only floor at 0.
+        // The loader's toon composite is gamma-space. Emission tint and texels are already linear.
         "  outgoingLight = ywMmdGammaToLinear( max( ywMmdColor, vec3( 0.0 ) ) );",
+        "  outgoingLight += ywMmdEnhanceEmissionColor * ( 0.5 + mmdEnhanceEmission );",
       ].join("\n"),
     );
   };
@@ -348,7 +350,7 @@ export function syncMmdMaterialEnhance(material: THREE.Material, state: MmdMater
     const color = emissionColorUniform.value;
     const input = override.emissionColor || "#ffffff";
     if (emissionColorInputs.get(color) !== input) {
-      color.set(input).convertSRGBToLinear();
+      color.set(input); // CSS input is decoded to the working color space by THREE.Color.
       emissionColorInputs.set(color, input);
     }
   }

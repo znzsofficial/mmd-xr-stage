@@ -1,0 +1,132 @@
+<!doctype html><meta charset="utf-8"><title>Mapless PMX material · WebGL pixel test</title>
+<p>Choose the actor and the selected material's companion textures. The probe frames one of its real triangles, in its bind pose. Results are linear RGBA8 pixel values; no images or filenames are exported.</p>
+<input type="file" multiple> <label>Material index (zero-based) <input type="number" min="0" value="0"></label> <button>Measure</button><pre></pre>
+<script type="module">
+import * as T from 'three';
+import { ThreeMmdLoader, disposeMmdModel } from '@yohawing/three-mmd-loader';
+import { createLocalTextureResolver } from '/src/mmdVrShowcase/mmdRuntime/localTextureResolver.ts';
+import { applyMaterialOverride, DEFAULT_MATERIAL_OVERRIDE, disposeEntryEnhancementTextures, refreshMaterialTextures } from '/src/mmdVrShowcase/mmdRuntime/mmdRuntimeMaterials.ts';
+
+const size = 256, gray = [96, 192];
+const check = (condition, message) => { if (!condition) throw Error(message); };
+const linear = byte => ((byte / 255 + .055) / 1.055) ** 2.4; // Both test grays exceed the sRGB toe.
+
+// Require a front-facing, well-conditioned physical triangle, with distinct top/bottom image bands.
+function chooseFace(mesh, group) {
+  const { index, attributes: { uv } } = mesh.geometry;
+  let best;
+  for (let i = group.start; i < group.start + group.count; i += 3) {
+    const corners = [i, i+1, i+2].map(j => index.getX(j));
+    const coords = corners.map(k => new T.Vector2().fromBufferAttribute(uv, k));
+    if (coords.some(q => !(q.x >= 0 && q.x <= 1 && q.y >= 0 && q.y <= 1))) continue;
+    if (Math.abs(coords[1].clone().sub(coords[0]).cross(coords[2].clone().sub(coords[0]))) < 1e-7) continue;
+    const points = corners.map(k => mesh.localToWorld(mesh.getVertexPosition(k, new T.Vector3())));
+    const tri = new T.Triangle(...points), center = tri.getMidpoint(new T.Vector3());
+    const radius = Math.max(...points.map(p => p.distanceTo(center)));
+    const order = [0, 1, 2].sort((a, b) => coords[a].y - coords[b].y);
+    const range = coords[order[2]].y - coords[order[0]].y;
+    const quality = tri.getArea() / (radius * radius);
+    if (!(range > .05 && quality > .12)) continue;
+    const score = range * quality;
+    if (!best || score > best.score) best = { score, start: i, points, coords, center, radius, order, normal: tri.getNormal(new T.Vector3()) };
+  }
+  check(best, 'No usable triangle with top/bottom UV separation in the selected group');
+  return best;
+}
+
+async function bandFile(cutoff) {
+  const c = document.createElement('canvas'); c.width = 8; c.height = 512;
+  const ctx = c.getContext('2d');
+  const split = Math.round(c.height * cutoff);
+  ctx.fillStyle = 'rgb(96,96,96)'; ctx.fillRect(0, 0, c.width, split);
+  ctx.fillStyle = 'rgb(192,192,192)'; ctx.fillRect(0, split, c.width, c.height-split);
+  return new File([await new Promise(resolve => c.toBlob(resolve, 'image/png'))], 'bands.png', { type:'image/png' });
+}
+
+window.measureMaterial = async function (materialIndex) {
+  const files = [...document.querySelector('[type=file]').files], file = files.find(f => /\.(pmx|pmd)$/i.test(f.name));
+  check(file, 'Choose an actor file');
+  const loader = new ThreeMmdLoader({ textureResolver: createLocalTextureResolver(file, files) });
+  const model = await loader.loadModel(file, { outline:false, materialRenderOrder:false, morphAttributes:false, morphSplit:false, frustumCulled:false });
+  let entry, renderer, target;
+  try {
+    const mesh = model.mesh, materials = [].concat(mesh.material), m = materials[materialIndex];
+    check(m && !m.map && m.userData.mmdMaterial.texturePath === '', 'Expected an authored mapless slot, not a missing texture');
+    check(!model.diagnostics.textures.some(d => d.materialIndex === materialIndex), 'Missing an authored texture for this material');
+    const group = mesh.geometry.groups.find(g => g.materialIndex === materialIndex);
+    check(group && m.visible && m.colorWrite && m.opacity === 1, 'Select an opaque, visible material group');
+    const scene = new T.Scene(); scene.add(model.root); scene.updateMatrixWorld(true);
+    const face = chooseFace(mesh, group), r = face.radius;
+    mesh.geometry.setDrawRange(face.start, 3);
+    materials.forEach((mat, i) => { if (i !== materialIndex) mat.visible = false; });
+    const camera = new T.OrthographicCamera(-1.1*r, 1.1*r, 1.1*r, -1.1*r, .01*r, 8*r);
+    camera.position.copy(face.center).addScaledVector(face.normal, 3*r);
+    camera.up.subVectors(face.points[1], face.points[0]).normalize(); camera.lookAt(face.center); camera.updateMatrixWorld();
+    const samples = [face.order[0], face.order[2]].map(k => {
+      const p = face.center.clone().lerp(face.points[k], .58).project(camera);
+      const uvCenter = face.coords.reduce((v, q) => v.addScaledVector(q, 1/3), new T.Vector2());
+      const uv = uvCenter.lerp(face.coords[k], .58);
+      return { x:Math.floor((p.x+1)*size/2), y:Math.floor((p.y+1)*size/2), v:uv.y };
+    });
+    const bands = await bandFile((samples[0].v + samples[1].v) / 2);
+    renderer = new T.WebGLRenderer({ antialias:false, alpha:true }); renderer.setClearColor(0, 0);
+    target = new T.WebGLRenderTarget(size, size); renderer.setRenderTarget(target);
+    const gl = renderer.getContext();
+    renderer.debug.onShaderError = (gl, program, vs, fs) => { throw Error([gl.getProgramInfoLog(program), gl.getShaderInfoLog(vs), gl.getShaderInfoLog(fs)].join('\n')); };
+    function pixels() {
+      renderer.render(scene, camera);
+      check(renderer.info.render.triangles === 1, 'Expected one real PMX face');
+      const program = renderer.properties.get(m).currentProgram.program;
+      check(gl.getProgramParameter(program, gl.LINK_STATUS) && gl.getAttachedShaders(program).every(s => gl.getShaderParameter(s, gl.COMPILE_STATUS)), 'Shader did not compile/link');
+      return samples.map(({x,y}) => {
+        const rgba = new Uint8Array(4); renderer.readRenderTargetPixels(target, x, y, 1, 1, rgba);
+        check(rgba[3] === 255 && gl.getError() === gl.NO_ERROR, 'Sample missed an opaque rendered pixel'); return Array.from(rgba.slice(0, 3));
+      });
+    }
+    const stock = pixels(); // Unmodified loader shader on the same face.
+    const names = materials.map((_, i) => String(i)), key = names[materialIndex];
+    entry = { id:'probe', model, materialNames:names, materialOverrides:{}, materialVisible:{}, visible:true };
+    async function draw(patch = {}, ambientIntensity = 0) {
+      entry.materialOverrides[key] = { ...DEFAULT_MATERIAL_OVERRIDE, ...patch };
+      applyMaterialOverride(entry, key, { ambientIntensity, balancedModelColor:false });
+      await refreshMaterialTextures(entry);
+      return pixels();
+    }
+    // At this legacy grade the no-enhancement base has unit gain: .72 + (.55+.22)*ambient.
+    const neutral = await draw({}, .28/.77);
+    const baseline = await draw(); // Lower the base before emission so the RGBA8 target retains headroom.
+    const scalar = [];
+    for (const byte of gray) scalar.push(await draw({ occlusion:byte/255 }));
+    const ao = await draw({ aoMapFile:bands }), mask = await draw({ maskMapFile:bands });
+    const emission = await draw({ emission:.5, emissionMapFile:bands });
+    const tint = [];
+    for (const byte of gray) tint.push(await draw({ emission:.5, emissionColor:'#'+byte.toString(16).repeat(3) }));
+    const restored = await draw();
+    const rows = {stock, neutral, baseline, scalar, ao, mask, emission, tint, restored};
+    function near(actual, expected, what, tolerance=2) {
+      check(Math.abs(actual-expected) <= tolerance, `${what}: ${actual}, expected ${expected.toFixed(2)}; ${JSON.stringify(rows)}`);
+    }
+    for (let i=0; i<2; i++) {
+      check(scalar[1][i].some((v,j) => v-scalar[0][i][j] >= 5), 'Insufficient AO contrast on this actor face');
+      for (let j=0; j<3; j++) {
+        near(neutral[i][j], stock[i][j], `Stock/no-enhancement patch ${i}`, 1);
+        near(ao[i][j], scalar[i][i][j], `AO patch ${i}`);
+        near(mask[i][j], scalar[i][i][j], `Mask patch ${i}`);
+        const base = baseline[i][j];
+        near(emission[i][j]-base, 255*.5*linear(gray[i]), `Emission map patch ${i}`);
+        for (let g=0; g<gray.length; g++) near(tint[g][i][j]-base, 255*.5*linear(gray[g]), `Emission tint ${gray[g]}, patch ${i}`);
+        near(restored[i][j], base, `Cleared patch ${i}`, 0);
+      }
+    }
+    return {pass:true, materialIndex, materialFaces:group.count/3, baseMap:false, sampledV:samples.map(p => p.v), gray, ...rows};
+  } finally {
+    if (entry) disposeEntryEnhancementTextures(entry);
+    disposeMmdModel(model, {textures:'owned'}); target?.dispose(); renderer?.dispose(); renderer?.forceContextLoss();
+  }
+};
+document.querySelector('button').onclick = async e => {
+  const b = e.currentTarget, output = document.querySelector('pre'); b.disabled = true;
+  try { output.textContent = JSON.stringify(await window.measureMaterial(document.querySelector('[type=number]').valueAsNumber), null, 2); }
+  catch (error) { output.textContent = `FAIL: ${error.message}`; } finally { b.disabled = false; }
+};
+</script>

@@ -78,6 +78,10 @@ it.each(['Sdef','Qdef'])('samples the rendered %s rotation, not a linearly colla
   // Linear blend would instead put this tiny triangle at x=.5.
   const pass=createWandSurface(model),h=hit();pass.query(at(1,0,.01),wandCap,h,Infinity);expect(h.depth).toBeGreaterThan(.5);
   pass.query(at(.5,0,.01),wandCap,h,Infinity);expect(h.depth).toBe(0);
+  // The actual contact follows the actor, without shrinking the authored
+  // swing twice or letting the world translation contaminate the DQ blend.
+  root.scale.setScalar(.1);root.position.set(.8,.3,-.6);root.rotation.y=.7;root.updateMatrixWorld(true);
+  const target=root.localToWorld(new Vector3(1,0,0));pass.query(at(target.x,target.y,target.z),wandCap,h,Infinity);expect(h.depth).toBeCloseTo(1,4);
 });
 
 it('deforms only the touching side of the silicone head, and releases exactly',()=>{

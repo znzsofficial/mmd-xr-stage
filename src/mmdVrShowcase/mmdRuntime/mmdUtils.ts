@@ -8,8 +8,10 @@ export function getMmdAnimationDurationSeconds(animation: MmdAnimation) {
   for (const track of Object.values(animation.morphTracks)) {
     if (track.frames.length) maxFrame = Math.max(maxFrame, track.frames[track.frames.length - 1] ?? 0);
   }
-  for (const frame of animation.cameraFrames) maxFrame = Math.max(maxFrame, frame.frame);
-  for (const frame of animation.lightFrames) maxFrame = Math.max(maxFrame, frame.frame);
+  // Merged metadata can include a later key from a layer that was overridden.
+  for (const frames of [animation.cameraFrames, animation.lightFrames, animation.selfShadowFrames, animation.propertyFrames]) {
+    for (const frame of frames) maxFrame = Math.max(maxFrame, frame.frame);
+  }
   return Math.max(1 / 30, maxFrame / 30);
 }
 

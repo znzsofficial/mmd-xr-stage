@@ -67,11 +67,12 @@ function sameFiles(a: Files, b: Files) {
   return a.every((file, i) => file === b[i]);
 }
 
-async function loadTextureFromFile(file: File) {
+async function loadTextureFromFile(file: File, key: typeof mapKeys[number]) {
   const url = URL.createObjectURL(file);
   try {
     const texture = await new THREE.TextureLoader().loadAsync(url);
-    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.colorSpace = key === "emissionMap" ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+    texture.flipY = false; // PMX UVs address the source image from the top, like the loader's diffuse map.
     texture.needsUpdate = true;
     return texture;
   } finally { URL.revokeObjectURL(url); }
@@ -133,7 +134,7 @@ function syncEnhancementTextures(material: THREE.Material, override: MaterialOve
       for (const [i, key] of mapKeys.entries()) {
         const file = files[i];
         if (!file) continue;
-        const texture = await loadTextureFromFile(file);
+        const texture = await loadTextureFromFile(file, key);
         if (pending.get(material) !== request) { texture.dispose(); return; }
         request.staged[key] = texture;
       }

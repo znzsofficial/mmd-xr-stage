@@ -29,6 +29,20 @@ describe("enhancement texture ownership", () => {
     return { material, entry, loads, tex, file, update };
   }
 
+  it("uploads the same PNG as raw AO/mask values but sRGB emission, all in PMX's top-down UV space", async () => {
+    const material = new THREE.MeshToonMaterial(), entry = entryFor(material);
+    const file = new File(["x"], "gray.png");
+    Object.assign(entry.materialOverrides.body, { aoMapFile: file, emissionMapFile: file, maskMapFile: file });
+    vi.spyOn(THREE.TextureLoader.prototype, "loadAsync").mockImplementation(async () => new THREE.Texture<HTMLImageElement>());
+    await refreshMaterialTextures(entry);
+    const { aoMap, emissionMap, maskMap } = material.userData.mmdEnhanceTextures;
+    expect([aoMap.colorSpace, emissionMap.colorSpace, maskMap.colorSpace]).toEqual([
+      THREE.NoColorSpace, THREE.SRGBColorSpace, THREE.NoColorSpace,
+    ]);
+    expect([aoMap.flipY, emissionMap.flipY, maskMap.flipY]).toEqual([false, false, false]);
+    disposeEntryEnhancementTextures(entry);
+  });
+
   it("commits B when same-name A finishes last, deduplicates pending B and updates the paused shader", async () => {
     const { material, entry, loads, tex, file, update } = setup();
     const uniform = { value: null };
@@ -117,17 +131,18 @@ describe("material hot-path synchronization", () => {
     entry.materialOverrides.body.emissionColor = "#b04080";
     applyMaterialOverrides(entry);
     const state = material.userData.mmdEnhanceState;
-    const expected = new THREE.Color("#b04080").convertSRGBToLinear();
-    expect(color.toArray()).toEqual(expected.toArray());
+    // #80 in sRGB is ~0.216 linear; decoding it twice would give ~0.038.
+    expect(color.b).toBeCloseTo(0.2158605, 6);
+    expect(color.getHexString()).toBe("b04080");
     for (let frame = 0; frame < 120; frame += 1) applyMaterialOverrides(entry);
     expect(material.userData.mmdEnhanceState).toBe(state);
     expect(uniforms.mmdEnhanceEmissionColor.value).toBe(color);
-    expect(color.toArray()).toEqual(expected.toArray());
+    expect(color.getHexString()).toBe("b04080");
     expect(uniforms.mmdEnhanceAmbient.value).toBe(0.55);
 
     entry.materialOverrides.body = { ...entry.materialOverrides.body, emissionColor: "#4080b0" };
     applyMaterialOverrides(entry, { ambientIntensity: 0.3 });
-    expect(color.toArray()).toEqual(new THREE.Color("#4080b0").convertSRGBToLinear().toArray());
+    expect(color.getHexString()).toBe("4080b0");
     expect(state.override).toBe(entry.materialOverrides.body);
     expect(uniforms.mmdEnhanceAmbient.value).toBe(0.3);
 
