@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
 import {createHash,hash} from 'node:crypto';
 import {readFile,readdir,rm,writeFile} from 'node:fs/promises';
-import {join} from 'node:path';
+import {join,relative,resolve} from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 
 const root=fileURLToPath(new URL('../',import.meta.url)), dir=join(root,'dist'), receipt=join(root,'stage-release.local');
@@ -31,21 +31,25 @@ function cleanRevision(){
 
 // Check the actual entry pages and immutable dependencies on the production
 // origin. A missing file can return the SPA index with HTTP 200.
-async function verifyLive(){
-  const paths=new Set(['index.html','labs/cloth/index.html','assets/organ.worker-dQG0D6Ad.js']);
+async function verifyLive(quick){
+  const paths=new Set(['index.html','labs/cloth/index.html']);
   const {version}=JSON.parse(await readFile(join(root,'loader-source.json'),'utf8'));
-  for(const file of ['mmd_bullet.js','mmd_bullet.wasm'])paths.add(`mmd/${version}/${file}`);
   for(const page of ['index.html','labs/cloth/index.html']){
     const html=await readFile(join(dir,page),'utf8');
     const entries=[...html.matchAll(/(?:href|src)="\/((?:labs\/cloth\/)?assets\/[^"?#]+)"/g)].map(m=>m[1]);
-    assert(entries.some(p=>p.endsWith('.js')),`No built JS entry in ${page}`);for(const p of entries)paths.add(p);
+    assert(entries.some(p=>/(?:^|\/)index-[\w-]+\.js$/.test(p)),`No built JS entry in ${page}`);
+    for(const p of entries)if(!quick||/(?:^|\/)index-[\w-]+\.(?:js|css)$/.test(p))paths.add(p);
   }
   // The renderer's on-demand planet chunk, and its separately bundled WASM.
   const entry=[...paths].find(p=>/^assets\/index-[\w-]+\.js$/.test(p));assert(entry);
-  const js=await readFile(join(dir,entry),'utf8');
-  for(const m of js.matchAll(/(?:PlanetPhysics-|planet-physics-)[\w-]+\.js/g))paths.add('assets/'+m[0]);
-  for(const file of await readdir(join(dir,'assets')))if(/^mmd_anim_wasm_bg-.*\.wasm$/.test(file))paths.add('assets/'+file);
-  for(const file of await readdir(join(dir,'labs/cloth/assets')))paths.add('labs/cloth/assets/'+file);
+  if(!quick){
+    paths.add('assets/organ.worker-dQG0D6Ad.js');
+    for(const file of ['mmd_bullet.js','mmd_bullet.wasm'])paths.add(`mmd/${version}/${file}`);
+    const js=await readFile(join(dir,entry),'utf8');
+    for(const m of js.matchAll(/(?:PlanetPhysics-|planet-physics-)[\w-]+\.js/g))paths.add('assets/'+m[0]);
+    for(const file of await readdir(join(dir,'assets')))if(/^mmd_anim_wasm_bg-.*\.wasm$/.test(file))paths.add('assets/'+file);
+    for(const file of await readdir(join(dir,'labs/cloth/assets')))paths.add('labs/cloth/assets/'+file);
+  }
   const pending=paths.values();
   await Promise.all(Array.from({length:3},async()=>{for(const p of pending){
     const expected=await readFile(join(dir,p));
@@ -59,15 +63,28 @@ async function verifyLive(){
 }
 
 async function main(action){
-  if(action==='prepare'){
+  if(action==='prepare'||action==='quick'){
     await rm(receipt,{force:true});
     const revision=cleanRevision(), opts={cwd:root,stdio:'inherit'};
     execFileSync(process.execPath,['scripts/loader-sync.mjs','upstream'],opts);
-    if(process.platform==='win32')execFileSync('cmd.exe',['/d','/c','pnpm run check'],opts);
-    else execFileSync('pnpm',['run','check'],opts);
+    const quick=action==='quick', files=process.argv.slice(3).map(p=>relative(root,resolve(p)).replaceAll('\\','/'));
+    if(quick){
+      assert(files.length,'Supply the relevant test file(s) to release:quick, or use release:prepare for the full suite.');
+      const vitest=[],node=[];for(const file of files){
+        if(/^src\/.+\.(?:spec|test)\.tsx?$/.test(file))vitest.push(file);
+        else if(/^(?:scripts|experiments)\/.+\.test\.[cm]?js$/.test(file))node.push(file);
+        else throw Error(`Not a project test file: ${file}`);
+        execFileSync('git',['ls-files','--error-unmatch','--',file],{cwd:root,stdio:'pipe'});
+      }
+      if(vitest.length)execFileSync(process.execPath,['node_modules/vitest/vitest.mjs','run',...vitest],opts);
+      if(node.length)execFileSync(process.execPath,['--test',...node],opts);
+    }
+    const task=quick?'build':'check';
+    if(process.platform==='win32')execFileSync('cmd.exe',['/d','/c',`pnpm run ${task}`],opts);
+    else execFileSync('pnpm',['run',task],opts);
     execFileSync(process.execPath,['scripts/retain-legacy-scene.mjs'],opts);
     const dist=await identifyDist(dir);assert.equal(cleanRevision(),revision,'Source changed during checks');
-    await writeFile(receipt,JSON.stringify({revision,dist},null,2)+'\n');
+    await writeFile(receipt,JSON.stringify({revision,dist,checks:quick?{mode:'focused',files}:{mode:'full'}},null,2)+'\n');
     console.log(`Prepared ${revision.slice(0,7)}: ${dist.files} files, sha256 ${dist.sha256}`);
   }else if(action==='verify'||action==='live'){
     const r=JSON.parse(await readFile(receipt,'utf8').catch(()=>{throw Error('No prepared release; run pnpm run release:prepare first.');}));
@@ -76,7 +93,7 @@ async function main(action){
     if(action==='verify')assert.equal(cleanRevision(),r.revision,'The prepared release belongs to another commit');
     assert.deepEqual(await identifyDist(dir),r.dist,'dist changed after release checks; refusing to promote');
     console.log(`Matched prepared ${r.revision.slice(0,7)}: ${r.dist.files} files, sha256 ${r.dist.sha256}`);
-    if(action==='live')await verifyLive();
-  }else throw Error('Expected prepare, verify or live');
+    if(action==='live')await verifyLive(r.checks?.mode==='focused');
+  }else throw Error('Expected quick, prepare, verify or live');
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href)await main(process.argv[2]);

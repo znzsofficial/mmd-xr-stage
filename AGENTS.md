@@ -45,13 +45,13 @@
 pnpm install
 pnpm run check
 git diff --check
-# Release from a clean commit: includes check and one build; smoke that dist before upload.
+# Release from a clean commit: for small edits use release:quick <focused test file(s)> instead.
 pnpm run release:prepare
 pnpm run deploy
 ```
 
 - `pnpm test` runs Vitest in the Node environment; some component tests use a `// @vitest-environment jsdom` pragma. jsdom in this setup does NOT provide `localStorage` — stub it in tests.
-- There is no lint script. PR/main CI runs `pnpm run check`; use `release:prepare` instead when preparing a local release, not both.
+- For this personal project, default to a short edit loop: use the dev viewer, check the changed behavior once with the cheapest meaningful check, and stop when it passes. A copy or layout edit does not need the whole suite, a build per edit, a new report or a Quest export. Broaden only for failures or a change that crosses a shared boundary. There is no lint script. PR/main CI runs `pnpm run check`; the current formal release path runs it inside `release:prepare`, so do not run `check` locally a second time before release.
 - Use Node 26.12.1 (`.node-version`, engines `>=26.12.1 <27`), matching jsdom 31 and Node 26 types. Do not follow npm's `node` latest tag into Node 27 alpha.
 
 ## MMD Loader And Assets

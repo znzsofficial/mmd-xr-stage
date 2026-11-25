@@ -4,7 +4,7 @@
 
 ## 当前部署路径
 
-经典 Cloudflare Pages 直传。日常／PR 用 `pnpm run check`：舞台 Vitest → 工具和实验的 Node 测试 → loader 校验、类型检查、舞台与实验构建。PR 和 `master` 的检查没有部署凭证。发布从干净、已提交、用锁文件安装的检出开始：
+经典 Cloudflare Pages 直传。小改默认 `pnpm run release:quick <相关测试文件…>`，例如 `pnpm run release:quick experiments/gpu-cloth/xrPalms.test.js`。仅运行指定用例文件，再构建一次，上传后核对两入口及入口 JS/CSS。PR 和 `master` 的 CI 在后台跑全量。背包数据、XR 入场、loader、跨模块重构或影响范围不清，用下面的 `release:prepare` 全量档。两档二选一，共用原制品收据、旧标签页保护和上传命令，不把快速档写成全量通过。发布从干净、已提交、用锁文件安装的检出开始：
 
 ```bash
 pnpm run release:prepare
