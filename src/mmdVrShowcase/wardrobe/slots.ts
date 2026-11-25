@@ -1,5 +1,6 @@
 import type { Material, SkinnedMesh, Texture } from 'three';
 import { materialSlotKeys, sourceMaterialSlot } from '../mmdRuntime/materialSlotKey';
+import { modelDrawRange } from '../mmdRuntime/modelDrawRange';
 
 export type ModelDraws={renderOrderMeshes?:readonly SkinnedMesh[];outlineMeshes?:readonly SkinnedMesh[]};
 type Mapped=Material & {map:Texture|null};
@@ -17,7 +18,7 @@ export function bindSlots(mesh:SkinnedMesh,model:ModelDraws={}):SlotBinding[]{
     if(m&&'map' in m&&m.map&&(m.map as Texture).isTexture&&!slot.maps.includes(m as Mapped))slot.maps.push(m as Mapped);
   };
   for(const owner of new Set(bodies)){
-    const g=owner.geometry,total=g.index?.count??g.attributes.position?.count??0,r=g.drawRange;
+    const g=owner.geometry,total=g.index?.count??g.attributes.position?.count??0,r=modelDrawRange(owner);
     const draw=(mat:Material|undefined,local:number,start:number,end:number)=>{
       const n=Math.floor((Math.min(total,r.start+r.count,end)-Math.max(0,r.start,start))/3);
       if(!mat||n<=0||!Number.isFinite(n)||mat.userData.mmdShadowOnlyRenderProxy||!mat.colorWrite)return;

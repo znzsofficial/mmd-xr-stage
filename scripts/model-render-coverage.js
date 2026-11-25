@@ -2,6 +2,8 @@ import * as T from 'three';
 import {createMmdRuntimeHandle} from '../src/mmdVrShowcase/mmdRuntime/mmdRuntime';
 import {prepareMmdVrModel} from '../src/mmdVrShowcase/stage/loading/prepareMmdVrModel';
 import {prepareModelGpu} from '../src/mmdVrShowcase/stage/loading/prepareModelGpu';
+import {bindSlots} from '../src/mmdVrShowcase/wardrobe/slots';
+import {materialDraws} from '../src/mmdVrShowcase/bodyState/lactation/outletFit';
 
 const v=()=>new T.Vector3(),count=(pixels)=>{
   let n=0;for(let i=0;i<pixels.length;i+=4)if(pixels[i+3])n++;return n;
@@ -48,7 +50,20 @@ window.testActor=async({fileName,special='sdef',boneIndex,axis=[.38,.64,.66],deg
     centre=bounds.getCenter(v());eye=centre.clone().addScaledVector(new T.Vector3(.18,.06,1.7),height);const rest=frame();
     const common={vertices:mesh.geometry.attributes.position.count,bones:bones.length,materials:materials(mesh).length,drawCalls:renderer.info.render.calls,missing:report.missingTextures.length,visiblePixels:count(rest)};
     if(common.visiblePixels<60)throw Error('Actor is not visible');
-    if(duplicate){const first=memory(),h1=handles(mesh),other=await load(),m2=rt.getModelSurface(other.modelId).mesh;update();frame();const second=memory(),h2=handles(m2);rt.removeModel(id);const kept=frame(),one=memory();rt.removeModel(other.modelId);frame();const end=memory(),survivor=diff(kept,rest);if(end.textures!==empty.textures||one.textures!==first.textures||survivor.over8>5)throw Error('Resource or appearance mismatch '+JSON.stringify({first,one,end,survivor}));return {...common,counts:{empty,first,second,one,end},diffuse:{slots:materials(mesh).filter(m=>m.map).length,unique:h1.size,shared:[...h1].filter(h=>h2.has(h)).length},survivor};}
+    if(duplicate){
+      const first=memory(),h1=handles(mesh),surface=rt.getModelSurface(id),other=await load(),m2=rt.getModelSurface(other.modelId).mesh;
+      const split=mesh.userData.mmdMorphSplitBodyMeshes??[],ranges=split.length?split.flatMap(m=>materialDraws({mesh:m,renderOrderMeshes:[]})??[]):materialDraws(surface)??[];
+      const topology={split:split.length,slots:bindSlots(mesh,surface).length,ranges:ranges.length,indices:ranges.reduce((n,r)=>n+r.end-r.start,0)};
+      update();frame();const second=memory(),h2=handles(m2),diffuse={slots:materials(mesh).filter(m=>m.map).length,unique:h1.size,shared:[...h1].filter(h=>h2.has(h)).length};
+      let independent=null;
+      if(typeof duplicate==='string'){
+        rt.setModelVisible(other.modelId,false);rt.setMorphWeight(id,duplicate,1);update();const expression=frame();rt.setModelVisible(other.modelId,true);rt.setModelVisible(id,false);update();const neighbour=frame();
+        independent={expression:diff(expression,rest),neighbour:diff(neighbour,rest)};
+        if(!independent.expression.over8||independent.neighbour.changed)throw Error('Morph failed or crossed instances: '+JSON.stringify(independent));
+      }
+      rt.removeModel(id);const kept=frame(),one=memory();rt.removeModel(other.modelId);frame();const end=memory(),survivor=diff(kept,rest);
+      if(end.textures!==empty.textures||end.bytes!==empty.bytes||one.bytes!==first.bytes||one.textures!==first.textures||survivor.over8>5)throw Error('Resource or appearance mismatch '+JSON.stringify({first,one,end,survivor}));
+      return {...common,counts:{empty,first,second,one,end},diffuse,topology,independent,survivor};}
     if(motion){const f=new File([Uint8Array.from(motion.bytes)],'case.vmd');await rt.loadMotion(f,motion.slot??'face',id);const max=rt.duration;
       const slot=motion.materialIndex,gr=mesh.geometry.groups.find(g=>g.materialIndex===slot),source=[].concat(mesh.material),material=source[slot];
       update(0);if(gr){const ids=mesh.geometry.index,box=new T.Box3(),p=v();for(let k=gr.start;k<gr.start+gr.count;k++)box.expandByPoint(mesh.localToWorld(mesh.getVertexPosition(ids.getX(k),p)));

@@ -25,12 +25,14 @@ const savedModel = (m: MmdProjectModelAssets) => snapshotModel({ file: m.modelFi
 const modelBindings = (m: MmdProjectModelAssets) => ({ body: m.bodyMotionFile ?? undefined, face: m.faceMotionFile ?? undefined });
 
 function disposeGroup(group: THREE.Group) {
-  const resources = new Set<THREE.BufferGeometry | THREE.Texture | THREE.Material>();
+  const resources = new Set<THREE.BufferGeometry | THREE.Texture | THREE.Material | THREE.Skeleton | THREE.InstancedMesh>();
   group.traverse(child => {
-    const mesh = child as THREE.Mesh;
-    if (!mesh.isMesh) return;
-    resources.add(mesh.geometry);
-    for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+    if (!(child instanceof THREE.Mesh || child instanceof THREE.Line || child instanceof THREE.Points)) return;
+    // glTF skins and instances own buffers/textures outside geometry and material.
+    if (child instanceof THREE.SkinnedMesh && child.skeleton) resources.add(child.skeleton);
+    if (child instanceof THREE.InstancedMesh) resources.add(child);
+    resources.add(child.geometry);
+    for (const material of Array.isArray(child.material) ? child.material : [child.material]) {
       if (!material) continue;
       resources.add(material);
       for (const value of Object.values(material)) if (value instanceof THREE.Texture) resources.add(value);

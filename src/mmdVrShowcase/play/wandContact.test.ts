@@ -37,6 +37,17 @@ it('requires actual posed triangles (including triangle interiors); excludes emp
   root.visible=false;expect(query(-.1,-.1,0)).toBe(0);
 });
 
+it('queries only the visible half of an indexed square shared by two material proxies',()=>{
+  const g=new BufferGeometry().setAttribute('position',new Float32BufferAttribute([-1,-1,0, 1,-1,0, 1,1,0, -1,1,0],3));
+  g.setIndex([0,1,2, 2,3,0]);g.setDrawRange(0,0);Object.freeze(g.drawRange);
+  const root=new Group(),mats=[new MeshBasicMaterial(),new MeshBasicMaterial()],mesh=new SkinnedMesh(g,mats);
+  const proxies=mats.map((m,i)=>{const p=new SkinnedMesh(g,m);p.userData.mmdMaterialRenderProxy={materialIndex:i,start:3*i,count:3};return p;});
+  root.add(mesh,...proxies);const pass=createWandSurface({root,mesh,renderOrderMeshes:proxies}),h=hit();
+  const depth=(x:number,y:number)=>{pass.query(at(x,y,0),wandCap,h,Infinity);return h.depth;};
+  proxies[0].visible=false;expect(depth(-.5,.5)).toBeCloseTo(1);expect(depth(.5,-.5)).toBe(0);
+  proxies[0].visible=true;proxies[1].visible=false;expect(depth(-.5,.5)).toBe(0);expect(depth(.5,-.5)).toBeCloseTo(1);
+});
+
 it('uses the current scaled/rotated wrist pose, animated bone and a reordered split-body morph, not the rest mesh',()=>{
   const {model,root,mesh,bone,g,m}=rig();const body=new SkinnedMesh(g.clone(),m);root.add(body);body.bind(mesh.skeleton,mesh.bindMatrix);
   body.userData.mmdMorphSplitBody={morphTargetIndices:new Uint16Array([1])};mesh.userData.mmdMorphSplitBodyMeshes=[body];

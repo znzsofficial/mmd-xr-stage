@@ -1,4 +1,5 @@
 import { Triangle, Vector3, type SkinnedMesh } from 'three';
+import { modelDrawRange } from '../../mmdRuntime/modelDrawRange';
 import { visibleTexel } from '../../play/wandOpacity';
 import { createWandPose } from '../../play/wandPose';
 import type { WandModel } from '../../play/wandSurface';
@@ -12,7 +13,7 @@ const unsupported:SampleMilkOutlet=(_s,_p,_n,_bare,detail)=>{if(detail){detail.s
 
 function* build(model:WandModel):Generator<void,SampleMilkOutlet>{
   const source=model.mesh,split:SkinnedMesh[]|undefined=source.userData.mmdMorphSplitBodyMeshes;
-  if(!source.morphTargetDictionary||split&&(!Array.isArray(split)||source.geometry.drawRange.count!==0||model.renderOrderMeshes.length!==0))return unsupported;
+  if(!source.morphTargetDictionary||split&&(!Array.isArray(split)||modelDrawRange(source).count!==0||model.renderOrderMeshes.length!==0))return unsupported;
   const parts:{mesh:SkinnedMesh;draws:Draw[]}[]=[],sides=['left','right'] as const;
   const anchors:Partial<Record<Side,{mesh:SkinnedMesh;b:Binding}|null>>={};let vertices=0,indices=0,morphValues=0;
   // For split PMX the source mesh owns weights but draws no triangles. The

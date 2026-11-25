@@ -1,4 +1,5 @@
 import { Box3, Ray, Triangle, Vector3, type Material, type Object3D, type SkinnedMesh } from 'three';
+import { modelDrawRange } from '../../mmdRuntime/modelDrawRange';
 import type { WandModel } from '../../play/wandSurface';
 
 export type Side='left'|'right';
@@ -23,11 +24,11 @@ function evidence(m:Material){
 export function materialDraws({mesh,renderOrderMeshes}:WandModel):Draw[]|null{
   const g=mesh.geometry,total=g.index?.count??g.attributes.position?.count??0,draws:Draw[]=[];
   function add(owner:Object3D,material:Material,start:number,end:number){if(material&&start<end)draws.push({owner,material,start,end});}
-  if(g.drawRange.count===0){for(const proxy of renderOrderMeshes){
+  const {start,count}=modelDrawRange(mesh);
+  if(count===0){for(const proxy of renderOrderMeshes){
     if(Array.isArray(proxy.material)||proxy.geometry.attributes.position!==g.attributes.position||proxy.geometry.index!==g.index)return null;
-    const {start,count}=proxy.geometry.drawRange;add(proxy,proxy.material,start,Math.min(total,start+count));
+    const r=modelDrawRange(proxy);add(proxy,proxy.material,r.start,Math.min(total,r.start+r.count));
   }}else{
-    const {start,count}=g.drawRange;
     if(Array.isArray(mesh.material))for(const group of g.groups)add(mesh,mesh.material[group.materialIndex??0],Math.max(start,group.start),Math.min(start+count,group.start+group.count,total));
     else add(mesh,mesh.material,start,Math.min(total,start+count));
   }

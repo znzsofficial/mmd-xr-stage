@@ -2,6 +2,7 @@ import { Box3, Triangle, Vector3, type Material, type Mesh, type Object3D, type 
 import { createWandPose } from '../play/wandPose';
 import type { WandModel } from '../play/wandSurface';
 import { materialSlotKeys, sourceMaterialSlot } from '../mmdRuntime/materialSlotKey';
+import { modelDrawRange } from '../mmdRuntime/modelDrawRange';
 import { garmentKeys } from '../wardrobe/slots';
 import {pelvicRailTravel} from './path';
 import {PELVIC_LIMITS} from './stateTypes';
@@ -48,9 +49,9 @@ function indexGarmentGuard(root:Object3D,surface?:WandModel|null,registered?:Rea
       if(!body)bodies.push(body={mesh,source,bones:new Set(),shown:false});
       layers.push({body,mesh,owner,material:m,key,start,end:Math.min(total,end),pose,oversize,invalid:false,shown:false});
     };
-    if(proxies.length&&g.drawRange.count===0){for(const p of proxies){const {start,count}=p.geometry.drawRange;
-      range(p,Array.isArray(p.material)?p.material[0]:p.material,start,start+count);}return;}
-    const {start,count}=g.drawRange;
+    const {start,count}=modelDrawRange(mesh);
+    if(proxies.length&&count===0){for(const p of proxies){const r=modelDrawRange(p);
+      range(p,Array.isArray(p.material)?p.material[0]:p.material,r.start,r.start+r.count);}return;}
     if(Array.isArray(mesh.material)){for(const group of g.groups)range(mesh,mesh.material[group.materialIndex??0],Math.max(start,group.start),Math.min(start+count,group.start+group.count),group.materialIndex??0);}
     else range(mesh,mesh.material,start,start+count);
   }

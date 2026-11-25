@@ -37,6 +37,8 @@
 
 ## 共享骨架去重的上游候选
 
+舞台另在加载准备阶段[合并相同形态几何](./performance/model-memory.md)，对应上游 `3f3c82a` 的显存问题，而不是本节的 CPU 候选。升级若 loader 已自行共享几何，不再包裹回调。保留绘制外的 `start/count` 读取，复测普通及真实拆分 PMX 的形态分配、影子、衣柜、命中与独立移除后再清理适配器。
+
 **状态（2026-11-25）：只准备，未投稿。** 上游 [#47](https://github.com/yohawing/three-mmd-loader/pull/47) 是维护者的 `0.9.0` 发布 PR，不是我们的优化 PR。核对时仍为 open，head 为 `347bf20`。它已经处理 three r186/r187 的 TSL 导入兼容并提供 `debugPhysicsContactsForRigidBodyRange`；不重复投稿。这不意味着舞台当前安装的 `0.8.6` 可以撤掉补丁。
 
 **候选改什么。** #47 的 JS 和 WASM `tick` 仍在世界矩阵更新后，逐个 `SkinnedMesh` 调 `skeleton.update()`。身体、材质代理和描边共用同一 `Skeleton` 时会重复算同一组蒙皮矩阵。候选只在这一次遍历中按 `Skeleton` 对象去重，保留换绑、不同绑定逆矩阵和下一次 tick 的更新，不改公开 API 或原生 ABI。它与 #47 解决的 morph 纹理显存问题不同。CCD IK 是另一个候选，要在新基线上单独测，不并入本次。

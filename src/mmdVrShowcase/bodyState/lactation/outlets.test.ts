@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { Float32BufferAttribute, SkinnedMesh, Uint16BufferAttribute, Vector3 } from 'three';
+import { BufferGeometry, Float32BufferAttribute, SkinnedMesh, Uint16BufferAttribute, Vector3 } from 'three';
 import { makeOutletFixture } from './outletFixture.test-support';
 import { createMilkOutlets, prepareMilkOutlets, type OutletDetail } from './outlets';
 
@@ -12,6 +12,22 @@ it('samples the posed skin and outward normal; a moving, unlabelled covering vet
   model.mesh.morphTargetInfluences![0]=1;model.root.scale.setScalar(2);model.root.rotation.y=Math.PI/2;model.root.updateMatrixWorld(true);
   expect(sample('left',p,n)).toBe(true);expect(n.x).toBeCloseTo(1);expect(p.x).toBeCloseTo(2*(.12+.014));expect(p.z).toBeCloseTo(-.2);
   model.root.visible=false;expect(sample('left',p,n,true)).toBe(false);
+});
+
+it.each(['legacy','shared'])('%s material ranges keep the moving cover separate from its underlying skin',layout=>{
+  const {model,cloth}=makeOutletFixture(),{mesh,root}=model,g=mesh.geometry;
+  g.setDrawRange(0,0);Object.freeze(g.drawRange);
+  const proxies=g.groups.map(({start,count,materialIndex=0})=>{
+    const geometry=layout==='shared'?g:new BufferGeometry().setAttribute('position',g.attributes.position).setIndex(g.index);
+    const proxy=new SkinnedMesh(geometry,mesh.material[materialIndex]);
+    if(layout==='shared')proxy.userData.mmdMaterialRenderProxy={materialIndex,start,count};
+    else {geometry.setDrawRange(start,count);proxy.userData.mmdMaterialRenderProxy={materialIndex};}
+    return proxy;
+  });
+  root.add(...proxies);cloth.visible=true;
+  const sample=createMilkOutlets({...model,renderOrderMeshes:proxies}),p=new Vector3(),n=new Vector3();
+  expect(sample('left',p,n)).toBe(false);expect(sample('right',p,n)).toBe(true);
+  proxies[1].visible=false;expect(sample('left',p,n)).toBe(true);
 });
 
 it('ordinary body material requires explicit confirmation, compatible skin weights, and independent exposure',()=>{

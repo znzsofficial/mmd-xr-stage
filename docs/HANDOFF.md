@@ -2,11 +2,11 @@
 
 [正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `dbd2e96`](https://142e6fdc.mmd-xr-stage.pages.dev) · [WebGPU 裙摆实验](https://mmd-xr-stage.pages.dev/labs/cloth/) · [发布记录](./release-history.md) · [文档索引](./README.md)
 
-**恢复停点：舞台已发布[跨模型修复](./performance/model-feature-coverage.md)，下一项优先验证形态纹理的重复分配。** 正式演员仍使用 WebGL 与 Bullet。独立[原衣裙摆实验](./performance/gpu-cloth-lab.md)另等 Quest 3S 对比同姿势同尺寸、JSON 的 `faceContact: active` 与裙骨档。实模里衬最深穿入 14.0→9.9 mm，外裙最深 26.9 mm 未变；校园同机位帧率另测。
+**恢复停点：同一演员的形态纹理已去重，glTF 物件收回时的资源遗漏已修。** [新旧内存与画面对照](./performance/model-memory.md)：原衣 A 单人形态分配 910→26 MiB，教室与空泳池回访两轮无累增。下一次实戴分别看首次放置峰值、站稳后和收回后的内存；这些桌面分配量不是 Quest FPS。独立[原衣裙摆实验](./performance/gpu-cloth-lab.md)及校园同机位帧率另测。
 
 ## 从这里继续
 
-- **查演员本身的兼容或内存：**先读[跨模型实测](./performance/model-feature-coverage.md)。四件真实 SDEF 演员的摆放缩放与晚 VMD 键已修；独立的材质形态／UV 形态仍有失败。角色 A 在场时形态 atlas 重复申请 910 MiB，优先兼容绘制外的材质范围，再验证共享几何方案，不能直接禁用表情或描边。
+- **查演员兼容性：**四件 SDEF 演员的摆放缩放与晚 VMD 键已修；[材质形态／UV 形态](./performance/model-feature-coverage.md)的实模反例仍独立待修。排查角色内存时用[分配与释放探针](./performance/model-memory.md)，不要禁用表情或描边来获得小数字。
 
 - **查场景帧率：**选泳池计时台或教室后门，按[单景真机对照](./performance/next-quest-export.md#泳池或教室同机位真机对照)跑 `6061e24` 与 `b91325b`。先空场，加入演员或开物理另算。若两版帧率都顶住刷新率，只记录几何提交和镜片观感；无需据此继续削水面或课桌材质。
 - **查单人开物理仍慢：**先分普通站立、保持手动体位、持续播舞。[站姿减抖](./performance/xr-runtime-performance.md#默认站立开物理后的反复轻抖)不休眠 Bullet；[手动姿势报告](./performance/pose-cloth-contact.md#保持一个姿势也会花时间吗)有 `skirtWork`。持续播舞已做[关节行与接触／摩擦行的独立计时](./performance/bullet-step-profile.md#主迭代行循环)：48/48 窗以关节行为重，占非 split 迭代约七成。若继续查原后端，先量哪些约束行每遍实际执行，不直接调低求解精度。

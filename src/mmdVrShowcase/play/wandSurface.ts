@@ -1,4 +1,5 @@
 import { Box3, Matrix4, Triangle, Vector3, type BufferAttribute, type InterleavedBufferAttribute, type Material, type Object3D, type SkinnedMesh } from 'three';
+import {modelDrawRange} from '../mmdRuntime/modelDrawRange';
 import type {ContactCap} from './wandHead';
 import {createWandPose} from './wandPose';
 import {visibleTexel} from './wandOpacity';
@@ -25,10 +26,10 @@ function* build(model:WandModel){
     if(!position || (vertices+=position.count)>maxVertices)return [];
     const total=g.index?.count??position.count, index=g.index;
     const pose=createWandPose(mesh,source),materials=Array.isArray(mesh.material)?mesh.material:[mesh.material],unbind=mesh.bindMatrix.clone().invert();
-    const proxies=mesh===source&&model.renderOrderMeshes.length>0&&g.drawRange.count===0;
-    const ranges=proxies?model.renderOrderMeshes.map(owner=>({owner,material:Array.isArray(owner.material)?owner.material[0]:owner.material,...owner.geometry.drawRange})):
+    const r=modelDrawRange(mesh),proxies=mesh===source&&model.renderOrderMeshes.length>0&&r.count===0;
+    const ranges=proxies?model.renderOrderMeshes.map(owner=>({owner,material:Array.isArray(owner.material)?owner.material[0]:owner.material,...modelDrawRange(owner)})):
       (Array.isArray(mesh.material)?g.groups:[{start:0,count:total,materialIndex:0}]).map(group=>({owner:mesh,material:materials[group.materialIndex??0],
-        start:Math.max(g.drawRange.start,group.start),count:Math.min(g.drawRange.start+g.drawRange.count,group.start+group.count)-Math.max(g.drawRange.start,group.start)}));
+        start:Math.max(r.start,group.start),count:Math.min(r.start+r.count,group.start+group.count)-Math.max(r.start,group.start)}));
     for(const {owner,material,start,count} of ranges){
       if(!material||count<=0)continue;
       type Bucket={faces:number[];bones:Set<number>;box:Box3;swing:number;qdef:boolean};

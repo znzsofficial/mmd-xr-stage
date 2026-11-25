@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PMX 形态 atlas · WebGL 对照</title>
+<h1>PMX 形态 atlas 对照</h1>
+<p>选一套原衣 PMX 的目录（含贴图）。同一 WebGL2 renderer 先画旧几何，再画默认准备路径。输入和结果只在此页使用。</p>
+<label>模型目录 <input id="folder" type="file" webkitdirectory multiple></label>
+<details><summary>设备不支持选择目录</summary><label>一起选择 PMX 和配套贴图 <input id="loose" type="file" multiple></label></details>
+<label>入口 PMX <select id="model"></select></label>
+<p><label>样本 <select id="kind"><option value="proxy">普通材质代理</option><option value="split">按材质拆分形态</option></select></label>
+<label>服装材质槽（从 0 起）<input id="slot" type="number" min="0" placeholder="默认：最大服装槽"></label></p>
+<button id="run">开始旧 / 新对照</button> <button id="save" disabled>保存 JSON</button> <output id="status" aria-live="polite"></output>
+<p><canvas width="512" height="512" style="max-width:100%;height:auto"></canvas></p>
+<details open><summary>逐状态验证结果</summary><pre id="report" style="white-space:pre-wrap;overflow-wrap:anywhere"></pre></details>
+<script type="module" src="./model-atlas-parity.js"></script></html>
