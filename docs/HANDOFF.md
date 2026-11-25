@@ -1,10 +1,10 @@
 # 会话交接｜2026-11-25
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `6061e24`](https://4c959c01.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `b91325b`](https://6b27603e.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
 
 **恢复停点：loader 上游贡献。** 共享骨架去重的代码、公开合成基准和英文 PR 草稿已准备，仅在本机 `perf/dedupe-render-palettes` 分支，尚未推送或开 PR。11 月 25 日核对，上游发布 PR [#47](https://github.com/yohawing/three-mmd-loader/pull/47) 仍未合并。下次先看它的状态；合并后才在新的 `upstream/main` 上复现，若已修就不提。[基线、两个提交、复验条件及准备包位置](./three-mmd-loader-maintenance.md#共享骨架去重的上游候选)
 
-**当前发布。** `6061e24` 落地[星门静件合批、双喜堂和柏树投影、远月分级及菌圃按眼裁剪](./performance/scenery-render-work.md)。已验证六门双向交互、三条风道往返、菌圃放置角色和脚边投影。桌面绘制提交减少，北台远月单项没有稳定 GPU 改善；Quest 同机位帧率仍待实戴。此前[仰卧首帧及衣物遮挡优化](./performance/pose-fit-and-clothing.md)、[站姿裙摆减抖](./performance/xr-runtime-performance.md#默认站立开物理后的反复轻抖)、[小行星按 Y 站直](./performance/planet-stance-input.md)继续适用。舞台仍用官方 loader `0.8.6` + pnpm 补丁。
+**当前发布。** `b91325b` 减少[泳池和教室](./performance/pool-classroom.md)视野外几何提交。已验 13 个屏幕机位的阴影开关、模拟双眼从池畔走到计时台及从桌椅过道走到后门、原衣演员投影与左右发船。Quest 实际帧时待验。前版[星门、庭院投影、远月和菌圃](./performance/scenery-render-work.md)、[仰卧首帧及衣物遮挡优化](./performance/pose-fit-and-clothing.md)、[站姿裙摆减抖](./performance/xr-runtime-performance.md#默认站立开物理后的反复轻抖)、[小行星按 Y 站直](./performance/planet-stance-input.md)继续适用。舞台仍用官方 loader `0.8.6` + pnpm 补丁。
 
 **裙摆接续。** 先区分两个现象：① 仰卧抬腿后微调左膝，前裙曾重新掉回腿间；现版已在屏幕和模拟双眼验证松手后仍堆在小腹。② 未微调的普通抬腿，侧髋最深约 28 mm 的几何穿入仍在；强推会让衣边飘宽、穿得更深，未采用。分膝捧腿停 2 秒时外裙横穿面 53→18，里衬 39→0；这是[同帧蒙皮测量](./performance/supine-side-skirt.md)，不是露腿面积。稀疏裙从站立进四点跪撑最深 28.2→17.3 mm，从抬腿进跪则仍为 12.8 mm，见[换姿方向与黑斑反例](./performance/pose-cloth-contact.md)。这些结果只覆盖开物理的手动摆姿。
 
