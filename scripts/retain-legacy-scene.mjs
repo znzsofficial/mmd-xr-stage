@@ -4,6 +4,10 @@ import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 
 const files = [
+  ['4c959c01','index-D7FNU2Js.js','890c7bd89b6c58c2c4a34a8da87924d89aa5d4fc84ab525425d7a73c3254c665'],
+  ['4c959c01','PlanetPhysics-B1Cuww0d.js','d7c3067e50a7cbb31106d7001c4e19da9a02fca9aa3859fc215024f7593925cb'],
+  ['4c959c01','emulate-8mbFp0ti.js','90ea54a3304deddff1a97c42e49d3795fa6b7b91a5e6817225d51129fb2b3cc2'],
+  ['4c959c01','vendor-three-BOCit2LM.js','b9d2e087d57f983861045b1daa28fae2afab8311e88c8795e04ce0bebfa3cbc5'],
   ['4d4fb0ec','index-CMqRZzDy.js','174706009766300470eb646e88c84743d014d29b2d2e8e1116c243b512f1339c'],
   ['4d4fb0ec','PlanetPhysics-0LfkN1k4.js','f7a32042a5a46c55ca88fd2424800bf7e7fb31796cc156873d884e0a34b98f67'],
   ['4d4fb0ec','emulate-C-Od7f1_.js','49172f35b6c64a54056d21aa275b0e9c45a6a477f67c97bb9661c0b47fd5de22'],

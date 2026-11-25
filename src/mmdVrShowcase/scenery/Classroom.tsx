@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useMemo } from 'react';
-import { BufferGeometry, DoubleSide, Float32BufferAttribute, RepeatWrapping } from 'three';
+import { BufferGeometry, DoubleSide, Float32BufferAttribute, RepeatWrapping, type InstancedMesh } from 'three';
 import { Batch } from './SceneryBatch';
 import { canopyCluster, chairBack, chairFrame, classroomCurtains, deskFrame, woodSlab } from './ClassroomGeometry';
 import { classroomProps } from './ClassroomProps';
+import { cameraInstancePrefix } from './cameraInstancePrefix';
 import {SchoolBrickWalk} from './SchoolBrickWalk';
 import {BorrowedMeadow} from './BorrowedMeadow';
 import { useBakedSurface } from './useBakedSurface';
@@ -40,6 +41,14 @@ function printedMatter() {
 
 export function Classroom({ shadows }: { shadows: boolean }) {
   const p = useMemo(classroomProps, []);
+  const prepare = useMemo(() => {
+    // Each neighbouring pair is a tight box; a single box around all desks
+    // straddles the otherwise empty aisle. Hardware stays in authored order.
+    const setup = (ends:number[]) => (mesh:InstancedMesh) => cameraInstancePrefix(mesh,ends);
+    const n=p.deskFrames.length, pairs=Array.from({length:Math.ceil(n/2)},(_,i)=>Math.min(2*i+2,n));
+    return {frames:setup(pairs),
+      hardware:setup(p.hardwareEnds), crowns:setup(p.crownEnds)};
+  }, [p]);
   const geometry = useMemo(() => ({ slab: woodSlab(), desk: deskFrame(), chair: chairFrame(),
     back: chairBack(), cloth: classroomCurtains(), foliage: canopyCluster(), paper: printedMatter() }), []);
   const atlas=useBakedSurface(lesson),grain=useBakedSurface(veneer,'data'),earth=useBakedSurface(globe);
@@ -54,13 +63,13 @@ export function Classroom({ shadows }: { shadows: boolean }) {
     </mesh>
     <Batch name="room-shell-and-sashes" parts={p.shell} casts={shadows} shade={daylight} />
     <Batch name="joinery-and-campus" parts={p.trim} shade={daylight} />
-    <Batch name="chalk-window-hardware" parts={p.round} round shade={daylight} />
-    <Batch name="quadrangle-foliage" parts={p.leaves} geometry={geometry.foliage} shade={classroomBounce} />
+    <Batch name="chalk-window-hardware" parts={p.round} round shade={daylight} onInstancesReady={prepare.hardware} />
+    <Batch name="quadrangle-foliage" parts={p.leaves} geometry={geometry.foliage} shade={classroomBounce} onInstancesReady={prepare.crowns} />
     <Batch name="ceiling-practicals" parts={p.luminous} lit />
     <Batch name="radiused-wood-and-stationery" parts={p.slabs} geometry={geometry.slab} casts={shadows} shade={daylight} />
     <Batch name="birch-veneers" parts={p.veneers} geometry={geometry.slab} casts={shadows} shade={shadows?boardShadow:boardDay} map={grain??undefined} />
-    <Batch name="tubular-desk-frames" parts={p.deskFrames} geometry={geometry.desk} shade={shadows?steelShadow:steelDay} />
-    <Batch name="tubular-chair-frames" parts={p.chairFrames} geometry={geometry.chair} shade={shadows?steelShadow:steelDay} />
+    <Batch name="tubular-desk-frames" parts={p.deskFrames} geometry={geometry.desk} shade={shadows?steelShadow:steelDay} onInstancesReady={prepare.frames} />
+    <Batch name="tubular-chair-frames" parts={p.chairFrames} geometry={geometry.chair} shade={shadows?steelShadow:steelDay} onInstancesReady={prepare.frames} />
     <Batch name="molded-chair-backs" parts={p.backs} geometry={geometry.back} casts={shadows} shade={shadows?backShadow:backDay} map={grain??undefined} />
     <mesh name="gathered-linen" castShadow={shadows} receiveShadow={shadows} raycast={()=>null}>
       <primitive object={geometry.cloth} attach="geometry" /><meshStandardMaterial vertexColors side={DoubleSide} roughness={1} onBeforeCompile={classroomBounce} />

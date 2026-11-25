@@ -1,6 +1,6 @@
 import { useMemo, useRef, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { BufferGeometry, Color, CylinderGeometry, DoubleSide, Float32BufferAttribute, TorusGeometry, Vector3, type Mesh,type ShaderMaterial } from 'three';
+import { BufferGeometry, Color, CylinderGeometry, DoubleSide, Float32BufferAttribute, IcosahedronGeometry, TorusGeometry, Vector3, type Mesh,type ShaderMaterial } from 'three';
 import {ARBOR} from './meadowLandmarks';
 import {BorrowedMeadow} from './BorrowedMeadow';
 import {arcadeParts,judgeStand,PACE_CLOCK,POOL,POOL_SUPPORT,POOL_ORIGIN,PAVILION_POSTS,poolBarrierParts} from './LidoLayout';
@@ -11,6 +11,7 @@ import { useBakedSurface } from './useBakedSurface';
 import pavementURL from './lido-pavement.webp';
 import { Batch, type Part } from './SceneryBatch';
 import { noPick, paintedSurface } from './sceneryPaint';
+import { indexPoolSurface, poolInstanceStrips } from './poolInstanceStrips';
 
 type V = Part['p'];
 export const POOL_SUN: V = [-4.5,5.6,-5];
@@ -31,8 +32,8 @@ function canopy() {
   const g=new BufferGeometry();g.setAttribute('position',new Float32BufferAttribute(positions,3));g.setAttribute('color',new Float32BufferAttribute(colors,3));g.computeVertexNormals();return g;
 }
 
-function furnishings() {
-  const blocks:Part[]=[], drums:Part[]=[], crowns:Part[]=[];
+export function poolFurnishings() {
+  const blocks:Part[]=[], drums:Part[]=[], trunks:Part[]=[], crowns:Part[]=[];
   const box=(p:V,s:V,color:string,ry=0,rx=0)=>blocks.push({p,s,color,ry,rx});
   const tube=(p:V,s:V,color:string,rx=0,rz=0)=>drums.push({p,s,color,rx,rz});
   // The surrounding lawn is below the basin rather than crossing the water.
@@ -45,7 +46,7 @@ function furnishings() {
   for(const s of [-1,1])for(const t of [-1,1])box([ax+s*1.53,1.33,az+t*1.16],[.16,2.66,.16],'#988168');
   for(let j=-4;j<=4;j++){box([ax,2.73,az+j*.37],[3.74,.16,.12],'#ac9472');
     for(const s of [-1,1])crowns.push({p:[ax+s*1.23,2.58,az+j*.37],s:[.62,.44,.47],color:j%3?'#99a27b':'#ad9db5'});}
-  for(const [x,z,h] of [[13,16,5.4],[3.0,17.1,4.4],[9,24,5],[-8,23,6]]){tube([x,h*.43,z],[.24,h*.86,.24],'#81735d');for(let j=0;j<6;j++)crowns.push({p:[x+.94*Math.cos(j*2.4),h-.58*j/6,z+.94*Math.sin(j*2.4)],s:[2.7,1.8,2.65],color:j%2?'#87a978':'#719264'});}
+  for(const [x,z,h] of [[13,16,5.4],[3.0,17.1,4.4],[9,24,5],[-8,23,6]]){trunks.push({p:[x,h*.43,z],s:[.24,h*.86,.24],color:'#81735d'});for(let j=0;j<6;j++)crowns.push({p:[x+.94*Math.cos(j*2.4),h-.58*j/6,z+.94*Math.sin(j*2.4)],s:[2.7,1.8,2.65],color:j%2?'#87a978':'#719264'});}
   for(let j=0;j<8;j++){const a=.49+j*.27;crowns.push({p:[28*Math.cos(a),-.6,19+16*Math.sin(a)],s:[14,4+j%3,8],color:j%2?'#98ae8e':'#a2b69a'});}
   const clock=PACE_CLOCK;
   tube([clock.x,.70,clock.z],[.084,1.40,.084],'#63867f');tube([clock.x,.055,clock.z],[.43,.11,.43],'#8c9990');
@@ -105,8 +106,8 @@ function furnishings() {
     for(const dx of [-.64,0,.64])box([x+dx,2.48,-22.39],[.055,.37,.042],'#e6d7b7');}
   for(let j=0;j<24;j++) {const a=j*.73,x=(j%2?-1:1)*(14+3*Math.sin(a)),z=-29+(j>>1)*3.7,h=3.2+1.1*Math.cos(a);
     if(reserveArcadeSite(x+POOL_ORIGIN.x,z+POOL_ORIGIN.z,2.2))continue;
-    tube([x,(h-.2)/2,z],[.27,h+.2,.27],'#847663');for(let k=0;k<4;k++)crowns.push({p:[x+.82*Math.sin(k*2),h+.4*Math.cos(k*2),z+.8*Math.cos(k*2)],s:[2.7,2.2,2.3],color:['#769568','#8aab72','#668662','#94ad73'][k]});}
-  return {blocks,drums,crowns};
+    trunks.push({p:[x,(h-.2)/2,z],s:[.27,h+.2,.27],color:'#847663'});for(let k=0;k<4;k++)crowns.push({p:[x+.82*Math.sin(k*2),h+.4*Math.cos(k*2),z+.8*Math.cos(k*2)],s:[2.7,2.2,2.3],color:['#769568','#8aab72','#668662','#94ad73'][k]});}
+  return {blocks,drums:poolInstanceStrips(drums,trunks),crowns:poolInstanceStrips(crowns)};
 }
 
 const lineY=(x:number)=>2.64+.37*(x/5.45)**2;
@@ -125,7 +126,7 @@ function lifeRing(){
   const g=new TorusGeometry(.275,.076,8,48).toNonIndexed(),t=new Color(),c:number[]=[];
   const uv=g.getAttribute('uv');for(let i=0;i<uv.count;i+=3){const u=(uv.getX(i)+uv.getX(i+1)+uv.getX(i+2))/3;
     t.set((u*4+.15)%1<.3?'#fff0ca':'#e76838');for(let j=0;j<3;j++)c.push(t.r,t.g,t.b);}
-  g.setAttribute('color',new Float32BufferAttribute(c,3));return g;
+  g.setAttribute('color',new Float32BufferAttribute(c,3));return indexPoolSurface(g);
 }
 
 // Trace the refracted view vector from the surface to the floor/side tiles.
@@ -166,15 +167,16 @@ function Water() {
 
 export function PoolTerrace({shadows}:{shadows:boolean}) {
   const hand=useRef<Mesh>(null);useFrame(({clock})=>{if(hand.current)hand.current.rotation.z=-clock.elapsedTime*Math.PI/30;});
-  const metal=useMemo(()=>new CylinderGeometry(.5,.5,1,10),[]),needles=useMemo(()=>{
+  const metal=useMemo(()=>indexPoolSurface(new CylinderGeometry(.5,.5,1,10)),[]);
+  const garden=useMemo(()=>indexPoolSurface(new IcosahedronGeometry(.5,1)),[]),needles=useMemo(()=>{
     const g=new BufferGeometry(),p:number[]=[],c:number[]=[];
     for(const [length,tint] of [[.319,'#bb4d36'],[-.286,'#407f83']] as const){const color=new Color(tint);for(const [x,y] of [[-.009,0],[.009,0],[.005,length],[-.009,0],[.005,length],[-.005,length]]){p.push(x,y,0);c.push(color.r,color.g,color.b);}}
     g.setAttribute('position',new Float32BufferAttribute(p,3));g.setAttribute('color',new Float32BufferAttribute(c,3));return g;
-  },[]);useEffect(()=>()=>{metal.dispose();needles.dispose();},[metal,needles]);
-  const p=useMemo(furnishings,[]), top=useMemo(canopy,[]),flags=useMemo(flagCloth,[]),ring=useMemo(lifeRing,[]),stone=useBakedSurface(pavementURL);
+  },[]);useEffect(()=>()=>{metal.dispose();garden.dispose();needles.dispose();},[metal,garden,needles]);
+  const p=useMemo(poolFurnishings,[]), top=useMemo(canopy,[]),flags=useMemo(flagCloth,[]),ring=useMemo(lifeRing,[]),stone=useBakedSurface(pavementURL);
   const sign=useMemo(()=>paintedSurface(512,96,g=>{g.fillStyle='#216b74';g.fillRect(0,0,512,96);g.fillStyle='#faf2d7';g.textAlign='center';g.font='600 44px system-ui';g.fillText('AQUATICS CLUB',256,63);}),[]);
   useEffect(()=>()=>{top.dispose();sign.dispose();flags.dispose();ring.dispose();},[top,sign,flags,ring]);
-  return <group name="scenery:pool"><Batch name="lido-terrace-and-pavilion" parts={p.blocks} casts={shadows} /><Batch name="pool-metalwork" parts={p.drums} geometry={metal} /><Batch name="pool-gardens" parts={p.crowns} foliage />
+  return <group name="scenery:pool"><Batch name="lido-terrace-and-pavilion" parts={p.blocks} casts={shadows} /><Batch name="pool-metalwork" {...p.drums} geometry={metal} /><Batch name="pool-gardens" {...p.crowns} geometry={garden} />
     <BorrowedMeadow room="pool"/>
     {POOL.parasols.map(r=><mesh key={r.x} position={[r.x,2.51,r.z]} geometry={top} castShadow={shadows} raycast={noPick}><meshStandardMaterial side={DoubleSide} vertexColors roughness={1}/></mesh>)}
     <mesh position={[0,2.93,-20.69]} raycast={noPick}><planeGeometry args={[3.35,.62]} /><meshStandardMaterial map={sign} /></mesh>

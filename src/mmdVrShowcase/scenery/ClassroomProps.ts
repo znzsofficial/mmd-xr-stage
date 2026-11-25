@@ -9,6 +9,7 @@ const bindings = ['#52777e', '#c0835a', '#b9b993', '#647a63', '#a65049', '#d0ad7
 
 export function classroomProps() {
   const shell: Part[] = [], trim: Part[] = [], round: Part[] = [], leaves: Part[] = [], luminous: Part[] = [];
+  const hardwareEnds: number[] = [];
   const slabs: Part[] = [], veneers: Part[] = [], deskFrames: Part[] = [], chairFrames: Part[] = [], backs: Part[] = [];
   const rand = seededRandom(2203), {w, d, h} = ROOM, X=w/2, Z=d/2;
   const add = (list: Part[], p: V, s: V, color: string, ry=0, rz=0, rx=0) => list.push({p,s,color,ry,rz,rx});
@@ -46,6 +47,7 @@ export function classroomProps() {
     box([-X+.003,1.64,z+.032],[.064,.132,.035],dark);
   }
   cyl([-X+.17,3.22,0],[.034,d,.034],'#ad946e',0,0,Math.PI/2);
+  hardwareEnds.push(round.length); // full-length curtain rod
   // Overhead concrete ribs, suspended twin diffuser lights and end caps.
   for (const z of [-3.67,0,3.67]) {
     box([0,h-.065,z],[w,.13,.19],'#e5dcc7');
@@ -66,6 +68,7 @@ export function classroomProps() {
   // Tick positions stay legible in peripheral view, with a red second hand.
   const cx=-.70, cy=3.025;
   cyl([cx,cy,-Z+.10],[.433,.065,.433],dark,0,0,Math.PI/2); cyl([cx,cy,-Z+.139],[.393,.018,.393],'#faf0d6',0,0,Math.PI/2);
+  hardwareEnds.push(round.length); // teaching wall
   for(let i=0;i<12;i++){ const a=i*Math.PI/6; box([cx+.167*Math.sin(a),cy+.167*Math.cos(a),-Z+.158],[.011,i%3?.022:.037,.007],dark,0,-a); }
   box([cx-.044,cy+.018,-Z+.171],[.022,.104,.012],dark,0,1.14);box([cx+.024,cy+.066,-Z+.169],[.016,.144,.012],dark,0,-.35);
   box([cx+.021,cy-.068,-Z+.18],[.009,.155,.008],'#ac654b',0,.29);
@@ -112,6 +115,7 @@ export function classroomProps() {
     if(i%3===0) { const p=x+.20; cyl([p,.751,z+.105],[.013,.171,.013],'#b8794d',.2,Math.PI/2); }
   }
 
+  hardwareEnds.push(round.length); // pencils
   const L=LECTERN;
   slab([L.x,.866,L.z],[L.w,.055,L.d],'#c59c6e');box([L.x,.53,L.z-.12],[1.46,.60,.27],'#bcaa89');
   for (const dx of [-.69,.69]) box([L.x+dx,.43,L.z],[.075,.86,.52],molding);
@@ -123,6 +127,7 @@ export function classroomProps() {
     const a=-.32+Math.PI*(i+.5)/14;
     cyl([gx+.193*Math.sin(a),1.172+.193*Math.cos(a),gz],[.012,.049,.012],'#c19a5b',0,Math.PI/2-a);
   }
+  hardwareEnds.push(round.length); // globe cradle
   // Pinned student work along the side wall: aluminium rail, paper corners,
   // a muted field map on each sheet. The wall face stays flush and placeable.
   box([X-.047,2.43,.02],[.08,.046,3.02],molding);
@@ -150,10 +155,15 @@ export function classroomProps() {
   shelf(BOOKCASE,3);shelf(REAR_CASE,5);
   function plant(x:number,y:number,z:number,s:number) {
     cyl([x,y+.086*s,z],[.179*s,.17*s,.179*s],'#b47556');cyl([x,y+.170*s,z],[.202*s,.038*s,.202*s],'#c68961');
+    hardwareEnds.push(round.length);
     for(let i=0;i<7;i++) {const a=i*2.399; add(leaves,[x+.066*s*Math.cos(a),y+(.265+.049*rand())*s,z+.066*s*Math.sin(a)],
       [.112*s,.28*s,.071*s],i%2?'#7e9b69':'#598570',a,.48*Math.cos(a),-.48*Math.sin(a));}
   }
-  plant(BOOKCASE.x+.62,1.055,BOOKCASE.z,1.35); plant(REAR_CASE.x-.92,1.055,REAR_CASE.z,1.68);
+  // Keep the authored order within each plant/crown. Submit the distant ridge
+  // first so a look out from the porch need not submit the rest of the campus.
+  const leafEnds:number[]=[];
+  plant(BOOKCASE.x+.62,1.055,BOOKCASE.z,1.35); leafEnds.push(leaves.length);
+  plant(REAR_CASE.x-.92,1.055,REAR_CASE.z,1.68); leafEnds.push(leaves.length);
 
   // Exterior at a lower elevation: near branches, a quadrangle, glazed school
   // wings, the old observatory, and the pale last ridge behind the skyline.
@@ -187,14 +197,24 @@ export function classroomProps() {
   box([tx,-.28,tz],[4.3,4.98,4.9],'#cfa588');box([tx,2.18,tz],[4.52,.22,5.14],'#e4d5b8');
   cyl([tx,3.12,tz],[3.13,1.9,3.13],'#d7b99a');cyl([tx,4.13,tz],[3.42,.21,3.42],'#8eab9c');
   add(leaves,[tx,4.12,tz],[3.29,2.85,3.29],'#829e9b');cyl([tx,5.58,tz],[.12,.59,.12],'#8e8b78');
+  hardwareEnds.push(round.length);
+  leafEnds.push(leaves.length);
   for(let i=0;i<8;i++){const a=i*Math.PI/4;box([tx+1.53*Math.sin(a),3.35,tz+1.53*Math.cos(a)],[.36,.62,.07],'#718f92',a);}
   for(const [x,z,H] of [[-9,-7.3,3.65],[-13.4,-4.85,4.8],[-16,-16.5,5.8]]) {
     cyl([x,-2.78+H*.38,z],[.23,H*.76,.23],'#95856b');
     for(const side of [-1,1])cyl([x,-2.78+H*.60,z+side*.33],[.12,H*.38,.12],'#95856b',0,0,side*.43);
+    hardwareEnds.push(round.length);
     for(let n=0;n<19;n++){const a=n*2.399, r=n===0?0:H*(.13+rand()*.18);
       add(leaves,[x+r*Math.cos(a),-2.78+H*(n===0?1.08:.78+rand()*.26),z+r*Math.sin(a)],
         [H*(.28+rand()*.16),H*(.30+.13*rand()),H*.34],['#a2b57b','#bdc17c','#829e72','#a3ba7c'][n%4],a);}
+    leafEnds.push(leaves.length);
   }
   for(let i=0;i<9;i++) add(leaves,[-34-i%2*3,-1,-25+i*6],[11,7+rand()*4,13],i%2?'#94aca5':'#a8bcae',i);
-  return {shell,trim,round,leaves,luminous,slabs,veneers,deskFrames,chairFrames,backs};
+  const ridge = leaves.splice(leafEnds[leafEnds.length-1]);
+  const crownEnds = [ridge.length, ...leafEnds.map(n=>n+ridge.length)];
+
+  // Window bank first. Only the plain steel batches change order: the birch
+  // shader's gl_InstanceID is the original student's veneer sample.
+  for (const frames of [deskFrames,chairFrames]) frames.sort((a,b)=>Number(a.p[0]>0)-Number(b.p[0]>0));
+  return {shell,trim,round,hardwareEnds,leaves:ridge.concat(leaves),crownEnds,luminous,slabs,veneers,deskFrames,chairFrames,backs};
 }
