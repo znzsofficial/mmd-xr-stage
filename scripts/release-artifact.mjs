@@ -37,7 +37,7 @@ async function verifyLive(){
   for(const file of ['mmd_bullet.js','mmd_bullet.wasm'])paths.add(`mmd/${version}/${file}`);
   for(const page of ['index.html','labs/cloth/index.html']){
     const html=await readFile(join(dir,page),'utf8');
-    const entries=[...html.matchAll(/(?:href|src)="\/(?:((?:labs\/cloth\/)?assets\/[^"?#]+))"/g)].map(m=>m[1]);
+    const entries=[...html.matchAll(/(?:href|src)="\/((?:labs\/cloth\/)?assets\/[^"?#]+)"/g)].map(m=>m[1]);
     assert(entries.some(p=>p.endsWith('.js')),`No built JS entry in ${page}`);for(const p of entries)paths.add(p);
   }
   // The renderer's on-demand planet chunk, and its separately bundled WASM.
@@ -46,15 +46,15 @@ async function verifyLive(){
   for(const m of js.matchAll(/(?:PlanetPhysics-|planet-physics-)[\w-]+\.js/g))paths.add('assets/'+m[0]);
   for(const file of await readdir(join(dir,'assets')))if(/^mmd_anim_wasm_bg-.*\.wasm$/.test(file))paths.add('assets/'+file);
   for(const file of await readdir(join(dir,'labs/cloth/assets')))paths.add('labs/cloth/assets/'+file);
-  for(let attempt=1;;attempt++){
-    try{
-      const stamp=Date.now();await Promise.all([...paths].map(async p=>{
-        const url='https://mmd-xr-stage.pages.dev/'+p.replace(/(^|\/)index\.html$/,'$1')+'?release='+stamp;
-        const r=await fetch(url,{signal:AbortSignal.timeout(25000)});assert(r.ok,`${p}: HTTP ${r.status}`);
-        assert((await readFile(join(dir,p))).equals(Buffer.from(await r.arrayBuffer())),`${p}: differs from prepared dist`);
-      }));break;
-    }catch(e){if(attempt===3)throw e;await new Promise(done=>setTimeout(done,3000*attempt));}
-  }
+  const pending=paths.values();
+  await Promise.all(Array.from({length:3},async()=>{for(const p of pending){
+    const expected=await readFile(join(dir,p));
+    for(let attempt=1;;attempt++)try{
+      const url='https://mmd-xr-stage.pages.dev/'+p.replace(/(^|\/)index\.html$/,'$1')+'?release='+Date.now();
+      const r=await fetch(url,{signal:AbortSignal.timeout(60000)});assert(r.ok,`HTTP ${r.status}`);
+      assert(expected.equals(Buffer.from(await r.arrayBuffer())),'differs from prepared dist');break;
+    }catch(e){if(attempt===3)throw Error(`Production verification failed: ${p}`,{cause:e});await new Promise(done=>setTimeout(done,3000*attempt));}
+  }}));
   console.log(`Matched ${paths.size} production pages/resources including ${entry}`);
 }
 
@@ -71,7 +71,9 @@ async function main(action){
     console.log(`Prepared ${revision.slice(0,7)}: ${dist.files} files, sha256 ${dist.sha256}`);
   }else if(action==='verify'||action==='live'){
     const r=JSON.parse(await readFile(receipt,'utf8').catch(()=>{throw Error('No prepared release; run pnpm run release:prepare first.');}));
-    assert.equal(cleanRevision(),r.revision,'The prepared release belongs to another commit');
+    // Upload requires the matching clean checkout. Read-only verification of
+    // an already published artifact must still work after a documentation commit.
+    if(action==='verify')assert.equal(cleanRevision(),r.revision,'The prepared release belongs to another commit');
     assert.deepEqual(await identifyDist(dir),r.dist,'dist changed after release checks; refusing to promote');
     console.log(`Matched prepared ${r.revision.slice(0,7)}: ${r.dist.files} files, sha256 ${r.dist.sha256}`);
     if(action==='live')await verifyLive();
