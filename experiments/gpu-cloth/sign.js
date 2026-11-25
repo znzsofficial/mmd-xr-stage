@@ -10,7 +10,7 @@ export async function makeSign(device,format,isLive){
   const sampler=device.createSampler({minFilter:'linear',magFilter:'linear'}),sets=new Map();
   const tex=device.createTexture({label:'XR mode sign',size:[512,128],format:'rgba8unorm',usage:GPUTextureUsage.COPY_DST|GPUTextureUsage.TEXTURE_BINDING});
   let view,text,disabled=false;try{view=tex.createView();}catch(error){tex.destroy();throw error;}
-  function upload(state){ctx.fillStyle='#291d29';ctx.fillRect(0,0,512,128);ctx.fillStyle='#e4c28b';ctx.font='bold 40px sans-serif';ctx.fillText(state,18,53);ctx.fillStyle='#fff1df';ctx.font='28px sans-serif';ctx.fillText('左 X 切求解　右 A 换姿势',18,106);device.queue.writeTexture({texture:tex},ctx.getImageData(0,0,512,128).data,{bytesPerRow:512*4},[512,128]);}
+  function upload(state){ctx.fillStyle='#291d29';ctx.fillRect(0,0,512,128);ctx.fillStyle='#e4c28b';ctx.font='bold 40px sans-serif';ctx.fillText(state,18,53);ctx.fillStyle='#fff1df';ctx.font='28px sans-serif';ctx.fillText('X 求解　A 动作　Y 舞段对照',18,106);device.queue.writeTexture({texture:tex},ctx.getImageData(0,0,512,128).data,{bytesPerRow:512*4},[512,128]);}
   return {draw(pass,eye,state){if(disabled)return;if(text!==state){try{upload(state);text=state;}catch(error){console.warn('XR mode label:',error);disabled=true;return;}}
     if(!sets.has(eye))sets.set(eye,device.createBindGroup({layout:pipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:eye}},{binding:1,resource:view},{binding:2,resource:sampler}]}));pass.setPipeline(pipe);pass.setBindGroup(0,sets.get(eye));pass.draw(6);},dispose:()=>tex.destroy()};
 }

@@ -5,5 +5,7 @@
 <p>打开带裙骨的 PMX；选整个模型目录可带上原贴图。文件只在本机读取。</p>
 <section><button id="swatch">试用样裙</button><label class="picker">模型目录 <input id="folder" type="file" webkitdirectory multiple></label><label class="picker">PMX 与贴图 <input id="file" type="file" multiple accept=".pmx,image/*,.tga,.dds"></label><select id="model" hidden aria-label="目录里的角色"></select></section>
 <canvas aria-label="裙摆实时对照，左右拖动可环视"></canvas><p id="status" role="status">等待模型</p>
+<section><label class="picker">身体 VMD <input id="dance" type="file" accept=".vmd" disabled></label><button id="pair" disabled>同段对照</button><button id="unload" disabled>卸下动作</button></section>
+<output id="comparison" aria-live="polite"></output>
 <section><label>求解 <select id="mode" disabled><option value="bullet">原版 Bullet</option><option value="cut">移除裙链</option><option value="gpu-face">GPU 裙面接触</option><option value="gpu" selected>GPU 裙骨接触</option></select></label><button id="pose" disabled>仰卧抬腿</button><button id="stroke" disabled>拨一次裙摆</button><button id="xr" disabled>进入 VR</button><button id="save" disabled>导出对照 JSON</button></section><output id="meter"></output>
-<small>屏幕：拖动环视，滚轮拉近。VR：左 X 换求解方式，右 A 换姿势。金色球是手柄或手追掌心的接触位置；从裙边下方托起，撤手后看衣摆回落。退出后可导出记录。</small></main><script type="module" src="./main.js"></script></html>
+<small>左 X 换求解方式。右 A 播放／暂停 VMD；未选动作时切换站姿和抬腿。左 Y 开始／停止同段对照：两档依次播放同一舞段，在第 4 秒定格，以相同的双掌托起、先后撤手，再续播。手动播放时，金色球跟随手柄或手追掌心。</small></main><script type="module" src="./main.js"></script></html>
