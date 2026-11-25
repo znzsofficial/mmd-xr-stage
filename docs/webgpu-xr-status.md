@@ -23,3 +23,7 @@ WebGPU 支持不代表这个项目自动更快；没有真实 Quest 3S 帧耗时
 3. **先测 XR 接线，再决定切换。** 第一阶段已有演员后即可用内部入口冒烟双眼，尽早排除 `@react-three/xr`、Three XRManager 和现有会话绑定的冲突。每个会话只有一个帧循环和投影层所有者。集成后验证同背包放置、菜单射线、双手操作、退出和失败恢复，再查代表性布景的自定义着色器（如教室地面、小行星天幕）。按同机、同动作、相同实得刷新率和眼图尺寸与正式 WebGL 比慢帧；默认切换看常用场景画面及操作、真机帧时和回退均过关。一景一人的调试成果不自行触发切换。
 
 **可复用的轮子：**[现用 loader 的 WebGPU 实现（固定提交）](https://github.com/znzsofficial/three-mmd-loader/tree/3ac1d8ef93fe85a9bb4463933aef4a5198bd259a/src/webgpu)提供 toon、轮廓和稀疏位置/UV 形态；[R3F 9.8.2 的 Canvas 工厂](https://github.com/pmndrs/react-three-fiber/blob/v9.8.2/docs/API/canvas.mdx)可异步初始化 renderer；[Three 的 GPU 布料示例](https://threejs.org/examples/webgpu_compute_cloth.html)示范计算和绘制共用缓冲；[WebXR 最小示例](https://immersive-web.github.io/webxr-samples/webgpu/vr-barebones.html)可隔离绑定问题。[three-simplecloth](https://github.com/bandinopla/three-simplecloth)适合有顶点色蒙版的 SkinnedMesh，抓取与球碰撞可参考；用户导入的 PMX 有自己的裙骨、关节和碰撞许可，主路径继续使用既有求解器。现阶段无需增加运行依赖或迁移引擎。外部示例的能力与本机集成验收分开记录。
+
+**第一件原衣怎么验：**沿用[实模画面对照](../scripts/model-render-coverage.js)的相机、动作时间和实际摆放比例，分别取正面、描边和隐藏一个衣柜材质后的画面。锁定 loader 的 `attach` 会替换材质并追加描边绘制组，`prepareRender` 会同步形态、光照与材质状态；房间已有绘制者时，每帧准备一次即可。不要把新增描边组当成独立衣柜条目，也不要在两眼分别跑形态求解。`detach` 负责卸下 TSL 附属资源；回退从原文件与布局重建 WebGL 实例，不把已替换的材质当作原件复用。
+
+**后续候选：局部撕裂。** 先选一件独立袜面、有底层腿部几何的测试衣物，做一条可复位的预制裂缝；保留 UV 与原骨权重，拉开时同时看两条裂边、腿面和描边，松手、复位后再播舞。若袜子直接画在腿部贴图上，归为另一种素材，不在这条几何试验中。此候选不阻塞渲染后端，也未排入当前实现。
