@@ -12,6 +12,7 @@
 
 | 功能提交 | 已发布内容与验证范围 |
 |---|---|
+| `dfc1c35` | [默认站姿原衣裙摆减抖](./performance/xr-runtime-performance.md#默认站立开物理后的反复轻抖)。实模原生步进与接触对照、固定机位模拟双眼、暂停拨裙与重置通过；1006 项测试通过，主域入口及 14 份资源与验收构建一致。[固定版](https://be095544.mmd-xr-stage.pages.dev) |
 | `f20d268` | [改入口后保持附件安装](./gameplay/actor-tools.md)、[小行星走过南极后按 Y 站直](./performance/planet-stance-input.md)、[手动体位裙摆的连续开销](./performance/pose-cloth-contact.md#保持一个姿势也会花时间吗)。实模屏幕横移、复位与主动关闭已验证；模拟双眼走 44 m、侧移和跑跳后两次主动回正；1005 项测试通过。主域入口及 14 份资源与验收构建逐字节一致。[固定版](https://950dbdf3.mmd-xr-stage.pages.dev) |
 | `e581a0c` | [源码按功能归位](./architecture.md#源码目录)，含实现与同目录测试。1001 项测试通过，完整发布目录的 313 个文件路径与 SHA-256 均与 `6d0ae28` 一致；主域名入口及关键资源已核验。[固定版](https://7ee70117.mmd-xr-stage.pages.dev) |
 | `6d0ae28` | [移除演员后恢复哪份布局](./architecture/maintenance.md#移除演员后恢复哪份布局)。双演员回归复现并修复详情移除后立即重建会恢复旧名单；模拟 XR 扳机走通详情移除。1001 项测试通过，主域名入口及 10 份关键资源与验收构建哈希一致。[固定版](https://70055dbb.mmd-xr-stage.pages.dev) |
