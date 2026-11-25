@@ -12,6 +12,7 @@
 
 | 功能提交 | 已发布内容与验证范围 |
 |---|---|
+| `eea2217` | [切体位首帧及衣物遮挡优化](./performance/pose-fit-and-clothing.md)。三款实模裙装校验骨矩阵及位置缓冲；WebGL 验证半盖／全盖／移开，生产屏幕实际换姿、恢复及附件移动复位。1009 项测试通过，主域入口及 14 份关键资源与验收构建逐字节一致。离线 Bullet 分测不进入产品。[固定版](https://4d4fb0ec.mmd-xr-stage.pages.dev) |
 | `dfc1c35` | [默认站姿原衣裙摆减抖](./performance/xr-runtime-performance.md#默认站立开物理后的反复轻抖)。实模原生步进与接触对照、固定机位模拟双眼、暂停拨裙与重置通过；1006 项测试通过，主域入口及 14 份资源与验收构建一致。[固定版](https://be095544.mmd-xr-stage.pages.dev) |
 | `f20d268` | [改入口后保持附件安装](./gameplay/actor-tools.md)、[小行星走过南极后按 Y 站直](./performance/planet-stance-input.md)、[手动体位裙摆的连续开销](./performance/pose-cloth-contact.md#保持一个姿势也会花时间吗)。实模屏幕横移、复位与主动关闭已验证；模拟双眼走 44 m、侧移和跑跳后两次主动回正；1005 项测试通过。主域入口及 14 份资源与验收构建逐字节一致。[固定版](https://950dbdf3.mmd-xr-stage.pages.dev) |
 | `e581a0c` | [源码按功能归位](./architecture.md#源码目录)，含实现与同目录测试。1001 项测试通过，完整发布目录的 313 个文件路径与 SHA-256 均与 `6d0ae28` 一致；主域名入口及关键资源已核验。[固定版](https://7ee70117.mmd-xr-stage.pages.dev) |
