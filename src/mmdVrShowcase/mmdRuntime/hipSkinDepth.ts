@@ -2,6 +2,14 @@ import {Box3,Matrix4,Triangle,Vector3,type SkinnedMesh} from 'three';
 
 type Face={tri:Triangle;box:Box3;center:Vector3;side:number};
 type Node={box:Box3;faces?:Face[];left?:Node;right?:Node};
+const byX=(a:Face,b:Face)=>a.center.x-b.center.x,byY=(a:Face,b:Face)=>a.center.y-b.center.y,byZ=(a:Face,b:Face)=>a.center.z-b.center.z;
+function leaf(faces:Face[]):Node{const box=new Box3();for(const f of faces)box.union(f.box);return {box,faces};}
+// Partition only branches reached by a closest-point query. The full posed
+// skin is already captured; later queries cannot read a different frame.
+function split(n:Node,p:Vector3){const fs=n.faces!;if(fs.length<=8)return;
+  n.box.getSize(p);fs.sort(p.x>p.y?(p.x>p.z?byX:byZ):p.y>p.z?byY:byZ);
+  const mid=fs.length>>1;n.left=leaf(fs.slice(0,mid));n.right=leaf(fs.slice(mid));n.faces=undefined;
+}
 const dirs=[[.21,.88,.43],[-.86,.32,.39],[.49,.19,-.85]].map(x=>new Vector3(...x).normalize());
 // The same six parity rays are used for many garment vertices. Index the
 // projected skin once. Positive and negative hits share the same 2D cell and
@@ -24,7 +32,7 @@ function parityView(faces:Face[],n:Vector3){const x=new Vector3().set(Math.abs(n
 export function fitHipSkinDepth(mesh:SkinnedMesh,material:unknown,hips:number[],worldToLap:Matrix4){
   const draws:SkinnedMesh[]=mesh.userData.mmdMorphSplitBodyMeshes?.length?mesh.userData.mmdMorphSplitBodyMeshes:[mesh],mats=[mesh.material].flat();
   const bones=mesh.skeleton.bones,names=(i:number)=>[bones[i]?.name,bones[i]?.userData.mmdBoneName,bones[i]?.userData.mmdEnglishBoneName].filter((x):x is string=>typeof x==='string').map(s=>s.normalize('NFKC').toLowerCase().replace(/[\s_.-]/g,'').replace(/d$/,''));
-  const match=hips.map(i=>new Set(names(i))),sides=bones.map((_,i)=>match.findIndex(s=>names(i).some(n=>s.has(n))));
+  const match=hips.map(i=>new Set(names(i))),sides=bones.map((_,i)=>{const labels=names(i);return match.findIndex(s=>labels.some(n=>s.has(n)));});
   const faces:Face[]=[],p=new Vector3(),rot=new Matrix4();
   for(const body of draws){const g=body.geometry,{skinIndex,skinWeight}=g.attributes,ix=g.index!,points=new Map<number,Vector3>();
     rot.multiplyMatrices(worldToLap,body.matrixWorld);
@@ -36,10 +44,9 @@ export function fitHipSkinDepth(mesh:SkinnedMesh,material:unknown,hips:number[],
         faces.push({tri,box:new Box3().setFromPoints([tri.a,tri.b,tri.c]),center:tri.getMidpoint(new Vector3()),side:left>=1.5?0:right>=1.5?1:-1});}
     }}
   if(!faces.length)return null;
-  function tree(fs:Face[]):Node{const box=new Box3();for(const f of fs)box.union(f.box);if(fs.length<=8)return {box,faces:fs};
-    box.getSize(p);const k=p.x>p.y?(p.x>p.z?'x':'z'):p.y>p.z?'y':'z';fs.sort((a,b)=>a.center[k]-b.center[k]);const mid=fs.length>>1;return {box,left:tree(fs.slice(0,mid)),right:tree(fs.slice(mid))};}
-  const root=tree(faces),pos=new Vector3();let best=Infinity,nearest=-1;
-  function distance(n:Node){if(n.box.distanceToPoint(pos)>=best)return;if(n.faces){for(const f of n.faces){const d=f.tri.closestPointToPoint(pos,p).distanceTo(pos);if(d<best){best=d;nearest=f.side;}}}
+  const root=leaf(faces),pos=new Vector3();split(root,p);let best=Infinity,nearest=-1;
+  function distance(n:Node){if(n.box.distanceToPoint(pos)>=best)return;if(n.faces&&n.faces.length>8)split(n,p);
+    if(n.faces){for(const f of n.faces){const d=f.tri.closestPointToPoint(pos,p).distanceTo(pos);if(d<best){best=d;nearest=f.side;}}}
     else{const a=n.left!,b=n.right!;if(a.box.distanceToPoint(pos)<b.box.distanceToPoint(pos)){distance(a);distance(b);}else{distance(b);distance(a);}}}
   const views=dirs.map(d=>parityView(faces,d.clone().transformDirection(worldToLap)));
   const depth=(v:Vector3,side:number)=>{if(!root.box.containsPoint(v))return 0;pos.copy(v);for(const odd of views)if(!odd(pos))return 0;

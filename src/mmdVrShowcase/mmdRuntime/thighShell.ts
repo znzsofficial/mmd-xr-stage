@@ -1,4 +1,4 @@
-import {Vector3} from 'three';
+import type {Vector3} from 'three';
 
 // Two orthographic depth intervals, in units of hip-to-knee length. Each ray
 // needs BOTH walls of the displayed skin. A sparse accessory or an open edge
@@ -10,7 +10,6 @@ type View=ReturnType<typeof makeView>;
 export class ThighShell {
   private views=[makeView(),makeView()];
   private ready=false;
-  private normal=new Vector3();
   add(a:Vector3,b:Vector3,c:Vector3){
     this.ready=false;
     for(let v=0;v<2;++v){
@@ -48,11 +47,13 @@ export class ThighShell {
         const a=buf[k],b=buf[k+1],c=buf[k+N],e=buf[k+N+1];
         const low=a+(b-a)*fx,high=c+(e-c)*fx,h=low+(high-low)*fy;
         const du=((b-a)*(1-fy)+(e-c)*fy)/dx,dt=(high-low)/dy;
-        const n=this.normal.set(v?-du:1,-dt,v?1:-du).multiplyScalar(sign).normalize();
-        const facing=Math.abs(v?n.z:n.x),depth=(h-d)*sign*facing;
+        // The depth axis component has magnitude one before normalization.
+        // Only write a vector for the winning wall, not every rejected wall.
+        const nx=v?-du:1,ny=-dt,nz=v?1:-du,facing=1/Math.sqrt(nx*nx+ny*ny+nz*nz);
+        const depth=(h-d)*sign*facing;
         if(depth<-.068)return -Infinity;
         if(facing<.44)continue;
-        if(depth<best){best=depth;out.copy(n);found=true;}
+        if(depth<best){best=depth;out.set(nx*sign*facing,ny*sign*facing,nz*sign*facing);found=true;}
       }
     }
     return found?best:-Infinity;

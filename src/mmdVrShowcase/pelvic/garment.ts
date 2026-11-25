@@ -7,6 +7,7 @@ import {pelvicRailTravel} from './path';
 import {PELVIC_LIMITS} from './stateTypes';
 import type { PelvicFrame } from './contract';
 import {createGarmentPrint,halfX,halfY,type GarmentPrint} from './garmentPrint';
+import {unionPosedBox} from './garmentBounds';
 
 // A name/tag only selects surfaces to CHECK. It is never evidence of an
 // uncovered entrance. Unknown/merged materials still require manual review.
@@ -58,6 +59,11 @@ function indexGarmentGuard(root:Object3D,surface?:WandModel|null,registered?:Rea
   else root.traverse(o=>{const m=o as SkinnedMesh;if(m.isMesh)add(m,m.isSkinnedMesh?m:null);});
   const p=new Vector3(),a=new Vector3(),b=new Vector3(),c=new Vector3(), tri=new Triangle(a,b,c);
   const world=new Box3(),tmp=new Box3(),zone=new Box3(),printZone=new Box3(),worldZone=new Box3();
+  const center=new Vector3(),extent=new Vector3();
+  // The three box-normal axes of intersectsTriangle, in its centered space.
+  function sides(p:Vector3){const x=p.x-center.x,y=p.y-center.y,z=p.z-center.z;
+    if(!Number.isFinite(x+y+z))return 0;
+    return (x < -extent.x?1:x>extent.x?2:0)|(y < -extent.y?4:y>extent.y?8:0)|(z < -extent.z?16:z>extent.z?32:0);}
   function* build(){for(const layer of layers){if(layer.oversize)continue;const {mesh,start,end}=layer,g=mesh.geometry,{position,skinIndex,skinWeight,matricesSdefEnabled:sdef,matricesQdefEnabled:qdef}=g.attributes;
     for(let lo=start;lo<end;lo+=96){const hi=Math.min(lo+96,end),rest=new Box3(),bones=new Set<number>();let linear=true;
        for(let j=lo;j<hi;j++){const i=g.index?.getX(j)??j;rest.expandByPoint(p.fromBufferAttribute(position,i));
@@ -116,6 +122,8 @@ function indexGarmentGuard(root:Object3D,surface?:WandModel|null,registered?:Rea
   }
   function scan(ink:boolean,query:Box3,r:number,frame:PelvicFrame){
     worldZone.copy(query).applyMatrix4(frame.world);
+    query.getCenter(center);extent.subVectors(query.max,center);
+    const finiteExtent=Number.isFinite(extent.x+extent.y+extent.z);
     let current:Layer|null=null,tested=0,visited=0;
     for(let i=ink?inkCursor:cursor;i<chunks.length;i++){
       if(ink)inkCursor=i;else cursor=i;
@@ -124,8 +132,8 @@ function indexGarmentGuard(root:Object3D,surface?:WandModel|null,registered?:Rea
       if(l!==current){current=l;l.pose?.begin();}
       const g=l.mesh.geometry;
       if(chunk.linear&&(l.pose?!l.pose.active.length:!l.mesh.morphTargetInfluences?.some(x=>x!==0))){
-        world.makeEmpty();if(chunk.bones.length&&l.pose){for(const i of chunk.bones)world.union(tmp.copy(chunk.rest).applyMatrix4(l.pose.bone(i).world));}
-        else world.copy(chunk.rest).applyMatrix4(l.mesh.matrixWorld);
+        world.makeEmpty();if(chunk.bones.length&&l.pose){for(const i of chunk.bones)unionPosedBox(world,chunk.rest,l.pose.bone(i).world,tmp);}
+        else unionPosedBox(world,chunk.rest,l.mesh.matrixWorld,tmp);
         if(!world.intersectsBox(worldZone))continue;
       }
       // Stop at a chunk boundary. No partially examined chunk counts toward a
@@ -136,6 +144,7 @@ function indexGarmentGuard(root:Object3D,surface?:WandModel|null,registered?:Rea
           if(l.pose)l.pose.vertex(i,out);else l.mesh.getVertexPosition(i,out).applyMatrix4(l.mesh.matrixWorld);
            out.applyMatrix4(frame.inverse);if(!Number.isFinite(out.x+out.y+out.z)){if(ink)clearPrint();else restart();return false;}}
         // Treat patterned/cutout garments conservatively, including backfaces.
+        if(finiteExtent&&(sides(a)&sides(b)&sides(c)))continue;
         if(query.intersectsTriangle(tri)){if(!ink){blocker=l;return true;}print!.triangle(a,b,c,r);}
       }
     }

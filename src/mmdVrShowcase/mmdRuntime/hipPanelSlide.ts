@@ -19,17 +19,19 @@ export function fitHipPanelSlide(mesh:SkinnedMesh,columns:Strip[],lapBind:Matrix
   type Face={a:Probe;b:Probe;c:Probe;layer:number};
   const groups:[Probe[],Probe[]]=[[],[]],fans:[Face[],Face[]]=[[],[]],all:[Probe[],Probe[]]=[[],[]],q=V(),dst=V(),normal=V();
   for(const body of draws){const g=body.geometry,{position,skinIndex,skinWeight}=g.attributes,ix=g.index;if(!ix||!skinIndex||!skinWeight)continue;
-    for(const gr of g.groups){const layer=body.userData.mmdMorphSplitBody?.materialIndex??gr.materialIndex??0;
+    const visits=position.count<=650000?new Uint32Array(position.count):null;
+    for(const [gi,gr] of g.groups.entries()){const layer=body.userData.mmdMorphSplitBody?.materialIndex??gr.materialIndex??0;
       const selected=new Set<string>();const ids=[new Map<number,Probe>(),new Map<number,Probe>()];
-      for(let k=gr.start;k<gr.start+gr.count;k++){const i=ix.getX(k);q.fromBufferAttribute(position,i).applyMatrix4(lapBind);
+      for(let k=gr.start;k<gr.start+gr.count;k++){const i=ix.getX(k);
+        if(visits){if(visits[i]===gi+1)continue;visits[i]=gi+1;}q.fromBufferAttribute(position,i).applyMatrix4(lapBind);
         if(q.y>.32||q.y<-.70||Math.abs(q.x)<.09||q.z<-.32)continue;
         const side=q.x>0?0:1;let w=0;for(let j=0;j<4;j++)w+=skinWeight.getComponent(i,j)*weights[side][skinIndex.getComponent(i,j)];
         if(w<.03||ids[side].has(i))continue;const pt={body,i,w,layer,p:V()};ids[side].set(i,pt);all[side].push(pt);
         const key=`${Math.floor(q.x*20)},${Math.floor(q.y*20)},${Math.floor(q.z*20)}`;
         if(selected.has(key))continue;selected.add(key);groups[side].push(pt);
       }
-      for(let side=0;side<2;side++)for(let k=gr.start;k<gr.start+gr.count;k+=3){const m=ids[side],a=m.get(ix.getX(k)),b=m.get(ix.getX(k+1)),c=m.get(ix.getX(k+2));
-        if(a&&b&&c)fans[side].push({a,b,c,layer});}
+      if(ids[0].size||ids[1].size)for(let k=gr.start;k<gr.start+gr.count;k+=3){const first=ix.getX(k),side=ids[0].has(first)?0:1,m=ids[side],a=m.get(first);
+        if(!a)continue;const b=m.get(ix.getX(k+1)),c=m.get(ix.getX(k+2));if(b&&c)fans[side].push({a,b,c,layer});}
     }}
   const slide=[V(),V()],inv=new Matrix4(),mats=[mesh.material].flat(),d=V(),shift=V();
   const before=new Int32Array(mats.length),after=new Int32Array(mats.length),peak=new Float32Array(mats.length),exact=new Float64Array(mats.length);

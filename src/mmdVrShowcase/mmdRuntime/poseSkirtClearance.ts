@@ -70,14 +70,19 @@ export function fitPoseSkirt(mesh:SkinnedMesh){
     seen.add(position);
     if((work+=ix.count)>650000||g.groups.length>160)return null;
     const claimed=new Set<number>();
-    for(const group of g.groups){
+    // Index buffers revisit each shared corner several times. One byte per
+    // vertex records which draw already visited it, in original draw order.
+    const visits=position.count<=650000?new Uint8Array(position.count):null;
+    for(const [gi,group] of g.groups.entries()){
       const slot=body.userData.mmdMorphSplitBody?.materialIndex??group.materialIndex??0,material=materialList[slot];if(!material)continue;
       if(group.count>ix.count||group.start<0||group.start+group.count>ix.count)return null;
-      const indices=new Set<number>();for(let k=group.start;k<group.start+group.count;k++)indices.add(ix.getX(k));
+      const sparse=visits?null:new Set<number>();
       const legWeights=[new Map<number,number>(),new Map<number,number>()],coverage=[new Uint8Array(24),new Uint8Array(24)];
       const patch:Patch={mesh:body,material,positions:position,vertices:[],faces:[],touched:[],shown:false,base:1};
       const inverses=new Map<string,InverseSkin>();
-      for(const i of indices){
+      for(let k=group.start;k<group.start+group.count;k++){
+        const i=ix.getX(k);if(visits){if(visits[i]===gi+1)continue;visits[i]=gi+1;}
+        else{if(sparse!.has(i))continue;sparse!.add(i);}
         bindP.fromBufferAttribute(position,i);const h=(middle.y-bindP.y)/length;
         if(h<-.4||h>1.38||Math.hypot(bindP.x-middle.x,bindP.z-middle.z)>1.35*length)continue;
         let left=0,right=0,legL=0,legR=0,total=0;

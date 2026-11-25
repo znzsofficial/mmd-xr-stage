@@ -1,8 +1,11 @@
-import { Bone, Box3, BufferGeometry, Float32BufferAttribute, Group, Matrix4, Mesh, MeshBasicMaterial, Skeleton, SkinnedMesh, Uint16BufferAttribute } from 'three';
+import { Bone, Box3, BufferGeometry, Float32BufferAttribute, Group, Matrix4, Mesh, MeshBasicMaterial, Skeleton, SkinnedMesh, Triangle, Uint16BufferAttribute, Vector3 } from 'three';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { PelvicFrame } from './contract';
 import { createGarmentGuard, type Obstruction } from './garment';
-import {halfX,halfY,printH,printW} from './garmentPrint';
+import {unionPosedBox} from './garmentBounds';
+import {createGarmentPrint,halfX,halfY,printH,printW} from './garmentPrint';
+import {pelvicRailTravel} from './path';
+import {PELVIC_LIMITS} from './stateTypes';
 import {applyMaterialVisibility} from '../mmdRuntime/mmdRuntimeMaterials';
 import {extractMaterialNames} from '../mmdRuntime/mmdRuntimeEntry';
 import type {ThreeMmdModel} from '@yohawing/three-mmd-loader';
@@ -16,6 +19,40 @@ function misses(){const g=geometry([0,2,.02, 2,0,.02, 2,2,.02]);
   g.setIndex(Array.from({length:9000},(_,i)=>i%3));return new Mesh(g,cloth());}
 function settle(read:()=>Obstruction){for(let i=0;i<256;i++){const r=read();if(r!=='unverified')return r;}
   throw Error('garment scan never finished');}
+
+it('keeps eight-corner garment bounds at reflected, sheared and degenerate poses',()=>{
+  const rest=new Box3(new Vector3(-2.875,.21,-.31),new Vector3(.43,1.17,.93)),tmp=new Box3();
+  for(let mask=0;mask<8;mask++){
+    const x=mask&1?-1:1,y=mask&2?-1:1,z=mask&4?-1:1;
+    const m=new Matrix4().set(.73*x,.29*y,-.27*z,-1.31,-.32*z,-.71*x,.48*y,.89,.53*y,-.43*z,.63*x,-.67,0,0,0,1);
+    const target=new Box3(),expected=new Box3();
+    for(const bone of [m,m.clone().scale(new Vector3(0,-.7,.6)),m.clone().invert(),new Matrix4().makePerspective(-1,1,1,-1,.1,2)]){
+      unionPosedBox(target,rest,bone,tmp);expected.union(rest.clone().applyMatrix4(bone));expect(target).toEqual(expected);
+    }
+  }
+});
+
+it('matches the projected print for touching edges, shared outside planes and spanning triangles with all vertices outside',()=>{
+  const f=frame();f.radiusM=1/32;const r=f.radiusM,x=halfX*r,y=halfY*r,z=.03125;
+  const mesh=new Mesh(geometry([
+    x,-y,z, x,y,z, x*2,y,z, // touches the print exactly on its right edge
+    -x,-y*2,z, 0,y*2,z, x,-y*2,z, // all three outside, but no common separating plane
+    -x*2,0,z, -x*3,y*.5,z, -x*2,y,z,
+    -x,-y,z, x,-y,z, 0,-y*2,z,
+  ]),cloth());
+  const probe=createGarmentGuard(mesh),tri=new Triangle(),expected=createGarmentPrint();
+  const zone=new Box3(new Vector3(-r,-r,-.35*r),new Vector3(r,r,Math.max(.075*f.scale,2*r,-pelvicRailTravel(f,PELVIC_LIMITS.position[0]))));
+  const ink=zone.clone();ink.min.x=-x;ink.max.x=x;ink.min.y=-y;ink.max.y=y;
+  for(const dx of [0,.25,-x]){
+    mesh.position.x=dx;mesh.updateMatrixWorld(true);let blocked=false;expected.reset();
+    for(let i=0;i<mesh.geometry.attributes.position.count;i+=3){
+      for(const [k,p] of [tri.a,tri.b,tri.c].entries())mesh.getVertexPosition(i+k,p).applyMatrix4(mesh.matrixWorld);
+      blocked||=zone.intersectsTriangle(tri);if(ink.intersectsTriangle(tri))expected.triangle(tri.a,tri.b,tri.c,r);
+    }
+    expected.commit();expect(probe(f,true)).toBe(blocked?'garment':undefined);expect(probe.printReady()).toBe(true);
+    expect(probe.print()).toEqual(expected.value);
+  }
+});
 
 it('keeps the outlet covered while the separate attachment print uncovers one side, then follows the other side',()=>{
   const f=frame(),r=f.radiusM;
