@@ -14,6 +14,7 @@
 | 选地图、机位或步行路线 | [布景索引](./scenery/README.md) · [深空与风道](./scenery/opal-planet.md) · [校园环线](./scenery/campus-arcade-loop.md) · [喜院到秦淮](./scenery/jiangnan-river-street.md) |
 | 复查北台面板穿模 | [罗盘修复前后实景](./screenshots/north-instruments.webp) · [七条风道与操作](./scenery/opal-planet.md#从罗盘起飞七条往返风道) · [几何与实点证据](./scenery/opal-planet.md#北台仪表验证与维护) · [Quest 3S 短测](./performance/next-quest-export.md#北台仪表斜看与点选) |
 | 验收与查卡顿 | [下次 Quest 导出](./performance/next-quest-export.md) · [角色工具本机回归](./performance/actor-tools-regression.md) · [性能优先级](./performance/README.md) · [历次真机报告](./performance/viewing-and-diagnostics.md#已有测量) |
+| 查场景本身的开销 | [泳池计时台、教室窗边与后门](./performance/pool-classroom.md) · [星门、庭院阴影、远月与菌圃](./performance/scenery-render-work.md) · [用固定版本做 Quest 对照](./performance/next-quest-export.md#泳池或教室同机位真机对照) |
 | 改代码或加布景 | [源码目录](./architecture.md#源码目录) · [舞台架构](./architecture.md) · [要不要重构](./architecture/maintenance.md) · [重力场、马达与新道具](./architecture/gravity.md) · [新布景与连接](./scenery/adding-a-set.md) · [美术样板](./scenery/art-direction.md) · [引擎取舍](./three-tooling.md) |
 | 查 loader 哪些改动已同步、上游 PR 准备到哪 | [舞台补丁与 fork 的关系](./three-mmd-loader-maintenance.md#仓库与依赖) · [共享骨架去重：分支、证据和提交时机](./three-mmd-loader-maintenance.md#共享骨架去重的上游候选) |
 
