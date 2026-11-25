@@ -5,20 +5,29 @@ import {Matrix4, PerspectiveCamera, Scene, Vector3} from 'three';
 import {createCustomBulletMmdPhysicsBackend} from '@yohawing/three-mmd-loader/physics';
 import {loadNodeBulletStage} from '../../scripts/node-bullet-stage.mjs';
 import {createLedger} from './ledger.mjs';
-import {createProfiledModule, phases} from './module.mjs';
+import {createProfiledModule, phases, probeOptions} from './module.mjs';
 import {solverBins, solverTotals} from './solver.mjs';
 import {rowBinNames} from './row-loops.mjs';
+import {passReport,kinds} from './joint-counts.mjs';
+import {costReport} from './joint-costs.mjs';
+import {genericTarget} from './joint-direct.mjs';
 
 const [model, motion, ...flags] = process.argv.slice(2);
-assert(model && motion && flags.every(f=>['--reverse','--solver','--rows','--smoke'].includes(f)),
-  'Supply local PMX, body VMD [--solver|--rows] [--smoke] [--reverse]');
-const rowLoops = flags.includes('--rows'), reverseFlag = flags.includes('--reverse');
-const solver = rowLoops || flags.includes('--solver'), smoke = flags.includes('--smoke');
-const pmx = new File([readFileSync(model)], 'actor.pmx'), vmd = new File([readFileSync(motion)], 'body.vmd');
+assert(model && motion && flags.every(f=>['--reverse','--solver','--rows','--smoke','--joint-counts','--joint-costs','--stand','--held','--joint-target','--joint-direct'].includes(f)),
+  'Supply local PMX, body VMD [--solver|--rows|--joint-counts|--joint-costs|--joint-target|--joint-direct] [--stand|--held] [--smoke] [--reverse]');
+assert(!(flags.includes('--stand') && flags.includes('--held')));
+const workload=flags.includes('--stand')?'standing':flags.includes('--held')?'thighCradle':'dance';
+const opts=probeOptions(flags), {rowLoops,solver,joints}=opts, reverseFlag = flags.includes('--reverse'), smoke=flags.includes('--smoke');
+const dispatch=flags.includes('--joint-target')?'audit':flags.includes('--joint-direct')?'direct':undefined;
+assert(!(dispatch && (solver || flags.filter(f=>['--joint-target','--joint-direct'].includes(f)).length!==1)));
+const inspectInputs=rowLoops || !!joints || !!dispatch;
+const pmx = new File([readFileSync(model)], 'actor.pmx'), vmd = workload==='dance' && new File([readFileSync(motion)], 'body.vmd');
 const order = reverseFlag ? [1,0] : [0,1], frames=smoke?6:24, warm=smoke?2:4, blocks=smoke?4:24;
 const camera = new PerspectiveCamera(), park = new Matrix4().makeTranslation(0,-1000,0);
 const controllers = [park,park], hands = Array(12).fill(park), props = Array(8).fill(park);
-const ledger = createLedger({solver,rowLoops}), profile = await createProfiledModule(ledger.mark,{solver,rowLoops});
+const ledger = dispatch ? null : createLedger(opts), profile = await createProfiledModule(ledger?.mark,{...opts,dispatch});
+const allPasses=[];
+let identicalTransformWrites=0;
 let building, measured = false;
 const rows = [];
 const {createMmdRuntimeHandle, close} = await loadNodeBulletStage((base, options) => {
@@ -28,10 +37,27 @@ const {createMmdRuntimeHandle, close} = await loadNodeBulletStage((base, options
   m._mmd_anim_bullet_world_create = out => {
     const status = create(out); assert.equal(status,0); row.world=m.HEAPU32[out>>>2]; return status;
   };
-  if (rowLoops) {
+  if (dispatch) {
+    // Fixed-size input tape, no per-call allocation in the timed replay. The
+    // two tapes are compared outside the windows. Body writes precede world_step.
+    const set=m._mmd_anim_bullet_world_set_rigidbody_transform;
+    m._mmd_anim_bullet_world_set_rigidbody_transform=(world,index,pos,rot)=>{
+      if(measured){const a=row.tape,u=m.HEAPU32,p=pos>>>2,q=rot>>>2,i=row.used;
+        a[i]=index; for(let j=0;j<3;j++)a[i+1+j]=u[p+j]; for(let j=0;j<4;j++)a[i+4+j]=u[q+j]; row.used+=8;}
+      return set(world,index,pos,rot);
+    };
+  } else if (joints) {
+    const set=m._mmd_anim_bullet_world_set_rigidbody_transform;
+    m._mmd_anim_bullet_world_set_rigidbody_transform=(world,index,pos,rot)=>{
+      if(measured){const u=m.HEAPU32,p=pos>>>2,q=rot>>>2;
+        row.fed.push(index,u[p],u[p+1],u[p+2],u[q],u[q+1],u[q+2],u[q+3]);}
+      return set(world,index,pos,rot);
+    };
+  }
+  if (inspectInputs) {
     const step=m._mmd_anim_bullet_world_step;
     m._mmd_anim_bullet_world_step=(world,dt,max,fixed)=>{
-      if (measured) row.stepArgs.push(dt,max,fixed);
+      if (measured) {row.stepArgs.push(dt,max,fixed); if(dispatch) row.tape[row.used++]=0xffffffff; else if(joints) row.fed.push(-1);}
       return step(world,dt,max,fixed);
     };
   }
@@ -43,7 +69,8 @@ const {propColliderShape} = await import('../../src/mmdVrShowcase/play/propColli
 const sum = a => a.reduce((s,v)=>s+v,0), mean = a => sum(a)/a.length;
 const ms = x => +x.toFixed(5), meanNs = ns => ms(ns/(frames*blocks*1e6));
 const pct = (a,f) => a.toSorted((x,y)=>x-y)[Math.ceil(f*a.length)-1];
-const snapshot = () => ({total:ledger.totalNs, bins:[...ledger.bins], hist:{...ledger.histogram}, calls:ledger.calls,
+const snapshot = () => dispatch ? profile.jointTargetAudit?.() : ({total:ledger.totalNs, bins:[...ledger.bins], hist:{...ledger.histogram}, calls:ledger.calls,
+  ...(joints==='costs' && {jointCosts:profile.jointCosts()}),
   ...(solver && {solverBins:[...ledger.solver.bins], solverCounts:[...ledger.solver.counts]}),
   ...(rowLoops && {rowBins:[...ledger.solver.rows.bins],rowCounts:[...ledger.solver.rows.counts],singles:ledger.solver.rows.singleIterations})});
 function rowReport(before,n,parentNs) {
@@ -63,7 +90,8 @@ function solverReport(before, n) {
   return {exclusiveMs:Object.fromEntries(solverBins.map((name,i)=>[name,avg(bins[i])])),
     phaseMs:Object.fromEntries(Object.entries(solverTotals(bins)).map(([name,ns])=>[name,avg(ns)])),
     solveCalls:counts[0], batches:counts[1], partitionErrorNs,
-    ...(rowLoops && {rowLoops:rowReport(before,n,bins[5])})};
+    ...(rowLoops && {rowLoops:rowReport(before,n,bins[5])}),
+    ...(joints==='costs' && {jointCosts:costReport(before.jointCosts,profile.jointCosts(),n,bins[3])})};
 }
 // Coarse machine-wide busy fraction over the formal windows, including this
 // process, checks and any concurrent work. Not an isolated CPU-time measure.
@@ -100,47 +128,78 @@ function comparePoses() {
 
 try {
   for (const index of order) {
-    const row = building = rows[index] = {profile:!!index, frameMs:[], abiMs:[], blocks:[], stepArgs:[]};
+    const row = building = rows[index] = {profile:!!index, frameMs:[], abiMs:[], blocks:[], stepArgs:[], fed:[]};
     row.rt = createMmdRuntimeHandle(new Scene(), {
       controllerColliders:()=>controllers, handColliders:()=>hands, handShape:handContactShape,
       handColliderRadius:()=>handReferenceRadius(.08), propColliders:()=>props, propShape:propColliderShape,
       onBulletStepWork(_feed,abiMs,_out,seed) {
         if (!measured) return;
         assert(!seed); row.abiMs.push(abiMs);
-        if (row.profile) assert(ledger.last.ns/1e6 <= abiMs+0.001, 'Native call outside enclosing JS timer');
+        if (row.profile && ledger) assert(ledger.last.ns/1e6 <= abiMs+0.001, 'Native call outside enclosing JS timer');
       },
     });
     const {modelId} = await row.rt.addModel(pmx,[],{physics:true,transform:{scale:.1}});
-    await row.rt.loadMotion(vmd,'body',modelId); row.mesh=row.rt.getModelSurface(modelId).mesh;
-    assert(row.rt.duration > (warm+blocks)*frames/72, 'Motion too short for steady playback');
+    if(vmd) {
+      await row.rt.loadMotion(vmd,'body',modelId);
+      assert(row.rt.duration > (warm+blocks)*frames/72, 'Motion too short for steady playback');
+    } else if(workload==='thighCradle') {
+      assert(row.rt.beginPose(modelId,0)?.applyPreset('thighCradle'),'Manual pose unavailable');
+      row.rt.resetPhysics(0,modelId);
+    }
+    row.mesh=row.rt.getModelSurface(modelId).mesh;
   }
   let initial, hostStart;
   for (let block=-warm; block<blocks; block++) {
-    if (block===0) { initial=snapshot(); if (rowLoops) hostStart=hostSample(); }
+    if (block===0) {
+      if(dispatch) for(const r of rows){
+        const bodyCount=r.module._mmd_anim_bullet_world_get_rigidbody_count(r.world);
+        r.tape=new Uint32Array(frames*(8*bodyCount+1)); r.used=0;
+      }
+      initial=snapshot(); if (inspectInputs) hostStart=hostSample();
+    }
     for (const index of block%2 ? order.toReversed() : order) {
       const row=rows[index], first=row.abiMs.length, before=snapshot(); measured=block>=0;
       for (let i=0; i<frames; i++) {
         const frame=(block+warm)*frames+i, start=performance.now();
-        row.rt.update(frame/72,true,camera,1,false,1/72);
+        row.rt.update(vmd?frame/72:0,true,camera,1,false,1/72);
         if (measured) row.frameMs.push(performance.now()-start);
       }
+      const passes=row.profile && joints==='counts' ? profile.drainJointPasses() : undefined;
       if (measured) {
         assert.equal(row.abiMs.length-first, frames);
-        assert.equal(ledger.calls-before.calls, row.profile ? frames : 0);
+        if(ledger) assert.equal(ledger.calls-before.calls, row.profile ? frames : 0);
         const result={abiMs:ms(mean(row.abiMs.slice(first)))};
-        if (row.profile) {
+        if(dispatch) result.frameMs=ms(mean(row.frameMs.slice(first)));
+        if(dispatch==='audit' && row.profile) result.jointCalls=profile.jointTargetAudit().jointCalls-before.jointCalls;
+        if (row.profile && ledger) {
           result.nativeMs=ms((ledger.totalNs-before.total)/frames/1e6);
           result.phaseMs=Object.fromEntries(phases.map((k,i)=>[k,ms((ledger.bins[i]-before.bins[i])/frames/1e6)]));
           if (solver) result.solver=solverReport(before,frames);
+          if(passes){
+            const p=result.solver.jointPasses=passReport(passes,true);
+            assert.equal(p.passes,result.solver.rowLoops.singleIterations);
+            assert.equal(p.nonempty,result.solver.rowLoops.nonemptyPasses.jointRows);
+            allPasses.push(...passes);
+          }
         }
         row.blocks.push(result);
       }
       measured=false;
     }
+    if(dispatch && block>=0){
+      const [a,b]=rows; assert.equal(a.used,b.used); assert(a.used>frames && (a.used-frames)%8===0);
+      assert(a.used<=a.tape.length && b.used<=b.tape.length,'Input tape overflow');
+      assert.deepEqual(a.tape.subarray(0,a.used),b.tape.subarray(0,b.used),'Native body inputs differ');
+      identicalTransformWrites+=(a.used-frames)/8; a.used=b.used=0;
+    } else if(joints && block>=0){
+      const [a,b]=rows.map(r=>r.fed);
+      assert(a.length>frames && (a.length-frames)%8===0); assert.deepEqual(a,b,'Native body inputs differ');
+      identicalTransformWrites+=(a.length-frames)/8; a.length=b.length=0;
+    }
     comparePoses(); // deliberately outside timers
   }
   let environment, stepInputs;
-  if (rowLoops) {
+  if (inspectInputs) {
     const end=hostSample(), start=hostStart;
     environment={platform:process.platform, release:release(), arch:process.arch, cpu:start.cpu, logical:start.logical,
       formalStartUtc:start.utc, formalEndUtc:end.utc, hostBusyPct:ms(100*(1-(end.idle-start.idle)/(end.total-start.total)))};
@@ -149,23 +208,41 @@ try {
     const settings=new Set();
     for (let i=0;i<a.length;i+=3) settings.add(JSON.stringify(a.slice(i,i+3)));
     stepInputs={identicalCalls:a.length/3,dtMaxFixed:Array.from(settings,s=>JSON.parse(s))};
+    if(joints || dispatch) stepInputs.identicalTransformWrites=identicalTransformWrites;
   }
-  const hist=Object.fromEntries(Object.entries(ledger.histogram).map(([k,v])=>[k,v-(initial.hist[k]??0)]));
-  const bins=ledger.bins.map((ns,i)=>ns-initial.bins[i]), total=ledger.totalNs-initial.total;
-  assert.equal(sum(bins),total); assert.equal(sum(Object.values(hist)),frames*blocks);
+  let native;
+  if(ledger) {
+    const hist=Object.fromEntries(Object.entries(ledger.histogram).map(([k,v])=>[k,v-(initial.hist[k]??0)]));
+    const bins=ledger.bins.map((ns,i)=>ns-initial.bins[i]), total=ledger.totalNs-initial.total;
+    assert.equal(sum(bins),total); assert.equal(sum(Object.values(hist)),frames*blocks);
+    native={hist,actualSubsteps:sum(Object.entries(hist).map(([n,v])=>+n*v)),stepSimulationMs:meanNs(total),
+      phaseMs:Object.fromEntries(phases.map((k,i)=>[k,meanNs(bins[i])])),partitionErrorNs:sum(bins)-total};
+  }
   const counts=rows.map(r=>({bodies:r.module._mmd_anim_bullet_world_get_rigidbody_count(r.world),
     dynamic:r.rt.getDynamicRigidBodyCount(), joints:r.module._mmd_anim_bullet_world_get_constraint_count(r.world)}));
   assert.deepEqual(counts[0],counts[1]); assert(counts[0].dynamic>0 && counts[0].joints>0 && parity.maxContactPoints>0);
-  assert(!initialWrist || wristTravel>1e-6,'Wrist did not move; check motion binding');
+  assert(!vmd || !initialWrist || wristTravel>1e-6,'Wrist did not move; check motion binding');
   const solverSummary=solver ? solverReport(initial,frames*blocks) : undefined;
-  if (solver) assert.equal(solverSummary.solveCalls,sum(Object.entries(hist).map(([n,v])=>+n*v)));
+  if (solver) assert.equal(solverSummary.solveCalls,native.actualSubsteps);
+  if(joints==='counts') solverSummary.jointPasses={...passReport(allPasses),patternFields:['iteration','visited','explicitVisits',...kinds.map(k=>'solved.'+k),...kinds.map(k=>'skipped.'+k)]};
   const abiDelta=rows[1].blocks.map((b,i)=>b.abiMs-rows[0].blocks[i].abiMs).toSorted((a,b)=>a-b);
-  console.log(JSON.stringify({node:process.version, environment, stepInputs, reverse:reverseFlag, smoke, frames,warm,blocks, ...counts[0],
-    bones:rows[0].mesh.skeleton.bones.length, poseSecondsPerFrame:1/72, fixedSeconds:1/60, hist,
-    actualSubsteps:sum(Object.entries(hist).map(([n,v])=>+n*v)),parity,wristTravel:initialWrist?wristTravel:null,
-    stepSimulationMs:meanNs(total), phaseMs:Object.fromEntries(phases.map((k,i)=>[k,meanNs(bins[i])])),
-    partitionErrorNs:sum(bins)-total, solver:solverSummary, medianPairedAbiDeltaMs:ms((abiDelta[(blocks-1)>>1]+abiDelta[blocks>>1])/2),
-    rows:rows.map(r=>({profile:r.profile, calls:r.abiMs.length,
+  let jointDispatch;
+  if(dispatch) {
+    jointDispatch={mode:dispatch,...genericTarget};
+    if(dispatch==='audit'){
+      const a=profile.jointTargetAudit(); assert.equal(a.jointFirst,genericTarget.tableSlot,'Unexpected actual generic target');
+      assert.equal(a.jointDifferent,0,'Joint dispatch target varied'); assert(a.jointCalls>initial.jointCalls);
+      Object.assign(jointDispatch,{observedSlot:a.jointFirst,different:a.jointDifferent,formalCalls:a.jointCalls-initial.jointCalls});
+    } else {
+      const paired=key=>{const d=rows[1].blocks.map((b,i)=>b[key]-rows[0].blocks[i][key]).sort((a,b)=>a-b);
+        return {medianDeltaMs:ms((d[(blocks-1)>>1]+d[blocks>>1])/2),wins:d.filter(x=>x<0).length,pairs:blocks};};
+      Object.assign(jointDispatch,{pairedAbi:paired('abiMs'),pairedFrame:paired('frameMs')});
+    }
+  }
+  console.log(JSON.stringify({node:process.version, workload, environment, stepInputs, reverse:reverseFlag, smoke, frames,warm,blocks, ...counts[0],
+    bones:rows[0].mesh.skeleton.bones.length, poseSecondsPerFrame:vmd?1/72:0, fixedSeconds:1/60, ...native,
+    parity,wristTravel:initialWrist?wristTravel:null,jointDispatch,solver:solverSummary, medianPairedAbiDeltaMs:ms((abiDelta[(blocks-1)>>1]+abiDelta[blocks>>1])/2),
+    rows:rows.map(r=>({...(dispatch ? {variant:r.profile?dispatch:'original'} : {profile:r.profile}), calls:r.abiMs.length,
       frameMs:ms(mean(r.frameMs)), frameP95Ms:ms(pct(r.frameMs,.95)), abiMs:ms(mean(r.abiMs)), blocks:r.blocks})),
   },null,2));
 } finally { for (const r of rows) r?.rt?.dispose(); close(); }

@@ -6,6 +6,8 @@
 
 星球另看[视野和实际落地](./planet-horizon.md)、[独立重力复核](./orbital-review.md)与[已接入的整身扫掠对照](./planet-shell-sweep.md)。离地扫掠的桌面微秒级对照不是演员 Bullet 的计时，不能用来解释上面的头显帧率差。
 
+**针对反馈的后续验证：**[普通步行与眼高的新旧双眼对照](./normal-walk.md) · [WebGPU 首帧地标与失败收据](./gpu-cloth-lab.md#复查黑屏首帧地标按眼收据) · [实际关节行与不采用的直调候选](./bullet-step-profile.md#实际关节行) · [按姿势测持续显示](./pose-cloth-contact.md) · [实模材质／UV 像素](./model-feature-coverage.md#086-材质透明度uv-和手动求值) · [取 Quest 进程内存样本](./quest-browser-pss.md)。新正式舞台及实验导出均含 `entryAsset`，可与固定部署 HTML 的入口脚本比对，旧报告不补写。
+
 **不放角色，场景本身要画多少？** 见[传送大厅、双喜堂、礼拜堂、北台和菌圃的固定机位对照](./scenery-render-work.md)，含开阴影的深度提交、近处的代价以及两眼实际切档。一个合并批次减少调用，不一定减少三角形；整帧少画三角形也不等于等比例提帧。
 
 [泳池与教室](./pool-classroom.md)有单独的入口、远端计时台、临窗桌椅和后门连廊机位，含阴影开关、双眼实走、原衣演员投影、左右发船和 GPU 时间对照。桌面对照已完成；下一步按[泳池或教室同机位短测](./next-quest-export.md#泳池或教室同机位真机对照)补头显记录。

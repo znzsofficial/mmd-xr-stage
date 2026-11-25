@@ -1,18 +1,21 @@
 import { create } from "zustand";
+import { stageBuild } from '../../shared/stageBuild';
 import type { RenderDiagnostics, RenderRequest } from "./renderDiagnostics";
 import type { BackpackPlacementTiming } from "../backpack/store";
 import type { SceneryId } from '../scenery/catalog';
 import type { RoomRestoreEvent } from './roomRestoreTiming';
 import type {PhysicsSwitchWork} from './physicsSwitchWork';
 import type {FigureWork} from './diagramTiming';
+import type {ModelMemoryTrace} from './modelMemory';
 
 type SceneSample = { models: number; objects: number; physics: boolean; scenery?: string; liveHouse: boolean; shadows: boolean; playing: boolean; actorPalmClothRequested?:boolean; heldToy?: import('../play/stagePlay').Toy | null; planetMovement?:ReturnType<typeof import('../movement/planetDiagnostics').samplePlanetMovement>;figureWork?:FigureWork;rodState?:'parked'|'running'|'inside' };
-type Window = Omit<RenderDiagnostics, "requested" | "active"> & SceneSample & { elapsedMs: number };
+type MovementSample = { playerStance?:ReturnType<typeof import('../movement/stanceDiagnostics').samplePlayerStance> };
+type Window = Omit<RenderDiagnostics, "requested" | "active"> & SceneSample & MovementSample & { elapsedMs: number };
 const MAX_WINDOWS = 1800;
 
 /** Aggregates in page memory; only visible XR callback intervals enter the histogram. */
 export function createPerformanceRecording(requested: RenderRequest, entryStartedAt: number | null = null) {
-  const startedAt = new Date().toISOString();
+  const startedAt = new Date().toISOString(), entryAsset = stageBuild('stage');
   const bins = new Uint32Array(8002); // 0.25ms upper bounds, last bin is >2000ms
   const windows: Window[] = [];
   const roomRestores:RoomRestoreEvent[]=[];
@@ -26,6 +29,7 @@ export function createPerformanceRecording(requested: RenderRequest, entryStarte
   const physicsRebuilds:{scenery:SceneryId;requestedEnabled:boolean;startWallMs:number;durationWallMs:number;success:boolean;work?:PhysicsSwitchWork}[]=[];
   let rebuilding:{scenery:SceneryId;requestedEnabled:boolean;at:number;work?:PhysicsSwitchWork}|null=null;
   return {
+    wallStart,
     restored(event:RoomRestoreEvent){if(roomRestores.length===64)roomRestores.shift();roomRestores.push(event);},
     beginRebuild(scenery:SceneryId,requestedEnabled:boolean,work?:PhysicsSwitchWork){rebuilding={scenery,requestedEnabled,at:performance.now(),work};},
     abandonRebuild(){rebuilding=null;},
@@ -61,11 +65,11 @@ export function createPerformanceRecording(requested: RenderRequest, entryStarte
         if (ms > 1500 / refreshRate) ++late;
       }
     },
-    sample(data: RenderDiagnostics, scene: SceneSample) {
+    sample(data: RenderDiagnostics, scene: SceneSample & MovementSample) {
       const { requested: _requested, active: _active, ...metrics } = data;
       windows[written++ % MAX_WINDOWS] = { elapsedMs: Math.round(duration), ...scene, ...metrics };
     },
-    finish() {
+    finish(modelMemory?: ModelMemoryTrace) {
       if (!count) return null;
       const quantile = (q: number) => {
         let n = 0;
@@ -73,8 +77,8 @@ export function createPerformanceRecording(requested: RenderRequest, entryStarte
         return null;
       };
       const start = written > MAX_WINDOWS ? written % MAX_WINDOWS : 0;
-      return { schemaVersion: 1, startedAt, requested, visibleIntervalMs: Math.round(duration), intervalCount: count,
-         startup: { firstVisibleXrFrameMs, firstFrameAfterAssetsReadyMs }, placements, physicsRebuilds, roomRestores,
+      return { schemaVersion: 1, startedAt, entryAsset, requested, visibleIntervalMs: Math.round(duration), intervalCount: count,
+         startup: { firstVisibleXrFrameMs, firstFrameAfterAssetsReadyMs }, placements, physicsRebuilds, roomRestores, ...(modelMemory && {modelMemory}),
         reportedRefreshRates: Object.fromEntries(rates), intervalsWithReportedRate: knownBudget,
         callbackIntervalMs: { mean: duration / count, p50Upper: quantile(.50), p95Upper: quantile(.95), p99Upper: quantile(.99), worst: max },
         overBudgetFraction: knownBudget ? over / knownBudget : null,

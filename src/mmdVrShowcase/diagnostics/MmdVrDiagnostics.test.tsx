@@ -1,14 +1,15 @@
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot } from "react-dom/client";
+import {Scene} from 'three';
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MmdVrDiagnostics } from "./MmdVrDiagnostics";
 import { useRenderDiagnostics } from "./renderDiagnostics";
 import { useLastPerformanceReport } from "./performanceReport";
 
-const harness = vi.hoisted(() => ({ frame: (_state: unknown, _delta: number, _frame?: {session: EventTarget}) => {}, gl: {} as unknown }));
+const harness = vi.hoisted(() => ({ frame: (_state: unknown, _delta: number, _frame?: {session: EventTarget}) => {}, gl: {} as unknown, scene: {} as unknown }));
 vi.mock("@react-three/fiber", () => ({
-  useThree: (selector: (state: { gl: unknown }) => unknown) => selector({ gl: harness.gl }),
+  useThree: (selector: (state: { gl: unknown; scene:unknown }) => unknown) => selector(harness),
   useFrame: (callback: typeof harness.frame) => { harness.frame = callback; },
 }));
 afterEach(() => { vi.unstubAllGlobals(); useRenderDiagnostics.getState().set(null); });
@@ -19,7 +20,10 @@ describe("XR diagnostic sampling lifecycle", () => {
     const newSession = (frameRate: number) => Object.assign(new EventTarget(), { frameRate, visibilityState: "visible" });
     let session: ReturnType<typeof newSession> | null = newSession(90);
     const tick = (dt: number) => harness.frame(null, dt, session ? {session} : undefined);
+    harness.scene = new Scene();
+    const memory = {textures:1,geometries:0};
     harness.gl = {
+      info: {memory,render:{calls:1,triangles:2}},
       xr: { isPresenting: true, getSession: () => session, getBaseLayer: () => ({ framebufferWidth: 2000, framebufferHeight: 1000, antialias: true }) },
       getRenderTarget: () => null,
       shadowMap: { enabled: false },
@@ -32,12 +36,14 @@ describe("XR diagnostic sampling lifecycle", () => {
       for (let i = 0; i < 4; i++) tick(0.25);
       expect(useRenderDiagnostics.getState().current).toMatchObject({ refreshRate: 90, fps: 4 });
       session.visibilityState = "hidden";
+      memory.textures=123; // invisible session must not take this sample
       session.dispatchEvent(new Event("visibilitychange"));
       tick(0.25);
       expect(useRenderDiagnostics.getState().current?.fps).toBeNull();
       session = newSession(72);
       tick(0.01);
-      expect(useLastPerformanceReport.getState().report).toMatchObject({ intervalCount: 3, reportedRefreshRates: {90: 3} });
+      expect(useLastPerformanceReport.getState().report).toMatchObject({ intervalCount: 3, reportedRefreshRates: {90: 3},
+        modelMemory:{runs:[{textures:1}],mounts:[]} });
       expect(useRenderDiagnostics.getState().current).toMatchObject({ refreshRate: 72, fps: null });
       session = null;
       tick(0.01);

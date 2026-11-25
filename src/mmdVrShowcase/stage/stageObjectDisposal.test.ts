@@ -81,3 +81,28 @@ it('also releases a glTF that finishes after its room was retired, without mount
   expect(scene.children).toHaveLength(0);
   check(1);
 });
+
+it.each([false,true])('keeps a neighbour usable and only closes owned bitmap sources (global image cache: %s)', async cached => {
+  class Bitmap { width=16; height=8; close=vi.fn(() => {this.width=this.height=0;}); }
+  vi.stubGlobal('self',globalThis); vi.stubGlobal('ProgressEvent', Event);
+  vi.stubGlobal('ImageBitmap', Bitmap); vi.stubGlobal('createImageBitmap', async () => new Bitmap());
+  const {actors} = room();
+  const data = {asset:{version:'2.0'}, scene:0, scenes:[{nodes:[0]}], nodes:[{mesh:0}],
+    meshes:[{primitives:[{attributes:{POSITION:0},material:0}]}],
+    accessors:[{componentType:5126,type:'VEC3',count:3,min:[0,0,0],max:[0,0,0]}],
+    materials:[{pbrMetallicRoughness:{baseColorTexture:{index:0}},normalTexture:{index:1}}],
+    textures:[{sampler:0,source:0},{sampler:1,source:0}],samplers:[{}, {wrapS:33071}],
+    images:[{uri:'data:image/png;base64,AA=='}]};
+  const slot = {kind:'object' as const, objectFile:new File([JSON.stringify(data)],'item.gltf'),companionFiles:[]};
+  const load = () => actors.restoreTasks([slot],null,()=>false)[0].run();
+  const previous=THREE.Cache.enabled;
+  try {
+    THREE.Cache.enabled=cached; await load(); await load(); THREE.Cache.enabled=false;
+    const [a,b] = [...actors.objects.entries()];
+    const maps = (root:THREE.Group) => (root.children[0] as THREE.Mesh<THREE.BufferGeometry,THREE.MeshStandardMaterial>).material;
+    const mat = maps(a[1].group), first = mat.map!.image as Bitmap, second = maps(b[1].group).map!.image as Bitmap;
+    expect(mat.normalMap).not.toBe(mat.map); expect(mat.normalMap!.image).toBe(first); expect(second===first).toBe(cached);
+    actors.putAway(a[0]); expect(first.close).toHaveBeenCalledTimes(cached?0:1); expect(second.width).toBe(16);
+    actors.disposeObjects(); expect(second.close).toHaveBeenCalledTimes(cached?0:1);
+  } finally { THREE.Cache.clear(); THREE.Cache.enabled=previous; }
+});

@@ -16,3 +16,27 @@ it('includes a thin fixed boundary, but an unrelated island keeps its full displ
   expect(read.sort()).toEqual([0,1]);expect(points[2].p.y+points[2].d.y).toBeGreaterThan(0);
   for(const p of points.slice(3))expect(p.d.toArray()).toEqual([.1,.2,0]);
 });
+
+it('keeps the last admissible grid step for shortening, re-expanding, twisted and needle faces',()=>{
+  const limit=safeClothScale(),at=[new Vector3(),new Vector3(),new Vector3()],e=new Vector3(),f=new Vector3(),n=new Vector3();
+  const cases=[
+    [1,0,1, 0,0,0,-1.44,0,0], // linear area floor exactly at 1/2
+    [1,0,1, -3,0,0,-1.8,0,0], // two interior zeros, positive final area
+    [1,0,1, .7,-2,4,3,0,0],
+    [1,.31,.003, -.1,.07,.34,-.12,.5,-.4], // thin material with out-of-plane motion
+    [1.3,.2,.7, -5,.6,-.1,1.5,2,5],
+  ];
+  for(const [bx,cx,cy,dx,ex,dy,ey,dz,ez] of cases){
+    const pts=[point(0,0),point(bx,0,dx,ex),point(cx,cy,dy,ey)];pts[1].d.z=dz;pts[2].d.z=ez;
+    // Independent direct geometry sweep in the deformed triangle, not the
+    // production polynomial/root calculation. Keep the first failed step.
+    const norm=e.subVectors(pts[1].p,pts[0].p).cross(f.subVectors(pts[2].p,pts[0].p)).clone(),sq=norm.lengthSq();
+    const lengths=pts.map((p,i)=>p.p.distanceToSquared(pts[(i+1)%3].p)),long=Math.max(...lengths),floor=sq>.0025*long*long?.28:.045;
+    let grid=0;for(let k=1;k<=8192;k++){
+      pts.forEach((p,i)=>at[i].copy(p.p).addScaledVector(p.d,k/8192));n.crossVectors(e.subVectors(at[1],at[0]),f.subVectors(at[2],at[0]));
+      if(n.dot(norm)/sq<floor||at.some((p,i)=>p.distanceToSquared(at[(i+1)%3])>3.24*lengths[i]+.004*long))break;
+      grid=k;
+    }
+    expect(limit(pts[0],pts[1],pts[2])).toBe(grid===8192?1:grid/8192*.998);
+  }
+});

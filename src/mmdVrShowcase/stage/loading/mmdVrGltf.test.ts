@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createGltfResourceMapper, createMmdVrGltfLoader, normalizeGltfResourcePath } from "./mmdVrGltf";
 import { withAssetPath } from "../../../mmdImport/assetPaths";
 
@@ -24,6 +24,24 @@ describe("normalizeGltfResourcePath", () => {
 });
 
 describe("createGltfResourceMapper", () => {
+  it('does not index the library for embedded data, and retires each requested File URL once', () => {
+    const main = new File(['{}'], 'scene.gltf'), image = new File(['png'], 'map.png');
+    const path = vi.fn(() => 'map.png');
+    Object.defineProperty(image, 'webkitRelativePath', { get: path });
+    const revoke = vi.spyOn(URL, 'revokeObjectURL');
+    const handle = createMmdVrGltfLoader(main, [main,image]);
+    try {
+      const resolve = (s:string) => handle.loader.manager.resolveURL(s);
+      expect(resolve(handle.url)).toBe(handle.url);
+      expect(resolve('data:image/png;base64,AA==')).toMatch(/^data:/);
+      expect(path).not.toHaveBeenCalled();
+      const texture = resolve('./map.png');
+      expect(texture).toMatch(/^blob:/); expect(resolve('map.png')).toBe(texture);
+      handle.revoke(); handle.revoke();
+      expect(revoke.mock.calls.flat()).toEqual([handle.url,texture]);
+      expect(resolve('map.png')).toBe('map.png'); // a late failed-loader callback cannot mint another URL
+    } finally { handle.revoke(); revoke.mockRestore(); }
+  });
   it("isolates loading managers for two imported packages and resolves parent paths", () => {
     const scene = (root: string) => withAssetPath(new File(["{}"], "scene.gltf"), `${root}/models/scene.gltf`, root);
     const texture = (root: string) => withAssetPath(new File(["png"], "顔.png"), `${root}/textures/顔.png`, root);

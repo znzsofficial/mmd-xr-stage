@@ -101,7 +101,7 @@ it('consumes airborne wind presses and parks a ready suspension through an ordin
   }finally{h.step.mockReset();await act(async()=>root.unmount());useMmdVrStore.setState(old);vi.unstubAllGlobals();}
 });
 
-it.each(['ready at takeoff','ready during hop'])('%s: side-looking hop carries exactly the travelled curvature from the first step; only Y levels it',async when=>{
+it.each(['ready at takeoff','ready during hop'])('%s: side-looking home hop carries the local horizon before touchdown and resumes a supported stride without Y',async when=>{
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);const old=useMmdVrStore.getState(),initiallyReady=when!=='ready during hop';
   useMmdVrStore.setState({prefs:{...old.prefs,scenery:'glassPlanet',movementMode:'normal',walkSpeedPref:'normal',normalEyeOffset:0}});
   const root=createRoot(document.createElement('div')),origin=new Group(),scene=new Scene();
@@ -119,19 +119,17 @@ it.each(['ready at takeoff','ready during hop'])('%s: side-looking hop carries e
   });
   try{
     await act(async()=>root.render(<PlanetMotor originRef={{current:origin}} dragging={false}/>));tick();
-    const launch=origin.quaternion.clone(),start=foot();stick[3]=-(.16+.84*.15);a.pressed=true;tick();
+    const start=foot();stick[3]=-(.16+.84*.15);a.pressed=true;tick();
     expect(samplePlanetMovement()?.location).toBe('orbit');a.pressed=false;stick[3]=0;p.x+=.10;h.ready=true;
-    for(let i=0;i<700&&samplePlanetMovement()?.location==='orbit';i++){head.setFromAxisAngle(new Vector3(0,1,0),1.1);tick();expect(origin.quaternion.angleTo(launch)).toBeLessThan(1e-6);}
+    for(let i=0;i<700&&samplePlanetMovement()?.location==='orbit';i++){const old=origin.quaternion.clone();head.setFromAxisAngle(new Vector3(0,1,0),1.1);tick();expect(origin.quaternion.angleTo(old)).toBeLessThan(.008);}
     expect(samplePlanetMovement()).toMatchObject({location:'home',orbitalJumps:1,orbitalLandings:1,alignments:0});
     const landed=foot(),horizon=origin.quaternion.clone();expect(landed.distanceTo(start)).toBeGreaterThan(.4);
     for(let i=0;i<30;i++)tick();expect(origin.quaternion.angleTo(horizon)).toBeLessThan(1e-6);
     expect(h.seed).toHaveBeenCalledTimes(initiallyReady?2:1);
-    loose=true;stick[3]=-1;const before=support.clone(),expected=horizon.clone(),arc=new Quaternion();
-    for(let i=0;i<90;i++){if(i===30)loose=false;tick();expected.premultiply(arc.setFromUnitVectors(before,support));before.copy(support);expect(origin.quaternion.angleTo(expected)).toBeLessThan(1e-6);}
+    loose=true;stick[3]=-1;
+    for(let i=0;i<90;i++){if(i===30)loose=false;tick();expect(new Vector3(0,1,0).applyQuaternion(origin.quaternion).angleTo(foot().sub(homeWorld.centre))).toBeLessThan(.01);}
     expect(foot().distanceTo(landed)).toBeGreaterThan(2.25);expect(samplePlanetMovement()).toMatchObject({backend:'rapier',orbitalJumps:1,alignments:0});
-    stick[3]=0;left.gamepad.buttons[5].pressed=true;tick();tick();expect(samplePlanetMovement()?.alignments).toBe(1);
-    expect(new Vector3(0,1,0).applyQuaternion(origin.quaternion).distanceTo(support)).toBeLessThan(1e-8);
-    expect(h.seed).toHaveBeenCalledTimes(initiallyReady?2:1);
+    stick[3]=0;tick();const idle=origin.matrixWorld.clone();tick();expect(origin.matrixWorld.equals(idle)).toBe(true);
   }finally{h.step.mockReset();await act(async()=>root.unmount());useMmdVrStore.setState(old);h.ready=true;vi.unstubAllGlobals();}
 });
 
@@ -161,7 +159,7 @@ it.each(['suspension','no WASM'])('%s: held-A east-flank reproduction lands once
     expect(peak).toBeGreaterThan(.5);left.gamepad.axes[2]=0;
     expect(record(2.4)).toBeLessThan(.001);expect(altitude(homeWorld,foot())).toBeCloseTo(0,4);
     const before=up();a.pressed=false;record(3*dt);left.gamepad.axes[2]=.99;
-    const residual=foot().sub(homeWorld.centre).normalize().angleTo(before);
+    const residual=foot().sub(homeWorld.centre).normalize().angleTo(before);expect(residual).toBeLessThan(.001);
     expect(record(4.4,()=>{const radial=foot().sub(homeWorld.centre).normalize();expect(radial.angleTo(up())).toBeCloseTo(residual,3); })).toBeGreaterThan(7);
     expect(before.angleTo(up())).toBeGreaterThan(.45);left.gamepad.axes[2]=0;expect(record(1.2)).toBeLessThan(.001);
     expect(samplePlanetMovement()).toMatchObject({backend:h.denied?'failed':'rapier',location:'home',grounded:true,orbitalJumps:1,orbitalLandings:1,alignments:0});
@@ -191,12 +189,38 @@ it('free flight can carry the actual eye through the north compass and leave nor
     for(let i=0;i<250;i++){tick();inside ||= surveyReaderBlocks(eye(),0,.001,up);}
     expect(inside).toBe(true);expect(eye().sub(surveySites.dial.lens).dot(ray)).toBeGreaterThan(.6);
     expect(samplePlanetMovement()).toMatchObject({location:'free',windDepartures:0});
-    left.gamepad.axes.fill(0);right.gamepad.axes.fill(0);mode('normal');tick();
-    expect(origin.position.distanceTo(before)).toBeLessThan(.002);
+    left.gamepad.axes.fill(0);right.gamepad.axes.fill(0);p.set(1.6,1.48,-1.2);mode('normal');tick();
+    expect(eye().distanceTo(before.clone().addScaledVector(up.clone().applyQuaternion(origin.quaternion),p.y))).toBeLessThan(.002);
   }finally{h.ready=true;await act(async()=>root.unmount());useMmdVrStore.setState(old);vi.unstubAllGlobals();}
 });
 
-it('walks beyond the antipode with a turning, tilted head; Y stands at the actual uphill footprint after a running hop',async()=>{
+it.each([false,true])('normal route, A=%s: same walk, two snap turns, stop; clear eyes stay upright without Y',async jump=>{
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);const old=useMmdVrStore.getState();
+  useMmdVrStore.setState({prefs:{...old.prefs,scenery:'glassPlanet',movementMode:'normal',walkSpeedPref:'normal',normalEyeOffset:0}});
+  const {default:R}=await import('@dimforge/rapier3d-compat');await R.init();const world=new R.World({x:0,y:0,z:0});addHomeTerrainSolids(R,world);
+  const driver=createHomeCapsule(R,world,()=>2.4);h.module.resolve();h.ready=true;h.seed.mockImplementation(driver.seed);h.step.mockImplementation(driver.step);
+  const input=(hand:string)=>({handedness:hand,targetRayMode:'tracked-pointer',profiles:['meta-quest-touch-plus'],gamepad:{mapping:'xr-standard',axes:[0,0,0,0],buttons:Array.from({length:6},()=>({pressed:false}))}});
+  const l=input('left'),r=input('right'),session=visit([l,r]),root=createRoot(document.createElement('div')),scene=new Scene(),origin=new Group();
+  const p=new Vector3(.62,1.63,-.21),head=new Quaternion(),pose={transform:{position:p,orientation:head}},up=new Vector3(0,1,0);
+  const eyes=[new Vector3(-.032,0,0),new Vector3(.032,0,0)],mid=()=>eyes.reduce((sum,e)=>sum.add(e.clone().applyQuaternion(head).add(p).applyMatrix4(origin.matrixWorld)),new Vector3()).multiplyScalar(.5);
+  const tick=(n=1)=>{for(let i=0;i<n;i++)h.frame!({gl:{xr:{getReferenceSpace:()=>({})}},scene},1/90,{session,getViewerPose:()=>pose});};
+  const level=()=>{const eye=mid();expect(up.clone().applyQuaternion(origin.quaternion).angleTo(eye.clone().sub(homeWorld.centre))).toBeLessThan(.002);
+    expect(Math.abs(altitude(homeWorld,eye)-p.y)).toBeLessThan(.01);};
+  try{
+    await act(async()=>root.render(<PlanetMotor originRef={{current:origin}} dragging={false}/>));tick(3);
+    // The visitor leans 25 cm while stopped (must stay physical), then pushes
+    // the stick. A stale motor footprint would leave a >1 degree roll error.
+    const prev=origin.matrixWorld.clone();p.x+=.25;tick();expect(Math.max(...prev.elements.map((v,i)=>Math.abs(v-origin.matrixWorld.elements[i])))).toBeLessThan(1e-8);
+    l.gamepad.axes[3]=-1;tick(370);head.setFromAxisAngle(new Vector3(0,0,1),.28);tick(198);head.identity();tick(99);l.gamepad.axes[3]=0;tick(20);level();
+    for(const side of [1,-1]){r.gamepad.axes[2]=side;tick(12);r.gamepad.axes[2]=0;tick(12);level();}
+    l.gamepad.axes[3]=-1;r.gamepad.buttons[4].pressed=jump;tick(16);r.gamepad.buttons[4].pressed=false;tick(198);l.gamepad.axes[3]=0;tick(90);level();
+    const path=samplePlanetMovement()!.groundedWalkM;l.gamepad.axes[3]=-1;tick(126);l.gamepad.axes[3]=0;tick();const rest=mid();tick(45);level();
+    expect(mid().distanceTo(rest)).toBeLessThan(1e-6);expect(samplePlanetMovement()!.groundedWalkM-path).toBeGreaterThan(3);
+    expect(samplePlanetMovement()).toMatchObject({grounded:true,snapTurns:2,orbitalJumps:Number(jump),orbitalLandings:Number(jump),alignments:0,wellChanges:0});
+  }finally{await act(async()=>root.unmount());h.seed.mockReset();h.step.mockReset();driver.dispose();world.free();useMmdVrStore.setState(old);vi.unstubAllGlobals();}
+});
+
+it('walks beyond the antipode with a turning, tilted head; a home hop stays upright and Y still seats an uphill physical step',async()=>{
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);const old=useMmdVrStore.getState();
   useMmdVrStore.setState({prefs:{...old.prefs,scenery:'glassPlanet',movementMode:'normal',walkSpeedPref:'normal',normalEyeOffset:0}});
   const {default:R}=await import('@dimforge/rapier3d-compat');await R.init();const world=new R.World({x:0,y:0,z:0});addHomeTerrainSolids(R,world);
@@ -224,10 +248,11 @@ it('walks beyond the antipode with a turning, tilted head; Y stands at the actua
     l.gamepad.buttons[5].pressed=true;tick();expect(stagedUp().angleTo(here)).toBeLessThan(1e-6);
     expect(samplePlanetMovement()).toMatchObject({alignments:1,orbitalJumps:0});l.gamepad.buttons[5].pressed=false;tick();
     head.rotation.set(.22,.45,-.31,'YXZ');l.gamepad.axes[2]=0;l.gamepad.axes[3]=-1;r.gamepad.buttons[4].pressed=true;
-    const takeoff=origin.quaternion.clone();tick();expect(samplePlanetMovement()?.location).toBe('orbit');
-    for(let i=0;i<300&&samplePlanetMovement()?.location==='orbit';i++){tick();expect(origin.quaternion.angleTo(takeoff)).toBeLessThan(1e-6);}
+    tick();expect(samplePlanetMovement()?.location).toBe('orbit');
+    for(let i=0;i<300&&samplePlanetMovement()?.location==='orbit';i++){const before=origin.quaternion.clone();tick();expect(origin.quaternion.angleTo(before)).toBeLessThan(.012);}
     expect(samplePlanetMovement()).toMatchObject({location:'home',grounded:true,orbitalLandings:1,alignments:1});
     l.gamepad.axes[3]=0;r.gamepad.buttons[4].pressed=false;tick();const rest=origin.matrixWorld.clone(),at=foot();
+    expect(stagedUp().angleTo(radial(at))).toBeLessThan(.001);
     const nav=origin.quaternion.clone().premultiply(new Quaternion().setFromUnitVectors(stagedUp(),radial(at)));
     // A real 28 cm reposition onto the uphill side used to put the candidate
     // ankle below the triangulated crust, making Y a no-op in the open.
@@ -235,7 +260,7 @@ it('walks beyond the antipode with a turning, tilted head; Y stands at the actua
       .sort((a,b)=>altitude(homeWorld,at.clone().add(a.clone().applyQuaternion(nav)))-altitude(homeWorld,at.clone().add(b.clone().applyQuaternion(nav))))[0];
     expect(altitude(homeWorld,at.clone().add(delta.clone().applyQuaternion(nav)))).toBeLessThan(-.002);
     const n=radial(at.clone().add(delta.clone().applyQuaternion(origin.quaternion)));
-    head.position.add(delta);tick();expect(Math.max(...origin.matrixWorld.elements.map((v,i)=>Math.abs(v-rest.elements[i])))).toBeLessThan(1e-8);expect(stagedUp().angleTo(n)).toBeGreaterThan(.08);
+    head.position.add(delta);tick();expect(Math.max(...origin.matrixWorld.elements.map((v,i)=>Math.abs(v-rest.elements[i])))).toBeLessThan(1e-8);expect(stagedUp().angleTo(n)).toBeGreaterThan(.015);
     l.gamepad.buttons[5].pressed=true;tick();expect(samplePlanetMovement()?.alignments).toBe(2);
     expect(altitude(homeWorld,foot())).toBeCloseTo(0,5);expect(stagedUp().angleTo(n)).toBeLessThan(1e-6);
     expect(eyes[0].getWorldPosition(new Vector3()).distanceTo(eyes[1].getWorldPosition(new Vector3()))).toBeCloseTo(.064,7);

@@ -1,6 +1,27 @@
-# 角色在场时的形态纹理与收回物件后的残留
+# 角色／物件：首次放置、在场与收回
 
-基线：`dbd2e96`，Three r187、官方 MMD loader 0.8.6 加现有补丁。一个问题发生在角色**还在场上**，另一个发生在 glTF 物件**已经收回**。测的是实际 WebGL 资源申请／删除；不等于驱动的物理驻留量，也不是 Quest 帧率测试。
+**同一趟里分别看三种数：**舞台维护的对象和源文件预留、Three renderer 的几何和纹理计数、Quest 浏览器进程 PSS。三者不能相加，也不能互相代替。下文旧版／新版形态纹理对照的基线是 `dbd2e96`，Three r187、MMD loader 0.8.6 加当时的补丁。
+
+## Quest 同一趟怎么比
+
+1. 在准备页导入角色和配套纹理，以**空地台**进入 VR。关闭角色物理和阴影，保持同一机位、衣着和菜单状态。空场留 10 秒。若有 ADB，电脑同时开始[进程 PSS 采样](./quest-browser-pss.md)。
+2. 从背包确认放置**一位**角色。等实际看见模型，再关闭菜单、原地留 10 秒。前者是放置过程，后者才用来与空场比。收回背包，关菜单再等 10 秒。比较同一个地台，勿把背包导入或隐藏角色当作放置／收回。
+3. 同一角色再放一次。等画面稳定后去另一空景，再返回地台、等模型恢复、留 10 秒。最后收回、留 10 秒、退出到准备页，导出上次 VR 性能 JSON。要查物件则以同一件带贴图的 glTF/GLB 单独重复，避免混算。**整趟保持同一 XR 会话**；退出再进会新建报告，先保存前一趟。
+
+`modelMemory` 是可选的独立段，和 `placements`、`roomRestores` 同一份报告。不记录文件、URL、部件名或实例 ID。PowerShell 可按时间顺序读同一趟（`$json` 为下载的 JSON 路径）：
+
+```powershell
+$m = (Get-Content -LiteralPath $json -Raw -Encoding UTF8 | ConvertFrom-Json).modelMemory
+$m.runs | Format-Table firstWallMs,lastWallMs,reads,scenery,phase,commandEdge,models,objects,textures,geometries,pmxSourceReservedBytes -AutoSize
+$m.mounts | Select-Object wallMs,scenery,kind,seen,scanWallMs -ExpandProperty resources
+```
+
+- **`runs`**：可见 XR 帧最多每 250 ms 读一次常数项，另在实际背包命令开始／结束时读一次；相同连续帧读数压成一行，`reads` 是实际次数，时间相对本次记录开始。`phase=place-model/place-object` 各列最大值是**采到的高点**；`end` 包含失败或取消，须用画面、`placements` 和后续 `models/objects` 核对。首次真正上传也可能在命令结束后的帧，连看之后几行。站稳及收回后取同景、同菜单的 `idle` 段末值。`idle` 仅表示无加载、切物理或背包命令，不保证资源已经稳定。无帧、同步解码、两次采样之间的尖峰可能完全漏掉。
+- `textures/geometries` 是当前 **整个 renderer** 的 `info.memory` 个数，包括布景、HUD 和内部资源。`pmxSourceReservedBytes` 是舞台源字节池按 `File` 身份预留的容量（可在 I/O 完成前增加，超预算可为零），不含解析网格、解码图、Bullet 或驱动。它归零不代表系统归还等量内存。
+- **`mounts`**：实际加入场景的进口根节点按身份在本次记录内最多盘点一次，包括首个可见帧已在场的根。`geometries` 按该根的几何身份；`positionBackingBytes` 按基础／形态 position 可达的整块 `ArrayBuffer` 身份（子视图可能只用其中一部分）；`baseMapTextures` 按底色贴图对象、`baseMapImages/baseMapPixels` 按二维图像对象和原始宽×高。它们是**根内**的结构量，不是显存估算，不能跨根加总推断独占字节。回访重新解码时有新的 `add` 行；只移动原实例不会生成新行。模型挂载不等于其像素已经呈现。
+- 不逐帧遍历场景，不读取像素／顶点；单根至多检查 2,048 个节点和 8,192 个形态／材质数组项。`truncated` 表示该根只得到部分计数；`scanWallMs` 是这一次盘点占用的墙钟时间。入口只看前 256 个场景直接子项，超出会标 `entryScanTruncated`。各保留最近 512 段读数和 64 个根，先看 `runsOmitted/mountsOmitted`，开头被覆盖时不要重建空场基线。
+
+**已实测到哪里：**用[无浏览器复查脚本](../../scripts/verify-model-memory-cycle.mjs)走本地参考 PMX 的正式背包放置、切房销毁、快照恢复、收回及再放置。三次在场均为 1 个几何、67 个 position 底层缓冲，约 **26.24 MiB**；源字节池约 **2.94 MiB → 0 → 2.94 MiB → 0 → 2.94 MiB**，退出再归零。此验收不解码配套贴图、不测 GPU，没有新增 Quest 实测峰值或 PSS 结论。可在本机运行 `node scripts/verify-model-memory-cycle.mjs <参考PMX路径>` 复核所有权；系统侧证据仍须按上述实戴流程采集。
 
 ## 形态数据：同一演员只为相同几何申请一份
 
@@ -30,8 +51,12 @@
 
 同一合成 glTF 含共用线材质／几何的两个节点、点云、蒙皮和 GPU 实例；通过正式物件加载路径放两个，再移除一个并清场。在预热了默认材质的桌面 renderer 上，空场基线是 0 个活缓冲、0 份几何、1 张纹理。旧版清场后为 **4／4／3**，新版为 **0／0／1**。移除第一个，两版的另一个都还显示原来的 7,092 个物件像素，没有像素差。另用[过期加载专项](../../src/mmdVrShowcase/stage/stageObjectDisposal.test.ts)确认未上场的组也走相同清理。
 
+这次另外修了两处寿命过长的资源：**自包含 GLB 不再索引整个背包**；需要外部贴图的包只建一次索引，同一 `File` 的所有引用复用一个请求 URL。解码结束（成功、失败或迟到）即撤销这些 URL，不再让它们跟着物件在场。背包依然持有原始文件。另在收回独立加载的物件时，按实际 `ImageBitmap` 身份关闭解码图，避免等 GC；只销毁 `Texture` 不会关闭它。Node 专项走真实 glTF 解析器、替代位图解码：同一源的两个 sampler 共用一张图；两个独立放置各有一张。收回第一个，其位图只 `close` 一次，第二个仍保持原尺寸；清场才关闭第二个。这是所有权证据，没有据此估算 Quest 节省了多少 MiB。
+
 ## 复查与下一步
+
+若要同时取浏览器进程级 PSS，使用独立的 [Quest USB/ADB 采样器](./quest-browser-pss.md)。网页资源数与 Android 进程采样是两份记录，不能用其一填补另一份缺失的数据。
 
 用 `node scripts/model-atlas-parity-server.mjs` 启动仅限开发的[形态绘制对照](../../scripts/model-atlas-parity.html)，分别选普通／拆分样本。旧组加载官方 0.8.6 加 `dbd2e96` 当时的真实补丁；新组加载舞台实际安装的 fork 构建，不再通过开关模拟旧几何。在 fork `9a45a5c` 原生共享几何的版本上已再次核对 A 和 S 的 24 对画面逐像素相同，各自仍是 1／14 份数组纹理。[双实例分配探针](../../scripts/model-render-coverage.js)用 `testActor({duplicate:true})` 或传入真实表情名。两个高负载角色的旧版双实例用已有基线，勿并行启动多个浏览器。原始数值与测试计划保留在本机 `local-review/verification/atlas-parity/`、`morph-atlas/` 和 `model-coverage/`。
 
-下一步若仍有内存压力，优先看 Quest 上**首次放置期间的峰值**与**站稳后的驻留**是否不同，并记录收回／回访后的基线。底色纹理在各实例之间仍独立，任何跨实例共享都需要另验换装、异步失败和释放所有权。
+下一步用同一趟的可见帧读数与 PSS 有效样本，区分首次放置、稳态和收回后在哪一段仍有压力。底色纹理在各实例之间仍独立，任何跨实例共享都需要另验换装、异步失败和释放所有权。

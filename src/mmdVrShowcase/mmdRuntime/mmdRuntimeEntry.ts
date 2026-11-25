@@ -192,26 +192,16 @@ export function applyModelTransform(entry: RuntimeEntry, options: ApplyModelTran
   if (t.scale !== scale) entry.transform = { ...t, scale };
 }
 
-export function applyMorphOverrides(entry: RuntimeEntry) {
-  const influences = entry.model.mesh.morphTargetInfluences;
+// Resolve UI names only when a slider or the mounted model changes. The
+// evaluator owns group expansion, bone transforms and split draw remapping.
+export function packMorphOverrides(entry: RuntimeEntry) {
   const dict = entry.model.mesh.morphTargetDictionary;
-  if (!influences || !dict) return;
-  for (const [name, weight] of Object.entries(entry.morphWeights)) {
-    const index = dict[name];
-    if (index == null) continue;
-    influences[index] = Math.min(1, Math.max(0, weight));
-  }
-  const bodies = (entry.model.mesh.userData as { mmdMorphSplitBodyMeshes?: THREE.SkinnedMesh[] }).mmdMorphSplitBodyMeshes;
-  if (!Array.isArray(bodies)) return;
-  for (const body of bodies) {
-    const target = body.morphTargetInfluences;
-    const map = body.userData?.mmdMorphSplit?.morphTargetIndices as Uint16Array | Uint32Array | undefined;
-    if (!target || !map) continue;
-    for (let i = 0; i < map.length; i += 1) {
-      const sourceIndex = map[i];
-      if (sourceIndex != null && sourceIndex < influences.length) target[i] = influences[sourceIndex] ?? 0;
-    }
-  }
+  if (!dict) return;
+  const values = Object.entries(entry.morphWeights).filter(([name]) => Object.hasOwn(dict, name));
+  if (values.length) return {
+    indices: Uint32Array.from(values, ([name]) => dict[name]),
+    weights: Float32Array.from(values, ([,weight]) => weight),
+  };
 }
 
 function wrapMergedAnimation(animation: MmdAnimation): ThreeMmdAnimation {

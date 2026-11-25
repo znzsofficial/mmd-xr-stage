@@ -81,7 +81,7 @@ window.testActor=async({fileName,special='sdef',boneIndex,axis=[.38,.64,.66],deg
         const coords=new Float32Array(gr.count*3),p=v();for(let i=0;i<gr.count;i++)mesh.localToWorld(mesh.getVertexPosition(mesh.geometry.index.getX(gr.start+i),p)).toArray(coords,i*3);
         geometry.setAttribute('position',new T.Float32BufferAttribute(coords,3));const check=new T.Mesh(geometry,solid);check.frustumCulled=false;scene.add(check);try{result.opaqueGeometryControl=diff(shots[0],frame());}finally{scene.remove(check);geometry.dispose();solid.dispose();}}
       if(motion.positive==='uv'){const saved=new Map();for(const o of owners){const uv=o.geometry.attributes.uv,local=o.userData.mmdMorphSplitBody?.morphTargetIndices?.indexOf(motion.index)??motion.index,target=o.geometry.morphAttributes.uv?.[local];if(!target||saved.has(uv))continue;saved.set(uv,uv.array.slice());for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)+.5*target.getX(i),uv.getY(i)+.5*target.getY(i));uv.needsUpdate=true;}
-        result.positive=diff(shots[0],frame());for(const [attr,raw] of saved){attr.array.set(raw);attr.needsUpdate=true;}}
+         const control=frame();result.positive=diff(shots[0],control);result.halfVsAuthoredUv=diff(shots[1],control);for(const [attr,raw] of saved){attr.array.set(raw);attr.needsUpdate=true;}}
       return result;}
     const bi=boneIndex??rankBone(mesh,kind);if(bi<0||!bones[bi])throw Error('No weighted joint with the requested skin type');
     const bone=bones[bi],bind=bone.quaternion.clone(),bend=bind.clone().multiply(new T.Quaternion().setFromAxisAngle(new T.Vector3(...axis).normalize(),degrees*Math.PI/180));

@@ -2,15 +2,16 @@
 
 [正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `aa6a0f5`](https://875a8d5f.mmd-xr-stage.pages.dev) · [WebGPU 裙摆实验](https://mmd-xr-stage.pages.dev/labs/cloth/) · [发布记录](./release-history.md) · [文档索引](./README.md)
 
-**恢复停点：先修普通行走与眼高，以重力捕捉以前的脚感为准。** 玩家已实戴反馈：普通模式太低、母星走着走着视线歪，布料实验窗口正常但进入 VR 全黑。先读[两份导出、决策和各线停点](./performance/quest-2026-11-25.md)。本轮仅整理文档；`aa6a0f5` 仍是产品版。WebGPU 后续目标是从同一游戏入口使用当前背包角色，不以修好独立实验页代替游戏内接入。
+**本轮范围：并行推进所有已确认问题，优先以重力捕捉以前的脚感验普通行走与眼高。** 角色 Bullet、手动裙面、模型兼容／内存、校园及稳态取证分别推进。WebGPU 继续在实验入口改善，真机双眼和原衣效果有依据后再考虑接入同一游戏背包。新玩法与新景仍属候选。实戴原始反馈及测量边界见[两份导出](./performance/quest-2026-11-25.md)。
 
 ## 从这里继续
 
-- **查演员兼容性：**四件 SDEF 演员的摆放缩放与晚 VMD 键已修；[材质形态／UV 形态](./performance/model-feature-coverage.md)的实模反例仍独立待修。排查角色内存时用[分配与释放探针](./performance/model-memory.md)，不要禁用表情或描边来获得小数字。
+- **实戴先走一趟：**[普通跑跳与眼高](./performance/normal-walk.md)已在模拟双眼对照：捕捉旧逻辑的 18.58° 残倾回到约 0°、续走眼高 1.29→1.63 m。平地实际点 −10 cm 和自由→普通已验。下一份 Quest 报告看 `stance.drawn` 与镜片观感。实验另看[两眼地标与按眼失败收据](./performance/gpu-cloth-lab.md)。
+- **演员兼容与内存：**[材质透明度与 UV](./performance/model-feature-coverage.md)已经用两件原衣实绘验证，剩两条身体 VMD 英文别名失败。[资源盘点、位图释放](./performance/model-memory.md)与[可选 ADB 进程采样](./performance/quest-browser-pss.md)分别回答资源寿命与采到的驻留值；Quest 系统峰值未测。
 
 - **查场景帧率：**选泳池计时台或教室后门，按[单景真机对照](./performance/next-quest-export.md#泳池或教室同机位真机对照)跑 `6061e24` 与 `b91325b`。先空场，加入演员或开物理另算。若两版帧率都顶住刷新率，只记录几何提交和镜片观感；无需据此继续削水面或课桌材质。
-- **角色物理两条线：**[11 月 25 日泳池](./performance/quest-2026-11-25.md)最后七窗，原生步进中位 12.60 ms；另有持续裙面显示每窗均值的中位 12.29 ms/次。前者查[真正执行的关节行](./performance/bullet-step-profile.md#主迭代行循环)，后者查[手动姿势的显示更新](./performance/pose-cloth-contact.md#保持一个姿势也会花时间吗)。不要把二者算成同一瓶颈。
-- **加载器只有一份源码：**跟踪上游已发布的正式版，在自己的 fork 集成；舞台用生成补丁还原同一产物，打包前校验。当前 `0.8.6` / `fork/main@9a45a5c`，含形态纹理去重。[来源清单](../loader-source.json) · [同步办法](./three-mmd-loader-maintenance.md#怎么保持同步)。独立的 CPU 骨架去重候选仍未投稿，等维护者的 [#47](https://github.com/yohawing/three-mmd-loader/pull/47) 合入后再复查。[英文草稿与恢复说明](./three-mmd-loader-maintenance.md#共享骨架去重的上游候选)
+- **角色物理两条线：**[原生关节工作](./performance/bullet-step-profile.md#实际关节行)已分解；直调在两轮整模对照中均未获益，正式 Bullet 不变。[手动裙面](./performance/pose-cloth-contact.md)减少重复的防翻面检查，三件原衣 645 帧等价，部分姿势桌面持续显示更快；首次拟合与实戴帧时仍待改善／复测。
+- **加载器只有一份源码：**游戏与 `fork/main@3ac1d8e` 同一套已验 0.8.6 产物。[来源清单](../loader-source.json) · [同步办法](./three-mmd-loader-maintenance.md#怎么保持同步)。独立的上游 CPU 骨架去重候选仍未投稿，等维护者的 [#47](https://github.com/yohawing/three-mmd-loader/pull/47) 合入后复查。
 
 ## 已交付和证据边界
 

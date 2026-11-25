@@ -1,6 +1,6 @@
 import {useFrame} from '@react-three/fiber';
 import {useXRInputSourceState} from '@react-three/xr';
-import {useEffect,useState,type RefObject} from 'react';
+import {useEffect,useLayoutEffect,useState,type RefObject} from 'react';
 import {Quaternion,Vector3,type Group,type Object3D} from 'three';
 import {useBackpack} from '../backpack/store';
 import {useMmdVrStore} from '../mmdVrStore';
@@ -17,14 +17,16 @@ import {actorBodies,sampleBodies} from './actorBodies';
 import {newStick,readStick,stickAxis as axis} from './controllerInput';
 import {eyeLift,headMargin} from './eyeHeight';
 import {arcadePassage} from '../scenery/arcade/arcadeTravel';
+import {observeStance,stanceProbe} from './stanceDiagnostics';
 
 export function usePlayerMovement(originRef:RefObject<Group|null>,dragging:boolean){
   const left=useXRInputSourceState('controller','left'),right=useXRInputSourceState('controller','right');
   const [s]=useState(()=>({body:groundedBody(0,0,0),safe:{x:0,y:0,z:0},mode:null as MovementMode|null,
     room:null as SceneryId|null,epoch:-1,xDown:false,gate:new RoomGate(),motor:createGroundMotor(),solids:createSolidColumns(),
-    roots:[] as Object3D[],root:undefined as Object3D|undefined,live:null as unknown,people:true,bodies:[] as ReturnType<typeof actorBodies>,
+    roots:[] as Object3D[],root:undefined as Object3D|undefined,live:null as unknown,people:true,bodies:[] as ReturnType<typeof actorBodies>,stance:stanceProbe(),lift:0,setting:NaN,
     direction:new Vector3(),q:new Quaternion(),left:newStick(),right:newStick(),headroom:{floor:0,ceiling:Infinity,blocked:false},snapReady:true,aDown:false,release:null as null|(()=>void)}));
   useEffect(()=>()=>{s.release?.();s.solids.invalidate();s.roots=[];},[s]);
+  useLayoutEffect(()=>observeStance(s.stance),[s]);
   useFrame(({gl,scene},elapsed,frame)=>{
     const origin=originRef.current,space=gl.xr.getReferenceSpace();if(!origin||!frame||!space)return;
     const pose=(!frame.session.visibilityState||frame.session.visibilityState==='visible')&&frame.getViewerPose(space);if(!pose){s.aDown=s.xDown=true;s.snapReady=false;return;}
@@ -79,8 +81,12 @@ export function usePlayerMovement(originRef:RefObject<Group|null>,dragging:boole
       };
       // Constrain calibration at the current foot before testing the next
       // step. Walking into a lower doorway must still enforce the full height.
-      if(prefs.normalEyeOffset>0)sample(s.body.x,s.body.z,s.body.y,s.headroom);
-      lift=eyeLift(prefs.normalEyeOffset,local.y,s.headroom.ceiling-(s.body.grounded?s.body.y:s.headroom.floor));
+      if(reset||returning||prefs.normalEyeOffset!==s.setting){
+        s.setting=prefs.normalEyeOffset;
+        if(s.setting>0)sample(s.body.x,s.body.z,s.body.y,s.headroom);
+        s.lift=eyeLift(s.setting,local.y,s.headroom.ceiling-(s.body.grounded?s.body.y:s.headroom.floor));
+      }
+      lift=s.lift; // A real head movement never spends/refunds an admitted adjustment.
       const eye=local.y+lift,h=Math.max(.24,eye+headMargin);
       // A prop might have been placed on the saved landing during free flight.
       // Prefer the entrance and nearby supported points, never an arbitrary Y.
@@ -127,6 +133,8 @@ export function usePlayerMovement(originRef:RefObject<Group|null>,dragging:boole
     // Preserve the physical tracked offset, including on reset/portal crossing.
     origin.position.x=x-cos*local.x-sin*local.z;origin.position.z=z+sin*local.x-cos*local.z;
     if(mode==='normal')origin.position.y=s.body.y+lift;
-    origin.rotation.y=yaw;origin.updateMatrixWorld(true);
+    origin.rotation.set(0,yaw,0);origin.updateMatrixWorld(true);
+    const d=s.stance;d.frame=frame;d.mode=mode;d.grounded=mode==='normal'&&s.body.grounded;if(returning)d.returns++;
+    d.foot.set(s.body.x,s.body.y,s.body.z);d.wanted=prefs.normalEyeOffset;d.lift=lift;
   },-2); // before hand (-1) and controller (0) collider samples
 }

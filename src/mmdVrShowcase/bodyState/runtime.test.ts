@@ -24,9 +24,11 @@ it('unwinds a changed VMD weight and compact split-clothing maps before each pau
   const raw:number[][]=[],camera=new PerspectiveCamera();let last=-1;
   // Same-time evaluation is allowed to skip a cached weight. A display leak
   // would become the next frame's input and creep toward 1 on every UI tick.
-  function update(t:number){raw.push([mesh.morphTargetInfluences![1],skin.morphTargetInfluences![0],coat.morphTargetInfluences![0]]);
-    if(t!==last){mesh.morphTargetInfluences![1]=.3+.1*t;last=t;}}
-  vi.spyOn(ThreeMmdLoader.prototype,'loadModel').mockResolvedValue({mesh,root,runtime:{dispose(){}},update,
+  function update(t:number,opts:Parameters<ThreeMmdModel['update']>[1]){raw.push([mesh.morphTargetInfluences![1],skin.morphTargetInfluences![0],coat.morphTargetInfluences![0]]);
+    if(t!==last){mesh.morphTargetInfluences![1]=.3+.1*t;last=t;}
+    if(opts?.morphOverrides){const {indices,weights}=opts.morphOverrides;expect([...indices]).toEqual([1]);
+      mesh.morphTargetInfluences![1]=skin.morphTargetInfluences![0]=coat.morphTargetInfluences![0]=weights[0];}}
+  vi.spyOn(ThreeMmdLoader.prototype,'loadModel').mockResolvedValue({mesh,root,runtime:{dispose(){}},update,setAnimation(){},
     outlineMeshes:[],renderOrderMeshes:[],diagnostics:{textures:[]}} as unknown as ThreeMmdModel);
   const rt=createMmdRuntimeHandle(new Scene());
   try{
@@ -44,8 +46,9 @@ it('unwinds a changed VMD weight and compact split-clothing maps before each pau
     rt.setMorphWeight(id,'Custom shape',.6);rt.update(2,false,camera,1,false,0);
     expect(mesh.morphTargetInfluences[1]).toBeCloseTo(.8);
     rt.setBodyProfile!(id,null);rt.update(2,false,camera,1,false,0);
-    expect(mesh.morphTargetInfluences).toEqual([.2,.6,.4]);
-    expect(skin.morphTargetInfluences).toEqual([.28,.2,.4]);expect(coat.morphTargetInfluences).toEqual([.32]);
+    const direct=Math.fround(.6);
+    expect(mesh.morphTargetInfluences).toEqual([0,direct,0]);
+    expect(skin.morphTargetInfluences).toEqual([direct,0,0]);expect(coat.morphTargetInfluences).toEqual([direct]);
   }finally{rt.dispose();}
 });
 

@@ -10,13 +10,13 @@
 
 ### 怎么保持同步
 
-**分支速查（11 月 25 日核对本地工作树及两个远端实际 heads）：只要问「游戏用哪个」，答案是 `znzsofficial/three-mmd-loader` 的 `main@9a45a5c`。** 本机常用 loader 检出也在这个提交；游戏自己是另一个仓库的 `master`，从[清单](../loader-source.json)锁定它，不在手机上拉取任何分支。
+**游戏使用 `znzsofficial/three-mmd-loader` 的 `main@3ac1d8e`。** 游戏自己是另一个仓库的 `master`，从[清单](../loader-source.json)锁定它，不在手机上拉取任何分支。
 
 | 在哪里 | 分支／提交 | 用途 |
 |---|---|---|
 | 原作者远端 `upstream` | `main@9c47b94`（v0.8.6）；`develop@bde8c98`；`release/v0.9.0@347bf20` | 正式基线看 `main` 与已发布 tag；后两者分别是开发线与尚未合并的发布候选。另有文档分支，不参与游戏选版。 |
-| 我们的远端 `fork`、本机 loader 主工作树 | 两边 `main@9a45a5c` | 唯一游戏来源；包含 0.8.6、舞台扩展与单项回移的上游显存修复。`fork/develop@ab0fc79` 不是原作者的 `develop`，也不发游戏。 |
-| 本机 loader | `sync/stage-0.8.6@82147af`、`sync/v0.8.6-morph-atlas@9a45a5c` | 集成时留下的路标，后者和 main 同点；都不是另一套运行时。 |
+| 我们的远端 `fork`、本机 loader 主工作树 | 两边 `main@3ac1d8e` | 唯一游戏来源；包含 0.8.6、舞台扩展、显存修复和材质／UV 形态修复。`fork/develop@ab0fc79` 不是原作者的 `develop`，也不发游戏。 |
+| 本机 loader | `sync/stage-0.8.6@82147af`、`sync/v0.8.6-morph-atlas@9a45a5c` | 集成时留下的历史路标，都不是另一套运行时。 |
 | 本机独立工作树 | `perf/dedupe-render-palettes@1d444f0` | 只准备给上游的 CPU 去重及基准，未推为 fork 分支、未投稿；与已回移的显存修复不是一件事。 |
 | 旧贡献／发布分支 | 本机和 fork 的 `fix/dynamic-with-bone-translation`、`fix/bullet-contact-debug-api`、`feat/bullet-contact-range-query`；fork 上的 `codex/release-*` | 历史分支，日常运行不用选。本轮没有清理、合并或改写分支。 |
 
@@ -24,6 +24,12 @@
 - [每日检查](../.github/workflows/loader-upstream.yml)和发版前的 `pnpm loader:upstream` 比较 npm 最新版、官方标签、包完整性和远端 `fork/main`。不同就提示更新；检查不部署代码。上游主分支若只前进、未发正式版，会另报提示。已打开的游戏不受影响。
 - [来源清单](../loader-source.json)锁定 fork 提交、正式版、完整 `dist/` 文件树摘要与补丁摘要。`pnpm build` 首先离线验证实际安装包（包括入口与依赖元数据）和 `public/mmd/<version>/` 的 Bullet JS/WASM。JS 和声明只统一换行，WASM 等二进制按原字节计算。新机器只需 `pnpm install --frozen-lockfile`，不依赖本机相邻的 fork 检出。
 - 同步时：在 fork 检出更新官方 tag 和远端引用，合入新版，保留舞台依赖的扩展；用 npm 和锁定的构建依赖、配套原生制品测试。然后在舞台运行 `pnpm loader:export <fork目录>`、`pnpm install`、`pnpm loader:verify`，提交生成的补丁、清单与锁文件。导出器从校验过的官方 tarball 起算，新增/移除/变更的 `dist` 文件都计入；原生二进制、包入口或版本不符会停止。正式版升号时同时更新依赖、`patchedDependencies` 的版本和匹配的 Bullet 路径。实模验收通过后推送 fork 与舞台，才发新游戏版本。
+
+### 材质透明度与 UV
+
+`3ac1d8e` 是上一版 `9a45a5c` 的直接后继。改动在 fork 的 `src/three/surface-morphs.ts` 和模型更新入口，只消费已展开的形态权重。覆盖标准／附加 UV 与 diffuse／edge alpha，不改原生制品、版本或包入口。[同一批实模的证据与限制](./performance/model-feature-coverage.md#086-材质透明度uv-和手动求值)
+
+由干净的候选源码重新构建并导出，舞台安装后验了 243 个文件和实际 WebGL 像素。fork 测试 816 项通过、5 项跳过（原生测试的 4 项缺夹具须初始化固定的 `native/third_party/mmd-anim` 后复跑）。来源以 `loader-source.json` 为准。
 
 ## 仓库与依赖
 
@@ -39,7 +45,7 @@
 - `@yohawing/three-mmd-loader@0.8.6`
 - `mmd-anim WASM 0.5.4`
 - Bullet 运行资产：`public/mmd/0.8.6/mmd_bullet.js`、`public/mmd/0.8.6/mmd_bullet.wasm`；版本化目录保证 ABI 配套的 JS/WASM 同步更新
-- 舞台安装的是官方 `0.8.6` + [从 fork 生成的 pnpm patch](../patches/@yohawing__three-mmd-loader@0.8.6.patch)。本次来源为 [fork/main `9a45a5c`](https://github.com/znzsofficial/three-mmd-loader/commit/9a45a5c079d5c61945eb22ab85995716ba56457b)：含原有 `82147af` 扩展和上游 `3f3c82a` 形态纹理修复。已核对全部 241 个 `dist` 文件和两份随站点分发的 Bullet 文件；不发布同名 npm 包。
+- 舞台安装的是官方 `0.8.6` + [从 fork 生成的 pnpm patch](../patches/@yohawing__three-mmd-loader@0.8.6.patch)。[fork/main `3ac1d8e`](https://github.com/znzsofficial/three-mmd-loader/commit/3ac1d8ef93fe85a9bb4463933aef4a5198bd259a) 保留 `82147af` 舞台扩展和上游 `3f3c82a` 显存修复；不发布同名 npm 包。
 - `pnpm-workspace.yaml` 中的 `patchedDependencies` 负责应用补丁
 - **测试中出现 `THREE_CJS_DEPRECATED` 时先看调用栈**：r187 的 `three.cjs` 会对 `require('three')` 告警。本项目实测调用方为 `meshline@3.3.1/dist/index.cjs` 与 `@react-three/fiber@9.8.2` 的 CJS 构建，来源是 Vitest 在 Node／jsdom 中解析 XR 依赖链。`vite.config.ts` 在测试模式让这条链使用包自带的 `module` 入口；不用改业务代码的 ESM 导入，也不要屏蔽 Node 的警告。生产构建另用 `singleThreeRuntime` 检查只有一份 Three.js。Node 关于 `localStorage` 的实验性提示是另一回事。
 - 还包含重获追踪刚体中心查询与 CCD IK 活跃节点矩阵优化。升级后执行 `ccdSolverParity.test.ts` 并与原求解器对照；补丁 hash 以 `pnpm-lock.yaml` 为准。

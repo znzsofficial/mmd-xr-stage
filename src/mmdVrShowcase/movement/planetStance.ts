@@ -8,6 +8,8 @@ import {tideBodyBlocked} from './tideContact';
 import {eyeLift} from './eyeHeight';
 import type {ReadColumn} from './groundMotor';
 import {STEP} from './solidColumns';
+import {homeWorld} from './gravityReference';
+import {carryFrame,type Traveller} from './planetTravel';
 
 const head=.115,up=new Vector3(),eye=new Vector3(),point=new Vector3(),base=new Vector3();
 const col={floor:-Infinity,ceiling:Infinity,blocked:false};
@@ -48,6 +50,47 @@ function canStand(w:World,foot:Vector3,basis:Quaternion,tracked:Vector3,lift:num
 type Stance={foot:Vector3;up:Vector3;basis:Quaternion;seat:Vector3;groundTilt:Quaternion;display:Quaternion;viewUp:Vector3};
 const standingFoot=new Vector3(),radial=new Vector3(),previous=new Vector3(),across=new Vector3(),centred=new Vector3();
 const standingBasis=new Quaternion(),swing=new Quaternion();
+
+// On a home hop the horizon can follow the small arc travelled over the
+// mother planet, just as on a stride. Never point at a newly acquired well.
+// Check the virtual motion of the tracked body, not the direction of gaze.
+export function carryHomeHop(s:Traveller,foot:Vector3,targetUp:Vector3,tracked:Vector3,lift:number,dt:number,read:ReadColumn){
+  const angle=s.up.angleTo(targetUp);if(angle<1e-8)return;
+  // An offset ankle can win the sweep. Limit the final approach just like an
+  // airborne frame: no instantaneous rotation to a distant contact normal.
+  swing.setFromUnitVectors(s.up,targetUp);
+  const fraction=Math.min(1,dt*.65/angle);
+  const steps=Math.max(1,Math.ceil(angle*fraction*(tracked.length()+Math.abs(lift))/.025));
+  for(let i=1;i<=steps;i++){
+    standingBasis.identity().slerp(swing,fraction*i/steps).multiply(s.basis);
+    if(!canStand(homeWorld,foot,standingBasis,tracked,lift,read))return;
+  }
+  carryFrame(s,radial.set(0,1,0).applyQuaternion(standingBasis));
+}
+
+// While the stick actually advances across open ground, bring the motor
+// under the physical footprint a stride at a time. A lean at rest (or into a
+// wall) still tracks 1:1: never move the viewer to enforce this correction.
+export function followHomeFootprint(s:Traveller,offset:Vector3,p:{x:number;y:number;z:number},lift:number,stride:number,read:ReadColumn){
+  across.set(p.x-offset.x,0,p.z-offset.z);
+  const distance=across.length();if(distance<.0001||stride<.0001)return false;
+  across.multiplyScalar(Math.min(1,stride/distance,.08/distance));
+  standingFoot.copy(across).applyQuaternion(s.basis).add(s.foot);radial.subVectors(standingFoot,homeWorld.centre).normalize();
+  let floor=shellRadius(homeWorld,radial.x,radial.y,radial.z);
+  if(radial.y>.8){
+    col.floor=homeWorld.centre.y+radial.y*floor;col.ceiling=Infinity;col.blocked=false;
+    read(standingFoot.x,standingFoot.z,s.foot.y,col);if(col.blocked)return false;
+    floor=Math.max(floor,(col.floor-homeWorld.centre.y)/radial.y);
+  }
+  if(Math.abs(floor-s.foot.distanceTo(homeWorld.centre))>STEP)return false;
+  standingFoot.copy(homeWorld.centre).addScaledVector(radial,floor);
+  standingBasis.copy(s.basis).premultiply(swing.setFromUnitVectors(s.up,radial));
+  centred.set(0,p.y,0);if(!canStand(homeWorld,standingFoot,standingBasis,centred,lift,read))return false;
+  centred.set(p.x-offset.x-across.x,p.y,p.z-offset.z-across.z);
+  if(centred.x**2+centred.z**2>1e-8&&!canStand(homeWorld,standingFoot,standingBasis,centred,lift,read))return false;
+  s.foot.copy(standingFoot);carryFrame(s,radial);offset.add(across);return true;
+}
+
 export function alignPlanetStance(w:World,s:Stance,tracked:Vector3,lift:number,read:ReadColumn){
   const distance=Math.hypot(tracked.x,tracked.z);
   if(distance>1e-6){

@@ -2,12 +2,12 @@
   "version": "0.8.6",
   "upstreamTag": "9c47b947fa61228e57227f97a9f67ad186268fcd",
   "upstreamMain": "9c47b947fa61228e57227f97a9f67ad186268fcd",
-  "forkCommit": "9a45a5c079d5c61945eb22ab85995716ba56457b",
+  "forkCommit": "3ac1d8ef93fe85a9bb4463933aef4a5198bd259a",
   "registryIntegrity": "sha512-F3vz/aCo9d/CxEstRQWF5l4oE6eXqtTlP436iI2L66+nkaePFZ/Hw7wZiISlUrMNaAjSUiKRsJpufEZ7+ckDNQ==",
   "apiSha256": "39cd34d5e139eb5ccb75c73ffaaef25c4cf3f7894e22f243fe72feca2ad0f76e",
   "dist": {
-    "files": 241,
-    "sha256": "81df0c1c5edce4741649eda66b9c2074099083ff3f929f4c725175474eb34cb7"
+    "files": 243,
+    "sha256": "b1a45ecab5aa98a08b5dd89c826edf4d892e81374af4e0bb3d2f832367bb2c00"
   },
-  "patchSha256": "1631f50b5cdac67ef46d4046e19d0e94819751869f4d441fc3796aa5821e41d7"
+  "patchSha256": "9f5001ae9bbc446b687adab34c80af8c42f5400928f1926616c71b2cfd083685"
 }

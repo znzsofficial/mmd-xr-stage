@@ -8,6 +8,7 @@ import { createMmdVrGltfLoader } from "./loading/mmdVrGltf";
 import { createModelLoadTask } from "./loading/modelLoadTask";
 import { setObjectHeadingDegrees } from "./objectHeading";
 import { prepareStageObject } from "./loading/prepareStageObject";
+import { disposeStageObject } from "./loading/disposeStageObject";
 import { firstCharacterScale } from "./loading/firstCharacterScale";
 import {createPlacementWork,type PlacementWork} from '../diagnostics/placementWork';
 import type {RestoreMotionWork} from '../diagnostics/roomRestoreTiming';
@@ -17,29 +18,12 @@ import { useStagePlay } from '../play/stagePlay';
 import { applySavedObject, snapshotModel, snapshotObject, type SavedObject, type StageSnapshot } from "./stageSnapshot";
 
 type StageObject = {
-  slot: MmdVrObjectSlot; group: THREE.Group; name: string; revoke: () => void; defaultPosition: [number, number, number];
+  slot: MmdVrObjectSlot; group: THREE.Group; name: string; ownsBitmaps: boolean; defaultPosition: [number, number, number];
 };
 const abort = () => new DOMException("Stage changed", "AbortError");
 const savedModel = (m: MmdProjectModelAssets) => snapshotModel({ file: m.modelFile, transform: m.transform,
   visible: m.visible, materialVisible: m.materialVisible, materialOverrides: m.materialOverrides });
 const modelBindings = (m: MmdProjectModelAssets) => ({ body: m.bodyMotionFile ?? undefined, face: m.faceMotionFile ?? undefined });
-
-function disposeGroup(group: THREE.Group) {
-  const resources = new Set<THREE.BufferGeometry | THREE.Texture | THREE.Material | THREE.Skeleton | THREE.InstancedMesh>();
-  group.traverse(child => {
-    if (!(child instanceof THREE.Mesh || child instanceof THREE.Line || child instanceof THREE.Points)) return;
-    // glTF skins and instances own buffers/textures outside geometry and material.
-    if (child instanceof THREE.SkinnedMesh && child.skeleton) resources.add(child.skeleton);
-    if (child instanceof THREE.InstancedMesh) resources.add(child);
-    resources.add(child.geometry);
-    for (const material of Array.isArray(child.material) ? child.material : [child.material]) {
-      if (!material) continue;
-      resources.add(material);
-      for (const value of Object.values(material)) if (value instanceof THREE.Texture) resources.add(value);
-    }
-  });
-  for (const resource of resources) resource.dispose();
-}
 
 // Rest-geometry proxy: measure only when a root first goes live. Applying the
 // current root matrix later tracks move/turn/scale without skinning vertices.
@@ -90,15 +74,16 @@ export function createStageActors(scene: THREE.Scene, runtime: MmdRuntimeHandle,
   function releaseObject(id: string, obj: StageObject) {
     objects.delete(id);
     scene.remove(obj.group);
-    disposeGroup(obj.group);
-    obj.revoke();
+    disposeStageObject(obj.group, obj.ownsBitmaps);
   }
 
   async function loadObject(slot: MmdVrObjectSlot, x: number, stale: () => boolean, saved?: SavedObject, place?: Extract<BackpackCommand, {type:"place"}>, y=0) {
     const { loader, url, revoke } = createMmdVrGltfLoader(slot.objectFile, slot.companionFiles);
+    let ownsBitmaps = !THREE.Cache.enabled;
     let group: THREE.Group | undefined;
     try {
       group = (await loader.loadAsync(url)).scene;
+      ownsBitmaps &&= !THREE.Cache.enabled;
       if (stale()) throw abort();
       prepareStageObject(group);
       group.userData.stagePropSolid = true;
@@ -111,11 +96,12 @@ export function createStageActors(scene: THREE.Scene, runtime: MmdRuntimeHandle,
         group.visible = true;
       }
       scene.add(group);
-      objects.set(`object:${++nextObject}`, { group, slot, revoke, defaultPosition, name: slot.objectFile.name.replace(/\.(gltf|glb)$/i, "") });
+      objects.set(`object:${++nextObject}`, { group, slot, ownsBitmaps, defaultPosition, name: slot.objectFile.name.replace(/\.(gltf|glb)$/i, "") });
     } catch (error) {
-      if (group) disposeGroup(group);
-      revoke();
+      if (group) disposeStageObject(group, ownsBitmaps);
       throw error;
+    } finally {
+      revoke();
     }
   }
 

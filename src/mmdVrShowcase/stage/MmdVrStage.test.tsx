@@ -535,6 +535,8 @@ it("owns GLB resources through failure, move, put-away, and completion after a s
     expect(revoke).toHaveBeenCalledTimes(1);
     await place(prop);
     const runtimeId = bag().live[id(prop)].runtimeId;
+    expect(revoke).toHaveBeenCalledTimes(2); // decoded instance stays on stage, request URL is already gone
+    expect(current.dispose).not.toHaveBeenCalled();
     await place(prop, -1.5, 90);
     expect(loadAsync).toHaveBeenCalledTimes(2);
     expect(bag().live[id(prop)].runtimeId).toBe(runtimeId);

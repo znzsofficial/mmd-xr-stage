@@ -166,7 +166,9 @@ function compare(states,p) {
       witness:{i:best,actual:states.map(s=>rounded(s[key][best]))},pass:mx[1]>1e-6 && mx[2]>1e-6 && maxAbs(delta(ds[2],ds[1]))>1e-6 && mx[3]<=eps};
   }
   for(const [key,d] of [['uv',p.uvPts.flatMap(r=>r.offset)],['beforeSkin',p.morphedPoints.flatMap(r=>r.offset)],['localTranslation',p.simpleMoves.flatMap(([,t])=>t)]]) {
-    if(d.length) compareTo(key,weights.map(w=>states[0][key].map((x,i)=>x+w*d[i])));
+    // Bound UV attributes are Float32. At thousands of repeats even half
+    // an ULP exceeds eps; compare the expected stored value, not a double.
+    if(d.length) compareTo(key,weights.map(w=>states[0][key].map((x,i)=>key==='uv'?Math.fround(x+w*d[i]):x+w*d[i])));
   }
   if(p.mats.length){
     compareTo('mats',weights.map((_,j)=>p.mats.flatMap(r=>r.expected[j])));

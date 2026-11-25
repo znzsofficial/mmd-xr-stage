@@ -6,15 +6,25 @@ import wabtFactory from 'wabt';
 import {createNodeBulletModule} from '../../scripts/node-bullet-stage.mjs';
 import {instrumentSolver} from './solver.mjs';
 import {instrumentRowLoops} from './row-loops.mjs';
+import {countDecl, instrumentJointCounts, drainJointPasses} from './joint-counts.mjs';
+import {costDecl, costImport, instrumentJointCosts, costSnapshot} from './joint-costs.mjs';
+import {patchJointDispatch} from './joint-direct.mjs';
 
 export const phases = ['other', 'updateAabbs', 'calculateOverlappingPairs', 'dispatchAllCollisionPairs', 'calculateSimulationIslands', 'solveConstraints'];
 export const ROOT = 6, SUBSTEP = 7;
 const wasmUrl = new URL('../../public/mmd/0.8.6/mmd_bullet.wasm', import.meta.url);
 
+export function probeOptions(flags) {
+  const counts=flags.includes('--joint-counts'), costs=flags.includes('--joint-costs');
+  assert(!(costs && (counts || flags.includes('--rows'))),'Run joint costs separately from the row census');
+  const rowLoops=counts || flags.includes('--rows');
+  return {rowLoops,solver:costs || rowLoops || flags.includes('--solver'),joints:counts?'counts':costs?'costs':undefined};
+}
+
 // Pinned artifact: the default btQuickprof callbacks are no-ops, but the
-// named enter/leave sites survive -O3. Neither probe marks each pair or solver
-// row. WABT's named round trip preserves all original calls.
-function instrument(wat, raw, solver, rowLoops) {
+// named enter/leave sites survive -O3. No host clock is read per solver row;
+// the optional census counts inside WASM. The plain round trip is checked below.
+function instrument(wat, raw, solver, rowLoops, joints) {
   const enter = 'i32.const 17292\n    i32.load\n    call_indirect $T0 (type $t0)';
   const leave = 'i32.const 17296\n    i32.load\n    call_indirect $T0 (type $t8)';
   const mark = id => `i32.const ${id}\n    call $stageMark`;
@@ -68,11 +78,21 @@ function instrument(wat, raw, solver, rowLoops) {
   }
   if (solver) instrumentSolver({editFunction, entry, leave, once, mark});
   if (rowLoops) instrumentRowLoops({editFunction, entry, leave, once, mark});
+  if (joints) {
+    const memory='  (memory $d 1024 1024)';
+    wat=once(wat,memory,memory+'\n  '+(joints==='counts'?countDecl:costDecl));
+    if(joints==='counts') instrumentJointCounts({editFunction,entry,once});
+    else {
+      wat=once(wat,'  (import "stage" "mark"',`  ${costImport}\n  (import "stage" "mark"`);
+      instrumentJointCosts({editFunction,entry,once});
+    }
+  }
   return wat;
 }
 
-export async function createProfiledModule(mark, {rowLoops=false, solver=rowLoops} = {}) {
-  assert(!rowLoops || solver);
+export async function createProfiledModule(mark, {rowLoops=false, solver=rowLoops, joints, dispatch} = {}) {
+  assert(!rowLoops || solver); assert(!joints || (solver && ['counts','costs'].includes(joints)));
+  assert(!dispatch || !(mark || solver || rowLoops || joints),'A/B must not contain any timing marks');
   const raw = readFileSync(wasmUrl);
   assert.equal(createHash('sha256').update(raw).digest('hex'), '02e32a4c9ec3b16d166feec06edc20cf689be9a60e3286f2048c3c02392bebc9');
   const wabt = await wabtFactory(), input = wabt.readWasm(raw, {});
@@ -87,11 +107,24 @@ export async function createProfiledModule(mark, {rowLoops=false, solver=rowLoop
       assert.deepEqual([...raw.subarray(2058,2061)], [12,1,5]);
       assert(Buffer.from(plain.toBinary({}).buffer).equals(Buffer.concat([raw.subarray(0,2058),raw.subarray(2061)])));
     } finally { plain.destroy(); }
-    patched = wabt.parseWat('profile.wat', instrument(wat, raw, solver, rowLoops));
-    patched.validate();
+    const features={multi_memory:joints==='counts'};
+    patched = wabt.parseWat('profile.wat',dispatch ? patchJointDispatch(wat,dispatch) : instrument(wat, raw, solver, rowLoops,joints),features);
+    patched.validate(features);
     const compiled = new WebAssembly.Module(patched.toBinary({}).buffer);
-    return await createNodeBulletModule({instantiateWasm(imports, ready) {
-      ready(new WebAssembly.Instance(compiled, {...imports, stage:{mark}}), compiled);
+    if(dispatch==='direct') {
+      const original=new WebAssembly.Module(raw);
+      assert.deepEqual(WebAssembly.Module.imports(compiled),WebAssembly.Module.imports(original));
+      assert.deepEqual(WebAssembly.Module.exports(compiled),WebAssembly.Module.exports(original));
+    }
+    let exports;
+    const epoch=process.hrtime.bigint(), nowNs=()=>Number(process.hrtime.bigint()-epoch);
+    const m=await createNodeBulletModule({instantiateWasm(imports, ready) {
+      const instance=new WebAssembly.Instance(compiled,dispatch ? imports : {...imports, stage:{mark,nowNs}});
+      exports=instance.exports; ready(instance,compiled);
     }});
+    if(joints==='counts') m.drainJointPasses=()=>drainJointPasses(exports);
+    if(joints==='costs') m.jointCosts=()=>costSnapshot(exports);
+    if(dispatch==='audit') m.jointTargetAudit=()=>Object.fromEntries(['jointCalls','jointFirst','jointDifferent'].map(k=>[k,exports[k].value]));
+    return m;
   } finally { patched?.destroy(); input.destroy(); }
 }

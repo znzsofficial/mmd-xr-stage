@@ -737,10 +737,18 @@ index 32cdfea..9cf0a04 100644
      private canCreateImplicitMmdAnimRuntime;
      private getCore;
 diff --git a/dist/three/index.js b/dist/three/index.js
-index e1ceb53..91bd20d 100644
+index e1ceb53..07cf9a0 100644
 --- a/dist/three/index.js
 +++ b/dist/three/index.js
-@@ -88,8 +88,10 @@ export class ThreeMmdLoader {
+@@ -14,6 +14,7 @@ import { createMmdMaterialRenderOrderMeshes, createMmdOutlineMeshes } from "./ou
+ import { createLoaderPerformanceProfile } from "./performance.js";
+ import { MMD_SELF_SHADOW_LAYER } from "./shadow.js";
+ import { createThreeSkeleton } from "./skeleton.js";
++import { createSurfaceMorphSync } from "./surface-morphs.js";
+ export { createThreeBufferGeometry, createThreeMorphSplitGeometries } from "./geometry.js";
+ export { applyMmdCameraStateToThreeCamera } from "./camera.js";
+ export { applyMmdLightStateToThreeDirectionalLight } from "./light.js";
+@@ -88,8 +89,10 @@ export class ThreeMmdLoader {
                      geometry: mesh.geometry,
                      morphs: modelData.morphs,
                      geometryAwareAlpha: this.options.geometryAwareAlpha || effectiveOutlines,
@@ -752,7 +760,16 @@ index e1ceb53..91bd20d 100644
                  });
                  const textureDiagnostics = await texturePromise;
                  profile?.mark("textures");
-@@ -147,6 +149,10 @@ export class ThreeMmdLoader {
+@@ -122,7 +125,7 @@ export class ThreeMmdLoader {
+                     materials: modelData.materials,
+                     outlines: effectiveOutlines,
+                     renderOrderProxies: options.materialRenderOrder ?? options.renderOrderProxies ?? true
+-                });
++                }, modelData.morphs);
+                 profile?.mark("assembled");
+                 profile?.measure("read-bytes", "start", "bytes");
+                 profile?.measure("parse-model", "bytes", "parsed");
+@@ -147,6 +150,10 @@ export class ThreeMmdLoader {
              profile?.clear();
          }
      }
@@ -763,7 +780,24 @@ index e1ceb53..91bd20d 100644
      createRuntime(context) {
          const explicitRuntime = this.options.runtimeFactory?.(context);
          if (explicitRuntime) {
-@@ -376,7 +382,12 @@ function createThreeMmdModel(options) {
+@@ -331,7 +338,7 @@ export class ThreeMmdLoader {
+         };
+     }
+ }
+-function createThreeMmdModel(options) {
++function createThreeMmdModel(options, morphs) {
+     const bodyMeshes = readMorphSplitBodyMeshes(options.mesh);
+     const outlineSources = bodyMeshes.length > 0 ? bodyMeshes : [options.mesh];
+     const outlineMeshes = options.outlines
+@@ -367,6 +374,7 @@ function createThreeMmdModel(options) {
+     object.name = options.mesh.name;
+     object.add(options.mesh, ...bodyMeshes, ...renderOrderMeshes, ...outlineMeshes);
+     const runtimeTickOptions = { mesh: object };
++    const syncSurface = createSurfaceMorphSync(options.mesh, bodyMeshes, renderOrderMeshes, outlineMeshes, options.materials, morphs);
+     return {
+         root: object,
+         get object() {
+@@ -376,7 +384,12 @@ function createThreeMmdModel(options) {
          mesh: options.mesh,
          outlineMeshes,
          renderOrderMeshes,
@@ -777,6 +811,33 @@ index e1ceb53..91bd20d 100644
          source: options.source,
          diagnostics: {
              core: options.coreDiagnostic,
+@@ -396,7 +409,9 @@ function createThreeMmdModel(options) {
+             runtimeTickOptions.physics = updateOptions?.physics;
+             runtimeTickOptions.ik = updateOptions?.ik;
+             runtimeTickOptions.morphOverrides = updateOptions?.morphOverrides;
+-            return options.runtime.tick(seconds, runtimeTickOptions);
++            const state = options.runtime.tick(seconds, runtimeTickOptions);
++            syncSurface?.();
++            return state;
+         },
+         updateAsync(seconds, updateOptions) {
+             runtimeTickOptions.physics = updateOptions?.physics;
+@@ -404,12 +419,14 @@ function createThreeMmdModel(options) {
+             runtimeTickOptions.morphOverrides = updateOptions?.morphOverrides;
+             const tickAsync = options.runtime.tickAsync;
+             if (tickAsync) {
+-                return tickAsync.call(options.runtime, seconds, {
++                const pending = tickAsync.call(options.runtime, seconds, {
+                     ...runtimeTickOptions,
+                     signal: updateOptions?.signal
+                 });
++                return syncSurface ? pending.then(state => { syncSurface(); return state; }) : pending;
+             }
+             const state = options.runtime.tick(seconds, runtimeTickOptions);
++            syncSurface?.();
+             return Promise.resolve({
+                 seconds: state.seconds,
+                 frame: state.frame,
 diff --git a/dist/three/material/material-texture-set.d.ts b/dist/three/material/material-texture-set.d.ts
 index 2f0df61..c535cad 100644
 --- a/dist/three/material/material-texture-set.d.ts
@@ -1044,6 +1105,158 @@ index 21175b4..4816acc 100644
      if (!isLoaderPerformanceEnabled(options)) {
          return undefined;
      }
+diff --git a/dist/three/surface-morphs.d.ts b/dist/three/surface-morphs.d.ts
+new file mode 100644
+index 0000000..14073b0
+--- /dev/null
++++ b/dist/three/surface-morphs.d.ts
+@@ -0,0 +1,3 @@
++import type { SkinnedMesh } from "three";
++import type { MaterialInfo, MorphData } from "../parser/model/modelTypes.js";
++export declare function createSurfaceMorphSync(mesh: SkinnedMesh, bodies: readonly SkinnedMesh[], proxies: readonly SkinnedMesh[], outlines: readonly SkinnedMesh[], materials: readonly MaterialInfo[], morphs: readonly MorphData[]): (() => void) | undefined;
+diff --git a/dist/three/surface-morphs.js b/dist/three/surface-morphs.js
+new file mode 100644
+index 0000000..ebd422d
+--- /dev/null
++++ b/dist/three/surface-morphs.js
+@@ -0,0 +1,137 @@
++import { mmdMaterialSuppressesColorAtAlpha, mmdTransparencyModeAlphaTest } from "./material/material-metadata.js";
++import { clampColor } from "./utils.js";
++// Material and UV targets are not native Three morph channels. Consume the
++// evaluator's *expanded* weights; never expand groups again in the renderer.
++export function createSurfaceMorphSync(mesh, bodies, proxies, outlines, materials, morphs) {
++    const apply = [];
++    const source = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
++    const offsets = new Map();
++    for (const [index, morph] of morphs.entries()) {
++        for (const offset of morph.materialOffsets) {
++            const multiply = offset.operation === "multiply", neutral = multiply ? 1 : 0;
++            const diffuse = offset.diffuse[3], edge = offset.edgeColor[3];
++            if (diffuse === neutral && edge === neutral)
++                continue;
++            const op = { index, multiply, diffuse, edge };
++            const first = offset.materialIndex === -1 ? 0 : offset.materialIndex;
++            const end = offset.materialIndex === -1 ? materials.length : first + 1;
++            for (let slot = first; slot < end; slot++) {
++                if (!materials[slot])
++                    continue;
++                let list = offsets.get(slot);
++                if (!list)
++                    offsets.set(slot, list = []);
++                list.push(op);
++            }
++        }
++    }
++    for (const [slot, ops] of offsets) {
++        const info = materials[slot], body = source[slot];
++        const shadow = proxies.find(p => p.userData.mmdMaterialRenderProxy.materialIndex === slot)?.material;
++        const edgeMaterial = outlines.find(p => p.userData.mmdOutlineProxy.sourceMaterialIndex === slot)?.material;
++        const outline = Array.isArray(edgeMaterial) ? undefined : edgeMaterial;
++        const restEdgeVisible = outline?.visible ?? false, restEdgeOpacity = outline?.opacity ?? 0;
++        let lastDiffuse = info.diffuse[3], lastEdge = info.edgeColor[3];
++        apply.push(weights => {
++            let diffuseMul = 1, edgeMul = 1, diffuseAdd = 0, edgeAdd = 0;
++            for (const op of ops) {
++                const w = weights[op.index] ?? 0;
++                if (op.multiply) {
++                    diffuseMul *= 1 + w * (op.diffuse - 1);
++                    edgeMul *= 1 + w * (op.edge - 1);
++                }
++                else {
++                    diffuseAdd += w * op.diffuse;
++                    edgeAdd += w * op.edge;
++                }
++            }
++            const diffuse = clampColor(info.diffuse[3] * diffuseMul + diffuseAdd);
++            const edge = clampColor(info.edgeColor[3] * edgeMul + edgeAdd);
++            if (diffuse === lastDiffuse && edge === lastEdge)
++                return;
++            lastDiffuse = diffuse;
++            lastEdge = edge;
++            const suppress = mmdMaterialSuppressesColorAtAlpha(diffuse, info.flags);
++            setBodyAlpha(body, diffuse, suppress);
++            body.userData.mmdReferenceEdgeAlpha = edge;
++            if (shadow && !Array.isArray(shadow) && shadow !== body) {
++                setBodyAlpha(shadow, diffuse, suppress);
++                shadow.userData.mmdReferenceEdgeAlpha = edge;
++            }
++            if (outline) {
++                const atRest = diffuse === info.diffuse[3] && edge === info.edgeColor[3];
++                outline.opacity = atRest ? restEdgeOpacity : edge;
++                outline.visible = atRest ? restEdgeVisible : !suppress && edge > 0;
++            }
++        });
++    }
++    for (const body of bodies.length ? bodies : [mesh]) {
++        const remap = body.userData.mmdMorphSplitBody?.morphTargetIndices;
++        // Outline and render-order draws share these exact geometry objects.
++        const targets = body.geometry.morphAttributes;
++        for (const [name, attributes] of Object.entries(targets)) {
++            if (!/^uv[1-4]?$/.test(name))
++                continue;
++            const output = body.geometry.getAttribute(name);
++            const components = new Set();
++            const terms = [];
++            for (const [local, attr] of attributes.entries()) {
++                const index = remap?.[local] ?? local;
++                if (morphs[index]?.type !== (name === "uv" ? "uv" : "additionalUv"))
++                    continue;
++                let affectsChannel = false;
++                for (let i = 0; i < attr.array.length; i++) {
++                    if (attr.array[i] !== 0) {
++                        components.add(i);
++                        affectsChannel = true;
++                    }
++                }
++                if (affectsChannel)
++                    terms.push({ index, delta: attr.array, previous: 0 });
++            }
++            if (!components.size)
++                continue;
++            const indices = Uint32Array.from(components);
++            const rest = Float32Array.from(indices, i => output.array[i]);
++            apply.push(weights => {
++                let changed = false;
++                for (const term of terms) {
++                    const w = weights[term.index] ?? 0;
++                    if (term.previous !== w) {
++                        changed = true;
++                        term.previous = w;
++                    }
++                }
++                if (!changed)
++                    return;
++                for (let j = 0; j < indices.length; j++) {
++                    const i = indices[j];
++                    let value = rest[j];
++                    for (const term of terms)
++                        value += term.delta[i] * term.previous;
++                    output.array[i] = value;
++                }
++                output.needsUpdate = true;
++            });
++        }
++    }
++    if (!apply.length)
++        return undefined;
++    return () => {
++        const weights = mesh.morphTargetInfluences;
++        if (weights)
++            for (const update of apply)
++                update(weights);
++    };
++}
++function setBodyAlpha(material, alpha, suppress) {
++    const mode = material.userData.mmdMaterial.transparencyMode;
++    const blend = mode === "alphaBlend" || alpha < 1;
++    if (material.transparent !== blend)
++        material.needsUpdate = true;
++    material.opacity = alpha;
++    material.transparent = blend;
++    material.visible = alpha > 0 || suppress;
++    material.colorWrite = !suppress && !material.userData.mmdShadowOnlyRenderProxy;
++    material.alphaTest = suppress ? 0 : mmdTransparencyModeAlphaTest(mode === "opaque" && blend ? "alphaBlend" : mode);
++}
 diff --git a/dist/three/textures.d.ts b/dist/three/textures.d.ts
 index b46e737..7b757d8 100644
 --- a/dist/three/textures.d.ts

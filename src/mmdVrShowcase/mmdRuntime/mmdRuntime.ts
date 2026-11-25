@@ -48,6 +48,7 @@ import {
   enforceModelCastOnlyShadows,
   extractMaterialNames,
   extractMorphNames,
+  packMorphOverrides,
   recomputeEntryAnimation,
   toSnapshot,
   type MmdModelTransform,
@@ -148,6 +149,8 @@ export type MmdRuntimeHandle = {
 };
 
 type RuntimeEntryWithPhysics = ActorDisplayEntry & {
+  manualMorphs?: ReturnType<typeof packMorphOverrides>;
+  manualRestBound?: boolean;
   modelBytes?: ModelByteLease;
   motionEpoch: Record<MmdMotionSlot, number>;
   bodyProfile?:BodyProfile|null;
@@ -194,12 +197,27 @@ function bindNoMotion(entry: RuntimeEntryWithPhysics) {
   }
 }
 
+// A freshly placed, physics-off actor normally has no bound clip. Bind the
+// cold rig only while a manual input needs evaluation; restore its original
+// PMX bind on release (ordinary native rest evaluation can include rest IK).
+function prepareManualRest(entry: RuntimeEntryWithPhysics) {
+  if (entry.editor || entry.physicsBackend || entry.appliedAnimation) return;
+  if (entry.manualMorphs && !entry.manualRestBound) {
+    restoreBindPose(entry);
+    entry.model.setAnimation(STATIC_BINDING_ANIMATION);
+    entry.manualRestBound = true;
+  } else if (!entry.manualMorphs && entry.manualRestBound) {
+    bindNoMotion(entry);
+    entry.manualRestBound = false;
+  }
+}
+
 function releaseEvaluator(evaluator: ThreeMmdModel['runtime']) {
   // The bundled WASM animation adapter owns native handles; the JS one does not.
   (evaluator as typeof evaluator & {dispose?:()=>void}).dispose?.();
 }
 
-const STATIC_PHYSICS_BINDING_ANIMATION: MmdAnimation = {
+const STATIC_BINDING_ANIMATION: MmdAnimation = {
   kind: "vmd",
   bytes: new Uint8Array(0),
   metadata: {
@@ -216,7 +234,7 @@ const STATIC_PHYSICS_BINDING_ANIMATION: MmdAnimation = {
 };
 
 export function bindStaticMmdPhysicsRuntime(model: Pick<ThreeMmdModel, "setAnimation">) {
-  model.setAnimation(STATIC_PHYSICS_BINDING_ANIMATION);
+  model.setAnimation(STATIC_BINDING_ANIMATION);
 }
 
 /**
@@ -392,7 +410,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
 
   function commitMotion(entry: RuntimeEntryWithPhysics, slot: MmdMotionSlot, file: File | null, animation: ThreeMmdAnimation | null, work?: import('../diagnostics/roomRestoreTiming').RestoreMotionWork) {
     endPose(entry.id);
-    const candidate = { ...entry };
+    const candidate = { ...entry, manualRestBound:false };
     candidate[`${slot}Animation`] = animation;
     candidate[`${slot}MotionName`] = file?.name ?? null;
     candidate[`${slot}MotionFile`] = file;
@@ -715,6 +733,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
         entry.visible = snap.visible;
         if(snap.bodyProfile){entry.bodyProfile=snap.bodyProfile;bodyDisplay(entry).configure(snap.bodyProfile);}
         entry.morphWeights = snap.morphWeights;
+        entry.manualMorphs = packMorphOverrides(entry);
         entry.morphFavorites = snap.morphFavorites;
         entry.materialVisible = { ...entry.materialVisible, ...snap.materialVisible };
         entry.materialOverrides = { ...entry.materialOverrides, ...snap.materialOverrides };
@@ -768,9 +787,10 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
               clearPoseForRebind(entry);
               restoreBindPose(entry);
               configureActorPalms(entry.model.mesh,palmsRequested());
-              const animation = entry.appliedAnimation?.animation ?? (backend ? STATIC_PHYSICS_BINDING_ANIMATION : null);
+              const animation = entry.appliedAnimation?.animation ?? (backend ? STATIC_BINDING_ANIMATION : null);
               if (animation) runtime.setAnimation(animation, entry.model.mesh);
               const old = entry.model.exchangeRuntime(runtime);
+              entry.manualRestBound = false;
               disposeEntryPhysics(entry);
               entry.physicsBackend = backend; entry.physicsDisplay = display;
               item.installed = true;
@@ -901,7 +921,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
         restoreBindPose(entry);
         if(entry.appliedAnimation)entry.model.setAnimation(entry.appliedAnimation);
         else if(entry.physicsBackend)bindStaticMmdPhysicsRuntime(entry.model);
-        entry.model.update(seconds,{physics:false,ik:!!entry.bodyAnimation});
+        entry.model.update(seconds,{physics:false,ik:!!entry.bodyAnimation,morphOverrides:entry.manualMorphs});
         console.warn('[mmdVr] Could not edit this skeleton',error);return null;
       }finally{presentDraws(entry.model.mesh);}
     },endPose,
@@ -1006,13 +1026,14 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
     },
     setMorphWeight(modelId, morphName, weight) {
       const entry = entries.get(modelId);
-      if (!entry) return;
+      if (!entry || !Number.isFinite(weight) || !Object.hasOwn(entry.model.mesh.morphTargetDictionary ?? {}, morphName)) return;
       const next = Math.min(1, Math.max(0, weight));
       if (next <= 0.001) {
         delete entry.morphWeights[morphName];
       } else {
         entry.morphWeights[morphName] = next;
       }
+      entry.manualMorphs = packMorphOverrides(entry);
     },
     setMaterialVisible(modelId, materialName, visible) {
       const entry = entries.get(modelId);
@@ -1074,7 +1095,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
           entry.physicsBackend.reset?.();
           entry.model.runtime.seek(t);
           restoreDraws(entry.model.mesh);
-          try{entry.model.update(t, { physics: true, ik: !entry.editor&&entry.bodyAnimation != null });}
+          try{entry.model.update(t, { physics: true, ik: !entry.editor&&entry.bodyAnimation != null, morphOverrides:entry.manualMorphs });}
           finally{presentDraws(entry.model.mesh);}
           // A reset seeds only the edited skirt, at visual scale.
           syncEntryWorldMatrix(entry, false);
@@ -1141,6 +1162,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
         const jumpedFar = prev !== undefined && seconds - prev > 0.25;
         const reset = jumpedBack || jumpedFar || prev === undefined;
         restorePoseBeforeFrame(entry, physicsOn, reset, reseed);
+        prepareManualRest(entry);
         syncEntryWorldMatrix(entry, physicsOn);
         if (physicsOn && reset) {
           // seek() alone changes the loader clock but doesn't seed Bullet on a
@@ -1154,7 +1176,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
         stepDelta = physicsOn ? physicsDelta : undefined;
         restoreDraws(entry.model.mesh);
         try {
-          entry.model.update(seconds, { physics: physicsOn, ik: !entry.editor&&hasBodyMotion });
+          entry.model.update(seconds, { physics: physicsOn, ik: !entry.editor&&hasBodyMotion, morphOverrides:entry.manualMorphs });
           if (physicsOn && physicsDelta != null) entry.physicsDisplay?.present(entry.model.mesh.skeleton.bones, physicsDelta,
             !hasBodyMotion && !entry.editor && !entry.gizmoLock);
         } finally {

@@ -46,28 +46,29 @@ export type MmdVrGltfLoaderHandle = {
  * - `.glb`: self-contained, loaded straight from a blob URL.
  * - `.gltf`: external buffers/textures are resolved against same-directory
  *   companion files through a URL modifier.
- * Caller owns the returned object URL and must call `revoke()` on removal.
+ * The caller releases request URLs once loadAsync settles. Decoded textures,
+ * buffers and the page's original Files have separate lifetimes.
  */
 export function createMmdVrGltfLoader(file: File, companions: readonly File[]): MmdVrGltfLoaderHandle {
-  const urls: string[] = [];
   const urlsByFile = new Map<File, string>();
   function makeUrl(source: File) {
     const existing = urlsByFile.get(source);
     if (existing) return existing;
     const url = URL.createObjectURL(source);
-    urls.push(url);
     urlsByFile.set(source, url);
     return url;
   }
 
   const url = makeUrl(file);
-  const resolve = createCompanionIndex([file, ...companions]);
+  let resolve: ReturnType<typeof createCompanionIndex> | undefined;
 
   const loader = new GLTFLoader(new LoadingManager());
   loader.setResourcePath("./");
   if (companions.length) {
     loader.manager.setURLModifier((requested) => {
       if (/^(blob:|data:|https?:)/i.test(requested)) return requested;
+      // A self-contained GLB never needs a second index of the backpack.
+      resolve ??= createCompanionIndex([file, ...companions]);
       let reference = normalizeGltfResourcePath(requested);
       try { reference = decodeURIComponent(reference); } catch { /* Retain literal malformed escapes. */ }
       const { matches } = resolve(file, reference);
@@ -78,8 +79,9 @@ export function createMmdVrGltfLoader(file: File, companions: readonly File[]): 
     loader,
     url,
     revoke: () => {
-      for (const url of urls) URL.revokeObjectURL(url);
-      urls.length = 0; urlsByFile.clear();
+      loader.manager.setURLModifier(); // detach resolver and do not mint URLs for late requests
+      for (const url of urlsByFile.values()) URL.revokeObjectURL(url);
+      urlsByFile.clear(); resolve = undefined;
     },
   };
 }

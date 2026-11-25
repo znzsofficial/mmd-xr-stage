@@ -4,6 +4,8 @@
 
 **11 月 25 日续测：[主迭代行循环](#主迭代行循环)的 48/48 个新窗口中，关节行均比接触与摩擦行合计更耗时。** 两种建模顺序下，关节行约占非 split 迭代的 70%／71%。这里只定位下一处要查的代码，不是墙钟提速或头显收益。
 
+**[实际关节行](#实际关节行)：**同一原衣角色分开站立、保持捧腿和播舞，三次短验每次都是 400 遍、零行被 override 判断跳过。保持捧腿比播舞多执行 51,920 行，主要多在单侧限位。没有改变游戏求解器。
+
 | 每次 `stepSimulation` 的均值，ms（含零子步调用） | 原版先建 | 诊断版先建 |
 |---|---:|---:|
 | AABB 更新 `updateAabbs` | 0.2350 | 0.2287 |
@@ -95,4 +97,75 @@ node experiments/bullet-step-profile/playback.mjs "<actor.pmx>" "<body.vmd>" --r
 node experiments/bullet-step-profile/playback.mjs "<actor.pmx>" "<body.vmd>" --rows --reverse
 ```
 
-**下一步。** 优先查关节行实际行数、每遍通过 override 判断的比例和涉及的行类型，可用 WASM 内累积计数、整批读回，不逐行调用 JS。准备段的 `convertJoints` 另查 `getInfo1` 计算与 `convertJoint`/`getInfo2` 填行；不把随姿态变化的行当常量。现有数据不支持删关节、降迭代次数或改固定步长；窄相仍是独立调查线。
+## 实际关节行
+
+同一 505 骨原衣 PMX、605 个作者关节、停放的 22 个辅助体。每列另起 Node 进程，用两套世界作原版／诊断版对照。站立不绑动作；保持捧腿从同一站姿通过运行时 `beginPose` 应用 `thighCradle` 并重新播种；二者保持姿态时钟在 0，物理继续按 1/72 秒推进。播舞沿用同一真实身体 VMD。**这是每次预热 12 帧、正式 4 对 × 6 帧的 CPU 短验**，含 4 次零子步、20 次单子步；不是前文的 48 个长窗，也不代表泳池玩家当时采用了捧腿预设。
+
+| `--joint-counts` 实际计数 | 普通站立 | 保持捧腿 | 播舞 |
+|---|---:|---:|---:|
+| 40 批中每批遍数 | 10 | 10 | 10 |
+| 单遍执行行数（小批／大批范围） | 31–35／1,778–1,840 | 82–84／1,877–2,088 | 32–38／1,748–1,831 |
+| 总访问＝实际完成 generic 求解 | 370,860 | 420,540 | 368,620 |
+| 正显式 override 的行访问／被判断跳过 | 0／0 | 0／0 | 0／0 |
+| 线性：仅马达／双向锁定 | 11,190／242,550 | 10,780／243,000 | 10,650／243,000 |
+| 线性：限位状态 1／2 | 17,660／8,900 | 16,250／26,860 | 15,340／8,880 |
+| 角向：仅马达／双向锁定 | 15,600／65,800 | 15,600／65,770 | 15,600／65,790 |
+| 角向：限位状态 1／2 | 6,290／2,870 | 24,520／17,760 | 6,660／2,700 |
+
+**怎样数。** [计数器](../../experiments/bullet-step-profile/joint-counts.mjs)在[6DOF 真正写出一行](https://github.com/yohawing/mmd-anim/blob/f4f68d7519d7c15f2bfc77f094410e57e94ea7aa/crates/mmd-anim-physics-bullet/vendor/bullet3/src/BulletDynamics/ConstraintSolver/btGeneric6DofConstraint.cpp#L690-L710)时读取 `rotational`、当前限位状态及上下限是否相等。仅马达指马达启用且无活动限位；有活动限位则按双向锁定、状态 1（正向冲量）、状态 2（负向冲量）分类，不能据此断言马达未启用。分类是**这一子步产生的行**，不是 PMX 关节枚举、关节名称或非零冲量数。按本关节起始行＋写入序号贴标签，验证每批顺序连续、无缺行且与池长相符。每遍通过实际排序表取回标签，访问在 guard 前数，执行在 generic 虚调用返回后数，跳过在 guard 的另一支数。显式 override 来自原关节的正整数设置；未显式设置的行也要比较继承的迭代上限。
+
+标签、计数均在独立 WASM 内存，逐窗整批读回；每遍核对 `访问 = 池长 = 已执行 + 跳过`、八种行合计及旧探针的非空遍数。空世界验零行；另有两个人造 6DOF 关节，一组继承 10 遍、一组显式增加到 12 遍，实跑最后两遍均为访问 12、执行 6、跳过 6。这个反例表明不能把实模的 100% 通过率写成全局规则。
+
+### 建行与填行成本
+
+`--joint-costs` 单独运行，不贴行标签。下表是 `convertJoints` 内两个**完整非空循环**和剩余部分，单位 ms / `stepSimulation`，含零子步和探针开销。`getInfo1` 遍含清反馈、enabled 判断、累加返回行数；填行遍含按需取 solver body、`convertJoint` 的清行、`getInfo2` 虚调用和行末整理。剩余含 `buildJacobian` 遍及临时池管理。
+
+| 同一口径 | 普通站立 | 保持捧腿 | 播舞 |
+|---|---:|---:|---:|
+| `getInfo1` 整遍 | 0.06867 | 0.12129 | 0.06369 |
+| 填行整遍（含 `getInfo2`） | 0.12901 | 0.14501 | 0.06306 |
+| 其余 | 0.01463 | 0.04250 | 0.01821 |
+| **`convertJoints` 总计** | **0.21231** | **0.30880** | **0.14496** |
+| `getInfo1` 调用夹时／相邻空夹（ns/样本） | 189／47 | 316／65 | 177／48 |
+| `getInfo2` 调用夹时／相邻空夹（ns/样本） | 170／3,077 | 304／70 | 147／46 |
+
+每趟两种虚调用各实际发生 **12,100 次**，各抽到 377 次。在[固定源码两处虚调用](https://github.com/yohawing/mmd-anim/blob/f4f68d7519d7c15f2bfc77f094410e57e94ea7aa/crates/mmd-anim-physics-bullet/vendor/bullet3/src/BulletDynamics/ConstraintSolver/btSequentialImpulseConstraintSolver.cpp#L1294-L1355)对应的位置，[计时器](../../experiments/bullet-step-profile/joint-costs.mjs)按连续调用序号散列、约每 32 次选 1 次，仅包围实际间接调用，不重复执行；同一采样紧接着取一对空时钟。均值保留原值，不扣空夹，不把最后两行乘以调用数再加到整遍。站立 `getInfo2` 的 377 个空夹合计 1.160 ms，明显受停顿污染；保持捧腿这次正式计时段全机繁忙比例约 53%。**短验能分清工作边界，不能给几个百纳秒的虚调用排稳定名次。**
+
+**同输入、同输出。** 六趟各自在正式段逐次比对 24 对 C 步进参数和 1,152 对写入刚体的索引、位置与四元数（7 个 float32 的比特和 step 边界），没有 seed-only 步混入。含预热的 6 个窗口端点，各趟 48,480 个骨矩阵标量、312 个表情权重、384 个蒙皮顶点、6 份完整接触列表逐值相同；站立／捧腿／播舞最多 333／342／330 点。不绘制，不把 CPU 裙面显示时间计作 Bullet 建行，也未测暂停拨衣的触感。
+
+**复现与下一步。** 先用文首的 `npm ci` 安装实验依赖。Node 26.12.1，项目根目录；占用 CPU 的回放按趟串行，每条输出独立 JSON。以下为一趟舞蹈的短验；同命令加 `--stand` 或 `--held` 分别测另外两种姿态，后二者不读 VMD，可将第二个参数写成 `-`。原件：本机 `local-review/verification/bullet-joints/{stand,held,dance}-{counts,costs}-smoke.json`。
+
+```sh
+node experiments/bullet-step-profile/boundaries.mjs --joint-counts
+node experiments/bullet-step-profile/boundaries.mjs --joint-costs
+node experiments/bullet-step-profile/playback.mjs "<actor.pmx>" "<body.vmd>" --joint-counts --smoke
+node experiments/bullet-step-profile/playback.mjs "<actor.pmx>" "<body.vmd>" --joint-costs --smoke
+```
+
+排期正式轮时，沿用上轮本机 `local-review/verification/bullet-solver/inputs.json` 的 `pmx`、`vmd`。去掉 `--smoke` 即各预热 96 帧、正式 24 对 × 24 帧；再加 `--reverse` 另起进程反转构建和首窗顺序。`rows[1].blocks[i].solver.jointPasses` 中依次取 `patterns[passIds[j]]` 即还原该窗第 j 遍，字段在 `solver.jointPasses.patternFields`；`solver.jointCosts` 保留两个整遍和抽样原始 ns，逐窗同名字段可定位尖峰。
+
+**不改求解策略。** 播舞约 84% 的实际行是双向锁定，保持捧腿降到约 73%；锁定描述的是作者约束，而非无用工作。没有证据支持缓存活动行、删除 override 判断或给捧腿少算几遍。窄相与裙面显示仍各自独立。
+
+### 同目标直调：离线 A/B 不采用
+
+`--joint-target --smoke` 在播舞的实际关节调用点取目标，原间接调用照常执行。正式段 **368,620 次全是槽 407**，与行计数器的执行数吻合。固定产物中该槽对应 `$f312`，接受三个 `i32`、返回 `f32`；表在模块内定义，不导出，只有一个初始化段，没有运行期改表指令。
+
+[候选](../../experiments/bullet-step-profile/joint-direct.mjs)只改 `solveSingleIteration` 非接触行循环的一处调用：保留原来的参数入栈和一次槽号读取；等于 407 才直接 `call $f312`，否则把刚读的索引交给原 `call_indirect`。不假定下一行的目标与上一行相同。顺序表、override 判断、被调用函数本体和后续浮点残差运算沿用原指令，接触／摩擦路径不参与改写。`node experiments/bullet-step-profile/joint-direct.mjs` 用同一段分支验证了不同有效目标的三参数与返回值，以及类型不符、空槽、越界仍然 trap。
+
+**短验只证等价。** 两种建模顺序各 4 对 × 6 帧：同一原衣 PMX 和 VMD，各 24 对步进参数、1,152 对刚体位置／旋转写入、48,480 个骨矩阵标量、312 个形态权重、384 个蒙皮点及 6 份完整接触记录逐值相同。两趟 `world_step` 均只有 **2/4** 个配对窗候选较快。没有正式提速结论。本机原件：`local-review/verification/bullet-direct/{target-smoke,direct-smoke,reverse-smoke}.json`。
+
+**正式轮结论：不采用。** 原衣舞蹈的单独计数轮实际执行 **8,987,930 行／9,600 遍**，无 override 跳过；独立成本轮 `getInfo1` 整遍、填行整遍分别为 **0.059 / 0.064 ms/步**。这两轮有计数／计时，不能和直调候选跨轮比快慢。用不带打点的两版进行正反顺序 A/B：`world_step` 配对差中位 **−0.0008 / +0.01565 ms**，整次演员更新 **+0.03306 / +0.06552 ms**（正数更慢），分别只在 **8/24、7/24** 个整模窗胜出。同输入，含预热的 226,240 个骨矩阵标量、1,792 个蒙皮点及 28 份接触记录一致。不动线上 WASM，不降低关节精度。四份完整结果在 `local-review/verification/bullet-joints/dance-joint-{counts,costs}-full.json`、`local-review/verification/bullet-direct/{forward,reverse}.json`。
+
+**复现命令。** 以下是两个独立进程；在项目根目录用 PowerShell 7 串行运行。两版 WASM 都无性能打点、目标计数或行标签；候选只在内存生成。每版预热 96 帧，正式 24 对 × 24 帧。两侧保留相同 JS 边界计时和预分配的刚体输入记录，逐窗离开计时后校验。`--reverse` 只反转建模和首窗顺序。
+
+```powershell
+$p = Get-Content -Raw -Encoding utf8 local-review/verification/bullet-solver/inputs.json | ConvertFrom-Json
+$out = 'local-review/verification/bullet-direct'
+New-Item -Force -ItemType Directory $out | Out-Null
+node experiments/bullet-step-profile/playback.mjs $p.pmx $p.vmd --joint-direct > "$out/forward.json"
+if ($LASTEXITCODE -ne 0) { throw 'Forward A/B failed' }
+node experiments/bullet-step-profile/playback.mjs $p.pmx $p.vmd --joint-direct --reverse > "$out/reverse.json"
+if ($LASTEXITCODE -ne 0) { throw 'Reverse A/B failed' }
+```
+
+两份分别看 `jointDispatch.pairedAbi`（JS 包围的 `world_step`）、`pairedFrame`（整次 `rt.update`，CPU 无绘制）及各窗原值；`medianDeltaMs` 为候选减原版，`wins` 为候选更快的窗数。若反转后收益消失、整模没有可重复改善或出现输入／输出反例，就到此为止；两轮都改善才值得另验暂停拨衣及回落。

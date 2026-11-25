@@ -4,7 +4,7 @@ import type { PoseSolver } from '../pose/poseSolver';
 import type { WardrobeModel } from '../wardrobe/model';
 import { fitChestCompression } from './chestCompression';
 import { beginFingertipFit } from './fingertipIndent';
-import { applyMorphOverrides, type RuntimeEntry } from './mmdRuntimeEntry';
+import type { RuntimeEntry } from './mmdRuntimeEntry';
 import type { PhysicsPoseDisplay } from './physicsPoseDisplay';
 import { fitPoseSkirt } from './poseSkirtClearance';
 import { FINGERTIP_MASK, TrackedPressure } from './trackedPressure';
@@ -85,7 +85,6 @@ export function presentEvaluatedPose(entry: ActorDisplayEntry, seconds: number, 
   prevSeconds: number | undefined, physicsOn: boolean, resetPressure: boolean, dancePressure: boolean, record?:RecordSkirtWork) {
   const { mask, colliders, radius } = entry.displayHands;
   const handMask = physicsOn ? mask : 0;
-  applyMorphOverrides(entry);
   entry.wardrobe?.present();
   let bodyBonesChanged = entry.bodyDisplay?.apply() ?? false;
   const bodyParams = entry.bodyDisplay?.settings;

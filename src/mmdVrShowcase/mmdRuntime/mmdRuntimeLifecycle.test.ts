@@ -300,6 +300,24 @@ describe("runtime asynchronous lifecycle", () => {
     } finally { runtime.dispose(); }
   });
 
+  it('evaluates manual group weights on a cold PMX, then releases to bind or the paused VMD', async () => {
+    const {pmx,vmd}=poseFixture(false,'face'),rt=createMmdRuntimeHandle(new THREE.Scene()),camera=new THREE.PerspectiveCamera();
+    try {
+      const {modelId:id}=await rt.addModel(new File([pmx],'actor.pmx'));
+      const mesh=rt.getModelSurface(id)!.mesh,step=()=>rt.update(1,false,camera,1,false,0);
+      const vertex=()=>mesh.getVertexPosition(0,new THREE.Vector3()),foot=mesh.skeleton.getBoneByName('LeftFoot')!;
+      step();const cold=vertex(),planted=foot.matrixWorld.clone();
+      rt.setMorphWeight(id,'Gesture',.5);step();const half=vertex();
+      expect(half.distanceTo(cold)).toBeGreaterThan(.001);expect(mesh.morphTargetInfluences![0]).toBeCloseTo(.35);
+      step();expect(vertex().distanceTo(half)).toBeLessThan(1e-6);
+      rt.setMorphWeight(id,'Gesture',0);step();expect(vertex().distanceTo(cold)).toBeLessThan(1e-6);expect(foot.matrixWorld).toEqual(planted);
+      await rt.loadMotion(new File([vmd],'face.vmd'),'face',id);step();const clip=vertex();
+      rt.setMorphWeight(id,'Expression',1);step();expect(mesh.morphTargetInfluences![0]).toBeCloseTo(.7);
+      expect(vertex().distanceTo(clip)).toBeGreaterThan(.001);
+      rt.setMorphWeight(id,'Expression',0);step();expect(vertex().distanceTo(clip)).toBeLessThan(1e-6);
+    } finally {rt.dispose();}
+  });
+
   it('restores draw opacity and visual scale on a failed paused frame; only completed frames apply the body shape', async () => {
     const model = modelFixture(), {mesh, root} = model;
     const cloth = [mesh.material].flat()[0]; cloth.name = 'coat'; cloth.opacity = .75;

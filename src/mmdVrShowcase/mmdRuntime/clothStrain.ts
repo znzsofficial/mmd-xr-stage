@@ -3,6 +3,14 @@ import {Vector3} from 'three';
 export type ClothPoint={p:Vector3; d:Vector3; movable:boolean};
 const vec=()=>new Vector3();
 type Face={a:number;b:number;c:number};
+const GRID=2**13;
+// Earliest positive root of bend*t² + slope*t = allow. If the full
+// proposal already fits, convexity also admits every earlier point.
+function edgeStop(slope:number,bend:number,allow:number){
+  if(slope+bend<=allow)return 1;
+  const root=Math.sqrt(slope*slope+4*bend*allow);
+  return slope<0?(root-slope)/(2*bend):2*allow/(root+slope);
+}
 // Minimum projection of the oriented area over the entire line segment, not
 // just at t=1. A triangle can cross zero twice and end up front-facing again.
 export function safeClothScale(){
@@ -23,6 +31,20 @@ export function safeClothScale(){
         t*(eDot+t*u2)<=2.24*e2+long*.004 && t*(fDot+t*v2)<=2.24*f2+long*.004 && t*(gDot+t*w2)<=2.24*g2+long*.004;
     };
     if(ok(1))return 1;
+    // The edge limits and oriented-area floor are quadratics along the
+    // displacement. Locate the first failing constraint instead of testing
+    // all four up to 13 more times for every compressed face, on every pass.
+    let stop=1;
+    const minimum=quadratic>0?Math.min(1,Math.max(0,-linear/(2*quadratic))):1;
+    if(area(minimum)<floor||area(1)<floor){
+      const root=Math.sqrt(linear*linear-4*quadratic*(1-floor));
+      stop=linear>0?(-linear-root)/(2*quadratic):2*(1-floor)/(root-linear);
+    }
+    stop=Math.min(stop,edgeStop(eDot,u2,2.24*e2+long*.004),edgeStop(fDot,v2,2.24*f2+long*.004),edgeStop(gDot,w2,2.24*g2+long*.004));
+    // Return exactly the old 13-bisection grid point, including at a
+    // grazing/double root. The original predicate certifies BOTH sides.
+    const cell=Math.floor(stop*GRID);
+    if(cell>=0&&cell<GRID&&ok(cell/GRID)&&!ok((cell+1)/GRID))return cell/GRID*.998;
     let lo=0,hi=1;for(let i=0;i<13;i++){const mid=(hi+lo)*.5;if(ok(mid))lo=mid;else hi=mid;}return lo*.998;
   };
 }
