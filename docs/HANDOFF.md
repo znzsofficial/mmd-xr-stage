@@ -1,6 +1,6 @@
 # 会话交接｜2026-11-25
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `6db0bb7`](https://fc4d3e1e.mmd-xr-stage.pages.dev) · [WebGPU 裙摆实验](https://mmd-xr-stage.pages.dev/labs/cloth/) · [发布记录](./release-history.md) · [文档索引](./README.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `1d54f10`](https://d9d044ee.mmd-xr-stage.pages.dev) · [WebGPU 裙摆实验](https://mmd-xr-stage.pages.dev/labs/cloth/) · [发布记录](./release-history.md) · [文档索引](./README.md)
 
 **本轮范围：并行推进所有已确认问题，优先以重力捕捉以前的脚感验普通行走与眼高。** 角色 Bullet、手动裙面、模型兼容／内存、校园及稳态取证分别推进。WebGPU 继续在实验入口改善，真机双眼和原衣效果有依据后再考虑接入同一游戏背包。新玩法与新景仍属候选。实戴原始反馈及测量边界见[两份导出](./performance/quest-2026-11-25.md)。
 
