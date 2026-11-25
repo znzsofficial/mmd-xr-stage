@@ -127,6 +127,13 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
+function loadedMotion(maxFrame: number, bones = 0) {
+  return { animation: {
+    bytes: new Uint8Array(0), metadata:{ modelName:"", maxFrame, counts: {bones, morphs:0} }, boneTracks:{}, morphTracks:{}, cameraFrames:[], lightFrames:[], selfShadowFrames:[],
+    propertyFrames: maxFrame ? [{frame:maxFrame,visible:true,ikStates:[]}] : [],
+  } } as unknown as Awaited<ReturnType<ThreeMmdLoader["loadAnimation"]>>;
+}
+
 async function setupBag(files: File[], useMotionCache = false) {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   const scene = new THREE.Scene();
@@ -134,9 +141,7 @@ async function setupBag(files: File[], useMotionCache = false) {
   const real = await vi.importActual<typeof import("../mmdRuntime/mmdRuntime")>("../mmdRuntime/mmdRuntime");
   vi.mocked(createMmdRuntimeHandle).mockImplementation((scene, opts) => real.createMmdRuntimeHandle(scene, {motionCache: useMotionCache ? opts?.motionCache : undefined}));
   const load = vi.spyOn(ThreeMmdLoader.prototype, "loadModel").mockImplementation(async () => loadedCharacter());
-  const motion = vi.spyOn(ThreeMmdLoader.prototype, "loadAnimation").mockImplementation(async f => ({ animation: {
-    bytes: new Uint8Array(0), metadata:{ modelName:"", maxFrame:30, counts: {bones: f instanceof File ? Math.floor(f.size/111) : 0, morphs:0} }, boneTracks:{}, morphTracks:{}, cameraFrames:[], lightFrames:[], selfShadowFrames:[], propertyFrames:[],
-  } } as unknown as Awaited<ReturnType<ThreeMmdLoader["loadAnimation"]>>));
+  const motion = vi.spyOn(ThreeMmdLoader.prototype, "loadAnimation").mockImplementation(async f => loadedMotion(0, f instanceof File ? Math.floor(f.size/111) : 0));
   const store = useMmdVrStore.getState, bag = useBackpack.getState;
   clearBackpack(); syncBackpackFiles(files); prepareBackpackEntry(false);
   store().setPrefs({scenery:"floor"}); store().prepareStage(false); store().openOverlay();
@@ -212,6 +217,52 @@ it('a retired frame cannot drain the replacement room’s pending model commands
     expect(store().pendingModelTransforms).toHaveLength(1);
     await act(async()=>harness.frame!({},1/90));expect(store().models.find(m=>m.id===target)?.scale).toBe(.5);
   }finally{await exit();}
+});
+
+it.each(['backpack', 'asset details'] as const)('clamps the playback clock and saved layout after removal via %s', async entry => {
+  const a=file('long.pmx'), b=file('short.pmx'), long=file('long.vmd'), short=file('short.vmd');
+  const {place,id,bag,store,motion,exit}=await setupBag([a,b,long,short]);
+  motion.mockImplementation(async f => loadedMotion((f===long ? 60 : 10)*30));
+  const remove=(actor:File)=>act(async()=>{
+    if(entry==='backpack')bag().putAway(id(actor));
+    else {store().enqueueModelRemoval(bag().live[id(actor)].runtimeId);harness.frame!({},1/90);}
+  });
+  try {
+    await place(a);await place(b);
+    await act(async()=>bag().applyMotion(id(a),long,'body'));
+    await act(async()=>bag().applyMotion(id(b),short,'body'));
+    await act(async()=>{store().setPlaying(false);store().requestSeek(30);});
+    await act(async()=>harness.frame!({},1/90));
+    expect(getMmdVrClock()).toMatchObject({time:30,duration:60});
+    await remove(a);
+    expect.soft(getMmdVrClock()).toMatchObject({time:10,duration:10});
+    expect.soft(bag().layouts.floor).toMatchObject({time:10,playing:false,models:[{file:b}],assets:[{bodyMotionFile:short}]});
+    await act(async()=>store().setPlaying(true));
+    await remove(b);
+    expect(getMmdVrClock()).toMatchObject({time:0,duration:0});
+    expect(store().playing).toBe(false);
+    expect(bag().layouts.floor).toMatchObject({time:0,playing:false,models:[],assets:[]});
+  } finally {await exit();}
+});
+
+it('evaluates a paused actor at the hidden seek time on its first visible frame only', async()=>{
+  const actor=file('actor.pmx'), clip=file('dance.vmd');
+  const {place,id,bag,store,load,motion,exit}=await setupBag([actor,clip]);
+  const model=loadedCharacter(), update=vi.mocked(model.update);
+  load.mockResolvedValueOnce(model);motion.mockResolvedValueOnce(loadedMotion(30));
+  const frame=()=>act(async()=>harness.frame!({},1/90));
+  const toggle=()=>act(async()=>{store().enqueueVisibilityToggle(bag().live[id(actor)].runtimeId);harness.frame!({},1/90);});
+  try {
+    await place(actor);await act(async()=>bag().applyMotion(id(actor),clip,'body'));
+    await act(async()=>{store().setPlaying(false);store().requestSeek(.25);});await frame();
+    expect(update.mock.lastCall?.[0]).toBe(.25);
+    update.mockClear();await toggle();
+    await act(async()=>store().requestSeek(.75));await frame();
+    expect(getMmdVrClock().time).toBe(.75);expect(update).not.toHaveBeenCalled();
+    await toggle();expect(bag().live[id(actor)].visible).toBe(true);
+    expect(update.mock.calls.map(([t])=>t)).toEqual([.75]);
+    await frame();expect(update).toHaveBeenCalledOnce();
+  } finally {await exit();}
 });
 
 it('moves an actor between coincident XZ supports and restores the chosen floor',async()=>{

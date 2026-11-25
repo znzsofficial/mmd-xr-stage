@@ -12,7 +12,7 @@ type ModelRuntime = Pick<MmdRuntimeHandle, "listModels" | "setModelVisible" | "s
 /** The current room drains one queue at a time: publish its changes before taking the next queue. */
 export function consumeRoomModelCommands(
   queues: CommandQueues, actors: MountedActors, runtime: ModelRuntime,
-  publishRemovals: () => void, publishEdits: () => void,
+  publishRemovals: () => void, publishEdits: (modelShown: boolean) => void,
 ): boolean {
   const removals = queues.takeModelRemovals();
   if (removals.length) {
@@ -22,16 +22,21 @@ export function consumeRoomModelCommands(
 
   const toggles = queues.takeVisibilityToggles();
   if (toggles.length) {
+    let modelShown = false;
     for (const id of toggles) {
       const object = actors.objects.get(id);
       if (object) {
         object.group.visible = !object.group.visible;
       } else {
         const model = runtime.listModels().find(model => model.id === id);
-        if (model) runtime.setModelVisible(id, !model.visible);
+        if (model) {
+          const visible = !model.visible;
+          runtime.setModelVisible(id, visible);
+          modelShown ||= visible;
+        }
       }
     }
-    publishEdits();
+    publishEdits(modelShown);
   }
 
   const transforms = queues.takeModelTransformRequests();
@@ -67,6 +72,6 @@ export function consumeRoomModelCommands(
     }
     physicsReseedNeeded ||= transformRequiresPhysicsReseed(request);
   }
-  publishEdits();
+  publishEdits(false);
   return physicsReseedNeeded;
 }

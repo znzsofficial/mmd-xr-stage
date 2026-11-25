@@ -406,21 +406,23 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
     setObjects(list);
   }
 
-  // A removed actor may have owned a repair ticket. Refresh the outstanding
-  // failures before deciding whether this layout may replace the last good one.
-  function commitActorLayout() {
+  function commitActorLayout(startMotion = false) {
+    const duration = runtime.duration;
+    timeRef.current = restoreStageTime(timeRef.current, duration);
+    syncModelList();
+    syncMaterialModels();
+    syncObjects();
+    if (startMotion && duration > 0) { timeRef.current = 0; pendingSeekSeed.current = true; setPlaying(true); }
+    setMmdVrClockTime(timeRef.current, true);
+    if (!duration) setPlaying(false);
+    // A removed actor may have owned a repair ticket. Refresh the outstanding
+    // failures before deciding whether this layout may replace the last good one.
     updateProgress(useMmdVrStore.getState().assetLoad);
     saveRoom();
   }
 
-  function publishRemovals() {
-    syncModelList();
-    syncMaterialModels();
-    syncObjects();
-    commitActorLayout();
-  }
-
-  function publishEdits() {
+  function publishEdits(modelShown: boolean) {
+    if (modelShown) lastEvaluatedTimeRef.current = -Infinity;
     syncModelList();
     syncObjects();
   }
@@ -542,12 +544,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
         if (stale()) return;
         staticSettleElapsed.current = 0;
         lastEvaluatedTimeRef.current = -Infinity;
-        timeRef.current = restoreStageTime(timeRef.current, runtime.duration);
-        syncModelList(); syncMaterialModels(); syncObjects();
-        if (command.type === "motion" && command.file && runtime.duration > 0) { timeRef.current = 0; pendingSeekSeed.current = true; setPlaying(true); }
-        setMmdVrClockTime(timeRef.current, true);
-        if (!runtime.duration) setPlaying(false);
-        commitActorLayout();
+        commitActorLayout(command.type === "motion" && !!command.file);
         useBackpack.getState().finishCommand(command, undefined, work);
         if (warning) useBackpack.setState({ error: warning });
         // Only a completed fresh manual model drop (not a move/restore/import).
@@ -583,7 +580,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
     const store = useMmdVrStore.getState();
     if(!store.physicsBusy&&store.physicsEnabled===appliedPhysicsEnabledRef.current)poseRoom.current?.afterPhysics();
     const physicsReseedNeeded = !store.physicsBusy &&
-      consumeRoomModelCommands(store, actors, runtime, publishRemovals, publishEdits);
+      consumeRoomModelCommands(store, actors, runtime, commitActorLayout, publishEdits);
     // A rebuild defers mounted edits, but still acknowledges an explicit reset this frame.
     const physicsResetRequested = store.physicsResetEpoch !== lastPhysicsResetEpochRef.current;
     if (physicsResetRequested) {
