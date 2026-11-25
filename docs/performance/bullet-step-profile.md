@@ -26,3 +26,40 @@ node experiments/bullet-step-profile/boundaries.mjs
 node experiments/bullet-step-profile/playback.mjs "<actor.pmx>" "<body.vmd>"
 node experiments/bullet-step-profile/playback.mjs "<actor.pmx>" "<body.vmd>" --reverse
 ```
+
+## 求解器内部：准备、迭代与收尾
+
+**11 月 25 日实模短验：4/4 个窗口都是迭代第一、准备第二；准备中 4/4 都是关节转换最贵。** 后者只说明建行的费用，不能推出主迭代中也是关节最贵。用上面相同的本机 PMX、真实身体 VMD、随包 WASM 和原求解设置。一次 Node 进程、双世界交替、不绘制；此处只预热 12 帧，正式 4 对 × 6 帧，**不是此前 48 个窗口的再拆分**。
+
+| 求解器内互斥区间 | 桌面短验 ms / `stepSimulation` |
+|---|---:|
+| 求解器分派及批次间工作（`solveConstraints` 的剩余区间） | 0.05540 |
+| 准备：刚体转换 | 0.01616 |
+| 准备：关节转换 `convertJoints` | 0.14675 |
+| 准备：接触转换 `convertContacts` | 0.02080 |
+| 准备：其余（含约束行排序数组的准备） | 0.00512 |
+| 迭代：除 split impulse 外的迭代（关节、接触、摩擦与循环控制） | 0.32239 |
+| 迭代：穿透修正 `splitImpulse` 的完整调用 | 0.00565 |
+| 收尾：写回接触、关节、刚体及清理 | 0.00801 |
+| **`solveConstraints` 合计** | **0.58028** |
+
+各项分母相同，都含零子步。按阶段合并：准备 **0.18882**、迭代 **0.32804** ms；不再与明细相加。原版／诊断版外层 `world_step` 均值为 1.13147／1.20250 ms，窗口配对差中位 +0.07594 ms。这些小段含探针扰动，不拿两轮不同时段的绝对数作提速比较。
+
+**边界如何认定。** [固定版本的 Bullet 源码：三段调用顺序](https://github.com/yohawing/mmd-anim/blob/f4f68d7519d7c15f2bfc77f094410e57e94ea7aa/crates/mmd-anim-physics-bullet/vendor/bullet3/src/BulletDynamics/ConstraintSolver/btSequentialImpulseConstraintSolver.cpp#L1836-L1869)。`--solver` 在上述固定摘要的 WASM 中匹配 `solveGroupCacheFriendly{Setup,Iterations,Finish}` 的 `BT_PROFILE` 入口和各自唯一的退出；准备中另标 `convertBodies`、`convertJoints`，迭代中另标 `solveGroupCacheFriendlySplitImpulseIterations`。`convertContacts` 自身没有标记：[源码](https://github.com/yohawing/mmd-anim/blob/f4f68d7519d7c15f2bfc77f094410e57e94ea7aa/crates/mmd-anim-physics-bullet/vendor/bullet3/src/BulletDynamics/ConstraintSolver/btSequentialImpulseConstraintSolver.cpp#L1486-L1506)与该产物中三个连续虚调用逐项吻合（刚体、关节、manifold 各自的指针与数量、同一 `solverInfo`、槽偏移 36/32/28）。探针只包围第三个调用；随后构造和初始化排序数组仍在「准备：其余」。匹配不唯一即失败。
+
+**分不开什么。** [主迭代](https://github.com/yohawing/mmd-anim/blob/f4f68d7519d7c15f2bfc77f094410e57e94ea7aa/crates/mmd-anim-physics-bullet/vendor/bullet3/src/BulletDynamics/ConstraintSolver/btSequentialImpulseConstraintSolver.cpp#L1526-L1695)在一个 `solveSingleIteration` 标记内依次处理关节行、接触与摩擦，关节与摩擦还共用 generic row solver。命名标记不提供按行类型的时间；收尾也只有整个 `Finish` 的边界。`splitImpulse` 只对应接触的穿透修正，入口被调用不等于完成多少次修正。不能拿接触点数、关节数或「主迭代减去 split」来估算各自的求解总费，也不能把窄相生成接触的费用算到转换里。
+
+**等价。** 正式每变体 24 次调用中，诊断世界有 4 次零子步、20 次单子步；20 次 `solveConstraints` 完成 40 组准备→迭代→收尾（可能有空批次，不是模拟岛数）。逐段校验准备中的三次转换、迭代中的 split 及批次顺序；按相邻时间戳互斥分账，子账与父账、外层总账均差 **0 ns**。含预热在 6 个相同动作时刻比较两世界：48,480 个骨矩阵标量、312 个表情权重、384 个蒙皮顶点位置与 6 份完整接触记录逐值一致，最多 330 个接触点；右腕相对第一次取样移动最多 6.48 cm。
+
+**两轮正式对照。** 原版先建／插桩版先建，每变体每轮预热 96 帧，正式 24 窗 × 24 帧。全部 **48/48 窗**的求解器阶段均以迭代为首。每次原生步进均值分别 **1.167／1.178 ms**，其中约束求解 **0.570／0.566 ms**，迭代 **0.324／0.321 ms**，准备 **0.181／0.180 ms**；准备中的关节转换 **0.137／0.138 ms**、接触转换 **0.018／0.019 ms**。阶段嵌套，不累加。每轮含 480 次单子步和 96 次零子步，960 个求解批次，分账差 0 ns；28 个相同动作时刻的 226,240 个骨矩阵标量、1,456 个形态权重、1,792 个蒙皮顶点和完整接触列表逐值一致。插桩使外层调用的配对窗中位差分别为 +0.053／+0.003 ms。
+
+**接下来先查什么。** ① 在诊断构建为**整个关节行循环**和**整个接触／摩擦行循环**分别设边界，再与随包基线验轨迹；不要每行跨 WASM 打点。② 准备段单独调查 `convertJoints` 的 `getInfo1` 行数计算和 `convertJoint`/`getInfo2` 填行；不把随姿态变化的行、关节参数当常量缓存。③ 收尾、停放体 AABB 不优先；窄相仍是原生步进另一条独立调查线。保留关节、有效接触、迭代次数和固定步长；这里没有更换随包求解器或 Quest 帧率结论。
+
+**复现（项目根目录，Node 26.12.1）。** 沿用上面的实验依赖。前两条是边界与实模短验；后两条须等桌面空闲、父会话无基准时逐条运行，每轮新进程，恢复原 96 帧预热、24 对 × 24 帧。把 stdout 分别存为本机 JSON 即可比较：`solver.phaseMs` 是四个同级阶段，`solver.exclusiveMs` 是八个互斥明细，`rows[1].blocks[*].solver` 是每窗原值；另看 `medianPairedAbiDeltaMs` 和两层 `partitionErrorNs`。
+
+```sh
+node experiments/bullet-step-profile/boundaries.mjs --solver
+node experiments/bullet-step-profile/playback.mjs "<actor.pmx>" "<body.vmd>" --solver --smoke
+node experiments/bullet-step-profile/playback.mjs "<actor.pmx>" "<body.vmd>" --solver
+node experiments/bullet-step-profile/playback.mjs "<actor.pmx>" "<body.vmd>" --solver --reverse
+```
