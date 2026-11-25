@@ -1,4 +1,4 @@
-import {Matrix4,PerspectiveCamera,Vector3,WebGPUCoordinateSystem} from 'three';
+import {Matrix4,PerspectiveCamera,WebGPUCoordinateSystem} from 'three';
 import {loadActor} from './actor';
 import {openDevice} from './gpu';
 import {recorder} from './report';
@@ -6,9 +6,11 @@ import {computeTimer} from './timer';
 import {makeSwatch} from './swatch';
 import {clothXR} from './xrLifecycle.js';
 import {makeXRTargets} from './xrTargets.js';
+import {xrPalms} from './xrPalms.js';
 
 const $=s=>document.querySelector(s),canvas=$('canvas'),cam=new PerspectiveCamera(42,1,.025,60),vp=new Matrix4(),origin=new Matrix4().makeTranslation(0,0,-.85);
 cam.coordinateSystem=WebGPUCoordinateSystem;
+const palms=xrPalms(),actorFromWorld=origin.clone().invert();
 const report=recorder(),modes=['bullet','cut','gpu-face','gpu'];let dev,context,format,depth,canXR=false,actor,loading=false,dead=false;
 let files=[],models=[],screenRaf=0,screenGpuCheck=null;
 let last=0,credit=0,yaw=.20,pitch=.13,distance=3.05,frames=0,lastDims='',buttons=new Map(),timer;
@@ -54,16 +56,17 @@ function screen(time){if(xr.session||!actor||dead||loading)return;
 let drag;canvas.onpointerdown=e=>{drag=[e.clientX,e.clientY];canvas.setPointerCapture(e.pointerId);};canvas.onpointermove=e=>{if(!drag)return;yaw-=(e.clientX-drag[0])*.008;pitch=Math.max(-.65,Math.min(1.35,pitch+(e.clientY-drag[1])*.008));drag=[e.clientX,e.clientY];};canvas.onlostpointercapture=()=>drag=null;
 canvas.onwheel=e=>{e.preventDefault();distance=Math.max(.55,Math.min(4.5,distance*Math.exp(e.deltaY*.001)));};
 
-function drawXR({time,frame,space,poses,targets,withActor,submit}){
+function drawXR({time,frame,space,poses,targets,withActor,submit,inputs}){
    const s=frame.session;for(let i=0;i<poses.length;i++){const v=poses[i];targets[i].mat=new Matrix4().fromArray(v.projectionMatrix).multiply(new Matrix4().fromArray(v.transform.inverse.matrix)).multiply(origin).elements;}
    if(!withActor){const enc=dev.createCommandEncoder();for(const t of targets)t.beginPass(enc,t.mat).end();submit(enc);return;}
-   const hands=[null,null];for(const source of s.inputSources){const side=source.handedness;if(side!=='left'&&side!=='right')continue;const p=source.gripSpace&&frame.getPose(source.gripSpace,space);if(p){const v=p.transform.position;hands[side==='left'?0:1]=new Vector3(v.x,v.y,v.z+.85);}
+   const hands=palms.read(frame,space,actorFromWorld);inputs(palms.kinds);
+   for(const source of s.inputSources){const side=source.handedness;if(side!=='left'&&side!=='right')continue;
     const down=!!source.gamepad?.buttons[4]?.pressed;if(down&&!buttons.get(source)){if(side==='left')choose(modes[(modes.indexOf(actor.mode)+1)%modes.length]);else pose();}buttons.set(source,down);}for(const source of buttons.keys())if(!Array.from(s.inputSources).includes(source))buttons.delete(source);
    lastDims=targets.map(v=>`${v.viewport.width}x${v.viewport.height}`).join('/');render(time,targets,hands,'xr',s.frameRate,submit);
 }
 const xr=clothXR({receipts:report.xr,requestSession:(...args)=>navigator.xr.requestSession(...args),makeBinding:(s,d)=>new XRGPUBinding(s,d),makeTargets:makeXRTargets,
-  prepareActor:f=>actor.gpu.prepareXR(f),draw:drawXR,trackingGap(){actor.reset();mark();},acquired(){cancelAnimationFrame(screenRaf);actor.reset();mark();},
-  returned(paused){buttons.clear();if(paused&&!dead&&actor){actor.reset();mark();screenRaf=requestAnimationFrame(screen);}},
+   prepareActor:f=>actor.gpu.prepareXR(f),draw:drawXR,trackingGap(){palms.reset();actor.reset();mark();},acquired(){cancelAnimationFrame(screenRaf);palms.reset();actor.reset();mark();},
+   returned(paused){buttons.clear();palms.reset();if(paused&&!dead&&actor){actor.reset();mark();screenRaf=requestAnimationFrame(screen);}},
   changed(r){controls();const messages={requesting:'正在申请 VR 会话…',initializing:'VR 已连接，正在准备投影层…','awaiting-frame':'VR 已连接，等待头显首帧…',
     hidden:'VR 会话已隐藏',noPose:'VR 已连接，等待头部追踪…',noViews:'VR 已取得姿态，等待眼视图…',
     landmark:r.actorState==='failed'?'VR 已提交地标；角色绘制未就绪':'VR 已提交地标；等待角色首帧…',actor:'VR 已提交地标和角色',

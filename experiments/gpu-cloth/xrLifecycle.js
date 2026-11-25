@@ -54,7 +54,7 @@ export function clothXR({receipts,requestSession,makeBinding,makeTargets,prepare
     const r=current=Object.assign(receipts.begin(),{device});changed(r.data);let stage='request';
     try{
       // Directly from the click, while transient user activation is available.
-      const s=await requestSession('immersive-vr',{requiredFeatures:['webgpu','local-floor']});
+      const s=await requestSession('immersive-vr',{requiredFeatures:['webgpu','local-floor'],optionalFeatures:['hand-tracking']});
       s.addEventListener('end',()=>{observeEnd(r);retire(r,'session-end');},{once:true});
       r.first('session');if(current!==r){endSession(s,r);return;}
       r.session=s;awaitingScreen=null;acquired();phase(r,'initializing');
@@ -84,7 +84,7 @@ export function clothXR({receipts,requestSession,makeBinding,makeTargets,prepare
           scoped(r,'frame-validation',()=>{
             const targets=r.targets.views(poses);if(targets.length!==poses.length)throw RangeError();r.views(poses,targets);
             at='draw';const withActor=d.actorState==='ready';let submitted=false;
-            draw({time,frame,space,poses,targets,withActor,submit(encoder){
+            draw({time,frame,space,poses,targets,withActor,inputs:r.inputs,submit(encoder){
               at='finish';const commands=encoder.finish();at='submit';device.queue.submit([commands]);
               // A returned submit is evidence of JS submission, not composition or visibility.
               submitted=true;r.submitted(withActor);at='draw';

@@ -15,9 +15,10 @@ export function xrReceipts(now=()=>performance.now()){
     const started=now(),data={id:++sequence,phase:'requesting',milestones:{request:0},displayEvidence:'not-measured',actorState:'not-started',rate72:'unavailable',
       frames:{callbacks:0,hidden:0,noPose:0,noViews:0,posed:0,subimages:0,submitted:0,validationPassed:0,stereoSubmitted:0,landmarkOnly:0,withActor:0},
       visibility:null,refreshHz:null,lastPoseEyes:[],lastViews:[],actorError:null,error:null,endReason:null,endObserved:false,screenResumed:false};
+    const counts=()=>({hand:0,grip:0,missing:0});data.inputFrames={left:counts(),right:counts(),bothValid:0};
     attempts.push(data);if(attempts.length>12)attempts.shift();
     const first=key=>{if(!(key in data.milestones))data.milestones[key]=Math.max(0,Math.round(now()-started));};
-    return {data,first,views(poses,targets){
+    return {data,first,inputs(kinds){let both=true;for(let i=0;i<2;i++){const k=kinds[i];data.inputFrames[i?'right':'left'][k==='hand'||k==='grip'?k:'missing']++;both&&=k==='hand'||k==='grip';}if(both)data.inputFrames.bothValid++;},views(poses,targets){
       first('subimages');data.frames.subimages+=targets.length;
       data.lastViews.length=targets.length;
       for(let i=0;i<targets.length;i++){

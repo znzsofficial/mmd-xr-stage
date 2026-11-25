@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import {act,useLayoutEffect,type RefObject} from 'react';
 import {createRoot} from 'react-dom/client';
-import {Group,Quaternion,Scene,Vector3} from 'three';
+import {Euler,Group,Quaternion,Scene,Vector3} from 'three';
 import {expect,it,vi} from 'vitest';
 import {useMmdVrStore} from '../mmdVrStore';
 import {lanes,rideStep,startRide} from '../scenery/planet/windAtlas';
@@ -22,7 +22,7 @@ vi.mock('./PlanetPhysics',()=>({default:({driver}:{driver:RefObject<PlanetDriver
   useLayoutEffect(()=>{driver.current={ready:()=>h.ready,seed:h.seed,step:h.step,stop:h.stop};
     return()=>{driver.current=null;};},[driver]);return null;}}));
 
-it.each(['recall','other wind','unmarked','return board'] as const)('X/A/Y and stick axes: round trip, tracking loss, free, then hand back to mother via %s',async exit=>{
+it.each(['recall','other wind','unmarked','return board','captured hop'] as const)('X/A/Y and stick axes: round trip, tracking loss, free, then hand back to mother via %s',async exit=>{
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);
   h.ready=false;h.seed.mockClear();h.step.mockClear();h.stop.mockClear();
   const old=useMmdVrStore.getState();useMmdVrStore.setState({prefs:{...old.prefs,scenery:'glassPlanet',movementMode:'normal',walkSpeedPref:'normal',normalEyeOffset:0}});
@@ -64,7 +64,7 @@ it.each(['recall','other wind','unmarked','return board'] as const)('X/A/Y and s
     const launch=foot();a.pressed=true;tick();x.pressed=true;tick(89);expect(foot().y-launch.y).toBeCloseTo(1.6-.625,5);tick(160);
     expect(report()).toMatchObject({location:'salt',windDepartures:1});x.pressed=a.pressed=false;tick();
     expect(report().twinDepartures).toBe(0);
-    if(exit==='unmarked'||exit==='return board'){
+    if(exit==='unmarked'||exit==='return board'||exit==='captured hop'){
       for(const [from,to] of [['salt','glaze'],['glaze','salt']]){
         const m=lanes.find(l=>l.moon.id===from)!.moon,other=lanes.find(l=>l.moon.id===to)!.moon;
         const axis=other.centre.clone().sub(m.centre).normalize();
@@ -81,6 +81,18 @@ it.each(['recall','other wind','unmarked','return board'] as const)('X/A/Y and s
         expect(report()).toMatchObject({location:to,gravityOwner:to,grounded:true,twinDepartures:0,orbitalLandings:captures+1});
         expect(origin.quaternion.angleTo(before)).toBeLessThan(1e-6);expect(h.seed).not.toHaveBeenCalled();
         const socket=origin.worldToLocal(flight.point.clone()),prior=flight.up.clone(),walked=report().groundedWalkM;
+        if(exit==='captured hop'){
+          // A local impulse after an actual head-first capture is NOT
+          // permission to rotate the eyes off the receiving shell.
+          expect(flight.part).toBe('head');a.pressed=false;tick();a.pressed=true;tick();
+          let peak=0;
+          for(let i=0;i<500&&report().location==='orbit';i++){
+            tick();expect(origin.quaternion.angleTo(before)).toBeLessThan(1e-6);
+            const crown=foot().addScaledVector(up(),p.y);expect(altitude(other,crown)).toBeGreaterThan(.113);
+            expect(altitude(other,foot())).toBeGreaterThan(-.001);peak=Math.max(peak,altitude(other,crown));
+          }
+          expect(peak).toBeGreaterThan(.36);expect(report()).toMatchObject({location:to,grounded:true,orbitalLandings:captures+2});return;
+        }
         if(exit==='return board'){
           // Manual Y at the reviewed motor sole. Drive there with the old
           // horizon and the actual stick, not a reset/teleport of the origin.
@@ -192,5 +204,46 @@ it.each(['slow','normal','fast','sprint'] as const)('%s: lantern dry ground resu
     expect(first/control).toBeGreaterThan(.96);
     for(let i=0;i<9;i++)tick();expect(measure()/control).toBeGreaterThan(.96);
     expect(report()).toMatchObject({location:'lantern',orbitalJumps:1,orbitalLandings:1,alignments:0});
+  }finally{await act(async()=>root.unmount());useMmdVrStore.setState(old);vi.unstubAllGlobals();}
+});
+
+it.each(['reed','salt','glaze'] as const)('%s: two ordinary running hops at Quest tracking height keep the local horizon without Y',async id=>{
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);const old=useMmdVrStore.getState(),lift=.6;
+  useMmdVrStore.setState({prefs:{...old.prefs,scenery:'glassPlanet',movementMode:'normal',walkSpeedPref:'normal',normalEyeOffset:lift}});
+  const lane=lanes.find(l=>l.moon.id===id)!,m=lane.moon,scene=new Scene(),origin=new Group(),root=createRoot(document.createElement('div'));
+  const input=(hand:string)=>({handedness:hand,targetRayMode:'tracked-pointer',profiles:['meta-quest-touch-plus'],gamepad:{mapping:'xr-standard',axes:[0,0,0,0],buttons:Array.from({length:6},()=>({pressed:false}))}});
+  const l=input('left'),r=input('right'),session=visit([l,r]),dt=1/72,p=new Vector3(.12,1.2,-.18),head=new Group();
+  const eyes=[new Group(),new Group()];eyes.forEach((e,i)=>{e.position.x=i?.032:-.032;head.add(e);});origin.add(head);
+  const tick=()=>{head.position.copy(p);h.frame!({gl:{xr:{getReferenceSpace:()=>({})}},scene},dt,{session,getViewerPose:()=>({transform:{position:p,orientation:head.quaternion}})});};
+  const report=()=>samplePlanetMovement()!,mid=()=>eyes[0].getWorldPosition(new Vector3()).lerp(eyes[1].getWorldPosition(new Vector3()),.5);
+  const Y=new Vector3(0,1,0),rig=()=>eyes[0].getWorldQuaternion(new Quaternion()).multiply(head.quaternion.clone().invert()),up=()=>Y.clone().applyQuaternion(rig());
+  const foot=()=>mid().addScaledVector(up(),-p.y-lift),tilt=()=>up().angleTo(mid().sub(m.centre));
+  const standing=()=>{expect(tilt()).toBeLessThan(.009);expect(altitude(m,foot())).toBeCloseTo(0,2);expect(altitude(m,mid())).toBeCloseTo(p.y+lift,2);};
+  const a=r.gamepad.buttons[4],x=l.gamepad.buttons[4],axes=l.gamepad.axes;h.ready=false;
+  try{
+    await act(async()=>root.render(<PlanetMotor originRef={{current:origin}} dragging={false}/>));tick();
+    const collar=lane.home.foot.clone().sub(foot()).applyQuaternion(rig().invert());p.x+=collar.x;p.z+=collar.z;tick();x.pressed=true;tick();
+    for(let i=0;i<850&&report().location==='wind';i++)tick();x.pressed=false;tick();expect(report().location).toBe(id);
+    // A real lean/roll at rest is 1:1, then a short actual stride carries
+    // the motor below that footprint. Keep the roll during both flights.
+    const at=mid(),start=rig();p.x+=.12;head.quaternion.setFromEuler(new Euler(0,0,.28));tick();
+    expect(mid().sub(at).distanceTo(new Vector3(.12,0,0).applyQuaternion(start))).toBeLessThan(1e-7);expect(start.angleTo(rig())).toBeLessThan(1e-7);
+    axes[3]=1;for(let i=0;i<14;i++)tick();standing();
+    for(let j=1;j<=2;j++){
+      const start=up();let peak=0,travel=0;
+      a.pressed=true;tick();expect(report().location).toBe('orbit');
+      for(let i=0;i<480&&report().location==='orbit';i++){
+        const before=rig();if(i===2)head.quaternion.setFromEuler(new Euler(.13,.73,-.24,'YXZ'));tick();
+        peak=Math.max(peak,altitude(m,foot()));travel=Math.max(travel,start.angleTo(up()));
+        // Bound EVERY change, including first contact. Head yaw/roll is not
+        // artificial levelling. Compare both world-space eyes to the shell.
+        expect(before.angleTo(rig())).toBeLessThan(.024);expect(tilt()).toBeLessThan(.012);
+        for(const eye of eyes)expect(altitude(m,eye.getWorldPosition(new Vector3()))).toBeGreaterThan(p.y+lift-.055);
+      }
+      expect(peak).toBeGreaterThan(.25);expect(travel).toBeGreaterThan(.22);standing();
+      expect(report()).toMatchObject({location:id,grounded:true,orbitalJumps:j,orbitalLandings:j,twinDepartures:0,wellChanges:0,alignments:0});
+      axes[3]=0;const rest=mid();for(let i=0;i<10;i++)tick();expect(mid().distanceTo(rest)).toBeLessThan(1e-7);
+      a.pressed=false;head.quaternion.setFromEuler(new Euler(0,0,.28));axes[3]=1;for(let i=0;i<10;i++)tick();standing();
+    }
   }finally{await act(async()=>root.unmount());useMmdVrStore.setState(old);vi.unstubAllGlobals();}
 });

@@ -6,6 +6,7 @@ import {createLocalTextureResolver} from '../../src/mmdVrShowcase/mmdRuntime/loc
 import {createPoseSolver} from '../../src/mmdVrShowcase/pose/poseSolver';
 import {fitRig,skirtWorld} from './rig';
 import {makeGpu} from './gpu';
+import {trackedGrip} from './handMotion.js';
 import {bakeHeldThigh} from './heldThigh';
 import {bulletScriptPath} from '../../src/mmdImport/bulletAsset';
 
@@ -35,12 +36,12 @@ export async function loadActor(device,format,pmx,files){
         if(disposed)return;if(field&&await gpu.prepareFaces(field)){valid=field.valid;prep='ready';}else prep='unsupported';
       }).catch(error=>{prep='failed';console.warn('Cloth surface fit:',error);}).finally(()=>{if(!disposed)fitWallMs=Math.round(performance.now()-start);});}
       contactState=prep==='ready'?(valid()?'active':'stale'):prep;}
-    const info={particles:rig.nodes.length,get faceSamples(){return gpu.faceCount;},get faceSetupWallMs(){return fitWallMs;},pins:rig.nodes.filter(n=>n.pin).length,sourceBodies:model.mesh.userData.mmdPhysics.rigidBodies.length,triangles:model.mesh.geometry.index.count/3,
+    const info={particles:rig.nodes.length,handSamples:gpu.handSamples,get faceSamples(){return gpu.faceCount;},get faceSetupWallMs(){return fitWallMs;},pins:rig.nodes.filter(n=>n.pin).length,sourceBodies:model.mesh.userData.mmdPhysics.rigidBodies.length,triangles:model.mesh.geometry.index.count/3,
       textures:[].concat(model.mesh.material).filter(m=>m.map?.image).length};
-    function reset(){stroke=null;reseed=true;backend.reset();hands.forEach(h=>h.set(0,-100,0));}
+    function reset(){stroke=null;reseed=true;backend.reset();gpu.resetHands();hands.forEach(h=>h.set(0,-100,0));}
     function pose(){if(!up)throw Error('未能在此模型上拟合抬腿姿势');stroke=null;raised=!raised;}
     function startStroke(){const origin=rig.hemLocal.clone().applyMatrix4(rig.anchor.matrixWorld).multiplyScalar(rig.scale);stroke={origin,t:0};}
-    function update(dt,xrHands){stepDt=reseed?0:Math.min(dt,1/24);movePose(dt);hands.forEach((h,i)=>xrHands?.[i]?h.copy(xrHands[i]):h.set(0,-100,0));
+    function update(dt,xrHands){stepDt=reseed?0:Math.min(dt,1/24);movePose(dt);hands.forEach((h,i)=>trackedGrip(xrHands?.[i])?h.copy(xrHands[i]):h.set(0,-100,0));
       if(!xrHands&&stroke){stroke.t+=dt;const t=stroke.t,h=hands[1],rise=Math.min(1,Math.max(0,(t-.45)/.55));h.copy(stroke.origin);h.y+=-.13+.25*rise;h.z+=.24*(1-Math.min(1,t/.45))-.035+.07*rise+.28*Math.max(0,(t-1.18)/.42);if(t>1.65)stroke=null;}
       for(let i=0;i<2;i++){const v=hands[i],m=matrices[i];m[12]=v.x/rig.scale;m[13]=v.y/rig.scale;m[14]=-v.z/rig.scale;}
       counts.worldMs=null;model.update(0,{physics:true,ik:false});gpu.update(hands,mode.startsWith('gpu'));updateFaces();}

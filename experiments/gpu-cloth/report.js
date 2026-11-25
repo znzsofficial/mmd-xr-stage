@@ -10,7 +10,7 @@ export function recorder(){
   function boundary(){key='';ms=[];world=[];gpu=[];dtSum=0;count=0;warm=0;epoch++;}
   return {xr,boundary,clear(){rows=[];gaps=[];seq=0;boundary();},get rows(){return rows;},get gaps(){return gaps;},get epoch(){return epoch;},sampleGPU(e,t){if(e===epoch&&warm>=1000)gpu.push(t);},
     get exportable(){return !!(rows.length||xr.attempts.length);},
-    export(info,timestampQuery){const rig=info&&Object.fromEntries(['particles','pins','sourceBodies','triangles','textures','faceSamples','faceSetupWallMs'].map(k=>[k,Number.isFinite(info[k])?info[k]:null]));
+    export(info,timestampQuery){const rig=info&&Object.fromEntries(['particles','pins','sourceBodies','triangles','textures','handSamples','faceSamples','faceSetupWallMs'].map(k=>[k,Number.isFinite(info[k])?info[k]:null]));
       return {schema:2,experiment:'gpu-cloth',entryAsset:stageBuild('cloth'),rig,timestampQuery,windows:rows,gaps,xrAttempts:xr.attempts};},
     gap(kind,mode,dt){gaps.push({kind,mode,afterWindow:seq,gapMs:Math.round(dt)});if(gaps.length>128)gaps.shift();},
     add(meta,dt,steps,worldMs){const k=JSON.stringify(meta);if(k!==key){boundary();key=k;}

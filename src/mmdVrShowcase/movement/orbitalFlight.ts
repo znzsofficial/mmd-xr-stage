@@ -11,7 +11,7 @@ import type {ReadColumn} from './groundMotor';
 import {STEP} from './solidColumns';
 
 export {localWell,pull};
-export function jumpVelocity(w:World,up:Vector3,stick:Vector3,speed:number,out:Vector3){
+function jumpImpulse(w:World,up:Vector3,stick:Vector3,speed:number,out:Vector3){
   // A local running jump must not enter an orbit: the smallest moon's
   // circular speed is below even the normal walking preset. Stick magnitude
   // buys tangential travel, never a bigger vertical kick on an ordinary hop.
@@ -26,16 +26,19 @@ export function jumpVelocity(w:World,up:Vector3,stick:Vector3,speed:number,out:V
       // along its edge, or straight up. This is only a launch impulse; the
       // free trajectory still has to physically hit the neighbour.
       out.projectOnPlane(up);if(out.lengthSq()<.005||out.normalize().dot(stick)<drive*.94)continue;
-      return out.copy(stick).projectOnPlane(up).setLength(2.4).addScaledVector(up,4.85);
+      out.copy(stick).projectOnPlane(up).setLength(2.4).addScaledVector(up,4.85);return 'transfer';
     }
   }
-  return out.copy(stick).projectOnPlane(up).multiplyScalar(speed).clampLength(0,.62*circular)
-    .addScaledVector(up,w.id==='home'?1.9:MOON_JUMP_SPEED);
+  out.copy(stick).projectOnPlane(up).multiplyScalar(speed).clampLength(0,.62*circular)
+    .addScaledVector(up,w.id==='home'?1.9:MOON_JUMP_SPEED);return 'local';
+}
+export function jumpVelocity(w:World,up:Vector3,stick:Vector3,speed:number,out:Vector3){
+  jumpImpulse(w,up,stick,speed,out);return out;
 }
 
 type ShellSweep=ReturnType<typeof createShellSweep>;
-export function startOrbit(w:World,foot:Vector3,velocity:Vector3){return {
-  from:w,owner:w as World|null,foot:foot.clone(),velocity:velocity.clone(),changes:0,grazes:0,first:true,trackedHeight:0,
+export function startOrbit(w:World,foot:Vector3,velocity?:Vector3){return {
+  from:w,owner:w as World|null,foot:foot.clone(),velocity:velocity?.clone()??new Vector3(),changes:0,grazes:0,first:true,trackedHeight:0,localHop:false,
   landing:null as World|null,point:new Vector3(),up:new Vector3(),tracked:false,part:'foot' as 'foot'|'head'|'body',
   sweep:createShellSweep(),a:new Vector3(),move:new Vector3(),next:new Vector3(),column:{floor:-Infinity,ceiling:Infinity,blocked:false},
   tickLeft:0,impacts:0,gravity:new Vector3(),drift:new Vector3(),skim:null as World|null,normal:new Vector3(),
@@ -43,6 +46,12 @@ export function startOrbit(w:World,foot:Vector3,velocity:Vector3){return {
   rim:null as Vector3|null,fixtureLip:null as Vector3|null,side:new Vector3(),across:new Vector3(),probe:new Vector3(),
 };}
 export type Orbit=ReturnType<typeof startOrbit>;
+
+/** The off-mark transfer is a different takeoff impulse. Keep its horizon
+ * from the very first chord, including flights that skim rather than land. */
+export function startJump(w:World,foot:Vector3,up:Vector3,stick:Vector3,speed:number){
+  const f=startOrbit(w,foot);f.localHop=jumpImpulse(w,up,stick,speed,f.velocity)==='local';return f;
+}
 
 // Obstructions on the imported north pad and the finite station/tree proxies
 // remain solids during a jump. Flying in the free movement mode bypasses this.
@@ -123,7 +132,7 @@ function slideToLip(f:Orbit,h:number,up:Vector3,eye:Vector3,read?:ReadColumn){
 }
 
 function beginChord(f:Orbit){
-  const w=localWell(f.foot,f.owner);if(w!==f.owner){f.owner=w;f.changes++;}
+  const w=localWell(f.foot,f.owner);if(w!==f.owner){f.owner=w;f.changes++;f.localHop=false;}
   pull(w,f.foot,f.gravity);f.tickLeft=Math.min(1/120,.065/Math.max(.01,f.velocity.length()));f.impacts=0;f.tested=false;
   f.drift.copy(f.velocity).addScaledVector(f.gravity,.5*f.tickLeft);
 }
@@ -144,6 +153,7 @@ function skim(f:Orbit,hit:NonNullable<Orbit['hit']>){
   const n=shellContactNormal(hit.world,hit.point,hit.up,hit.part==='foot'?0:hit.part==='head'?.115:.15,f.normal,f.probe);
   const speed=f.velocity.dot(n),inward=Math.max(0,-speed),tangent=Math.sqrt(Math.max(0,f.velocity.lengthSq()-speed*speed));
   if(!(tangent>3.8&&inward<tangent*(2/3)||hit.world!==f.from&&tangent>1.4&&inward<tangent*.22))return false;
+  if(hit.world!==f.from||hit.part==='head')f.localHop=false;
   if(f.skim!==hit.world){
     f.velocity.projectOnPlane(n).multiplyScalar(.95).addScaledVector(n,Math.max(speed,.48,inward*.38));f.grazes++;f.skim=hit.world;
   }else if(inward>0)f.velocity.addScaledVector(n,inward);
@@ -154,7 +164,8 @@ function skim(f:Orbit,hit:NonNullable<Orbit['hit']>){
 /** Ballistic translation, independent of renderer, tracking basis and Rapier.
  * Real tracking loss freezes this clock at the caller. Position and velocity
  * are never reset when changing wells or crossing their outer boundary. */
-export function stepOrbit(f:Orbit,dt:number,viewUp:Vector3,eyeOffset:Vector3,read?:ReadColumn,trackedHeight=eyeOffset.dot(viewUp)){
+export function stepOrbit(f:Orbit,dt:number,viewUp:Vector3,eyeOffset:Vector3,read?:ReadColumn,trackedHeight=eyeOffset.dot(viewUp),
+  carryView?:(next:Vector3,h:number)=>void){
   if(f.landing)return true;
   f.trackedHeight=trackedHeight;
   let time=Math.max(0,Math.min(.15,dt));
@@ -180,6 +191,9 @@ export function stepOrbit(f:Orbit,dt:number,viewUp:Vector3,eyeOffset:Vector3,rea
     let ballistic=!f.fixtureLip;
     if(!ballistic)slideToLip(f,h,viewUp,eyeOffset,read);
     else {f.move.copy(f.drift).multiplyScalar(h);f.next.copy(f.foot).add(f.move);}
+    // Rotate at the current foot under a clearance check, THEN sweep the body
+    // with the very same up/eye that will be displayed and seated on impact.
+    if(f.localHop&&ballistic)carryView?.(f.next,h);
     let blocked=obstacle(f,f.next,viewUp,eyeOffset,read);
     if(blocked==='wall'){
       if(ballistic)f.velocity.addScaledVector(f.gravity,h);

@@ -10,13 +10,15 @@ type Stance=Traveller&{offset:Vector3;seat:Vector3;display:Quaternion;viewUp:Vec
  * existing XR frame about that support, without rotating the displayed eyes. */
 export function seatOrbitContact(s:Stance,f:Orbit,world:World,p:{x:number;z:number},worldEye:Vector3,height:number){
   sole.copy(worldEye).addScaledVector(s.viewUp,-height).add(f.foot);
-  if(f.tracked&&f.part==='body'&&s.viewUp.dot(f.up)>.5&&Math.abs(delta.subVectors(sole,f.point).dot(f.up))<.05){
+  const ankle=f.tracked&&f.part==='body'&&s.viewUp.dot(f.up)>.5&&Math.abs(delta.subVectors(sole,f.point).dot(f.up))<.05;
+  const plantFoot=f.part==='foot'&&(f.tracked||s.seat.lengthSq()<1e-8);
+  if(ankle){
     // A rounded ankle can beat a feet-first landing by a few millimetres.
     // Seat the sole under the tracked foot, not under the ankle.
     f.up.subVectors(sole,world.centre).normalize();
     f.point.copy(world.centre).addScaledVector(f.up,shellRadius(world,f.up.x,f.up.y,f.up.z));
     s.seat.set(0,0,0);s.offset.set(p.x,0,p.z);
-  }else if(f.part==='foot'&&(f.tracked||s.seat.lengthSq()<1e-8)){
+  }else if(plantFoot){
     s.seat.set(0,0,0);if(f.tracked)s.offset.set(p.x,0,p.z);
   }else{
     // Head or side first: planting a nominal XR sole here would move the
@@ -28,4 +30,5 @@ export function seatOrbitContact(s:Stance,f:Orbit,world:World,p:{x:number;z:numb
     delta.set(0,0,-1).applyQuaternion(s.basis);s.basis.premultiply(s.arc.setFromAxisAngle(delta,Math.PI));s.up.negate();}
   carryFrame(s,f.up);s.groundTilt.copy(s.basis).invert().multiply(s.display).normalize();
   s.foot.copy(f.point);s.velocity.set(0,0,0);s.grounded=true;
+  return ankle||plantFoot;
 }

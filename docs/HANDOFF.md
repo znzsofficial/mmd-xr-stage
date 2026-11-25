@@ -6,7 +6,7 @@
 
 ## 从这里继续
 
-- **实戴先走一趟：**[普通跑跳与眼高](./performance/normal-walk.md)已在模拟双眼对照：捕捉旧逻辑的 18.58° 残倾回到约 0°、续走眼高 1.29→1.63 m。平地实际点 −10 cm 和自由→普通已验。下一份 Quest 报告看 `stance.drawn` 与镜片观感。实验另看[两眼地标与按眼失败收据](./performance/gpu-cloth-lab.md)。
+- **实戴复验：**[11:49Z 的两份导出](./performance/quest-2026-11-25-1149.md)确认母星基本直立、风道正常、WebGPU 能出双眼；小卫星普通连跳仍压低视野，GPU 手球容易穿裙。新版棱盐同井两跳已在 IWER 对照至 1.81 m／约 0°；[原衣双手托举、单撤与回落](./performance/gpu-cloth-lab.md#实际解算的内容)在实际 GPU 已验，仍是独立实验。下一趟 Quest 先看这两项的实际手感。
 - **演员兼容与内存：**[材质透明度与 UV](./performance/model-feature-coverage.md)已经用两件原衣实绘验证，剩两条身体 VMD 英文别名失败。[资源盘点、位图释放](./performance/model-memory.md)与[可选 ADB 进程采样](./performance/quest-browser-pss.md)分别回答资源寿命与采到的驻留值；Quest 系统峰值未测。
 
 - **查场景帧率：**选泳池计时台或教室后门，按[单景真机对照](./performance/next-quest-export.md#泳池或教室同机位真机对照)跑 `6061e24` 与 `b91325b`。先空场，加入演员或开物理另算。若两版帧率都顶住刷新率，只记录几何提交和镜片观感；无需据此继续削水面或课桌材质。
@@ -22,7 +22,7 @@
 | `eea2217` | 开物理切到仰卧、或衣物随物理晃动时，少做重复计算。 | [同一原衣演员桌面 CPU](./performance/pose-fit-and-clothing.md)：首次捧腿约 68→50 ms；开启附件时遮挡检查 0.46→0.29 ms/帧。首次换姿仍可能顿一下。 |
 | `dfc1c35`、`f20d268` | [站立裙摆减抖](./performance/xr-runtime-performance.md#默认站立开物理后的反复轻抖)；[改入口时附件跟随](./gameplay/actor-tools.md)；[小行星侧移后按左手 Y 站直](./performance/planet-stance-input.md)。 | 站姿原衣按 72 Hz 采样，外裙顶点单步位移 P95 为 0.210→0.033 mm，拨裙仍约 12 cm。模拟双眼越过南极走 44 m；普通跳着陆保持原视野。手感待真机。 |
 
-最新正式舞台报告起于 **11 月 25 日 10:17Z**：空母星后转泳池、120 Hz、阴影关，112 个窗口；同期布料实验只有 14 个单眼窗口。此前 [11 月 23 日数据](./performance/viewing-and-diagnostics.md#已有测量)是阴影开的小行星互动，不能直接比较版本。地台、草坪各 15 分钟的[持续 72 FPS 验收](./performance/next-quest-export.md#稳态固定条件独立导出)仍独立待测。
+最新正式舞台报告起于 **11 月 25 日 11:49Z**：无演员、120 Hz、母星→苇湾→母星→棱盐→玄釉；同期独立实验 27 个双眼窗，站姿 GPU 16 窗／Bullet 5 窗回调中位 100.6／75.8 FPS。不是正式游戏稳态性能结论。地台、草坪各 15 分钟的[持续 72 FPS 验收](./performance/next-quest-export.md#稳态固定条件独立导出)仍独立待测。
 
 ## 其他接续入口
 

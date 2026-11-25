@@ -51,43 +51,46 @@ type Stance={foot:Vector3;up:Vector3;basis:Quaternion;seat:Vector3;groundTilt:Qu
 const standingFoot=new Vector3(),radial=new Vector3(),previous=new Vector3(),across=new Vector3(),centred=new Vector3();
 const standingBasis=new Quaternion(),swing=new Quaternion();
 
-// On a home hop the horizon can follow the small arc travelled over the
-// mother planet, just as on a stride. Never point at a newly acquired well.
-// Check the virtual motion of the tracked body, not the direction of gaze.
-export function carryHomeHop(s:Traveller,foot:Vector3,targetUp:Vector3,tracked:Vector3,lift:number,dt:number,read:ReadColumn){
-  const angle=s.up.angleTo(targetUp);if(angle<1e-8)return;
-  // An offset ankle can win the sweep. Limit the final approach just like an
-  // airborne frame: no instantaneous rotation to a distant contact normal.
-  swing.setFromUnitVectors(s.up,targetUp);
-  const fraction=Math.min(1,dt*.65/angle);
-  const steps=Math.max(1,Math.ceil(angle*fraction*(tracked.length()+Math.abs(lift))/.025));
+// Parallel transport from the DISPLAYED horizon. The arc of the current
+// chord is earned by travel (it can be fast on a tiny moon). Only catch-up
+// from a blocked arc or a previous offset-ankle landing is rate limited.
+export function carryLocalHop(w:World,s:Stance,foot:Vector3,next:Vector3,localEye:Vector3,read:ReadColumn,dt:number){
+  // One attitude for a swept chord, sampled at its midpoint: an early hit
+  // doesn't get a whole unused chord's rotation, nor does a late hit lag one.
+  previous.subVectors(foot,w.centre).normalize();radial.lerpVectors(foot,next,.5).sub(w.centre).normalize();
+  const angle=s.viewUp.angleTo(radial);if(angle<1e-8)return;
+  const arc=Math.min(angle,2*previous.angleTo(radial)+dt*.65),fraction=arc/angle;
+  swing.setFromUnitVectors(s.viewUp,radial);
+  const steps=Math.max(1,Math.ceil(arc*localEye.length()/.025));
   for(let i=1;i<=steps;i++){
-    standingBasis.identity().slerp(swing,fraction*i/steps).multiply(s.basis);
-    if(!canStand(homeWorld,foot,standingBasis,tracked,lift,read))return;
+    standingBasis.identity().slerp(swing,fraction*i/steps).multiply(s.display).normalize();
+    if(!canStand(w,foot,standingBasis,localEye,0,read))return;
   }
-  carryFrame(s,radial.set(0,1,0).applyQuaternion(standingBasis));
+  s.basis.copy(standingBasis);s.display.copy(standingBasis);s.up.set(0,1,0).applyQuaternion(standingBasis);
+  s.viewUp.copy(s.up);s.groundTilt.identity();
 }
 
 // While the stick actually advances across open ground, bring the motor
 // under the physical footprint a stride at a time. A lean at rest (or into a
 // wall) still tracks 1:1: never move the viewer to enforce this correction.
-export function followHomeFootprint(s:Traveller,offset:Vector3,p:{x:number;y:number;z:number},lift:number,stride:number,read:ReadColumn){
+export function followFootprint(w:World,s:Traveller&Stance,offset:Vector3,p:{x:number;y:number;z:number},lift:number,stride:number,read:ReadColumn){
   across.set(p.x-offset.x,0,p.z-offset.z);
   const distance=across.length();if(distance<.0001||stride<.0001)return false;
   across.multiplyScalar(Math.min(1,stride/distance,.08/distance));
-  standingFoot.copy(across).applyQuaternion(s.basis).add(s.foot);radial.subVectors(standingFoot,homeWorld.centre).normalize();
-  let floor=shellRadius(homeWorld,radial.x,radial.y,radial.z);
-  if(radial.y>.8){
-    col.floor=homeWorld.centre.y+radial.y*floor;col.ceiling=Infinity;col.blocked=false;
+  standingBasis.multiplyQuaternions(s.basis,s.groundTilt);
+  standingFoot.copy(across).applyQuaternion(standingBasis).add(s.foot);radial.subVectors(standingFoot,w.centre).normalize();
+  let floor=shellRadius(w,radial.x,radial.y,radial.z);
+  if(w===homeWorld&&radial.y>.8){
+    col.floor=w.centre.y+radial.y*floor;col.ceiling=Infinity;col.blocked=false;
     read(standingFoot.x,standingFoot.z,s.foot.y,col);if(col.blocked)return false;
     floor=Math.max(floor,(col.floor-homeWorld.centre.y)/radial.y);
   }
-  if(Math.abs(floor-s.foot.distanceTo(homeWorld.centre))>STEP)return false;
-  standingFoot.copy(homeWorld.centre).addScaledVector(radial,floor);
-  standingBasis.copy(s.basis).premultiply(swing.setFromUnitVectors(s.up,radial));
-  centred.set(0,p.y,0);if(!canStand(homeWorld,standingFoot,standingBasis,centred,lift,read))return false;
+  if(Math.abs(floor-s.foot.distanceTo(w.centre))>STEP)return false;
+  standingFoot.copy(w.centre).addScaledVector(radial,floor);
+  standingBasis.copy(s.basis).premultiply(swing.setFromUnitVectors(s.up,radial)).multiply(s.groundTilt);
+  centred.set(0,p.y,0);if(!canStand(w,standingFoot,standingBasis,centred,lift,read))return false;
   centred.set(p.x-offset.x-across.x,p.y,p.z-offset.z-across.z);
-  if(centred.x**2+centred.z**2>1e-8&&!canStand(homeWorld,standingFoot,standingBasis,centred,lift,read))return false;
+  if(centred.x**2+centred.z**2>1e-8&&!canStand(w,standingFoot,standingBasis,centred,lift,read))return false;
   s.foot.copy(standingFoot);carryFrame(s,radial);offset.add(across);return true;
 }
 

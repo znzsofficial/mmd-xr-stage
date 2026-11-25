@@ -6,4 +6,4 @@
 <section><button id="swatch">试用样裙</button><label class="picker">模型目录 <input id="folder" type="file" webkitdirectory multiple></label><label class="picker">PMX 与贴图 <input id="file" type="file" multiple accept=".pmx,image/*,.tga,.dds"></label><select id="model" hidden aria-label="目录里的角色"></select></section>
 <canvas aria-label="裙摆实时对照，左右拖动可环视"></canvas><p id="status" role="status">等待模型</p>
 <section><label>求解 <select id="mode" disabled><option value="bullet">原版 Bullet</option><option value="cut">移除裙链</option><option value="gpu-face">GPU 裙面接触</option><option value="gpu" selected>GPU 裙骨接触</option></select></label><button id="pose" disabled>仰卧抬腿</button><button id="stroke" disabled>拨一次裙摆</button><button id="xr" disabled>进入 VR</button><button id="save" disabled>导出对照 JSON</button></section><output id="meter"></output>
-<small>屏幕：拖动画面转视角，滚轮拉近。VR：右 A 换姿势，左 X 切求解方式，用手柄靠近裙边拨动；退出后导出。各档站稳至少 10 秒再切换。</small></main><script type="module" src="./main.js"></script></html>
+<small>屏幕：拖动环视，滚轮拉近。VR：左 X 换求解方式，右 A 换姿势。金色球是手柄或手追掌心的接触位置；从裙边下方托起，撤手后看衣摆回落。退出后可导出记录。</small></main><script type="module" src="./main.js"></script></html>

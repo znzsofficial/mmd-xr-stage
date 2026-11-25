@@ -1,4 +1,5 @@
 import {Euler, Vector3} from 'three';
+import {GRIP_RADIUS,trackedGrip} from './handMotion.js';
 const skirt=/skirt|裙|スカート/i;
 const xyz=()=>new Vector3();
 // The loader passes these 16-bit inclusion masks straight to Bullet. An invalid
@@ -62,6 +63,7 @@ export function skirtWorld(inner,rig,mode,counts){
 export function contactPacket(rig,hands,buffer){
   const v=xyz();let i=0;
   for(const c of rig.capsules){v.copy(c.a).applyMatrix4(c.bone.matrixWorld).multiplyScalar(rig.scale).toArray(buffer,i);buffer[i+3]=c.r;v.copy(c.b).applyMatrix4(c.bone.matrixWorld).multiplyScalar(rig.scale).toArray(buffer,i+4);i+=8;}
-  for(const hand of hands){hand.toArray(buffer,i);buffer[i+3]=.055;hand.toArray(buffer,i+4);i+=8;}
+  for(let side=0;side<2;side++){const hand=hands?.[side];if(trackedGrip(hand))v.copy(hand);else v.set(0,-100,0);
+    v.toArray(buffer,i);buffer[i+3]=GRIP_RADIUS;v.toArray(buffer,i+4);i+=8;}
   return i/8;
 }

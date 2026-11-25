@@ -5,7 +5,7 @@ module.exports = function stereoShim(){
   const cfg=window.labFixture={reject:false,colorOnly:false,tracking:true,headX:0};
   const eyeSize=240,rgbaPitch=1024,id=[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
   Object.defineProperty(navigator,'xr',{configurable:true,value:{async isSessionSupported(){return true;},async requestSession(mode,options){
-    if(mode!=='immersive-vr'||!options.requiredFeatures.includes('webgpu'))throw Error('wrong session');
+    if(mode!=='immersive-vr'||!options.requiredFeatures.includes('webgpu')||!options.optionalFeatures?.includes('hand-tracking'))throw Error('wrong session');
     if(cfg.reject)throw new DOMException('user rejected','NotAllowedError');
     const s=active=Object.assign(new EventTarget(),{inputSources:['left','right'].map(handedness=>({handedness,gripSpace:{handedness},gamepad:{buttons:Array.from({length:6},()=>({pressed:false}))}})),
       visibilityState:'visible',supportedFrameRates:[72],frameRate:72,updateRenderState(){},async requestReferenceSpace(){return{};},
@@ -13,7 +13,7 @@ module.exports = function stereoShim(){
       updateTargetFrameRate(){return new Promise(()=>{});},requestAnimationFrame(fn){return s.raf=requestAnimationFrame(t=>{if(s!==active)return;
         const views=[0,1].map(i=>{const m=id.slice();m[12]=(i?-.032:.032)-cfg.headX;m[13]=-1.45;
           return {eye:i?'right':'left',i,projectionMatrix:[1.1,0,0,0,0,1.1,0,0,0,0,-1,-1,0,0,-.01,0],transform:{inverse:{matrix:m}}};});
-        fn(t,{session:s,getViewerPose:()=>cfg.tracking?{views}:null,getPose:space=>({transform:{position:{x:space.handedness==='right'?.15:-.25,y:1.1,z:-.60}}})});});},
+        fn(t,{session:s,getViewerPose:()=>cfg.tracking?{views}:null,getPose:space=>({transform:{position:{x:space.handedness==='right'?.15:-.25,y:1.1,z:-.60}}}),getJointPose:j=>cfg.loseLeft&&j.side==='left'?null:{transform:{position:{x:(j.side==='left'?-.23:.28)+(j.name==='pinky-finger-phalanx-proximal'?.03:j.name==='index-finger-phalanx-proximal'?-.03:0),y:j.name==='wrist'?.99:1.07,z:-.65}},radius:.011}});});},
       async end(){if(s!==active)return;cancelAnimationFrame(s.raf);active=null;s.dispatchEvent(new Event('end'));s.release?.();}});
     window.labSession=s;return s;
   }}});

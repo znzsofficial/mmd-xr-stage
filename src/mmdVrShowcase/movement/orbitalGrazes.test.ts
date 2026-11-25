@@ -1,7 +1,7 @@
 import {BoxGeometry,Mesh,MeshBasicMaterial,Vector3} from 'three';
 import {expect,it} from 'vitest';
 import {altitude,homeWorld,shellRadius,walkWorlds} from './orbitalSurfaces';
-import {startOrbit,stepOrbit} from './orbitalFlight';
+import {startJump,startOrbit,stepOrbit} from './orbitalFlight';
 import {createSolidColumns} from './solidColumns';
 import type {ReadColumn} from './groundMotor';
 
@@ -30,6 +30,18 @@ it('Lantern → Amber: the same off-mark launch clears the slope twice and escap
     if(reference){expect(f.foot.distanceTo(reference.foot)).toBeLessThan(1e-6);expect(f.velocity.distanceTo(reference.velocity)).toBeLessThan(1e-6);}
     else reference={foot:f.foot.clone(),velocity:f.velocity.clone()};
   }
+  // Replay the actual thumbstick launch too. The head reaches the other
+  // shell without a landing: a footfall or a change of well is too late to
+  // choose the takeoff frame. Keep the recorded velocity above as a control.
+  const stick=v(-.349687,.726560,.591464).projectOnPlane(up).normalize(),flight=startJump(from,foot,up,stick,2.4);
+  expect(flight.velocity.distanceTo(velocity)).toBeLessThan(.000002);
+  let minHead=Infinity,minSole=Infinity;
+  for(let i=0;i<12*72;i++){
+    stepOrbit(flight,1/72,up,eye,undefined,1.65,()=>{throw Error('transported an off-mark transfer');});
+    minHead=Math.min(minHead,altitude(to,probe.copy(flight.foot).add(eye)));minSole=Math.min(minSole,altitude(to,flight.foot));
+  }
+  expect(minHead).toBeGreaterThan(.1148);expect(minSole).toBeGreaterThan(0);expect(flight.grazes).toBe(2);
+  expect(flight.landing).toBeNull();expect(flight.owner).toBeNull();expect(flight.foot.distanceTo(reference!.foot)).toBeLessThan(.0002);
 });
 
 it('a continuous skim over the ridged Glaze relief keeps tangent momentum; an overlapping flight gets its own first impact',()=>{

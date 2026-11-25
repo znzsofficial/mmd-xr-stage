@@ -3,6 +3,7 @@ import renderCode from './surface.wgsl?raw';
 import collisionCode from './contact.wgsl?raw';
 import faceCode from './faceContact.wgsl?raw';
 import {makeFaceSamples} from './faceSamples.js';
+import {makeHandPass} from './handPass.js';
 import {BOX_FLOATS,writeBounds} from './contactBounds.js';
 import {contactPacket} from './rig.js';
 import {makeSign} from './sign.js';
@@ -41,6 +42,8 @@ export async function makeGpu(d,model,rig){
     const idx=buf('faces',geo.index.array,GPUBufferUsage.INDEX),indexFormat=geo.index.array instanceof Uint32Array?'uint32':'uint16';
     const vertices=['float32x3','float32x2','uint16x4','float32x4'].map((format,i)=>({arrayStride:[12,8,8,16][i],attributes:[{shaderLocation:i,offset:0,format}]}));
     const lut=buf('bone to particle',rig.lookup,S),skeleton=mesh.skeleton;skeleton.update();const pal=buf('skin palette',skeleton.boneMatrices,S);
+    const support=await makeHandPass({device:d,mesh,rig,buf,shader,bind,palette:pal,points:point[0],goals:tbuf,history,caps:cap,bounds:box,headers:meta});
+    let handSurfaceEnabled=true;
     let facePass,faceShown=false,faceCount=0,display,residual;const zero=buf('no surface offset',new Float32Array(4),S);
     function surfaceEyes(cloth,points,offsets){return views.map(b=>bind(cloth.getBindGroupLayout(0),[[0,b],[1,pal],[2,lut],[3,points],[4,tbuf],[6,offsets]]));}
     async function prepareFaces(field){const fitted=makeFaceSamples(mesh,rig);faceCount=fitted.faces.length;if(!faceCount)return false;
@@ -70,13 +73,15 @@ export async function makeGpu(d,model,rig){
       const [cloth,hand]=await Promise.all([render('surface','shade',vertices),render('marker','gold',[])]);if(disposed)return;
       pipelines.set(format,{cloth,hand,eyes:[surfaceEyes(cloth,point[0],zero),facePass&&surfaceEyes(cloth,display,residual)],
         hands:views.map(b=>bind(hand.getBindGroupLayout(0),[[0,b],[5,cap]])),materials:mats.map(m=>d.createBindGroup({layout:cloth.getBindGroupLayout(1),entries:[{binding:0,resource:m.texture},{binding:1,resource:samp},{binding:2,resource:{buffer:m.tint}}]}))});}
-    function update(hands,active){skeleton.update();d.queue.writeBuffer(pal,0,skeleton.boneMatrices);contactPacket(rig,hands,caps);d.queue.writeBuffer(cap,0,caps);
+    function update(hands,active){if(active&&handSurfaceEnabled)support.observe(hands);else support.reset();skeleton.update();d.queue.writeBuffer(pal,0,skeleton.boneMatrices);contactPacket(rig,hands,caps);d.queue.writeBuffer(cap,0,caps);
       if(active){writeBounds(caps,boxes);d.queue.writeBuffer(box,0,boxes);}
       if(active){for(const [i,node] of rig.nodes.entries()){const m=skeleton.bones[node.bone].matrixWorld.elements;for(let j=0;j<3;j++)targets[i*4+j]=m[12+j]*rig.scale;}d.queue.writeBuffer(tbuf,0,targets);}}
     function solve(encoder,steps,seed,timestampWrites,faces){if(!faces)faceShown=false;if(!steps)return;if(debug?.counted)encoder.clearBuffer(debugPipes.counter);const timedFaces=faces&&facePass&&timestampWrites;
+      const handStep=support.begin(steps,seed);
       const pass=encoder.beginComputePass({timestampWrites:timedFaces?{querySet:timestampWrites.querySet,beginningOfPassWriteIndex:0}:timestampWrites});for(let i=0;i<steps;i++){
       pass.setPipeline(predict);pass.setBindGroup(0,pre[Number(seed&&i===0)]);pass.dispatchWorkgroups(Math.ceil(n/64));pass.setPipeline(debug?.pipe??relax);
-      for(let k=0;k<5;k++){pass.setBindGroup(0,(debug?.groups??rgroup)[1-k%2]);pass.dispatchWorkgroups(Math.ceil(n/64));}}
+      for(let k=0;k<5;k++){pass.setBindGroup(0,(debug?.groups??rgroup)[1-k%2]);pass.dispatchWorkgroups(Math.ceil(n/64));}
+      if(handStep)support.run(pass,i);}
       pass.end();faceShown=!!(faces&&facePass);if(faceShown){encoder.copyBufferToBuffer(point[0],0,display,0,targets.byteLength);const surfacePass=encoder.beginComputePass({timestampWrites:timedFaces?{querySet:timestampWrites.querySet,endOfPassWriteIndex:1}:undefined});
         for(let k=0;k<2;k++){surfacePass.setPipeline(facePass.sample);surfacePass.setBindGroup(0,facePass.sb);surfacePass.dispatchWorkgroups(Math.ceil(faceCount/64));surfacePass.setPipeline(facePass.gather);surfacePass.setBindGroup(0,facePass.gb);surfacePass.dispatchWorkgroups(Math.ceil(n/64));}surfacePass.setPipeline(facePass.finish);surfacePass.setBindGroup(0,facePass.fb);surfacePass.dispatchWorkgroups(Math.ceil(facePass.count/64));surfacePass.end();}}
     // Actor-owned resources are keyed by device (this actor) and format, not by
@@ -106,6 +111,6 @@ export async function makeGpu(d,model,rig){
       for(const val of [true,false]){const pipe=await d.createComputePipelineAsync({layout:'auto',compute:{module:m,entryPoint:'constrain',constants:{cull:val}}});debugPipes[val]={pipe,groups:relaxGroups(pipe,[[9,counter]]),counted:true};}}
       debug=debugPipes[cull];}
     async function fullScan(on){if(on&&!unculled){const pipe=await d.createComputePipelineAsync({layout:'auto',compute:{module:solver,entryPoint:'constrain',constants:{cull:false}}});unculled={pipe,groups:relaxGroups(pipe)};}debug=on?unculled:null;}
-    return {prepare,prepareXR,prepareFaces,update,solve,draw,sample:()=>read(faceShown?display:point[0],Float32Array),targets,get faceCount(){return faceCount;},...(new URLSearchParams(location.search).has('probe')&&{fullScan,countTests,raw:()=>read(point[0],Float32Array),offsets:()=>faceShown?read(residual,Float32Array):null,checks:()=>read(debugPipes.counter,Uint32Array)}),dispose(){dispose();for(const p of pipelines.values())p.sign?.dispose();pipelines.clear();xrPreparation.clear();}};
+    return {prepare,prepareXR,prepareFaces,update,solve,draw,resetHands:support.reset,handSamples:support.count,sample:()=>read(faceShown?display:point[0],Float32Array),targets,get faceCount(){return faceCount;},...(new URLSearchParams(location.search).has('probe')&&{handSurface(on){handSurfaceEnabled=on;support.reset();},fullScan,countTests,raw:()=>read(point[0],Float32Array),offsets:()=>faceShown?read(residual,Float32Array):null,checks:()=>read(debugPipes.counter,Uint32Array)}),dispose(){dispose();for(const p of pipelines.values())p.sign?.dispose();pipelines.clear();xrPreparation.clear();}};
   }catch(e){dispose();throw e;}
 }

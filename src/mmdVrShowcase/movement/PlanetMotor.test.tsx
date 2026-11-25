@@ -64,12 +64,12 @@ it('does not hand a flight to a late Rapier driver or launch twice on a held X; 
     useBackpack.setState({draft:null});button.pressed=false;tick();button.pressed=true;for(let i=0;i<130;i++)tick();
     expect(samplePlanetMovement()?.windDepartures).toBe(1);h.ready=true;tracked=false;const frozen=origin.matrixWorld.clone();for(let i=0;i<50;i++)tick();expect(origin.matrixWorld.equals(frozen)).toBe(true);
     tracked=true;for(let i=0;i<720;i++)tick();expect(foot().distanceTo(lane.away.foot)).toBeLessThan(.002);expect(h.seed).not.toHaveBeenCalled();expect(h.step).not.toHaveBeenCalled();
-    // A short unmarked tangential hop stays inside the return collar. Keep
-    // that horizon on touchdown, then take the wind back without first using Y.
+    // A short unmarked tangential hop stays inside the return collar. Its
+    // horizon travels with the moon; the wind back does not require Y.
     button.pressed=false;tick();const north=new Vector3(0,1,0),start=origin.quaternion.clone();
     a.pressed=true;source.gamepad.axes[3]=-.32;tick();a.pressed=false;source.gamepad.axes[3]=0;
     for(let i=0;i<180;i++)tick();expect(samplePlanetMovement()).toMatchObject({orbitalLandings:1,alignments:0});
-    expect(origin.quaternion.angleTo(start)).toBeLessThan(1e-6);expect(foot().sub(lane.moon.centre).normalize().angleTo(north.clone().applyQuaternion(start))).toBeGreaterThan(.05);
+    expect(origin.quaternion.angleTo(start)).toBeGreaterThan(.05);expect(foot().sub(lane.moon.centre).normalize().angleTo(north.clone().applyQuaternion(origin.quaternion))).toBeLessThan(.002);
     button.pressed=true;for(let i=0;i<720;i++){
       const before=origin.quaternion.clone();pose.transform.orientation.setFromEuler(new Euler(.22,.91*Math.sin(i/83),-.3,'YXZ'));
       tick();expect(origin.quaternion.angleTo(before)).toBeLessThan(.01);

@@ -18,17 +18,24 @@ export function makeFaceSamples(mesh,rig){
       if(!bins.has(key)||score>bins.get(key).score)bins.set(key,{k,ids,score});
     }}
   const candidates=[...bins.values()],limit=Math.min(640,candidates.length),faces=Array.from({length:limit},(_,i)=>candidates[Math.floor(i*candidates.length/limit)]);
+  return {...packSamples(mesh,rig,faces),corners:cornersForFinish(mesh,rig)};
+}
+
+// Weighted sums give the *drawn* LBS position, including influences outside
+// the cloth rig. Only mobile terms get inverse-mass references on return.
+export function packSamples(mesh,rig,faces){
+  const {position,skinIndex,skinWeight}=mesh.geometry.attributes,p=new Vector3();
   const terms=[],heads=[],byNode=rig.nodes.map(()=>[]);
-  for(const [i,{ids}] of faces.entries()){
-    const sum=new Map();for(const id of ids){p.fromBufferAttribute(position,id);
-      for(let j=0;j<4;j++){const bone=skinIndex.getComponent(id,j),w=skinWeight.getComponent(id,j)/3;if(!w)continue;
+  for(const [i,{ids,bary}] of faces.entries()){
+    const sum=new Map();for(const [corner,id] of ids.entries()){p.fromBufferAttribute(position,id);
+      for(let j=0;j<4;j++){const bone=skinIndex.getComponent(id,j),s=skinWeight.getComponent(id,j),w=bary?s*bary[corner]:s/3;if(!w)continue;
         const t=sum.get(bone)??[0,0,0,0];t[0]+=p.x*w;t[1]+=p.y*w;t[2]+=p.z*w;t[3]+=w;sum.set(bone,t);}}
     let invMass=0;heads.push([terms.length/8,sum.size]);for(const [bone,t] of sum){const node=rig.byBone.get(bone);terms.push(...t,bone,node??-1,0,0);
       if(node!=null&&!rig.nodes[node].pin){invMass+=t[3]**2;byNode[node].push([i,t[3]]);}}
     heads[i].push(invMass,0);
   }
   const refs=[],ranges=byNode.flatMap(list=>{const off=refs.length/2;for(const v of list)refs.push(...v);return [off,list.length];});
-  return {faces,terms:new Float32Array(terms),heads:new Float32Array(heads.flat()),refs:new Float32Array(refs),ranges:new Uint32Array(ranges),corners:cornersForFinish(mesh,rig)};
+  return {faces,terms:new Float32Array(terms),heads:new Float32Array(heads.flat()),refs:new Float32Array(refs),ranges:new Uint32Array(ranges)};
 }
 
 // A sampled panel can carry a long pleat away from the proxy. At the actual
