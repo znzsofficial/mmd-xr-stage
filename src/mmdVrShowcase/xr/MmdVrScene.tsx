@@ -10,7 +10,7 @@ import { MmdVrPlayerRig } from "./MmdVrPlayerRig";
 import { MmdVrStageContent } from "../stage/MmdVrStage";
 import { endMmdVrSession, getMmdVrSessionSnapshot, mmdVrXrStore } from "./mmdVrSession";
 import { getMmdVrRenderProfile } from "../settings/mmdVrQuality";
-import { useMmdVrStore } from "../mmdVrStore";
+import { awaitingFreshXrFrame, useMmdVrStore } from "../mmdVrStore";
 import { describeRenderRequest } from "../diagnostics/renderDiagnostics";
 import { MmdVrDiagnostics } from "../diagnostics/MmdVrDiagnostics";
 import { BackpackPlacement } from "../backpack/BackpackPlacement";
@@ -22,6 +22,7 @@ export function MmdVrScene() {
   const closeOverlay = useMmdVrStore((state) => state.closeOverlay);
   const t = useLanguageStore((state) => state.t);
   const mmdPrefs = useMmdVrStore((state) => state.prefs);
+  const mountRoom = useMmdVrStore(s => s.overlayOpen && (s.phase === 'active' || (s.phase === 'entering' && !awaitingFreshXrFrame(s))));
   const profile = getMmdVrRenderProfile(mmdPrefs);
   const [requested] = useState(() => describeRenderRequest(useMmdVrStore.getState().prefs));
   const [exiting, setExiting] = useState(false);
@@ -61,14 +62,13 @@ export function MmdVrScene() {
           <MmdVrDiagnostics requested={requested} />
           <AttachPendingMmdVrSession />
           <MmdVrHeadsetHudGate onHideHud={setHideExitHud} />
-          <MmdVrPlayerRig
-            onExit={exitVr}
-            busy={exiting}
-          />
-          <MmdVrStageContent />
-          <BackpackPlacement />
-          <BackpackWorldTools />
-          <StagePlay />
+          {mountRoom && <>
+            <MmdVrPlayerRig onExit={exitVr} busy={exiting} />
+            <MmdVrStageContent />
+            <BackpackPlacement />
+            <BackpackWorldTools />
+            <StagePlay />
+          </>}
         </XR>
       </Canvas>
       {!hideExitHud ? (

@@ -35,7 +35,9 @@ export function requestMmdVrEnter(opts: {
     setEntering: () => {
       useMmdVrStore.setState({presentation:'xr'});
       const saved = opts.resume ? store.savedStage : null;
-      prepareBackpackEntry(saved != null);
+      // Clear transient selection/commands only. Fresh layouts commit in
+      // markEntered after this generation's renderer has delivered an XRFrame.
+      prepareBackpackEntry(true);
       store.prepareStage(saved != null);
       beginMmdVrAssetSession(saved?.assets ?? assets ?? []);
       store.setPhase("entering");

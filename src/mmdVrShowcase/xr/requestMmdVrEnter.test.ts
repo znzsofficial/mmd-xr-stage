@@ -4,7 +4,8 @@ import { useMmdVrStore } from "../mmdVrStore";
 import { requestMmdVrEnter } from "./requestMmdVrEnter";
 import { getXrDiagnostics, getXrSystem } from "../../xr/xrDetect";
 import { beginMmdVrAssetSession, endMmdVrAssetSession, getMmdVrSessionAssets } from "../backpack/sessionAssets";
-import { clearBackpack, syncBackpackFiles, useBackpack } from "../backpack/store";
+import { clearBackpack, saveBackpackLayout, syncBackpackFiles, useBackpack } from "../backpack/store";
+import { enterScreen } from '../screen/enterScreen';
 import type { StageSnapshot } from "../stage/stageSnapshot";
 
 vi.mock("../../xr/xrDetect", async () => {
@@ -143,6 +144,58 @@ describe("requestMmdVrEnter", () => {
     expect(useMmdVrStore.getState()).toMatchObject({ overlayOpen: false, phase: "error" });
     expect(useMmdVrStore.getState().errorMessage).toContain(detail);
     await expect(requestMmdVrEnter({ t })).resolves.toBe("entered");
+  });
+
+  function twoRooms() {
+    const prop = new File([], 'mark.glb'), actor = new File([], 'actor.pmx'), motion = new File([], 'dance.vmd');
+    syncBackpackFiles([prop, actor, motion]);
+    const room = (scenery: 'classroom'|'pool', x: number): StageSnapshot & {scenery: 'classroom'|'pool'} => ({
+      scenery, assets: [{kind:'object', objectFile:prop, companionFiles:[]}, {kind:'model', modelFile:actor, companionFiles:[], bodyMotionFile:motion}],
+      models:[], objects:[{file:prop, position:[x,0,0], quaternion:[0,0,0,1], scale:[1,1,1], visible:true}],
+      time:x, playing:false, loop:true, physicsEnabled:false,
+    });
+    const a=room('classroom',1), b=room('pool',2);
+    saveBackpackLayout(a); saveBackpackLayout(b);
+    // Last viewed B, but the player has since selected A on prep.
+    useMmdVrStore.setState(s=>({savedStage:b,prefs:{...s.prefs,scenery:'classroom'}}));
+    return {a,b,bag:useBackpack.getState()};
+  }
+
+  it.each(['permission', 'cancel', 'timeout'] as const)('keeps both layouts, bindings and the last viewed room on %s before presentation', async reason=>{
+    const {a,b,bag}=twoRooms(); const gate=Promise.withResolvers<XRSession>();
+    if(reason==='permission')vi.mocked(beginMmdVrSessionFromClick).mockReturnValueOnce(gate.promise);
+    else vi.mocked(waitForMmdVrPresentation).mockReturnValueOnce(gate.promise);
+    vi.useFakeTimers();
+    try {
+      const attempt=requestMmdVrEnter({t});
+      if(reason==='permission')gate.reject(new DOMException('denied','NotAllowedError'));
+      if(reason==='cancel')useMmdVrStore.getState().closeOverlay();
+      if(reason==='timeout')await vi.advanceTimersByTimeAsync(20_001);
+      expect(await attempt).toBe('failed');
+      const after=useBackpack.getState(); expect(after.layouts.classroom).toBe(a); expect(after.layouts.pool).toBe(b);
+      expect(after.stored).toBe(bag.stored); expect(after.bindings).toBe(bag.bindings); expect(after.files).toBe(bag.files);
+      expect(useMmdVrStore.getState().savedStage).toBe(b);
+      enterScreen(); expect(useMmdVrStore.getState().resumeStage).toBe(a);
+      expect(getMmdVrSessionAssets().find(s=>s.kind==='model')?.bodyMotionFile).toBe(bag.bindings[bag.entries.find(e=>e.kind==='model')!.id].body);
+      useMmdVrStore.getState().closeOverlay();
+    } finally {vi.useRealTimers();}
+  });
+
+  it('commits a fresh layout only on the matching first frame; a cancelled attempt cannot clear a later resume', async()=>{
+    const {b,bag}=twoRooms(),late=Promise.withResolvers<XRSession>();
+    vi.mocked(waitForMmdVrPresentation).mockReturnValueOnce(late.promise);
+    const first=requestMmdVrEnter({t});await vi.waitFor(()=>expect(waitForMmdVrPresentation).toHaveBeenCalledOnce());
+    expect(useBackpack.getState().layouts).toBe(bag.layouts);
+    useMmdVrStore.getState().closeOverlay();
+    const next=requestMmdVrEnter({t,resume:true});late.resolve({} as XRSession);
+    expect(await next).toBe('entered');expect(await first).toBe('failed');
+    expect(useMmdVrStore.getState().resumeStage).toBe(b);expect(useBackpack.getState().layouts).toBe(bag.layouts);
+    useMmdVrStore.getState().closeOverlay();
+    const frame=Promise.withResolvers<XRSession>();vi.mocked(waitForMmdVrPresentation).mockReturnValueOnce(frame.promise);
+    const fresh=requestMmdVrEnter({t});await vi.waitFor(()=>expect(waitForMmdVrPresentation).toHaveBeenCalledTimes(3));
+    expect(useBackpack.getState().layouts).toBe(bag.layouts);frame.resolve({} as XRSession);expect(await fresh).toBe('entered');
+    for(const entries of [useBackpack.getState().layouts,useBackpack.getState().stored,useBackpack.getState().bindings])expect(Object.keys(entries)).toHaveLength(0);
+    expect(useMmdVrStore.getState().savedStage).toBeNull(); expect(useBackpack.getState().files).toBe(bag.files);
   });
 
   it("requests XR in the original click stack", async () => {

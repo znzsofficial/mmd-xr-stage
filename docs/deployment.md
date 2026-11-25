@@ -1,23 +1,21 @@
 # 部署与 wrangler 版本注意事项
 
-最后更新：2026-11-17
+最后更新：2026-11-25
 
 ## 当前部署路径
 
-经典 Cloudflare Pages 直传：
+经典 Cloudflare Pages 直传。日常／PR 用 `pnpm run check`：舞台 Vitest → 工具和实验的 Node 测试 → loader 校验、类型检查、舞台与实验构建。PR 和 `master` 的检查没有部署凭证。发布从干净、已提交、用锁文件安装的检出开始：
 
 ```bash
-pnpm loader:upstream
-pnpm build
-# 保留旧标签页仍会请求的 XR 入口、星球模块和器官绘图 Worker
-node scripts/retain-legacy-scene.mjs
-npx -y wrangler@4.128.0 pages deploy ./dist --project-name=mmd-xr-stage --branch=main
+pnpm run release:prepare
+# 对这个 dist 做本次变更需要的浏览器冒烟；通过后上传原目录
+pnpm run deploy
 ```
 
 - 本仓库（mmd-xr-stage）：`mmd-xr-stage.pages.dev`
 - 主仓库（neko-virt-os）：`neko-virt-os.pages.dev` / `os.nekolaska.vip`
 
-`package.json` 的 `pnpm deploy` 依赖 PATH 中的 wrangler；代理环境收尾使用上面固定版本命令。Git 默认分支是 **master**，但 Pages 生产分支配置为 **main**，因此部署参数必须保留 `--branch=main`。
+`release:prepare` 一次执行远端 loader 对齐、`check`（含一次构建）和旧标签页桥校验；成功后在上传目录之外的 `stage-release.local` 留下 Git 提交与完整文件树 SHA-256。重新准备会先作废旧收据。`pnpm run deploy` 只晋级：核对当前提交、工作树和 `dist` 全部文件名／内容，使用固定 `wrangler@4.128.0` 上传同一目录，再核对主域入口及关键资源。没有收据、改过源码或制品拒绝上传；上线后如遇传播或网络故障可单独重试 `pnpm run release:live`，不必重新部署。收据覆盖自动检查；镜片观感不是收据的一部分。Git 默认分支是 **master**，Pages 生产分支是 **main**。
 
 发布前检查构建 exit code；不要用 `| Select-Object` 等过滤管道掩盖失败。合并前完成必要验证和构建，合并后复用制品及时部署。验证生产 HTML 引用、JS/CSS/Bullet/动画 WASM 的内容哈希；HTTP 200 本身不能证明资源存在，因为 SPA 回退可能返回 HTML。验证 URL 加新的 cache-buster，勿复用旧查询参数。
 

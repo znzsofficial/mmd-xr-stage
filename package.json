@@ -18,7 +18,12 @@
     "build:cloth-lab": "vite build --config experiments/gpu-cloth/vite.config.mjs",
     "preview": "vite preview",
     "test": "vitest run",
-    "deploy": "pnpm loader:upstream && pnpm build && node scripts/retain-legacy-scene.mjs && wrangler pages deploy ./dist --project-name=mmd-xr-stage --branch=main"
+    "test:tools": "node --test \"scripts/*.test.mjs\" \"experiments/gpu-cloth/*.test.*\"",
+    "check": "pnpm test && pnpm run test:tools && pnpm build",
+    "release:prepare": "node scripts/release-artifact.mjs prepare",
+    "release:verify": "node scripts/release-artifact.mjs verify",
+    "release:live": "node scripts/release-artifact.mjs live",
+    "deploy": "pnpm run release:verify && npx -y wrangler@4.128.0 pages deploy ./dist --project-name=mmd-xr-stage --branch=main && pnpm run release:live"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.19.2",

@@ -21,6 +21,7 @@
 - The backpack owns file references for the lifetime of this page. Import is not a stage spawn; a fresh XR entry can have zero models. Keep runtime IDs separate from stable asset IDs; only mounted instances consume the three character/three object slots. Keep complete scene layouts as data, not hidden GPU/Bullet instances. End/switch invalidates command tokens only after taking any valid snapshot. Placement yaw is in **degrees** at the store boundary.
 
 - When resuming this work, read `docs/HANDOFF.md` first. Keep it short; put play status and instructions in `docs/gameplay/`, modelling in `docs/scenery/`, and timing evidence plus optimization priorities in `docs/performance/`. Read `PRODUCT.md` and `DESIGN.md` before UI edits. All in-stage HUD pages share the adult visual-novel theme, including everyday settings, clothing, pose, interaction and observation. Keep prep and stage lighting independent.
+- When asked for direction or a plan, name one player-facing milestone, its exit test and which work is parked. A report, candidate or suggested refactor is not approval to implement it. Review state ownership before another fix crosses the same movement boundary, or before a lab starts duplicating the production actor lifecycle.
 
 - Single-purpose WebGL + WebXR MMD showcase for Meta Quest. Prep page at `/` (`index.html` -> `src/main.tsx` -> `src/mmdVrShowcase/prep/MmdVrPrepApp`), XR scene entered from there.
 - `src/mmdVrShowcase/` owns the entire product surface: prep UI, XR session, scene, HUD, colliders, haptics, physics reseed.
@@ -42,15 +43,15 @@
 
 ```bash
 pnpm install
-pnpm exec tsc -b --pretty false
-pnpm test
-pnpm build
+pnpm run check
 git diff --check
-pnpm deploy
+# Release from a clean commit: includes check and one build; smoke that dist before upload.
+pnpm run release:prepare
+pnpm run deploy
 ```
 
 - `pnpm test` runs Vitest in the Node environment; some component tests use a `// @vitest-environment jsdom` pragma. jsdom in this setup does NOT provide `localStorage` — stub it in tests.
-- There is no lint script. CI-equivalent validation is `tsc -b` + `pnpm test` + `pnpm build`.
+- There is no lint script. PR/main CI runs `pnpm run check`; use `release:prepare` instead when preparing a local release, not both.
 - Use Node 26.12.1 (`.node-version`, engines `>=26.12.1 <27`), matching jsdom 31 and Node 26 types. Do not follow npm's `node` latest tag into Node 27 alpha.
 
 ## MMD Loader And Assets
@@ -118,6 +119,6 @@ pnpm deploy
 
 - For completed product changes, finish the release for the user: after verification, merge, push normally, deploy the tested build to the existing production Pages project per `docs/deployment.md`, and verify the main domain. Report the live link instead of handing the user a release command. If a check or deployment fails, report the blocker. This routine does not authorize force pushes.
 
-- Browser checks do not replace Quest hardware validation. For XR/physics changes, manually regress model scaling, cloth fall/contact, panel persistence, controller and hand collisions, controller contact counts, and haptics.
+- Browser checks do not replace Quest hardware validation. The release owner handles risk-relevant XR/physics regression (scale, cloth, panels, hand/controller contact and haptics) and reuses existing measurements and reproducible fixtures. Do not hand a per-patch checklist to the player. Request brief device-only feedback at a decision point only if it would change that decision; otherwise label hardware results unconfirmed.
 - `sample/` is ignored; model assets must never be committed. For loader, rig and garment changes, supplement deterministic fixtures with the user's local reference PMX when available. Confirm actual loading and a relevant measured behavior; keep identifying paths and captures out of the repository. `.gitattributes` expects LF text and treats `*.wasm` as binary.
 - Update `docs/THIRD_PARTY_NOTICES.md` when changing bundled third-party versions.

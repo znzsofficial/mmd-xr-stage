@@ -3,7 +3,7 @@ import { emptyAssetLoadProgress, type AssetLoadProgress } from "./stage/loading/
 import type { StageSnapshot } from "./stage/stageSnapshot";
 import { LIGHT_ORDER, normalizeMmdVrPrefs, prefsStorage, type MmdVrPrefs } from './settings/preferences';
 import { endMmdVrAssetSession } from "./backpack/sessionAssets";
-import { invalidateBackpackCommands, useBackpack } from "./backpack/store";
+import { invalidateBackpackCommands, prepareBackpackEntry, useBackpack } from "./backpack/store";
 import { resetMmdVrClock } from "./stage/mmdVrClock";
 import { resetViewOnMenuSwitch } from "./scenery/catalog";
 import { normalizeMmdVrModelScale } from "./settings/mmdVrAdjustments";
@@ -180,6 +180,12 @@ function sessionReset() {
 
 const initialPrefs = prefsStorage.read();
 
+// During a fresh request the old multi-room layout is still the committed one.
+// The new room may neither load it nor replace it with a pre-presentation capture.
+export function awaitingFreshXrFrame(s: Pick<MmdVrStore, 'presentation'|'phase'|'resumeStage'>) {
+  return s.presentation === 'xr' && s.phase === 'entering' && s.resumeStage === null;
+}
+
 export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
   savedStage: null,
   resumeStage: null,
@@ -244,7 +250,8 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
     // A partial restore must never replace the last complete stage.
     const bag = useBackpack.getState();
     const complete = !bag.busy && !current.assetLoad.running && current.assetLoad.failures.length === 0 && !current.physicsBusy && !current.physicsFatal;
-    const savedStage = (complete ? current.captureStage?.() : null) ?? bag.layouts[current.prefs.scenery] ?? current.savedStage;
+    const savedStage = awaitingFreshXrFrame(current) ? current.savedStage :
+      (complete ? current.captureStage?.() : null) ?? bag.layouts[current.prefs.scenery] ?? current.savedStage;
     invalidateBackpackCommands();
     endMmdVrAssetSession();
     set({
@@ -271,13 +278,13 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
       ...sessionReset(),
     });
   },
-  markEntered: () =>
-    set((state) => state.overlayOpen ? ({
-      lastError: null,
-      overlayOpen: true,
-      errorMessage: null,
-      phase: "active",
-    }) : state),
+  markEntered: () => {
+    const state = get();
+    if (!state.overlayOpen) return;
+    const fresh = awaitingFreshXrFrame(state);
+    if (fresh) prepareBackpackEntry(false);
+    set({lastError:null, errorMessage:null, phase:'active', ...(fresh && {savedStage:null})});
+  },
   playing: false,
   setPlaying: (playing) => set({ playing }),
   loop: initialPrefs.loop,
