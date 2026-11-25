@@ -161,8 +161,14 @@ describe("requestMmdVrEnter", () => {
     return {a,b,bag:useBackpack.getState()};
   }
 
+  function sessionGate() {
+    let resolve!: (s:XRSession)=>void, reject!: (e:Error)=>void;
+    const promise=new Promise<XRSession>((yes,no)=>{resolve=yes;reject=no;});
+    return {promise,resolve,reject};
+  }
+
   it.each(['permission', 'cancel', 'timeout'] as const)('keeps both layouts, bindings and the last viewed room on %s before presentation', async reason=>{
-    const {a,b,bag}=twoRooms(); const gate=Promise.withResolvers<XRSession>();
+    const {a,b,bag}=twoRooms(); const gate=sessionGate();
     if(reason==='permission')vi.mocked(beginMmdVrSessionFromClick).mockReturnValueOnce(gate.promise);
     else vi.mocked(waitForMmdVrPresentation).mockReturnValueOnce(gate.promise);
     vi.useFakeTimers();
@@ -182,7 +188,7 @@ describe("requestMmdVrEnter", () => {
   });
 
   it('commits a fresh layout only on the matching first frame; a cancelled attempt cannot clear a later resume', async()=>{
-    const {b,bag}=twoRooms(),late=Promise.withResolvers<XRSession>();
+    const {b,bag}=twoRooms(),late=sessionGate();
     vi.mocked(waitForMmdVrPresentation).mockReturnValueOnce(late.promise);
     const first=requestMmdVrEnter({t});await vi.waitFor(()=>expect(waitForMmdVrPresentation).toHaveBeenCalledOnce());
     expect(useBackpack.getState().layouts).toBe(bag.layouts);
@@ -191,7 +197,7 @@ describe("requestMmdVrEnter", () => {
     expect(await next).toBe('entered');expect(await first).toBe('failed');
     expect(useMmdVrStore.getState().resumeStage).toBe(b);expect(useBackpack.getState().layouts).toBe(bag.layouts);
     useMmdVrStore.getState().closeOverlay();
-    const frame=Promise.withResolvers<XRSession>();vi.mocked(waitForMmdVrPresentation).mockReturnValueOnce(frame.promise);
+    const frame=sessionGate();vi.mocked(waitForMmdVrPresentation).mockReturnValueOnce(frame.promise);
     const fresh=requestMmdVrEnter({t});await vi.waitFor(()=>expect(waitForMmdVrPresentation).toHaveBeenCalledTimes(3));
     expect(useBackpack.getState().layouts).toBe(bag.layouts);frame.resolve({} as XRSession);expect(await fresh).toBe('entered');
     for(const entries of [useBackpack.getState().layouts,useBackpack.getState().stored,useBackpack.getState().bindings])expect(Object.keys(entries)).toHaveLength(0);
