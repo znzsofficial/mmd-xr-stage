@@ -12,6 +12,7 @@
 
 | 功能提交 | 已发布内容与验证范围 |
 |---|---|
+| `6db0bb7`（含 `822522f`） | [母星本地普通跑跳与眼高](./performance/normal-walk.md)：模拟双眼续走后倾角 18.58°→约 0°、净高 1.29→1.63 m；[实模形态修复](./performance/model-feature-coverage.md)同步 fork/main `3ac1d8e`；部分[手动裙面显示](./performance/pose-cloth-contact.md)减负及[glTF 回收、同趟资源盘点](./performance/model-memory.md)。[WebGPU](./performance/gpu-cloth-lab.md)先提交双眼地标，混合掩码原衣实跑；保留独立实验。原生 Bullet 直调无一致收益，未入游戏。舞台 1046 项、构建通过；主域 HTML 和 20 份资源与制品一致；两个固定入口分别核对。Quest 镜片、舒适度、内存峰值与长时 72 Hz 待真机。[固定版](https://fc4d3e1e.mmd-xr-stage.pages.dev) |
 | `aa6a0f5` | [fork 是 loader 的唯一源码](./three-mmd-loader-maintenance.md#怎么保持同步)，正式舞台打包 `fork/main@9a45a5c` 等价产物，含上游形态几何修复。241 个 `dist` 文件及 Bullet 配套核对、两件实模 24 对画面、模拟 XR 放置回场通过。fork 814 项通过／5 项跳过，舞台 1033 项通过；主域 HTML 和 23 份资源匹配。[每日上游检查首次验收](https://github.com/znzsofficial/mmd-xr-stage/actions/runs/45591604573) · [固定版](https://875a8d5f.mmd-xr-stage.pages.dev) |
 | `d65e37c` | [形态纹理去重与 glTF 回收](./performance/model-memory.md)。参考 A 单人 910→26 MiB、双人 1,820→52 MiB；独立拆分角色 25.06→12.72 MiB。24 对新旧画面逐像素相同，衣柜、射线、地面投影与双人独立移除均已核对。1033 项测试通过，主域 HTML 和 20 份资源与验收制品一致。[固定版](https://ccc0f8cf.mmd-xr-stage.pages.dev) |
 | `dbd2e96` | [跨模型验证](./performance/model-feature-coverage.md)：修复特殊蒙皮的摆位缩放、增强图的 UV 与颜色空间、VMD 属性和自阴影末键。四件真实 SDEF、生成 QDEF、实际无底图材质、真实晚键及模拟双眼续场均已验；1024 项测试通过，主域 HTML 与 23 份资源匹配。[固定版](https://142e6fdc.mmd-xr-stage.pages.dev) |
