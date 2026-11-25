@@ -265,6 +265,7 @@ export function isMmdRuntimeRebuildError(error: unknown): error is MmdRuntimeReb
 export type MmdRuntimeOptions = {
   /** Manual-pose, native-physics skirt display correction. False retains the raw display for comparisons. */
   poseSkirtClearance?:boolean;
+  onSkirtWork?:import('./actorPoseDisplay').RecordSkirtWork;
   modelBytePool?: typeof mountedModelBytePool;
   alphaTiles?: import('./roomAlphaTiles').RoomAlphaTiles;
   motionCache?: import('./roomMotionCache').RoomMotionCache;
@@ -1074,7 +1075,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
           finally{presentDraws(entry.model.mesh);}
           // A reset seeds only the edited skirt, at visual scale.
           syncEntryWorldMatrix(entry, false);
-          if (entry.editor && options.poseSkirtClearance !== false) seedEditedSkirt(entry);
+          if (entry.editor && options.poseSkirtClearance !== false) seedEditedSkirt(entry,options.onSkirtWork);
           lastPhysicsSeconds.set(entry.id, t);
         } catch {
           lastPhysicsSeconds.delete(entry.id);
@@ -1164,7 +1165,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
         }
 
         const dancePressure=(hasBodyMotion||!!entry.editor) && !!options.chestCompression?.();
-        presentEvaluatedPose(entry, seconds, physicsDelta, prev, physicsOn, reseed || (physicsOn && reset), dancePressure);
+        presentEvaluatedPose(entry, seconds, physicsDelta, prev, physicsOn, reseed || (physicsOn && reset), dancePressure,options.onSkirtWork);
         const materials = getMeshMaterials(entry.model.mesh);
         if (directionalLight) syncMmdSpecularDirection(materials, directionalLight);
         applyMaterialOverrides(entry, lightingContext());

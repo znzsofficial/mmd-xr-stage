@@ -26,6 +26,7 @@ export function createRoomRuntime(scene: Scene, gl: WebGLRenderer, camera: Camer
     chestCompression: () => prefs().chestCompression,
     onPhysicsPoseWork: recordXR ? runtimeTiming.recordPose : undefined,
     onBulletStepWork: recordXR ? runtimeTiming.recordBullet : undefined,
+    onSkirtWork: recordXR ? runtimeTiming.recordSkirt : undefined,
     controllerColliders: getMmdVrControllerColliderMatrices,
     controllerCollidersEnabled: () => gl.xr.isPresenting,
     controllerColliderRadius: () => prefs().physicsColliderRadius,

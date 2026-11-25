@@ -128,7 +128,7 @@ export function mountPelvicRig(o:Options):PelvicRigHandle&{dispose:()=>void}{
           b.port.group.visible=false;if(usePelvic.getState().support[id]!==b.support)publishPelvicSupport(id,b.support);continue;
         }
         b.frame=samplePelvicFrame(b.socket,b.c,b.frame??undefined);
-        const obstruction=b.frame?(b.guard??=createGarmentGuard(root,o.getSurface?.(live.runtimeId)))(b.frame,profile.showAdapter&&!!(profile.clothingClear||profile.adapterSkinFit)):undefined,kind=b.frame?b.socket!.kind:'missing';
+        const obstruction=b.frame?(b.guard??=createGarmentGuard(root,o.getSurface?.(live.runtimeId)))(b.frame,profile.showAdapter):undefined,kind=b.frame?b.socket!.kind:'missing';
         const garmentNames=b.guard?.garmentNames,blockerName=obstruction==='garment'?b.guard?.blockerName():undefined;
         if(b.support.obstruction!==obstruction||b.support.kind!==kind||b.support.garmentNames!==garmentNames||b.support.blockerName!==blockerName)
           b.support={...b.support,kind,obstruction,garmentNames,blockerName};

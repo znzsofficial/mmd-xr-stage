@@ -8,7 +8,7 @@ type FitOptions={assetId:string;runtimeId:string;source:'screen'|'xr';l:Localize
   morph:string|null;names:readonly string[];page:number;setPage:(n:number)=>void;clothes:()=>void;clear:()=>void};
 
 export function fitRows({assetId,runtimeId,source,l,profile,support,fit,setFit,morph,names,page,setPage,clothes,clear}:FitOptions):Row[]{
-  const c=profile.calibration,rows:Row[]=[],patch=(calibration:Partial<PelvicCalibration>)=>patchPelvic(assetId,{calibration,clothingClear:false});
+  const c=profile.calibration,rows:Row[]=[],patch=(calibration:Partial<PelvicCalibration>)=>patchPelvic(assetId,{calibration});
   if(fit==='morph'){
     const none=l('不用形态键','None'),label=l('入口开合形态','Opening morph'),pick=(name:string|null)=>setApertureMorph(assetId,name);
     rows.push(note(l('选模型作者制作的开合形态。没有也能看剖面。','Choose a morph made for the opening. The diagram works without one.')));
@@ -36,8 +36,6 @@ export function fitRows({assetId,runtimeId,source,l,profile,support,fit,setFit,m
     const ready=!!support&&support.kind!=='missing';
     rows.push(buttons(profile.showAdapter?key(l('关闭外阴附件','Turn off vulva attachment'),()=>setPelvicAdapter(assetId,runtimeId,false)):
       key(l('将外阴附件装到裸肤上','Fit vulva attachment to skin'),()=>setPelvicAdapter(assetId,runtimeId,true),{disabled:!ready})));
-    if(profile.showAdapter&&!profile.adapterSkinFit&&!profile.clothingClear&&ready)
-      rows.push(buttons(key(l('确认附件的裸肤位置','Confirm skin fit'),()=>setPelvicAdapter(assetId,runtimeId,true))));
     if(!profile.clothingClear&&ready&&!support.obstruction)rows.push(buttons(key(l('确认入口露出','Confirm exposure'),()=>patchPelvic(assetId,{clothingClear:true}))));
     if(support?.obstruction)rows.push(buttons(key(l('调整服装','Clothing'),clothes)));
     rows.push(

@@ -79,17 +79,21 @@ export default function PlanetMotor({originRef,dragging}:Props){
       // visitor, including an offset contact, without translating either eye.
       if(!s.groundTilt.equals(noTilt))s.groundTilt.multiply(s.arc).premultiply(s.arc.invert());}
     s.display.multiplyQuaternions(s.basis,s.groundTilt);s.viewUp.copy(north).applyQuaternion(s.display);
+    const x=dragging?0:stickAxis(s.l.x),forward=dragging?0:-stickAxis(s.l.y),jump=!dragging&&s.r.primary&&!s.a;s.a=s.r.primary||!s.r.primaryKnown;
+    s.localEye.copy(p).sub(s.offset);
+    const trackedStep=s.localEye.x*s.localEye.x+s.localEye.z*s.localEye.z>1e-12;
+    const align=!free&&s.grounded&&(trackedStep||!s.groundTilt.equals(noTilt)||s.seat.lengthSq()>1e-10)&&!dragging&&s.l.align&&!s.yDown&&!useBackpack.getState().draft;
+    s.yDown=s.l.align||!s.l.alignKnown;
+    if(!free&&(!s.moon||s.orbit)&&!s.ride)s.pad.update(scene);
+    if(align&&alignPlanetStance(s.moon??homeWorld,s,s.localEye,s.lastLift,s.pad.read)){
+      if(trackedStep){s.offset.set(p.x,0,p.z);s.localEye.set(0,p.y,0);s.active=null;}
+      diag.alignments++;s.eyeSetting=NaN;
+    }
     s.dir.set(0,0,-1).applyQuaternion(s.head.set(q.x,q.y,q.z,q.w)).setY(0);if(s.dir.lengthSq()<1e-7)s.dir.set(0,0,-1);
     // Read the tracked yaw in the navigation tangent frame, also when looking
     // into an opposing shell. Projecting the old horizon may collapse an axis.
     s.dir.normalize().applyQuaternion(s.basis);
-    const x=dragging?0:stickAxis(s.l.x),forward=dragging?0:-stickAxis(s.l.y),jump=!dragging&&s.r.primary&&!s.a;s.a=s.r.primary||!s.r.primaryKnown;
     s.travel.crossVectors(s.dir,s.up).multiplyScalar(x).addScaledVector(s.dir,forward).clampLength(0,1);
-    s.localEye.copy(p).sub(s.offset);
-    const align=!free&&s.grounded&&(!s.groundTilt.equals(noTilt)||s.seat.lengthSq()>1e-10)&&!dragging&&s.l.align&&!s.yDown&&!useBackpack.getState().draft;
-    s.yDown=s.l.align||!s.l.alignKnown;
-    if(!free&&(!s.moon||s.orbit)&&!s.ride)s.pad.update(scene);
-    if(align&&alignPlanetStance(s.moon??homeWorld,s,s.localEye,s.lastLift,s.pad.read)){diag.alignments++;s.eyeSetting=NaN;}
     s.localEye.add(s.seat);
     if(free)s.lastLift=0;
     else if(s.eyeSetting!==prefs.normalEyeOffset){
@@ -129,7 +133,15 @@ export default function PlanetMotor({originRef,dragging}:Props){
       let done=false;
       if(s.leap){done=stepTwinLeap(s.leap,dragging?0:dt,s.foot,s.radial);s.moon=s.leap.owner;s.velocity.copy(s.leap.velocity);
         if(done){s.leap=null;diag.twinLandings++;}}
-      else if(s.ride){done=rideStep(s.ride,dragging?0:dt,s.foot,s.radial);
+      else if(s.ride){const before=1-s.ride.time/s.ride.lane.duration;done=rideStep(s.ride,dragging?0:dt,s.foot,s.radial);
+        // The chosen wind route ends upright even when a prior unassisted
+        // landing kept a contact tilt/seat. Ease those out IN flight, leaving
+        // tracked gaze and any intervening snap turn independent of the ride.
+        if(done){s.groundTilt.identity();s.seat.set(0,0,0);}
+        else if(!s.groundTilt.equals(noTilt)||s.seat.lengthSq()>0){
+          const after=1-s.ride.time/s.ride.lane.duration,remaining=after*after*(3-2*after)/(before*before*(3-2*before));
+          s.groundTilt.slerp(noTilt,1-remaining);s.seat.multiplyScalar(remaining);
+        }
         if(done){s.moon=s.ride.returning?null:s.ride.lane.moon;s.ride=null;diag.windLandings++;}}
       carryFrame(s,s.radial);
       if(done){s.velocity.set(0,0,0);s.grounded=true;s.windSupportFrames=0;}

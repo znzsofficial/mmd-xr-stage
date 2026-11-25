@@ -5,12 +5,14 @@ import {Vector3} from 'three';
 // cannot supply a solid by itself. Never extrapolate a fitted capsule at the hip.
 const N=39, T=47, U=.51, TOP=-.23, END=1.05;
 const dx=2*U/(N-1),dy=(END-TOP)/(T-1);
-const makeView=()=>({lo:new Float32Array(N*T).fill(Infinity),hi:new Float32Array(N*T).fill(-Infinity)});
+const makeView=()=>({lo:new Float32Array(N*T).fill(Infinity),hi:new Float32Array(N*T).fill(-Infinity),valid:new Uint8Array(N*T)});
 type View=ReturnType<typeof makeView>;
 export class ThighShell {
   private views=[makeView(),makeView()];
+  private ready=false;
   private normal=new Vector3();
   add(a:Vector3,b:Vector3,c:Vector3){
+    this.ready=false;
     for(let v=0;v<2;++v){
       const au=v?a.x:a.z,bu=v?b.x:b.z,cu=v?c.x:c.z;
       const ad=v?a.z:a.x,bd=v?b.z:b.x,cd=v?c.z:c.x;
@@ -31,15 +33,18 @@ export class ThighShell {
   // near-tangent depth gradient across the silhouette).
   clearance(p:Vector3,out:Vector3){
     if(p.y<=TOP||p.y>=END||Math.abs(p.x)>=U||Math.abs(p.z)>=U)return -Infinity;
+    // The posed leg surface stays fixed until reseeding; thousands of cloth
+    // samples can land in the same cells. Classify both walls once per fit.
+    if(!this.ready){for(const {lo,hi,valid} of this.views){for(let j=0;j<T-1;j++)for(let i=0;i<N-1;i++){
+      const k=j*N+i;valid[k]=+(hi[k]-lo[k]>.024&&hi[k+1]-lo[k+1]>.024&&hi[k+N]-lo[k+N]>.024&&hi[k+N+1]-lo[k+N+1]>.024);
+    }}this.ready=true;}
     const y=(p.y-TOP)/dy,j=Math.floor(y),fy=y-j;let best=Infinity,found=false;
     for(let v=0;v<2;v++){
       const x=((v?p.x:p.z)+U)/dx,i=Math.floor(x),fx=x-i,d=v?p.z:p.x,k=j*N+i;
       const view:View=this.views[v];
+      if(!view.valid[k])continue;
       for(let sign=-1;sign<=1;sign+=2){
         const buf=sign>0?view.hi:view.lo;
-        // Ignore single-sided or sub-grid slivers rather than sealing the hip opening.
-        if(!(view.hi[k]-view.lo[k]>.024 && view.hi[k+1]-view.lo[k+1]>.024 &&
-          view.hi[k+N]-view.lo[k+N]>.024 && view.hi[k+N+1]-view.lo[k+N+1]>.024))continue;
         const a=buf[k],b=buf[k+1],c=buf[k+N],e=buf[k+N+1];
         const low=a+(b-a)*fx,high=c+(e-c)*fx,h=low+(high-low)*fy;
         const du=((b-a)*(1-fy)+(e-c)*fy)/dx,dt=(high-low)/dy;

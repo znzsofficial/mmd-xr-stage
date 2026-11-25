@@ -1,12 +1,13 @@
 import {Quaternion,Vector3} from 'three';
 import {stationBlocks} from '../scenery/planet/opalTerrain';
 import {moonObstructed} from '../scenery/planet/windAtlas';
-import {altitude,walkWorlds,type World} from './orbitalSurfaces';
+import {altitude,shellRadius,walkWorlds,type World} from './orbitalSurfaces';
 import {fixtureBlocks,fixtureBodyBlocked} from './planetFixtures';
 import {tideSolid} from '../scenery/planet/tideLayout';
 import {tideBodyBlocked} from './tideContact';
 import {eyeLift} from './eyeHeight';
 import type {ReadColumn} from './groundMotor';
+import {STEP} from './solidColumns';
 
 const head=.115,up=new Vector3(),eye=new Vector3(),point=new Vector3(),base=new Vector3();
 const col={floor:-Infinity,ceiling:Infinity,blocked:false};
@@ -26,8 +27,7 @@ function pointGap(p:Vector3,r:number,read:ReadColumn){
   return gap;
 }
 
-/** A Y press has one destination: the current tracked pose about the existing
- * motor sole, in its tangent basis. Test it before dropping any compensation. */
+/** Test the entire standing pose before dropping any contact compensation. */
 function canStand(w:World,foot:Vector3,basis:Quaternion,tracked:Vector3,lift:number,read:ReadColumn){
   up.set(0,1,0).applyQuaternion(basis);eye.copy(tracked);eye.y+=lift;
   const h=eye.y;eye.applyQuaternion(basis);
@@ -45,9 +45,42 @@ function canStand(w:World,foot:Vector3,basis:Quaternion,tracked:Vector3,lift:num
   return true;
 }
 
-type Stance={foot:Vector3;basis:Quaternion;seat:Vector3;groundTilt:Quaternion;display:Quaternion;viewUp:Vector3};
+type Stance={foot:Vector3;up:Vector3;basis:Quaternion;seat:Vector3;groundTilt:Quaternion;display:Quaternion;viewUp:Vector3};
+const standingFoot=new Vector3(),radial=new Vector3(),previous=new Vector3(),across=new Vector3(),centred=new Vector3();
+const standingBasis=new Quaternion(),swing=new Quaternion();
 export function alignPlanetStance(w:World,s:Stance,tracked:Vector3,lift:number,read:ReadColumn){
-  if(!canStand(w,s.foot,s.basis,tracked,lift,read))return false;
+  const distance=Math.hypot(tracked.x,tracked.z);
+  if(distance>1e-6){
+    // A real step/lean leaves the displayed sole on the OLD tangent plane.
+    // Testing that plane at the new XZ can bury an ankle in an open slope.
+    // Only on explicit Y: follow reachable support to the tracked footprint,
+    // rather than recentering the visitor sideways or ignoring a real wall.
+    // A tracking discontinuity wider than the whole supported world isn't
+    // a reachable footprint. Bound the explicit sweep, not room-scale steps.
+    if(distance>2*s.foot.distanceTo(w.centre))return false;
+    // A side step was made in the DISPLAYED frame. Reinterpreting its X/Z
+    // in the navigation basis can mirror it after an opposing-shell capture.
+    across.set(tracked.x,0,tracked.z).applyQuaternion(s.display);centred.set(0,tracked.y,0);
+    previous.copy(s.foot);const steps=Math.ceil(distance/.08);
+    for(let i=0;i<=steps;i++){
+      standingFoot.copy(s.foot).addScaledVector(across,i/steps);
+      radial.subVectors(standingFoot,w.centre).normalize();
+      if(i){
+        let floor=shellRadius(w,radial.x,radial.y,radial.z);
+        if(w.id==='home'&&radial.y>.8){
+          col.floor=w.centre.y+floor*radial.y;col.ceiling=Infinity;col.blocked=false;
+          read(standingFoot.x,standingFoot.z,previous.y,col);if(col.blocked)return false;
+          floor=Math.max(floor,(col.floor-w.centre.y)/radial.y);
+        }
+        if(Math.abs(floor-previous.distanceTo(w.centre))>STEP)return false;
+        standingFoot.copy(w.centre).addScaledVector(radial,floor);
+      }
+      standingBasis.copy(s.basis).premultiply(swing.setFromUnitVectors(s.up,radial));
+      if(!canStand(w,standingFoot,standingBasis,centred,lift,read))return false;
+      previous.copy(standingFoot);
+    }
+    s.foot.copy(standingFoot);s.up.copy(radial);s.basis.copy(standingBasis);
+  }else if(!canStand(w,s.foot,s.basis,tracked,lift,read))return false;
   s.seat.set(0,0,0);s.groundTilt.identity();s.display.copy(s.basis);s.viewUp.copy(up);return true;
 }
 

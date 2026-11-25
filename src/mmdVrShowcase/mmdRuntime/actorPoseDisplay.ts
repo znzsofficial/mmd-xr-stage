@@ -70,16 +70,19 @@ export function releaseRemovedPose(entry: ActorDisplayEntry) {
   // Wardrobe restoration belongs to model disposal, after the backend is released.
 }
 
-export function seedEditedSkirt(entry: ActorDisplayEntry) {
+export type RecordSkirtWork = (phase:'fit'|'display', ms:number)=>void;
+export function seedEditedSkirt(entry: ActorDisplayEntry, record?:RecordSkirtWork) {
+  const start=record?performance.now():0;
   entry.skirtRefitPending=false;
   if (entry.poseSkirt === undefined) entry.poseSkirt = fitPoseSkirt(entry.model.mesh);
   entry.poseSkirt?.seed();
   entry.poseSkirt?.present();
+  if(record)record('fit',performance.now()-start);
 }
 
 // Called only after a successful evaluation, with the visual model scale restored.
 export function presentEvaluatedPose(entry: ActorDisplayEntry, seconds: number, physicsDelta: number | undefined,
-  prevSeconds: number | undefined, physicsOn: boolean, resetPressure: boolean, dancePressure: boolean) {
+  prevSeconds: number | undefined, physicsOn: boolean, resetPressure: boolean, dancePressure: boolean, record?:RecordSkirtWork) {
   const { mask, colliders, radius } = entry.displayHands;
   const handMask = physicsOn ? mask : 0;
   applyMorphOverrides(entry);
@@ -113,6 +116,11 @@ export function presentEvaluatedPose(entry: ActorDisplayEntry, seconds: number, 
     // A completed foot/torso edit can invalidate the old field without any
     // discontinuity in Bullet. Fit the final displayed pose, once, after IK
     // and the body/wardrobe layers. Don't restart cloth simulation on release.
-    if(entry.skirtRefitPending)seedEditedSkirt(entry);else entry.poseSkirt?.present();
+    if(entry.skirtRefitPending)seedEditedSkirt(entry,record);
+    else if(entry.poseSkirt?.hasField){
+      const start=record?performance.now():0;
+      entry.poseSkirt.present();
+      if(record)record('display',performance.now()-start);
+    }
   }
 }

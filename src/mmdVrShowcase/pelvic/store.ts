@@ -75,19 +75,19 @@ export function setPelvicAdapter(assetId:string,runtimeId:string,on:boolean){
   const {byAsset,support}=state(),p=byAsset[assetId],s=support[assetId];
   if(!selected(assetId)||!p||useBackpack.getState().live[assetId]?.runtimeId!==runtimeId||
     (on&&(!s||s.runtimeId!==runtimeId||s.kind==='missing')))return false;
-  writeProfile(assetId,{...p,showAdapter:on,adapterSkinFit:on});return true;
+  writeProfile(assetId,{...p,showAdapter:on});return true;
 }
 export function patchPelvic(assetId:string,patch:PelvicPatch){
   const p=state().byAsset[assetId];if(!selected(assetId)||!p)return false;
   const clothed=patch.clothingClear||patch.calibration?false:patch.clothed??!!p.clothed;
-  const clothingClear=clothed?false:patch.clothingClear??(!patch.calibration&&p.clothingClear);
+  const clothingClear=patch.calibration||clothed?false:patch.clothingClear??p.clothingClear;
   const geometryChanged=!!patch.calibration||p.clothingClear!==clothingClear||!!p.clothed!==clothed;
   const active=state().active;
   if(geometryChanged&&active?.assetId===assetId)park(active);
   const targetChanged=!!patch.container&&patch.container!==p.container&&active?.assetId===assetId;
   if(targetChanged)doseCount=0;
   const next:PelvicProfile={...p,calibration:patch.calibration?calibrate(p.calibration,patch.calibration):p.calibration,
-    clothingClear,clothed,showAdapter:patch.showAdapter??p.showAdapter,adapterSkinFit:patch.calibration?false:p.adapterSkinFit,rimMode:patch.rimMode??p.rimMode,
+    clothingClear,clothed,rimMode:patch.rimMode??p.rimMode,
     container:patch.container==='vaginal'||patch.container==='fantasyUterine'?patch.container:p.container,
     speedHz:limited(patch.speedHz,p.speedHz,limits.speedHz),stroke:limited(patch.stroke,p.stroke,limits.stroke),
     replayRate:limited(patch.replayRate,p.replayRate??1,limits.replayRate),replayLoop:patch.replayLoop??p.replayLoop};

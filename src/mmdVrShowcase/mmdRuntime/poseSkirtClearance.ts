@@ -9,7 +9,8 @@ import {fitKneelContact} from './kneelContact';
 
 type Body=ReturnType<MmdModel['rigidBodies']>[number];
 type Patch={mesh:SkinnedMesh; material:Material; positions:BufferAttribute; vertices:Vertex[]; faces:Vertex[]; touched:Vertex[]; shown:boolean; base:number};
-type Vertex={index:number; rest:Vector3; shown:Vector3; posed:Vector3; direction:Vector3; extra:Vector3; localInverse:Matrix3; weld:number; transforms:Matrix4[]; weights:number[]; mask:number; gain:number;
+type InverseSkin={matrix:Matrix3;frame:number;usable:boolean;weldKey:string};
+type Vertex={index:number; rest:Vector3; shown:Vector3; posed:Vector3; direction:Vector3; extra:Vector3; inverseSkin:InverseSkin; weld:number; transforms:Matrix4[]; weights:number[]; mask:number; gain:number;
   side:number; depth:number; near:boolean; gap:number; move:number; limit:number};
 type Skin={mesh:SkinnedMesh; material:Material; faces:number[]; weighted:boolean[]; coverage:number};
 type Fit={hip:number;knee:number; weights:Set<number>; colliders:Body[]; bind:Vector3; length:number; skin?:Skin};
@@ -75,6 +76,7 @@ export function fitPoseSkirt(mesh:SkinnedMesh){
       const indices=new Set<number>();for(let k=group.start;k<group.start+group.count;k++)indices.add(ix.getX(k));
       const legWeights=[new Map<number,number>(),new Map<number,number>()],coverage=[new Uint8Array(24),new Uint8Array(24)];
       const patch:Patch={mesh:body,material,positions:position,vertices:[],faces:[],touched:[],shown:false,base:1};
+      const inverses=new Map<string,InverseSkin>();
       for(const i of indices){
         bindP.fromBufferAttribute(position,i);const h=(middle.y-bindP.y)/length;
         if(h<-.4||h>1.38||Math.hypot(bindP.x-middle.x,bindP.z-middle.z)>1.35*length)continue;
@@ -91,7 +93,12 @@ export function fitPoseSkirt(mesh:SkinnedMesh){
         }
         const mask=(left>=.46?1:0)|(right>=.46?2:0);if(!mask||legL+legR>.001||claimed.has(i))continue;
         if(++cloth>MAX_CLOTH)return null;
-        const v:Vertex={index:i,rest:bindP.clone(),shown:V(),posed:V(),direction:V(),extra:V(),localInverse:new Matrix3(),weld:-1,transforms:[],weights:[],mask,gain:Math.min(1,Math.max(left,right)/.8),
+        // Preserve summation order when sharing an inverse. Use the unordered
+        // binding only to identify matching seams. Morph bases are per patch.
+        const binding:string[]=[];for(let j=0;j<4;j++)if(sw.getComponent(i,j))binding.push(`${si.getComponent(i,j)}:${sw.getComponent(i,j)}`);
+        const key=binding.join('/');let inverseSkin=inverses.get(key);
+        if(!inverseSkin){inverseSkin={matrix:new Matrix3(),frame:-1,usable:false,weldKey:binding.sort().join('/')};inverses.set(key,inverseSkin);}
+        const v:Vertex={index:i,rest:bindP.clone(),shown:V(),posed:V(),direction:V(),extra:V(),inverseSkin,weld:-1,transforms:[],weights:[],mask,gain:Math.min(1,Math.max(left,right)/.8),
           side:0,depth:-Infinity,near:false,gap:.012,move:0,limit:1};
         for(let j=0;j<4;j++){const w=sw.getComponent(i,j);if(w<=0)continue;const bone=si.getComponent(i,j);if(!bones[bone])return null;
           let m=palette.get(bone);if(!m){m=new Matrix4();palette.set(bone,m);}v.transforms.push(m);v.weights.push(w);}
@@ -137,10 +144,8 @@ function poseLayer(mesh:SkinnedMesh,legs:Fit[],pelvis:number,patches:Patch[],pal
   const nodes:(ClothPoint&{mesh:SkinnedMesh;index:number;count:number;blocked:boolean})[]=[],welds=new Map<string,number>();
   const byMesh=new Map<SkinnedMesh,Map<number,Vertex>>();
   for(const patch of patches){let map=byMesh.get(patch.mesh);if(!map)byMesh.set(patch.mesh,map=new Map());
-    const {skinIndex,skinWeight}=patch.mesh.geometry.attributes;
-    for(const v of patch.vertices){map.set(v.index,v);const binding:string[]=[];
-      for(let j=0;j<4;j++)if(skinWeight.getComponent(v.index,j))binding.push(`${skinIndex.getComponent(v.index,j)}:${skinWeight.getComponent(v.index,j)}`);
-      const k=`${v.rest.x}/${v.rest.y}/${v.rest.z}/${binding.sort().join('/')}`;
+    for(const v of patch.vertices){map.set(v.index,v);
+      const k=`${v.rest.x}/${v.rest.y}/${v.rest.z}/${v.inverseSkin.weldKey}`;
       let id=welds.get(k);if(id===undefined){id=nodes.length;welds.set(k,id);nodes.push({p:V(),d:V(),movable:true,mesh:patch.mesh,index:v.index,count:0,blocked:false});}
       v.weld=id;nodes[id].count++;
     }
@@ -157,11 +162,14 @@ function poseLayer(mesh:SkinnedMesh,legs:Fit[],pelvis:number,patches:Patch[],pal
   for(const n of nodes)if(!n.movable)addPoints(n.mesh,[n.index]);
   const morph=clothMorphGuard(mesh,relevant,new Set(byMesh.keys()));
   const roll=fitRaisedSkirt(mesh,pelvis,legs.map(l=>l.hip),legs.map(l=>l.knee),skirts);
-  function bindDisplacement(v:Vertex,base:number,d:Vector3){const e=skinMat.elements;e.fill(0);
-    for(let j=0;j<v.weights.length;j++){const m=v.transforms[j].elements,w=v.weights[j];for(let k=0;k<12;k++)e[k]+=w*m[k];}
-    inverse.setFromMatrix4(skinMat);if(Math.abs(inverse.determinant())<.08){d.set(0,0,0);return;}
-    v.localInverse.copy(inverse).invert();if(base!==1)v.localInverse.multiplyScalar(1/base);
-    if(!(delta.copy(d).applyMatrix3(v.localInverse).lengthSq()<(legs[0].length*.24)**2))d.set(0,0,0);
+  let paletteFrame=0;
+  function bindDisplacement(v:Vertex,base:number,d:Vector3){const state=v.inverseSkin;
+    if(state.frame!==paletteFrame){const e=skinMat.elements;e.fill(0);
+      for(let j=0;j<v.weights.length;j++){const m=v.transforms[j].elements,w=v.weights[j];for(let k=0;k<12;k++)e[k]+=w*m[k];}
+      inverse.setFromMatrix4(skinMat);state.usable=Math.abs(inverse.determinant())>=.08;state.frame=paletteFrame;
+      if(state.usable){state.matrix.copy(inverse).invert();if(base!==1)state.matrix.multiplyScalar(1/base);}
+    }
+    if(!state.usable||!(delta.copy(d).applyMatrix3(state.matrix).lengthSq()<(legs[0].length*.24)**2))d.set(0,0,0);
   }
   const kneel=fitKneelContact<Vertex>(mesh,pelvis,legs,skirts,patches,nodes,edges,(v,i,d)=>bindDisplacement(v,patches[i].base,d));
   // Bind-frame positions are authoritative. The same attribute is shared by
@@ -217,7 +225,7 @@ function poseLayer(mesh:SkinnedMesh,legs:Fit[],pelvis:number,patches:Patch[],pal
     for(const patch of patches){const visible=patch.material.visible&&patch.material.opacity>=.04,b=morph.base(patch.mesh);if(patch.shown!==visible||patch.base!==b)unchanged=false;patch.shown=visible;patch.base=b;}
     if(unchanged){if(suspended)for(const patch of patches)for(const {index,shown} of patch.touched)patch.positions.setXYZ(index,shown.x,shown.y,shown.z);
       suspended=false;roll?.finish(true);return;}
-    restorePositions();measured=true;
+    restorePositions();measured=true;paletteFrame++;
     for(let i=0;i<movableCount;i++){nodes[i].d.set(0,0,0);nodes[i].blocked=false;}
     let moved=false;
     for(const patch of patches){
@@ -321,11 +329,11 @@ function poseLayer(mesh:SkinnedMesh,legs:Fit[],pelvis:number,patches:Patch[],pal
     }else if(contact&&kneel?.present())moved=true;
     if(moved){
       for(const patch of patches){for(const v of patch.vertices){const d=nodes[v.weld].d;if(!d.lengthSq())continue;
-          v.shown.copy(d).applyMatrix3(v.localInverse).add(v.rest);patch.positions.setXYZ(v.index,v.shown.x,v.shown.y,v.shown.z);patch.touched.push(v);}
+           v.shown.copy(d).applyMatrix3(v.inverseSkin.matrix).add(v.rest);patch.positions.setXYZ(v.index,v.shown.x,v.shown.y,v.shown.z);patch.touched.push(v);}
         uploadTouched(patch);
       }
     }
     suspended=false;roll?.finish();
   }
-  return {seed,present,restore,clear};
+  return {seed,present,restore,clear,get hasField(){return shell.length>0;}};
 }

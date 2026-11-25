@@ -16,10 +16,9 @@ export type PelvicProfile = {
   /** A clothed session never confirms a visibly exposed opening. Both choices
    * belong to this fit and are cleared when its calibration changes. */
   calibration:PelvicCalibration; clothingClear:boolean; clothed?:boolean; container:PelvicContainer;
-  apertureMorph?:string|null; showAdapter:boolean;
-  /** The player fitted the optional mesh to underlying skin. This is not
-   * evidence that the rod's exterior outlet is exposed. */
-  adapterSkinFit?:boolean;
+  apertureMorph?:string|null;
+  /** Actor-local mount choice, independent of calibration and outlet exposure. */
+  showAdapter:boolean;
   /** A chosen game event, local to this backpack actor. No medical meaning. */
   rimMode?:RimMode; rimMemory?:'left'|'right'|'center';
   /** Auto from the mounted face by default; null turns actor response off. */
@@ -28,7 +27,7 @@ export type PelvicProfile = {
   overflow:number; drained:number; speedHz:number; stroke:number;
   technique?:RailTechnique; replayRate?:number; replayLoop?:boolean;
 };
-export type PelvicPatch = Partial<Pick<PelvicProfile,'clothingClear'|'clothed'|'container'|'speedHz'|'stroke'|'showAdapter'|'replayRate'|'replayLoop'|'rimMode'>> & {
+export type PelvicPatch = Partial<Pick<PelvicProfile,'clothingClear'|'clothed'|'container'|'speedHz'|'stroke'|'replayRate'|'replayLoop'|'rimMode'>> & {
   calibration?:Partial<PelvicCalibration>;
 };
 export type PelvicActive = {
@@ -52,8 +51,7 @@ export type PelvicSupport = {
   responseMorphs?:readonly string[];
 };
 
-export const canDrawAdapter=(p:PelvicProfile,s:PelvicSupport)=>p.showAdapter&&
-  !!(p.clothingClear||p.adapterSkinFit)&&s.kind!=='missing'&&s.obstruction!=='unverified';
+export const canDrawAdapter=(p:PelvicProfile,s:PelvicSupport)=>p.showAdapter&&s.kind!=='missing'&&s.obstruction!=='unverified';
 
 export function canStartAtOpening(p:PelvicProfile,s:PelvicSupport|undefined){
   return !!s&&s.kind!=='missing'&&(!!p.clothed||p.clothingClear&&!s.obstruction);

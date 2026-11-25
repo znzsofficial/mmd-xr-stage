@@ -11,6 +11,7 @@ import { siliconeMount, siliconeOutlet, siliconeTilt, centerZ, tipHeight } from 
 import type { GripFrame } from '../play/propView';
 import { mountPelvicRig } from './rig';
 import { queuePelvicGrip } from './input';
+import {fitRows,type Fit} from './fitRows';
 import {setAtlasView} from './atlas/view';
 import { pelvicRailMatrix, registerPelvicSocket, samplePelvicFrame } from './geometry';
 import { assignPelvic, clearRailTechnique, enablePelvic, nudgePelvic, patchPelvic, requestPelvicDose, requestStrokeDose, saveRailTechnique,
@@ -34,7 +35,7 @@ function fixture(source:'screen'|'xr',face?:ReturnType<typeof faceFixture>){
   const viewer={tracked:true};const driver=mountPelvicRig({scene,host,getRoot:()=>root,getSurface:()=>face??null,standPiece:()=>piece,standSpray:()=>emit,tracked:()=>viewer.tracked});cleanup.push(driver.dispose);
   const tick=()=>driver.advance(1/90,source==='xr'?{session} as XRFrame:undefined);
   enablePelvic('a',true);tick();expect(st().support.a.kind).toBe('missing');expect(st().support.a.manualSeed!.unitsPerMeter).toBeCloseTo(1);
-  patchPelvic('a',{calibration:{manual:{origin:[0,0,0],unitsPerMeter:1},pitchDeg:0},clothingClear:true});
+  patchPelvic('a',{calibration:{manual:{origin:[0,0,0],unitsPerMeter:1},pitchDeg:0}});patchPelvic('a',{clothingClear:true});
   return {scene,root,piece,session,viewer,driver,emissions,emit,tick};
 }
 
@@ -51,7 +52,7 @@ it('moves the real stand nozzle along the calibrated curve on a frozen VMD, mete
   expect(driver.getAperture()!.amount).toBeGreaterThan(.4);expect(scene.getObjectByName('pelvic:seal')!.visible).toBe(false);
   const e=emissions.filter(x=>x.action==='start').length;requestPelvicDose('a','vaginal');tick();expect(st().byAsset.a.fluid.vaginal).toBe(1);
   expect(emissions.filter(x=>x.action==='start')).toHaveLength(e);expect(emissions.at(-1)?.usable).toBe(false);
-  patchPelvic('a',{showAdapter:true});tick();const shell=scene.getObjectByName('pelvic:seal') as Mesh;
+  setPelvicAdapter('a','m',true);tick();const shell=scene.getObjectByName('pelvic:seal') as Mesh;
   expect(shell.visible).toBe(true);shell.geometry.computeBoundingBox();expect(shell.geometry.boundingBox!.max.z-shell.geometry.boundingBox!.min.z).toBeGreaterThan(.007);
   function throughLip(x:number){shell.updateWorldMatrix(true,false);return new Raycaster(shell.localToWorld(new Vector3(x,0,.07)),
     new Vector3(0,0,-1).transformDirection(shell.matrixWorld)).intersectObject(shell,false).length;}
@@ -209,10 +210,10 @@ it('checks live skinned clothing, suppressing surface effects without cancelling
   bone.position.y-=.27;root.updateMatrixWorld(true);driver.advance(.28);
   expect(st().sample).toMatchObject({exteriorCovered:true,outletVisible:false});expect(requestPelvicDose('a','external')).toBe(false);
   expect(st().active?.running).toBe(true);bone.position.y+=.27;root.updateMatrixWorld(true);tick();
-  patchPelvic('a',{showAdapter:true});nudgePelvic('a',.65);for(let i=0;i<60;i++)tick();
+  setPelvicAdapter('a','m',true);nudgePelvic('a',.65);for(let i=0;i<60;i++)tick();
   expect(driver.getStandBinding()).toBeTruthy();expect(driver.getAperture()).toBeTruthy();bone.position.y-=.27;root.updateMatrixWorld(true);tick();
   expect(st().support.a.obstruction).toBe('garment');expect(st().active?.running).toBe(true);expect(st().sample?.outletInside).toBe(true);expect(driver.getAperture()).toBeNull();
-  m.visible=false;tick();expect(st().support.a.obstruction).toBeUndefined();expect(driver.getAperture()).toBeTruthy();stopPelvic('a');patchPelvic('a',{showAdapter:false});
+  m.visible=false;tick();expect(st().support.a.obstruction).toBeUndefined();expect(driver.getAperture()).toBeTruthy();stopPelvic('a');setPelvicAdapter('a','m',false);
   useStagePlay.getState().stow();useBackpack.getState().select(null);m.visible=true;tick();expect(st().support.a.obstruction).toBeUndefined();
   useBackpack.getState().select('a');tick();expect(st().support.a.obstruction).toBe('garment');g.dispose();m.dispose();
 });
@@ -229,9 +230,31 @@ it('keeps a fitted shell armed through covering, uncovering and re-covering with
   expect(st().active).toBeNull();expect(useStagePlay.getState().stand).toBeNull();
 });
 
+it.each(['screen','xr'] as const)('moves and resets the mounted shell with the %s fit controls while retiring the old contact and exposure',source=>{
+  const {scene,tick,driver,emissions}=fixture(source);tick();
+  const rows=(fit:Fit)=>fitRows({assetId:'a',runtimeId:'m',source,fit,profile:st().byAsset.a,support:st().support.a,l:(_,en)=>en,
+    setFit(){},morph:null,names:[],page:0,setPage(){},clothes(){},clear(){}});
+  const press=(label:string)=>{const k=rows('model').flatMap(r=>r.kind==='buttons'?r.keys:[]).find(k=>k.label===label)!;expect(k.disabled).not.toBe(true);k.press();};
+  press('Fit vulva attachment to skin');tick();const shell=scene.getObjectByName('pelvic:seal')!,at=()=>shell.getWorldPosition(new Vector3());
+  const shown=()=>shell.visible&&shell.parent!.visible,origin=at();expect(shown()).toBe(true);
+  assignPelvic('a','standManual',source);startPelvic('a');nudgePelvic('a',.65);for(let i=0;i<60;i++)tick();
+  expect(requestPelvicDose('a','vaginal')).toBe(true);emissions.length=0;
+  const left=rows('position').find(r=>r.kind==='field'&&r.label==='Left / right');if(left?.kind!=='field')throw Error('missing lateral offset');left.change(.5);
+  tick();expect(shown()).toBe(true);expect(at().distanceTo(origin)).toBeCloseTo(.005*1.1,7);expect(startPelvic('a')).toBe(false);
+  expect(st().parkedSample).toMatchObject({depth:0,railHome:true,outletInside:false});expect(driver.getActorContact()).toBeNull();
+  patchPelvic('a',{clothed:true});startPelvic('a');tick();expect(st().sample).toMatchObject({outletInside:false,exteriorCovered:true});
+  expect(requestPelvicDose('a','external')).toBe(false);nudgePelvic('a',.65);for(let i=0;i<60;i++)tick();
+  expect(st().sample?.outletInside).toBe(true);expect(st().byAsset.a.fluid.vaginal).toBe(0);expect(emissions.some(f=>f.usable)).toBe(false);
+  press('Reset opening fit');tick();expect(at().distanceTo(origin)).toBeLessThan(1e-7);expect(shown()).toBe(true);
+  expect(st().byAsset.a).toMatchObject({showAdapter:true,clothingClear:false,clothed:false});expect(st().active?.running).toBe(false);
+  press('Use bone position');tick();expect(st().support.a.kind).toBe('missing');expect(shown()).toBe(false);
+  press('Set origin manually');tick();expect(shown()).toBe(true);
+  press('Turn off vulva attachment');press('Reset opening fit');tick();expect(shown()).toBe(false);
+});
+
 it.each(['Pleated Skirt','Body with painted outfit'])('supports an explicit clothed crossing with %s without opening the surface or spraying under it',name=>{
   const {root,scene,tick,driver,viewer,emissions}=fixture('xr');const g=new BoxGeometry(.14,.14,.004),m=new MeshBasicMaterial({name});
-  root.add(new Mesh(g,m));cleanup.push(()=>{g.dispose();m.dispose();});patchPelvic('a',{clothingClear:false,showAdapter:true});tick();
+  root.add(new Mesh(g,m));cleanup.push(()=>{g.dispose();m.dispose();});patchPelvic('a',{clothingClear:false});tick();
   expect(st().support.a.obstruction).toBe(name==='Pleated Skirt'?'garment':undefined);
   assignPelvic('a','standManual','xr');tick();expect(startPelvic('a')).toBe(false);
   patchPelvic('a',{clothed:true,container:'fantasyUterine'});expect(startPelvic('a')).toBe(true);
