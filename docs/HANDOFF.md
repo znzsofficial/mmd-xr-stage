@@ -1,6 +1,6 @@
 # 会话交接｜2026-11-25
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `dbd2e96`](https://142e6fdc.mmd-xr-stage.pages.dev) · [WebGPU 裙摆实验](https://mmd-xr-stage.pages.dev/labs/cloth/) · [发布记录](./release-history.md) · [文档索引](./README.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `d65e37c`](https://ccc0f8cf.mmd-xr-stage.pages.dev) · [WebGPU 裙摆实验](https://mmd-xr-stage.pages.dev/labs/cloth/) · [发布记录](./release-history.md) · [文档索引](./README.md)
 
 **恢复停点：同一演员的形态纹理已去重，glTF 物件收回时的资源遗漏已修。** [新旧内存与画面对照](./performance/model-memory.md)：原衣 A 单人形态分配 910→26 MiB，教室与空泳池回访两轮无累增。下一次实戴分别看首次放置峰值、站稳后和收回后的内存；这些桌面分配量不是 Quest FPS。独立[原衣裙摆实验](./performance/gpu-cloth-lab.md)及校园同机位帧率另测。
 

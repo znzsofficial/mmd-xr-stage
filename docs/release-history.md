@@ -12,6 +12,7 @@
 
 | 功能提交 | 已发布内容与验证范围 |
 |---|---|
+| `d65e37c` | [形态纹理去重与 glTF 回收](./performance/model-memory.md)。参考 A 单人 910→26 MiB、双人 1,820→52 MiB；独立拆分角色 25.06→12.72 MiB。24 对新旧画面逐像素相同，衣柜、射线、地面投影与双人独立移除均已核对。1033 项测试通过，主域 HTML 和 20 份资源与验收制品一致。[固定版](https://ccc0f8cf.mmd-xr-stage.pages.dev) |
 | `dbd2e96` | [跨模型验证](./performance/model-feature-coverage.md)：修复特殊蒙皮的摆位缩放、增强图的 UV 与颜色空间、VMD 属性和自阴影末键。四件真实 SDEF、生成 QDEF、实际无底图材质、真实晚键及模拟双眼续场均已验；1024 项测试通过，主域 HTML 与 23 份资源匹配。[固定版](https://142e6fdc.mmd-xr-stage.pages.dev) |
 | `cbbcc28` | [裙骨近处碰撞与抬腿裙面接触](./performance/gpu-cloth-lab.md#按位置跳过精查与抬腿裙面补点)。裁剪对照的 142 个采样姿态完全一致；加开贴合后原衣里衬最深穿入 14.0→9.9 mm，外裙最深仍为 26.9 mm。实模、样裙、模拟双眼手柄切换与回访、1019 项测试通过；主域入口及 18 份资源核对一致。尚无新 Quest 硬件记录。[固定实验页](https://aeb147fd.mmd-xr-stage.pages.dev/labs/cloth/) |
 | `4f4052c` | [独立 WebGPU 原衣裙摆实验](./performance/gpu-cloth-lab.md)；正式舞台入口与 `b91325b` 相同。原衣三档、双层 GPU 纹理、模拟按键及二次进入、JSON 导出已验，1019 项测试通过，主域入口和 18 份资源与本机构建一致。真机 72 Hz 待测。[固定实验页](https://3caf31ba.mmd-xr-stage.pages.dev/labs/cloth/)；同轮 `90f8f5f` 的[约束行计时](./performance/bullet-step-profile.md#主迭代行循环)只在离线实验中运行。 |
