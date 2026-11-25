@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PMX 同姿画面对照 · 本地开发</title>
+<link rel="icon" href="data:,">
+<style>
+  body{font:1rem system-ui;margin:1rem auto;padding:0 1rem;max-width:80rem} label,button{display:inline-block;margin:.3rem} select{max-width:20rem}
+  section{display:flex;flex-wrap:wrap;gap:1rem} figure{margin:0;flex:1 1 18rem;min-width:0} img[src]{display:block;width:100%;background:#646870} pre{white-space:pre-wrap}
+</style>
+<h1>PMX 同姿画面对照</h1>
+<p>WebGL 使用舞台的默认平衡色材质增强与 rig 空间蒙皮；WebGPU 使用 loader 的 TSL 材质。固定机位，无物理、环境贴图、阴影或后期。透明 PNG 下的灰底仅供查看。</p>
+<label>模型及贴图目录 <input id="folder" type="file" webkitdirectory multiple></label>
+<label>另选动作或姿势 <input id="motion" type="file" accept=".vmd,.vpd"></label><br>
+<label>演员 <select id="pmx"></select></label> <label>姿势 <select id="clip"><option value="">原始站姿</option></select></label>
+<label>时间（秒） <input id="time" type="number" min="0" step="any" value="0"></label>
+<label>主光 <select id="light"><option value="">基准</option><option value="-60">左前 60°</option><option value="0">正前</option><option value="60">右前 60°</option></select></label>
+<button id="run">渲染对照</button>
+<p id="status" role="status"></p>
+<section><figure><figcaption>WebGL</figcaption><img id="webgl" alt="WebGL 演员画面"></figure>
+<figure><figcaption>WebGPU</figcaption><img id="webgpu" alt="WebGPU 演员画面"></figure></section>
+<pre id="summary"></pre><script type="module" src="./probe.js"></script></html>
