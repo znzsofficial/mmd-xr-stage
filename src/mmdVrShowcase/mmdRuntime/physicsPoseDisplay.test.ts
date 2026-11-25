@@ -43,3 +43,22 @@ it("preserves coherent targets across a non-physics ancestor, and never translat
   display.restore(); root.updateMatrixWorld(true); display.record([],0,bodies); display.present(bones,1/72);
   display.restore(); frame(); expect(tip.getWorldPosition(new Vector3()).distanceTo(original)).toBeLessThan(1e-8);
 });
+
+it('lets the standing skirt settle, follows a gradual pull, and retires its held position on a seek or pose edit',()=>{
+  const root=new Group(),skirt=new Bone(),ribbon=new Bone();skirt.name='スカート';root.add(skirt,ribbon);
+  const bones=[skirt,ribbon],bodies=[body(0),body(1)],display=new PhysicsPoseDisplay();
+  const step=(x:number,standing=true,seek=false)=>{
+    display.restore(seek);for(const b of bones){b.position.set(x,1,0);b.rotation.z=x;}
+    root.updateMatrixWorld(true);display.record([0,1],2,bodies);display.present(bones,1/72,standing);
+    return bones.map(b=>b.position.x);
+  };
+  step(0);for(let i=0;i<100;i++){
+    const [hem,other]=step(i%2?.012:-.012);expect(hem).toBe(0);expect(Math.abs(other)).toBeGreaterThan(0);
+  }
+  for(let i=1;i<=60;i++)step(i*.003);
+  expect(skirt.position.x).toBeGreaterThan(.11); // slow cumulative movement must also wake it
+  step(.5);expect(Math.abs(skirt.position.x-ribbon.position.x)).toBeLessThan(.051);
+  step(.006,true,true);expect(skirt.position.x).toBeCloseTo(.006,10);
+  const [hem,reference]=step(.01,false);expect(hem).toBeCloseTo(reference,10);
+  display.restore();expect(skirt.position.x).toBe(.01);expect(skirt.rotation.z).toBeCloseTo(.01,10);
+});

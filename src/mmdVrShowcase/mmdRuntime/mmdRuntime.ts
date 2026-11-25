@@ -921,6 +921,9 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
     setModelTransform(id, patch) {
       const entry = entries.get(id);
       if (!entry) return;
+      if ((Object.keys(patch) as (keyof MmdModelTransform)[]).some(k => patch[k] !== entry.transform[k])) {
+        entry.physicsDisplay?.invalidate();
+      }
       entry.transform = {
         ...entry.transform,
         ...patch,
@@ -1152,7 +1155,8 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
         restoreDraws(entry.model.mesh);
         try {
           entry.model.update(seconds, { physics: physicsOn, ik: !entry.editor&&hasBodyMotion });
-          if (physicsOn && physicsDelta != null) entry.physicsDisplay?.present(entry.model.mesh.skeleton.bones, physicsDelta);
+          if (physicsOn && physicsDelta != null) entry.physicsDisplay?.present(entry.model.mesh.skeleton.bones, physicsDelta,
+            !hasBodyMotion && !entry.editor && !entry.gizmoLock);
         } finally {
           stepDelta = undefined;
           presentDraws(entry.model.mesh);

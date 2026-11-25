@@ -11,7 +11,38 @@ type Sample = {
   frame: number;
   appliedFrame: number;
   translate: boolean;
+  skirt: boolean;
+  rest?: { p: Vector3; q: Quaternion; length: number; frame: number };
 };
+
+// Distance is expressed in link lengths, rotation in radians. The inner
+// tolerance suppresses repeated reversals. Outside it, return smoothly to
+// the authored drape, with a hard bound on display lag for real strokes.
+const restShift = .008, maxShift = .05, restTurn = .012, maxTurn = .065;
+const restTurnDot = Math.cos(restTurn * .5);
+function followExcess(distance: number, inner: number, outer: number, settle: number) {
+  return Math.max(settle * (1 - inner / distance), 1 - outer / distance);
+}
+
+function standingTarget(s: Sample, frame: number, settle: number, scale: Vector3) {
+  const rest = s.rest ??= { p: new Vector3(), q: new Quaternion(), length: 0, frame: -1 };
+  if (rest.frame !== frame - 1) {
+    rest.p.copy(s.shownP); rest.q.copy(s.shownQ);
+    rest.length = Math.max(.001, s.rawP.length());
+  } else {
+    // Move by the excess only. Releasing accumulated error all at once would
+    // turn several barely visible reversals into one conspicuous skipped pose.
+    const travel = rest.p.distanceTo(s.shownP) / rest.length;
+    if (travel > restShift) rest.p.lerp(s.shownP, followExcess(travel, restShift, maxShift, settle));
+    const dot = Math.min(1, Math.abs(rest.q.dot(s.shownQ)));
+    if (dot < restTurnDot) {
+      const angle = 2 * Math.acos(dot);
+      rest.q.slerp(s.shownQ, followExcess(angle, restTurn, maxTurn, settle));
+    }
+  }
+  rest.frame = frame;
+  s.target.compose(rest.p, rest.q, scale);
+}
 
 // Filter in a common space: averaging local rotations along a long chain
 // accumulates errors even when the actual hem has barely moved. Restore raw
@@ -50,12 +81,17 @@ export class PhysicsPoseDisplay {
   restore(reset = false) {
     for (const s of this.active) { s.bone.position.copy(s.rawP); s.bone.quaternion.copy(s.rawQ); }
     this.active.length = 0; this.count = 0;
-    if (reset) ++this.frame;
+    if (reset) this.invalidate();
   }
 
-  present(bones: Bone[], dt: number) {
+  // The next evaluation must still restore the current raw local transforms.
+  // Invalidate only the history when the stage moves or rescales this actor.
+  invalidate() { ++this.frame; }
+
+  present(bones: Bone[], dt: number, standing = false) {
     ++this.frame;
     const alpha = -Math.expm1(-Math.max(0, dt) / 0.065);
+    const settle = standing ? -Math.expm1(-Math.max(0, dt) / .32) : 0;
     for (let i = 0; this.indices && i < this.count; ++i) {
       const index = this.indices[i];
       const bone = bones[index];
@@ -63,7 +99,9 @@ export class PhysicsPoseDisplay {
       bone.matrixWorld.decompose(this.p, this.q, this.scale);
       let s = this.samples.get(bone);
       if (!s) {
-        s = { bone, rawP: new Vector3(), rawQ: new Quaternion(), shownP: new Vector3(), shownQ: new Quaternion(), target: new Matrix4(), frame: -1, appliedFrame: -1, translate: false };
+        const skirt = [bone.name, bone.userData.mmdBoneName, bone.userData.mmdEnglishBoneName]
+          .some(n => typeof n === 'string' && /skirt|スカート|裙/i.test(n));
+        s = { bone, rawP: new Vector3(), rawQ: new Quaternion(), shownP: new Vector3(), shownQ: new Quaternion(), target: new Matrix4(), frame: -1, appliedFrame: -1, translate: false, skirt };
         this.samples.set(bone, s);
       }
       s.rawP.copy(bone.position); s.rawQ.copy(bone.quaternion);
@@ -78,7 +116,9 @@ export class PhysicsPoseDisplay {
         s.shownP.lerp(this.p, alpha + (1 - alpha) * follow);
         s.shownQ.slerp(this.q, alpha + (1 - alpha) * ang);
       }
-      s.target.compose(s.shownP, s.shownQ, this.scale); s.frame = this.frame; this.active.push(s);
+      if (standing && s.skirt) standingTarget(s, this.frame, settle, this.scale);
+      else s.target.compose(s.shownP, s.shownQ, this.scale);
+      s.frame = this.frame; this.active.push(s);
     }
     for (const s of this.active) this.apply(s);
   }
