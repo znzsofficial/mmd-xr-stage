@@ -1,6 +1,7 @@
 // Exclusive detail of the already measured solveConstraints bin. Turndown to
 // the coarse probe is by omitting --solver, not by changing the simulated world.
 import assert from 'node:assert/strict';
+import {createRowLedger} from './row-loops.mjs';
 
 const SOLVE = 5, SETUP = 8, BODIES = 9, JOINTS = 10, CONTACTS = 11, ITER = 12, SPLIT = 13, FINISH = 14;
 export const solverBins = ['dispatchAndGroup', 'setupOther', 'convertBodies', 'convertJoints', 'convertContacts',
@@ -32,13 +33,22 @@ export function instrumentSolver({editFunction, entry, leave, once, mark}) {
 
 // solveConstraints may dispatch multiple batches, including empty ones. Don't
 // interpret a completed setup→iterate→finish triplet as an active island count.
-export function createSolverLedger() {
+export function createSolverLedger(rowLoops=false) {
   const bins = solverBins.map(()=>0), counts = solverBins.map(()=>0);
+  const rows = rowLoops ? createRowLedger() : undefined;
   let state = 0, expected, previous, started;
   const current = solverBins.map(()=>0);
   const bin = id => id === SOLVE ? 0 : id - SETUP + 1;
-  const ledger = {bins, counts, totalNs:0, mark};
+  const ledger = {bins, counts, rows, totalNs:0, mark};
   function mark(event, now) {
+    if (Math.abs(event)>FINISH) {
+      assert.equal(state,ITER); assert.equal(expected,-ITER,'Row loop before split impulse scope');
+      rows.mark(event,now); return;
+    }
+    if (rows) {
+      if (event===ITER || event===-SPLIT) rows.begin(now);
+      if (event===-ITER || event===SPLIT) rows.end(now);
+    }
     if (event === SOLVE) {
       assert.equal(state, 0); state=SOLVE; expected=SETUP; previous=started=now; current.fill(0); return;
     }
@@ -63,6 +73,7 @@ export function createSolverLedger() {
         const ns=now-started;
         assert.equal(current.reduce((a,b)=>a+b),ns,'Solver sub-bins do not partition solveConstraints');
         for (let i=0; i<bins.length; i++) bins[i]+=current[i];
+        if (rows) assert.equal(rows.bins.reduce((a,b)=>a+b),bins[5],'Row scopes do not partition iterationsExceptSplit');
         counts[0]++; ledger.totalNs+=ns; state=0; break;
       }
     }

@@ -2,6 +2,8 @@
 
 **这套实模播放中，约束阶段最大：两轮各 24 个窗口，48/48 个窗口都是第一。** 它约占原生步进的 49%，窄相派发约 28%；整个世界的 AABB 更新加宽相配对占 16%，其中只有一部分可能来自停放的辅助体。没有依据优先改 22 个辅助体的宽相刷新，也不能通过删关节、关接触来换时间。
 
+**11 月 25 日续测：[主迭代行循环](#主迭代行循环)的 48/48 个新窗口中，关节行均比接触与摩擦行合计更耗时。** 两种建模顺序下，关节行约占非 split 迭代的 70%／71%。这里只定位下一处要查的代码，不是墙钟提速或头显收益。
+
 | 每次 `stepSimulation` 的均值，ms（含零子步调用） | 原版先建 | 诊断版先建 |
 |---|---:|---:|
 | AABB 更新 `updateAabbs` | 0.2350 | 0.2287 |
@@ -47,13 +49,11 @@ node experiments/bullet-step-profile/playback.mjs "<actor.pmx>" "<body.vmd>" --r
 
 **边界如何认定。** [固定版本的 Bullet 源码：三段调用顺序](https://github.com/yohawing/mmd-anim/blob/f4f68d7519d7c15f2bfc77f094410e57e94ea7aa/crates/mmd-anim-physics-bullet/vendor/bullet3/src/BulletDynamics/ConstraintSolver/btSequentialImpulseConstraintSolver.cpp#L1836-L1869)。`--solver` 在上述固定摘要的 WASM 中匹配 `solveGroupCacheFriendly{Setup,Iterations,Finish}` 的 `BT_PROFILE` 入口和各自唯一的退出；准备中另标 `convertBodies`、`convertJoints`，迭代中另标 `solveGroupCacheFriendlySplitImpulseIterations`。`convertContacts` 自身没有标记：[源码](https://github.com/yohawing/mmd-anim/blob/f4f68d7519d7c15f2bfc77f094410e57e94ea7aa/crates/mmd-anim-physics-bullet/vendor/bullet3/src/BulletDynamics/ConstraintSolver/btSequentialImpulseConstraintSolver.cpp#L1486-L1506)与该产物中三个连续虚调用逐项吻合（刚体、关节、manifold 各自的指针与数量、同一 `solverInfo`、槽偏移 36/32/28）。探针只包围第三个调用；随后构造和初始化排序数组仍在「准备：其余」。匹配不唯一即失败。
 
-**分不开什么。** [主迭代](https://github.com/yohawing/mmd-anim/blob/f4f68d7519d7c15f2bfc77f094410e57e94ea7aa/crates/mmd-anim-physics-bullet/vendor/bullet3/src/BulletDynamics/ConstraintSolver/btSequentialImpulseConstraintSolver.cpp#L1526-L1695)在一个 `solveSingleIteration` 标记内依次处理关节行、接触与摩擦，关节与摩擦还共用 generic row solver。命名标记不提供按行类型的时间；收尾也只有整个 `Finish` 的边界。`splitImpulse` 只对应接触的穿透修正，入口被调用不等于完成多少次修正。不能拿接触点数、关节数或「主迭代减去 split」来估算各自的求解总费，也不能把窄相生成接触的费用算到转换里。
+**仅用 `--solver` 分不开什么。** [主迭代](https://github.com/yohawing/mmd-anim/blob/f4f68d7519d7c15f2bfc77f094410e57e94ea7aa/crates/mmd-anim-physics-bullet/vendor/bullet3/src/BulletDynamics/ConstraintSolver/btSequentialImpulseConstraintSolver.cpp#L1526-L1695)在一个 `solveSingleIteration` 标记内依次处理关节行、接触与摩擦，关节与摩擦还共用 generic row solver。命名标记不提供按行类型的时间；收尾也只有整个 `Finish` 的边界。`splitImpulse` 只对应接触的穿透修正，入口被调用不等于完成多少次修正。不能拿接触点数、关节数或「主迭代减去 split」来估算各自的求解总费，也不能把窄相生成接触的费用算到转换里。
 
 **等价。** 正式每变体 24 次调用中，诊断世界有 4 次零子步、20 次单子步；20 次 `solveConstraints` 完成 40 组准备→迭代→收尾（可能有空批次，不是模拟岛数）。逐段校验准备中的三次转换、迭代中的 split 及批次顺序；按相邻时间戳互斥分账，子账与父账、外层总账均差 **0 ns**。含预热在 6 个相同动作时刻比较两世界：48,480 个骨矩阵标量、312 个表情权重、384 个蒙皮顶点位置与 6 份完整接触记录逐值一致，最多 330 个接触点；右腕相对第一次取样移动最多 6.48 cm。
 
 **两轮正式对照。** 原版先建／插桩版先建，每变体每轮预热 96 帧，正式 24 窗 × 24 帧。全部 **48/48 窗**的求解器阶段均以迭代为首。每次原生步进均值分别 **1.167／1.178 ms**，其中约束求解 **0.570／0.566 ms**，迭代 **0.324／0.321 ms**，准备 **0.181／0.180 ms**；准备中的关节转换 **0.137／0.138 ms**、接触转换 **0.018／0.019 ms**。阶段嵌套，不累加。每轮含 480 次单子步和 96 次零子步，960 个求解批次，分账差 0 ns；28 个相同动作时刻的 226,240 个骨矩阵标量、1,456 个形态权重、1,792 个蒙皮顶点和完整接触列表逐值一致。插桩使外层调用的配对窗中位差分别为 +0.053／+0.003 ms。
-
-**接下来先查什么。** ① 在诊断构建为**整个关节行循环**和**整个接触／摩擦行循环**分别设边界，再与随包基线验轨迹；不要每行跨 WASM 打点。② 准备段单独调查 `convertJoints` 的 `getInfo1` 行数计算和 `convertJoint`/`getInfo2` 填行；不把随姿态变化的行、关节参数当常量缓存。③ 收尾、停放体 AABB 不优先；窄相仍是原生步进另一条独立调查线。保留关节、有效接触、迭代次数和固定步长；这里没有更换随包求解器或 Quest 帧率结论。
 
 **复现（项目根目录，Node 26.12.1）。** 沿用上面的实验依赖。前两条是边界与实模短验；后两条须等桌面空闲、父会话无基准时逐条运行，每轮新进程，恢复原 96 帧预热、24 对 × 24 帧。把 stdout 分别存为本机 JSON 即可比较：`solver.phaseMs` 是四个同级阶段，`solver.exclusiveMs` 是八个互斥明细，`rows[1].blocks[*].solver` 是每窗原值；另看 `medianPairedAbiDeltaMs` 和两层 `partitionErrorNs`。
 
@@ -63,3 +63,36 @@ node experiments/bullet-step-profile/playback.mjs "<actor.pmx>" "<body.vmd>" --s
 node experiments/bullet-step-profile/playback.mjs "<actor.pmx>" "<body.vmd>" --solver
 node experiments/bullet-step-profile/playback.mjs "<actor.pmx>" "<body.vmd>" --solver --reverse
 ```
+
+## 主迭代行循环
+
+同一获准 PMX／身体 VMD、随包 `0.8.6` WASM、固定步长与停放槽位。每轮独立 Node 进程、两套世界，各预热 96 帧、正式 24 对 × 24 帧，逐窗交替先后。正／反指**构建世界及首窗的顺序**，两轮都正向播放同一动作。下列新测量只拆 `iterationsExceptSplit`，不含建行、split impulse、写回和窄相。
+
+| 每次 `stepSimulation` 的均值，ms（含零子步） | 原版先建 | 诊断版先建 | 每轮非空整遍数 |
+|---|---:|---:|---:|
+| 关节行（含逐行 override 次数判断、generic 求解与残差） | **0.31419** | **0.32455** | 9,600 |
+| 旧式关节回调遍历（enabled、取 solver body、`solveConstraintObsolete`） | 0.05081 | 0.05097 | 9,600 |
+| 接触法向行（lower-limit 求解） | 0.03325 | 0.03303 | 9,550 |
+| 切向摩擦行（含按法向冲量判断、限幅与 generic 求解） | 0.03049 | 0.02694 | 9,550 |
+| 接触与摩擦交错循环；滚动摩擦循环 | 0 | 0 | 各 0 |
+| 其余控制（含空池判断、调度、停止判断及探针开销） | 0.02139 | 0.02102 | — |
+| **非 split 迭代合计** | **0.45013** | **0.45651** | **9,600 次 `solveSingleIteration`** |
+
+**结论。** 关节行不含旧式回调，仍占非 split 迭代 **69.8%／71.1%**。分开的接触与摩擦行合计 **0.06374／0.05997 ms**；逐窗比较，**24/24 + 24/24** 都低于关节行。表中计数是执行了几遍非空循环，不是行数或有效冲量数；0 表示这一段动作没有进入该非空循环。旧式遍历的时间也不证明虚调用本身做了多少工作。
+
+**边界。** [`--rows` 探针](../../experiments/bullet-step-profile/row-loops.mjs)在上面固定源码对应的 `solveSingleIteration` 中核对池、排序表、间接求解槽和循环回边。每个分支通过非空条件后，在行索引归零之前开始、最后一次回边退出之后结束；空池、排序打乱及迭代次数判断归控制。`generic` 槽偏移 212 由多个池共用，法向 `lower-limit` 为 216，不能靠函数入口归因。交错模式在同一行循环内先解法向再解摩擦，只允许合计；未为了拆时间改模式。滚动摩擦有独立遍历。单次迭代的入口／退出用于验序；不在循环体内跨 WASM 打点。
+
+**时序与输出。** 每轮两个世界的 **576 对**正式 C 入口参数按调用顺序相同（`dt=1/72`、`maxSubSteps=5`、`fixed=1/60`），没有 seed 调用。诊断世界直接计到 96 次零子步、480 次单子步、960 个求解批次。每次校验 split、主迭代、可选循环及其分支的嵌套和退出；空世界另验 0／1／限幅 2 子步且无非空行循环。行循环子账对非 split 父账、求解器子账对 `solveConstraints`、世界分段对原生首尾差，正式两轮均 **0 ns**。每轮在包括预热的 28 个同动作时刻，与未插桩世界逐值比对 **226,240 个骨矩阵标量、1,456 个表情权重、1,792 个蒙皮点**和 28 份完整接触列表（最多 292 点）；右腕移动 5.06 cm。这是窗口端点采样，不是每一行的冲量对照。
+
+**环境与限制。** 11 月 25 日 UTC 06:25:58–06:26:03／06:26:05–06:26:10，Windows x64 10.0.26300、i9-13900HX（32 逻辑线程）、Node 26.12.1，纯 CPU。两轮依序跑在同一台允许并行工作的主机上；正式段全机繁忙比例约 **12.6%／16.8%**（含自身，非本进程利用率）。原版→诊断版外层 `world_step` 均值分别 1.716→1.765、1.809→1.785 ms，逐窗配对差中位 +0.041／+0.008 ms。整循环也有打点扰动；这里不做跨轮墙钟加速、Quest FPS 或其他角色的推断。
+
+**复现。** `--rows` 包含 `--solver`；无需生成或替换任何 WASM 文件。正式 stdout 原件在本机 `local-review/verification/bullet-solver-rows/{forward,reverse}.json`。`solver.rowLoops` 和 `rows[1].blocks[*].solver.rowLoops` 是全轮／逐窗的互斥均值、非空遍数和未舍入分账误差，`stepInputs` 与 `environment` 记录输入时序与环境。
+
+```sh
+node experiments/bullet-step-profile/boundaries.mjs --rows
+node experiments/bullet-step-profile/playback.mjs "<actor.pmx>" "<body.vmd>" --rows --smoke
+node experiments/bullet-step-profile/playback.mjs "<actor.pmx>" "<body.vmd>" --rows
+node experiments/bullet-step-profile/playback.mjs "<actor.pmx>" "<body.vmd>" --rows --reverse
+```
+
+**下一步。** 优先查关节行实际行数、每遍通过 override 判断的比例和涉及的行类型，可用 WASM 内累积计数、整批读回，不逐行调用 JS。准备段的 `convertJoints` 另查 `getInfo1` 计算与 `convertJoint`/`getInfo2` 填行；不把随姿态变化的行当常量。现有数据不支持删关节、降迭代次数或改固定步长；窄相仍是独立调查线。

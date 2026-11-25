@@ -4,8 +4,8 @@ import {createProfiledModule} from './module.mjs';
 
 // Small correctness smoke, not a performance run. The C status is 0 in each
 // successful case regardless of how many fixed substeps Bullet actually ran.
-const solver = process.argv.includes('--solver');
-const ledger = createLedger({solver}), m = await createProfiledModule(ledger.mark,{solver});
+const rowLoops = process.argv.includes('--rows'), solver = rowLoops || process.argv.includes('--solver');
+const ledger = createLedger({solver,rowLoops}), m = await createProfiledModule(ledger.mark,{solver,rowLoops});
 const ptr = m._malloc(4);
 assert.equal(m._mmd_anim_bullet_world_create(ptr), 0);
 const world = m.HEAPU32[ptr >>> 2], step = (dt, max) => m._mmd_anim_bullet_world_step(world, dt, max, 1/64);
@@ -18,6 +18,10 @@ try {
   if (solver) {
     assert.equal(ledger.solver.counts[0],3); // zero + one + two actual substeps
     assert.equal(ledger.solver.bins.reduce((a,b)=>a+b),ledger.bins[5]);
+    if (rowLoops) {
+      assert.equal(ledger.solver.rows.bins[0],ledger.solver.bins[5]);
+      assert(ledger.solver.rows.counts.every(n=>n===0),'Empty world ran a nonempty row pass');
+    }
   }
   const before = ledger.calls;
   assert.notEqual(step(-1, 3), 0);

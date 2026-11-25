@@ -4,12 +4,12 @@ import {createSolverLedger} from './solver.mjs';
 
 // Charge every interval between consecutive native marks to exactly one bin.
 // 'other' is metered on the uncovered spans, not inferred from a JS outer timer.
-export function createLedger({solver=false} = {}) {
+export function createLedger({rowLoops=false, solver=rowLoops} = {}) {
   const epoch = process.hrtime.bigint();
   let start, previous, active, next, stepCount;
   let bins = phases.map(() => 0);
   const ledger = {calls:0, totalNs:0, bins:phases.map(() => 0), histogram:{}, last:null, mark};
-  if (solver) ledger.solver = createSolverLedger();
+  if (solver) ledger.solver = createSolverLedger(rowLoops);
   function mark(event) {
     const now = Number(process.hrtime.bigint() - epoch);
     if (event === ROOT) {

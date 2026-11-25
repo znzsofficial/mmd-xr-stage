@@ -5,6 +5,7 @@ import {readFileSync} from 'node:fs';
 import wabtFactory from 'wabt';
 import {createNodeBulletModule} from '../../scripts/node-bullet-stage.mjs';
 import {instrumentSolver} from './solver.mjs';
+import {instrumentRowLoops} from './row-loops.mjs';
 
 export const phases = ['other', 'updateAabbs', 'calculateOverlappingPairs', 'dispatchAllCollisionPairs', 'calculateSimulationIslands', 'solveConstraints'];
 export const ROOT = 6, SUBSTEP = 7;
@@ -13,7 +14,7 @@ const wasmUrl = new URL('../../public/mmd/0.8.6/mmd_bullet.wasm', import.meta.ur
 // Pinned artifact: the default btQuickprof callbacks are no-ops, but the
 // named enter/leave sites survive -O3. Neither probe marks each pair or solver
 // row. WABT's named round trip preserves all original calls.
-function instrument(wat, raw, solver) {
+function instrument(wat, raw, solver, rowLoops) {
   const enter = 'i32.const 17292\n    i32.load\n    call_indirect $T0 (type $t0)';
   const leave = 'i32.const 17296\n    i32.load\n    call_indirect $T0 (type $t8)';
   const mark = id => `i32.const ${id}\n    call $stageMark`;
@@ -66,10 +67,12 @@ function instrument(wat, raw, solver) {
     });
   }
   if (solver) instrumentSolver({editFunction, entry, leave, once, mark});
+  if (rowLoops) instrumentRowLoops({editFunction, entry, leave, once, mark});
   return wat;
 }
 
-export async function createProfiledModule(mark, {solver=false} = {}) {
+export async function createProfiledModule(mark, {rowLoops=false, solver=rowLoops} = {}) {
+  assert(!rowLoops || solver);
   const raw = readFileSync(wasmUrl);
   assert.equal(createHash('sha256').update(raw).digest('hex'), '02e32a4c9ec3b16d166feec06edc20cf689be9a60e3286f2048c3c02392bebc9');
   const wabt = await wabtFactory(), input = wabt.readWasm(raw, {});
@@ -84,7 +87,7 @@ export async function createProfiledModule(mark, {solver=false} = {}) {
       assert.deepEqual([...raw.subarray(2058,2061)], [12,1,5]);
       assert(Buffer.from(plain.toBinary({}).buffer).equals(Buffer.concat([raw.subarray(0,2058),raw.subarray(2061)])));
     } finally { plain.destroy(); }
-    patched = wabt.parseWat('profile.wat', instrument(wat, raw, solver));
+    patched = wabt.parseWat('profile.wat', instrument(wat, raw, solver, rowLoops));
     patched.validate();
     const compiled = new WebAssembly.Module(patched.toBinary({}).buffer);
     return await createNodeBulletModule({instantiateWasm(imports, ready) {
