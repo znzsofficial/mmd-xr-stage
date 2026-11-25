@@ -6,7 +6,7 @@ const lacquer='#853f38', dark='#512c31', red='#aa4440', gold='#bf935a', thread='
  * overlooks the actor's mark. A split front drape preserves a real sightline
  * through to the padded seat and backrest. Both poles run continuously in Z. */
 export function makeSedan(){
-  const shop=new Workshop(),s=shop.body,m=shop.metal;
+  const shop=new Workshop({shadowRings:true}),s=shop.body,m=shop.metal;
   const line=(a:V,b:V,r:number,color:string)=>s.sweep([a,b],r,color);
   function tassel(x:number,y:number,z:number,h:number){
     const k=h/.15;

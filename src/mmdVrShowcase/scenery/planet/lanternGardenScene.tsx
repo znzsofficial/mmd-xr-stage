@@ -64,11 +64,11 @@ function SeedRain(){
 
 export function LanternBiosphere(){
   const shell=useMemo(floor,[]),flora=useMemo(lanternBotany,[]),map=useBakedSurface(loam);
-  useEffect(()=>()=>{shell.dispose();flora.matter.dispose();flora.light.dispose();flora.veil.dispose();},[shell,flora]);
+  useEffect(()=>()=>{shell.dispose();flora.matter.geometry.dispose();flora.light.geometry.dispose();flora.veil.dispose();},[shell,flora]);
   return <group name="planet:lantern-garden" position={lanternCentre} userData={{playerCollision:false}}>
     <mesh name="planet:moon-lantern" geometry={shell} raycast={noPick}><meshStandardMaterial map={map} vertexColors roughness={.98} fog={false}/></mesh>
-    <mesh name="lantern:stems-crowns-croziers" geometry={flora.matter} raycast={noPick}><meshStandardMaterial vertexColors side={DoubleSide} roughness={.85} fog={false}/></mesh>
-    <mesh name="lantern:lucent-gills" geometry={flora.light} raycast={noPick}><meshBasicMaterial vertexColors side={DoubleSide} fog={false}/></mesh>
+    <mesh name="lantern:stems-crowns-croziers" {...flora.matter} raycast={noPick}><meshStandardMaterial vertexColors side={DoubleSide} roughness={.85} fog={false}/></mesh>
+    <mesh name="lantern:lucent-gills" {...flora.light} raycast={noPick}><meshBasicMaterial vertexColors side={DoubleSide} fog={false}/></mesh>
     <mesh name="lantern:thin-scalloped-veils" geometry={flora.veil} raycast={noPick} renderOrder={1}>
       <meshStandardMaterial vertexColors transparent opacity={.62} depthWrite={false} side={DoubleSide} forceSinglePass roughness={.66} fog={false}/>
     </mesh>

@@ -5,6 +5,7 @@ import { useBakedSurface } from '../useBakedSurface';
 import { WEDDING_ANCHORS } from './weddingLayout';
 import { WEDDING_WINDOW_PAPER } from './architectureHouse';
 import { makeFeast } from './furnishingsFeast';
+import { furnishingShadowPass } from './furnishingShadow';
 import { makeAltar, makeChair, makeVanity } from './furnishingsHall';
 import { Surface, white } from './furnishingsMesh';
 import { makeSedan } from './furnishingsSedan';
@@ -41,9 +42,10 @@ export function WeddingFurnishings({shadows=false}:{shadows?:boolean}={}){
   useEffect(()=>()=>windowBirds.dispose(),[windowBirds]);
   useEffect(()=>()=>{for(const piece of Object.values(pieces))for(const g of Object.values(piece))g?.dispose();},[pieces]);
   const a=WEDDING_ANCHORS;
-  const draw=(name:string,anchor:{x:number;z:number},p:ReturnType<typeof makeSedan>)=>
+  const depth=useMemo(()=>({sedan:furnishingShadowPass(pieces.sedan.body),feast:furnishingShadowPass(pieces.feast.body)}),[pieces]);
+  const draw=(name:string,anchor:{x:number;z:number},p:ReturnType<typeof makeSedan>,pass?:typeof depth.sedan)=>
     <group key={name} name={`wedding:${name}`} position={[anchor.x,0,anchor.z]}>
-      <mesh name={`wedding:${name}-wood-silk-glaze`} geometry={p.body} raycast={noPick} castShadow={shadows} receiveShadow>
+      <mesh name={`wedding:${name}-wood-silk-glaze`} geometry={p.body} raycast={noPick} castShadow={shadows} receiveShadow {...pass}>
         <meshStandardMaterial key={paint.uuid} map={paint} vertexColors roughness={.69} side={DoubleSide}/>
       </mesh>
       {p.metal&&<mesh name={`wedding:${name}-bronze`} geometry={p.metal} raycast={noPick} receiveShadow>
@@ -55,7 +57,7 @@ export function WeddingFurnishings({shadows=false}:{shadows?:boolean}={}){
     </group>;
   return <><group name="wedding:furnishings" pointerEvents="none">
     <CeremonyDetails cloth={paint}/>
-    {draw('sedan',a.sedan,pieces.sedan)}{a.feasts.map((r,i)=>draw(`feast-${i}`,r,pieces.feast))}
+    {draw('sedan',a.sedan,pieces.sedan,depth.sedan)}{a.feasts.map((r,i)=>draw(`feast-${i}`,r,pieces.feast,depth.feast))}
     {draw('altar',a.altar,pieces.altar)}{a.chairs.map((r,i)=>draw(`armchair-${i}`,r,pieces.chair))}{draw('vanity',a.vanity,pieces.vanity)}
     {draw('canopy-bed',BED,pieces.bed)}{draw('joined-cups',CUP_TABLE,pieces.cups)}{draw('trousseau-chest',TRUNK,pieces.trunk)}
     {map&&<mesh name="wedding:dressing-window-birds" geometry={windowBirds} position={[WEDDING_WINDOW_PAPER.x,WEDDING_WINDOW_PAPER.y,WEDDING_WINDOW_PAPER.z]} raycast={noPick}>

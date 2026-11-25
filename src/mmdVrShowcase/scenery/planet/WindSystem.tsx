@@ -6,6 +6,7 @@ import {useBakedSurface} from '../useBakedSurface';
 import {noPick} from '../sceneryPaint';
 import {lanes,sunDirection,windPoint,type Moon,type WindLane} from './windAtlas';
 import {moonShell} from './moonSurface';
+import {moonLodEye,prepareDistantMoon} from './distantMoon';
 import ember from './ember-basins.webp';
 import frost from './frost-rifts.webp';
 import salt from './salt-hoppers.webp';
@@ -31,7 +32,9 @@ const prints={basins:ember,rifts:frost,salt,glaze};
 const halite={HALITE:1};
 function Satellite({moon,grain}:{moon:Extract<Moon,{relief:keyof typeof prints}>;grain:Texture|null}){
   const twin=moon.relief==='salt'||moon.relief==='glaze';
-  const g=useMemo(()=>moonShell(moon),[moon]),map=useBakedSurface(prints[moon.relief],twin?'mask':'print');
+  const {g,select}=useMemo(()=>{const g=moonShell(moon);return {g,select:twin?null:prepareDistantMoon(g)};},[moon,twin]);
+  const eye=useMemo(()=>new Vector3(),[]),map=useBakedSurface(prints[moon.relief],twin?'mask':'print');
+  useFrame(({camera,gl})=>{if(select)select(moonLodEye(gl.xr.isPresenting?gl.xr.getCamera():camera,eye).distanceToSquared(moon.centre));});
   const u=useMemo(()=>({albedo:{value:map},printMap:{value:map},mapped:{value:map?1:0},grainMap:{value:grain},grainReady:{value:grain?1:0},core:{value:moon.centre},sun:{value:sunDirection},ice:{value:moon.relief==='rifts'?1:0},probe:{value:moon.station.base},probeUp:{value:moon.station.up}}),[map,moon,grain]);
   useEffect(()=>()=>g.dispose(),[g]);
   return <mesh name={'planet:moon-'+moon.id} geometry={g} position={moon.centre} userData={{playerCollision:false}} raycast={noPick}>

@@ -45,7 +45,8 @@ function fixture(){
     }else{
       place(world,'lunar shell',moonShell(m),m.centre);
       if(m.id==='lantern'){
-        for(const g of Object.values(lanternBotany()))place(world,'nursery',g,m.centre);
+        const {matter,light,veil}=lanternBotany();
+        for(const g of [matter.geometry,light.geometry,veil])place(world,'nursery',g,m.centre);
         place(world,'clearing',new CylinderGeometry(clearingRadius,clearingRadius-.065,.15,64),new Vector3(clearingDeck.x,clearingDeck.y-.076,clearingDeck.z));
       }else place(world,'survey station',windProbeModel(m),m.station.base,new Quaternion().setFromUnitVectors(up,m.station.up));
     }

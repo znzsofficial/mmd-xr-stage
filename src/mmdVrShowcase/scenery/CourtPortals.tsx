@@ -1,5 +1,5 @@
-import {useEffect,useMemo} from 'react';
-import {BufferGeometry, Color, DoubleSide, Float32BufferAttribute, type Texture} from 'three';
+import {useEffect,useLayoutEffect,useMemo,useRef} from 'react';
+import {BufferGeometry, Color, DoubleSide, Float32BufferAttribute, InstancedMesh, Matrix4, Object3D, type Texture} from 'three';
 import {useLanguageStore} from '../../languageStore';
 import {useMmdVrStore} from '../mmdVrStore';
 import {SCENERY,portalHall} from './catalog';
@@ -34,7 +34,29 @@ function pane(cell:number){
   }
   const g=new BufferGeometry();g.setAttribute('position',new Float32BufferAttribute(p,3));g.setAttribute('uv',new Float32BufferAttribute(uv,2));g.computeVertexNormals();return g;
 }
-function Door({gate,map,frame}:{gate:typeof courtPortals[number];map:Texture|null;frame:BufferGeometry}){
+// Only the three fixed, non-interactive parts share a draw across the hall.
+// Keep instances in room coordinates: the walking column reads these same matrices.
+function DoorSurrounds(){
+  const frames=useRef<InstancedMesh>(null),bases=useRef<InstancedMesh>(null),backs=useRef<InstancedMesh>(null);
+  const frame=useMemo(surround,[]),back=useMemo(()=>pane(0),[]),count=courtPortals.length;
+  useEffect(()=>()=>{frame.dispose();back.dispose();},[frame,back]);
+  useLayoutEffect(()=>{
+    const door=new Object3D(),local=new Matrix4(),reverse=new Matrix4().makeRotationY(Math.PI).setPosition(0,0,-.065);
+    for(const [i,gate] of courtPortals.entries()){
+      door.position.set(gate.x,0,gate.z);door.rotation.y=gate.yaw;door.updateMatrix();
+      frames.current!.setMatrixAt(i,door.matrix);
+      bases.current!.setMatrixAt(i,local.makeScale(gate.w,.20,gate.d).setPosition(0,.10,0).premultiply(door.matrix));
+      backs.current!.setMatrixAt(i,local.multiplyMatrices(door.matrix,reverse));
+    }
+    for(const mesh of [frames.current!,bases.current!,backs.current!]){mesh.instanceMatrix.needsUpdate=true;mesh.computeBoundingSphere();}
+  },[]);
+  return <>
+    <instancedMesh name="portal-frames" ref={frames} args={[frame,undefined,count]} raycast={noPick}><meshStandardMaterial vertexColors side={DoubleSide} metalness={.25} roughness={.46}/></instancedMesh>
+    <instancedMesh name="portal-bases" ref={bases} args={[undefined,undefined,count]} raycast={noPick}><boxGeometry/><meshStandardMaterial color="#556574"/></instancedMesh>
+    <instancedMesh name="portal-backs" ref={backs} args={[back,undefined,count]} raycast={noPick}><meshStandardMaterial color="#4d656d" roughness={.75}/></instancedMesh>
+  </>;
+}
+function Door({gate,map}:{gate:typeof courtPortals[number];map:Texture|null}){
   const t=useLanguageStore(s=>s.t),name=gate.room==='liveHouse'?'Live House':t(gate.room==='floor'?'portalPost':SCENERY[gate.room].label);
   const plate=useMemo(()=>paintedSurface(512,98,g=>{
     g.fillStyle='#1b333c';g.fillRect(0,0,512,98);g.strokeStyle='#d2b78a';g.lineWidth=3;g.strokeRect(5,5,502,88);
@@ -44,18 +66,14 @@ function Door({gate,map,frame}:{gate:typeof courtPortals[number];map:Texture|nul
   useEffect(()=>()=>plate.dispose(),[plate]);useEffect(()=>()=>face.dispose(),[face]);
   const {bindings,hovered}=useSceneAction(portalHall,(from,hit)=>canReadPortal(gate,from,hit),()=>useMmdVrStore.getState().setPrefs({scenery:gate.room}));
   return <group position={[gate.x,0,gate.z]} rotation-y={gate.yaw}>
-    <mesh geometry={frame} raycast={noPick}><meshStandardMaterial vertexColors side={DoubleSide} metalness={.25} roughness={.46}/></mesh>
-    <mesh position-y={.10} raycast={noPick}><boxGeometry args={[gate.w,.20,gate.d]}/><meshStandardMaterial color="#556574"/></mesh>
     <mesh name={'portal:'+gate.room} geometry={face} {...bindings}>
       <meshBasicMaterial key={map?.uuid} map={map} color={hovered?'#ffffff':'#e7e3da'} toneMapped={false}/>
       <mesh position={[0,.55,.096]}><planeGeometry args={[1.08,.207]}/><meshBasicMaterial map={plate} toneMapped={false}/></mesh>
     </mesh>
-    <mesh position={[0,0,-.065]} geometry={face} rotation-y={Math.PI} raycast={noPick}><meshStandardMaterial color="#4d656d" roughness={.75}/></mesh>
     <mesh position={[0,2.32,0]} scale={[.088,.13,.074]} raycast={noPick}><octahedronGeometry/><meshStandardMaterial color={hovered?'#ffe69d':'#95d6cb'}/></mesh>
   </group>;
 }
 export function CourtPortals(){
-  const frame=useMemo(surround,[]),map=useBakedSurface(views);
-  useEffect(()=>()=>frame.dispose(),[frame]);
-  return <group name="court:portal-hall">{courtPortals.map(gate=><Door key={gate.room} gate={gate} frame={frame} map={map}/>)}</group>;
+  const map=useBakedSurface(views);
+  return <group name="court:portal-hall"><DoorSurrounds/>{courtPortals.map(gate=><Door key={gate.room} gate={gate} map={map}/>)}</group>;
 }

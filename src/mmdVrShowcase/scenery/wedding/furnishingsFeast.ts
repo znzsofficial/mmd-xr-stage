@@ -5,7 +5,7 @@ const wood='#ab7657', walnut='#694338', honey='#cf9e73', porcelain='#e6e7d7', gl
 /** Four complete covers per table; the bowls have rims, deep interiors and
  * unglazed feet. Everything is static and uses the same opaque material. */
 export function makeFeast(){
-  const shop=new Workshop(),s=shop.body;
+  const shop=new Workshop({shadowRings:true}),s=shop.body;
   function bowl(x:number,y:number,z:number,r:number,h:number,cup=false){
     const p:V=[x,y,z],n=cup?16:20;
     s.turn(p,[[r*.38,0],[r*.39,h*.12],[r*.49,h*.14],[r*.70,h*.32]],porcelain,'solid',n);

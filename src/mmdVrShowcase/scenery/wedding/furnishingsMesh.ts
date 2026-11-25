@@ -1,4 +1,5 @@
 import { BufferGeometry, Color, Float32BufferAttribute } from 'three';
+import {FurnishingShadow,ringStride} from './furnishingShadow';
 
 export type V = [number, number, number];
 type UV = [number, number];
@@ -21,6 +22,8 @@ export const white='#ffffff';
 /** Indexed, spatially local batches. Profile rings, pleats and bent rails share
  * vertices along their curvature; rims, corners and joinery keep hard normals. */
 export class Surface {
+  private shadow?:FurnishingShadow;
+  constructor(shadow?:FurnishingShadow) {this.shadow=shadow;}
   private positions:number[]=[]; private uvs:number[]=[]; private colors:number[]=[]; private index:number[]=[];
   private color=new Color();
   get empty(){return this.index.length===0;}
@@ -53,6 +56,7 @@ export class Surface {
   /** Profile from bottom to lip then back down the inside. Use a nonzero foot
    * radius to leave undersides hollow; a fan closes serving dishes separately. */
   turn([x,y,z]:V,profile:Profile,c:string,cell:Cell='solid',n=20,depth=1){
+    this.shadow?.rings(this.index.length,this.positions.length/3,n,profile.length-1,ringStride(n,Math.max(...profile.map(([r])=>r))*Math.max(1,depth)));
     this.grid(n,profile.length-1,(u,v)=>{
       const [r,h]=profile[Math.round(v*(profile.length-1))],a=u*tau;
       return [x+r*Math.sin(a),y+h,z+depth*r*Math.cos(a)];
@@ -60,6 +64,7 @@ export class Surface {
   }
   disk([x,y,z]:V,r:number,c:string,cell:Cell='solid',facing:'up'|'front'='up',n=48,aspect=1){
     this.color.set(c);const start=this.positions.length/3;this.point([x,y,z],cell,[.5,.5]);
+    this.shadow?.fan(this.index.length,start,n,ringStride(n,r*Math.max(1,aspect)));
     for(let i=0;i<n;i++){
       const a=i*tau/n,s=Math.cos(a),t=Math.sin(a);
       this.point(facing==='up'?[x+r*s,y,z-r*t*aspect]:[x+r*s,y+r*t*aspect,z],cell,[.5+.5*s,.5+.5*t]);
@@ -69,6 +74,7 @@ export class Surface {
   /** Parallel transport keeps the facets of curved rails, handles and binding
    * cord from spiralling when their tangent changes from vertical to horizontal. */
   sweep(path:V[],r:number|number[],c:string,n=8,caps=false){
+    this.shadow?.rings(this.index.length,this.positions.length/3,n,path.length-1,ringStride(n,typeof r==='number'?r:Math.max(...r)));
     let last:V|undefined;const frames=path.map((p,i)=>{
       const t=unit(sub(path[Math.min(path.length-1,i+1)],path[Math.max(0,i-1)]));
       const a:V=last??(Math.abs(t[1])>.85?[1,0,0]:[0,1,0]);const b=unit(cross(t,a));last=unit(cross(b,t));
@@ -90,12 +96,15 @@ export class Surface {
   finish(){
     const g=new BufferGeometry();g.setAttribute('position',new Float32BufferAttribute(this.positions,3));
     g.setAttribute('uv',new Float32BufferAttribute(this.uvs,2));g.setAttribute('color',new Float32BufferAttribute(this.colors,3));
-    g.setIndex(this.index);g.computeVertexNormals();g.computeBoundingSphere();return g;
+    g.setIndex(this.index);g.computeVertexNormals();g.computeBoundingSphere();
+    if(this.shadow){const full=this.shadow.append(this.index);g.setIndex(this.index);g.setDrawRange(0,full);}
+    return g;
   }
 }
 
 export class Workshop {
-  body=new Surface(); metal=new Surface(); paper=new Surface();
+  body:Surface; metal=new Surface(); paper=new Surface();
+  constructor({shadowRings=false}={}){this.body=new Surface(shadowRings?new FurnishingShadow():undefined);}
   finish(){return {body:this.body.finish(),metal:this.metal.empty?null:this.metal.finish(),paper:this.paper.empty?null:this.paper.finish()};}
 }
 export function arc(at:(a:number)=>V,segments:number,end=tau):V[]{return Array.from({length:segments+1},(_,i)=>at(end*i/segments));}

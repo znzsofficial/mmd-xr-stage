@@ -1,17 +1,19 @@
-import {useEffect,useMemo} from 'react';
+import {useCallback,useEffect,useMemo} from 'react';
 import {useFrame} from '@react-three/fiber';
-import {Color,DoubleSide,Float32BufferAttribute,LatheGeometry,Vector2,type Texture} from 'three';
+import {Color,DoubleSide,Float32BufferAttribute,LatheGeometry,Vector2,type InstancedMesh,type Texture} from 'three';
 import {BEDS,CISTERN,CYPRESSES,GARDEN,LOGGIA} from './ChapelLayout';
 import {Batch,type Part} from './SceneryBatch';
 import {span} from './detailParts';
 import {seededRandom} from './ClassroomLayout';
 import {noPick} from './sceneryPaint';
 import {useBakedSurface} from './useBakedSurface';
+import {cypressShadowPrefix} from './cypressShadows';
 import paving from './chapel-garden.webp';
 
 type V=Part['p'];const stone='#d7c9af',gold='#ba965f',slate='#607675',shade='#b4a68f';
 function lathe(profile:number[][],segments:number){return new LatheGeometry(profile.map(([r,h])=>new Vector2(r,h)),segments);}
 function gardenParts(){const blocks:Part[]=[],round:Part[]=[],trees:Part[]=[],hedges:Part[]=[],hills:Part[]=[],rnd=seededRandom(8483);
+  const crownEnds:number[]=[];
   const box=(p:V,s:V,color:string,rz=0,ry=0)=>blocks.push({p,s,color,rz,ry});
   const column=(p:V,s:V,color:string)=>round.push({p,s,color});
   // Slate roof above the stone vault, and a pierced bellcote on the entrance gable.
@@ -48,14 +50,15 @@ function gardenParts(){const blocks:Part[]=[],round:Part[]=[],trees:Part[]=[],he
   for(const s of [-1,1]){box([s*(GARDEN.half-.09),.36,10.6],[.20,.72,44.8],stone);box([s*(GARDEN.half-.09),.75,10.6],[.28,.09,44.8],shade);}
   for(const z of [GARDEN.back+.1,GARDEN.front-.1]){box([0,.34,z],[27.6,.68,.22],stone);box([0,.70,z],[27.6,.08,.32],shade);}
   for(const {x,z,h} of CYPRESSES){column([x,.58,z],[.29,1.16,.29],'#73624e');trees.push({p:[x,.76,z],s:[1.05,h,1.08],ry:rnd()*6,color:'#829779'});
-    for(let j=0;j<14;j++){const a=j*2.399,t=j/15,r=.47*(1-t*.69);trees.push({p:[x+Math.sin(a)*r,.8+t*h*.72,z+Math.cos(a)*r],s:[.53*(1-t*.56),h*(.27+.10*rnd()),.55*(1-t*.46)],rx:.08*Math.cos(a),rz:-.09*Math.sin(a),color:j%2?'#809373':'#6e876e'});}}
+    for(let j=0;j<14;j++){const a=j*2.399,t=j/15,r=.47*(1-t*.69);trees.push({p:[x+Math.sin(a)*r,.8+t*h*.72,z+Math.cos(a)*r],s:[.53*(1-t*.56),h*(.27+.10*rnd()),.55*(1-t*.46)],rx:.08*Math.cos(a),rz:-.09*Math.sin(a),color:j%2?'#809373':'#6e876e'});}
+    crownEnds.push(trees.length);}
   // A Tuscan ridge with a few terracotta farmhouses seen through the doorway.
   for(let i=0;i<32;i++){const a=i*2.399;hills.push({p:[Math.sin(a)*(34+rnd()*19),-1.6,10+Math.cos(a)*(32+rnd()*14)],s:[14+rnd()*14,5+rnd()*7,9+rnd()*10],ry:a,color:i%2?'#92aaa0':'#acb79c'});}
   for(let i=0;i<8;i++){const x=-22+i*6.3,z=39+3*Math.sin(i*2),h=2.9+rnd()*1.35,w=2.6+rnd()*1.3;
     hills.push({p:[x,-1.95,z],s:[8,5.8,6],ry:i,color:'#a8b89c'});
     box([x,h*.5-1,z],[w,h+2,2.1],i%2?'#e1caa5':'#d6bda7');for(const k of [-1,1])box([x+k*w*.27,h+.17,z],[w*.57,.13,2.38],'#b38068',-k*.29);
     for(const k of [-1,0,1]){box([x+k*w*.31,h-.63,z-1.063],[.30,.53,.045],'#6a766d');box([x+k*w*.31,h-.93,z-1.07],[.37,.07,.07],'#b6a58d');}box([x+w*.31,h+.41,z+.45],[.25,.57,.24],'#c69e86');}
-  return {blocks,round,trees,hedges,hills};
+  return {blocks,round,trees,crownEnds,hedges,hills};
 }
 
 // A low-cost rippled reflection of the dawn sky over a patterned basin; no
@@ -72,6 +75,7 @@ function BasinWater(){const uniforms=useMemo(()=>({t:{value:0}}),[]);useFrame((_
 
 export function ChapelGarden({shadows,rose}:{shadows:boolean;rose?:Texture}){
   const p=useMemo(gardenParts,[]),map=useBakedSurface(paving);
+  const prepareCrowns=useCallback((mesh:InstancedMesh)=>cypressShadowPrefix(mesh,p.crownEnds),[p]);
   const g=useMemo(()=>{
     const tree=lathe([[.08,0],[.46,.08],[.64,.20],[.59,.38],[.48,.55],[.39,.72],[.24,.86],[.05,.98],[.008,1]],16),pos=tree.getAttribute('position'),rgb=[];const c=new Color();
     for(let i=0;i<pos.count;i++){const y=pos.getY(i),x=pos.getX(i),z=pos.getZ(i),s=1+.119*Math.sin(x*21+z*11+y*23);pos.setXYZ(i,x*s+.06*y*y,y,z*s);const n=.62+.26*y+.14*Math.sin(x*19-z*13+y*23);c.setRGB(n,n*1.05,n*.93);rgb.push(c.r,c.g,c.b);}tree.setAttribute('color',new Float32BufferAttribute(rgb,3));tree.computeVertexNormals();
@@ -82,7 +86,7 @@ export function ChapelGarden({shadows,rose}:{shadows:boolean;rose?:Texture}){
   return <group name="chapel:garden">
     <mesh rotation-x={-Math.PI/2} position={[0,-.015,(GARDEN.front+GARDEN.back)/2]} receiveShadow={shadows} raycast={noPick}><planeGeometry args={[GARDEN.half*2,GARDEN.front-GARDEN.back]}/><meshStandardMaterial key={map?'paved':'plain'} color={map?'white':'#d8cfbd'} map={map} roughness={.92}/></mesh>
     <Batch parts={p.blocks} name="chapel:cloister" casts={shadows}/><Batch parts={p.round} round name="chapel:cloister-shafts" casts={shadows}/>
-    <Batch parts={p.trees} geometry={g.tree} name="chapel:cypresses" casts={shadows}/><Batch parts={p.hedges} foliage name="chapel:lavender"/><Batch parts={p.hills} foliage name="chapel:ridge"/>
+    <Batch parts={p.trees} geometry={g.tree} name="chapel:cypresses" casts={shadows} onInstancesReady={prepareCrowns}/><Batch parts={p.hedges} foliage name="chapel:lavender"/><Batch parts={p.hills} foliage name="chapel:ridge"/>
     <mesh geometry={g.bell} position={[0,10.28,9.08]} raycast={noPick}><meshStandardMaterial color="#8c8163" roughness={.56} side={DoubleSide}/></mesh>
     <group position={[0,6.10,9.07]}>
       {rose&&<mesh raycast={noPick}><circleGeometry args={[.96,48]}/><meshStandardMaterial map={rose} roughness={.70} color="#e2d5c6"/></mesh>}

@@ -1,5 +1,6 @@
-import {BufferGeometry,Color,Float32BufferAttribute,Quaternion,Vector3} from 'three';
+import {Box3,BufferAttribute,BufferGeometry,Color,Float32BufferAttribute,Quaternion,Vector3} from 'three';
 import {capRadius,capRoof,gillDepth,lanternCanPlant,lanternFlushes,lanternLocal,lanternRadius,lanternStation,lanternTrees,stemShape,type LanternTree} from './lanternBiosphere';
+import {lanternGroveBatch,type GroveRange} from './lanternGroveRange';
 
 // One set of indices per material for the entire moon. The veil is the only
 // alpha batch; its ribs, pellicle spots and the actual sawtooth gills write depth.
@@ -8,19 +9,41 @@ const inks=new Map<string,Color>();
 const ink=(name:string)=>{let c=inks.get(name);if(!c){c=new Color(name);inks.set(name,c);}return c;};
 type P=[number,number,number];
 class Surface {
-  private xyz:number[]=[];private rgb:number[]=[];private ix:number[]=[];
+  protected xyz:number[]=[];private rgb:number[]=[];protected ix:number[]=[];
+  protected bounds?:Box3;
   private q=new Quaternion();private o=new Vector3();private v=new Vector3();
   place(p:Vector3,q:Quaternion){this.o.copy(p);this.q.copy(q);}
   point(x:number,y:number,z:number,color:string,k=1){const p=this.v.set(x,y,z).applyQuaternion(this.q).add(this.o),i=this.xyz.length/3,c=ink(color);
-    this.xyz.push(p.x,p.y,p.z);this.rgb.push(c.r*k,c.g*k,c.b*k);return i;}
+    this.bounds?.expandByPoint(p);this.xyz.push(p.x,p.y,p.z);this.rgb.push(c.r*k,c.g*k,c.b*k);return i;}
   tri(a:number,b:number,c:number){this.ix.push(a,b,c);}
   quad(a:number,b:number,c:number,d:number){this.ix.push(a,b,d,b,c,d);}
   /** Continuous ring grid, no duplicate seam or cross-shape material splits. */
   rings(n:number,rows:number,at:(row:number,j:number)=>number){let previous:number[]=[];
     for(let i=0;i<rows;i++){const row=Array.from({length:n},(_,j)=>at(i,j));
       if(i)for(let j=0;j<n;j++){const k=(j+1)%n;this.quad(previous[j],previous[k],row[k],row[j]);}previous=row;}}
-  finish(){const g=new BufferGeometry();g.setAttribute('position',new Float32BufferAttribute(this.xyz,3));
-    g.setAttribute('color',new Float32BufferAttribute(this.rgb,3));g.setIndex(this.ix);g.computeVertexNormals();g.computeBoundingSphere();return g;}
+  finish(ix:number[]|BufferAttribute=this.ix){const g=new BufferGeometry();g.setAttribute('position',new Float32BufferAttribute(this.xyz,3));
+    g.setAttribute('color',new Float32BufferAttribute(this.rgb,3));g.setIndex(ix);g.computeVertexNormals();g.computeBoundingSphere();return g;}
+}
+
+class GroveSurface extends Surface {
+  private readonly plots=new Map<Vector3,{bounds:Box3;indices:number[]}>();
+  grove(root:Vector3){
+    let plot=this.plots.get(root);
+    if(!plot){plot={bounds:new Box3(),indices:[]};this.plots.set(root,plot);}
+    this.bounds=plot.bounds;this.ix=plot.indices;
+  }
+  finishGroves(){
+    // The working garden is on the nursery side. Keep neighbouring latitudes
+    // adjacent so a tangent view can drop whole groves with a single interval.
+    const plots=[...this.plots].sort(([a],[b])=>a.dot(lanternStation)-b.dot(lanternStation));
+    const length=plots.reduce((n,[,p])=>n+p.indices.length,0);
+    const packed=this.xyz.length/3>=65535?new Uint32Array(length):new Uint16Array(length);
+    const groves:GroveRange[]=[];let start=0;
+    for(const [,p] of plots){const end=start+p.indices.length;packed.set(p.indices,start);
+      // Authored in doubles, uploaded as float32; keep boundary vertices inside.
+      groves.push({bounds:p.bounds.expandByScalar(.00001),start,end});start=end;}
+    return lanternGroveBatch(this.finish(new BufferAttribute(packed,1)),groves);
+  }
 }
 
 function mushroom(s:LanternTree,flesh:Surface,light:Surface,veil:Surface){
@@ -153,13 +176,16 @@ function nursery(f:Surface,light:Surface){
 }
 
 export function lanternBotany(){
-  const matter=new Surface(),lit=new Surface(),skin=new Surface();
-  for(const s of lanternTrees)mushroom(s,matter,lit,skin);nursery(matter,lit);
-  lanternFlushes.forEach((f,i)=>f.caps.forEach((s,j)=>youngCap(s,i+Math.floor(j/3),matter,lit)));
+  const matter=new GroveSurface(),lit=new GroveSurface(),skin=new Surface();
+  const grove=(root:Vector3)=>{matter.grove(root);lit.grove(root);};
+  for(const s of lanternTrees){grove(s.base);mushroom(s,matter,lit,skin);}
+  grove(lanternLocal(lanternStation));nursery(matter,lit);
+  lanternFlushes.forEach((f,i)=>{grove(f.centre);f.caps.forEach((s,j)=>youngCap(s,i+Math.floor(j/3),matter,lit));});
   // Colonies grow near feet and along the edges of the walk, with patches of
   // bare soil between them. No uniform scatter of identical full-size trees.
   const east=new Vector3(),cross=new Vector3(),n=new Vector3(),q=new Quaternion();
   for(const [i,s] of lanternTrees.entries()){
+    matter.grove(s.base);
     east.set(1,0,0).projectOnPlane(s.up).normalize();cross.crossVectors(east,s.up);
     for(let j=0;j<(i<5?6:3);j++){
       const a=j*2.39996+.67*i,r=.8+.85*Math.sin(j*7.1+i)**2;
@@ -169,7 +195,7 @@ export function lanternBotany(){
       for(let k=0;k<2;k++)fiddle(matter,[.04*Math.cos(k),0,.04*Math.sin(k)],a+2.1*k,.23+.21*(.5+.5*Math.cos(2.6*j+k+i)),k>0);
     }
   }
-  return {matter:matter.finish(),light:lit.finish(),veil:skin.finish()};
+  return {matter:matter.finishGroves(),light:lit.finishGroves(),veil:skin.finish()};
 }
 
 /** A copper samara: asymmetric scooped wing, ivory leading edge and a loaded
