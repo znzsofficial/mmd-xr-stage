@@ -12,6 +12,7 @@
 
 | 功能提交 | 已发布内容与验证范围 |
 |---|---|
+| `4f4052c` | [独立 WebGPU 原衣裙摆实验](./performance/gpu-cloth-lab.md)；正式舞台入口与 `b91325b` 相同。原衣三档、双层 GPU 纹理、模拟按键及二次进入、JSON 导出已验，1019 项测试通过，主域入口和 18 份资源与本机构建一致。真机 72 Hz 待测。[固定实验页](https://3caf31ba.mmd-xr-stage.pages.dev/labs/cloth/)；同轮 `90f8f5f` 的[约束行计时](./performance/bullet-step-profile.md#主迭代行循环)只在离线实验中运行。 |
 | `b91325b` | [泳池和教室按眼裁去视野外静件](./performance/pool-classroom.md)。关实时阴影时计时台 37,334→20,334 面，教室后门 17,382→8,486。26 对屏幕画面、双眼实走、原衣角色投影和泡影渡口均已核验；1019 项测试通过，主域入口与 16 份资源和验收构建一致。[固定版](https://6b27603e.mmd-xr-stage.pages.dev) |
 | `6061e24` | [星门、庭院阴影、赭砾／霜岬及菌圃](./performance/scenery-render-work.md)。固定机位实测大厅入口 62→47 次绘制，菌圃合影 158,654→113,058 面；六门鼠标及模拟手柄往返、双眼飞行切档、菌圃转头对照、演员投影已验。1017 项测试通过，主域入口及 17 份资源与验收构建逐字节一致。[固定版](https://4c959c01.mmd-xr-stage.pages.dev) |
 | `eea2217` | [切体位首帧及衣物遮挡优化](./performance/pose-fit-and-clothing.md)。三款实模裙装校验骨矩阵及位置缓冲；WebGL 验证半盖／全盖／移开，生产屏幕实际换姿、恢复及附件移动复位。1009 项测试通过，主域入口及 14 份关键资源与验收构建逐字节一致。离线 Bullet 分测不进入产品。[固定版](https://4d4fb0ec.mmd-xr-stage.pages.dev) |
