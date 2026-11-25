@@ -2,7 +2,7 @@
 
 [正式舞台](https://mmd-xr-stage.pages.dev) · [WebGPU 实验入口](https://mmd-xr-stage.pages.dev/labs/cloth/) · [舞台基线 `b91325b`](https://6b27603e.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md) · [文档索引](./README.md)
 
-**恢复停点：Quest 3S 上试独立的[原衣裙摆实验](./performance/gpu-cloth-lab.md)。** 正式舞台的 WebGL、动作、布料默认行为仍是 `b91325b`。新增实验页有三档求解、原衣导入、样裙和 JSON；桌面 GPU 实测不代表 Quest。校园的同机位帧率复测仍独立待做。
+**恢复停点：Quest 3S 上试独立的[原衣裙摆实验](./performance/gpu-cloth-lab.md)。** 默认 GPU 裙骨档跳过远处碰撞体；新增「GPU 裙面接触」在仰卧抬腿停稳时贴合大腿。实模里衬最深穿入 14.0→9.9 mm，外裙最深 26.9 mm 未变。真机对比同姿势同尺寸、JSON 的 `faceContact: active` 与裙骨档。正式舞台的 WebGL、动作、布料默认行为仍是 `b91325b`；校园的同机位帧率复测另做。
 
 ## 从这里继续
 

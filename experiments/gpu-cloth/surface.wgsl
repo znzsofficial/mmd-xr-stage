@@ -5,14 +5,15 @@ struct View { vp:mat4x4f, params:vec4f } // cloth active, scale, first hand
 @group(0) @binding(3) var<storage,read> cloth:array<vec4f>;
 @group(0) @binding(4) var<storage,read> anchors:array<vec4f>;
 @group(0) @binding(5) var<storage,read> caps:array<vec4f>;
+@group(0) @binding(6) var<storage,read> residual:array<vec4f>;
 @group(1) @binding(0) var tex:texture_2d<f32>;
 @group(1) @binding(1) var samp:sampler;
 @group(1) @binding(2) var<uniform> tint:vec4f;
 struct Out {@builtin(position) pos:vec4f,@location(0) uv:vec2f,@location(1) wp:vec3f}
-@vertex fn surface(@location(0) pos:vec3f,@location(1) uv:vec2f,@location(2) bones:vec4u,@location(3) w:vec4f)->Out{
+@vertex fn surface(@location(0) pos:vec3f,@location(1) uv:vec2f,@location(2) bones:vec4u,@location(3) w:vec4f,@builtin(vertex_index) id:u32)->Out{
   var p=vec3f(0.);for(var k=0u;k<4u;k++){if(w[k]>0.){let b=bones[k];var v=(palette[b]*vec4f(pos,1.)).xyz*view.params.y;
     let j=lookup[b];if(view.params.x>0. && j!=0u){v+=(cloth[j-1u]-anchors[j-1u]).xyz;}p+=v*w[k];}}
-  return Out(view.vp*vec4f(p,1.),uv,p);
+  if(view.params.w>0.){p+=residual[id].xyz;}return Out(view.vp*vec4f(p,1.),uv,p);
 }
 @fragment fn shade(i:Out)->@location(0) vec4f{
   let rgba=textureSample(tex,samp,i.uv)*tint;let n=cross(dpdx(i.wp),dpdy(i.wp));
