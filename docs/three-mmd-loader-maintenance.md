@@ -10,6 +10,16 @@
 
 ### 怎么保持同步
 
+**分支速查（11 月 25 日核对本地工作树及两个远端实际 heads）：只要问「游戏用哪个」，答案是 `znzsofficial/three-mmd-loader` 的 `main@9a45a5c`。** 本机常用 loader 检出也在这个提交；游戏自己是另一个仓库的 `master`，从[清单](../loader-source.json)锁定它，不在手机上拉取任何分支。
+
+| 在哪里 | 分支／提交 | 用途 |
+|---|---|---|
+| 原作者远端 `upstream` | `main@9c47b94`（v0.8.6）；`develop@bde8c98`；`release/v0.9.0@347bf20` | 正式基线看 `main` 与已发布 tag；后两者分别是开发线与尚未合并的发布候选。另有文档分支，不参与游戏选版。 |
+| 我们的远端 `fork`、本机 loader 主工作树 | 两边 `main@9a45a5c` | 唯一游戏来源；包含 0.8.6、舞台扩展与单项回移的上游显存修复。`fork/develop@ab0fc79` 不是原作者的 `develop`，也不发游戏。 |
+| 本机 loader | `sync/stage-0.8.6@82147af`、`sync/v0.8.6-morph-atlas@9a45a5c` | 集成时留下的路标，后者和 main 同点；都不是另一套运行时。 |
+| 本机独立工作树 | `perf/dedupe-render-palettes@1d444f0` | 只准备给上游的 CPU 去重及基准，未推为 fork 分支、未投稿；与已回移的显存修复不是一件事。 |
+| 旧贡献／发布分支 | 本机和 fork 的 `fix/dynamic-with-bone-translation`、`fix/bullet-contact-debug-api`、`feat/bullet-contact-range-query`；fork 上的 `codex/release-*` | 历史分支，日常运行不用选。本轮没有清理、合并或改写分支。 |
+
 - 当前基线以 npm `latest` 的**正式版本**为准。2026-11-25 核对为 `0.8.6`，`upstream/main` 与 `v0.8.6` 同指 `9c47b94`。尚未发版的 `develop` / 发布 PR 不自动进入生产；已经验证的重要单项可以带原提交号回移。
 - [每日检查](../.github/workflows/loader-upstream.yml)和发版前的 `pnpm loader:upstream` 比较 npm 最新版、官方标签、包完整性和远端 `fork/main`。不同就提示更新；检查不部署代码。上游主分支若只前进、未发正式版，会另报提示。已打开的游戏不受影响。
 - [来源清单](../loader-source.json)锁定 fork 提交、正式版、完整 `dist/` 文件树摘要与补丁摘要。`pnpm build` 首先离线验证实际安装包（包括入口与依赖元数据）和 `public/mmd/<version>/` 的 Bullet JS/WASM。JS 和声明只统一换行，WASM 等二进制按原字节计算。新机器只需 `pnpm install --frozen-lockfile`，不依赖本机相邻的 fork 检出。

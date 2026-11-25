@@ -4,6 +4,8 @@
 
 这是独立的 WebGPU 查看器；正式舞台仍用 WebGL 和原有 Bullet。点「试用样裙」无需文件；用自己的原衣 PMX 选模型目录，或同时选 PMX 和贴图。目录有多个 PMX 时可换角色。实验只在设备本地读取文件，报告不含文件名、骨骼名或模型几何。
 
+**11 月 25 日真机更新：**玩家确认 Quest 窗口可见，进入 VR 后全黑。导出只有 14 个 `screen` 窗，没有记录到双眼 `xr` 窗；下列桌面和模拟 XR 结果不代表真机入场成功。[实戴报告与正式游戏接入路线](./quest-2026-11-25.md)
+
 ## 在 Quest 上试什么
 
 先确认屏幕能显示角色，再点「进入 VR」。浏览器须同时支持 WebGPU 和 WebGPU 的沉浸式绑定；仅有 `navigator.gpu` 不能保证入场。[Meta 发布说明](https://developers.meta.com/horizon/downloads/package/browser/146.0) · [标准示例](https://immersive-web.github.io/webxr-samples/webgpu/vr-barebones.html)。没有绑定时仍可在屏幕对照。
