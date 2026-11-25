@@ -1,10 +1,10 @@
 # 会话交接｜2026-11-25
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [目录整理版 `e581a0c`](https://7ee70117.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `f20d268`](https://950dbdf3.mmd-xr-stage.pages.dev) · [发布证据](./release-history.md) · [文档索引](./README.md)
 
 **恢复停点：loader 上游贡献。** 共享骨架去重的代码、公开合成基准和英文 PR 草稿已准备，仅在本机 `perf/dedupe-render-palettes` 分支，尚未推送或开 PR。11 月 25 日核对，上游发布 PR [#47](https://github.com/yohawing/three-mmd-loader/pull/47) 仍未合并。下次先看它的状态；合并后才在新的 `upstream/main` 上复现，若已修就不提。[基线、两个提交、复验条件及准备包位置](./three-mmd-loader-maintenance.md#共享骨架去重的上游候选)
 
-**当前发布。** 线上是 `e581a0c`，目录整理后的 313 个发布文件与 `6d0ae28` 逐字节相同，1001 项测试通过。舞台仍用官方 loader `0.8.6` + pnpm 补丁；同步到 [fork/main 的 `82147af`](https://github.com/znzsofficial/three-mmd-loader/commit/82147af4a1bcde3817165adb474c618c9b9f9f4e) 没有替换线上依赖。最近的功能修复是[移除演员后恢复正确布局](./architecture/maintenance.md#移除演员后恢复哪份布局)；[B 键主 HUD 拖动时面向头显](./gameplay/vr-controls.md)和[穿衣互动的实时观察图](./gameplay/actor-tools.md)均已发布，镜片观感与手感待实戴。
+**当前发布。** `f20d268`：调整或还原入口时[已安装附件继续跟随](./gameplay/actor-tools.md)；小行星上现实中侧移后[左手 Y 按实际脚位站直](./performance/planet-stance-input.md)；[保持手动姿势的裙摆耗时](./performance/pose-cloth-contact.md#保持一个姿势也会花时间吗)已做同模型开关对照并减少重复计算。下一份头显报告可区分首次拟合、持续裙摆显示和原生 Bullet 步进。本版已测原衣 PMX、模拟双眼走过南极；持续帧率与站直舒适度仍待 Quest 3S。舞台仍用官方 loader `0.8.6` + pnpm 补丁。
 
 **裙摆接续。** 先区分两个现象：① 仰卧抬腿后微调左膝，前裙曾重新掉回腿间；现版已在屏幕和模拟双眼验证松手后仍堆在小腹。② 未微调的普通抬腿，侧髋最深约 28 mm 的几何穿入仍在；强推会让衣边飘宽、穿得更深，未采用。分膝捧腿停 2 秒时外裙横穿面 53→18，里衬 39→0；这是[同帧蒙皮测量](./performance/supine-side-skirt.md)，不是露腿面积。稀疏裙从站立进四点跪撑最深 28.2→17.3 mm，从抬腿进跪则仍为 12.8 mm，见[换姿方向与黑斑反例](./performance/pose-cloth-contact.md)。这些结果只覆盖开物理的手动摆姿。
 
