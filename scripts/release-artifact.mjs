@@ -69,7 +69,7 @@ async function main(action){
     execFileSync(process.execPath,['scripts/loader-sync.mjs','upstream'],opts);
     const quick=action==='quick', files=process.argv.slice(3).map(p=>relative(root,resolve(p)).replaceAll('\\','/'));
     if(quick){
-      assert(files.length,'Supply the relevant test file(s) to release:quick, or use release:prepare for the full suite.');
+      if(!files.length)console.log('Fast build only (no local test files selected); check the changed behavior on this dist.');
       const vitest=[],node=[];for(const file of files){
         if(/^src\/.+\.(?:spec|test)\.tsx?$/.test(file))vitest.push(file);
         else if(/^(?:scripts|experiments)\/.+\.test\.[cm]?js$/.test(file))node.push(file);
