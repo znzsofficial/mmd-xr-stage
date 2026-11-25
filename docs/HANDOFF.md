@@ -1,6 +1,6 @@
 # 会话交接｜2026-11-25
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `0287c44`](https://36f88ec9.mmd-xr-stage.pages.dev) · [WebGPU 裙摆实验](https://mmd-xr-stage.pages.dev/labs/cloth/) · [发布记录](./release-history.md) · [文档索引](./README.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `5c94a32`](https://dc35cfbc.mmd-xr-stage.pages.dev) · [WebGPU 裙摆实验](https://mmd-xr-stage.pages.dev/labs/cloth/) · [发布记录](./release-history.md) · [文档索引](./README.md)
 
 **已确认主线：玩家从同一背包放下自己的角色，能在 Quest 舒服地走近，看动作、摆姿和用双手互动。** 已依次完成入口保护、快速发布、小行星模式收口、实验页真实 VMD 同段对照；WebGPU 未达到进游戏门槛。本轮在这里停。
 

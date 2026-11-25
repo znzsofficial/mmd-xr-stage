@@ -12,6 +12,7 @@
 
 | 功能提交 | 已发布内容与验证范围 |
 |---|---|
+| `4922d5e` → `5c94a32` | [小行星交接](./architecture/gravity.md)：互斥活动模式、落地策略和单一 XR 视图输出；模拟双眼两跳后 1.810 m、约 0.02°。[移动固定版](https://2174bc2f.mmd-xr-stage.pages.dev)。随后只更新[实验室真实 VMD 同段对照](./performance/gpu-cloth-lab.md#真实-vmd-同段对照)；双模型桌面比较未证明进游戏的收益。分别用完整／快速发布档，同一制品上线，主域核对通过。[实验固定版](https://dc35cfbc.mmd-xr-stage.pages.dev/labs/cloth/) |
 | `0287c44`（含 `a449694`） | [进入空舞台](./xr-session-lifecycle.md)在匹配首个 XRFrame 后才提交布局替换。4 项新增两景回归修前均失败，修后通过；实际构建用两个合成 PMX 走通屏幕放置、拒权恢复两景、模拟双眼成功进空场并保留背包。1055 项舞台测试、21 项工具／实验测试、类型及构建通过；[主分支 CI](https://github.com/znzsofficial/mmd-xr-stage/actions/runs/45625336447)通过。354 个文件（含 221 项旧资源）收据 `5ff134e57909…`；同一 dist 上传，两入口及关键资源共 19 个主域路径逐字节一致。[固定版](https://36f88ec9.mmd-xr-stage.pages.dev) |
 | `1d54f10` | [小卫星同井连跳、站姿双手托衣](./performance/quest-2026-11-25-1149.md)。棱盐模拟双眼连跳后净高 0.463→1.810 m、基座倾角 66.18→0.007°。独立 WebGPU 实验在真实原衣三角面采样、逐侧承托与释放；相同双手输入衣面抬升从左／右 2.5／3.8 mm 到 60.7／73.4 mm。1051 项舞台测试、12 项实验局部测试、构建和实际 GPU 回归通过；主域 HTML 与 20 份资源匹配。修后手感、Quest 稳态另验。[固定版](https://d9d044ee.mmd-xr-stage.pages.dev) |
 | `6db0bb7`（含 `822522f`） | [母星本地普通跑跳与眼高](./performance/normal-walk.md)：模拟双眼续走后倾角 18.58°→约 0°、净高 1.29→1.63 m；[实模形态修复](./performance/model-feature-coverage.md)同步 fork/main `3ac1d8e`；部分[手动裙面显示](./performance/pose-cloth-contact.md)减负及[glTF 回收、同趟资源盘点](./performance/model-memory.md)。[WebGPU](./performance/gpu-cloth-lab.md)先提交双眼地标，混合掩码原衣实跑；保留独立实验。原生 Bullet 直调无一致收益，未入游戏。舞台 1046 项、构建通过；主域 HTML 和 20 份资源与制品一致；两个固定入口分别核对。Quest 镜片、舒适度、内存峰值与长时 72 Hz 待真机。[固定版](https://fc4d3e1e.mmd-xr-stage.pages.dev) |
