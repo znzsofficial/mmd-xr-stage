@@ -37,7 +37,7 @@ chip.velocity.addScaledVector(a, dt);
 |---|---|
 | 普通房间行走／跳 | [`groundMotor`](../../src/mmdVrShowcase/movement/groundMotor.ts) 用同一 9.81 常量推进竖直速度。地板、台阶、侧墙和顶棚由柱形空间查询决定；加速度本身不能判断落脚。 |
 | XR 母星、卫星地面 | [`PlanetMotor`](../../src/mmdVrShowcase/movement/PlanetMotor.tsx) 持有脚位和 XR 原点。母星的[按需物理适配器](../../src/mmdVrShowcase/movement/PlanetPhysics.tsx)直接驱动 [Rapier 胶囊](../../src/mmdVrShowcase/movement/homeCapsule.ts)：在每个子步按实际杆量施加切向冲量与径向重力，按支撑校正脚位。[五档走速对照](../performance/home-walk.md)。WASM 未就绪或失败走 [JS 后备](../../src/mmdVrShowcase/movement/planetTravel.ts)；卫星用 [`moonWalk`](../../src/mmdVrShowcase/movement/moonWalk.ts) 沿实际壳面走，母星驱动停放。 |
-| XR 离地、普通跨井 | [`orbitalFlight`](../../src/mmdVrShowcase/movement/orbitalFlight.ts) 对速度和脚位做子步积分；换井保留动量。[壳面扫掠](../../src/mmdVrShowcase/movement/orbitalSurfaces.ts)检查脚、身体和头，实际接触才落地或擦过。[落地交接](../../src/mmdVrShowcase/movement/orbitContact.ts)让马达接管脚位并清零速度，保留触地前的视野；主动按 Y 才回正。[两种飞行的区别与实测](../performance/planet-horizon.md)。 |
+| XR 离地、普通跨井 | [`orbitalFlight`](../../src/mmdVrShowcase/movement/orbitalFlight.ts) 做子步积分，换井保留动量。[壳面扫掠](../../src/mmdVrShowcase/movement/orbitalSurfaces.ts)检查脚、身体和头。同井普通跳在空中跟随当地径向；跨井或头／侧先着地保留扫掠视野。接地结果明确为普通或保护姿态，[模式交接](../../src/mmdVrShowcase/movement/planetJourney.ts)统一写 XR 原点。实头偏转独立。 |
 | 足印助跳、风道、自由飞行 | [足印助跳](../../src/mmdVrShowcase/movement/twinLeap.ts)校准发射冲量，在指定两星间积分，含专用横向辅助加速度。风道由图册的 `rideStep` 沿预制曲线运送；自由飞行由摇杆直接平移，不受重力或实体约束。这些是玩家的不同走法，风道和自由飞行没有另开物理引擎。 |
 | PMX 头发、裙摆、手部接触 | [演员运行时](../../src/mmdVrShowcase/mmdRuntime/mmdRuntime.ts)给每个开启物理的模型创建独立 [MMD Bullet 世界](../../src/mmdVrShowcase/mmdRuntime/mmdPhysics.ts)，按模型刚体、关节与接触代理求解。舞台不会把角色位置处的行星引力灌进 Bullet。 |
 | 视觉粒子 | [盐晶与火星](../../src/mmdVrShowcase/scenery/planet/StationFallout.tsx)在着色器里按发射点的固定局部轴与本星重力画抛物线；既有[液滴](../../src/mmdVrShowcase/bodyState/lactation/droplets.ts)离开出口后沿世界 −Y 下落。它们不扫壳面，也不是 Bullet 刚体。是否需要沿途重新选井，取决于效果能否飞离发射点附近。 |
@@ -49,4 +49,4 @@ chip.velocity.addScaledVector(a, dt);
 
 - **加一颗可步行星或一个视觉玩具**：已有 `allMoons` 记录自动参与选井；地形、可落脚面和抵达路线仍需单独创作。玩具只需采样位置并管理自己的速度、寿命和绘制，不需要改玩家状态机。
 - **加一种场**（例如某个房间内有侧向吸附区）：先在查询层定义生效范围、重叠优先级与出界行为，用两个独立物体穿越边界验证。若还要让玩家走上侧墙，必须另做支撑、碰撞、头部余量和视平线接管；改一个向量并不足够。
-- **加一种会接管脚位的移动方式**：当它需要在多个分支重复处理停放母星驱动、持键落地、追踪中断和恢复安全脚位时，再把 `ground / orbit / twinLeap / wind / free` 提成显式互斥状态与转移。先锁住进入、打断、恢复、落地后松杆停步这几条行为，继续让单一所有者写 XR 原点。
+- **加一种会接管脚位的移动方式**：扩展 `PlanetMode`，而不是在已有活动方式旁再加开关。最近一次支撑记录可在自由→普通时取回，记录本身不驱动另一个马达。用既有进入、打断、恢复、落地后松杆停步的路线验证。
