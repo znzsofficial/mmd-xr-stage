@@ -18,6 +18,8 @@ These assets are served from the application's origin because loading controller
 
 The files `public/mmd/0.8.6/mmd_bullet.js` and `public/mmd/0.8.6/mmd_bullet.wasm` are distributed from `@yohawing/three-mmd-loader` version 0.8.6.
 
+The game's loader uses the same upstream release with a generated patch from the [stage fork](https://github.com/znzsofficial/three-mmd-loader). The exact source revision and distribution digest are recorded in [loader-source.json](../loader-source.json). The above Bullet files are unchanged from upstream.
+
 MIT License
 
 Copyright (c) 2026 yohawing

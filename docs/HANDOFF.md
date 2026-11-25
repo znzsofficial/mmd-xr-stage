@@ -10,7 +10,7 @@
 
 - **查场景帧率：**选泳池计时台或教室后门，按[单景真机对照](./performance/next-quest-export.md#泳池或教室同机位真机对照)跑 `6061e24` 与 `b91325b`。先空场，加入演员或开物理另算。若两版帧率都顶住刷新率，只记录几何提交和镜片观感；无需据此继续削水面或课桌材质。
 - **查单人开物理仍慢：**先分普通站立、保持手动体位、持续播舞。[站姿减抖](./performance/xr-runtime-performance.md#默认站立开物理后的反复轻抖)不休眠 Bullet；[手动姿势报告](./performance/pose-cloth-contact.md#保持一个姿势也会花时间吗)有 `skirtWork`。持续播舞已做[关节行与接触／摩擦行的独立计时](./performance/bullet-step-profile.md#主迭代行循环)：48/48 窗以关节行为重，占非 split 迭代约七成。若继续查原后端，先量哪些约束行每遍实际执行，不直接调低求解精度。
-- **继续 loader 上游贡献：**舞台仍用官方 `0.8.6` 加 pnpm 补丁，完整扩展在自己的 `fork/main@82147af`。独立候选 `perf/dedupe-render-palettes` 只含 `4629aab`、`1d444f0`，工作树干净、未推送、未投稿。11 月 25 日复核维护者的 [#47](https://github.com/yohawing/three-mmd-loader/pull/47) 仍 open（`347bf20`）。等合并后在新 `upstream/main` 检查 JS 和 WASM 两条路径：若已去重则不提；否则只移植这两个提交，复跑基准。[英文草稿与恢复说明的位置](./three-mmd-loader-maintenance.md#共享骨架去重的上游候选)
+- **加载器只有一份源码：**跟踪上游已发布的正式版，在自己的 fork 集成；舞台用生成补丁还原同一产物，打包前校验。当前 `0.8.6` / `fork/main@9a45a5c`，含形态纹理去重。[来源清单](../loader-source.json) · [同步办法](./three-mmd-loader-maintenance.md#怎么保持同步)。独立的 CPU 骨架去重候选仍未投稿，等维护者的 [#47](https://github.com/yohawing/three-mmd-loader/pull/47) 合入后再复查。[英文草稿与恢复说明](./three-mmd-loader-maintenance.md#共享骨架去重的上游候选)
 
 ## 已交付和证据边界
 

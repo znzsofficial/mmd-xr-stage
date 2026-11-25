@@ -6,7 +6,14 @@
 
 ## 用途
 
-本文分别记录舞台实际安装的 loader、fork 的源码，以及准备给上游的改动。拆分前 NekoVirtOS 的修复和旧版本验证保留在后文，按当时版本解读。
+**只维护一份 loader 源码：我们的 fork。** 上游发布稳定版 → 合入 fork 并验证 → 舞台打包这份 fork 的运行产物。`package.json` 仍写官方包名：pnpm 用官方包和自动导出的差异还原 fork，不再单独手改补丁。浏览器只取本站与本次部署匹配的模块及 WASM。玩家的操作见[文件导入与放置](./gameplay/asset-workflow.md)。下方早期版本、独立上游贡献候选均不是另一份线上 loader。
+
+### 怎么保持同步
+
+- 当前基线以 npm `latest` 的**正式版本**为准。2026-11-25 核对为 `0.8.6`，`upstream/main` 与 `v0.8.6` 同指 `9c47b94`。尚未发版的 `develop` / 发布 PR 不自动进入生产；已经验证的重要单项可以带原提交号回移。
+- [每日检查](../.github/workflows/loader-upstream.yml)和发版前的 `pnpm loader:upstream` 比较 npm 最新版、官方标签、包完整性和远端 `fork/main`。不同就提示更新；检查不部署代码。上游主分支若只前进、未发正式版，会另报提示。已打开的游戏不受影响。
+- [来源清单](../loader-source.json)锁定 fork 提交、正式版、完整 `dist/` 文件树摘要与补丁摘要。`pnpm build` 首先离线验证实际安装包（包括入口与依赖元数据）和 `public/mmd/<version>/` 的 Bullet JS/WASM。JS 和声明只统一换行，WASM 等二进制按原字节计算。新机器只需 `pnpm install --frozen-lockfile`，不依赖本机相邻的 fork 检出。
+- 同步时：在 fork 检出更新官方 tag 和远端引用，合入新版，保留舞台依赖的扩展；用 npm 和锁定的构建依赖、配套原生制品测试。然后在舞台运行 `pnpm loader:export <fork目录>`、`pnpm install`、`pnpm loader:verify`，提交生成的补丁、清单与锁文件。导出器从校验过的官方 tarball 起算，新增/移除/变更的 `dist` 文件都计入；原生二进制、包入口或版本不符会停止。正式版升号时同时更新依赖、`patchedDependencies` 的版本和匹配的 Bullet 路径。实模验收通过后推送 fork 与舞台，才发新游戏版本。
 
 ## 仓库与依赖
 
@@ -22,7 +29,7 @@
 - `@yohawing/three-mmd-loader@0.8.6`
 - `mmd-anim WASM 0.5.4`
 - Bullet 运行资产：`public/mmd/0.8.6/mmd_bullet.js`、`public/mmd/0.8.6/mmd_bullet.wasm`；版本化目录保证 ABI 配套的 JS/WASM 同步更新
-- 舞台安装的是官方 `0.8.6` + [pnpm patch](../patches/@yohawing__three-mmd-loader@0.8.6.patch)。同一组扩展已移植到 [fork 的 TypeScript 源码 `82147af`](https://github.com/znzsofficial/three-mmd-loader/commit/82147af4a1bcde3817165adb474c618c9b9f9f4e)，但 fork 提交不是新的 npm 发布版。
+- 舞台安装的是官方 `0.8.6` + [从 fork 生成的 pnpm patch](../patches/@yohawing__three-mmd-loader@0.8.6.patch)。本次来源为 [fork/main `9a45a5c`](https://github.com/znzsofficial/three-mmd-loader/commit/9a45a5c079d5c61945eb22ab85995716ba56457b)：含原有 `82147af` 扩展和上游 `3f3c82a` 形态纹理修复。已核对全部 241 个 `dist` 文件和两份随站点分发的 Bullet 文件；不发布同名 npm 包。
 - `pnpm-workspace.yaml` 中的 `patchedDependencies` 负责应用补丁
 - **测试中出现 `THREE_CJS_DEPRECATED` 时先看调用栈**：r187 的 `three.cjs` 会对 `require('three')` 告警。本项目实测调用方为 `meshline@3.3.1/dist/index.cjs` 与 `@react-three/fiber@9.8.2` 的 CJS 构建，来源是 Vitest 在 Node／jsdom 中解析 XR 依赖链。`vite.config.ts` 在测试模式让这条链使用包自带的 `module` 入口；不用改业务代码的 ESM 导入，也不要屏蔽 Node 的警告。生产构建另用 `singleThreeRuntime` 检查只有一份 Three.js。Node 关于 `localStorage` 的实验性提示是另一回事。
 - 还包含重获追踪刚体中心查询与 CCD IK 活跃节点矩阵优化。升级后执行 `ccdSolverParity.test.ts` 并与原求解器对照；补丁 hash 以 `pnpm-lock.yaml` 为准。
@@ -37,7 +44,7 @@
 
 ## 共享骨架去重的上游候选
 
-舞台另在加载准备阶段[合并相同形态几何](./performance/model-memory.md)，对应上游 `3f3c82a` 的显存问题，而不是本节的 CPU 候选。升级若 loader 已自行共享几何，不再包裹回调。保留绘制外的 `start/count` 读取，复测普通及真实拆分 PMX 的形态分配、影子、衣柜、命中与独立移除后再清理适配器。
+形态数组纹理去重已经由 fork 在创建材质和描边代理时完成（上游 `3f3c82a`），不是本节的 CPU 候选。舞台仍负责绘制外的 `start/count` 读取；[普通及真实拆分 PMX 的形态分配与验收](./performance/model-memory.md)是升级门槛。
 
 **状态（2026-11-25）：只准备，未投稿。** 上游 [#47](https://github.com/yohawing/three-mmd-loader/pull/47) 是维护者的 `0.9.0` 发布 PR，不是我们的优化 PR。核对时仍为 open，head 为 `347bf20`。它已经处理 three r186/r187 的 TSL 导入兼容并提供 `debugPhysicsContactsForRigidBodyRange`；不重复投稿。这不意味着舞台当前安装的 `0.8.6` 可以撤掉补丁。
 
@@ -380,9 +387,9 @@ gh pr checks 40 --repo yohawing/three-mmd-loader
 ### 新版本发布后
 
 1. 对照 [fork 扩展清单](https://github.com/znzsofficial/three-mmd-loader/blob/82147af4a1bcde3817165adb474c618c9b9f9f4e/docs/XR_STAGE_FORK.md)核对实际发布包的 API 和运行行为。2026-11-25 本次同步已用 fork 打包产物和舞台锁定的 Three r187 进行类型检查及 52 项专项回归；fork 自身 r184 下 808 项通过、5 项跳过。fork 对仍提供公开接口的 r184 保留实验性自阴影；r187 缺接口时与舞台补丁一样降级。
-2. 在独立分支更新 `@yohawing/three-mmd-loader` 版本。
-3. 只移除发布包已覆盖的补丁段。所有仍在使用的扩展都有替代实现并通过舞台回归后，才能删除 loader 的整个 `patchedDependencies` 条目和 patch 文件。
-4. 同步版本化 Bullet 资产目录，更新 `mmdRuntime/bulletModule.ts` 脚本路径（预热和显式开物理共用）。
+2. 先在 fork 的集成分支更新上游，再在舞台更新 `@yohawing/three-mmd-loader` 的确切版本和来源。
+3. 用上面的导出命令从 fork 生成差异，不在舞台 patch 上独立开发。所有仍在使用的扩展都有上游等价实现并通过舞台回归后，才考虑删除整个 `patchedDependencies` 条目和 patch 文件。
+4. 同步版本化 Bullet 资产目录；正式舞台和实验页的路径由同一来源清单生成（预热和显式开物理共用）。
 5. 运行 `pnpm install` 更新 lockfile，确认旧 patch hash 消失。
 6. 重跑 TypeScript、指定物理/触觉测试、完整测试和 build。
 7. 再次进行真机回归：模型缩放、衣服物理、面板存续、左右控制器碰撞和震动。

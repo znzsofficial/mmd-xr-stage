@@ -1,5 +1,7 @@
 import * as T from 'three';
+import {ThreeMmdLoader} from '@yohawing/three-mmd-loader';
 import {createMmdRuntimeHandle} from '../src/mmdVrShowcase/mmdRuntime/mmdRuntime.ts';
+import * as reference from '../src/mmdVrShowcase/mmdRuntime/mmdRuntime.ts?atlas-old';
 import {prepareMmdVrModel} from '../src/mmdVrShowcase/stage/loading/prepareMmdVrModel.ts';
 import {prepareModelGpu} from '../src/mmdVrShowcase/stage/loading/prepareModelGpu.ts';
 import {materialDraws} from '../src/mmdVrShowcase/bodyState/lactation/outletFit.ts';
@@ -158,11 +160,26 @@ export function checkRanges(surface,scale){
   }).sort((a,b)=>a.slot-b.slot);
 }
 
-function topology(surface){
+function topology(surface,shared){
+  const bodies=surface.mesh.userData.mmdMorphSplitBodyMeshes??[],bodyBySlot=new Map(bodies.map(body=>[slot(body),body]));
+  const shells=new Set();let sharedProxies=0;
   const roles={},geos=new Map();surface.root.traverse(o=>{if(!o.isSkinnedMesh)return;const r=role(o);roles[r]=(roles[r]??0)+1;
-    const g=o.geometry,owners=geos.get(g.id)??[];owners.push([r,slot(o)??null]);geos.set(g.id,owners);});
-  const splits=(surface.mesh.userData.mmdMorphSplitBodyMeshes??[]).map(o=>({slot:slot(o),vertices:o.geometry.attributes.position.count,indices:o.geometry.index.count,targets:[...o.userData.mmdMorphSplitBody.morphTargetIndices]}));
-  return {roles,splits,geometryOwners:Object.fromEntries(geos)};
+    const g=o.geometry,owners=geos.get(g.id)??[];owners.push([r,slot(o)??null]);geos.set(g.id,owners);
+    if(r!=='outline'&&r!=='material')return;
+    const i=slot(o),body=bodies.length?bodyBySlot.get(i):surface.mesh,group=body?.geometry.groups.find(x=>x.materialIndex===i);
+    check(group&&g.index===body.geometry.index,`Wrong source or compact body for ${r} slot ${i}`);
+    const meta=o.userData.mmdOutlineProxy??o.userData.mmdMaterialRenderProxy;
+    if(shared){
+      check(g===body.geometry&&meta.start===group.start&&meta.count===group.count,`Candidate lacks native shared ${r} slot ${i}`);
+      sharedProxies++;
+    }else{
+      check(g!==body.geometry&&!shells.has(g)&&g.drawRange.start===group.start&&g.drawRange.count===group.count,`Baseline lacks independent ${r} slot ${i}`);
+      shells.add(g);
+    }
+  });
+  check(sharedProxies+shells.size>0,'No proxy to distinguish baseline and candidate');
+  const splits=bodies.map(o=>({slot:slot(o),vertices:o.geometry.attributes.position.count,indices:o.geometry.index.count,targets:[...o.userData.mmdMorphSplitBody.morphTargetIndices]}));
+  return {roles,splits,sharedProxies,independentProxies:shells.size,geometryOwners:Object.fromEntries(geos)};
 }
 
 // Freeze a freshly rendered caster's depth map, then draw ONLY the receiver
@@ -183,14 +200,15 @@ function shadows(b,surface,frame,garment){
 function footprint(m){const {geometries,textures,arrays,arrayBytes}=m;return {geometries,textures,arrays,arrayBytes};}
 async function arm(b,shared,pmx,files,config,out,gate){
   const {scene,renderer,camera,light}=b,frames={};out.counts={empty:b.memory()};
-  const rt=createMmdRuntimeHandle(scene,{
-    prepareModel:root=>shared?prepareMmdVrModel(root):prepareMmdVrModel(root,{shareMorphGeometry:false}),
+  const createRuntime=shared?createMmdRuntimeHandle:reference.createMmdRuntimeHandle;
+  const rt=createRuntime(scene,{
+    prepareModel:prepareMmdVrModel,
     prepareGpu:(...args)=>prepareModelGpu(renderer,scene,camera,...args),
   });
   const add=()=>rt.addModel(pmx,files,{physics:false,transform:{scale:1,positionX:0}}),tick=t=>rt.update(t,false,camera,1,false,0);
   try{
     const loaded=await add(),id=loaded.modelId,surface=rt.getModelSurface(id),mesh=surface.mesh;
-    out.topology=topology(surface);out.missingTextures=loaded.missingTextures.length;
+    out.topology=topology(surface,shared);out.parser=surface.diagnostics.core.kind;out.missingTextures=loaded.missingTextures.length;
     gate('all referenced textures resolved',!out.missingTextures);
     gate('right topology',config.expectSplit?out.topology.splits.length>1:!out.topology.splits.length&&out.topology.roles.material>1);
     const w=rt.getWardrobe(id,pmx);out.wardrobe=w.slots.map(s=>[s.index,s.triangles,s.textured]);
@@ -248,6 +266,8 @@ window.testAtlas=async(config={})=>{
   check(!busy,'A parity run is already active');busy=true;
   const result={id:config.id??'manual',pass:false,failures:[],old:{},candidate:{},pixels:{}};
   try{
+    check(reference.atlasSources&&reference.atlasLoader!==ThreeMmdLoader,'请用 node scripts/model-atlas-parity-server.mjs 启动独立基线对照服务。');
+    result.sources=reference.atlasSources;
     const folder=document.querySelector('#folder').files,files=[...(folder.length?folder:document.querySelector('#loose').files)];
     const matches=files.filter(f=>config.fileName?f.name===config.fileName:/\.pmx$/i.test(f.name));
     check(matches.length===1,'Select one unambiguous PMX entry in its texture folder');const pmx=matches[0];
@@ -259,7 +279,7 @@ window.testAtlas=async(config={})=>{
     note(`${result.id} · 默认路径`);const next=await arm(bench,true,pmx,files,config,result.candidate,(...a)=>gate('candidate',...a));
     for(const key of Object.keys(old)){const d=result.pixels[key]=difference(old[key],next[key]);gate('pixels',key,d.changed===0);}
     for(const k of ['roles','splits'])gate('retained topology',k,same(result.old.topology[k],result.candidate.topology[k]));
-    for(const k of ['rays','wardrobe','expression'])gate('parity',k,same(result.old[k],result.candidate[k]));
+    for(const k of ['parser','rays','wardrobe','expression'])gate('parity',k,same(result.old[k],result.candidate[k]));
     const a=result.old.counts.one,b=result.candidate.counts.one;
     result.storage={oldBytes:a.arrayBytes,newBytes:b.arrayBytes,savedMiB:(a.arrayBytes-b.arrayBytes)/2**20};
     const requireReduction=!config.expectSplit||config.requireReduction;

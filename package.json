@@ -11,11 +11,14 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && pnpm build:cloth-lab",
+    "build": "node scripts/loader-sync.mjs verify && tsc -b && vite build && pnpm build:cloth-lab",
+    "loader:verify": "node scripts/loader-sync.mjs verify",
+    "loader:export": "node scripts/loader-sync.mjs export",
+    "loader:upstream": "node scripts/loader-sync.mjs upstream",
     "build:cloth-lab": "vite build --config experiments/gpu-cloth/vite.config.mjs",
     "preview": "vite preview",
     "test": "vitest run",
-    "deploy": "pnpm build && node scripts/retain-legacy-scene.mjs && wrangler pages deploy ./dist --project-name=mmd-xr-stage --branch=main"
+    "deploy": "pnpm loader:upstream && pnpm build && node scripts/retain-legacy-scene.mjs && wrangler pages deploy ./dist --project-name=mmd-xr-stage --branch=main"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.19.2",

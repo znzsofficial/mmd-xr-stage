@@ -7,9 +7,10 @@ import {createPoseSolver} from '../../src/mmdVrShowcase/pose/poseSolver';
 import {fitRig,skirtWorld} from './rig';
 import {makeGpu} from './gpu';
 import {bakeHeldThigh} from './heldThigh';
+import {bulletScriptPath} from '../../src/mmdImport/bulletAsset';
 
 let bullet;
-const moduleForLab=()=>bullet??=loadCustomBulletMmdModule({scriptUrl:new URL('/mmd/0.8.6/mmd_bullet.js',location.href).href}).catch(e=>{bullet=null;throw e;});
+const moduleForLab=()=>bullet??=loadCustomBulletMmdModule({scriptUrl:new URL('/'+bulletScriptPath,location.href).href}).catch(e=>{bullet=null;throw e;});
 
 export async function loadActor(device,format,pmx,files){
   const counts={bodies:0,joints:0,worldMs:0},hands=[new Vector3(0,-100,0),new Vector3(0,-100,0)],matrices=hands.map(()=>new Matrix4().elements);

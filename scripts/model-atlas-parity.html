@@ -2,7 +2,8 @@
 <html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>PMX 形态 atlas · WebGL 对照</title>
 <h1>PMX 形态 atlas 对照</h1>
-<p>选一套原衣 PMX 的目录（含贴图）。同一 WebGL2 renderer 先画旧几何，再画默认准备路径。输入和结果只在此页使用。</p>
+<p>项目根目录运行 <code>node scripts/model-atlas-parity-server.mjs</code>，打开终端打印的地址。若有本机验证计划，运行 <code>node local-review/verification/atlas-parity/run.mjs http://127.0.0.1:5174</code>。</p>
+<p>选原衣 PMX 目录（含贴图）。同一 WebGL2 renderer 先画官方 0.8.6 加历史舞台补丁（dbd2e96），再画当前安装的 loader。首次启动需读取 npm 官方包；离线可用 <code>ATLAS_BASELINE_TGZ</code> 指向同一 tarball。两版代理模块指纹随结果保存。</p>
 <label>模型目录 <input id="folder" type="file" webkitdirectory multiple></label>
 <details><summary>设备不支持选择目录</summary><label>一起选择 PMX 和配套贴图 <input id="loose" type="file" multiple></label></details>
 <label>入口 PMX <select id="model"></select></label>

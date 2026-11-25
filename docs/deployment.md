@@ -7,6 +7,7 @@
 经典 Cloudflare Pages 直传：
 
 ```bash
+pnpm loader:upstream
 pnpm build
 # 保留旧标签页仍会请求的 XR 入口、星球模块和器官绘图 Worker
 node scripts/retain-legacy-scene.mjs

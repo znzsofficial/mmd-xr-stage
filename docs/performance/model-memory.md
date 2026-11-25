@@ -4,7 +4,7 @@
 
 ## 形态数据：同一演员只为相同几何申请一份
 
-参考角色 A 有 52 个顶点形态、30,653 个顶点。1 个主网格、21 个材质绘制和 13 个描边原本指向相同数据，却各持一个几何对象。r187 按几何对象缓存形态数组纹理，导致每个对象都申请一份 26 MiB 的 `RGBA32F`。现在[在第一次 GPU 上传前](../../src/mmdVrShowcase/stage/loading/shareMorphGeometry.ts)核对骨架、索引、属性与形态数组身份，只在同一演员内共享真正相同的源几何。
+参考角色 A 有 52 个顶点形态、30,653 个顶点。1 个主网格、21 个材质绘制和 13 个描边原本指向相同数据，却各持一个几何对象。r187 按几何对象缓存形态数组纹理，导致每个对象都申请一份 26 MiB 的 `RGBA32F`。`d65e37c` 先由舞台在第一次 GPU 上传前合并相同几何；当前已归位到 [fork 的代理构建逻辑](https://github.com/znzsofficial/three-mmd-loader/blob/9a45a5c079d5c61945eb22ab85995716ba56457b/src/three/outline.ts)，创建代理时直接复用本演员对应的源几何。
 
 | 场景状态 | 旧版形态纹理 | 新版形态纹理 |
 |---|---:|---:|
@@ -32,6 +32,6 @@
 
 ## 复查与下一步
 
-用本地开发服务打开 [形态绘制对照](../../scripts/model-atlas-parity.html)，选择一个模型目录，分别选普通／拆分样本；[双实例分配探针](../../scripts/model-render-coverage.js)用 `testActor({duplicate:true})` 或传入真实表情名。两个高负载角色的旧版双实例用已有基线，勿并行启动多个浏览器。原始数值与测试计划保留在本机 `local-review/verification/atlas-parity/`、`morph-atlas/` 和 `model-coverage/`。
+用 `node scripts/model-atlas-parity-server.mjs` 启动仅限开发的[形态绘制对照](../../scripts/model-atlas-parity.html)，分别选普通／拆分样本。旧组加载官方 0.8.6 加 `dbd2e96` 当时的真实补丁；新组加载舞台实际安装的 fork 构建，不再通过开关模拟旧几何。在 fork `9a45a5c` 原生共享几何的版本上已再次核对 A 和 S 的 24 对画面逐像素相同，各自仍是 1／14 份数组纹理。[双实例分配探针](../../scripts/model-render-coverage.js)用 `testActor({duplicate:true})` 或传入真实表情名。两个高负载角色的旧版双实例用已有基线，勿并行启动多个浏览器。原始数值与测试计划保留在本机 `local-review/verification/atlas-parity/`、`morph-atlas/` 和 `model-coverage/`。
 
 下一步若仍有内存压力，优先看 Quest 上**首次放置期间的峰值**与**站稳后的驻留**是否不同，并记录收回／回访后的基线。底色纹理在各实例之间仍独立，任何跨实例共享都需要另验换装、异步失败和释放所有权。

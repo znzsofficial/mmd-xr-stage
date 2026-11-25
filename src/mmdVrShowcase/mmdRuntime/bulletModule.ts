@@ -1,10 +1,11 @@
 import type { PhysicsSwitchWork } from '../diagnostics/physicsSwitchWork';
+import {bulletScriptPath} from '../../mmdImport/bulletAsset';
 
 // Page-wide code/WASM instance only. Each explicit enable still creates its
 // own backend and owns its world. Never put stage, model or File references here.
 async function load() {
   const { loadCustomBulletMmdModule, createCustomBulletMmdPhysicsBackend } = await import('@yohawing/three-mmd-loader/physics');
-  const scriptUrl = new URL('mmd/0.8.6/mmd_bullet.js', window.location.origin + (import.meta.env.BASE_URL || '/'));
+  const scriptUrl = new URL(bulletScriptPath, window.location.origin + (import.meta.env.BASE_URL || '/'));
   const module = await loadCustomBulletMmdModule({ scriptUrl: scriptUrl.href, timeoutMs: 30_000 });
   return { module, createCustomBulletMmdPhysicsBackend };
 }

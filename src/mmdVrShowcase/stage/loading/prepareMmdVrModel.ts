@@ -1,10 +1,8 @@
 import {MeshDepthMaterial,RGBADepthPacking,type Object3D,type SkinnedMesh} from 'three';
 import {useRigSpaceSkinning} from './rigSpaceSkinning';
-import {shareMorphGeometry} from './shareMorphGeometry';
 
 /** Animated MMD bounds can be stale after morphs, causing incorrect per-eye culling in VR. */
-export function prepareMmdVrModel(root: Object3D,options?:{shareMorphGeometry?:boolean}) {
-  if(options?.shareMorphGeometry!==false)shareMorphGeometry(root);
+export function prepareMmdVrModel(root: Object3D) {
   root.traverse((object) => {
     object.frustumCulled = false;
     const mesh=object as SkinnedMesh,g=mesh.geometry;
