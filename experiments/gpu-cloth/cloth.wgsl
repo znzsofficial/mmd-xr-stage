@@ -29,7 +29,7 @@ struct History { p:vec4f, goal:vec4f }
   for(var k=0u;k<h.y;k++){let edge=edges[h.x+k];let other=src[u32(edge.x)];let d=other.xyz-p;let l=max(.00001,length(d));
     correction+=edge.z*(l-edge.y)*d/(l*(1.+other.w));weights+=edge.z;}
   p+=correction/max(1.,weights)*1.45;
-  let hit=collide(p,f.contacts);p=hit.xyz;
+  let hit=collide(p,f.contacts,h.zw);p=hit.xyz;
   // COUNT_FINE_TESTS
   p.y=max(.005,p.y);dst[i]=vec4f(p,t.w);
 }

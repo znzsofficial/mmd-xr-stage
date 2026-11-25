@@ -14,6 +14,7 @@ struct Corner { rest:vec4f, bones:vec4f, weights:vec4f, id:vec4f }
 @group(0) @binding(12) var<storage,read> corners:array<Corner>;
 @group(0) @binding(13) var<storage,read> nodeForBone:array<u32>;
 @group(0) @binding(14) var<storage,read_write> residual:array<vec4f>;
+@group(0) @binding(15) var<storage,read> nodeHeaders:array<vec4u>;
 
 fn wall(p:vec3f)->vec3f{
   let grid=(p-args.corner.xyz)/args.corner.w;if(any(grid<vec3f(0.))||any(grid>=vec3f(args.dims.xyz-1u))){return vec3f(0.);}
@@ -35,7 +36,7 @@ fn wall(p:vec3f)->vec3f{
 @compute @workgroup_size(64) fn gather(@builtin(global_invocation_id) gid:vec3u){
   let i=gid.x;if(i>=arrayLength(&points)||points[i].w==0.){return;}let r=ranges[i];var d=vec3f(0.);var w=0.;
   for(var k=0u;k<r.y;k++){let link=refs[r.x+k];let s=deltas[u32(link.x)];let influence=link.y*link.y;d+=influence*link.y*s.xyz;w+=influence*s.w;}
-  if(w>0.){let step=d/w;let p=collide(points[i].xyz+step*min(1.,.002/max(length(step),1e-8)),args.contacts).xyz;
+  if(w>0.){let step=d/w;let p=collide(points[i].xyz+step*min(1.,.002/max(length(step),1e-8)),args.contacts,nodeHeaders[i].zw).xyz;
     let displacement=p-points[i].xyz;if(length(displacement)<=.0021){points[i]=vec4f(p.x,max(.005,p.y),p.z,1.);}}
 }
 

@@ -1,6 +1,10 @@
 import {Euler, Vector3} from 'three';
 const skirt=/skirt|裙|スカート/i;
 const xyz=()=>new Vector3();
+// The loader passes these 16-bit inclusion masks straight to Bullet. An invalid
+// group must not alias a real one through JavaScript's modulo-32 shift.
+const contactPair=(a,b)=>a.group>=0&&a.group<16&&b.group>=0&&b.group<16&&
+  (a.mask&(1<<b.group))!==0&&(b.mask&(1<<a.group))!==0;
 
 // One node per authored dynamic skirt bone. Edges follow the actual PMX joints,
 // never infer neighbours from material names, triangle order or UV seams.
@@ -19,17 +23,19 @@ export function fitRig(mesh){
   const first=nodes.map(n=>[...n.adj.keys()]);for(let i=0;i<nodes.length;i++)for(const j of first[i])for(const k of first[j])if(i!==k)edge(i,k,.22);
   if(!nodes.some(n=>!n.pin&&n.adj.size)||!nodes.some(n=>n.pin))throw Error('无法识别相连的腰口和活动裙摆');
   const rest=new Float32Array(nodes.length*4),headers=new Uint32Array(nodes.length*4),links=[],lookup=new Uint32Array(bones.length);
-  nodes.forEach((n,i)=>{rest.set([...n.rest.toArray(),Number(!n.pin)],4*i);headers.set([links.length/4,n.adj.size,n.bone,0],4*i);lookup[n.bone]=i+1;
+  nodes.forEach((n,i)=>{rest.set([...n.rest.toArray(),Number(!n.pin)],4*i);headers.set([links.length/4,n.adj.size],4*i);lookup[n.bone]=i+1;
     for(const [j,k] of n.adj)links.push(j,n.rest.distanceTo(nodes[j].rest),k,0);});
   const capsules=[];
-  if(nodes.some(n=>n.group!==nodes[0].group||n.mask!==nodes[0].mask))throw Error('暂不支持多套裙摆碰撞掩码');
-  for (const b of bodies){if(b.mode!=='static'||!bones[b.boneIndex]||!['sphere','capsule'].includes(b.shape)||!(nodes[0].mask&(1<<b.group))||!(b.mask&(1<<nodes[0].group)))continue;
+  for (const b of bodies){if(b.mode!=='static'||!bones[b.boneIndex]||!['sphere','capsule'].includes(b.shape)||!nodes.some(n=>!n.pin&&contactPair(n,b)))continue;
+    if(capsules.length===62)throw Error('这个模型的身体碰撞体超出实验上限');
     // YXZ matches the pinned loader's legacyMmdEulerToQuaternion components.
     // Convert the authored centre and both endpoints from PMX left-handed space.
     const mid=new Vector3(...b.position),v=new Vector3(0,b.shape==='capsule'?b.size[1]/2:0,0).applyEuler(new Euler(...b.rotation,'YXZ'));
     const a=mid.clone().sub(v),c=mid.clone().add(v);a.z*=-1;c.z*=-1;
-    capsules.push({a:a.applyMatrix4(boneInverses[b.boneIndex]),b:c.applyMatrix4(boneInverses[b.boneIndex]),bone:bones[b.boneIndex],r:b.size[0]*scale+.004});}
-  if(capsules.length>62)throw Error('这个模型的身体碰撞体超出实验上限');
+    capsules.push({a:a.applyMatrix4(boneInverses[b.boneIndex]),b:c.applyMatrix4(boneInverses[b.boneIndex]),bone:bones[b.boneIndex],r:b.size[0]*scale+.004,group:b.group,mask:b.mask});}
+  // headers.zw: eligible slots in contactPacket order (up to 62 authored + two
+  // unconditional hands). Bake once; moving a collider never changes its slot.
+  nodes.forEach((n,i)=>{for(let k=0;k<capsules.length+2;k++)if(k>=capsules.length||contactPair(n,capsules[k]))headers[4*i+2+(k>>>5)]|=1<<(k&31);});
   const leaves=nodes.filter(n=>!n.pin&&!bones[n.bone].children.some(c=>byBone.has(bones.indexOf(c))));
   const hem=leaves.sort((a,b)=>(b.rest.z-.45*Math.abs(b.rest.x))-(a.rest.z-.45*Math.abs(a.rest.x)))[0];
   if(!hem)throw Error('没有可识别的前裙末端');let anchor=bones[hem.bone];while(byBone.has(bones.indexOf(anchor)))anchor=anchor.parent;
