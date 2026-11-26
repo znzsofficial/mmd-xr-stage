@@ -18,6 +18,8 @@
 
 实绘：`local-review/screenshots/rossi-hybrid-bust-v3/face-lights.png` 可见脸影由鼻翼越过另一侧脸颊，顺光保留眼线；侧逆光阴面较二版更灰。`comparison.png` 为原 −60° 主光半身；原位白衣和帽兜／头发抽样未变。`hand-light.png` 为原手套与露指在同一近景 −145° 主光下的前后对照；变化大于两码的 10,479 个像素，RGB 变化逐通道 P90 为 +12／+3／+1。普通半身机位的身体皮肤取样未见该效果，不将手部放大图说成整人皮肤改善。
 
+**v4：帽兜和发束对脸的真实投影。** [局部主光 pass](../../scripts/webgpu-actor/faceKeyShadow.js)在当前姿势和 morph 求值后，用同一原网格及 UV 绘制一张 384² 深度图。衣布与发丝混合槽只取头部权重区域；发片 alpha 决定透空。只让带脸图的材质接收该阴影，原先的脸影 SDF 继续工作。角色材质对照页复用已分配的头发／服装槽，无需额外控件；此 pass 尚未接入头显后端。`local-review/screenshots/rossi-hybrid-bust-v4/comparison.png` 和 `head-turn.webp` 是同灯半身、近景与 31 帧转头。只关投影时原半身逐像素恢复 v3。遮挡物可见，单独转发骨或帽骨时脸影分别变动；发片透明度在此固定视角对最终脸色的贡献很轻。没有由此得出 Quest 帧率结论。
+
 专题接续：[卡拉彼丘脸影、发束与眼周](./strinova-render-study.md)核对两份社区源码，并给出头骨旋转的对照；[终末地 Cloth1 参数图](./endfield-material-study.md)记录同槽双区域的离线转灯控制、R/A 取样约定和各自的保留条件。
 
 | 一手来源（均为社区作者） | 可核对的材质，以及值得借的原则 |

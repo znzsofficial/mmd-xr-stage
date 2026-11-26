@@ -3,6 +3,7 @@ import { max, sRGBTransferEOTF, sRGBTransferOETF } from 'three/tsl';
 import { hybridToonColor, parseHybridSlots } from './hybridToon.js';
 import { endfieldColor } from './endfieldToon.js';
 import { prepareSkinTransmission } from './skinTransmission.js';
+import { createFaceKeyShadow } from './faceKeyShadow.js';
 
 // Fork 3ac1d8e, webgpu/material-core.ts: the pipeline's colorNode returns
 // EOTF(clamp(toon/sphere/specular composite, 0, 1)). Its public output cannot
@@ -35,6 +36,7 @@ function balancedToonColor(linear, ambientIntensity) {
  */
 export async function createActorMaterialAdapter(renderer, light, { balancedModelColor = false, ambientIntensity = 0.55, hybridSlots, endfield = false } = {}) {
   const slots = parseHybridSlots(hybridSlots, endfield);
+  const shadows = new Map();
   // The facade awaits init() and checks the selected backend after fallback.
   const pipeline = await createMmdTslPipeline(renderer, {
     light,
@@ -51,12 +53,21 @@ export async function createActorMaterialAdapter(renderer, light, { balancedMode
       }
       const skin = endfield && detailMaps?.skinLighting!==false ? [...slots.keys()].filter(i=>slots.get(i)==='skin') : [];
       const maps={...detailMaps,thinSkin:skin.length>0 && prepareSkinTransmission(model.mesh,skin)>0};
+      // Reuse the roles already selected in the probe. The caster mask keeps
+      // only head-weighted vertices of these slots (e.g. hood, not the coat).
+      // Explicit [] gives the v3 control without hiding any visible material.
+      const casters = maps.faceCasterSlots ?? (maps.face?.size ? [...slots].filter(([,role])=>['hair','cloth','leather'].includes(role)).map(([i])=>i) : []);
+      if (casters.some(i => !Number.isInteger(i) || i < 0 || i >= count || slots.get(i)==='face')) throw new RangeError('Expected authored non-receiver face caster slots');
       const attached = pipeline.attach(model, options);
       // r187 adds layer 1 to its left eye. The fork's optional shadow-only
       // geometry uses that same layer and draws an untextured white silhouette
       // in the color pass. This adapter has no dedicated XR shadow pass.
       if (attached && renderer.xr.enabled && !options?.selfShadowEnabled && !options?.selfShadow) disposeMmdTslShadowCaster(model.mesh);
       if (attached && (balancedModelColor || slots.size)) {
+        if (endfield && maps.face?.size && casters.length) {
+          const shadow=createFaceKeyShadow(renderer,model.mesh,light,new Set(casters));
+          if (shadow) { shadows.set(model,shadow); maps.faceKeyVisibility=shadow.visibility; }
+        }
         for (const [index, material] of [model.mesh.material].flat().entries()) {
           // Only fork toon surfaces have these uniforms. Appended edges use a
           // different material; opacityNode, alpha test and depth stay loader-owned.
@@ -67,8 +78,17 @@ export async function createActorMaterialAdapter(renderer, light, { balancedMode
       }
       return attached;
     },
-    prepare: pipeline.prepareRender,
-    detach: pipeline.detach,
-    dispose: pipeline.dispose,
+    setFaceCastersEnabled(model,on) { shadows.get(model)?.setEnabled(on); },
+    prepare(scene) {
+      const ready=pipeline.prepareRender(scene);
+      if (ready) for (const shadow of shadows.values()) shadow.prepare();
+      return ready;
+    },
+    detach(model) {
+      shadows.get(model)?.dispose(); shadows.delete(model); return pipeline.detach(model);
+    },
+    dispose() {
+      for (const shadow of shadows.values()) shadow.dispose(); shadows.clear(); pipeline.dispose();
+    },
   };
 }

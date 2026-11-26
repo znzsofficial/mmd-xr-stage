@@ -35,7 +35,10 @@ export function endfieldColor(base, material, role, mesh, maps, index) {
   const light = uniform(u.lightColor), worldL = uniform(u.lightDirection);
   const L = cameraViewMatrix.mul(vec4(worldL, 0)).xyz, nl = normalView.dot(L);
   const key = max(light.r, max(light.g, light.b)).clamp();
-  if (role === 'face') return cheekLighting(mesh,worldL,nl,paint,base,key,maps?.face?.get(index));
+  if (role === 'face') {
+    const field=maps?.face?.get(index);
+    return cheekLighting(mesh,worldL,nl,paint,base,field && maps.faceKeyVisibility ? key.mul(maps.faceKeyVisibility) : key,field);
+  }
   if (role === 'skin') {
     const pigment=skinBase(paint,base,nl,key);
     return maps?.thinSkin ? pigment.add(skinTransmission(paint,L,light)).clamp() : pigment;
