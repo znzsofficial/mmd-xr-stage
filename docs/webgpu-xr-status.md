@@ -69,6 +69,8 @@ WebGPU 支持不代表这个项目自动更快；没有真实 Quest 3S 帧耗时
 
 **双报告验收：**[编译版同页下载回放](../scripts/webgpu-actor/floor-report-smoke.cjs)通过实际导出按钮读取 JSON，WebGPU 模拟显示给出每眼 232×230（图层 240×240）、72 Hz；WebGL 续场给出每眼 640×720、90 Hz。WebGPU 的可选刷新率请求始终不兑现时仍能进场、退出、导出实得值。这里故意用了不同显示条件，验证归属而非测速度。
 
+**Quest 3S 真机（固定预览 7fd73aba，Browser 156.0.0.38.16）：**空场 WebGPU 有 90 个可见回调间隔、实际 120 Hz、每眼 1680×1760。放好洛茜，绑定 16.13 s《稳坦摇》、循环、开物理，从准备页续场，WebGPU 请求获准并启用 `webgpu`、`local-floor`，随后报 `device lost: A valid external Instance reference no longer exists.`，伴随 `Instance dropped in popErrorScope`。这次没有提交新的会话报告。随后同页 WebGL 从同一布局恢复：两眼实图可见演员、53 个采样窗均为一人播放且开物理，56.003 秒可见间隔，120 Hz、每眼 1680×1760；取中间 45 窗，回调 FPS 中位 61。合并 JSON 的 WebGPU 半份与先前空场报告完全相同，不能算播舞性能对照。测试为实机台架，未据此认定镜片舒适或触感。数据、截图和错误轨迹留在 `local-review/verification/quest-floor-ab/`。目前只定位到续场操作与设备丢失，尚未确认是着色器、内存还是设备／会话生命周期。
+
 **早期回访（`8a4bd75`）：**玩家反馈预览页「挺正常的」。当时只有 WebGL XR 录制会话，不用补导出。另核过本地提弗洛斯的 `textures/face_t.bmp` 提示：睫毛和表情引用的自定义 toon 渐变确实缺失，脸部底色仍在，loader 会报告告警并使用默认渐变。无需阻断放置、忽略其他缺图或借用另一角色的文件。可在获得原 BMP 后从导入报告补绑。详情留 `local-review/verification/webgpu-floor-v5-player-feedback.md`。
 
 `game-floor-smoke.cjs <pmx> <vmd> --actor-style` 实际用射线在场内切换：同一 33.7 s 舞段暂停在 0.206 s，左右眼角色区域分别有 4,257／4,268 个像素变化（阈值 6／255），切回后两眼取样区域全部通道恢复。续播时切换仍保留同一 runtimeId 和动作，探针实取 1 套脸图、3 个衣料槽。证据 `local-review/verification/game-floor-v5.log`。这里的 MMD 是玩家切换前的舞台色彩档，不调整房间的曝光或灯光。

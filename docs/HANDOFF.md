@@ -2,7 +2,7 @@
 
 [正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `b740d1b`](https://732a160a.mmd-xr-stage.pages.dev) · [摄影地台 · 双后端对照固定版](https://7fd73aba.mmd-xr-stage.pages.dev/?set=floor&xrBackend=webgpu) · [WebGPU 裙摆实验](https://mmd-xr-stage.pages.dev/labs/cloth/) · [发布记录](./release-history.md)
 
-**收尾主线：主站可选 WebGPU 摄影地台。** 在同一资格页选 WebGPU 或 WebGL，原背包和续场共用；退出两种后端各一次后可下载一份双报告。下一关在同一台 Quest、同一角色同一舞段比较实际刷新率、每眼尺寸与慢帧，集中确认双眼、手柄与手追、退出续场及失败回退。通过再开放主站单景可选入口；全场景、多演员和默认后端另算。
+**收尾主线：先定位 Quest 带演员续场时的 WebGPU device lost。** `b740d1b` 在 Quest 3S / Meta Browser 156 已取得空地台 WebGPU 的 90 个可见回调间隔；续同一页的洛茜＋《稳坦摇》、开物理时，XR 授权成功但设备丢失。原布局在 WebGL 续场成功，两眼有演员并播舞约 56 秒。尚无同演员 WebGPU 稳态段；主站仍默认 WebGL，单景入口不晋级。下一次只区分设备初始化／首个投影提交与原演员资源挂载的失败时序，保留同一文件和落点；不再让玩家从头排查 ADB、权限或重复测 WebGL。
 
 **可以现在结案：终末地角色缺图与 v5 样板。** 本机 12 份角色 PMX 均已在桌面 WebGPU 实绘，10 份能自动切画风。茶叶版提弗洛斯能加载，只有睫毛和表情的同一张 toon 使用默认渐变；另一份提弗洛斯的贴图全部命中。两份未切换的角色材质都能按原 MMD 显示。逐包结果见 `local-review/verification/endfield-pmx-audit/README.md`。无新阻断不继续扫库或做 v6。
 
