@@ -3,6 +3,8 @@ import { xrPalms } from '../../experiments/gpu-cloth/xrPalms.js';
 import { skirtPhysicsFilter } from '../../experiments/gpu-cloth/rig.js';
 import { createActorMaterialAdapter } from './materialAdapter.js';
 import { prepareRoomCloth, roomCloth } from './roomCloth.js';
+import { inspectActorStyle } from './actorStyleSlots.js';
+import { createActorStyle } from './actorStyle.js';
 
 const empty = () => ({mode:'none', cloth:'none', nodes:0, clothSteps:0, fullBodies:0, keptBodies:0,
   bulletSteps:0, bulletSimulatedSteps:0, updatedBones:0, evaluations:0, poseSeconds:0, physicsDelta:0});
@@ -15,12 +17,17 @@ export async function createStageActorBackend(renderer, scene, light, origin, gr
   const sun = new DirectionalLight(), palms = xrPalms();
   const adapter = await createActorMaterialAdapter(renderer,sun,grade);
   let actor, sourceLight = light, disposed = false, tracked = false, serial = 0, prepared = -1;
-  let enabled = true, worldPalms = null, seedFrame = false;
-  const status = () => ({...(actor?.log ?? empty()), enabled, palms:actor ? [...palms.kinds] : ['missing','missing']});
+  let enabled = true, worldPalms = null, seedFrame = false, displayDirty = false;
+  const listeners = new Set(), notify = () => { for (const f of listeners) f(); };
+  const styleFor = (id,file) => actor?.file === file && actor?.model.root.userData.mmdModelId === id ? actor?.style : undefined;
+  const status = () => ({...(actor?.log ?? empty()), enabled, style:actor?.style.snapshot ?? null, palms:actor ? [...palms.kinds] : ['missing','missing']});
   return {
     loadOptions:adapter.loadOptions,
+    styles:{subscribe(f) { listeners.add(f); return () => { listeners.delete(f); }; },
+      read:(id,file) => styleFor(id,file)?.snapshot ?? null,
+      choose:(id,file,enabled) => styleFor(id,file)?.choose(enabled)},
     get status() { return status(); }, getStatus:status,
-    setLight(value) { sourceLight = value; },
+    setLight(value) { sourceLight = value; displayDirty = true; },
     setClothEnabled(value) { enabled = !!value; if (!enabled) actor?.binding.interrupt(); },
     beginFrame(frame,space,reseed) {
       if (disposed) return;
@@ -31,7 +38,7 @@ export async function createStageActorBackend(renderer, scene, light, origin, gr
       if (!tracked) actor?.binding.interrupt();
       worldPalms = tracked ? palms.read(frame,space,origin.current.matrixWorld) : null;
     },
-    attach(model) {
+    attach(model,source) {
       if (disposed) throw new DOMException('Room retired','AbortError');
       if (actor) throw Error('This floor supports one mounted actor at a time');
       const log = empty();
@@ -47,11 +54,13 @@ export async function createStageActorBackend(renderer, scene, light, origin, gr
         rig = fitted;
       }
       catch (error) { log.cloth = 'unsupported'; log.clothError = String(error?.message ?? error); }
+      const plan = inspectActorStyle(model);
       try {
-        adapter.attach(model);
+        adapter.attach(model,undefined,source && plan.inputs.length ? {hybridSlots:plan.hybridSlots,pmxBytes:source.pmxBytes} : undefined);
         if (rig) cloth = roomCloth(renderer,model,rig,log);
       } catch (error) { adapter.detach(model); throw error; }
 
+      const style = createActorStyle(model,source,plan,adapter,notify);
       const filter = rig && skirtPhysicsFilter(rig);
       let ready = false, cut = false, stepped = false, lastPose = -1, retired = false, interrupted = true;
       const binding = {
@@ -87,20 +96,26 @@ export async function createStageActorBackend(renderer, scene, light, origin, gr
             lastPose = serial;
           } else if (!cut) { cloth?.suspend(); interrupted = true; }
         },
-        reseed() { interrupted = true; cloth?.suspend(); },
+        reseed() { interrupted = true; displayDirty = true; cloth?.suspend(); },
         interrupt() { ready = cut = false; binding.reseed(); },
         dispose() {
           if (retired) return;
           retired = true; ready = cut = false;
-          try { cloth?.dispose(); } finally { adapter.detach(model); actor = undefined; }
+          try { cloth?.dispose(); } finally {
+            try { adapter.detach(model); } finally { style.dispose(); actor = undefined; notify(); }
+          }
         },
       };
-      actor = {log,binding,cloth};
+      actor = {log,binding,cloth,model,file:source?.file,style};
+      notify();
       return binding;
     },
-    prepareRender() {
+    prepareRender(poseUpdated=true) {
       if (!actor || !tracked || disposed || serial === prepared) return;
       prepared = serial;
+      const styleChanged = actor.model.root.parent && actor.model.root.visible && actor.style.frame();
+      if (!poseUpdated && !styleChanged && !displayDirty) return;
+      displayDirty = false;
       sun.visible = !!sourceLight?.visible;
       if (sourceLight) {
         sun.intensity = sourceLight.intensity; sun.color.copy(sourceLight.color);
@@ -111,7 +126,7 @@ export async function createStageActorBackend(renderer, scene, light, origin, gr
     dispose() {
       if (disposed) return;
       disposed = true; tracked = false; worldPalms = null; palms.reset();
-      actor?.binding.dispose(); adapter.dispose(); sun.dispose();
+      actor?.binding.dispose(); listeners.clear(); adapter.dispose(); sun.dispose();
     },
   };
 }

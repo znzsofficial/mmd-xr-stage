@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { afterEach, expect, it, vi } from "vitest";
 import { MmdVrStageContent } from "./MmdVrStage";
 import { MmdVrStageRoom } from './StageRoom';
+import type { RoomActorBackend } from './createRoomRuntime';
 import { createMmdRuntimeHandle, MmdRuntimeRebuildError } from "../mmdRuntime/mmdRuntime";
 import { beginMmdVrAssetSession, endMmdVrAssetSession } from "../backpack/sessionAssets";
 import { useMmdVrStore } from "../mmdVrStore";
@@ -19,7 +20,7 @@ import { makeOutletFixture } from '../bodyState/lactation/outletFixture.test-sup
 
 const harness = vi.hoisted(() => ({
   three: {} as Record<string, unknown>,
-  frame: null as null | ((state: unknown, delta: number) => void),
+  frame: null as null | ((state: unknown, delta: number, frame?:XRFrame) => void),
 }));
 vi.mock("@react-three/fiber", () => ({
   useThree: (select?:(state:typeof harness.three)=>unknown) => select ? select(harness.three) : harness.three,
@@ -111,6 +112,27 @@ it("retains the committed runtime and evaluates a cold-loaded static model on th
     store.closeOverlay();
   }
   expect(runtimes.filter((runtime) => runtime.dispose.mock.calls.length)).toHaveLength(1);
+});
+
+it('gives a held XR pose a renderer commit after evaluation and on subsequent frames without advancing it',async()=>{
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);
+  const space={}, frame={session:{visibilityState:'visible'}} as XRFrame;
+  harness.three={scene:new THREE.Scene(),camera:new THREE.PerspectiveCamera(),size:{width:640,height:480},gl:{xr:{getReferenceSpace:()=>space}}};
+  const events:string[]=[];
+  const backend={beginFrame:vi.fn(()=>events.push('begin')),prepareRender:(updated:boolean)=>events.push(updated?'posed':'held')};
+  const runtime={duration:2,update:()=>events.push('evaluate'),dispose:vi.fn(),listModels:()=>[],exportProjectModels:()=>[],getControllerContactCount:()=>0};
+  vi.mocked(createMmdRuntimeHandle).mockReturnValue(runtime as unknown as ReturnType<typeof createMmdRuntimeHandle>);
+  const s=useMmdVrStore.getState(); s.openOverlay();s.setPrefs({scenery:'floor'});
+  useMmdVrStore.setState({presentation:'xr',playing:false,physicsEnabled:false,physicsBusy:false,physicsDebugEnabled:false});
+  const root=createRoot(document.createElement('div'));
+  try {
+    await act(async()=>root.render(<RoomHarness scenery="floor" slots={[]} saved={null} backend={backend as unknown as RoomActorBackend}/>));
+    await act(async()=>s.requestSeek(.8));
+    for(let i=0;i<3;i++)await act(async()=>harness.frame!({},1/72,frame));
+    expect(events).toEqual(['begin','evaluate','posed','begin','held','begin','held']);
+    expect(backend.beginFrame).toHaveBeenLastCalledWith(frame,space,false);
+    expect(getMmdVrClock().time).toBe(.8);
+  } finally {await act(async()=>root.unmount());s.closeOverlay();}
 });
 
 function loadedCharacter() {

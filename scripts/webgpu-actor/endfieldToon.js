@@ -1,32 +1,42 @@
-import { cameraViewMatrix, max, mix, normalView, objectPosition, objectWorldMatrix, positionViewDirection,
+import { cameraViewMatrix, float, max, mix, normalView, objectPosition, objectWorldMatrix, positionViewDirection,
   positionWorld, smoothstep, uniform, vec3, vec4 } from 'three/tsl';
 import { diffusePigment, hybridToonColor } from './hybridToon.js';
 import { endfieldCloth } from './endfieldCloth.js';
 import { mappedFace } from './endfieldFace.js';
+import { skinBandDelta, surfaceRadii } from './skinDiffusion.js';
 import { skinTransmission } from './skinTransmission.js';
+
+function skinLandmarks(mesh) {
+  const find = (...names) => mesh.skeleton?.bones.find(b => [b.name, b.userData.mmdEnglishBoneName].some(n => n && names.includes(n.toLowerCase())));
+  const head = find('頭','head'), a = find('左目','left eye','eye_l'), b = find('右目','right eye','eye_r');
+  const left = a && objectPosition(a), right = b && objectPosition(b);
+  return { head, left, right, eyeSpan: left && right && left.sub(right).length() };
+}
 
 // A broad plane across both cheeks avoids putting a sharp terminator on the
 // small nose polygons. Anchor the width and midline to the evaluated skeleton.
-function cheekLighting(mesh, L, geometric, paint, base, key, field) {
-  const find = (...names) => mesh.skeleton.bones.find(b => [b.name, b.userData.mmdEnglishBoneName].some(n => n && names.includes(n.toLowerCase())));
-  const head = find('頭','head'), a = find('左目','left eye','eye_l'), b = find('右目','right eye','eye_r');
+function cheekLighting({head,left,right,eyeSpan}, L, geometric, paint, base, key, field, diffusion) {
   let diffuse=geometric;
   if (head) {
     const headWorld = objectWorldMatrix(head);
     const x = headWorld.mul(vec4(1,0,0,0)).xyz.normalize(), z = headWorld.mul(vec4(0,0,1,0)).xyz.normalize();
-    if(field) return mappedFace(paint,base,field,x.dot(L),z.dot(L),geometric,key);
-    if (a && b) {
-      const left=objectPosition(a), right=objectPosition(b), mid=left.add(right).mul(.5);
-      const across=positionWorld.sub(mid).dot(x).div(left.sub(right).length().max(.0001)).clamp(-1.7,1.7);
+    if(field) return mappedFace(paint,base,field,x.dot(L),z.dot(L),geometric,key,diffusion,eyeSpan);
+    if (left && right) {
+      const mid=left.add(right).mul(.5);
+      const across=positionWorld.sub(mid).dot(x).div(eyeSpan.max(.0001)).clamp(-1.7,1.7);
       diffuse=mix(z.dot(L).mul(.80).add(across.mul(x.dot(L)).mul(.78)),geometric,.22);
     }
   }
-  return skinBase(paint,base,diffuse,key);
+  return skinBase(paint,base,diffuse,key,diffusion,eyeSpan);
 }
 
-function skinBase(paint,base,diffuse,key) {
-  const band=smoothstep(-.23,.23,diffuse).mul(key);
-  const ink=paint.pow(.77).mul(mix(vec3(.78,.64,.67),vec3(1.29,1.22,1.19),band));
+function skinBase(paint,base,diffuse,key,diffusion,eyeSpan) {
+  let band=smoothstep(-.23,.23,diffuse);
+  if (diffusion !== 0) {
+    const delta=skinBandDelta(band,diffuse,.23,surfaceRadii(diffuse,eyeSpan));
+    band=band.add(delta.mul(float(diffusion).clamp()));
+  }
+  const ink=paint.pow(.77).mul(mix(vec3(.78,.64,.67),vec3(1.29,1.22,1.19),band.mul(key)));
   return mix(ink,base,.09).clamp();
 }
 
@@ -35,12 +45,15 @@ export function endfieldColor(base, material, role, mesh, maps, index) {
   const light = uniform(u.lightColor), worldL = uniform(u.lightDirection);
   const L = cameraViewMatrix.mul(vec4(worldL, 0)).xyz, nl = normalView.dot(L);
   const key = max(light.r, max(light.g, light.b)).clamp();
+  const diffusion=maps?.skinDiffusion ?? 1;
   if (role === 'face') {
     const field=maps?.face?.get(index);
-    return cheekLighting(mesh,worldL,nl,paint,base,field && maps.faceKeyVisibility ? key.mul(maps.faceKeyVisibility) : key,field);
+    const visibleKey=field && maps.faceKeyVisibility ? key.mul(maps.faceKeyVisibility) : key;
+    return cheekLighting(skinLandmarks(mesh),worldL,nl,paint,base,visibleKey,field,diffusion);
   }
   if (role === 'skin') {
-    const pigment=skinBase(paint,base,nl,key);
+    const eyeSpan=diffusion !== 0 && skinLandmarks(mesh).eyeSpan;
+    const pigment=skinBase(paint,base,nl,key,diffusion,eyeSpan);
     return maps?.thinSkin ? pigment.add(skinTransmission(paint,L,light)).clamp() : pigment;
   }
   if (role === 'hair') {

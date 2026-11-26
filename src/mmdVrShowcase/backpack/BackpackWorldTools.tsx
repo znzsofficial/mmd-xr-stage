@@ -1,5 +1,5 @@
 import { useFrame } from "@react-three/fiber";
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import * as THREE from "three";
 import { useLanguageStore } from "../../languageStore";
 import { useBackpack, type BackpackEntry, type BackpackLive } from "./store";
@@ -16,6 +16,7 @@ import {useBodyState} from '../bodyState/store';
 import {actorActions,ActorActivities,type ActivityEntry} from '../interaction/ActorActivities';
 import {PoseHudControls} from '../pose/PoseHudControls';
 import {bindRemoteEgg,useRemoteEgg} from '../play/remoteEgg';
+import type {RoomActorStyles} from '../mmdRuntime/roomActorBackend';
 
 /** Resolve once on selection/move. Keep the controls stationary while the user aims.
  * A hidden or off-screen asset selected in the backpack uses the forward reading zone. */
@@ -37,7 +38,7 @@ export function positionWorldTools(camera: THREE.Camera, group: THREE.Group, anc
   group.rotation.y = Math.atan2(eye.x - group.position.x, eye.z - group.position.z);
 }
 
-export function BackpackWorldTools() {
+export function BackpackWorldTools({styles}:{styles?:RoomActorStyles} = {}) {
   const id = useBackpack(s => s.selected), draft = useBackpack(s => s.draft);
   const entry = useBackpack(s => s.entries.find(e => e.id === id));
   const instance = useBackpack(s => id ? s.live[id] : null);
@@ -45,10 +46,10 @@ export function BackpackWorldTools() {
   const preview = useBodyState(s=>!!id&&s.draft?.assetId===id);
   const recovery = useMmdVrStore(s => s.assetLoad.running || s.physicsFatal);
   if (!entry || !instance || draft || (blocked&&!preview) || recovery) return null;
-  return <SelectedTools key={`${entry.id}:${instance.runtimeId}`} entry={entry} instance={instance} blocked={blocked} preview={preview}/>;
+  return <SelectedTools key={`${entry.id}:${instance.runtimeId}`} entry={entry} instance={instance} blocked={blocked} preview={preview} styles={styles}/>;
 }
 
-function SelectedTools({ entry, instance, blocked, preview }: { entry: BackpackEntry; instance: BackpackLive; blocked:boolean; preview:boolean }) {
+function SelectedTools({ entry, instance, blocked, preview, styles }: { entry: BackpackEntry; instance: BackpackLive; blocked:boolean; preview:boolean; styles?:RoomActorStyles }) {
   const t = useLanguageStore(s => s.t);
   const transform = useMmdVrStore(s => (entry.kind === "model" ? s.models : s.objects).find(e => e.id === instance.runtimeId));
   const busy = useBackpack(s => s.busy), physicsBusy = useMmdVrStore(s => s.physicsBusy);
@@ -77,8 +78,11 @@ function SelectedTools({ entry, instance, blocked, preview }: { entry: BackpackE
       {preview&&peek&&!blocked&&<HudButton position={[0,-.32,0]} size={[.78,.15]} variant="primary" label={t('bodyResume')} onPress={()=>setPeek(false)}/>}</group>;
   }
   const tallDetail=cues||eggPage||page==='wand'||page==='motions';
+  const propRow = holding || carries || wandOut;
+  const styleRow = page === 'tools' && entry.kind === 'model' && styles;
+  const toolsHeight = (propRow ? 1.2 : .98) + (styleRow ? .32 : 0);
   return <group ref={group} name="backpack-world-tools" scale={0.86} pointerEventsOrder={1} pointerEventsType={{ deny: ["touch", "grab"] }}>
-    <group position-y={page==='tools' ? ((holding||carries||wandOut) ? -.11 : -.01) : tallDetail ? -.10 : 0}><HudSheet size={[1.34, page==='tools' ? ((holding||carries||wandOut) ? 1.2 : .98) : tallDetail ? 1.20 : 1.0]} /></group>
+    <group position-y={page==='tools' ? .48-toolsHeight/2 : tallDetail ? -.10 : 0}><HudSheet size={[1.34, page==='tools' ? toolsHeight : tallDetail ? 1.20 : 1.0]} /></group>
     <HudLine position={[-0.16, 0.37, 0]} text={entry.file.name} width={0.93} role="title" />
     <HudButton position={[0.47, 0.37, 0]} label={t(page !== 'tools' && entry.kind==='model' ? "hudTools" : "hudDone")} size={[0.31, 0.13]} variant="quiet" onPress={() => {
       if (page !== 'tools' && entry.kind==='model') setPage('tools'); else useBackpack.getState().select(null);
@@ -89,6 +93,7 @@ function SelectedTools({ entry, instance, blocked, preview }: { entry: BackpackE
       {([['body','actorBodyState'],['motions','hudChangeMotion'],['arrange','watchArrange']] as const).map(([id,key],i)=><HudButton key={id} position={[(i-1)*.418,-.325,0]} size={[.39,.15]} variant="quiet" label={t(key)} disabled={locked||(id==='body'&&advancedActorLocked)} onPress={()=>setPage(id)}/>)}
       {(holding||carries)&&<HudButton position={[wandOut ? -.315 : 0,-.55,0]} size={[wandOut ? .59 : 1.22,.14]} label={t(held==='remoteEgg'?(wearer===entry.id?'eggControls':wearer?'eggTransfer':'eggWear'):carries?'propGrip':'propGive')} disabled={locked||(!instance.visible&&held==='remoteEgg')} onPress={()=>{if(held==='remoteEgg'&&wearer!==entry.id)bindRemoteEgg(entry.id);setPage('prop');}}/>}
       {wandOut&&<HudButton position={[(holding||carries) ? .315 : 0,-.55,0]} size={[(holding||carries) ? .59 : 1.22,.14]} label={t('wandResponse')} disabled={locked||!instance.visible} onPress={()=>setPage('wand')}/>}
+      {styleRow&&<ActorStyleChoice styles={styleRow} file={entry.file} id={instance.runtimeId} y={propRow ? -.85 : -.635} locked={locked||!instance.visible}/>}
     </>:<>
       <HudLine position={[0, 0.225, 0]} width={1.24} role="muted" text={busy ? t("hudWorking") : `${t(instance.visible ? "hudOnStage" : "hudOnStageHidden")} · ${Math.round(rotation)}° · ${formatMmdVrModelScale(scale)}`} />
       <HudButton position={[-0.315, 0.06, 0]} label={t("hudMove")} size={[0.59, 0.15]} disabled={locked} onPress={() => useBackpack.getState().beginPlace(entry.id)} />
@@ -100,6 +105,20 @@ function SelectedTools({ entry, instance, blocked, preview }: { entry: BackpackE
       <HudButton position={[0,-.365,0]} label={t('hudPutAway')} size={[1.24,.14]} disabled={locked} onPress={()=>useBackpack.getState().putAway(entry.id)} />
     </>}
     {cues&&isStoryRoom(room)&&(['left','right'] as const).map((side,i)=><HudButton key={side} position={[(i-.5)*.63,-.555,0]} size={[.59,.14]} disabled={locked||!instance.visible} label={t(STORIES[room][side])} onPress={()=>STORIES[room].cue(side)}/>)}
+  </group>;
+}
+
+function ActorStyleChoice({styles,file,id,y,locked}:{styles:RoomActorStyles;file:File;id:string;y:number;locked:boolean}) {
+  const t=useLanguageStore(s=>s.t);
+  const state=useSyncExternalStore(styles.subscribe,()=>styles.read(id,file));
+  const phase=state?.phase;
+  const hint=phase==='unavailable'?'actorStyleNoMaps':phase==='failed'?'actorStyleFailed':phase==='loading'?'actorStyleLoading':null;
+  return <group name="actor-style-choice" position-y={y}>
+    <HudLine position={[0,.15,0]} width={1.22} role="muted" text={hint?`${t('actorStyle')} · ${t(hint)}`:t('actorStyle')}/>
+    {(['mmd','endfield'] as const).map((mode,i)=><HudButton key={mode} position={[(i-.5)*.63,0,0]} size={[.59,.15]} variant="tab"
+      label={t(mode==='mmd'?'actorStyleMmd':'actorStyleEndfield')} active={mode===state?.mode}
+      disabled={locked||!state||(mode==='endfield'&&(phase==='unavailable'||phase==='failed'))}
+      onPress={()=>styles.choose(id,file,mode==='endfield')}/>)}
   </group>;
 }
 

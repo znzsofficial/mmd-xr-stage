@@ -607,7 +607,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       // Use the authored slot names. The renderer can append outline groups
       // and replace the dense mesh attributes during this synchronous attach.
       materialNames = extractMaterialNames(model);
-      actorBinding = actorBackend?.attach(model);
+      actorBinding = actorBackend?.attach(model,{file:modelFile,resolver:textureResolver,companionFiles,pmxBytes:source instanceof Uint8Array?source:undefined});
       if (withPhysics) bindStaticMmdPhysicsRuntime(model);
       colliderRoot = model.root;
       prepareModel?.(model.root);
@@ -1226,7 +1226,6 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
           }
         }
       }
-      actorBackend?.prepareRender();
     },
     dispose() {
       disposed = true;

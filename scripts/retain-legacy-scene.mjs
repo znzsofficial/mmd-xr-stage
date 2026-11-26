@@ -5,6 +5,8 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from 'node:path';
 
 const files = [
+  ['31d9de6f','index-CE1cn9w9.js','58312f981754d701883cd02f692bbdf28150d9540498964098cd4f261bfbab13'],
+  ['31d9de6f','PlanetPhysics-BUXb2Ot5.js','acc5239f3811acaeceae7cda0f20f6c93e88f1e7ba5c7624847e54290160fc74'],
   ['b3c336c5','index-BjwQYFv_.js','91b61ec3079936bb14f5d4a52e8639835484b58c636974c938b0be594a637dc2'],
   ['b3c336c5','PlanetPhysics-BLtoPZK9.js','4e7bedd5fdcc7306c2e39c6ae858b3f8e1eb252e585cda96475d350878dba946'],
   ['8261674e','index-W2mIvkCN.js','f73248ea9aaac0f901922125cbcff8c0d1b04cae18927b61dde58d203d98d7cb'],

@@ -54,6 +54,7 @@ export const zh = {
   settingsHandModelOn:'显示手模型：开',settingsHandModelOff:'显示手模型：关',settingsFaceMeOn:'面板朝向我：开',settingsFaceMeOff:'面板朝向我：关',settingsPlaceFirst:'先从背包放置角色，再开启物理。',settingsCharacterHint:'点场上的角色可以换动作、摆位置或调整材质。',
   settingsContactLab:'玩家碰撞体调校 · 下次进场生效',settingsRequestHint:'画布像素比和抗锯齿在下次进场时应用。刷新率、投影倍率和周边细节仅用于 VR；未开启覆盖时由设备决定后两项。',settingsPanelFps:'在设置面板显示帧率',
   watchDetails:'详情',
+  actorStyle:'画风',actorStyleMmd:'原 MMD',actorStyleEndfield:'仿终末地',actorStyleNoMaps:'缺少匹配的材质或贴图',actorStyleLoading:'正在读取贴图',actorStyleFailed:'画风不可用',
   watchMenu:'菜单',watchArrange:'摆位置',watchExperiments:'实验功能',watchStart:'先选场景，再从背包放角色。',watchRecall:'右手 B 呼出菜单；手追可抬起左腕或低头点「菜单」。',
   toyClubName:'Live House',toyStudioName:'简易地台',
   toyConstellation:'星图连线枪',toyCueConstellation:'点星',guideConstellationVr:'朝空中三个位置各按一次侧握，让三颗星连成星座。',guideConstellationScreen:'点三次「点星」。腕部不动也能画一组，换握姿或播动作可以改变星点的位置。',guideConstellationEnd:'完成的星座会停留片刻，收回道具即可清除。',

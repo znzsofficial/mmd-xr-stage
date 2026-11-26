@@ -663,7 +663,8 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles,
     // seek while paused must still re-evaluate the target frame once.
     const timeChanged = Math.abs(evaluationTime - lastEvaluatedTimeRef.current) > 1e-5;
     backend?.beginFrame(frame??null, gl.xr.getReferenceSpace(), pendingSeekSeed.current || physicsResetRequested || physicsReseedNeeded);
-    if (playingRef.current || physicsOn || timeChanged || poseChanged || pendingSeekSeed.current) {
+    const evaluate = playingRef.current || physicsOn || timeChanged || poseChanged || pendingSeekSeed.current;
+    if (evaluate) {
       const start = performance.now();
       rt.update(evaluationTime, physicsOn, perspective, aspect, false, physicsDelta, pendingSeekSeed.current);
       pendingSeekSeed.current = false;
@@ -677,6 +678,10 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles,
     if(!isRoomStale()&&!store.physicsBusy&&!store.physicsFatal&&!store.assetLoad.running)
       propDisplay.present(rt,scene,wristGroup.current,pelvic.current,frame,clock);
     milkRoom.current?.advance(delta,frame);
+    // Mail from an actor-style decode can arrive even while VMD and physics
+    // are both paused. Commit on this tracked draw, after all displayed pose
+    // layers, without re-evaluating VMD or dispatching idle GPU pose work.
+    backend?.prepareRender(evaluate);
     if(store.presentation!=='xr')return;
     hapticContactPollRef.current += delta;
     if (hapticContactPollRef.current >= MMD_VR_HAPTIC_POLL_INTERVAL) {

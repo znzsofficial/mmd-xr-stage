@@ -1,4 +1,4 @@
-// node scripts/webgpu-actor/game-floor-smoke.cjs <local-clothed.pmx> <body.vmd> <two-site-hand-plan.json>
+// node scripts/webgpu-actor/game-floor-smoke.cjs <local-clothed.pmx> <body.vmd> <two-site-hand-plan.json | --actor-style>
 // Product /?xrBackend=webgpu only. Two library identities, one live actor,
 // one hardware renderer at a time. No injected menu, store actions or shortcut.
 const assert = require('node:assert/strict');
@@ -35,11 +35,11 @@ async function makeImport(folder, pmx, vmd) {
 }
 
 async function main() {
-  const [pmx, vmd, plan] = process.argv.slice(2).map(v => path.resolve(v));
+  const [pmx, vmd, plan] = process.argv.slice(2).map(v => v==='--actor-style'?v:path.resolve(v));
   assert(pmx && vmd && plan, 'Expected a clothed PMX, body VMD and a matching textured-triangle hand plan');
-  const json = JSON.parse(await fs.readFile(plan, 'utf8'));
-  const sites = (json.plan ?? json).sites.map(({start,end,spot,radial,marks,mat}) => ({start,end,spot,radial,marks,mat}));
-  assert.equal(sites.length, 2);
+  const styleOnly=plan==='--actor-style', json = !styleOnly && JSON.parse(await fs.readFile(plan, 'utf8'));
+  const sites = !styleOnly && (json.plan ?? json).sites.map(({start,end,spot,radial,marks,mat}) => ({start,end,spot,radial,marks,mat}));
+  if(!styleOnly)assert.equal(sites.length, 2);
   const {chromium} = require(process.env.PLAYWRIGHT_CORE || path.join(process.env.XR_SMOKE_DIR || path.join(temp,'xr-browser-smoke'),'node_modules/playwright-core'));
   const folder = await fs.mkdtemp(path.join(temp,'game-floor-files-'));
   const report = {entry:process.env.FLOOR_DEEPLINK?'/?xrBackend=webgpu&set=floor':'/?xrBackend=webgpu', simulated:'Quest controller input and projection display'};
@@ -50,7 +50,7 @@ async function main() {
     const {createServer} = await import('vite');
     server = await createServer({root, logLevel:'error', cacheDir:path.join(temp,'vite-game-floor-smoke'),
       optimizeDeps:{include:['three/webgpu','three/tsl','@yohawing/three-mmd-loader/webgpu']},
-      plugins:[hostProbe(), hands.driverProbe(true)], server:{host:'127.0.0.1',port:0,hmr:false,fs:{deny:['**/sample/**']}}});
+      plugins:[hostProbe(), ...(!styleOnly?[hands.driverProbe(true)]:[])], server:{host:'127.0.0.1',port:0,hmr:false,fs:{deny:['**/sample/**']}}});
     await server.listen();
     browser = await chromium.launch({channel:process.env.CHANNEL || 'msedge', headless:true,
       args:['--enable-gpu','--use-angle=d3d11','--ignore-gpu-blocklist','--disable-background-timer-throttling']});
@@ -139,6 +139,10 @@ async function main() {
     const base=report.emptyEyes;assert(base.different>100 && base.controls.every(n=>n===0) && base.matched.every((n,i)=>n<base.crossed[i]*.4),'Wrong final XR eye assignment');
 
     await placeFromBag(second,landing,0);
+    if(styleOnly) {
+      report.style=await require('./game-floor-style.cjs')({page,ids,click,until,bButton,frames,target,pickMounted,idleRay});
+      assert.deepEqual(errors,[]);console.log(JSON.stringify(report,null,2));return;
+    }
     const actor=await until('selected second PMX on GPU cloth and native Bullet',s=>s.ready && s.selected && s.live===1 && s.modelCount===1 && s.actor?.mode==='gpu' && s.actor.clothSteps>2 && s.actor.bulletSimulatedSteps>1,null,60000);
     assert(actor.visible && actor.filesIntact && !actor.hasBinding && actor.placeCommands===1 && actor.confirmedOn==='selectend');
     const atFoot = (point,at=landing) => assert(point?.length===3 && point.every((n,i)=>Math.abs(n-at[i])<.0005),`Unexpected placed foot: ${point}`);

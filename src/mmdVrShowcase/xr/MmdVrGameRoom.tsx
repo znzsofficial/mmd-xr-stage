@@ -16,7 +16,7 @@ export function MmdVrGameRoom({onExit,busy,backend,originRef}: {
     <MmdVrPlayerRig onExit={onExit} busy={busy} originRef={originRef}/>
     <MmdVrStageContent backend={backend}/>
     <BackpackPlacement/>
-    <BackpackWorldTools/>
+    <BackpackWorldTools styles={backend?.styles}/>
     {!isSoloFloorSession() && <StagePlay/>}
   </>;
 }

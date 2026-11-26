@@ -63,6 +63,10 @@ WebGPU 支持不代表这个项目自动更快；没有真实 Quest 3S 帧耗时
 
 **全流程实测（桌面硬件 GPU＋模拟双眼）：**[正式首页回归](../scripts/webgpu-actor/game-floor-smoke.cjs)用真实 B 键／扳机选背包第二行 B；松手后落地，双眼均绘出 B。原衣双托 61.41／71.61 mm，单撤左 0.62／71.59 mm。33.7 s 舞段暂停在 0.5651 s，原 WebGL 屏幕观看还原相同时刻；续场后收回 B，遍历隐藏节点也无演员，换上 A 后只有 A。完整证据 `local-review/verification/game-floor-smoke.log`。不带 `set` 的资格链接也能在原准备页下拉中手选地台；进入资格之前拒权、取消与迟到授权均保留文件，可以在同页重试 WebGL。未测新入口的 Quest 镜片或性能。
 
+**演员画风（v5）：**本地导入 PMX 所在的完整目录，包含原贴图和配套材质图。放到摄影地台 → 选中演员 → 旁边工具首页的「画风」选「仿终末地」。按原 PMX 材质标签与纹理用途配对，眼白／眉／嘴不按共用脸图误选；缺少合适的配套图保持 MMD。第一次选择才派专属 worker 解码，回到原 MMD 不重载演员、VMD 或物理。工作线程只回寄像素；房间在可见的 tracked draw、最终姿势确定后才切换。暂停 VMD 且关闭物理时也能切换，不必先续播。
+
+`game-floor-smoke.cjs <pmx> <vmd> --actor-style` 实际用射线在场内切换：同一 33.7 s 舞段暂停在 0.206 s，左右眼角色区域分别有 4,257／4,268 个像素变化（阈值 6／255），切回后两眼取样区域全部通道恢复。续播时切换仍保留同一 runtimeId 和动作，探针实取 1 套脸图、3 个衣料槽。证据 `local-review/verification/game-floor-v5.log`。这里的 MMD 是玩家切换前的舞台色彩档，不调整房间的曝光或灯光。
+
 **历史回归夹具**：`/scripts/webgpu-actor/stage-room.html` 的 X/A 选样捷径只供旧双眼、布料与故障回放；正式游戏的操作不在这个页面上开发。已有多人或物件的摄影地台不会作为一人样板续场。
 
 射线来自产品同款 XR store 的 `targetRaySpace`，落点、朝向、遮挡和确认由原 [`BackpackPlacement`](../src/mmdVrShowcase/backpack/BackpackPlacement.tsx) 处理。测试页只负责选样本和进出；脚印、放置规则和布局恢复无需再为正式游戏移植一遍。

@@ -45,6 +45,7 @@ async function mount(hasSkirt=true) {
   const tick=(tracked=true,seconds=0,reseed=false,physics=true)=>{
     backend.beginFrame(tracked?frame:null,tracked?{}:null,reseed);
     runtime.update(seconds,physics,camera,1,false,1/72,reseed);
+    backend.prepareRender(true);
     return backend.status;
   };
   return {backend,runtime,id,tick,close:()=>{runtime.dispose();backend.dispose();}};

@@ -6,6 +6,12 @@
 
 ## 从作者资料看什么
 
+**v5：皮肤散射、平滑细描边与场内切换。** [皮肤扩散](../../scripts/webgpu-actor/skinDiffusion.js)按 R/G/B 不同的作用范围积分既有明暗带；用当前姿势的受光梯度和眼距控制尺度，而非全身叠暖色。脸上仍保留 v4 的帽檐和刘海投影，身体的薄指透光仍是独立分支。这是局部预积分近似，没有全屏模糊或体积光传输。
+
+[描边烘焙](../../scripts/webgpu-actor/endfieldOutline.js)只给原 PMX 已启用的描边组增加方向属性，复用原 draw；独立法线随蒙皮运动，衣面法线不动。只在同材质、几何相容、骨权重与位置 morph 对应等证据充分时配对 UV 接缝，其余边保持作者形状。轮廓宽度按角色部位、距离和眼图像素设上限；透明发片槽没开原生边时不强画新壳。远景抗闪尚未证实。
+
+同一角色、姿势、曝光，四种组合对照散射／描边。源图 `local-review/screenshots/rossi-hybrid-bust-v5/{comparison.png,ablations.png,outline-detail.png,near-far-turn.webp}`。正常半身差异轻，近景鼻头灰影变柔、侧逆光处暗颊与上臂略暖；部分实体发束更连贯，近看仍有断线。31 帧动图是配对推拉与转头，不冒充头显录屏。[从舞台演员切换的方法](../webgpu-xr-status.md#正式背包与摄影地台如何走开发入口)与材质近景用同一渲染分支。
+
 洛茜第二版保留首图的脸、发、光线与机位；[衣料材质](../../scripts/webgpu-actor/endfieldCloth.js)按同一 UV 读取配套法线和参数，缎面与高 R 饰边各自反射。帧间对照在 `local-review/screenshots/rossi-hybrid-bust-v2/`：看红披肩折面及白衣明褶，暗侧的衣褶目前较硬。脸与刘海取样区逐像素相同，缺少配套图恢复首版。内部页只沿用既有的布料选槽，没有新增画风控件。
 
 **着色范围和可复用实现：**通用按槽材质有方向光 GGX、Smith 近似与 Schlick Fresnel；第二版有图的衣料走法线／粗糙度／金属遮罩控制的美术高光，没用通用槽的 GGX。第二版的脸是头骨驱动的程序渐变。现有 loader 按视口像素外扩轮廓；专用平滑描边法线可参考 [OutlineNormalSmoother](https://github.com/JasonMa0012/OutlineNormalSmoother)（MIT），单独验近远机位的发梢断线／闪烁。这些是实现参考，并非鹰角管线证据。

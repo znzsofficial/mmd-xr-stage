@@ -1,6 +1,7 @@
 import { DataTexture, LinearFilter, LinearMipmapLinearFilter } from 'three';
-import { mix, smoothstep, texture, uv, vec2, vec3 } from 'three/tsl';
+import { float, mix, smoothstep, texture, uv, vec2, vec3 } from 'three/tsl';
 import { mapDirectory, matchingPack, rgba8 } from './endfieldCloth.js';
+import { skinBandDelta, surfaceRadii } from './skinDiffusion.js';
 
 const only = a => a.length === 1 ? a[0] : null;
 async function pixels(file) {
@@ -57,7 +58,7 @@ export async function loadFaceDetails(model,indices,resolver,files) {
 // Atlas U increases toward actor left (+local X); the RG field is bright
 // toward decreasing U. Mirror for a light on +X. Work in the evaluated head
 // frame, never the camera frame, so orbiting cannot flip the terminator.
-export function mappedFace(paint,base,fieldSet,side,front,nl,key) {
+export function mappedFace(paint,base,fieldSet,side,front,nl,key,diffusion=1,eyeSpan) {
   const facing=vec2(side,front), len=facing.length().max(.0001), azimuth=front.div(len).clamp(-1,1);
   const threshold=azimuth.acos().div(Math.PI);
   const st=uv(), coord=vec2(side.greaterThan(0).select(st.x.oneMinus(),st.x),st.y);
@@ -65,14 +66,27 @@ export function mappedFace(paint,base,fieldSet,side,front,nl,key) {
   const dist=data.r.add(data.g).mul(.5);
   // At exactly front/back the mirror switches UV islands. Ease into the
   // symmetric axial light there instead of snapping a temple to the other side.
-  const face=mix(smoothstep(-.1,.1,azimuth),smoothstep(threshold.sub(.13),threshold.add(.13),dist),smoothstep(0,.18,side.abs().div(len)));
+  const sideWeight=smoothstep(0,.18,side.abs().div(len));
+  const sdf=smoothstep(threshold.sub(.13),threshold.add(.13),dist);
+  const face=mix(smoothstep(-.1,.1,azimuth),sdf,sideWeight);
   // Near-polar lights have an undefined horizontal bearing. Neck/atlas
   // islands selected by the refine G channel use the posed surface normal.
   const geometric=smoothstep(-.35,.55,nl);
-  const lit=mix(geometric,face,smoothstep(.03,.22,facing.length()).mul(data.b.oneMinus()));
-  const ramp=texture(fieldSet.ramp).sample(vec2(lit.mul(.73).add(.13),.5)).rgb;
+  const faceWeight=smoothstep(.03,.22,facing.length()).mul(data.b.oneMinus());
+  const lit=mix(geometric,face,faceWeight);
+  let bands=vec3(lit);
+  if (diffusion !== 0) {
+    // The SDF encodes azimuth / π, not a metric texture distance. Filter in
+    // that authored coordinate: pose and placement scale don't stretch it.
+    const sdfDelta=skinBandDelta(sdf,dist.sub(threshold),.13,vec3(.32,.18,.09));
+    const normalDelta=skinBandDelta(geometric,nl.sub(.10),.45,surfaceRadii(nl,eyeSpan));
+    bands=bands.add(mix(normalDelta,sdfDelta.mul(sideWeight),faceWeight).mul(float(diffusion).clamp()));
+  }
+  // Use the middle wavelength to address the author's ramp once. The
+  // geometric/SDF banks carry the spectral spread; neither blurs the pigment.
+  const ramp=texture(fieldSet.ramp).sample(vec2(bands.g.mul(.73).add(.13),.5)).rgb;
   // The local ramp's red channel leads green/blue through the penumbra.
   // Keep its warm diffusion tint off the ink and out of unlit regions.
-  const form=mix(vec3(.56,.50,.54),vec3(1.28,1.21,1.17),mix(vec3(lit),ramp,data.a.mul(.28).add(.22)).mul(key));
+  const form=mix(vec3(.56,.50,.54),vec3(1.28,1.21,1.17),mix(bands,ramp,data.a.mul(.28).add(.22)).mul(key));
   return mix(paint.pow(.77).mul(form),base,.09).clamp();
 }

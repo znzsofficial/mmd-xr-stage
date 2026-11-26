@@ -2,7 +2,7 @@
 
 [正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `70f0b09`](https://31d9de6f.mmd-xr-stage.pages.dev) · [正式首页 WebGPU 摄影地台预览](https://webgpu-floor-preview.mmd-xr-stage.pages.dev/?set=floor&xrBackend=webgpu) · [WebGPU 裙摆实验](https://mmd-xr-stage.pages.dev/labs/cloth/) · [发布记录](./release-history.md)
 
-**本轮双线已验。** 摄影地台的 WebGPU 资格后端从正式准备页进入，复用游戏的菜单、背包和演员详情；已通过模拟双眼的选第二人、托裙、绑舞段、播停、收回换人及 WebGL 交接。Quest 镜片、触觉和实机慢帧仍未验。洛茜 v4 已取得同光的 v3/v4 半身和近景对照、31 帧转头；图在 `local-review/screenshots/rossi-hybrid-bust-v4/{comparison.png,head-turn.webp}`。下一决策：地台看 Quest 实戴；画风看短转头后判断近远细描边是否值得做。
+**双线已合到一个可玩里程碑。** WebGPU 摄影地台放下洛茜、选中演员 →「画风」切原 MMD／仿终末地。v5 在 v4 主光遮挡上增加了脸和身体的预积分皮肤扩散，以及按角色部位、近远和每眼像素调节的平滑描边。暂停舞段切换前后，双眼实测变化，切回原色精确恢复，续播同一演员。图在 `local-review/screenshots/rossi-hybrid-bust-v5/`，先看 `near-far-turn.webp` 和 `ablations.png`。远景发梢抗闪、Quest 镜片和帧时均没有实证；不要再安排一轮重复的背包或单效果演示。
 
 **洛茜第三版已出图：**`local-review/screenshots/rossi-hybrid-bust-v3/face-lights.png` 看二版／三版同姿下左右侧逆光及正光；`comparison.png` 看原半身机位，`hand-light.png` 单看露指透光开关。原模型的配套脸影图按头骨朝向和灯位取样，衣服和发色沿用二版。指骨区域估算厚薄，仅在逆光下作局部透光；毛耳、刘海真实投影与专用细描边未处理。三版侧逆光的鼻梁过渡更清楚，靠背光侧的脸颊仍偏灰。参照[官方洛茜战斗演示](https://www.youtube.com/watch?v=A5C7-5vi9SM)。
 
@@ -15,7 +15,7 @@
 | 工作线 | 接下来做什么 | 何时收束／谁决定 |
 |---|---|---|
 | **WebGPU：正式游戏流程** | [正式页入口与验证](./webgpu-xr-status.md#正式背包与摄影地台如何走开发入口)。准备页仍可选其他布景以 WebGL 运行。资格地台只容一位演员，但可选库中任何一个。 | 下一步在 Quest 集中验证入口、左右眼、射线、手部和退出。正式默认 WebGL。 |
-| **角色画风：洛茜第四版** | [刘海／帽兜局部主光投影](./scenery/character-toon-references.md)已有同光开关及转头实绘。 | 半身变化克制，近看和运动中更明显；描边平滑和近远细化保留为候选。 |
+| **角色画风：洛茜第五版** | [皮肤散射、细描边与近远转头](./scenery/character-toon-references.md)已接演员画风选择。缺少可确认的成套图保留原 MMD。 | 下一决策看地台里实际的舞段、Quest 观感和开关前后慢帧；无新问题不重做单项。 |
 | **小 Bug：按需维护** | 入场失败保布局、移除演员后的播放时钟、暂停隐藏再显示的姿势均已修复上线。本轮无已确认的线上阻断项；教室后墙放置射线有规则反例，尚待实际操作复现。 | 丢布局、黑屏或主要操作失效才打断主线；普通问题复现后小修、针对性回归通过即收工。面板 5 条历史待办含设备回访、性能、兼容与搁置项，不是 5 个急修。 |
 
 **集成方向：**WebGPU 成熟后接回正式游戏入口；开发页只保留能测本轮行为的最少操作。新路径直接用正式舞台的背包与放置组件。开放可选入口之前，看同一接线在 Quest 上的双眼、输入与失败恢复；扩大场景或切默认，再看代表场景同机、同舞段、同刷新率与眼图尺寸的慢帧和观感。局部撕裂以后另议。[卡拉彼丘研究](./scenery/strinova-render-study.md)和[终末地 R/A 离线控制](./scenery/endfield-material-study.md)均已收工，按需查阅。

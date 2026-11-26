@@ -155,7 +155,8 @@ async function draw(gpu, input, common) {
     if (gpu) adapter = await createActorMaterialAdapter(renderer, light, {balancedModelColor:input.balanced,ambientIntensity:AMBIENT,hybridSlots:input.hybridSlots,endfield:input.grade==='endfield'}); // rejects WebGL fallback
     renderer.setPixelRatio(input.focus === 'portrait' ? 2 : 1); renderer.setSize(SIZE, SIZE, false); renderer.setClearColor(0, 0);
     renderer.outputColorSpace = T.SRGBColorSpace; renderer.toneMapping = T.NoToneMapping;
-    model = await input.loader.loadModel(input.pmx, adapter?.loadOptions);
+    const pmxBytes=gpu && input.grade==='endfield' && input.smoothOutline ? new Uint8Array(await input.pmx.arrayBuffer()) : undefined;
+    model = await input.loader.loadModel(pmxBytes??input.pmx, adapter?.loadOptions);
     const source = materials(model.mesh), slotCount = source.length;
     if (!gpu) {
       if (input.pmx === selectedActor()) showSlotCatalog(source);
@@ -176,7 +177,7 @@ async function draw(gpu, input, common) {
         clothMaps = await loadClothDetails(model,input.hybridSlots.cloth,input.resolver,input.files);
         if (input.skinLighting) faceMaps = await loadFaceDetails(model,input.hybridSlots.face,input.resolver,input.files);
       }
-      await adapter.attach(model,undefined,{cloth:clothMaps,face:faceMaps,skinLighting:input.skinLighting,faceCasterSlots:input.faceCasterSlots});
+      await adapter.attach(model,undefined,{cloth:clothMaps,face:faceMaps,skinLighting:input.skinLighting,faceCasterSlots:input.faceCasterSlots,skinDiffusion:input.skinDiffusion?1:0,smoothOutline:input.smoothOutline,pmxBytes});
       adapter.setFaceCastersEnabled(model,input.faceCastersEnabled);
     }
     if (input.clip) model.setAnimation(input.clip);
@@ -269,7 +270,7 @@ async function draw(gpu, input, common) {
 // Selectors accept a File in files, an exact relative path or a unique basename.
 // Omit vmd for bind pose; pass a .vpd via pose instead. hideSlot is zero-based.
 let busy = false, lastShot;
-window.compareActor = async ({ files = inputFiles(), pmx, vmd, pose, time = 0, scale, hideSlot, lightYaw, focus = 'body', yaw = originalYaw, balanced = true, hybridSlots, endfield = false, skinLighting=true, faceCasterSlots, faceCastersEnabled=true, fringeStudy, studySlots, singlePassHair = false } = {}) => {
+window.compareActor = async ({ files = inputFiles(), pmx, vmd, pose, time = 0, scale, hideSlot, lightYaw, focus = 'body', yaw = originalYaw, balanced = true, hybridSlots, endfield = false, skinLighting=true, faceCasterSlots, faceCastersEnabled=true, skinDiffusion=true, smoothOutline=true, fringeStudy, studySlots, singlePassHair = false } = {}) => {
   if (busy) throw Error('A comparison is running');
   if (!Number.isFinite(time) || time < 0 || (scale != null && (!Number.isFinite(scale) || scale < .01 || scale > 10))) throw Error('Invalid time or placement scale');
   if (lightYaw != null && !Number.isFinite(lightYaw)) throw Error('Invalid light angle');
@@ -287,7 +288,7 @@ window.compareActor = async ({ files = inputFiles(), pmx, vmd, pose, time = 0, s
     const loader = new ThreeMmdLoader({ textureResolver: resolver, geometryAwareAlpha: true, runtime: { physics: 'none' } });
     const selected = pose ?? vmd, motion = selected ? pick(all, selected, CLIP) : null;
     const clip = !motion ? null : /\.vpd$/i.test(motion.name) ? await loader.loadPoseAnimation(motion) : await loader.loadAnimation(motion);
-    const input = { pmx: file, loader, files: all, resolver, clip, time, scale, hideSlot, lightYaw, focus, yaw, balanced, grade, hybridSlots, skinLighting, faceCasterSlots:faceCasterSlots?.slice(), faceCastersEnabled, fringeStudy, studySlots, singlePassHair }, common = {}, result = {};
+    const input = { pmx: file, loader, files: all, resolver, clip, time, scale, hideSlot, lightYaw, focus, yaw, balanced, grade, hybridSlots, skinLighting, faceCasterSlots:faceCasterSlots?.slice(), faceCastersEnabled, skinDiffusion, smoothOutline, fringeStudy, studySlots, singlePassHair }, common = {}, result = {};
     const viewKey = JSON.stringify([time,scale,hideSlot,lightYaw,focus,yaw,singlePassHair]);
     for (const id of ['webgl', 'webgpu']) {
       $('status').textContent = `渲染 ${id}…`;
