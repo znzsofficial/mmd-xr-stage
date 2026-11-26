@@ -1,5 +1,6 @@
 // node scripts/webgpu-actor/stage-smoke.cjs <local-outfit.pmx> <body.vmd>
 //   [--plan <two-site-hand-plan.json>] [--out local-review/screenshots/<run>] [--fallback-only | --paused-hands-only]
+// node scripts/webgpu-actor/stage-smoke.cjs --placement-only <local-outfit.pmx> [body.vmd]
 // Real prep, backpack, StageRoom, Bullet, GPU and WebGL; simulated XR display
 // and inputs. One loopback dev server, one browser, strictly serial renderers.
 const assert = require('node:assert/strict');
@@ -13,14 +14,17 @@ const probes = require('./stage-smoke-probes.cjs');
 const hands = require('./stage-smoke-hands.cjs');
 const pausedTools = require('./stage-smoke-paused.cjs');
 const root = path.resolve(__dirname,'../..'), temp = path.join(os.tmpdir(),'opencode');
+const center=[0,0,-1.85], offCenter=[.46,0,-2.25];
+function atPosition(actual,expected){assert(actual?.length===3 && actual.every((n,i)=>Math.abs(n-expected[i])<.0005),`Expected foot at ${expected}, got ${actual}`);}
 
 async function main() {
-  const { values, positionals } = parseArgs({ allowPositionals:true, options:{plan:{type:'string'},out:{type:'string'},'fallback-only':{type:'boolean'},'paused-hands-only':{type:'boolean'}} });
+  const { values, positionals } = parseArgs({ allowPositionals:true, options:{plan:{type:'string'},out:{type:'string'},'fallback-only':{type:'boolean'},'paused-hands-only':{type:'boolean'},'placement-only':{type:'boolean'}} });
   const onlyFallback=!!values['fallback-only'];
-  const posed=!!values['paused-hands-only'];assert(!posed || values.plan&&!onlyFallback);
-  assert(positionals.length===2 && /\.pmx$/i.test(positionals[0]) && /\.vmd$/i.test(positionals[1]), 'Expected a local clothed PMX and a matching body VMD');
+  const posed=!!values['paused-hands-only'],onlyPlacement=!!values['placement-only'];
+  assert([posed,onlyPlacement,onlyFallback].filter(Boolean).length<=1 && (!posed||values.plan) && !(onlyPlacement&&values.plan),'Choose one focused mode; only hand trials need a plan');
+  assert(/\.pmx$/i.test(positionals[0]) && ((positionals.length===2 && /\.vmd$/i.test(positionals[1])) || (onlyPlacement && positionals.length===1)), 'Expected a local clothed PMX and matching body VMD (optional for --placement-only)');
   const [pmx,vmd] = positionals.map(p=>path.resolve(p));
-  await fs.access(pmx); await fs.access(vmd);
+  await fs.access(pmx); if(vmd)await fs.access(vmd);
   const out = values.out && path.resolve(values.out);
   if (out) {
     const privateRoot=path.join(root,'local-review','screenshots'), rel=path.relative(privateRoot,out);
@@ -35,7 +39,7 @@ async function main() {
   }
   const { chromium }=require(process.env.PLAYWRIGHT_CORE || path.join(process.env.XR_SMOKE_DIR || path.join(temp,'xr-browser-smoke'),'node_modules/playwright-core'));
   const report={display:'local hardware GPU; simulated XR projection and controllers',sessions:[]};
-  let server,browser,page,step='start'; const errors=[];
+  let server,browser,page,step='start',localProfile=false; const errors=[];
   try {
     const {createServer}=await import('vite');
     server=await createServer({root, configFile:path.join(root,'vite.config.ts'), logLevel:'error',
@@ -48,18 +52,21 @@ async function main() {
     browser=await chromium.launch({channel:process.env.CHANNEL||'msedge',headless:true,args:['--enable-gpu','--use-angle=d3d11','--ignore-gpu-blocklist','--disable-background-timer-throttling']});
     page=await browser.newPage({viewport:{width:1180,height:820}});page.setDefaultTimeout(60000);
     page.on('pageerror',e=>errors.push(e.message));
+    const profileUrl=new URL('xr-input/1.0.20/generic-trigger/profile.json',server.resolvedUrls.local[0]).href;
+    page.on('response',r=>{if(r.ok() && r.url()===profileUrl)localProfile=true;});
     await page.addInitScript({content:`(${stereo})(); (${extend})();`});
     await page.goto(new URL('scripts/webgpu-actor/stage-room.html',server.resolvedUrls.local[0]).href);
     step='actual prep imports';
     const drop=page.locator('.stage-drop-zone'), folder=path.dirname(pmx);
     await drop.locator('input[webkitdirectory]').setInputFiles(folder);
-    const modelPath=path.basename(folder)+'/'+path.basename(pmx), motionName=path.basename(vmd);
+    const modelPath=path.basename(folder)+'/'+path.basename(pmx), motionName=vmd && path.basename(vmd);
     await page.waitForFunction(p=>Array.from(document.querySelectorAll('#gpu-model option')).some(o=>o.textContent===p),modelPath);
-    await drop.locator('input[multiple]:not([webkitdirectory])').setInputFiles(vmd);
-    await page.waitForFunction(p=>Array.from(document.querySelectorAll('#gpu-motion option')).some(o=>o.textContent===p),motionName);
+    if(vmd){await drop.locator('input[multiple]:not([webkitdirectory])').setInputFiles(vmd);
+      await page.waitForFunction(p=>Array.from(document.querySelectorAll('#gpu-motion option')).some(o=>o.textContent===p),motionName);}
     const ids=await page.evaluate(probes.observeStage,{modelPath,motionName});
     if(posed)await page.evaluate(pausedTools.install,sites);
-    await page.locator('#gpu-model').selectOption(ids.model); await page.locator('#gpu-motion').selectOption(ids.motion);
+    await page.locator('#gpu-model').selectOption(ids.model); if(vmd)await page.locator('#gpu-motion').selectOption(ids.motion);
+    assert.equal(await page.locator('#gpu-place,#gpu-play').count(),0,'Desktop shortcut bypasses the in-room controls');
 
     const read=()=>page.evaluate(()=>stageProbe.read());
     async function until(label, test, value=null) {
@@ -76,13 +83,45 @@ async function main() {
         let timer;
         try {
           await Promise.race([new Promise((_,no)=>{timer=setTimeout(()=>no(Error('Controller did not reach a submitted XR frame')),12000);}),
-            (async()=>{for (const down of [false,true,true,false]) { button.pressed=down; await session.readNextDraw(); }})()]);
-        } finally { clearTimeout(timer);button.pressed=false; }
+            (async()=>{for (const down of [false,true,true,false]) { Object.assign(button,{pressed:down,touched:down,value:+down}); await session.readNextDraw(); }})()]);
+        } finally { clearTimeout(timer);Object.assign(button,{pressed:false,touched:false,value:0}); }
       },side);
+    }
+    async function aim(point) {
+      // The pick mesh sits 12 mm above its supporting deck. Direct the XR
+      // device's -Z axis through that point, not through a fabricated hit.
+      const reads=await page.evaluate(p=>{labSession.aimRay('right',p && [p[0],p[1]+.012,p[2]]);return labSession.stats.targetRayReads.right;},point);
+      await until('right targetRaySpace sampled on stage',(s,n)=>s.phase==='active' && labSession.stats.targetRayReads.right>=n+2,reads);
+    }
+    async function trigger(down) {
+      const count=await page.evaluate(d=>{labSession.queueSelect('right',d);return labSession.stats.selectEvents.length;},down);
+      return until(down?'hold right trigger across draws':'release right trigger',(s,p)=>{
+        const {selectEvents,frames}=labSession.stats,last=selectEvents.at(-1);
+        return selectEvents.length>p.count && last.type===p.type && last.side==='right' && frames>=last.frame+2;
+      },{count,type:down?'selectstart':'selectend'});
+    }
+    async function place(point=center,checkInvalid=false) {
+      const before=(await read()).placeCommands;
+      function draftOnly(s,label){assert(s.draft && !s.live && !s.modelCount && s.actor?.mode==='none' && s.ready && !s.problem && s.placeCommands===before,label);}
+      step='X opens placement draft';await press('left');const opened=await read();draftOnly(opened,'X spawned an actor or failed to open the selected PMX draft');
+      let invalid;
+      if(checkInvalid){
+        // This intersects the large pick plane but misses the 8 m plinth.
+        await aim([0,0,-10]);await until('formal preview on invalid ground',s=>s.draft && s.previewMs!=null);
+        draftOnly(await trigger(true),'Invalid press committed');invalid=await trigger(false);draftOnly(invalid,'Invalid release committed');
+      }
+      await aim(point);await until('real ground preview before select',s=>s.draft && s.previewMs!=null);
+      const held=await trigger(true);draftOnly(held,'Actor or placement command appeared while the trigger was held');
+      const released=await trigger(false);assert.equal(released.placeCommands,before+1,'Release must enqueue exactly one place command');
+      assert.equal(released.confirmedOn,'selectend','Which XR session event actually produced the backpack command?');
+      await aim(null); // Match the empty-eye baseline for subsequent pixel/cloth comparisons.
+      assert(localProfile,'Native controller did not load the same-origin generic-trigger profile');
+      return {draftAfterX:opened.draft,actorsAfterX:opened.live,invalidCommands:invalid && invalid.placeCommands-before,
+        actorsWhileHeld:held.live,heldCommands:held.placeCommands-before,confirmedOn:released.confirmedOn};
     }
     async function gpuActor() {
       const s=await until('actor with native body Bullet and GPU skirt',s=>s.ready && s.live===1 && s.modelCount===1 && s.actor?.mode==='gpu' && s.actor.clothSteps>2 && s.actor.bulletSimulatedSteps>1 && s.actor.updatedBones>0 && s.bullet>0 && s.dynamic>0 && s.dynamic<=s.actor.keptBodies);
-      assert(s.filesIntact && s.physics && s.visible && !s.problem); assert.deepEqual(s.position,[0,0,-1.85]);
+      assert(s.filesIntact && s.physics && s.visible && !s.problem); atPosition(s.position,center);
       assert(s.actor.nodes>0 && s.actor.fullBodies>s.actor.keptBodies && s.actor.keptBodies>0,'Expected only matched skirt bodies to leave native Bullet');
       return s;
     }
@@ -121,9 +160,9 @@ async function main() {
     checkEyeOrder(row.floor);
     async function fallback(expectedFull) {
       await page.evaluate(()=>{labFixture.driverFailures=0;labFixture.failNextDriver=true;});
-      await press('left');
+      await place();
       const b=await until('failed driver preserves complete native Bullet',s=>s.ready && !s.problem && s.live===1 && s.modelCount===1 && s.visible && s.actor?.mode==='bullet' && s.actor.cloth==='failed' && s.actor.nodes>0 && s.actor.clothSteps===0 && s.dynamic>0 && s.bullet>0);
-      assert.equal(await page.evaluate(()=>labFixture.driverFailures),1);assert(b.filesIntact && b.physics);
+      assert.equal(await page.evaluate(()=>labFixture.driverFailures),1);assert(b.filesIntact && b.physics);atPosition(b.position,center);
       assert.equal(b.actor.fullBodies,b.actor.keptBodies);assert(b.actor.keptBodies>b.actor.nodes);
       if(expectedFull)assert.equal(b.actor.fullBodies,expectedFull);
       const b2=await until('native physics continues after failed GPU initialization',(s,t)=>s.bullet>t && s.actor.mode==='bullet' && s.actor.clothSteps===0,b.bullet);
@@ -140,8 +179,44 @@ async function main() {
       if(out)await fs.writeFile(path.join(out,'summary.json'),JSON.stringify(report,null,2)+'\n');
       console.log(JSON.stringify(report,null,2));
     }
+    async function restoreWebGL(seed,duration) {
+      step='restore in actual WebGL prep viewer';
+      await page.evaluate(()=>{window.beforeScreenSession=labSession;});
+      await page.locator('.stage-launch-row .stage-btn-secondary').first().click();
+      const glState=await until('WebGL actor and layout restored',(s,bound)=>s.overlay && s.presentation==='screen' && s.ready && s.modelCount===1 && s.live===1 && s.hasBinding===bound && (bound?s.duration>0:s.duration===0),seed.hasMotion);
+      assert(glState.filesIntact && glState.visible && !glState.problem && !glState.playing && glState.physics);
+      atPosition(glState.position,seed.position);assert.equal(glState.time,seed.time);assert.equal(glState.duration,duration);
+      const canvas=page.locator('.screen-picture canvas');
+      assert(await canvas.evaluate(el=>{const gl=window.screenSmokeContext=el.getContext('webgl2');return !!gl && !gl.isContextLost() && gl.drawingBufferWidth>0 && gl.drawingBufferHeight>0;}));
+      await page.locator('.screen-corner button[aria-expanded]').click();await page.locator('.screen-item').nth(ids.index).click();
+      const toggle=page.locator('.screen-actor-home > .screen-buttons button').nth(1);
+      const shown=await canvas.screenshot();await toggle.click();await until('screen hide control',s=>s.visible===false);
+      const hidden=await canvas.screenshot(); await toggle.click();await until('restore screen actor',s=>s.visible===true);
+      const glPixels=await page.evaluate(probes.screenDiff,[shown,hidden].map(b=>b.toString('base64')));
+      assert(glPixels>250,'Restored model did not change the actual WebGL canvas');
+      if(seed.hasMotion){
+        await page.locator('.screen-play').click();await until('real WebGL transport resumes restored VMD',(s,t)=>s.playing && s.time>t+.06,seed.time);
+        await page.locator('.screen-play').click();await until('WebGL paused again',s=>!s.playing);
+      }
+      report.webgl={position:glState.position,characterPixels:glPixels,restoredTime:glState.time,duration:glState.duration};
+      assert(await page.evaluate(()=>window.beforeScreenSession===labSession));
+      await page.locator('.screen-back').click();return until('back from WebGL',s=>!s.overlay && !s.live && screenSmokeContext.isContextLost());
+    }
     if(onlyFallback){await fallback();await exit();await finish();return;}
-    await press('left'); let actor=await gpuActor(); assert(!actor.hasBinding && !actor.playing && actor.duration===0,'Selecting VMD bound it before A');
+    if(onlyPlacement){
+      const witness=await place(offCenter,true);
+      const model=await until('selected PMX evaluated at ray landing',s=>s.ready && s.selected && s.visible && s.modelCount===1 && s.live===1 && s.actor?.evaluations>0);
+      assert(model.filesIntact && !model.problem && !model.hasBinding && model.placeCommands===1);
+      atPosition(model.position,offCenter);
+      const image=await page.evaluate(probes.inspectEyes,'actor');
+      assert(image.mono===0 && image.different>100 && image.characterPixels.every(n=>n>250),'Off-center actor did not draw in both final eyes');
+      const events=await page.evaluate(()=>labSession.stats.selectEvents);
+      const {floor}=await exit();assert(floor?.hasModel && floor.assets===1 && floor.models===1 && !floor.hasMotion);atPosition(floor.position,offCenter);
+      report.placement={...witness,requested:offCenter,placed:model.position,saved:floor.position,events,placeCommands:model.placeCommands,image};
+      const restored=await restoreWebGL(floor,0);atPosition(restored.floor.position,offCenter);
+      await finish();return;
+    }
+    await place(); const actor=await gpuActor(); assert(!actor.hasBinding && !actor.playing && actor.duration===0,'Selecting VMD bound it before A');
     row.physics={dynamic:actor.dynamic,bullet:actor.bullet,kept:actor.actor.keptBodies,full:actor.actor.fullBodies,cloth:actor.actor.clothSteps,nodes:actor.actor.nodes};
     row.actor=await page.evaluate(probes.inspectEyes,'actor');
     assert(row.actor.mono===0 && row.actor.different>100 && row.actor.characterPixels.every(n=>n>250),'Actor not visible independently in both final color layers');
@@ -161,7 +236,7 @@ async function main() {
     }
     if (sites) {
       for (const [i,name] of ['empty','left','right','both'].entries()) {
-        if(i) {await press('left');await removed();await press('left');await gpuActor();}
+        if(i) {await press('left');await removed();await place();await gpuActor();}
         step='two-hand cloth: '+name; await page.evaluate(hands.trial,{name,sites});
       }
       const {images,...proof}=await page.evaluate(hands.compare,!!out);report.hands=proof;
@@ -186,7 +261,7 @@ async function main() {
     row.motion={duration:paused.duration,held:held.time,resumed:paused.time};
     const parked=await exit(), seed=parked.floor;
     assert(seed?.hasModel && seed.hasMotion && seed.assets===1 && seed.models===1 && seed.physics && !seed.playing && seed.time===paused.time);
-    assert.deepEqual(seed.position,[0,0,-1.85]);assert(parked.hasBinding && parked.filesIntact);
+    atPosition(seed.position,center);assert(parked.hasBinding && parked.filesIntact);
     function retained(s) {assert.deepEqual(s.floor,seed);assert.deepEqual(s.saved,parked.saved);assert(s.hasBinding && s.filesIntact && !s.live && !s.overlay);}
     await page.evaluate(()=>{labFixture.reject=true;});await enter();
     retained(await until('refused XR retains seeded floor and bindings',s=>s.phase==='failed' && !document.querySelector('#gpu-enter').disabled));
@@ -196,28 +271,10 @@ async function main() {
     assert.equal(await page.evaluate(()=>!!labSession.first||labSession.stats.submissions>0),false);
     retained(await exit());report.cancelledPreserved=true;
 
-    step='restore in actual WebGL prep viewer';
-    await page.evaluate(()=>{window.beforeScreenSession=labSession;});
-    await page.locator('.stage-launch-row .stage-btn-secondary').first().click();
-    const glState=await until('WebGL actor and same bound VMD restored',s=>s.overlay && s.presentation==='screen' && s.ready && s.modelCount===1 && s.live===1 && s.hasBinding && s.duration>0);
-    assert(glState.filesIntact && glState.visible && !glState.problem && !glState.playing && glState.physics);
-    assert.deepEqual(glState.position,seed.position);assert.equal(glState.time,seed.time);assert.equal(glState.duration,paused.duration);
-    const canvas=page.locator('.screen-picture canvas');
-    assert(await canvas.evaluate(el=>{const gl=window.screenSmokeContext=el.getContext('webgl2');return !!gl && !gl.isContextLost() && gl.drawingBufferWidth>0 && gl.drawingBufferHeight>0;}));
-    await page.locator('.screen-corner button[aria-expanded]').click();await page.locator('.screen-item').nth(ids.index).click();
-    const toggle=page.locator('.screen-actor-home > .screen-buttons button').nth(1);
-    const shown=await canvas.screenshot();await toggle.click();await until('screen hide control',s=>s.visible===false);
-    const hidden=await canvas.screenshot(); await toggle.click();await until('restore screen actor',s=>s.visible===true);
-    const glPixels=await page.evaluate(probes.screenDiff,[shown,hidden].map(b=>b.toString('base64')));
-    assert(glPixels>250,'Restored model did not change the actual WebGL canvas');
-    await page.locator('.screen-play').click();await until('real WebGL transport resumes restored VMD',(s,t)=>s.playing && s.time>t+.06,seed.time);
-    await page.locator('.screen-play').click();await until('WebGL paused again',s=>!s.playing);
-    report.webgl={characterPixels:glPixels,restoredTime:glState.time,duration:glState.duration};
-    assert(await page.evaluate(()=>window.beforeScreenSession===labSession));
-    await page.locator('.screen-back').click();const fromScreen=await until('back from WebGL',s=>!s.overlay && !s.live && screenSmokeContext.isContextLost());
+    const fromScreen=await restoreWebGL(seed,paused.duration);
     assert(fromScreen.floor?.hasMotion && !fromScreen.floor.playing);
     const rev=await active(true),restored=await gpuActor();assert(restored.hasBinding && !restored.playing);
-    assert.equal(restored.time,fromScreen.floor.time);assert.equal(restored.duration,glState.duration);
+    assert.equal(restored.time,fromScreen.floor.time);assert.equal(restored.duration,paused.duration);
     await press('left');await removed();
     rev.floor=await page.evaluate(probes.inspectEyes,'empty');checkEyeOrder(rev.floor);
     await fallback(actor.actor.fullBodies);
@@ -230,8 +287,9 @@ async function main() {
     // Local diagnostic only; do not print the imported file catalog or dump
     // a private screenshot by default. Retain the last good stage, not a hang.
     const last=await page?.evaluate(()=>window.stageProbe?.read()).catch(()=>null);
-    if(out)await fs.writeFile(path.join(out,'incomplete.json'),JSON.stringify({step,report},null,2)+'\n').catch(()=>{});
-    console.error('Stage smoke stopped at:',step,JSON.stringify({last,pageErrors:errors.length})); throw e;
+    const input=await page?.evaluate(()=>{const stats=window.labSession?.stats;return stats && {rayReads:stats.targetRayReads,events:stats.selectEvents};}).catch(()=>null);
+    if(out)await fs.writeFile(path.join(out,'incomplete.json'),JSON.stringify({step,report,input,localProfile},null,2)+'\n').catch(()=>{});
+    console.error('Stage smoke stopped at:',step,JSON.stringify({last,input,localProfile,pageErrors:errors.length})); throw e;
   } finally { try { await browser?.close(); } finally { await server?.close(); } }
 }
 main().catch(e=>{console.error(e);process.exitCode=1;});

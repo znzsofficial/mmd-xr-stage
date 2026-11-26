@@ -8,6 +8,8 @@
 
 洛茜第二版保留首图的脸、发、光线与机位；[衣料材质](../../scripts/webgpu-actor/endfieldCloth.js)按同一 UV 读取配套法线和参数，缎面与高 R 饰边各自反射。帧间对照在 `local-review/screenshots/rossi-hybrid-bust-v2/`：看红披肩折面及白衣明褶，暗侧的衣褶目前较硬。脸与刘海取样区逐像素相同，缺少配套图恢复首版。内部页只沿用既有的布料选槽，没有新增画风控件。
 
+**着色范围和可复用实现：**通用按槽材质有方向光 GGX、Smith 近似与 Schlick Fresnel；第二版有图的衣料走法线／粗糙度／金属遮罩控制的美术高光，没用通用槽的 GGX。脸是头骨驱动的明暗渐变；未接皮肤散射、软自投影或专用描边法线。可参考社区[佩丽卡 URP 复刻](https://github.com/Morgana-lgtm/Arknights-Endfield-Inspired-Perlica-Character-Shader)的 Face SDF、皮肤项和按深度调线宽（纹理通道不可照搬成洛茜的）；[OutlineNormalSmoother](https://github.com/JasonMa0012/OutlineNormalSmoother)（MIT）的独立描边法线烘焙；[Three 的快速薄处透光](https://threejs.org/examples/webgpu_materials_sss.html)。这些是实现参考，并非鹰角管线证据。现有 loader 已按视口像素外扩轮廓。如试验新脸部光照，先核对本地脸图 UV，做同姿正光与侧逆光，真正的脸部投影与皮肤透光分开看；不需要新测试页。
+
 专题接续：[卡拉彼丘脸影、发束与眼周](./strinova-render-study.md)核对两份社区源码，并给出头骨旋转的对照；[终末地 Cloth1 参数图](./endfield-material-study.md)记录同槽双区域的离线转灯控制、R/A 取样约定和各自的保留条件。
 
 | 一手来源（均为社区作者） | 可核对的材质，以及值得借的原则 |

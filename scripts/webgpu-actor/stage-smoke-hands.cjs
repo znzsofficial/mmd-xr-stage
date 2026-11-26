@@ -30,7 +30,10 @@ exports.trial = async function trial({ name, sites, pose }) {
   if (pose) window.stagePaused.verify(s,pose);
   else if (s.duration || s.time || s.hasBinding) throw Error('Rest trials need an unbound actor');
   if (!s.scale || cfg.take) throw Error('Missing scale or another running take');
-  const world = p => p.map((v,i) => v*s.scale/.1+s.position[i]);
+  // Real ray placement faces the tracked viewer. Transform the rest plan with
+  // the actor, rather than assuming the old fixed-point, zero-yaw shortcut.
+  const yaw=s.yaw*Math.PI/180, c=Math.cos(yaw),sn=Math.sin(yaw);
+  const world = ([x,y,z]) => [c*x+sn*z,y,-sn*x+c*z].map((v,i) => v*s.scale/.1+s.position[i]);
   const route=pose && window.stagePaused.route;
   const tracks = route?.tracks ?? sites.map(p => ({ start:world(p.start), end:world(p.end), spot:world(p.spot), away:world(p.start.map((v,i)=>v+.16*p.radial[i])) }));
   const eyeY = (tracks[0].spot[1]+tracks[1].spot[1])/2-.025, eyeZ = Math.max(...tracks.map(p=>p.spot[2]))+.62;

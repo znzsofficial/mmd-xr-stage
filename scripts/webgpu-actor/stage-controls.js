@@ -2,8 +2,8 @@ import {useBackpack} from '../../src/mmdVrShowcase/backpack/store';
 import {getMmdVrClock} from '../../src/mmdVrShowcase/stage/mmdVrClock';
 import {useMmdVrStore} from '../../src/mmdVrShowcase/mmdVrStore';
 
-// The controlled room has one marked standing position and one actor. These
-// controls are only producers of ordinary backpack/transport commands.
+// X requests/cancels the backpack draft or puts away the live actor. Only
+// the game's BackpackPlacement pointer-up may commit a new position.
 export function stageControls(selection) {
   const held = new Map();
   function operate(key) {
@@ -14,7 +14,8 @@ export function stageControls(selection) {
     if(!id)return;
     if(key==='left'){
       if(live)bag.putAway(live);
-      else {bag.beginPlace(id);bag.confirmPlace(id,0,-1.85,0);}
+      else if(bag.draft===id)bag.cancelPlace();
+      else bag.beginPlace(id);
     }else if(key==='right' && live){
       const file=bag.entries.find(e=>e.id===selection.motion && e.kind==='motion')?.file;
       if(file && bag.bindings[id]?.body!==file)bag.applyMotion(id,file,'body');
@@ -24,7 +25,7 @@ export function stageControls(selection) {
       }
     }
   }
-  return {operate,reset:()=>held.clear(),sample(sources){
+  return {reset:()=>held.clear(),sample(sources){
     for(const old of held.keys())if(!Array.prototype.includes.call(sources,old))held.delete(old);
     for(const source of sources){
       if(!source.gamepad||source.hand)continue;

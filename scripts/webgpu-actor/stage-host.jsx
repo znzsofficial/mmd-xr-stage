@@ -1,6 +1,10 @@
 import React from 'react';
 import * as T from 'three/webgpu';
 import {advance,createRoot,extend,unmountComponentAtNode} from '@react-three/fiber';
+import {DefaultXRInputSourceRayPointer,XR} from '@react-three/xr';
+import {createAppXrStore} from '../../src/xr/createAppXrStore';
+import {BackpackPlacement} from '../../src/mmdVrShowcase/backpack/BackpackPlacement';
+import {HUD_RAY} from '../../src/mmdVrShowcase/hud/hudPointer';
 import {MmdVrStageContent} from '../../src/mmdVrShowcase/stage/MmdVrStage';
 import {StageEnvironment} from '../../src/mmdVrShowcase/stage/StageEnvironment';
 import {resolveStageLighting} from '../../src/mmdVrShowcase/stage/lighting';
@@ -16,9 +20,15 @@ import {trackedContacts} from './stage-tracked-contacts.js';
 // Only this developer entry imports the WebGPU implementation. R3F renders
 // the product room on Three's native XR callback, never a second RAF.
 extend(T);
+// Keep the game's XR pointer and drop surface (including the footprint and
+// release checks). No test-specific hit test, drop coordinate or input event.
+function StageRay(){
+  const aiming=useBackpack(s=>!!s.draft);
+  return <DefaultXRInputSourceRayPointer makeDefault minDistance={.2} rayModel={aiming?HUD_RAY.rayModel:false} cursorModel={false}/>;
+}
 export function startStageHost(selection,onStatus) {
   const controls=stageControls(selection),contacts=trackedContacts(),log={phase:'request',frames:0};
-  let closing=false,committed=false,session,ended=false,renderer,root,store,backend,undo,epoch;
+  let closing=false,committed=false,session,ended=false,renderer,root,store,xrStore,backend,undo,epoch;
   let timer,backendTask,resolveStop,prevTime,elapsed=0;
   const stopped=new Promise(r=>resolveStop=r);
   const publish=phase=>{log.phase=phase;onStatus();};
@@ -34,7 +44,15 @@ export function startStageHost(selection,onStatus) {
     }
     resolveStop();
   }
-  function interrupt(){prevTime=undefined;controls.reset();if(committed)contacts.reset();backend?.beginFrame(null,null,true);}
+  function interrupt(cancelDraft=true){
+    prevTime=undefined;controls.reset();
+    if(committed){
+      contacts.reset();
+      // A release after tracking or focus returns must not place a held draft.
+      const bag=useBackpack.getState();if(cancelDraft&&bag.draft)bag.cancelPlace();
+    }
+    backend?.beginFrame(null,null,true);
+  }
   const endedSession=()=>{ended=true;stop();};
   const onError=e=>stop(e.error??e.message), pageHide=()=>stop();
   async function run(){
@@ -66,12 +84,16 @@ export function startStageHost(selection,onStatus) {
       // R3F's default sessionstart handler targets WebGL's xr.setAnimationLoop.
       // With an external r187 renderer, XRManager itself owns setSession + RAF.
       store.getState().xr.disconnect();
+      xrStore=createAppXrStore({controller:StageRay});xrStore.setHand(StageRay);
+      // Bind input state before sessionstart, mount pointer elements only
+      // after the first tracked draw. Three still owns the only projection layer.
+      xrStore.setWebXRManager(renderer.xr);
       await renderer.setAnimationLoop((time,frame)=>{
         if(closing || !frame || frame.session!==session || !renderer.xr.isPresenting)return;
         try{
           if(session.visibilityState!=='visible'||!frame.getViewerPose(renderer.xr.getReferenceSpace())?.views.length){interrupt();return;}
           const dt=prevTime==null?0:(time-prevTime)*.001;prevTime=time;
-          if(dt<0||dt>.25)interrupt();else elapsed+=dt;
+          if(dt<0||dt>.25)interrupt(false);else elapsed+=dt;
           if(committed){
             contacts.sample(frame,renderer.xr.getReferenceSpace(),useMmdVrStore.getState().prefs.physicsColliderRadius);
             controls.sample(session.inputSources);
@@ -90,7 +112,7 @@ export function startStageHost(selection,onStatus) {
               if(state.prefs.scenery!=='floor')state.setPrefs({scenery:'floor'});
               state.openOverlay('xr');epoch=useMmdVrStore.getState().entryEpoch;committed=true;
               useMmdVrStore.setState({phase:'active',resumeStage:saved,physicsEnabled:saved?.physicsEnabled??true,physicsDebugEnabled:true});
-              root.render(<MmdVrStageContent backend={b}/>);
+              root.render(<XR store={xrStore}><MmdVrStageContent backend={b}/><BackpackPlacement/></XR>);
             }).catch(stop);
           }
           if(committed&&log.phase!=='active'&&useMmdVrStore.getState().captureStage)publish('active');
@@ -108,6 +130,7 @@ export function startStageHost(selection,onStatus) {
       if(session && !ended)await release(()=>session.end());
       await release(()=>backendTask);
       if(root)await release(()=>new Promise(resolve=>unmountComponentAtNode(renderer.domElement,resolve)));
+      await release(()=>xrStore?.destroy());
       await release(()=>backend?.dispose());await release(()=>undo?.());await release(()=>renderer?.dispose());
       session?.removeEventListener('end',endedSession);session?.removeEventListener('visibilitychange',interrupt);
       window.removeEventListener('error',onError);window.removeEventListener('pagehide',pageHide);
@@ -115,7 +138,7 @@ export function startStageHost(selection,onStatus) {
     }
   }
   const done=run();
-  return {done,stop,operate:key=>{if(committed&&!closing)controls.operate(key);},get status(){
+  return {done,stop,get status(){
     const s=useMmdVrStore.getState();return {...log,actor:backend?.status??null,bulletSteps:s.physicsStepCount,dynamicBodies:s.physicsDynamicBodyCount};
   }};
 }

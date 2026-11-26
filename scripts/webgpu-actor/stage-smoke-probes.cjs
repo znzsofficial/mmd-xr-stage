@@ -7,14 +7,21 @@ exports.observeStage = async function observeStage({ modelPath, motionName }) {
   const b = useBackpack.getState();
   const model = b.entries.find(e => e.kind === 'model' && e.path === modelPath);
   const motion = b.entries.find(e => e.kind === 'motion' && e.path === motionName);
-  if (!model || !motion) throw Error('Named PMX or separately imported VMD is not in the actual prep backpack');
+  if (!model || (motionName && !motion)) throw Error('Named PMX or separately imported VMD is not in the actual prep backpack');
   const files = [...b.files];
+  // Count even short-lived place commands: an immediate/failed commit must
+  // not look like a successful draft-only or invalid-target control.
+  let placeCommands=0,confirmedOn=null;
+  useBackpack.subscribe((s,prev)=>{if(s.command?.type==='place' && s.command.token!==prev.command?.token){
+    placeCommands++;confirmedOn=window.labSession?.dispatchingInput??null;
+  }});
+  const bound=file=>motion?file===motion.file:!!file;
   function saved(layout) {
     if (!layout) return null;
     const m = layout.models.find(m => m.file === model.file);
     const slot = layout.assets.find(s => s.kind === 'model' && s.modelFile === model.file);
     return { scenery: layout.scenery, models: layout.models.length, objects: layout.objects.length,
-      assets: layout.assets.length, hasModel: !!m && !!slot, hasMotion: slot?.bodyMotionFile === motion.file,
+      assets: layout.assets.length, hasModel: !!m && !!slot, hasMotion: bound(slot?.bodyMotionFile),
       position: m && [m.transform.positionX, m.transform.positionY, m.transform.positionZ], scale: m?.transform.scale,
       time: layout.time, playing: layout.playing, physics: layout.physicsEnabled };
   }
@@ -24,16 +31,17 @@ exports.observeStage = async function observeStage({ modelPath, motionName }) {
     return { phase: h.phase, frames: h.frames, actor: h.actor, bullet: h.bulletSteps, dynamic: h.dynamicBodies,
       modelCount: s.modelCount, live: Object.keys(b.live).length, visible: live?.visible, position: live?.position,
       runtimeId:live?.runtimeId, selected:b.selected===model.id,
-      scale: entry?.scale, hasBinding: b.bindings[model.id]?.body === motion.file,
+      draft:b.draft===model.id, previewMs:b.previewDelayMs, placeCommands,confirmedOn,
+      scale: entry?.scale, yaw:entry?.rotationY, hasBinding: bound(b.bindings[model.id]?.body),
       filesIntact: files.length === b.files.length && files.every((f,i) => b.files[i] === f) &&
-        b.entries.some(e => e.id === model.id && e.file === model.file) && b.entries.some(e => e.id === motion.id && e.file === motion.file),
+        b.entries.some(e => e.id === model.id && e.file === model.file) && (!motion || b.entries.some(e => e.id === motion.id && e.file === motion.file)),
       floor: saved(b.layouts.floor), saved: saved(s.savedStage), room: s.prefs.scenery,
       stagePhase: s.phase, presentation: s.presentation, overlay: s.overlayOpen, playing: s.playing,
       time: getMmdVrClock().time, duration: getMmdVrClock().duration, physics: s.physicsEnabled,
       ready: !!s.captureStage && !s.assetLoad.running && !s.physicsBusy && !b.busy,
       problem: !!(h.error || s.physicsError || s.physicsFatal || s.assetLoad.failures.length || b.error) };
   } };
-  return { model: model.id, motion: motion.id, index: b.entries.filter(e => e.kind === 'model').indexOf(model) };
+  return { model: model.id, motion: motion?.id, index: b.entries.filter(e => e.kind === 'model').indexOf(model) };
 };
 
 // The final color-converted layers, ordered by the binding's *reported* eye
