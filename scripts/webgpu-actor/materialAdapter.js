@@ -2,6 +2,7 @@ import { createMmdTslPipeline, disposeMmdTslShadowCaster } from '@yohawing/three
 import { max, sRGBTransferEOTF, sRGBTransferOETF } from 'three/tsl';
 import { hybridToonColor, parseHybridSlots } from './hybridToon.js';
 import { endfieldColor } from './endfieldToon.js';
+import { prepareSkinTransmission } from './skinTransmission.js';
 
 // Fork 3ac1d8e, webgpu/material-core.ts: the pipeline's colorNode returns
 // EOTF(clamp(toon/sphere/specular composite, 0, 1)). Its public output cannot
@@ -41,13 +42,15 @@ export async function createActorMaterialAdapter(renderer, light, { balancedMode
   });
   return {
     loadOptions: pipeline.createModelLoadOptions(),
-    attach(model, options, clothMaps) {
+    attach(model, options, detailMaps) {
       // Validate against authored slots before the fork replaces materials and
       // appends outline slots. Invalid input leaves the loaded actor untouched.
       const source = model.mesh.material, count = Array.isArray(source) ? source.length : 1;
       for (const i of slots.keys()) {
         if (i >= count) throw new RangeError(`Hybrid PMX slot ${i} outside authored slot count ${count}`);
       }
+      const skin = endfield && detailMaps?.skinLighting!==false ? [...slots.keys()].filter(i=>slots.get(i)==='skin') : [];
+      const maps={...detailMaps,thinSkin:skin.length>0 && prepareSkinTransmission(model.mesh,skin)>0};
       const attached = pipeline.attach(model, options);
       // r187 adds layer 1 to its left eye. The fork's optional shadow-only
       // geometry uses that same layer and draws an untextured white silhouette
@@ -59,7 +62,7 @@ export async function createActorMaterialAdapter(renderer, light, { balancedMode
           // different material; opacityNode, alpha test and depth stay loader-owned.
           if (!material.userData.mmdTslMaterialUniforms) continue;
           if (balancedModelColor) material.colorNode = balancedToonColor(material.colorNode, ambientIntensity);
-          if (slots.has(index)) material.colorNode = endfield ? endfieldColor(material.colorNode, material, slots.get(index), model.mesh, clothMaps?.get(index)) : hybridToonColor(material.colorNode, material, slots.get(index));
+          if (slots.has(index)) material.colorNode = endfield ? endfieldColor(material.colorNode, material, slots.get(index), model.mesh, maps, index) : hybridToonColor(material.colorNode, material, slots.get(index));
         }
       }
       return attached;

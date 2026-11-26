@@ -9,6 +9,7 @@ import { firstCharacterScale } from '../../src/mmdVrShowcase/stage/loading/first
 import { createActorMaterialAdapter } from './materialAdapter.js';
 import { nprRoles, parseHybridSlots } from './hybridToon.js';
 import { loadClothDetails } from './endfieldCloth.js';
+import { loadFaceDetails } from './endfieldFace.js';
 import { measureFringe } from './fringeStudy.js';
 
 const SIZE = 600, AMBIENT = .55;
@@ -149,7 +150,7 @@ async function draw(gpu, input, common) {
   scene.add(light, new T.AmbientLight(0xffffff, AMBIENT));
   let gpuError;
   if (gpu) renderer.onError = info => { gpuError ??= new Error(`WebGPU ${info.type}: ${info.message}`); };
-  let adapter, model, clothMaps;
+  let adapter, model, clothMaps, faceMaps;
   try {
     if (gpu) adapter = await createActorMaterialAdapter(renderer, light, {balancedModelColor:input.balanced,ambientIntensity:AMBIENT,hybridSlots:input.hybridSlots,endfield:input.grade==='endfield'}); // rejects WebGL fallback
     renderer.setPixelRatio(input.focus === 'portrait' ? 2 : 1); renderer.setSize(SIZE, SIZE, false); renderer.setClearColor(0, 0);
@@ -171,8 +172,11 @@ async function draw(gpu, input, common) {
     scene.add(model.root); model.root.scale.setScalar(scale); model.root.updateMatrixWorld(true);
     const bind = poseVector(model.mesh);
     if (adapter) {
-      if (input.grade === 'endfield') clothMaps = await loadClothDetails(model,input.hybridSlots.cloth,input.resolver,input.files);
-      await adapter.attach(model,undefined,clothMaps);
+      if (input.grade === 'endfield') {
+        clothMaps = await loadClothDetails(model,input.hybridSlots.cloth,input.resolver,input.files);
+        if (input.skinLighting) faceMaps = await loadFaceDetails(model,input.hybridSlots.face,input.resolver,input.files);
+      }
+      await adapter.attach(model,undefined,{cloth:clothMaps,face:faceMaps,skinLighting:input.skinLighting});
     }
     if (input.clip) model.setAnimation(input.clip);
     const evaluated = model.update(input.time, { physics: false, ik: !!input.clip });
@@ -250,12 +254,13 @@ async function draw(gpu, input, common) {
     }
     return { image: shot.copy.toDataURL('image/png'), metrics: { ...frame, time: input.time, glSinglePassHairControl:!gpu && input.singlePassHair, lightPosition: light.position.toArray(), evaluatedFrame: evaluated.frame, poseDeltaFromBind, poseDeltaFromGL,
       visiblePixels, partialAlphaPixels, outlineDrawMaterials: activeEdges.length, outlineChangedPixels, drawCalls, slots, fringe, regionStats,
-      grade: gpu ? input.grade : 'balanced', hybridSlots: gpu ? input.hybridSlots : undefined, detailSlots: clothMaps && [...clothMaps.keys()], previousWebgpuGrade: gpu ? common.previous?.grade : undefined,
+      grade: gpu ? input.grade : 'balanced', hybridSlots: gpu ? input.hybridSlots : undefined, detailSlots: clothMaps && [...clothMaps.keys()], faceMapSlots:faceMaps && [...faceMaps.keys()], previousWebgpuGrade: gpu ? common.previous?.grade : undefined,
       textureWarnings: model.diagnostics.textures.map(({ code, materialIndex }) => ({ code, materialIndex })),
     } };
   } finally {
     if (model) { adapter?.detach(model); disposeMmdModel(model, { textures: 'owned' }); }
     for (const t of new Set(clothMaps?.values())) t.dispose();
+    for (const set of new Set(faceMaps?.values())) {set.field.dispose();set.ramp.dispose();}
     adapter?.dispose(); await renderer.dispose(); renderer.forceContextLoss?.();
   }
 }
@@ -263,7 +268,7 @@ async function draw(gpu, input, common) {
 // Selectors accept a File in files, an exact relative path or a unique basename.
 // Omit vmd for bind pose; pass a .vpd via pose instead. hideSlot is zero-based.
 let busy = false, lastShot;
-window.compareActor = async ({ files = inputFiles(), pmx, vmd, pose, time = 0, scale, hideSlot, lightYaw, focus = 'body', yaw = originalYaw, balanced = true, hybridSlots, endfield = false, fringeStudy, studySlots, singlePassHair = false } = {}) => {
+window.compareActor = async ({ files = inputFiles(), pmx, vmd, pose, time = 0, scale, hideSlot, lightYaw, focus = 'body', yaw = originalYaw, balanced = true, hybridSlots, endfield = false, skinLighting=true, fringeStudy, studySlots, singlePassHair = false } = {}) => {
   if (busy) throw Error('A comparison is running');
   if (!Number.isFinite(time) || time < 0 || (scale != null && (!Number.isFinite(scale) || scale < .01 || scale > 10))) throw Error('Invalid time or placement scale');
   if (lightYaw != null && !Number.isFinite(lightYaw)) throw Error('Invalid light angle');
@@ -281,7 +286,7 @@ window.compareActor = async ({ files = inputFiles(), pmx, vmd, pose, time = 0, s
     const loader = new ThreeMmdLoader({ textureResolver: resolver, geometryAwareAlpha: true, runtime: { physics: 'none' } });
     const selected = pose ?? vmd, motion = selected ? pick(all, selected, CLIP) : null;
     const clip = !motion ? null : /\.vpd$/i.test(motion.name) ? await loader.loadPoseAnimation(motion) : await loader.loadAnimation(motion);
-    const input = { pmx: file, loader, files: all, resolver, clip, time, scale, hideSlot, lightYaw, focus, yaw, balanced, grade, hybridSlots, fringeStudy, studySlots, singlePassHair }, common = {}, result = {};
+    const input = { pmx: file, loader, files: all, resolver, clip, time, scale, hideSlot, lightYaw, focus, yaw, balanced, grade, hybridSlots, skinLighting, fringeStudy, studySlots, singlePassHair }, common = {}, result = {};
     const viewKey = JSON.stringify([time,scale,hideSlot,lightYaw,focus,yaw,singlePassHair]);
     for (const id of ['webgl', 'webgpu']) {
       $('status').textContent = `渲染 ${id}…`;

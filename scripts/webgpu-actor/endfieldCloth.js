@@ -6,7 +6,7 @@ import { unzlibSync } from 'three/addons/libs/fflate.module.js';
 // This fixture accepts the paired RG-normal / R+A-parameter convention only
 // for cloth selected in the Endfield grade. Decode data, not display pixels:
 // Canvas and external image uploads can premultiply the material ID by roughness.
-async function rgba8(file, w, h) {
+export async function rgba8(file, w, h) {
   const bytes = new Uint8Array(await file.arrayBuffer()), view = new DataView(bytes.buffer);
   if (view.getUint32(0) !== 0x89504e47 || view.getUint32(4) !== 0x0d0a1a0a || view.getUint32(12) !== 0x49484452 ||
       view.getUint32(16) !== w || view.getUint32(20) !== h || bytes[24] !== 8 || bytes[25] !== 6 || bytes[26] || bytes[27] || bytes[28]) return;
@@ -34,25 +34,28 @@ async function rgba8(file, w, h) {
   return rows;
 }
 
+const path = f => (f.webkitRelativePath || f.name).replaceAll('\\','/').toLowerCase();
+export const mapDirectory = f => path(f).slice(0,-f.name.length);
+
+// Map packs may reside beside a byte-identical second copy of the diffuse.
+// Never pair files on a basename shared by unrelated actor directories.
+export async function matchingPack(diffuse, files, pair) {
+  const local = pair(diffuse); if (local) return local;
+  const twins = files.filter(f => f.name.toLowerCase() === diffuse.name.toLowerCase() && f.size === diffuse.size && mapDirectory(f) !== mapDirectory(diffuse) && pair(f));
+  if (twins.length !== 1) return;
+  const [a,b] = await Promise.all([diffuse,twins[0]].map(async f => new Uint8Array(await f.arrayBuffer())));
+  if (a.every((v,i) => b[i] === v)) return pair(twins[0]);
+}
+
 async function packedData(diffuse, files, w, h) {
   if (!diffuse || !/_D\.png$/i.test(diffuse.name) || !w || !h || w*h > 4096**2) return;
-  const path = f => (f.webkitRelativePath || f.name).replaceAll('\\','/').toLowerCase();
-  const directory = f => path(f).slice(0,-f.name.length);
   function pair(d) {
     const sibling = suffix => files.filter(f => path(f) === path(d).replace(/_d\.png$/,suffix));
     const n = sibling('_n.png'), p = sibling('_p.png');
     return n.length === 1 && p.length === 1 ? [n[0],p[0]] : null;
   }
-  let companions = pair(diffuse);
-  if (!companions) {
-    // Some exports place maps next to a second copy of the diffuse atlas.
-    // A similarly named file in another directory isn't sufficient evidence.
-    const twins = files.filter(f => f.name.toLowerCase() === diffuse.name.toLowerCase() && f.size === diffuse.size && directory(f) !== directory(diffuse) && pair(f));
-    if (twins.length !== 1) return;
-    const [a,b] = await Promise.all([diffuse,twins[0]].map(async f => new Uint8Array(await f.arrayBuffer())));
-    if (!a.every((v,i) => b[i] === v)) return;
-    companions = pair(twins[0]);
-  }
+  const companions = await matchingPack(diffuse,files,pair);
+  if (!companions) return;
   const [normal,params] = await Promise.all(companions.map(f => rgba8(f,w,h)));
   if (!normal || !params) return;
   const packed = new Uint8Array(w*h*4);

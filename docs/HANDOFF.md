@@ -2,7 +2,7 @@
 
 [正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `a96e4a2`](https://2626baa0.mmd-xr-stage.pages.dev) · [WebGPU 裙摆实验](https://mmd-xr-stage.pages.dev/labs/cloth/) · [发布记录](./release-history.md) · [文档索引](./README.md)
 
-**洛茜第一张仿《终末地》半身对照已交图。** 原 MMD／Hybrid NPR-PBR：`local-review/screenshots/rossi-hybrid-bust/comparison.png`；[官方洛茜战斗演示](https://www.youtube.com/watch?v=A5C7-5vi9SM)作风格参照。开发对照页 `scripts/webgpu-actor/probe.html` 可切换。相同姿势、光照及相机，已验证切回原色逐像素恢复。
+**洛茜第三版已出图：**`local-review/screenshots/rossi-hybrid-bust-v3/face-lights.png` 看二版／三版同姿下左右侧逆光及正光；`comparison.png` 看原半身机位，`hand-light.png` 单看露指透光开关。原模型的配套脸影图按头骨朝向和灯位取样，衣服和发色沿用二版。指骨区域估算厚薄，仅在逆光下作局部透光；毛耳、刘海真实投影与专用细描边未处理。三版侧逆光的鼻梁过渡更清楚，靠背光侧的脸颊仍偏灰。参照[官方洛茜战斗演示](https://www.youtube.com/watch?v=A5C7-5vi9SM)。
 
 **衣料第二版已实绘：**`local-review/screenshots/rossi-hybrid-bust-v2/comparison.png` 并排对照两版，`cloth-detail.png` 看披肩与白衣局部。接入配套法线和 R/A 控制后，肩部转折、披肩压线、白衣折面更明显；红布高光仍宽，白裙背光褶谷略硬。无配套图恢复首版，脸与刘海取样区不变。
 
@@ -12,8 +12,8 @@
 
 | 工作线 | 接下来做什么 | 何时收束／谁决定 |
 |---|---|---|
-| **WebGPU：正式放置射线已接** | 摄影地台复用正式 `BackpackPlacement`。X 仅开启草稿，扳机按住无演员，平台外松手不提交；有效点松手只提交一次。 | 桌面 GPU＋模拟 XR 双眼看到了偏离中心的演员，位置 (0.46, 0, −2.25) 退回正式 WebGL 后保留。先前的播舞、暂停双托、续播、原生物理回退已有独立证据；新接线待 Quest 实戴。 |
-| **角色画风：洛茜衣料第二版** | [候选材质](../scripts/webgpu-actor/endfieldToon.js)在内部页可用；可识别的 RG 法线与 R/A 配套图供衣料细化，无图继续使用首版。 | 下一步看玩家对第二版的判断。卡拉彼丘另存，星铁只借可共用的眼周处理。 |
+| **WebGPU：走动转身后放置及托裙已验** | 摄影地台复用正式移动和放置组件，射线、眼位、GPU 掌点、Bullet 手部槽共用玩家原点。走 0.80 m 再转 30° 后，双托约 61／72 mm，撤左后约 1／72 mm，退出重进保留落点。 | 桌面 GPU＋模拟 XR 已通过。下一步复用正式场内背包选人；可选入口仍待 Quest 实戴，正式默认 WebGL。 |
+| **角色画风：洛茜第三版** | [脸影与局部皮肤透光](./scenery/character-toon-references.md)已有同光实绘。 | 看图再选是否细化。头发和帽檐的投影、描边平滑／近远细化保留为候选。 |
 | **小 Bug：按需维护** | 入场失败保布局、移除演员后的播放时钟、暂停隐藏再显示的姿势均已修复上线。本轮无已确认的线上阻断项；教室后墙放置射线有规则反例，尚待实际操作复现。 | 丢布局、黑屏或主要操作失效才打断主线；普通问题复现后小修、针对性回归通过即收工。面板 5 条历史待办含设备回访、性能、兼容与搁置项，不是 5 个急修。 |
 
 **集成方向：**WebGPU 成熟后接回正式游戏入口；开发页只保留能测本轮行为的最少操作。新路径直接用正式舞台的背包与放置组件。开放可选入口之前，看同一接线在 Quest 上的双眼、输入与失败恢复；扩大场景或切默认，再看代表场景同机、同舞段、同刷新率与眼图尺寸的慢帧和观感。局部撕裂以后另议。[卡拉彼丘研究](./scenery/strinova-render-study.md)和[终末地 R/A 离线控制](./scenery/endfield-material-study.md)均已收工，按需查阅。

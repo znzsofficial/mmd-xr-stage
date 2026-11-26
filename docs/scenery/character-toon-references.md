@@ -8,7 +8,15 @@
 
 洛茜第二版保留首图的脸、发、光线与机位；[衣料材质](../../scripts/webgpu-actor/endfieldCloth.js)按同一 UV 读取配套法线和参数，缎面与高 R 饰边各自反射。帧间对照在 `local-review/screenshots/rossi-hybrid-bust-v2/`：看红披肩折面及白衣明褶，暗侧的衣褶目前较硬。脸与刘海取样区逐像素相同，缺少配套图恢复首版。内部页只沿用既有的布料选槽，没有新增画风控件。
 
-**着色范围和可复用实现：**通用按槽材质有方向光 GGX、Smith 近似与 Schlick Fresnel；第二版有图的衣料走法线／粗糙度／金属遮罩控制的美术高光，没用通用槽的 GGX。脸是头骨驱动的明暗渐变；未接皮肤散射、软自投影或专用描边法线。可参考社区[佩丽卡 URP 复刻](https://github.com/Morgana-lgtm/Arknights-Endfield-Inspired-Perlica-Character-Shader)的 Face SDF、皮肤项和按深度调线宽（纹理通道不可照搬成洛茜的）；[OutlineNormalSmoother](https://github.com/JasonMa0012/OutlineNormalSmoother)（MIT）的独立描边法线烘焙；[Three 的快速薄处透光](https://threejs.org/examples/webgpu_materials_sss.html)。这些是实现参考，并非鹰角管线证据。现有 loader 已按视口像素外扩轮廓。如试验新脸部光照，先核对本地脸图 UV，做同姿正光与侧逆光，真正的脸部投影与皮肤透光分开看；不需要新测试页。
+**着色范围和可复用实现：**通用按槽材质有方向光 GGX、Smith 近似与 Schlick Fresnel；第二版有图的衣料走法线／粗糙度／金属遮罩控制的美术高光，没用通用槽的 GGX。第二版的脸是头骨驱动的程序渐变。现有 loader 按视口像素外扩轮廓；专用平滑描边法线可参考 [OutlineNormalSmoother](https://github.com/JasonMa0012/OutlineNormalSmoother)（MIT），单独验近远机位的发梢断线／闪烁。这些是实现参考，并非鹰角管线证据。
+
+**第三版走面部受光，不改二版衣料。** 社区[佩丽卡 FaceToonShader](https://github.com/Morgana-lgtm/Arknights-Endfield-Inspired-Perlica-Character-Shader/blob/HEAD/Assets/Shader/FaceToonShader.shader)将灯投影到头部坐标，用镜像的 UV 采 RG 控制脸影，另有几何自投影阶段。[实时皮肤散射综述](https://therealmjp.github.io/posts/sss-intro/)把明暗边界的扩散与穿过薄组织的光分开；[Three 快速透光示例](https://threejs.org/examples/webgpu_materials_sss.html)提供了可在材质内部做的透射参照。因此本轮：
+
+- **脸图**：用本地模型脸颊、鼻梁顶点核对 UV，从 −X 到 +X，U 约由 0.2 升至 0.8。实际 SDF 在相同 V 的两颊 RG 均值分别约 .72 和 .34，据此约定光从 +X 来时镜像U。在已求值头骨坐标里判灯向，用同包的脸部 Ramp 为过渡染色，颈侧按控制图过渡回实际法线。找不到唯一配套、格式不匹配或缺少头骨，保留程序渐变。
+- **薄处透光**：在原 PMX 绑定姿势按可识别指骨的蒙皮权重、皮肤到骨段的距离估计指尖厚薄，只给身体皮肤槽增加背光透射项。不把毛耳、衣物或整张脸当薄组织。这是局部近似；刘海投下的软阴影和多次散射另计。
+- **出图判据**：同姿同光同曝光的二版／三版，分别从正前、左后及右后打光。先看脸影能否随光换边，再另看同一手的侧逆光开／关；衣料留作原位对照。沿用原 probe 和围绕同一角色的私有机位。
+
+实绘：`local-review/screenshots/rossi-hybrid-bust-v3/face-lights.png` 可见脸影由鼻翼越过另一侧脸颊，顺光保留眼线；侧逆光阴面较二版更灰。`comparison.png` 为原 −60° 主光半身；原位白衣和帽兜／头发抽样未变。`hand-light.png` 为原手套与露指在同一近景 −145° 主光下的前后对照；变化大于两码的 10,479 个像素，RGB 变化逐通道 P90 为 +12／+3／+1。普通半身机位的身体皮肤取样未见该效果，不将手部放大图说成整人皮肤改善。
 
 专题接续：[卡拉彼丘脸影、发束与眼周](./strinova-render-study.md)核对两份社区源码，并给出头骨旋转的对照；[终末地 Cloth1 参数图](./endfield-material-study.md)记录同槽双区域的离线转灯控制、R/A 取样约定和各自的保留条件。
 
