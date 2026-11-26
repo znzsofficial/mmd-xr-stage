@@ -72,7 +72,7 @@ Desktop and immersive views share the backpack and stage layouts. Only the activ
 
 ## WebXR requirements
 
-Screen viewing requires WebGL 2. Immersive viewing also needs a browser and headset that support `immersive-vr`, served over HTTPS or localhost. The production renderer uses WebGL; the [WebGPU XR investigation](./docs/webgpu-xr-status.md) tracks that separate path.
+Screen viewing requires WebGL 2. Immersive viewing also needs a browser and headset that support `immersive-vr`, served over HTTPS or localhost. WebGL is the default. The [single-actor photo floor](https://mmd-xr-stage.pages.dev/?set=floor&xrBackend=webgpu) also offers WebGPU for dancing and switching actor styles. See [WebGPU XR support and measurements](./docs/webgpu-xr-status.md).
 
 The app requests hand tracking as an optional session feature. It marks VR entry as active when the renderer receives its first `XRFrame`, rather than when the session request resolves. WebGL 2 projection layers support MSAA via the antialias setting. See the [XR session lifecycle](./docs/xr-session-lifecycle.md) for startup and teardown. Controller collision and haptics target Meta Quest Browser; desktop simulation does not establish headset comfort or frame rate.
 
