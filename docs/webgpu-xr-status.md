@@ -16,7 +16,7 @@ WebGPU 支持不代表这个项目自动更快；没有真实 Quest 3S 帧耗时
 
 ## 11-25 后续计划：先做好底层，再切玩家入口
 
-状态：已有[单演员材质适配](../scripts/webgpu-actor/materialAdapter.js)、本地同姿对照及 [Three XR 开发小房间](../scripts/webgpu-actor/xr-room.html)。正式舞台继续走 WebGL；同背包、正式房间及其输入仍待接入。
+以下编号保留 11-25 的方案。已有[单演员材质适配](../scripts/webgpu-actor/materialAdapter.js)、同姿对照及 [Three XR 开发小房间](../scripts/webgpu-actor/xr-room.html)；第 2 项的缓冲接口已由[后续实绘](#原衣裙链已接入-three-房间)验证。**恢复工作以[交接页](./HANDOFF.md)为准：下一项是同背包、一景一人的内部接入。** 正式舞台继续走 WebGL。
 
 1. **先画演员，用原 Bullet 作对照。** 从房间现有加载路径注入模型加载选项、材质挂载和 GPU 预热。复用锁定 loader 的 `createMmdTslPipeline`，现有 Studio 的 `src/appModules/mmdStudio/mmdTslPipeline.ts` 是可参考的按需加载封装。由房间统一调度求值和绘制，别让 pipeline 再开一个渲染循环。固定镜头、姿势和灯光比较脸、发片透明排序、轮廓、表情与 UV；SDEF/QDEF 用同一肘膝在原始和摆放比例下比较。独立自阴影在当前 fork 降级，记作切换前的画面差异。
 2. **验证计算结果进正式材质，再接裙摆。** Three r187 的 WebGPU 后端可接收现成的 XR-compatible `GPUDevice`；先用一个已知位移的裙节点证明计算输出能被角色正面和描边同帧读取，随后接 [PMX 裙链、碰撞许可](../experiments/gpu-cloth/rig.js)和[实际织面承托](../experiments/gpu-cloth/handPass.js)。优先用 Three 管理的 storage buffer；原生 WGSL 输出如何交给 TSL 材质是待验接口。若现有写法只能靠私有缓存互操作，先评估把最小写入 pass 改为 Three compute 节点。物理结果留在 GPU，形态和服装显隐仍由原演员管理。密裙、稀疏裙各跑同舞段暂停、双托、先后撤手和续播，看最终衣片及描边。
