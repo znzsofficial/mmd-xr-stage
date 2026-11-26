@@ -6,8 +6,13 @@ function singleThreeRuntime(): Plugin {
   return {
     name: "single-three-runtime",
     apply: "build",
-    generateBundle() {
-      const entries = [...this.getModuleIds()].filter((id) => /\/three\/build\/three\.(module\.js|cjs)$/.test(id.replaceAll("\\", "/")));
+    generateBundle(_,bundle) {
+      const ids = [...this.getModuleIds()].map(id=>id.replaceAll('\\','/'));
+      if(Object.values(bundle).some(c=>c.type==='chunk' && c.moduleIds.some(raw=>{
+        const id=raw.replaceAll('\\','/');return id.includes('/scripts/webgpu-actor/')||/\/three\/build\/three\.webgpu(?:\.nodes)?\.js$/.test(id);
+      })))
+        this.error('The internal WebGPU room must stay outside the production stage graph');
+      const entries = ids.filter((id) => /\/three\/build\/three\.(module\.js|cjs)$/.test(id));
       if (entries.length !== 1) this.error(`Expected one Three.js runtime, found ${entries.length}: ${entries.join(", ")}`);
     },
   };

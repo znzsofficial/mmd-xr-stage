@@ -28,7 +28,7 @@ import {xrRoomRestoreTiming} from '../diagnostics/roomRestoreTiming';
 import type {RoomMotionCache} from '../mmdRuntime/roomMotionCache';
 import {scheduleBulletModuleWarm} from '../mmdRuntime/bulletModule';
 import type {RoomAlphaTiles} from '../mmdRuntime/roomAlphaTiles';
-import { createRoomRuntime } from './createRoomRuntime';
+import { createRoomRuntime, type RoomActorBackend } from './createRoomRuntime';
 import { createPlacementWork } from '../diagnostics/placementWork';
 import type { SceneryId } from "../scenery/catalog";
 import { resolvePlacementHeight } from "../scenery/placementAreas";
@@ -60,7 +60,7 @@ import {mountRoomMilk} from '../bodyState/lactation/roomMilk';
 const noRoomLightEvents=()=>()=>{};
 
 /** A single room owns a runtime: late restores and physics rebuilds can never target a new room's actors. */
-export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles }: { scenery: SceneryId; saved: StageSnapshot | null; slots: readonly MmdVrAssetSlot[]; motionCache?:RoomMotionCache; alphaTiles?:RoomAlphaTiles }) {
+export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles,backend }: { scenery: SceneryId; saved: StageSnapshot | null; slots: readonly MmdVrAssetSlot[]; motionCache?:RoomMotionCache; alphaTiles?:RoomAlphaTiles;backend?:RoomActorBackend }) {
   const { scene, camera, size, gl } = useThree();
   const mmdPrefs = useMmdVrStore((s) => s.prefs);
   const profile = getMmdVrRenderProfile(mmdPrefs);
@@ -167,8 +167,8 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
   const bodyRoom=useRef<ReturnType<typeof createBodyRoom>|null>(null);
   const milkRoom=useRef<ReturnType<typeof mountRoomMilk>|null>(null);
   const poseRoom=useRef<ReturnType<typeof mountPoseRoom>|null>(null);
-  const runtime = useMemo(() => createRoomRuntime(scene, gl, camera, motionCache, alphaTiles,propFeed),
-    [scene, gl, motionCache, alphaTiles,propFeed]);
+  const runtime = useMemo(() => createRoomRuntime(scene, gl, camera, motionCache, alphaTiles,propFeed,backend),
+    [scene, gl, motionCache, alphaTiles,propFeed,backend]);
   const actors = useMemo(() => createStageActors(scene, runtime, () => appliedPhysicsEnabledRef.current, () => timeRef.current), [scene, runtime]);
   const wristGroup = useRef<THREE.Group>(null);
   const pelvic=useRef<PelvicRigHandle>(null);
@@ -662,6 +662,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles 
     // keep stepping when enabled so controller collisions stay alive, and a
     // seek while paused must still re-evaluate the target frame once.
     const timeChanged = Math.abs(evaluationTime - lastEvaluatedTimeRef.current) > 1e-5;
+    backend?.beginFrame(frame??null, gl.xr.getReferenceSpace(), pendingSeekSeed.current || physicsResetRequested || physicsReseedNeeded);
     if (playingRef.current || physicsOn || timeChanged || poseChanged || pendingSeekSeed.current) {
       const start = performance.now();
       rt.update(evaluationTime, physicsOn, perspective, aspect, false, physicsDelta, pendingSeekSeed.current);

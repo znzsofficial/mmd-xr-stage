@@ -14,7 +14,7 @@ function borrowNativeBuffer(renderer, attribute) {
   return buffer;
 }
 
-function clothPosition(points, goals, lookup, scale) {
+function clothPosition(points, goals, lookup, scale, strength) {
   const indices = attribute('skinIndex', 'uvec4'), weights = attribute('skinWeight', 'vec4');
   return Fn(() => {
     const offset = vec3(0).toVar();
@@ -33,7 +33,7 @@ function clothPosition(points, goals, lookup, scale) {
     // puts that stack in context.position even for the fork's custom outline
     // vertexNode, which then reads positionLocal to expand in clip space.
     // Placement is applied later by the same model-view matrix in both draws.
-    return positionLocal.add(offset.div(scale));
+    return positionLocal.add(offset.mul(strength).div(scale));
   })();
 }
 
@@ -74,7 +74,8 @@ export function createClothSurface(renderer, mesh, rig) {
   const goals = attributeArray(count, 'vec4').toReadOnly();
   if (rig.rest) goals.value.array.set(rig.rest); // includes the solver's pinned/free w
   const lookup = attributeArray(rig.lookup, 'uint').toReadOnly();
-  const position = clothPosition(storage(points.value, 'vec4', count).toReadOnly(), goals, lookup, rig.scale);
+  const strength = uniform(1);
+  const position = clothPosition(storage(points.value, 'vec4', count).toReadOnly(), goals, lookup, rig.scale, strength);
   const selected = uniform(count, 'uint'), delta = uniform(new Vector3());
   const probe = Fn(() => {
     const goal = goals.element(instanceIndex);
@@ -114,7 +115,8 @@ export function createClothSurface(renderer, mesh, rig) {
 
   try {
     reset();
-    const result = { points: borrowNativeBuffer(renderer, points.value), goals: borrowNativeBuffer(renderer, goals.value), displace, reset, dispose };
+    const result = { points: borrowNativeBuffer(renderer, points.value), goals: borrowNativeBuffer(renderer, goals.value),
+      setEnabled(on) { strength.value = on ? 1 : 0; }, displace, reset, dispose };
     for (const material of originals.keys()) {
       material.positionNode = position;
       material.needsUpdate = true;

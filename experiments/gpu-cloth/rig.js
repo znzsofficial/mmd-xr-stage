@@ -18,6 +18,9 @@ export function fitRig(mesh){
     const index=nodes.length;byBone.set(b.boneIndex,index);byBody.set(i,index);
     nodes.push({bone:b.boneIndex,group:b.group,mask:b.mask,rest:xyz().setFromMatrixPosition(boneInverses[b.boneIndex].clone().invert()).applyMatrix4(fromBind).multiplyScalar(scale),pin:false,adj:new Map()});});
   if(nodes.length<4||nodes.length>4096)throw Error('需要 4–4096 个可识别的动态裙骨');
+  // A differently named dynamic body driving a fitted bone cannot remain in
+  // Bullet alongside GPU displacement. Reject this rig instead of cutting it.
+  if(bodies.some((b,i)=>b.mode.startsWith('dynamic')&&byBone.has(b.boneIndex)&&!byBody.has(i)))throw Error('裙骨与其他动态刚体共用');
   function edge(a,b,k){if(a===b||nodes[a].rest.distanceToSquared(nodes[b].rest)<1e-10)return;for(const [u,v] of [[a,b],[b,a]])if(!nodes[u].adj.has(v))nodes[u].adj.set(v,k);}
   for(const joint of joints){const a=byBody.get(joint.rigidBodyIndexA),b=byBody.get(joint.rigidBodyIndexB);
     if(a!=null&&b!=null)edge(a,b,1);else if(a!=null||b!=null){const other=bodies[a!=null?joint.rigidBodyIndexB:joint.rigidBodyIndexA];if(other?.mode==='static')nodes[a??b].pin=true;}}
@@ -49,16 +52,37 @@ export function fitRig(mesh){
 
 // Filter the physics step input, not just the rendered bones. Keep skeleton
 // indices stable. Remap both ends of retained joints AND any impulse morphs.
+export function skirtPhysicsFilter(rig){
+  let source,js,kept,map,filtered,complete;
+  return c=>{
+    if(!c.rigidBodies)return c;
+    if(source!==c.rigidBodies||js!==c.joints){
+      source=c.rigidBodies;js=c.joints;map=new Int32Array(source.length).fill(-1);kept=[];
+      const found=new Set();let duplicate=false;
+      for(const [i,b] of source.entries()){
+        if(b.motionType==='static'||!rig.byBone.has(b.boneIndex)){
+          map[i]=kept.length;kept.push({...b,index:kept.length});
+        }else{
+          duplicate ||= found.has(b.boneIndex);found.add(b.boneIndex);
+        }
+      }
+      complete=!duplicate&&found.size===rig.byBone.size;
+      filtered=(js??[]).filter(j=>map[j.rigidBodyIndexA]>=0&&map[j.rigidBodyIndexB]>=0)
+        .map((j,index)=>({...j,index,rigidBodyIndexA:map[j.rigidBodyIndexA],rigidBodyIndexB:map[j.rigidBodyIndexB]}));
+    }
+    // A rebind can supply a different set of valid external bodies. Fail
+    // closed: don't let GPU displace half a rig and Bullet drive the other half.
+    if(!complete)return c;
+    return {...c,rigidBodies:kept,joints:filtered,morphImpulses:c.morphImpulses?.length?c.morphImpulses.filter(x=>map[x.rigidBodyIndex]>=0).map(x=>({...x,rigidBodyIndex:map[x.rigidBodyIndex]})):c.morphImpulses};
+  };
+}
+
 export function skirtWorld(inner,rig,mode,counts){
-  let source,js,kept,map,filtered;
+  const filter=skirtPhysicsFilter(rig);
   return {name:'cloth-lab',disabled:false,get disposed(){return inner.disposed;},reset:c=>inner.reset(c),dispose:()=>inner.dispose(),step(c){
-    if(!c.rigidBodies)return inner.step(c);
-    if(source!==c.rigidBodies||js!==c.joints){source=c.rigidBodies;js=c.joints??[];map=new Int32Array(source.length).fill(-1);kept=[];
-      for(const [i,b] of source.entries())if(b.motionType==='static'||!rig.byBone.has(b.boneIndex)){map[i]=kept.length;kept.push({...b,index:kept.length});}
-      filtered=js.filter(j=>map[j.rigidBodyIndexA]>=0&&map[j.rigidBodyIndexB]>=0).map((j,index)=>({...j,index,rigidBodyIndexA:map[j.rigidBodyIndexA],rigidBodyIndexB:map[j.rigidBodyIndexB]}));}
-    const cut=mode()!=='bullet';counts.bodies=cut?kept.length:source.length;counts.joints=cut?filtered.length:js.length;
-    if(!cut)return inner.step(c);
-    return inner.step({...c,rigidBodies:kept,joints:filtered,morphImpulses:c.morphImpulses?.length?c.morphImpulses.filter(x=>map[x.rigidBodyIndex]>=0).map(x=>({...x,rigidBodyIndex:map[x.rigidBodyIndex]})):c.morphImpulses});
+    const selected=mode()==='bullet'?c:filter(c);
+    counts.bodies=selected.rigidBodies?.length??0;counts.joints=selected.joints?.length??0;
+    return inner.step(selected);
   }};
 }
 

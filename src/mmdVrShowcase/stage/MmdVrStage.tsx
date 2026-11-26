@@ -6,6 +6,7 @@ import { createRoomMotionCache } from '../mmdRuntime/roomMotionCache';
 import { getMmdVrSessionAssets } from '../backpack/sessionAssets';
 import { useMmdVrStore } from '../mmdVrStore';
 import { MmdVrStageRoom } from './StageRoom';
+import type { RoomActorBackend } from './createRoomRuntime';
 
 const hosts=new WeakMap<object,number>();
 let nextHost=0;
@@ -17,7 +18,7 @@ function hostId(host:object){
 
 /** One viewing session keeps decoded data across visits, but mounts only the
  * current room. Both screen and XR enter the stage through this component. */
-export function MmdVrStageContent() {
+export function MmdVrStageContent({backend}:{backend?:RoomActorBackend} = {}) {
   const gl=useThree(s=>s.gl), scene=useThree(s=>s.scene);
   const motionCache = useMemo(() => createRoomMotionCache(), []);
   const alphaTiles = useMemo(() => createRoomAlphaTiles(), []);
@@ -44,5 +45,5 @@ export function MmdVrStageContent() {
   // Renderer or scene replacement retires *all* room-owned objects and load
   // tasks. A camera change (including XR eye cameras) does not retire a room.
   return <MmdVrStageRoom key={`${scenery}:${generation}:${hostId(gl)}:${hostId(scene)}`} scenery={scenery} saved={saved} slots={slots}
-    motionCache={motionCache} alphaTiles={alphaTiles}/>;
+    motionCache={motionCache} alphaTiles={alphaTiles} backend={backend}/>;
 }

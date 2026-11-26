@@ -3,6 +3,8 @@ import { handContactShape, handReferenceRadius } from '../xr/contact/handContact
 import { createMmdRuntimeHandle } from '../mmdRuntime/mmdRuntime';
 import type { RoomAlphaTiles } from '../mmdRuntime/roomAlphaTiles';
 import type { RoomMotionCache } from '../mmdRuntime/roomMotionCache';
+import type { RoomActorBackend } from '../mmdRuntime/roomActorBackend';
+export type { RoomActorBackend } from '../mmdRuntime/roomActorBackend';
 import { getMmdVrControllerColliderMatrices } from '../xr/contact/controllerSlots';
 import { getMmdVrHandColliderMatrices } from '../xr/contact/handSlots';
 import { useMmdVrStore } from '../mmdVrStore';
@@ -17,11 +19,11 @@ const restitution = { none: 0, low: .25, high: .55 } as const;
 /** Wire the product-specific hooks to one active room. Read contact preferences
  * on demand: a menu edit must not reconstruct the runtime or its Bullet world. */
 export function createRoomRuntime(scene: Scene, gl: WebGLRenderer, camera: Camera,
-  motionCache?: RoomMotionCache, alphaTiles?: RoomAlphaTiles, props?:ReturnType<typeof createPropColliderFeed>) {
+  motionCache?: RoomMotionCache, alphaTiles?: RoomAlphaTiles, props?:ReturnType<typeof createPropColliderFeed>, backend?: RoomActorBackend) {
   const prefs = () => useMmdVrStore.getState().prefs;
   const recordXR = useMmdVrStore.getState().presentation === 'xr';
   return createMmdRuntimeHandle(scene, {
-    motionCache, alphaTiles,
+    motionCache, alphaTiles, actorBackend: backend,
     actorPalmCloth: () => prefs().actorPalmCloth,
     chestCompression: () => prefs().chestCompression,
     onPhysicsPoseWork: recordXR ? runtimeTiming.recordPose : undefined,
@@ -38,7 +40,7 @@ export function createRoomRuntime(scene: Scene, gl: WebGLRenderer, camera: Camer
     propShape: propColliderShape,
     controllerColliderFriction: () => friction[prefs().physicsColliderFriction],
     controllerColliderRestitution: () => restitution[prefs().physicsColliderRestitution],
-    prepareModel: prepareMmdVrModel,
-    prepareGpu: (root, stale, work) => prepareModelGpu(gl, scene, camera, root, stale, work),
+    prepareModel: backend ? undefined : prepareMmdVrModel,
+    prepareGpu: backend ? undefined : (root, stale, work) => prepareModelGpu(gl, scene, camera, root, stale, work),
   });
 }

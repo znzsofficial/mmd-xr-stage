@@ -12,6 +12,7 @@ import * as THREE from "three";
 import { placementLoaderProfile } from '../diagnostics/placementWork';
 import {mountedModelBytePool, type ModelByteLease} from './mountedModelBytes';
 import { PhysicsPoseDisplay } from "./physicsPoseDisplay";
+import type { RoomActorBackend, RoomActorBinding } from './roomActorBackend';
 import {
   bodyDisplay, clearPoseForRebind, presentEvaluatedPose, releaseRemovedPose, restoreHiddenPose,
   restorePoseBeforeFrame, seedEditedSkirt, type ActorDisplayEntry,
@@ -149,6 +150,7 @@ export type MmdRuntimeHandle = {
 };
 
 type RuntimeEntryWithPhysics = ActorDisplayEntry & {
+  actorBinding?: RoomActorBinding;
   manualMorphs?: ReturnType<typeof packMorphOverrides>;
   manualRestBound?: boolean;
   modelBytes?: ModelByteLease;
@@ -281,6 +283,7 @@ export function isMmdRuntimeRebuildError(error: unknown): error is MmdRuntimeReb
 }
 
 export type MmdRuntimeOptions = {
+  actorBackend?: RoomActorBackend;
   /** Manual-pose, native-physics skirt display correction. False retains the raw display for comparisons. */
   poseSkirtClearance?:boolean;
   onSkirtWork?:import('./actorPoseDisplay').RecordSkirtWork;
@@ -317,6 +320,7 @@ export type MmdRuntimeOptions = {
 };
 
 export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOptions = {}): MmdRuntimeHandle {
+  const actorBackend = options.actorBackend;
   const palmsRequested=()=>typeof options.actorPalmCloth==='function'?options.actorPalmCloth():options.actorPalmCloth===true;
   let disposed = false;
   let membershipGeneration = 0;
@@ -442,6 +446,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
     endPose(id);scene.remove(entry.model.root);
     releaseRemovedPose(entry);
     disposeEntryPhysics(entry);
+    entry.actorBinding?.dispose();
     disposeModelObject(entry);
     entries.delete(id);
     lastPhysicsSeconds.delete(id);
@@ -533,8 +538,12 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
     const propColliderProvider = createMappedColliderProvider(readProps ? () => readProps(colliderRoot) : undefined, undefined, readProps?.().length ?? 0);
     // One Bullet world per model (library world holds a single uploaded model identity).
     const physicsDisplay = withPhysics ? new PhysicsPoseDisplay() : undefined;
+    let actorBinding: RoomActorBinding | undefined;
     const displayHands = {mask: 0, colliders: handColliders, radius: handColliderRadius};
     const createWorld = (display: PhysicsPoseDisplay,switchWork?:PhysicsSwitchWork) => createBulletPhysicsBackend({switchWork,
+           // Ahead of all synthetic slots; the existing wrappers still own the
+           // direct buffers, contact-index ranges and debug counters on rebind.
+           actorStep: actorBackend ? (ctx, step) => actorBinding ? actorBinding.stepPhysics(ctx, step) : step(ctx) : undefined,
           controllerColliders: colliderProvider,
           controllerRadius: () => {
             const scale = Math.min(10, Math.max(0.01, Number(colliderRoot?.userData.mmdVisualScale) || transform.scale));
@@ -569,19 +578,20 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
 
     const loader = new ThreeMmdLoader({
       textureResolver,
+      ...(actorBackend ? {geometryAwareAlpha:true} : {}),
       localPngAlphaTiles: options.alphaTiles?.forLoad(stale),
       performance: work ? placementLoaderProfile(work) : undefined,
       runtime: runtimeOptions,
       ...(withPhysics ? { runtimeFactory: () => new DefaultMmdRuntime(runtimeOptions) } : {}),
     });
-    let model, bindPose, milkOutlet;
+    let model, bindPose, milkOutlet, materialNames;
     try {
       assertCurrent();
       const started = work ? performance.now() : 0;
       const source = modelBytes ? await modelBytes.read() : modelFile;
       assertCurrent();
       const readMs = modelBytes && work ? performance.now()-started : 0;
-      model = await loader.loadModel(source);
+      model = await loader.loadModel(source, actorBackend?.loadOptions);
       if (work) {
         work.loaderWallMs = performance.now()-started;
         if (modelBytes) {
@@ -594,20 +604,24 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       milkOutlet = await prepareMilkOutlets(model,stale);
       assertCurrent();
       configureActorPalms(model.mesh,palmsRequested());
+      // Use the authored slot names. The renderer can append outline groups
+      // and replace the dense mesh attributes during this synchronous attach.
+      materialNames = extractMaterialNames(model);
+      actorBinding = actorBackend?.attach(model);
       if (withPhysics) bindStaticMmdPhysicsRuntime(model);
       colliderRoot = model.root;
       prepareModel?.(model.root);
     } catch (error) {
+      actorBinding?.dispose();
       if (model) disposeLoadedModelObject(model);
       physicsBackend?.dispose?.();
       throw error;
     }
 
-    enableModelShadows(model);
-    enforceModelCastOnlyShadows(model.root);
+    if (!actorBinding) enableModelShadows(model);
+    enforceModelCastOnlyShadows(model.root, {receiveOnly: !!actorBinding});
 
     const morphNames = extractMorphNames(model);
-    const materialNames = extractMaterialNames(model);
     const materialVisible: Record<string, boolean> = {};
     for (const name of materialNames) materialVisible[name] = true;
 
@@ -651,26 +665,27 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       modelBytes,
       companionFiles: companionFiles.length ? [...companionFiles] : [modelFile],
       physicsBackend,
+      actorBinding,
       physicsDisplay,
       bindPose, milkOutlet, createWorld, displayHands,
-      wardrobe:resumeWardrobeModel(model.mesh,modelFile,model),
     };
-    model.root.userData.mmdVisualScale = entry.transform.scale;
-    // Tag root + meshes so post FX (DOF lock / selective bloom) can target a model id.
-    model.root.userData.mmdModelId = id;
-    model.root.traverse((object) => {
-      object.userData.mmdModelId = id;
-    });
-    syncEntryWorldMatrix(entry);
-    applyMaterialVisibility(entry);
-    applyMaterialOverrides(entry, lightingContext());
-    if (options.prepareGpu) {
-      try {
+    try {
+      entry.wardrobe = resumeWardrobeModel(model.mesh,modelFile,model);
+      model.root.userData.mmdVisualScale = entry.transform.scale;
+      // Tag root + meshes so post FX (DOF lock / selective bloom) can target a model id.
+      model.root.userData.mmdModelId = id;
+      model.root.traverse((object) => {
+        object.userData.mmdModelId = id;
+      });
+      syncEntryWorldMatrix(entry);
+      applyMaterialVisibility(entry);
+      applyMaterialOverrides(entry, lightingContext());
+      if (options.prepareGpu) {
         await options.prepareGpu(model.root, stale, work);
-        assertCurrent();
-      } catch (error) {
-        disposeEntryPhysics(entry); disposeModelObject(entry); throw error;
       }
+      assertCurrent();
+    } catch (error) {
+      disposeEntryPhysics(entry); actorBinding?.dispose(); disposeModelObject(entry); throw error;
     }
     scene.add(model.root);
     entries.set(id, entry);
@@ -784,6 +799,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
           try {
             for (const item of batch) {
               const {entry, runtime, backend, display} = item;
+              entry.actorBinding?.interrupt();
               clearPoseForRebind(entry);
               restoreBindPose(entry);
               configureActorPalms(entry.model.mesh,palmsRequested());
@@ -910,6 +926,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
     beginPose(id,seconds){
       const entry=entries.get(id);if(!entry?.visible)return null;
       if(entry.editor)return entry.editor;
+      entry.actorBinding?.interrupt();
       const original=entry.model.runtime;
       clearPoseForRebind(entry);restoreBindPose(entry);restoreDraws(entry.model.mesh);lastPhysicsSeconds.delete(id);
       try{
@@ -932,7 +949,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       const entry = entries.get(id);
       if (!entry) return;
       if (entry.visible !== visible) lastPhysicsSeconds.delete(id);
-      if (!visible) { endPose(id); restoreHiddenPose(entry); }
+      if (!visible) { entry.actorBinding?.interrupt(); endPose(id); restoreHiddenPose(entry); }
       entry.visible = visible;
       applyMaterialVisibility(entry);
       applyMaterialOverrides(entry, lightingContext());
@@ -943,6 +960,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       if (!entry) return;
       if ((Object.keys(patch) as (keyof MmdModelTransform)[]).some(k => patch[k] !== entry.transform[k])) {
         entry.physicsDisplay?.invalidate();
+        entry.actorBinding?.reseed();
       }
       entry.transform = {
         ...entry.transform,
@@ -988,6 +1006,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       envIntensity = Math.max(0, options.envIntensity);
       if (options.ambientIntensity != null) ambientIntensity = Math.max(0, options.ambientIntensity);
       directionalLight = options.directionalLight;
+      actorBackend?.setLight(directionalLight);
       if (options.envMap !== undefined) envMap = options.envMap;
       refreshDirectionalLightState();
       for (const entry of entries.values()) {
@@ -1090,6 +1109,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
         if (modelId && entry.id !== modelId) continue;
         if (!entry.visible || !entry.physicsBackend || entry.physicsBackend.disposed) continue;
         try {
+          entry.actorBinding?.reseed();
           clearPoseForRebind(entry);
           syncEntryWorldMatrix(entry, true);
           entry.physicsBackend.reset?.();
@@ -1161,6 +1181,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
         const jumpedBack = prev !== undefined && seconds + 1e-4 < prev;
         const jumpedFar = prev !== undefined && seconds - prev > 0.25;
         const reset = jumpedBack || jumpedFar || prev === undefined;
+        entry.actorBinding?.beforePose(physicsOn && !!entry.physicsBackend && !entry.editor);
         restorePoseBeforeFrame(entry, physicsOn, reset, reseed);
         prepareManualRest(entry);
         syncEntryWorldMatrix(entry, physicsOn);
@@ -1195,7 +1216,8 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
         const materials = getMeshMaterials(entry.model.mesh);
         if (directionalLight) syncMmdSpecularDirection(materials, directionalLight);
         applyMaterialOverrides(entry, lightingContext());
-        enforceModelCastOnlyShadows(entry.model.root);
+        enforceModelCastOnlyShadows(entry.model.root, {receiveOnly: !!entry.actorBinding});
+        entry.actorBinding?.afterPose(seconds, physicsDelta ?? 0, reset || reseed);
         if (useMotionCamera && !cameraApplied && entry.hasCameraTrack) {
           const cameraState = entry.model.runtime.cameraState();
           if (cameraState) {
@@ -1204,6 +1226,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
           }
         }
       }
+      actorBackend?.prepareRender();
     },
     dispose() {
       disposed = true;

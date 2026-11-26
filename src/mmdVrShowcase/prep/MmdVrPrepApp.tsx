@@ -28,7 +28,7 @@ const CATALOG_GROUPS = [
   { kind: "motion", label: "mmdVrPrepMotions" },
 ] as const;
 
-export function MmdVrPrepApp() {
+export function MmdVrPrepApp({showOverlay=true}:{showOverlay?:boolean} = {}) {
   const t = useLanguageStore((state) => state.t);
   const phase = useMmdVrStore((state) => state.phase);
   const screenFailed = useMmdVrStore(state=>state.presentation==='screen'&&state.phase==='error');
@@ -573,6 +573,6 @@ export function MmdVrPrepApp() {
         </div>
       </footer>
 
-     </div><MmdVrOverlay /></>
+     </div>{showOverlay && <MmdVrOverlay />}</>
   );
 }

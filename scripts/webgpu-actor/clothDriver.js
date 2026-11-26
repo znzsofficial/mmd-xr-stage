@@ -6,17 +6,24 @@ import {CLOTH_DT,gpuResources,makeClothKernel} from '../../experiments/gpu-cloth
  * After pose evaluation call step once per frame before drawing (never once per eye).
  * Reset invalidates history; the next step reseeds in its own frame, even when dt is zero.
  */
-export async function createClothDriver(renderer,model,rig,{points,goals}){
+export async function createClothDriver(renderer,model,rig,{points,goals},signal){
   const device=renderer.backend.device,mesh=model.mesh,{bones,boneInverses}=mesh.skeleton;
   if(!rig.handSamples)throw Error('Pass rig.handSamples fitted on the original PMX before TSL attach');
   const S=GPUBufferUsage.STORAGE,size=rig.rest.byteLength;
   if(points===goals||points?.size!==size||goals?.size!==size||!(points.usage&S)||!(goals.usage&S)||!(goals.usage&GPUBufferUsage.COPY_DST)){
     throw Error('Cloth requires distinct vec4[n] STORAGE buffers; goals also needs COPY_DST');
   }
-  const resources=gpuResources(device);
+  const resources=gpuResources(device), release=()=>{signal?.removeEventListener('abort',release);resources.dispose();};
+  signal?.throwIfAborted();signal?.addEventListener('abort',release,{once:true});
   try{
     const palette=new Float32Array(bones.length*16),pal=resources.buf('hand surface skin palette',palette,S);
-    const kernel=await makeClothKernel(device,rig,resources,{points,goals,palette:pal,handSamples:rig.handSamples});
+    // A compile may outlive put-away. Never allocate or bind borrowed surface
+    // buffers on its continuation after the synchronous actor teardown.
+    const guard=fn=>(...args)=>{signal?.throwIfAborted();return fn(...args);};
+    const shader=async(...args)=>{signal?.throwIfAborted();const m=await resources.shader(...args);signal?.throwIfAborted();return m;};
+    const kernel=await makeClothKernel(device,rig,{buf:guard(resources.buf),bind:guard(resources.bind),shader},
+      {points,goals,palette:pal,handSamples:rig.handSamples});
+    signal?.throwIfAborted();
     const targets=rig.rest.slice(),worldToMesh=new Matrix4(),skin=new Matrix4(),p=new Vector3();
     const palms=[new Vector3(),new Vector3()],local=[null,null];
     // The PMX has an attached skeleton. Its boneMatrices are boneWorld * inverseBindBone,
@@ -57,6 +64,6 @@ export async function createClothDriver(renderer,model,rig,{points,goals}){
       kernel.run(pass,steps,seed);pass.end();device.queue.submit([encoder.finish()]);
       seed=false;return steps;
     }
-    return {step,reset,dispose(){if(!disposed){disposed=true;resources.dispose();}}};
-  }catch(error){resources.dispose();throw error;}
+    return {step,reset,dispose(){if(!disposed){disposed=true;release();}}};
+  }catch(error){release();throw error;}
 }

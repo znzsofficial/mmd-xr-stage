@@ -47,6 +47,7 @@ export type MmdControllerColliderPhysicsBackend = MmdPhysicsBackend & Partial<Mm
  * collisionMargin (default -1); a positive margin can kill body↔cloth contact.
  */
 export async function createBulletPhysicsBackend(options: {
+  actorStep?: (context: MmdPhysicsStepContext, step: MmdPhysicsBackend['step']) => ReturnType<MmdPhysicsBackend['step']>;
   switchWork?:PhysicsSwitchWork;
   controllerColliders?: MmdControllerColliderProvider;
   controllerRadius?: number | (() => number);
@@ -110,6 +111,10 @@ export async function createBulletPhysicsBackend(options: {
         options.controllerRestitution,
       )
     : colliderBackend;
+  if (options.actorStep) {
+    const select = options.actorStep, step = result.step.bind(result);
+    result.step = context => select(context, step);
+  }
   elapsed(work,'createBackendMs',backendStart);return result;
 }
 

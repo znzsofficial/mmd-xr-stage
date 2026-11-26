@@ -2,6 +2,8 @@
 // projection texture, readback and reversed-slice implementation. Supply the
 // additional WebXR session/pose fields that Three (unlike the raw lab) reads.
 module.exports = function extendStereoShim() {
+  const systemEvents=new EventTarget();
+  for(const method of ['addEventListener','removeEventListener','dispatchEvent'])navigator.xr[method]=systemEvents[method].bind(systemEvents);
   const cfg = window.labFixture, request = navigator.xr.requestSession.bind(navigator.xr);
   cfg.adapters = [];
   const getAdapter = navigator.gpu.requestAdapter.bind(navigator.gpu);

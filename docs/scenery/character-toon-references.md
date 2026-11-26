@@ -6,6 +6,8 @@
 
 ## 从作者资料看什么
 
+专题接续：[卡拉彼丘脸影、发束与眼周](./strinova-render-study.md)核对两份社区源码，并给出头骨旋转的对照；[终末地 Cloth1 参数图](./endfield-material-study.md)记录同槽双区域的离线转灯控制、R/A 取样约定和各自的保留条件。
+
 | 一手来源（均为社区作者） | 可核对的材质，以及值得借的原则 |
 | --- | --- |
 | **卡拉彼丘**：[LSCherry 框架](https://github.com/lvoxx/LSCherry/tree/f870dbe7d42b4ff008c2775ec508285bfd4f4ae0) · [配套 LSPotato 的 Strinova 节点](https://github.com/lvoxx/LSPotato/tree/6e5ac0e52c910525994bfc31f7784fea667f8950/src/nodes/shader/lscherry/starters/strinova)；Blender，两个仓库均标 GPL v3。 | 看 `face_textures_resolver`：脸底色 `Face_D` 与控制明暗分界的 `SDF` 分开，转灯应移动脸影，不能带走画在底色里的五官。再对照 `hair`、`body` 的纹理解析节点：两者各有底色、法线、两张遮罩与 MatCap，头发还单列 `Highlight Mask`。可借的是限制亮带出现的位置；不必把皮肤和整件衣服一起打亮。 |
