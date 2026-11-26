@@ -2,9 +2,12 @@
 <html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Three WebGPU XR 内部房间</title><link rel="icon" href="data:,">
 <h1>Three WebGPU XR 内部房间</h1>
-<p>地面、近处橙柱、远处青柱。可选一件本地原衣 PMX；站姿定格，无物理。<a href="./probe.html">屏幕材质对照</a></p>
+<p>左 X 切换 GPU 裙摆／原姿；右 A 播放或暂停动作。暂停时双手仍能托裙。<a href="./probe.html">屏幕材质对照</a></p>
+<fieldset id="inputs"><legend>入场</legend>
 <label>模型与贴图目录 <input id="folder" type="file" webkitdirectory multiple></label>
 <label>演员 <select id="pmx"><option value="">空房间</option></select></label>
-<button id="enter">进入 XR</button> <button id="exit" disabled>退出</button>
+<label>身体动作 <input id="motion" type="file" accept=".vmd"></label>
+<label>裙摆 <select id="cloth"><option value="gpu">GPU 裙摆</option><option value="rest">原姿</option></select></label>
+<button id="enter">进入 XR</button></fieldset> <button id="exit" disabled>退出</button>
 <pre id="status" role="status">等待进入</pre>
 <script type="module" src="./xr-room.js"></script></html>

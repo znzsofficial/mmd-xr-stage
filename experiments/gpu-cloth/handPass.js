@@ -1,12 +1,11 @@
 import handCode from './handSupport.wgsl?raw';
 import collisionCode from './contact.wgsl?raw';
-import {makeHandSamples} from './handSamples.js';
 import {gripMotion} from './handMotion.js';
 
 // The solver and the draw consume the same point buffer. A dispatch boundary
 // separates parallel reads of that buffer from node writes (no float atomics).
-export async function makeHandPass({device,mesh,rig,buf,shader,bind,palette,points,goals,history,caps,bounds,headers}){
-  const fitted=makeHandSamples(mesh,rig),count=fitted.faces.length,motion=gripMotion();
+export async function makeHandPass({device,rig,fitted,buf,shader,bind,palette,points,goals,history,caps,bounds,headers}){
+  const count=fitted.faces.length,motion=gripMotion();
   if(!count)return {count,observe(){},reset(){},begin:()=>false};
   const m=await shader(collisionCode+handCode,'原衣双手承托');
   const pipe=entryPoint=>device.createComputePipelineAsync({layout:'auto',compute:{module:m,entryPoint}});

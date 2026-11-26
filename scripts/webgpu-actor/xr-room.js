@@ -4,13 +4,17 @@ import { createLocalTextureResolver } from '../../src/mmdVrShowcase/mmdRuntime/l
 import { firstCharacterScale } from '../../src/mmdVrShowcase/stage/loading/firstCharacterScale';
 import { createActorMaterialAdapter } from './materialAdapter.js';
 import { bindR187ProjectionOutput } from './r187ProjectionOutput.js';
+import { xrPalms } from '../../experiments/gpu-cloth/xrPalms.js';
+import { getMmdAnimationDurationSeconds } from '../../src/mmdVrShowcase/mmdRuntime/mmdUtils';
+import { prepareRoomCloth, roomCloth } from './roomCloth.js';
 
 const $ = id => document.getElementById(id);
 const path = f => f.webkitRelativePath || f.name;
 let current, last;
 function phase(r, name) {
   r.log.phase = name;
-  $('status').textContent = [name, r.log.error, r.log.actorError].filter(Boolean).join('\n');
+  $('status').textContent = [name, r.log.cloth && `裙摆：${r.log.clothEnabled?r.log.cloth:'原姿'}`,
+    r.log.duration && (r.log.playing?'动作播放中':'动作暂停'),r.log.error,r.log.actorError,r.log.clothError,r.log.motionError].filter(Boolean).join('\n');
 }
 
 function furnish(scene) {
@@ -28,7 +32,7 @@ function furnish(scene) {
 }
 
 // Only the input File references outlive the attempt. A late PMX decode has no
-// permission to attach to a new session. No physics world, stage store or clock.
+// permission to attach to a new session. This room owns one displayed actor.
 async function loadActor(r, pmx, files) {
   let adapter, model;
   try {
@@ -38,7 +42,11 @@ async function loadActor(r, pmx, files) {
       geometryAwareAlpha: true, runtime: { physics: 'none' } });
     model = await loader.loadModel(pmx, adapter.loadOptions);
     if (r.closing) return;
+    let rig;
+    try { rig = prepareRoomCloth(model.mesh); }
+    catch (e) { r.log.cloth = 'unsupported'; r.log.clothError = e.message; }
     model.root.scale.setScalar(firstCharacterScale(model.root) ?? .1);
+    r.log.actorScale = model.root.scale.x;
     model.root.position.z = -1.85;
     model.root.updateMatrixWorld(true);
     adapter.attach(model);
@@ -46,13 +54,61 @@ async function loadActor(r, pmx, files) {
     r.log.evaluations++;
     model.root.updateMatrixWorld(true);
     r.scene.add(model.root);
-    r.actor = { model, adapter }; model = adapter = null;
+    const actor = r.actor = { model, adapter, cloth:rig && roomCloth(r.renderer,model,rig,r.log) }; model = adapter = null;
     r.log.actor = 'ready';
+    if (r.motion) {
+      try {
+        const clip = await loader.loadAnimation(r.motion);
+        if (r.closing) return;
+        const tracks = clip.animation.boneTracks;
+        if (!actor.model.mesh.skeleton.bones.some(b => [b.name,b.userData.mmdBoneName,b.userData.mmdEnglishBoneName].some(n=>n&&tracks[n]?.frames.length))) throw Error('此演员没有匹配的身体动作轨');
+        actor.nextClip = clip;
+      } catch(e) { if (!r.closing) r.log.motionError = String(e); }
+    }
   } catch (e) {
     if (!r.closing) { r.log.actor = 'failed'; r.log.actorError = String(e); phase(r, 'landmarks'); }
   } finally {
     if (model) { adapter?.detach(model); disposeMmdModel(model, { textures: 'owned' }); }
     adapter?.dispose();
+  }
+}
+
+const identity = new T.Matrix4(); // XR local-floor is this room's world space.
+function resetInput(r) {
+  r.lastTime = undefined; r.palms.reset(); r.held.clear(); r.actor?.cloth?.interrupt();
+}
+function updateActor(r, time, frame, space) {
+  const actor = r.actor, log = r.log;
+  const elapsed = r.lastTime == null ? 0 : (time-r.lastTime)/1000;
+  if (elapsed < 0 || elapsed > .25) resetInput(r);
+  const dt = r.lastTime == null ? 0 : elapsed; r.lastTime = time;
+  let poseDirty = false;
+  if (actor.nextClip) {
+    actor.model.setAnimation(actor.nextClip); log.duration = getMmdAnimationDurationSeconds(actor.nextClip.animation);
+    actor.nextClip = null; log.time = 0; poseDirty = true; actor.cloth?.interrupt();
+  }
+  for (const old of r.held.keys()) if (!Array.prototype.includes.call(frame.session.inputSources,old)) r.held.delete(old);
+  for (const source of frame.session.inputSources) {
+    if (!source.gamepad || source.hand) continue;
+    const down = !!source.gamepad.buttons[4]?.pressed, prev = r.held.get(source);
+    if (down && prev === false) {
+      if (source.handedness === 'left') log.clothEnabled = !log.clothEnabled;
+      if (source.handedness === 'right' && log.duration > 0) {
+        if (log.time >= log.duration) { log.time = 0; poseDirty = true; actor.cloth?.interrupt(); }
+        log.playing = !log.playing;
+      }
+    }
+    r.held.set(source, down);
+  }
+  if (log.playing && dt > 0) {
+    log.time = Math.min(log.duration, log.time+dt); poseDirty = true;
+    if (log.time >= log.duration) log.playing = false;
+  }
+  if (poseDirty) { actor.model.update(log.time,{physics:false,ik:true}); actor.model.root.updateMatrixWorld(true); log.evaluations++; }
+  actor.adapter.prepare(r.scene);
+  actor.cloth?.frame(dt, log.clothEnabled, r.palms.read(frame,space,identity));
+  if (r.shownCloth!==log.cloth || r.shownEnabled!==log.clothEnabled || r.shownPlaying!==log.playing || r.shownDuration!==log.duration) {
+    r.shownCloth=log.cloth;r.shownEnabled=log.clothEnabled;r.shownPlaying=log.playing;r.shownDuration=log.duration;phase(r,log.phase);
   }
 }
 
@@ -71,10 +127,11 @@ function stop(r, error) {
 // only XR RAF. We register the user's loop BEFORE setSession snapshots it.
 async function enter(files = Array.from($('folder').files), pmx = files.find(f => path(f) === $('pmx').value)) {
   if (current) return;
-  const r = current = { scene: new T.Scene(), log: { phase: 'request', actor: pmx ? 'selected' : 'none',
+  const r = current = { scene: new T.Scene(), held:new Map(), palms:xrPalms(), motion:$('motion').files[0],
+    log: { phase: 'request', actor: pmx ? 'selected' : 'none', clothEnabled:$('cloth').value === 'gpu', clothSteps:0, playing:false, time:0, duration:0,
     landmarkFrames: 0, actorFrames: 0, evaluations: 0, rate72: 'unrequested' } };
   const finished = new Promise(ok => { r.wake = ok; });
-  $('enter').disabled = $('folder').disabled = $('pmx').disabled = true; $('exit').disabled = false;
+  $('inputs').disabled = true; $('enter').disabled = true; $('exit').disabled = false;
   phase(r, 'request');
   try {
     if (T.REVISION !== '187') throw Error(`Expected Three r187; got ${T.REVISION}`);
@@ -85,6 +142,7 @@ async function enter(files = Array.from($('folder').files), pmx = files.find(f =
     r.endedEvent = new Promise(ok => s.addEventListener('end', () => { r.ended = true; stop(r); ok(); }, { once: true }));
     if (r.closing) return;
     if (!s.enabledFeatures?.includes('webgpu')) throw Error('Session did not enable webgpu');
+    r.resetInput = () => resetInput(r); s.addEventListener('visibilitychange',r.resetInput);
     phase(r, 'init');
     const renderer = r.renderer = new T.WebGPURenderer({ antialias: false });
     renderer.xr.enabled = true; // WebGPUBackend.init passes this as requestAdapter({xrCompatible})
@@ -101,8 +159,9 @@ async function enter(files = Array.from($('folder').files), pmx = files.find(f =
     await renderer.setAnimationLoop((_time, frame) => {
       if (r.closing || !frame || frame.session !== s || !renderer.xr.isPresenting) return;
       try {
-        if (!frame.getViewerPose(renderer.xr.getReferenceSpace())?.views.length) return;
-        if (r.actor) r.actor.adapter.prepare(r.scene); // synchronous in the locked loader
+        const space=renderer.xr.getReferenceSpace();
+        if (s.visibilityState !== 'visible' || !frame.getViewerPose(space)?.views.length) { resetInput(r); return; }
+        if (r.actor) updateActor(r,_time,frame,space);
         renderer.render(r.scene, camera); // never defer an XR draw across an await
         clearTimeout(r.timer);
         if (r.actor) {
@@ -131,8 +190,10 @@ async function enter(files = Array.from($('folder').files), pmx = files.find(f =
     try {
       if (r.endTask) await r.endTask;
       if (r.session && !r.ended && !r.endFailed) await r.endedEvent;
+      if (r.resetInput) r.session.removeEventListener('visibilitychange',r.resetInput);
       if (r.actor) {
-        const { model, adapter } = r.actor;
+        const { model, adapter, cloth } = r.actor;
+        await cloth?.dispose();
         r.scene.remove(model.root); adapter.detach(model); disposeMmdModel(model, { textures: 'owned' }); adapter.dispose();
       }
       r.scene.traverse(o => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
@@ -140,7 +201,7 @@ async function enter(files = Array.from($('folder').files), pmx = files.find(f =
     } catch (e) { r.log.error ??= `cleanup: ${e}`; }
     r.log.endObserved = !!r.ended; phase(r, r.log.error ? 'failed' : 'ended');
     current = null; last = r.log;
-    $('enter').disabled = $('folder').disabled = $('pmx').disabled = false; $('exit').disabled = true;
+    $('inputs').disabled = false; $('enter').disabled = false; $('exit').disabled = true;
   }
 }
 

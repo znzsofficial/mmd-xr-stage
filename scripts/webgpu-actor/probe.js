@@ -323,3 +323,4 @@ $('run').onclick = () => window.compareActor({ pmx: $('pmx').value, vmd: $('clip
   hybridSlots:$('grade').value==='hybrid'?Object.fromEntries(hybridRoles.map(key => [key, slotList(`${key}Slots`)])):undefined,
   studySlots:slotList('regions'), singlePassHair:$('singleHair').checked,
   fringeStudy:$('hairSlots').value.trim()||$('eyeSlots').value.trim()?{hairSlots:slotList('hairSlots'),eyeSlots:slotList('eyeSlots')}:undefined }).catch(err => { $('status').textContent = String(err); });
+if (import.meta.env.DEV && new URLSearchParams(location.search).has('cloth-proof')) void import('./cloth-proof.js').then(m => m.installClothProof());

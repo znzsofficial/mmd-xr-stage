@@ -11,11 +11,12 @@ const contactPair=(a,b)=>a.group>=0&&a.group<16&&b.group>=0&&b.group<16&&
 // never infer neighbours from material names, triangle order or UV seams.
 export function fitRig(mesh){
   const {bones,boneInverses}=mesh.skeleton,{rigidBodies:bodies,joints}=mesh.userData.mmdPhysics??{};
+  const fromBind=mesh.bindMatrix.clone().invert();
   if(!bodies?.length||!joints?.length)throw Error('这个模型没有可对照的刚体和关节');
   const scale=.1, nodes=[],byBone=new Map(),byBody=new Map(),matches=(b)=>b.mode.startsWith('dynamic')&&bones[b.boneIndex]&&skirt.test([b.name,b.englishName,bones[b.boneIndex].name].join(' '));
   bodies.forEach((b,i)=>{if(!matches(b))return;if(byBone.has(b.boneIndex))throw Error('暂不支持同一裙骨绑定多个动态体');
     const index=nodes.length;byBone.set(b.boneIndex,index);byBody.set(i,index);
-    nodes.push({bone:b.boneIndex,group:b.group,mask:b.mask,rest:xyz().setFromMatrixPosition(boneInverses[b.boneIndex].clone().invert()).multiplyScalar(scale),pin:false,adj:new Map()});});
+    nodes.push({bone:b.boneIndex,group:b.group,mask:b.mask,rest:xyz().setFromMatrixPosition(boneInverses[b.boneIndex].clone().invert()).applyMatrix4(fromBind).multiplyScalar(scale),pin:false,adj:new Map()});});
   if(nodes.length<4||nodes.length>4096)throw Error('需要 4–4096 个可识别的动态裙骨');
   function edge(a,b,k){if(a===b||nodes[a].rest.distanceToSquared(nodes[b].rest)<1e-10)return;for(const [u,v] of [[a,b],[b,a]])if(!nodes[u].adj.has(v))nodes[u].adj.set(v,k);}
   for(const joint of joints){const a=byBody.get(joint.rigidBodyIndexA),b=byBody.get(joint.rigidBodyIndexB);
@@ -33,7 +34,8 @@ export function fitRig(mesh){
     // Convert the authored centre and both endpoints from PMX left-handed space.
     const mid=new Vector3(...b.position),v=new Vector3(0,b.shape==='capsule'?b.size[1]/2:0,0).applyEuler(new Euler(...b.rotation,'YXZ'));
     const a=mid.clone().sub(v),c=mid.clone().add(v);a.z*=-1;c.z*=-1;
-    capsules.push({a:a.applyMatrix4(boneInverses[b.boneIndex]),b:c.applyMatrix4(boneInverses[b.boneIndex]),bone:bones[b.boneIndex],r:b.size[0]*scale+.004,group:b.group,mask:b.mask});}
+    const intoBone=boneInverses[b.boneIndex].clone().multiply(mesh.bindMatrix);
+    capsules.push({a:a.applyMatrix4(intoBone),b:c.applyMatrix4(intoBone),bone:bones[b.boneIndex],r:b.size[0]*scale+.004,group:b.group,mask:b.mask});}
   // headers.zw: eligible slots in contactPacket order (up to 62 authored + two
   // unconditional hands). Bake once; moving a collider never changes its slot.
   nodes.forEach((n,i)=>{for(let k=0;k<capsules.length+2;k++)if(k>=capsules.length||contactPair(n,capsules[k]))headers[4*i+2+(k>>>5)]|=1<<(k&31);});
@@ -41,7 +43,7 @@ export function fitRig(mesh){
   const hem=leaves.sort((a,b)=>(b.rest.z-.45*Math.abs(b.rest.x))-(a.rest.z-.45*Math.abs(a.rest.x)))[0];
   if(!hem)throw Error('没有可识别的前裙末端');let anchor=bones[hem.bone];while(byBone.has(bones.indexOf(anchor)))anchor=anchor.parent;
   if(!anchor?.isBone)throw Error('没有可用的裙腰父骨');
-  const hemLocal=hem.rest.clone().multiplyScalar(1/scale).applyMatrix4(boneInverses[bones.indexOf(anchor)]);
+  const hemLocal=hem.rest.clone().multiplyScalar(1/scale).applyMatrix4(mesh.bindMatrix).applyMatrix4(boneInverses[bones.indexOf(anchor)]);
   return {scale,nodes,byBone,rest,headers,links:new Float32Array(links),lookup,capsules,hem:nodes.indexOf(hem),anchor,hemLocal};
 }
 
@@ -60,10 +62,12 @@ export function skirtWorld(inner,rig,mode,counts){
   }};
 }
 
-export function contactPacket(rig,hands,buffer){
+export function contactPacket(rig,hands,buffer,worldToMesh,handMetric=1){
   const v=xyz();let i=0;
-  for(const c of rig.capsules){v.copy(c.a).applyMatrix4(c.bone.matrixWorld).multiplyScalar(rig.scale).toArray(buffer,i);buffer[i+3]=c.r;v.copy(c.b).applyMatrix4(c.bone.matrixWorld).multiplyScalar(rig.scale).toArray(buffer,i+4);i+=8;}
+  for(const c of rig.capsules){for(let off=0;off<=4;off+=4){
+    v.copy(off?c.b:c.a).applyMatrix4(c.bone.matrixWorld);if(worldToMesh)v.applyMatrix4(worldToMesh);v.multiplyScalar(rig.scale).toArray(buffer,i+off);
+  }buffer[i+3]=c.r;i+=8;}
   for(let side=0;side<2;side++){const hand=hands?.[side];if(trackedGrip(hand))v.copy(hand);else v.set(0,-100,0);
-    v.toArray(buffer,i);buffer[i+3]=GRIP_RADIUS;v.toArray(buffer,i+4);i+=8;}
+    v.toArray(buffer,i);buffer[i+3]=GRIP_RADIUS*handMetric;v.toArray(buffer,i+4);i+=8;}
   return i/8;
 }

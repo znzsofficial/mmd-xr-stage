@@ -6,6 +6,7 @@ import {packSamples} from './faceSamples.js';
 // never manufacture a panel across a slit or connect two unconnected bones.
 export const MAX_HAND_SAMPLES=2048;
 export function makeHandSamples(mesh,rig){
+  if(mesh.userData?.mmdTslSparsePositionMorphs!==undefined||mesh.geometry.attributes.position.isStorageBufferAttribute)throw Error('Hand surface fitting requires original PMX geometry before TSL attach');
   const g=mesh.geometry,{position,skinWeight,skinIndex}=g.attributes,mats=[].concat(mesh.material);
   const mobile=new Float32Array(position.count);
   for(let i=0;i<mobile.length;i++)for(let j=0;j<4;j++){

@@ -32,8 +32,12 @@ module.exports = function extendStereoShim() {
       return raf((t, f) => {
         stats.pending--; stats.frames++; s.inFrame = true;
         const pose = f.getViewerPose(), before = stats.submissions;
+        const take = cfg.take; // Optional deterministic two-hand input replay.
+        if (take) take.inputs(f,s,cfg);
         for (const v of pose?.views ?? []) {
-          const m = v.transform.inverse.matrix.slice(); m[12] *= -1; m[13] *= -1;
+           const m = v.transform.inverse.matrix.slice(); m[12] *= -1; m[13] *= -1;
+           if(cfg.sameEye)m[12]=0;
+           if (take) { m[13]=take.eyeY; m[14]=take.eyeZ; }
           v.transform.matrix = m;
           // A finite WebGPU projection (clip-space Z in [0,1]). The lab's
           // infinite-far fixture doesn't exercise Three's frustum construction.
@@ -42,11 +46,12 @@ module.exports = function extendStereoShim() {
         }
         f.getViewerPose = () => pose;
         try {
-          fn(t, f);
+          fn(take ? take.time : t, f);
           // Copy the FIRST submitted tracked frame before yielding to another
           // RAF or actor decode. Only the diagnostic copy/map is asynchronous.
-           if (!s.first && pose && stats.submissions > before) s.first = s.capture(true);
-           if (reader && pose && stats.submissions > before) { const done=reader; reader=null; done(s.capture()); }
+          if (!s.first && pose && stats.submissions > before) s.first = s.capture(true);
+          if (reader && pose && stats.submissions > before) { const done=reader; reader=null; done(s.capture()); }
+          if (take && pose && stats.submissions > before) take.afterDraw(s);
         } finally { s.inFrame = false; }
       });
     };
@@ -72,6 +77,24 @@ module.exports = function extendStereoShim() {
       s.capture = reference => {
         if (!s.inFrame) throw Error('Diagnostic copy outside the owning XR frame');
         s.readback = true; try { return capture(reference); } finally { s.readback = false; }
+      };
+      // Diagnostic-only snapshot of both FINAL color layers, never a solver
+      // input. Encode the copy inside XR; map only our own buffer afterwards.
+      s.copyEyes = () => {
+        if (!s.inFrame) throw Error('Cannot sample retired XR color');
+        const d=this.d,w=layer.textureWidth,h=layer.textureHeight,pitch=Math.ceil(w*4/256)*256,size=pitch*h*2;
+        const b=d.createBuffer({size,usage:GPUBufferUsage.MAP_READ|GPUBufferUsage.COPY_DST});
+        try {
+          const enc=d.createCommandEncoder();enc.copyTextureToBuffer({texture:layer.tex},{buffer:b,bytesPerRow:pitch,rowsPerImage:h},[w,h,2]);
+          s.readback=true;d.queue.submit([enc.finish()]);
+        } finally { s.readback=false; }
+        return b.mapAsync(GPUMapMode.READ).then(()=>{
+          const data=new Uint8Array(b.getMappedRange());return ['left','right'].map(eye=>{
+            const out=new Uint8ClampedArray(w*h*4),off=s.stats.slices[eye]*pitch*h;
+            for(let y=0;y<h;y++)out.set(data.subarray(off+y*pitch,off+y*pitch+w*4),y*w*4);
+            return new ImageData(out,w,h);
+          });
+        }).finally(()=>b.destroy());
       };
       return layer;
     }

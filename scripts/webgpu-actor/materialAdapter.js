@@ -1,4 +1,4 @@
-import { createMmdTslPipeline } from '@yohawing/three-mmd-loader/webgpu';
+import { createMmdTslPipeline, disposeMmdTslShadowCaster } from '@yohawing/three-mmd-loader/webgpu';
 import { max, sRGBTransferEOTF, sRGBTransferOETF } from 'three/tsl';
 import { hybridToonColor, parseHybridSlots } from './hybridToon.js';
 
@@ -48,6 +48,10 @@ export async function createActorMaterialAdapter(renderer, light, { balancedMode
         if (i >= count) throw new RangeError(`Hybrid PMX slot ${i} outside authored slot count ${count}`);
       }
       const attached = pipeline.attach(model, options);
+      // r187 adds layer 1 to its left eye. The fork's optional shadow-only
+      // geometry uses that same layer and draws an untextured white silhouette
+      // in the color pass. This adapter has no dedicated XR shadow pass.
+      if (attached && renderer.xr.enabled && !options?.selfShadowEnabled && !options?.selfShadow) disposeMmdTslShadowCaster(model.mesh);
       if (attached && (balancedModelColor || slots.size)) {
         for (const [index, material] of [model.mesh.material].flat().entries()) {
           // Only fork toon surfaces have these uniforms. Appended edges use a
