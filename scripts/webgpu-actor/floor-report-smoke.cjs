@@ -18,7 +18,7 @@ async function main(){
     })();`});
     const hostRequests=[];page.on('request',r=>{if(/\/stage-host-[\w-]+\.js/.test(r.url()))hostRequests.push(r.url());});
     await page.goto(server.resolvedUrls.local[0]);
-    await page.locator('.stage-first-room select').selectOption('floor');
+    const room=process.argv[3]??'floor';await page.locator('.stage-first-room select').selectOption(room);
     assert.equal(await page.locator('[data-floor-renderer]').inputValue(),'webgl');
     assert.equal(await page.locator('.stage-btn-primary').getAttribute('data-xr-backend'),'webgl');assert.equal(hostRequests.length,0);
     const {makeSwatch}=await import('../../experiments/gpu-cloth/swatch.js'),file=makeSwatch();
@@ -29,7 +29,7 @@ async function main(){
     const hint=await page.evaluate(()=>window.hint);assert(hint.n>=80 && hint.submissions>0);
     await page.locator('.xr-stage-exit').click();await page.locator('[data-xr-host=webgpu]').waitFor({state:'detached'});
     async function download(){const button=page.locator('[data-performance-export]');const [file]=await Promise.all([page.waitForEvent('download'),button.click()]);return JSON.parse(await fs.readFile(await file.path(),'utf8'));}
-    let gpu=await download();assert.equal(gpu.backend,'webgpu');assert.deepEqual(gpu.eyeViewports,[{eye:'left',width:232,height:230},{eye:'right',width:232,height:230}]);
+    let gpu=await download();assert.equal(gpu.backend,'webgpu');assert.deepEqual(gpu.scenes,[room]);assert.deepEqual(gpu.eyeViewports,[{eye:'left',width:232,height:230},{eye:'right',width:232,height:230}]);
     assert(gpu.reportedRefreshRates[72]>0 && gpu.windows.some(w=>w.width===240 && w.height===240) && gpu.callbackIntervalMs.worst>0);
     const firstAdapters=await page.evaluate(()=>labFixture.adapters.length);
     await page.evaluate(()=>{labFixture.reversed=true;});

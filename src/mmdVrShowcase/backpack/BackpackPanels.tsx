@@ -4,6 +4,7 @@ import { useBackpack, type BackpackEntry } from "./store";
 import { isSoloFloorSession, stageAssetLimit } from "./sessionAssets";
 import { useMmdVrStore } from "../mmdVrStore";
 import { SCENERY, mainSceneryIds } from "../scenery/catalog";
+import {webgpuRooms,fitsWebgpuRoom} from '../xr/floorBackend';
 import { HudButton, HudLine, HudSheet } from "../hud/PorcelainControls";
 import { BackpackThumbnail, indexBackpackCovers } from "./BackpackThumbnail";
 import { useXRInputSourceState } from '@react-three/xr';
@@ -16,13 +17,14 @@ export function SceneryPanel({ onClose, onSelected, locked }: { onClose: () => v
   const t = useLanguageStore(s => s.t);
   const current = useMmdVrStore(s => s.prefs.scenery);
   // Keep even the last set in the reading zone when using a seated eye height.
-  const cols=3, rows=Math.ceil(mainSceneryIds.length/cols), height=.48+.23*rows, top=height/2;
+  const layouts=useBackpack(s=>s.layouts), solo=isSoloFloorSession(), rooms=solo?webgpuRooms:mainSceneryIds;
+  const cols=3, rows=Math.ceil(rooms.length/cols), height=.48+.23*rows, top=height/2;
   return <group name="hud-scenery">
     <HudSheet size={[2.90,height]} />
     <HudLine position={[-.91,top-.19,0]} text={t("hudScenery")} width={0.86} role="title" />
     <HudButton position={[1.02,top-.19,0]} label={t("hudBack")} size={[0.65,0.14]} onPress={onClose} variant="quiet" />
-    {mainSceneryIds.map((id, i) => <HudButton key={id} position={[(i % cols - 1) * .94,top-.47-Math.floor(i/cols)*.23,0]}
-      label={t(SCENERY[id].label)} active={id === current} disabled={locked || (isSoloFloorSession() && id !== 'floor')} size={[0.86, 0.17]} onPress={() => {
+    {rooms.map((id, i) => <HudButton key={id} position={[(i % cols - (solo ? .5 : 1)) * .94,top-.47-Math.floor(i/cols)*.23,0]}
+      label={t(SCENERY[id].label)} active={id === current} disabled={locked || (solo && !fitsWebgpuRoom(layouts[id]))} size={[0.86, 0.17]} onPress={() => {
         if (useMmdVrStore.getState().prefs.scenery !== id) useMmdVrStore.getState().setPrefs({ scenery: id });
         onSelected();
       }} />)}

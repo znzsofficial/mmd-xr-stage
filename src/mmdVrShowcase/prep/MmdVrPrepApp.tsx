@@ -18,7 +18,7 @@ import { expandAssetFiles, AssetImportError, IMPORT_LIMITS, type ArchiveEncoding
 import { bindCompanion, mergeAssetFiles } from "../../mmdImport/assetPaths";
 import { inspectAssets, type ImportReport } from "../../mmdImport/inspectAssets";
 import { downloadPerformanceReport, samePagePair, useLastPerformanceReport } from "../diagnostics/performanceReport";
-import {usesFloorBackend,type LoadFloorBackend} from '../xr/floorBackend';
+import {supportsWebgpuRoom,usesFloorBackend,type LoadFloorBackend} from '../xr/floorBackend';
 import {useFloorBackend} from './useFloorBackend';
 import {stageHudVars} from '../pelvic/palette';
 
@@ -46,7 +46,7 @@ export function MmdVrPrepApp({showOverlay=true,loadFloorBackend,initialFloorRend
   const comparison=loadFloorBackend && samePagePair();
   const [floorRenderer,setFloorRenderer]=useState(initialFloorRenderer);
   const prefs = useMmdVrStore((state) => state.prefs);
-  const floor=useFloorBackend(prefs.scenery==='floor' && floorRenderer==='webgpu'?loadFloorBackend:undefined);
+  const floor=useFloorBackend(supportsWebgpuRoom(prefs.scenery) && floorRenderer==='webgpu'?loadFloorBackend:undefined);
   const setPrefs = useMmdVrStore((state) => state.setPrefs);
 
   const folderInputRef = useRef<HTMLInputElement | null>(null);
@@ -320,7 +320,7 @@ export function MmdVrPrepApp({showOverlay=true,loadFloorBackend,initialFloorRend
             <h1 className="stage-intro-title">{t("mmdVrPrepTitle")}</h1>
              <p className="stage-intro-lead">{t("mmdVrPrepLead")}</p>
              {screenFailed&&errorMessage&&<p role="alert">{t('screenWebgl')} <small>{errorMessage}</small></p>}
-             {prefs.scenery==='floor'&&floor.failed&&<p role="alert">{t('floorWebglFallback')} <small>{floor.failed}</small></p>}
+              {supportsWebgpuRoom(prefs.scenery)&&floor.failed&&<p role="alert">{t('floorWebglFallback')} <small>{floor.failed}</small></p>}
           </div>
           <div className="stage-launch-actions">
             <div className="stage-launch-row">
@@ -537,7 +537,7 @@ export function MmdVrPrepApp({showOverlay=true,loadFloorBackend,initialFloorRend
                  <SceneryOptions current={prefs.scenery} offerFloor={!!loadFloorBackend}/>
              </select>
            </label>
-            {loadFloorBackend && prefs.scenery==='floor' && <label className="stage-field">
+            {loadFloorBackend && supportsWebgpuRoom(prefs.scenery) && <label className="stage-field">
               <span className="stage-field-label">{t('floorXrRenderer')}</span>
               <select className="stage-select" data-floor-renderer value={floor.failed?'webgl':floorRenderer} disabled={!!floor.failed||phase==='entering'||phase==='active'} onChange={e=>setFloorRenderer(e.target.value==='webgpu'?'webgpu':'webgl')}>
                 <option value="webgl">WebGL</option><option value="webgpu">{t('floorWebgpuSolo')}</option>

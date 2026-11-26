@@ -35,14 +35,14 @@ async function makeImport(folder, pmx, vmd) {
 }
 
 async function main() {
-  const [pmx, vmd, plan] = process.argv.slice(2).map(v => v==='--actor-style'?v:path.resolve(v));
+  const [pmx, vmd, plan] = process.argv.slice(2).map(v => ['--actor-style','--classroom'].includes(v)?v:path.resolve(v));
   assert(pmx && vmd && plan, 'Expected a clothed PMX, body VMD and a matching textured-triangle hand plan');
-  const styleOnly=plan==='--actor-style', json = !styleOnly && JSON.parse(await fs.readFile(plan, 'utf8'));
-  const sites = !styleOnly && (json.plan ?? json).sites.map(({start,end,spot,radial,marks,mat}) => ({start,end,spot,radial,marks,mat}));
-  if(!styleOnly)assert.equal(sites.length, 2);
+  const styleOnly=plan==='--actor-style',classroom=plan==='--classroom', json = !styleOnly && !classroom && JSON.parse(await fs.readFile(plan, 'utf8'));
+  const sites = json && (json.plan ?? json).sites.map(({start,end,spot,radial,marks,mat}) => ({start,end,spot,radial,marks,mat}));
+  if(json)assert.equal(sites.length, 2);
   const {chromium} = require(process.env.PLAYWRIGHT_CORE || path.join(process.env.XR_SMOKE_DIR || path.join(temp,'xr-browser-smoke'),'node_modules/playwright-core'));
   const folder = await fs.mkdtemp(path.join(temp,'game-floor-files-'));
-  const report = {entry:process.env.FLOOR_DEEPLINK?'/?xrBackend=webgpu&set=floor':'/?xrBackend=webgpu', simulated:'Quest controller input and projection display'};
+  const report = {entry:classroom?'/?xrBackend=webgpu&set=classroom':process.env.FLOOR_DEEPLINK?'/?xrBackend=webgpu&set=floor':'/?xrBackend=webgpu', simulated:'Quest controller input and projection display'};
   const errors = [], consoles = [];
   let server, browser, page, step = 'prepare', localProfile = false;
   try {
@@ -50,7 +50,7 @@ async function main() {
     const {createServer} = await import('vite');
     server = await createServer({root, logLevel:'error', cacheDir:path.join(temp,'vite-game-floor-smoke'),
       optimizeDeps:{include:['three/webgpu','three/tsl','@yohawing/three-mmd-loader/webgpu']},
-      plugins:[hostProbe(), ...(!styleOnly?[hands.driverProbe(true)]:[])], server:{host:'127.0.0.1',port:0,hmr:false,fs:{deny:['**/sample/**']}}});
+      plugins:[hostProbe(), ...(json?[hands.driverProbe(true)]:[])], server:{host:'127.0.0.1',port:0,hmr:false,fs:{deny:['**/sample/**']}}});
     await server.listen();
     browser = await chromium.launch({channel:process.env.CHANNEL || 'msedge', headless:true,
       args:['--enable-gpu','--use-angle=d3d11','--ignore-gpu-blocklist','--disable-background-timer-throttling']});
@@ -62,7 +62,7 @@ async function main() {
     await page.addInitScript({content:`(${stereo})(); (${extend})(); labFixture.controllerProfile='meta-quest-touch-plus'; labFixture.hostStatus=()=>({phase:'idle'});`});
     await page.goto(href.href);
     const selector=page.locator('.stage-first-room select');
-    if(process.env.FLOOR_DEEPLINK)assert.equal(await selector.inputValue(),'floor');else await selector.selectOption('floor');
+    if(classroom)assert.equal(await selector.inputValue(),'classroom');else if(process.env.FLOOR_DEEPLINK)assert.equal(await selector.inputValue(),'floor');else await selector.selectOption('floor');
     await page.locator('.stage-drop-zone input[webkitdirectory]').setInputFiles(folder);
     await page.locator('.stage-report-stats').waitFor();
     const ids = await page.evaluate(probes.observeStage,{modelPath:`${path.basename(folder)}/${second}`,motionName:`${path.basename(folder)}/${motion}`});
@@ -127,9 +127,9 @@ async function main() {
       await trigger(false);assert.equal((await read()).placeCommands,before+1);
     }
 
-    const empty=await read();assert(empty.filesIntact && !empty.floor && !empty.live && !empty.hasBinding && empty.room==='floor');
+    const empty=await read();assert(empty.filesIntact && !empty.floor && !empty.live && !empty.hasBinding && empty.room===(classroom?'classroom':'floor'));
     step='original VR launch';await page.locator('.stage-launch-row button.stage-btn-primary[data-xr-backend="webgpu"]').click();
-    await until('real floor active',s=>s.phase==='active' && s.ready && s.floor?.assets===0 && !!labSession.first && !!document.querySelector('[data-xr-host="webgpu"][data-phase="active"]'));
+    await until('real room active',(s,isClass)=>s.phase==='active' && s.ready && (isClass?s.room==='classroom':s.floor?.assets===0) && !!labSession.first && !!document.querySelector('[data-xr-host="webgpu"][data-phase="active"]'),classroom);
     assert.deepEqual(await page.evaluate(()=>labSession.stats.slices),{left:0,right:1});
 
     // Dismiss the one-time intro so the first B press has to actually work.
@@ -139,6 +139,22 @@ async function main() {
     const base=report.emptyEyes;assert(base.different>100 && base.controls.every(n=>n===0) && base.matched.every((n,i)=>n<base.crossed[i]*.4),'Wrong final XR eye assignment');
 
     await placeFromBag(second,landing,0);
+    if(classroom){
+      await until('classroom PMX placed',s=>s.ready&&s.selected&&s.visible&&s.actor?.evaluations>0,null,60000);
+      await click('hudChangeMotion');await click('hudApplyBody');await until('classroom VMD playing',s=>s.playing&&s.time>.1&&s.actor.poseSeconds>0);
+      await bButton();await click('settingsMmdVrPause');const held=await until('held dance',s=>!s.playing&&s.hasBinding&&s.time>0);
+      await bButton();await click('hudScenery');await click('hudSimpleStage');
+      await until('plinth is empty',s=>s.room==='floor'&&s.ready&&s.floor?.assets===0&&!s.live&&!s.actor?.evaluations);
+      assert(!await page.evaluate(()=>!!gameTargets.find({name:'scenery:classroom'})));
+      if(!await page.evaluate(()=>!!gameTargets.find({key:'hudScenery'})))await bButton();await click('hudScenery');await click('hudClassroom');
+      const restored=await until('restored classroom actor',(s,t)=>s.room==='classroom'&&s.ready&&s.modelCount===1&&s.visible&&s.hasBinding&&!s.playing&&s.time===t&&s.actor?.evaluations>0,held.time,60000);
+      assert.deepEqual(restored.position,held.position);assert(restored.duration===held.duration&&restored.filesIntact);
+      if(await page.evaluate(()=>!!gameTargets.find({key:'hudBack'})))await click('hudBack');await target({name:'watch:quiet'});await idleRay();
+      const eyes=await page.evaluate(probes.inspectEyes,'actor');assert(eyes.characterPixels.every(n=>n>180));
+      await bButton();await click('settingsMmdVrPlay');await until('restored VMD resumes',(s,t)=>s.room==='classroom'&&s.playing&&s.time>t+.08,held.time);
+      await bButton();await click('settingsVrDesktopExit',{retiring:true});await until('saved classroom after crossing',s=>s.phase==='ended'&&s.saved?.scenery==='classroom'&&s.saved.hasMotion);
+      assert.deepEqual(errors,[]);assert.deepEqual(consoles.filter(x=>/shader|validation|wgsl|nodebuilder|pipeline/i.test(x)),[]);console.log(JSON.stringify({entry:report.entry,held:held.time,restored:restored.time,placedAt:held.position,eyes,emptyEyes:base}));return;
+    }
     if(styleOnly) {
       report.style=await require('./game-floor-style.cjs')({page,ids,click,until,bButton,frames,target,pickMounted,idleRay});
       assert.deepEqual(errors,[]);console.log(JSON.stringify(report,null,2));return;

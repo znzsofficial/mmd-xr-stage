@@ -3,6 +3,7 @@
 import { _roots } from '@react-three/fiber';
 import { useLanguageStore } from '../../src/languageStore';
 import { useBackpack } from '../../src/mmdVrShowcase/backpack/store';
+import { useMmdVrStore } from '../../src/mmdVrShowcase/mmdVrStore';
 
 function room() {
   return [..._roots.values()].map(r => r.store.getState()).find(s => s.gl.xr.isPresenting)?.scene;
@@ -22,7 +23,7 @@ export function find({key, name, row}) {
 export function model(name) {
   const b=useBackpack.getState(), entry=b.entries.find(e=>e.kind==='model' && e.file.name===name);
   if(!entry)throw Error('Expected imported model missing from the backpack');
-  const live=b.live[entry.id], layout=b.layouts.floor, ids=new Set();
+  const live=b.live[entry.id], layout=b.layouts[useMmdVrStore.getState().prefs.scenery], ids=new Set();
   room()?.traverse(o=>{if(o.userData.mmdModelId)ids.add(o.userData.mmdModelId);});
   return {draft:b.draft===entry.id,selected:b.selected===entry.id,runtime:live?.runtimeId,
     visible:live?.visible,foot:live?.position,mounted:[...ids],

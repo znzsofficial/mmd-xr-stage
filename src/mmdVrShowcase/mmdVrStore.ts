@@ -6,6 +6,7 @@ import { endMmdVrAssetSession, isSoloFloorSession } from "./backpack/sessionAsse
 import { invalidateBackpackCommands, prepareBackpackEntry, useBackpack } from "./backpack/store";
 import { resetMmdVrClock } from "./stage/mmdVrClock";
 import { resetViewOnMenuSwitch } from "./scenery/catalog";
+import {fitsWebgpuRoom,supportsWebgpuRoom} from './xr/floorBackend';
 import { normalizeMmdVrModelScale } from "./settings/mmdVrAdjustments";
 
 export { normalizeMmdVrHeightOffset, normalizeMmdVrModelScale } from "./settings/mmdVrAdjustments";
@@ -206,11 +207,11 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
   },
   prefs: initialPrefs,
   setPrefs: (patch, options) => {
-    if (isSoloFloorSession() && patch.scenery && patch.scenery !== 'floor') return;
+    if (isSoloFloorSession() && patch.scenery && (!supportsWebgpuRoom(patch.scenery) || !fitsWebgpuRoom(useBackpack.getState().layouts[patch.scenery]))) return;
     const previousRoom = get().prefs.scenery;
     const prefs = normalizeMmdVrPrefs({ ...get().prefs, ...patch });
     prefsStorage.write(prefs);
-    const leaveDistrict = !options?.preserveViewOnCrossing && resetViewOnMenuSwitch(previousRoom, prefs.scenery);
+    const leaveDistrict = !options?.preserveViewOnCrossing && (resetViewOnMenuSwitch(previousRoom, prefs.scenery) || (isSoloFloorSession() && previousRoom!==prefs.scenery));
     set({ prefs, loop: prefs.loop, ...(leaveDistrict ? {viewEpoch:get().viewEpoch+1} : {}) });
   },
   cyclePhysicsColliderRadius: () => {

@@ -9,6 +9,14 @@ afterEach(() => { endMmdVrAssetSession();useMmdVrStore.setState(initial); clearB
 
 describe('backpack session boundary', () => {
   const room: StageSnapshot = { scenery:'classroom',assets:[],models:[],objects:[],time:0,playing:false,loop:true,physicsEnabled:false,controllerCollisions:true };
+  it('allows the classroom but preserves an incompatible saved destination and blocks a lawn crossing',()=>{
+    initial.setPrefs({scenery:'floor'});beginMmdVrAssetSession([],'soloFloor');initial.openOverlay();
+    const prop=new File([],'chair.glb'), saved:StageSnapshot={...room,assets:[{kind:'object',objectFile:prop,companionFiles:[]}]};
+    useBackpack.setState({layouts:{classroom:saved}});initial.setPrefs({scenery:'classroom'});
+    expect(useMmdVrStore.getState().prefs.scenery).toBe('floor');expect(useBackpack.getState().layouts.classroom).toBe(saved);
+    useBackpack.setState({layouts:{classroom:room}});initial.setPrefs({scenery:'classroom'});expect(useMmdVrStore.getState().prefs.scenery).toBe('classroom');
+    initial.setPrefs({scenery:'lawn'},{preserveViewOnCrossing:true});expect(useMmdVrStore.getState().prefs.scenery).toBe('classroom');
+  });
   it('can choose the second imported actor for a solo floor, and normal limits return on exit',()=>{
     syncBackpackFiles(['one.pmx','two.pmx','lamp.glb'].map(name=>new File([],name)));
     const bag=useBackpack.getState(), [one,two,prop]=bag.entries;

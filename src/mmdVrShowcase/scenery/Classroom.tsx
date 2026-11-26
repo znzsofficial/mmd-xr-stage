@@ -3,6 +3,7 @@ import { BufferGeometry, DoubleSide, Float32BufferAttribute, RepeatWrapping, typ
 import { Batch } from './SceneryBatch';
 import { canopyCluster, chairBack, chairFrame, classroomCurtains, deskFrame, woodSlab } from './ClassroomGeometry';
 import { classroomProps } from './ClassroomProps';
+import {DaySurface} from './daylightMaterials';
 import { cameraInstancePrefix } from './cameraInstancePrefix';
 import {SchoolBrickWalk} from './SchoolBrickWalk';
 import {BorrowedMeadow} from './BorrowedMeadow';
@@ -59,7 +60,7 @@ export function Classroom({ shadows }: { shadows: boolean }) {
   return <group name="scenery:classroom">
     <BorrowedMeadow room="classroom"/><SchoolBrickWalk shadows={shadows}/>
     <mesh name="basketweave-parquet" rotation={[-Math.PI/2,0,0]} receiveShadow={shadows} raycast={()=>null}>
-      <planeGeometry args={[ROOM.w, ROOM.d]} /><meshStandardMaterial key={floor?'wood':'plain'} map={floor} color={floor?'white':'#bd9a77'} roughness={.88} onBeforeCompile={parquetContact} />
+      <planeGeometry args={[ROOM.w, ROOM.d]} /><DaySurface key={floor?'wood':'plain'} map={floor} color={floor?'white':'#bd9a77'} roughness={.88} onBeforeCompile={parquetContact} />
     </mesh>
     <Batch name="room-shell-and-sashes" parts={p.shell} casts={shadows} shade={daylight} />
     <Batch name="joinery-and-campus" parts={p.trim} shade={daylight} />
@@ -72,13 +73,13 @@ export function Classroom({ shadows }: { shadows: boolean }) {
     <Batch name="tubular-chair-frames" parts={p.chairFrames} geometry={geometry.chair} shade={shadows?steelShadow:steelDay} onInstancesReady={prepare.frames} />
     <Batch name="molded-chair-backs" parts={p.backs} geometry={geometry.back} casts={shadows} shade={shadows?backShadow:backDay} map={grain??undefined} />
     <mesh name="gathered-linen" castShadow={shadows} receiveShadow={shadows} raycast={()=>null}>
-      <primitive object={geometry.cloth} attach="geometry" /><meshStandardMaterial vertexColors side={DoubleSide} roughness={1} onBeforeCompile={classroomBounce} />
+      <primitive object={geometry.cloth} attach="geometry" /><DaySurface vertexColors side={DoubleSide} roughness={1} onBeforeCompile={classroomBounce} />
     </mesh>
     <mesh name="lunar-lesson-and-prints" raycast={()=>null}>
-      <primitive object={geometry.paper} attach="geometry" /><meshStandardMaterial key={atlas?'printed':'plain'} map={atlas} color={atlas?'white':'#819985'} roughness={1} onBeforeCompile={daylight} />
+      <primitive object={geometry.paper} attach="geometry" /><DaySurface key={atlas?'printed':'plain'} map={atlas} color={atlas?'white':'#819985'} roughness={1} onBeforeCompile={daylight} />
     </mesh>
     <mesh name="lectern-globe" position={[LECTERN.x-.45,1.172,LECTERN.z]} rotation={[0,-1.34,-.32]} raycast={()=>null}>
-      <sphereGeometry args={[.168,24,16]} /><meshStandardMaterial key={earth?'printed':'plain'} map={earth} roughness={.73} onBeforeCompile={daylight} />
+      <sphereGeometry args={[.168,24,16]} /><DaySurface key={earth?'printed':'plain'} map={earth} roughness={.73} onBeforeCompile={daylight} />
     </mesh>
   </group>;
 }

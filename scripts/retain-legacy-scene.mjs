@@ -5,6 +5,9 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from 'node:path';
 
 const files = [
+  ['9003cf5e','index-BH3LAdrK.js','52fbc684478c7550b5180669ee9485bca132cd9abc5af2e64514ee4b27e91ddd'],
+  ['9003cf5e','stage-host-C54oKGc6.js','9b6c47791cf3d39efd2e979f22d3af8e8e8e31da6421865d2f0286cd6b58866f'],
+  ['9003cf5e','PlanetPhysics-9N4kNOqB.js','ca5c3145e80370e6491ad7c321cfc7169684e4e12a65e6e5823b609b1d923ce9'],
   // Last WebGL-only production graph, before switching to usage-based chunks.
   ['732a160a','index-BnFWFrOU.js','b57c23d2210d693976c94170f4a51bf0fac769319fc42fd6c64c2a33d4991776'],
   ['732a160a','vendor-three-CB0j5q2y.js','345dc5d2af577856cdd6f6f7a50f0f290b70361c331e0b99c3fafd1ff98c27ff'],

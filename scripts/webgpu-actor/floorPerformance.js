@@ -6,7 +6,6 @@ import {useMmdVrStore} from '../../src/mmdVrShowcase/mmdVrStore';
 export function recordFloorPerformance(started,frameRate) {
   const requested={frameRate,antialias:false,framebufferScale:null,foveation:null};
   const recording=createPerformanceRecording(requested,started,'webgpu');
-  recording.scene('floor');
   let sampledAt,frames=0;
   return {
     begin(){beginPerformanceAttempt('webgpu');},
@@ -14,6 +13,7 @@ export function recordFloorPerformance(started,frameRate) {
       const hz=frame.session.frameRate;
       recording.timestamp(time,hz);
       const state=useMmdVrStore.getState();
+      recording.scene(state.prefs.scenery);
       recording.startupFrame(!!backend && !state.assetLoad.running && state.modelCount>0);
       const elapsed=time-sampledAt;
       ++frames;
@@ -26,7 +26,7 @@ export function recordFloorPerformance(started,frameRate) {
         layerAntialias:null,targetSamples:null,contextAntialias:null,foveation:layer?.fixedFoveation??null,
         drawCalls:renderer.info.render.drawCalls,triangles:renderer.info.render.triangles,
         textures:renderer.info.memory.textures,geometries:renderer.info.memory.geometries,modelUpdateCpuMs:null,modelUpdateCpuMaxMs:null},
-      {scenery:'floor',models:actor?state.modelCount:0,objects:0,physics:!!actor&&state.physicsEnabled,playing:!!actor&&state.playing,
+      {scenery:state.prefs.scenery,models:actor?state.modelCount:0,objects:0,physics:!!actor&&state.physicsEnabled,playing:!!actor&&state.playing,
         liveHouse:false,shadows:renderer.shadowMap.enabled,actorStyle:actor?.style?.mode,clothMode:actor?.mode});
       sampledAt=time;frames=0;
     },

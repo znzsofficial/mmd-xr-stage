@@ -2,11 +2,11 @@
 
 [正式舞台](https://mmd-xr-stage.pages.dev) · [正式 WebGPU 摄影地台](https://mmd-xr-stage.pages.dev/?set=floor&xrBackend=webgpu) · [Quest 重入实测固定版](https://4f690992.mmd-xr-stage.pages.dev/?set=floor&xrBackend=webgpu) · [发布记录](./release-history.md)
 
-**已收工：主站可选的一景一人 WebGPU 摄影地台。** 准备页选摄影地台 →「WebGPU · 单角色」，或进上面的直达链接；屏幕观看、其他布景和默认入口仍是 WebGL。Quest 3S 上玩家确认放人、播舞、切换原 MMD／仿终末地；修复版同标签两趟都载入一位演员，玩家另确认「动作也能恢复」。两份重入导出里未采到播舞窗；旧版收到 19 个 WebGPU 播舞窗，中位 36 回调 FPS（实际 120 Hz，每眼 1680×1760），未证实相对 WebGL 提速。详见[设备证据](./webgpu-xr-status.md#正式背包与摄影地台如何走开发入口)。
+**WebGPU 优先扩现有场景。** [窗边教室](https://mmd-xr-stage.pages.dev/?set=classroom&xrBackend=webgpu)和简易地台共用原背包。在场内右 B →「布景」往返，每间房记自己的角色、摆位、舞段和播放状态。默认 WebGL。首次教室验证用桌面硬件 GPU＋模拟双眼，走过放置、实播、暂停、切景、回原落点与续播；此前的 Quest 重入实测属于地台。详见[设备与画面证据](./webgpu-xr-status.md#正式背包与摄影地台如何走开发入口)。
 
 **可以现在结案：终末地角色缺图与 v5 样板。** 本机 12 份角色 PMX 均已在桌面 WebGPU 实绘，10 份能自动切画风。茶叶版提弗洛斯能加载，只有睫毛和表情的同一张 toon 使用默认渐变；另一份提弗洛斯的贴图全部命中。两份未切换的角色材质都能按原 MMD 显示。逐包结果见 `local-review/verification/endfield-pmx-audit/README.md`。无新阻断不继续扫库或做 v6。
 
-**发布后的任务盘点：没有另行开工的功能线。** 历史待办余五条：①准星／面板可读性和②校园、河街、持物握姿是真机回访；③角色首次拟合、泳池慢帧和④模型兼容／内存是按需专项；⑤恋活卡已搁置。普通 PMX 基础画风另存为停放计划。海边终点站、皮影台、唱片行是候选；[月面邮局等四幕](./gameplay/README.md#四幕玩法)及[喜院、医院连路、秦淮与音乐](./scenery/next-modeling-round.md)已上线，不算积压。若再开一轮，建议只选「单人舞段为什么掉帧」：同一机位、原 MMD、同一段动作做一次配对定位，拿到可重复改善才扩场。
+**当前取舍：先做现有布景，保持单角色。** 新建场景只保留[海边终点站](./scenery/next-modeling-round.md#婚礼之后的新景候选未排期)，暂不排期。历史待办仍为准星／面板和校园／持物两项回访、角色慢帧和兼容／内存两项专项、已搁置的恋活卡。[四幕玩法](./gameplay/README.md#四幕玩法)、喜院、医院连路、秦淮与音乐均已交付。
 
 **先停放：普通 PMX 基础画风。** 珠霜舒芙蕾 3072×4096 的原 PMX 手动分槽渲染、机位及分组在 `local-review/screenshots/yvette-souffle-endfield/`。以后恢复时从 [`actorStyleSlots.js`](../scripts/webgpu-actor/actorStyleSlots.js) 与 [`actorStyle.js`](../scripts/webgpu-actor/actorStyle.js) 分开基础材质识别和专用图增强；沿用演员旁的选择，保留眉眼，用同演员播舞切换和暂停关物理切回的画面对照验收。此项不挡主站开放地台。
 
@@ -24,7 +24,7 @@
 
 | 工作线 | 接下来做什么 | 何时收束／谁决定 |
 |---|---|---|
-| **WebGPU：单景收工** | [正式页入口与验证](./webgpu-xr-status.md#正式背包与摄影地台如何走开发入口)。一景一位演员，未扩大到多人、道具或其他布景。 | 默认仍为 WebGL。扩大范围前再看配对慢帧、真实手部和持续体验。 |
+| **WebGPU：教室和地台** | 准备页直达或场内布景切换；不兼容的目标布局保留在 WebGL。 | 一次只推进一个可实际摆人和返回的房间，不并行扩人数。 |
 | **角色画风：洛茜 v5 收工** | [散射与细描边](./scenery/character-toon-references.md)已接舞台，普通 PMX 基础档已停放。 | 保留珠霜舒芙蕾的高分辨率图作后续参照。 |
 | **小 Bug：按需维护** | 入场失败保布局、移除演员后的播放时钟、暂停隐藏再显示的姿势均已修复上线。本轮无已确认的线上阻断项；教室后墙放置射线有规则反例，尚待实际操作复现。 | 丢布局、黑屏或主要操作失效才打断主线；普通问题复现后小修、针对性回归通过即收工。面板 5 条历史待办含设备回访、性能、兼容与搁置项，不是 5 个急修。 |
 
@@ -74,4 +74,4 @@
 - [手动裙摆与换姿方向](./performance/pose-cloth-contact.md)、[侧裙分层证据](./performance/supine-side-skirt.md)：左膝微调后前裙掉回已修；A 普通抬腿侧髋仍约 28 mm 穿入，B 抬腿转跪仍为 12.8 mm。横穿面数不是实际露腿面积。镜片里看刚到位、停两秒和返站。
 - [角色首页、附件与衣物](./gameplay/actor-tools.md)、[受精结果规则](./gameplay/pelvic-attachment.md#一次释放的受精演出)、[只读孕态参考](./gameplay/observation-reference.md)。附件安装不代表已确认露出；换观察图不改释放目标或演员记录。玩法止于受精结果。[已上线四幕玩法](./gameplay/README.md#四幕玩法)不是待办。
 - [源码目录](./architecture.md#源码目录) · [16 景与路线](./scenery/README.md) · [星球贴坡查询](./performance/planet-shell-sweep.md) · [历次实戴与短测](./performance/next-quest-export.md)。原衣实模截图、设备和逐帧原始证据从被 Git 忽略的 `local-review/README.md` 找；浏览器、模拟 XR 与全量验证串行。
-- **未排期：**[双角色持具、撤出回流](./gameplay/pelvic-attachment.md#假阳具玩法候选尚未实现)、[灯影／霜岬回波](./gameplay/interactive-scene-studies.md)、[三个候选新景](./scenery/next-modeling-round.md#婚礼之后的新景候选未排期)。恋活逐卡导出方案搁置；[Blender 角色包](./gameplay/blender-characters.md)已交付。
+- **未排期：**[双角色持具、撤出回流](./gameplay/pelvic-attachment.md#假阳具玩法候选尚未实现)、[灯影／霜岬回波](./gameplay/interactive-scene-studies.md)、[海边终点站](./scenery/next-modeling-round.md#婚礼之后的新景候选未排期)。恋活逐卡导出方案搁置；[Blender 角色包](./gameplay/blender-characters.md)已交付。

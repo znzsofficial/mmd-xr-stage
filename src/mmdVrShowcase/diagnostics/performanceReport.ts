@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { stageBuild } from '../../shared/stageBuild';
+import {supportsWebgpuRoom} from '../xr/floorBackend';
 import type { RenderDiagnostics, RenderRequest } from "./renderDiagnostics";
 import type { BackpackPlacementTiming } from "../backpack/store";
 import type { SceneryId } from '../scenery/catalog';
@@ -124,11 +125,11 @@ export function beginPerformanceAttempt(backend:XrBackend) {
   if(useLastPerformanceReport.getState().report?.backend===backend)useLastPerformanceReport.setState({report:null});
 }
 export function publishPerformanceReport(report:Report) {
-  if(report.scenes.length===1 && report.scenes[0]==='floor')pair[report.backend]=report;
+  if(report.scenes.length===1 && supportsWebgpuRoom(report.scenes[0]))pair[report.backend]=report;
   else delete pair[report.backend];
   useLastPerformanceReport.setState({report});
 }
-export function samePagePair() {return pair.webgpu && pair.webgl ? {webgpu:pair.webgpu,webgl:pair.webgl} : null;}
+export function samePagePair() {return pair.webgpu && pair.webgl && pair.webgpu.scenes[0]===pair.webgl.scenes[0] ? {webgpu:pair.webgpu,webgl:pair.webgl} : null;}
 
 export function downloadPerformanceReport(report: Report, comparison?:NonNullable<ReturnType<typeof samePagePair>>|null) {
   const url = URL.createObjectURL(new Blob([JSON.stringify(comparison??report, null, 2)], { type: "application/json" }));

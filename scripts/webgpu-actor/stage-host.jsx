@@ -23,6 +23,10 @@ import {createStageActorBackend} from './stageActorBackend.js';
 import {stageControls} from './stage-controls.js';
 import {recordFloorPerformance} from './floorPerformance.js';
 import {takeFloorRenderer,returnFloorRenderer} from './floorRenderer.js';
+import {DaylightMaterials} from '../../src/mmdVrShowcase/scenery/daylightMaterials';
+import {roomSets} from '../../src/mmdVrShowcase/scenery/roomSets';
+import {supportsWebgpuRoom,fitsWebgpuRoom} from '../../src/mmdVrShowcase/xr/floorBackend';
+import {classroomMaterials} from './classroomMaterials.jsx';
 import {trackedContacts} from './stage-tracked-contacts.js';
 import {usePlayerMovement} from '../../src/mmdVrShowcase/movement/usePlayerMovement';
 
@@ -50,6 +54,7 @@ export function startGameFloor({resume=false,onStatus}) {
 function startFloor({resume,onStatus,fixture}) {
   const origin=React.createRef(),log={phase:'request',frames:0};
   const initialEpoch=useMmdVrStore.getState().entryEpoch;
+  const entryState=useMmdVrStore.getState(),entryRoom=fixture?'floor':resume?entryState.savedStage?.scenery:entryState.prefs.scenery;
   let closing=false,committed=false,session,ended=false,ending,renderer,root,store,xrStore,backend,undo,unbindHands,epoch;
   let timer,backendTask,resolveStop,resolveEarly,prevTime,elapsed=0,pageRetired=false,lost=false;
   const profile=getMmdVrRenderProfile(useMmdVrStore.getState().prefs);
@@ -60,10 +65,10 @@ function startFloor({resume,onStatus,fixture}) {
   function readLayout(){
     const state=useMmdVrStore.getState();
     if(state.overlayOpen || state.entryEpoch!==initialEpoch)throw Error('Another stage was opened');
-    if(!fixture && (state.prefs.scenery!=='floor' || (resume && state.savedStage?.scenery!=='floor')))throw Error('请选择摄影地台。');
+    if(!supportsWebgpuRoom(entryRoom) || (!fixture && state.prefs.scenery!==entryState.prefs.scenery))throw Error('Room selection changed before entry');
     if(!resume)return null;
-    const layout=useBackpack.getState().layouts.floor, saved=state.savedStage?.scenery==='floor'?state.savedStage:null;
-    if([layout,saved].some(s=>s && (s.assets.length>1 || s.models.length>1 || s.objects.length || s.assets.some(slot=>slot.kind!=='model'))))throw Error('请在普通舞台把摄影地台整理为至多一位角色再进入。');
+    const layout=useBackpack.getState().layouts[entryRoom], saved=state.savedStage?.scenery===entryRoom?state.savedStage:null;
+    if(!fitsWebgpuRoom(layout??saved))throw Error('请在 WebGL 中把该布景整理为一位角色、无导入物件后再继续。');
     return layout??saved;
   }
   // A cancelled permission prompt can still resolve after the next click.
@@ -141,12 +146,12 @@ function startFloor({resume,onStatus,fixture}) {
       undo=bindR187ProjectionOutput(renderer);
       const scene=new T.Scene(),camera=new T.PerspectiveCamera(60,1,.05,40),sun=React.createRef();
       const prefs=useMmdVrStore.getState().prefs;
-      const lighting=resolveStageLighting(prefs.lightPreset,{});
+      const lighting=resolveStageLighting(prefs.lightPreset,roomSets[entryRoom]);
       extend(THREE); // Same JSX constructors as the product Canvas; no registry edits on preload.
       root=createRoot(renderer.domElement);
       await root.configure({gl:renderer,scene,camera,frameloop:'never',dpr:1,size:{width:320,height:320,top:0,left:0}});
       if(closing)return;
-      store=root.render(<StageEnvironment scenery="floor" prefs={prefs} profile={getMmdVrRenderProfile(prefs)} lighting={lighting} sunRef={sun}/>);
+      store=root.render(<DaylightMaterials.Provider value={classroomMaterials}><StageEnvironment scenery={entryRoom} prefs={prefs} profile={profile} lighting={lighting} sunRef={sun}/></DaylightMaterials.Provider>);
       // R3F's default sessionstart handler targets WebGL's xr.setAnimationLoop.
       // With an external r187 renderer, XRManager itself owns setSession + RAF.
       store.getState().xr.disconnect();
@@ -185,15 +190,15 @@ function startFloor({resume,onStatus,fixture}) {
               const state=useMmdVrStore.getState();
               beginMmdVrAssetSession(saved?.assets??[],'soloFloor');
               prepareBackpackEntry(resume);
-              if(state.prefs.scenery!=='floor')state.setPrefs({scenery:'floor'});
+              if(state.prefs.scenery!==entryRoom)state.setPrefs({scenery:entryRoom});
               state.openOverlay('xr');epoch=useMmdVrStore.getState().entryEpoch;committed=true;
               useMmdVrStore.setState({phase:'active',resumeStage:saved,...(!resume&&{savedStage:null}),
                 physicsEnabled:saved?.physicsEnabled??true,...(fixture&&{physicsDebugEnabled:true})});
               // XR's sessionstart happened before this subtree mounted. Its
               // pointer portal and Three's eye update both use camera.parent.
               store.setState({camera:renderer.xr.getCamera()});
-              root.render(<XR store={xrStore}>{fixture?<><FloorPlayer origin={origin} contacts={fixture.contacts}/><MmdVrStageContent backend={b}/><BackpackPlacement/></>:
-                <MmdVrGameRoom originRef={origin} backend={b} onExit={stop} busy={false}/>}</XR>);
+              root.render(<DaylightMaterials.Provider value={classroomMaterials}><XR store={xrStore}>{fixture?<><FloorPlayer origin={origin} contacts={fixture.contacts}/><MmdVrStageContent backend={b}/><BackpackPlacement/></>:
+                <MmdVrGameRoom originRef={origin} backend={b} onExit={stop} busy={false}/>}</XR></DaylightMaterials.Provider>);
             }).catch(stop);
           }
           if(committed&&log.phase!=='active'&&useMmdVrStore.getState().captureStage){clearTimeout(timer);publish('active');}

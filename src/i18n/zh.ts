@@ -202,7 +202,7 @@ export const zh = {
   stageRestart: "进入空舞台",
   stageResumeHint: "继续可恢复上次的舞台，包括已摆放的角色、物件和播放位置。",
   exportSessionPerformance: "导出上次 VR 性能记录（JSON）",
-  floorXrRenderer: '摄影地台 VR 渲染器', exportBackendComparison:'导出 WebGPU / WebGL 性能对照（JSON）',
+  floorXrRenderer: 'VR 渲染器', exportBackendComparison:'导出 WebGPU / WebGL 性能对照（JSON）',
   floorWebgpuSolo:'WebGPU · 单角色',
   loadScene: "正在准备 VR 场景",
   loadSceneHint: "正在下载场景模块。你可以返回准备页，已选文件会保留。",

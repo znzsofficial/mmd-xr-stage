@@ -17,7 +17,7 @@ pnpm run deploy
 
 `release:prepare` 一次执行远端 loader 对齐、`check`（含一次构建）和旧标签页桥校验；成功后在上传目录之外的 `stage-release.local` 留下 Git 提交与完整文件树 SHA-256。重新准备会先作废旧收据。`pnpm run deploy` 只晋级：核对当前提交、工作树和 `dist` 全部文件名／内容，使用固定 `wrangler@4.128.0` 上传同一目录，再核对主域入口及关键资源。没有收据、改过源码或制品拒绝上传；上线后如遇传播或网络故障可单独重试 `pnpm run release:live`，不必重新部署。收据覆盖自动检查；镜片观感不是收据的一部分。Git 默认分支是 **master**，Pages 生产分支是 **main**。
 
-摄影地台从正式准备页选择「摄影地台 → WebGPU · 单角色」，也可用 `/?set=floor&xrBackend=webgpu`。默认 WebGL；只有选择地台的 WebGPU 后才取后端模块。构建校验准备页静态图不含该后端；`node scripts/webgpu-actor/floor-report-smoke.cjs dist` 实走普通入口选择、同页二次入场与 WebGL 续场。若需独立资格预览，`pnpm exec vite build --mode webgpu-qualification` 仍写 `dist-qualification/`，不要用它覆盖生产 `dist/`。
+教室与地台从准备页选择「WebGPU · 单角色」，或用 `/?set=classroom&xrBackend=webgpu`、`/?set=floor&xrBackend=webgpu`。默认 WebGL；构建校验准备页静态图不含该后端。`node scripts/webgpu-actor/floor-report-smoke.cjs dist classroom` 实走编译版入口、同页二次入场与 WebGL 续场；`game-floor-smoke.cjs <pmx> <vmd> --classroom` 验证真实双眼绘制及教室／地台布局往返。独立资格预览仍写 `dist-qualification/`，不要用它覆盖生产 `dist/`。
 
 发布前检查构建 exit code；不要用 `| Select-Object` 等过滤管道掩盖失败。合并前完成必要验证和构建，合并后复用制品及时部署。验证生产 HTML 引用、JS/CSS/Bullet/动画 WASM 的内容哈希；HTTP 200 本身不能证明资源存在，因为 SPA 回退可能返回 HTML。验证 URL 加新的 cache-buster，勿复用旧查询参数。
 
