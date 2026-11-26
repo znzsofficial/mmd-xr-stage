@@ -1,6 +1,6 @@
 # 会话交接｜2026-11-26
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `d820377`](https://8261674e.mmd-xr-stage.pages.dev) · [WebGPU 裙摆实验](https://mmd-xr-stage.pages.dev/labs/cloth/) · [发布记录](./release-history.md) · [文档索引](./README.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `a96e4a2`](https://2626baa0.mmd-xr-stage.pages.dev) · [WebGPU 裙摆实验](https://mmd-xr-stage.pages.dev/labs/cloth/) · [发布记录](./release-history.md) · [文档索引](./README.md)
 
 **压缩后从这里接：「同一背包、一景一人」已在桌面实绘收工。下一项是同一演员的卡拉彼丘近景。** [内部摄影地台](./webgpu-xr-status.md#正式背包与摄影地台如何走开发入口)复用正式背包、StageRoom、动作时钟、身体 Bullet 与快照。旧 `xr-room.html` 仍是独立选模型的基线；不要从它另造演员。正式舞台仍为 WebGL＋Bullet；线上 `/labs/cloth/` 与内部地台共用裙摆内核。新接线没有 Quest 实戴或同机帧率结论。
 
