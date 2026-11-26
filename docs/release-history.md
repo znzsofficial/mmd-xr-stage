@@ -12,6 +12,7 @@
 
 | 功能提交 | 已发布内容与验证范围 |
 |---|---|
+| `70f0b09` | [正式舞台固定版](https://31d9de6f.mmd-xr-stage.pages.dev)保持 WebGL。相同源码的[摄影地台资格预览](https://dda12b71.mmd-xr-stage.pages.dev/?set=floor&xrBackend=webgpu)从原菜单、背包、角色详情运行 WebGPU，已验模拟双眼的选人／托裙／续场换人／回退。1067 项舞台和 25 项工具测试通过；正式主域 19 项、预览入口及其依赖 7 项核对。洛茜 v4 对照留本地。 |
 | `a89ac63` | [固定版](https://b3c336c5.mmd-xr-stage.pages.dev)更新共用走路回调时序。正式舞台仍是 WebGL＋Bullet。内部 WebGPU 地台实测走动、转身后双眼／放置／双手托裙及失追归位；洛茜三版实绘另见[画风文档](./scenery/character-toon-references.md)。移动组件 3 项测试、构建及主域 5 项资源核对通过。 |
 | `a96e4a2` | [正式舞台固定版](https://2626baa0.mmd-xr-stage.pages.dev)保留 WebGL＋Bullet；新增可选的演员后端接口供[内部共享背包摄影地台](./webgpu-xr-status.md#正式背包与摄影地台如何走开发入口)使用。桌面 GPU 模拟双眼，0.4 s 暂停舞段的双托、先后撤手、同演员续播、全身 Bullet 回退及保留布局恢复 WebGL 通过。1062 项舞台测试、25 项工具测试通过；已构建的正式准备页有 XRFrame、独立布料实验有原衣双眼。360 个文件，19 项主域资源逐字节一致。 |
 | `d820377` | [线上独立实验](https://8261674e.mmd-xr-stage.pages.dev/labs/cloth/)改用与开发版 Three XR 房间共用的 WGSL 内核，主舞台入口资源未变。构建后的实验页用原衣、碰撞分组与模拟双眼回归，主域 19 项核对通过。[新房间的衣面/描边与双手实测](./webgpu-xr-status.md#原衣裙链已接入-three-房间)仅在内部入口。 |

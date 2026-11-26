@@ -1,6 +1,6 @@
 # 会话交接｜2026-11-26
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `a89ac63`](https://b3c336c5.mmd-xr-stage.pages.dev) · [WebGPU 裙摆实验](https://mmd-xr-stage.pages.dev/labs/cloth/) · [发布记录](./release-history.md) · [文档索引](./README.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `70f0b09`](https://31d9de6f.mmd-xr-stage.pages.dev) · [正式首页 WebGPU 摄影地台预览](https://webgpu-floor-preview.mmd-xr-stage.pages.dev/?set=floor&xrBackend=webgpu) · [WebGPU 裙摆实验](https://mmd-xr-stage.pages.dev/labs/cloth/) · [发布记录](./release-history.md)
 
 **本轮双线已验。** 摄影地台的 WebGPU 资格后端从正式准备页进入，复用游戏的菜单、背包和演员详情；已通过模拟双眼的选第二人、托裙、绑舞段、播停、收回换人及 WebGL 交接。Quest 镜片、触觉和实机慢帧仍未验。洛茜 v4 已取得同光的 v3/v4 半身和近景对照、31 帧转头；图在 `local-review/screenshots/rossi-hybrid-bust-v4/{comparison.png,head-turn.webp}`。下一决策：地台看 Quest 实戴；画风看短转头后判断近远细描边是否值得做。
 
