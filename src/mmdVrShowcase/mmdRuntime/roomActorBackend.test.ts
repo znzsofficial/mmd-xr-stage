@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach, expect, it, vi } from 'vitest';
-import { DirectionalLight, Matrix4, PerspectiveCamera, Scene, Triangle, Vector3 } from 'three';
+import { DirectionalLight, Group, Matrix4, PerspectiveCamera, Scene, Triangle, Vector3 } from 'three';
 import { createCustomBulletMmdPhysicsBackend } from '@yohawing/three-mmd-loader/physics';
 import { getBulletModule } from './bulletModule';
 import { createMmdRuntimeHandle } from './mmdRuntime';
@@ -35,7 +35,8 @@ function actorFile(hasSkirt: boolean) {
 async function mount(hasSkirt=true) {
   const scene=new Scene(), light=new DirectionalLight(), camera=new PerspectiveCamera();
   const renderer={init:async()=>{},isWebGPURenderer:true,backend:{isWebGPUBackend:true},xr:{enabled:true},compute:vi.fn()};
-  const backend=await createStageActorBackend(renderer,scene,light);
+  const origin={current:new Group()}; // This fixture's player stands at the world origin.
+  const backend=await createStageActorBackend(renderer,scene,light,origin);
   const parked=new Matrix4().makeTranslation(0,-1000,0), shape=()=>({type:'sphere' as const,size:[.01,.01,.01] as const});
   const runtime=createMmdRuntimeHandle(scene,{actorBackend:backend,controllerColliders:()=>[parked,parked],
     handColliders:()=>Array(12).fill(parked),propColliders:()=>Array(8).fill(parked),propShape:shape});
