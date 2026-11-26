@@ -1,6 +1,7 @@
 import { createMmdTslPipeline, disposeMmdTslShadowCaster } from '@yohawing/three-mmd-loader/webgpu';
 import { max, sRGBTransferEOTF, sRGBTransferOETF } from 'three/tsl';
 import { hybridToonColor, parseHybridSlots } from './hybridToon.js';
+import { endfieldColor } from './endfieldToon.js';
 
 // Fork 3ac1d8e, webgpu/material-core.ts: the pipeline's colorNode returns
 // EOTF(clamp(toon/sphere/specular composite, 0, 1)). Its public output cannot
@@ -31,8 +32,8 @@ function balancedToonColor(linear, ambientIntensity) {
  * Detach releases TSL compute/shadow helpers; it does not undo material and
  * outline replacement. Discard a failed/retired model rather than reattaching it.
  */
-export async function createActorMaterialAdapter(renderer, light, { balancedModelColor = false, ambientIntensity = 0.55, hybridSlots } = {}) {
-  const slots = parseHybridSlots(hybridSlots);
+export async function createActorMaterialAdapter(renderer, light, { balancedModelColor = false, ambientIntensity = 0.55, hybridSlots, endfield = false } = {}) {
+  const slots = parseHybridSlots(hybridSlots, endfield);
   // The facade awaits init() and checks the selected backend after fallback.
   const pipeline = await createMmdTslPipeline(renderer, {
     light,
@@ -58,7 +59,7 @@ export async function createActorMaterialAdapter(renderer, light, { balancedMode
           // different material; opacityNode, alpha test and depth stay loader-owned.
           if (!material.userData.mmdTslMaterialUniforms) continue;
           if (balancedModelColor) material.colorNode = balancedToonColor(material.colorNode, ambientIntensity);
-          if (slots.has(index)) material.colorNode = hybridToonColor(material.colorNode, material, slots.get(index));
+          if (slots.has(index)) material.colorNode = endfield ? endfieldColor(material.colorNode, material, slots.get(index), model.mesh) : hybridToonColor(material.colorNode, material, slots.get(index));
         }
       }
       return attached;

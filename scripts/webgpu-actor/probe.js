@@ -7,7 +7,7 @@ import { materialSlotKeys } from '../../src/mmdVrShowcase/mmdRuntime/materialSlo
 import { prepareMmdVrModel } from '../../src/mmdVrShowcase/stage/loading/prepareMmdVrModel';
 import { firstCharacterScale } from '../../src/mmdVrShowcase/stage/loading/firstCharacterScale';
 import { createActorMaterialAdapter } from './materialAdapter.js';
-import { parseHybridSlots } from './hybridToon.js';
+import { nprRoles, parseHybridSlots } from './hybridToon.js';
 import { measureFringe } from './fringeStudy.js';
 
 const SIZE = 600, AMBIENT = .55;
@@ -17,7 +17,9 @@ const path = f => f.webkitRelativePath || f.name;
 const inputFiles = () => [...$('folder').files, ...$('motion').files];
 const materials = mesh => [mesh.material].flat();
 const hybridRoles = ['cloth', 'leather', 'metal'];
-const gradeNames = { balanced: '舞台平衡色', hybrid: '写实卡渲', legacy: 'Loader 原色' };
+const endfieldRoles = [...nprRoles, ...hybridRoles];
+const slotField = role => role === 'hair' ? 'nprHairSlots' : `${role}Slots`;
+const gradeNames = { balanced: '舞台平衡色', hybrid: '写实卡渲', endfield:'仿终末地 · Hybrid NPR-PBR', legacy: 'Loader 原色' };
 
 function showSlotCatalog(source) {
   // Names belong only to the actor's local controls, never to comparison metrics.
@@ -56,8 +58,8 @@ function framing(model, scale, focus, yaw) {
       if (head) head.getWorldPosition(center).y += height * scale * .06;
       else center.y = (box.max.y - height * .135) * scale;
     }
-    center.y -= height * scale * (focus === 'face' ? .012 : .14);
-    radius = height * scale * (focus === 'face' ? .335 : .83);
+    center.y -= height * scale * (focus === 'face' ? .012 : focus === 'portrait' ? .105 : .14);
+    radius = height * scale * (focus === 'face' ? .335 : focus === 'portrait' ? .95 : .83);
   }
   const a = T.MathUtils.degToRad(yaw), eye = center.clone().addScaledVector(new T.Vector3(Math.sin(a), .06/originalRadius, Math.cos(a)),radius);
   return { scale, focus, yaw, eye: eye.toArray(), center: center.toArray() };
@@ -86,10 +88,10 @@ function maxDelta(a, b) {
 function snapshot(renderer, scene, camera) {
   renderer.render(scene, camera);
   // Copy in the submitting task, before the browser presents/recycles the swap texture.
-  const copy = document.createElement('canvas'); copy.width = copy.height = SIZE;
+  const copy = document.createElement('canvas'); copy.width = copy.height = renderer.domElement.width;
   const ctx = copy.getContext('2d', { willReadFrequently: true });
   ctx.drawImage(renderer.domElement, 0, 0);
-  return { copy, pixels: ctx.getImageData(0, 0, SIZE, SIZE).data };
+  return { copy, pixels: ctx.getImageData(0, 0, copy.width, copy.height).data };
 }
 function changedPixels(a, b) {
   let changed = 0;
@@ -148,8 +150,8 @@ async function draw(gpu, input, common) {
   if (gpu) renderer.onError = info => { gpuError ??= new Error(`WebGPU ${info.type}: ${info.message}`); };
   let adapter, model;
   try {
-    if (gpu) adapter = await createActorMaterialAdapter(renderer, light, {balancedModelColor:input.balanced,ambientIntensity:AMBIENT,hybridSlots:input.hybridSlots}); // rejects WebGL fallback
-    renderer.setPixelRatio(1); renderer.setSize(SIZE, SIZE, false); renderer.setClearColor(0, 0);
+    if (gpu) adapter = await createActorMaterialAdapter(renderer, light, {balancedModelColor:input.balanced,ambientIntensity:AMBIENT,hybridSlots:input.hybridSlots,endfield:input.grade==='endfield'}); // rejects WebGL fallback
+    renderer.setPixelRatio(input.focus === 'portrait' ? 2 : 1); renderer.setSize(SIZE, SIZE, false); renderer.setClearColor(0, 0);
     renderer.outputColorSpace = T.SRGBColorSpace; renderer.toneMapping = T.NoToneMapping;
     model = await input.loader.loadModel(input.pmx, adapter?.loadOptions);
     const source = materials(model.mesh), slotCount = source.length;
@@ -256,19 +258,19 @@ async function draw(gpu, input, common) {
 // Selectors accept a File in files, an exact relative path or a unique basename.
 // Omit vmd for bind pose; pass a .vpd via pose instead. hideSlot is zero-based.
 let busy = false, lastShot;
-window.compareActor = async ({ files = inputFiles(), pmx, vmd, pose, time = 0, scale, hideSlot, lightYaw, focus = 'body', yaw = originalYaw, balanced = true, hybridSlots, fringeStudy, studySlots, singlePassHair = false } = {}) => {
+window.compareActor = async ({ files = inputFiles(), pmx, vmd, pose, time = 0, scale, hideSlot, lightYaw, focus = 'body', yaw = originalYaw, balanced = true, hybridSlots, endfield = false, fringeStudy, studySlots, singlePassHair = false } = {}) => {
   if (busy) throw Error('A comparison is running');
   if (!Number.isFinite(time) || time < 0 || (scale != null && (!Number.isFinite(scale) || scale < .01 || scale > 10))) throw Error('Invalid time or placement scale');
   if (lightYaw != null && !Number.isFinite(lightYaw)) throw Error('Invalid light angle');
-  if (!['body','face','bust'].includes(focus) || !Number.isFinite(yaw)) throw Error('Invalid camera framing');
+  if (!['body','face','bust','portrait'].includes(focus) || !Number.isFinite(yaw)) throw Error('Invalid camera framing');
   busy = true; $('controls').disabled = true; $('summary').textContent = ''; $('slotChanges').textContent = '';
   $('previous').hidden = true; $('previousImage').removeAttribute('src'); $('gpuCaption').textContent = 'WebGPU';
   for (const id of ['webgl', 'webgpu']) $(id).removeAttribute('src');
   try {
-    const selection = parseHybridSlots(hybridSlots), emptyHybrid = hybridSlots != null && !selection.size;
+    const selection = parseHybridSlots(hybridSlots, endfield), emptyHybrid = hybridSlots != null && !selection.size;
     // Snapshot caller-owned arrays before either backend starts loading files.
-    hybridSlots = selection.size ? Object.fromEntries(hybridRoles.map(k => [k, [...(hybridSlots[k] ?? [])]])) : undefined;
-    const grade = hybridSlots ? 'hybrid' : balanced ? 'balanced' : 'legacy';
+    hybridSlots = selection.size ? Object.fromEntries((endfield ? endfieldRoles : hybridRoles).map(k => [k, [...(hybridSlots[k] ?? [])]])) : undefined;
+    const grade = hybridSlots ? (endfield ? 'endfield' : 'hybrid') : balanced ? 'balanced' : 'legacy';
     const all = Array.from(files), file = pick(all, pmx, PMX);
     const loader = new ThreeMmdLoader({ textureResolver: createLocalTextureResolver(file, all), geometryAwareAlpha: true, runtime: { physics: 'none' } });
     const selected = pose ?? vmd, motion = selected ? pick(all, selected, CLIP) : null;
@@ -302,7 +304,7 @@ function resetActorSlots() {
   for (const id of ['webgl','webgpu','previousImage']) $(id).removeAttribute('src');
   for (const id of ['summary','status','slotChanges']) $(id).textContent = '';
   $('slotList').replaceChildren(); $('catalogStatus').textContent = '首次渲染对照后，这里会列出当前演员的材质。';
-  for (const id of ['regions','hairSlots','eyeSlots',...hybridRoles.map(key => `${key}Slots`)]) $(id).value = '';
+  for (const id of ['regions','hairSlots','eyeSlots',...endfieldRoles.map(slotField)]) $(id).value = '';
 }
 function choices() {
   const oldActor = $('pmx').value;
@@ -314,13 +316,13 @@ function choices() {
 $('folder').onchange = () => { choices(); resetActorSlots(); };
 $('pmx').onchange = resetActorSlots; $('motion').onchange = choices;
 $('grade').onchange = () => {
-  const hybrid = $('grade').value === 'hybrid'; $('hybridControls').hidden = !hybrid;
+  const isNpr = $('grade').value === 'endfield', hybrid = isNpr || $('grade').value === 'hybrid'; $('hybridControls').hidden = !hybrid; $('nprControls').hidden = !isNpr;
   if (hybrid) $('catalog').open = true;
 };
 const slotList = id => $(id).value.trim().split(/[,，\s]+/).filter(Boolean).map(s => /^\d+$/.test(s) ? Number(s) : NaN);
 $('run').onclick = () => window.compareActor({ pmx: $('pmx').value, vmd: $('clip').value, time: $('time').valueAsNumber,
-  lightYaw: $('light').value === '' ? undefined : Number($('light').value), focus:$('focus').value, yaw:$('yaw').value===''?originalYaw:Number($('yaw').value), balanced:$('grade').value!=='legacy',
-  hybridSlots:$('grade').value==='hybrid'?Object.fromEntries(hybridRoles.map(key => [key, slotList(`${key}Slots`)])):undefined,
+  lightYaw: $('light').value === '' ? undefined : Number($('light').value), focus:$('focus').value, yaw:$('yaw').value===''?originalYaw:Number($('yaw').value), balanced:['balanced','hybrid'].includes($('grade').value), endfield:$('grade').value==='endfield',
+  hybridSlots:['hybrid','endfield'].includes($('grade').value)?Object.fromEntries(($('grade').value==='endfield'?endfieldRoles:hybridRoles).map(key => [key, slotList(slotField(key))])):undefined,
   studySlots:slotList('regions'), singlePassHair:$('singleHair').checked,
   fringeStudy:$('hairSlots').value.trim()||$('eyeSlots').value.trim()?{hairSlots:slotList('hairSlots'),eyeSlots:slotList('eyeSlots')}:undefined }).catch(err => { $('status').textContent = String(err); });
 if (import.meta.env.DEV && new URLSearchParams(location.search).has('cloth-proof')) void import('./cloth-proof.js').then(m => m.installClothProof());

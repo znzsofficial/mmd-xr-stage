@@ -15,11 +15,12 @@
 <label>演员 <select id="pmx"></select></label> <label>姿势 <select id="clip"><option value="">原始站姿</option></select></label>
 <label>时间（秒） <input id="time" type="number" min="0" step="any" value="0"></label>
 <label>主光 <select id="light"><option value="">基准</option><option value="-60">左前 60°</option><option value="0">正前</option><option value="60">右前 60°</option></select></label>
-<label>镜头 <select id="focus"><option value="body">全身</option><option value="face">脸部</option><option value="bust">半身</option></select></label>
-<label>方位 <select id="yaw"><option value="">基准</option><option value="0">正面</option><option value="45">侧前 45°</option><option value="75">近侧面 75°</option></select></label>
-<label>WebGPU 风格 <select id="grade"><option value="balanced">舞台平衡色</option><option value="hybrid">写实卡渲</option><option value="legacy">Loader 原色</option></select></label>
-<fieldset id="hybridControls" hidden><legend>写实卡渲材质</legend>
-<small>参考《明日方舟：终末地》的美术方向，非官方。按下方材质表填写原槽号，多项用逗号分隔。每槽只选一种质感，未填的保留舞台平衡色。</small><br>
+<label>镜头 <select id="focus"><option value="body">全身</option><option value="face">脸部</option><option value="bust">半身</option><option value="portrait">半身留顶</option></select></label>
+<label>方位 <select id="yaw"><option value="">基准</option><option value="0">正面</option><option value="25">侧前 25°</option><option value="45">侧前 45°</option><option value="75">近侧面 75°</option></select></label>
+<label>WebGPU 风格 <select id="grade"><option value="balanced">舞台平衡色</option><option value="hybrid">写实卡渲</option><option value="endfield">仿终末地 · Hybrid NPR-PBR</option><option value="legacy">Loader 原色</option></select></label>
+<fieldset id="hybridControls" hidden><legend>角色材质</legend>
+<small>按原 PMX 槽号分配，每槽只选一种，多项用逗号分隔。眼线和眼睛可以保留原画。</small><br>
+<span id="nprControls" hidden><label>面部 <input id="faceSlots" size="6"></label><label>身体皮肤 <input id="skinSlots" size="6"></label><label>头发 <input id="nprHairSlots" size="6"></label><br></span>
 <label>布料 <input id="clothSlots" size="10"></label><label>皮革 <input id="leatherSlots" size="10"></label><label>金属 <input id="metalSlots" size="10"></label></fieldset>
 <details id="catalog"><summary>原 PMX 槽号与材质名称</summary><small id="catalogStatus">首次渲染对照后，这里会列出当前演员的材质。</small><ol id="slotList" start="0"></ol></details>
 <details><summary>按原 PMX 材质槽取样</summary><small>槽号从 0 起，多项用逗号分隔。检查未分配的衣料、眼睛或皮肤时，将其填入「测色材质」，在同一机位先后渲染两种风格。若要单独检查发片覆盖眼睛的区域，再同时填写发片和眼睛。</small><br>

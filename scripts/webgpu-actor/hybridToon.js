@@ -13,12 +13,13 @@ const profiles = {
 };
 
 // Snapshot the selection once; reject ambiguity even within a single category.
-export function parseHybridSlots(selection) {
+export const nprRoles = ['face', 'skin', 'hair'];
+export function parseHybridSlots(selection, endfield = false) {
   const slots = new Map();
   if (selection == null) return slots;
   if (typeof selection !== 'object' || Array.isArray(selection)) throw new TypeError('hybridSlots must be an object');
   for (const [kind, indices] of Object.entries(selection)) {
-    if (!Object.hasOwn(profiles, kind) || !Array.isArray(indices)) throw new TypeError(`Invalid hybridSlots category or list: ${kind}`);
+    if (!(Object.hasOwn(profiles, kind) || (endfield && nprRoles.includes(kind))) || !Array.isArray(indices)) throw new TypeError(`Invalid hybridSlots category or list: ${kind}`);
     for (const i of indices) {
       if (!Number.isSafeInteger(i) || i < 0) throw new RangeError(`Invalid ${kind} PMX slot: ${i}`);
       if (slots.has(i)) throw new RangeError(`Duplicate hybrid PMX slot ${i}: ${slots.get(i)} and ${kind}`);
@@ -28,14 +29,13 @@ export function parseHybridSlots(selection) {
   return slots;
 }
 
-function conductorF0(material, u) {
+export function diffusePigment(material, u) {
   // Direct reflection needs *unlit* pigment. Same diffuse UV and live PMX
   // factors as the fork; don't use toon shadows or a baked sphere as albedo.
   const map = material.userData.mmdTslTextureReferences.diffuseMap;
   const factor = uniform(u.textureFactor);
   const tint = uniform(u.diffuse).mul(mix(vec3(1), factor.rgb, factor.a)).clamp();
-  const pigment = sRGBTransferEOTF(tint).mul(map ? texture(map).sample(uv()).rgb : vec3(1));
-  return pigment.mul(.72).add(.16); // keep a reflection even for dark painted metal
+  return sRGBTransferEOTF(tint).mul(map ? texture(map).sample(uv()).rgb : vec3(1));
 }
 
 export function hybridToonColor(base, material, kind) {
@@ -56,7 +56,7 @@ export function hybridToonColor(base, material, kind) {
   const denom = nh.mul(nh).mul(a2 - 1).add(1);
   const D = float(a2 / Math.PI).div(denom.mul(denom));
   const visibility = float(.25).div(nl.mul(1 - k).add(k).mul(nv.mul(1 - k).add(k)));
-  const f0 = kind === 'metal' ? conductorF0(material, u) : vec3(p.f0);
+  const f0 = kind === 'metal' ? diffusePigment(material, u).mul(.72).add(.16) : vec3(p.f0);
   const F = mix(f0, vec3(1), vh.oneMinus().pow(5));
   let reflection = F.mul(D).mul(visibility).mul(nl);
   if (p.sheen) reflection = reflection.add(nv.oneMinus().pow(3).mul(nl).mul(p.sheen));
