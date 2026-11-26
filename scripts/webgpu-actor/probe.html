@@ -4,10 +4,12 @@
 <link rel="icon" href="data:,">
 <style>
   body{font:1rem system-ui;margin:1rem auto;padding:0 1rem;max-width:80rem} label,button{display:inline-block;margin:.3rem} select{max-width:20rem}
-  section{display:flex;flex-wrap:wrap;gap:1rem} figure{margin:0;flex:1 1 18rem;min-width:0} img[src]{display:block;width:100%;background:#646870} pre{white-space:pre-wrap}
+  section{display:flex;flex-wrap:wrap;gap:1rem} figure{margin:0;flex:1 1 18rem;min-width:0} img:not([src]){display:none} img[src]{display:block;width:100%;background:#646870} pre{white-space:pre-wrap}
+  #slotList{max-height:12rem;overflow:auto;padding-inline-start:3rem;font-variant-numeric:tabular-nums;overflow-wrap:anywhere} fieldset{min-width:0} #controls{border:0;margin:0;padding:0}
 </style>
 <h1>PMX 同姿画面对照</h1>
-<p>两边用相同灯光、动作时刻和机位。WebGL 用舞台平衡色，WebGPU 可对照平衡色与 loader 原色。无物理、环境贴图、场景投影或后期。<a href="./xr-room.html">Three XR 双眼房间</a></p>
+<p>WebGL 固定为舞台平衡色。两边共用灯光、动作时刻和机位；切换 WebGPU 风格后，点「渲染对照」看同一帧。无物理、环境贴图、场景投影或后期。<a href="./xr-room.html">Three XR 双眼房间</a></p>
+<fieldset id="controls" aria-label="对照设置">
 <label>模型及贴图目录 <input id="folder" type="file" webkitdirectory multiple></label>
 <label>另选动作或姿势 <input id="motion" type="file" accept=".vmd,.vpd"></label><br>
 <label>演员 <select id="pmx"></select></label> <label>姿势 <select id="clip"><option value="">原始站姿</option></select></label>
@@ -15,12 +17,18 @@
 <label>主光 <select id="light"><option value="">基准</option><option value="-60">左前 60°</option><option value="0">正前</option><option value="60">右前 60°</option></select></label>
 <label>镜头 <select id="focus"><option value="body">全身</option><option value="face">脸部</option><option value="bust">半身</option></select></label>
 <label>方位 <select id="yaw"><option value="">基准</option><option value="0">正面</option><option value="45">侧前 45°</option><option value="75">近侧面 75°</option></select></label>
-<label>WebGPU 亮部 <select id="grade"><option value="balanced">舞台平衡色</option><option value="legacy">Loader 原色</option></select></label>
-<details><summary>按原 PMX 材质槽取样</summary><small>从 0 起，多项用逗号分隔；眼周对照同时填写发片和眼睛。</small><br>
+<label>WebGPU 风格 <select id="grade"><option value="balanced">舞台平衡色</option><option value="hybrid">写实卡渲</option><option value="legacy">Loader 原色</option></select></label>
+<fieldset id="hybridControls" hidden><legend>写实卡渲材质</legend>
+<small>参考《明日方舟：终末地》的美术方向，非官方。按下方材质表填写原槽号，多项用逗号分隔。每槽只选一种质感，未填的保留舞台平衡色。</small><br>
+<label>布料 <input id="clothSlots" size="10"></label><label>皮革 <input id="leatherSlots" size="10"></label><label>金属 <input id="metalSlots" size="10"></label></fieldset>
+<details id="catalog"><summary>原 PMX 槽号与材质名称</summary><small id="catalogStatus">首次渲染对照后，这里会列出当前演员的材质。</small><ol id="slotList" start="0"></ol></details>
+<details><summary>按原 PMX 材质槽取样</summary><small>槽号从 0 起，多项用逗号分隔。检查未分配的衣料、眼睛或皮肤时，将其填入「测色材质」，在同一机位先后渲染两种风格。若要单独检查发片覆盖眼睛的区域，再同时填写发片和眼睛。</small><br>
 <label>测色材质 <input id="regions" size="8"></label><label>发片 <input id="hairSlots" size="8"></label><label>眼睛 <input id="eyeSlots" size="8"></label>
 <label><input type="checkbox" id="singleHair">诊断：WebGL 双面透明发片只画一遍</label></details>
-<button id="run">渲染对照</button>
+<button id="run">渲染对照</button></fieldset>
 <p id="status" role="status"></p>
-<section><figure><figcaption>WebGL</figcaption><img id="webgl" alt="WebGL 演员画面"></figure>
-<figure><figcaption>WebGPU</figcaption><img id="webgpu" alt="WebGPU 演员画面"></figure></section>
+<section><figure><figcaption>WebGL · 舞台平衡色</figcaption><img id="webgl" alt="WebGL 演员画面"></figure>
+<figure><figcaption id="gpuCaption">WebGPU</figcaption><img id="webgpu" alt="WebGPU 演员画面"></figure>
+<figure id="previous" hidden><figcaption id="previousCaption"></figcaption><img id="previousImage" alt="上一次同姿 WebGPU 演员画面"></figure></section>
+<p id="slotChanges"></p>
 <pre id="summary"></pre><script type="module" src="./probe.js"></script></html>

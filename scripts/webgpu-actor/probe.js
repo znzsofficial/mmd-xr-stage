@@ -7,6 +7,7 @@ import { materialSlotKeys } from '../../src/mmdVrShowcase/mmdRuntime/materialSlo
 import { prepareMmdVrModel } from '../../src/mmdVrShowcase/stage/loading/prepareMmdVrModel';
 import { firstCharacterScale } from '../../src/mmdVrShowcase/stage/loading/firstCharacterScale';
 import { createActorMaterialAdapter } from './materialAdapter.js';
+import { parseHybridSlots } from './hybridToon.js';
 import { measureFringe } from './fringeStudy.js';
 
 const SIZE = 600, AMBIENT = .55;
@@ -15,6 +16,19 @@ const $ = id => document.getElementById(id);
 const path = f => f.webkitRelativePath || f.name;
 const inputFiles = () => [...$('folder').files, ...$('motion').files];
 const materials = mesh => [mesh.material].flat();
+const hybridRoles = ['cloth', 'leather', 'metal'];
+const gradeNames = { balanced: '舞台平衡色', hybrid: '写实卡渲', legacy: 'Loader 原色' };
+
+function showSlotCatalog(source) {
+  // Names belong only to the actor's local controls, never to comparison metrics.
+  $('slotList').replaceChildren(...source.map((m, index) => {
+    const info = m.userData.mmdMaterial;
+    const labels = [...new Set([info?.name,info?.englishName].map(n => n?.trim()).filter(Boolean))];
+    const row = document.createElement('li'); row.value = index;
+    row.textContent = labels.join(' / ') || '未命名'; return row;
+  }));
+  $('catalogStatus').textContent = `共 ${source.length} 个原始材质槽。名称仅在本页显示。`;
+}
 
 function pick(files, selector, type) {
   const candidates = files.filter(f => type.test(f.name));
@@ -106,6 +120,16 @@ function studySlots(indices, total, draws, full, redraw, common, gpu) {
     stats[slot]={commonPixels:n,meanAbsoluteRgb:n?+(sum/(n*3)).toFixed(2):null, lumaP50P90:levels.map(values=>{
       values.sort((a,b)=>a-b);return n?[.5,.9].map(q=>+values[Math.floor((n-1)*q)].toFixed(2)):null;
     })};
+    if (common.previous) {
+      // Fixed WebGL contribution mask, even when the style changes GPU coverage.
+      const previous = common.previous.pixels;
+      let pixels = 0, changed = 0;
+      for (let i=0;i<ref.mask.length;i++) if (ref.mask[i]) {
+        const j=i*4; pixels++;
+        if (full[j]!==previous[j] || full[j+1]!==previous[j+1] || full[j+2]!==previous[j+2] || full[j+3]!==previous[j+3]) changed++;
+      }
+      stats[slot].previousWebgpu = { pixels, changedPixels: pixels ? changed : null };
+    }
   }
   return stats;
 }
@@ -124,11 +148,17 @@ async function draw(gpu, input, common) {
   if (gpu) renderer.onError = info => { gpuError ??= new Error(`WebGPU ${info.type}: ${info.message}`); };
   let adapter, model;
   try {
-    if (gpu) adapter = await createActorMaterialAdapter(renderer, light, {balancedModelColor:input.balanced,ambientIntensity:AMBIENT}); // rejects WebGL fallback
+    if (gpu) adapter = await createActorMaterialAdapter(renderer, light, {balancedModelColor:input.balanced,ambientIntensity:AMBIENT,hybridSlots:input.hybridSlots}); // rejects WebGL fallback
     renderer.setPixelRatio(1); renderer.setSize(SIZE, SIZE, false); renderer.setClearColor(0, 0);
     renderer.outputColorSpace = T.SRGBColorSpace; renderer.toneMapping = T.NoToneMapping;
     model = await input.loader.loadModel(input.pmx, adapter?.loadOptions);
     const source = materials(model.mesh), slotCount = source.length;
+    if (!gpu) {
+      if (input.pmx === selectedActor()) showSlotCatalog(source);
+      for (const slots of Object.values(input.hybridSlots ?? {})) {
+        for (const slot of slots) if (slot >= slotCount) throw Error(`槽 ${slot} 不在当前演员的材质表内（0–${slotCount-1}）。`);
+      }
+    }
     if (input.hideSlot != null && (!Number.isInteger(input.hideSlot) || input.hideSlot < 0 || input.hideSlot >= slotCount)) throw Error('hideSlot must be an authored PMX slot index');
     const slots = model.diagnostics.materials.map(({ materialIndex: i, pmxTransparencyMode, textureTransparencyMode, finalTransparencyMode }) => ({
       index: i, textured: !!source[i].map, edge: !!source[i].userData.mmdMaterial?.flags?.edge,
@@ -206,6 +236,7 @@ async function draw(gpu, input, common) {
       await renderer.backend.device.queue.onSubmittedWorkDone();
       await new Promise(resolve => requestAnimationFrame(resolve));
       if (gpuError) throw gpuError;
+      common.gpuPixels = shot.pixels;
     }
     else {
       const gl = renderer.getContext();
@@ -213,6 +244,7 @@ async function draw(gpu, input, common) {
     }
     return { image: shot.copy.toDataURL('image/png'), metrics: { ...frame, time: input.time, glSinglePassHairControl:!gpu && input.singlePassHair, lightPosition: light.position.toArray(), evaluatedFrame: evaluated.frame, poseDeltaFromBind, poseDeltaFromGL,
       visiblePixels, partialAlphaPixels, outlineDrawMaterials: activeEdges.length, outlineChangedPixels, drawCalls, slots, fringe, regionStats,
+      grade: gpu ? input.grade : 'balanced', hybridSlots: gpu ? input.hybridSlots : undefined, previousWebgpuGrade: gpu ? common.previous?.grade : undefined,
       textureWarnings: model.diagnostics.textures.map(({ code, materialIndex }) => ({ code, materialIndex })),
     } };
   } finally {
@@ -223,38 +255,71 @@ async function draw(gpu, input, common) {
 
 // Selectors accept a File in files, an exact relative path or a unique basename.
 // Omit vmd for bind pose; pass a .vpd via pose instead. hideSlot is zero-based.
-let busy = false;
-window.compareActor = async ({ files = inputFiles(), pmx, vmd, pose, time = 0, scale, hideSlot, lightYaw, focus = 'body', yaw = originalYaw, balanced = true, fringeStudy, studySlots, singlePassHair = false } = {}) => {
+let busy = false, lastShot;
+window.compareActor = async ({ files = inputFiles(), pmx, vmd, pose, time = 0, scale, hideSlot, lightYaw, focus = 'body', yaw = originalYaw, balanced = true, hybridSlots, fringeStudy, studySlots, singlePassHair = false } = {}) => {
   if (busy) throw Error('A comparison is running');
   if (!Number.isFinite(time) || time < 0 || (scale != null && (!Number.isFinite(scale) || scale < .01 || scale > 10))) throw Error('Invalid time or placement scale');
   if (lightYaw != null && !Number.isFinite(lightYaw)) throw Error('Invalid light angle');
   if (!['body','face','bust'].includes(focus) || !Number.isFinite(yaw)) throw Error('Invalid camera framing');
-  busy = true; $('run').disabled = true; $('summary').textContent = '';
+  busy = true; $('controls').disabled = true; $('summary').textContent = ''; $('slotChanges').textContent = '';
+  $('previous').hidden = true; $('previousImage').removeAttribute('src'); $('gpuCaption').textContent = 'WebGPU';
   for (const id of ['webgl', 'webgpu']) $(id).removeAttribute('src');
   try {
+    const selection = parseHybridSlots(hybridSlots), emptyHybrid = hybridSlots != null && !selection.size;
+    // Snapshot caller-owned arrays before either backend starts loading files.
+    hybridSlots = selection.size ? Object.fromEntries(hybridRoles.map(k => [k, [...(hybridSlots[k] ?? [])]])) : undefined;
+    const grade = hybridSlots ? 'hybrid' : balanced ? 'balanced' : 'legacy';
     const all = Array.from(files), file = pick(all, pmx, PMX);
     const loader = new ThreeMmdLoader({ textureResolver: createLocalTextureResolver(file, all), geometryAwareAlpha: true, runtime: { physics: 'none' } });
     const selected = pose ?? vmd, motion = selected ? pick(all, selected, CLIP) : null;
     const clip = !motion ? null : /\.vpd$/i.test(motion.name) ? await loader.loadPoseAnimation(motion) : await loader.loadAnimation(motion);
-    const input = { pmx: file, loader, clip, time, scale, hideSlot, lightYaw, focus, yaw, balanced, fringeStudy, studySlots, singlePassHair }, common = {}, result = {};
+    const input = { pmx: file, loader, clip, time, scale, hideSlot, lightYaw, focus, yaw, balanced, grade, hybridSlots, fringeStudy, studySlots, singlePassHair }, common = {}, result = {};
+    const viewKey = JSON.stringify([time,scale,hideSlot,lightYaw,focus,yaw,singlePassHair]);
     for (const id of ['webgl', 'webgpu']) {
       $('status').textContent = `渲染 ${id}…`;
       result[id] = await draw(id === 'webgpu', input, common); $(id).src = result[id].image;
+      if (id === 'webgl' && lastShot?.file === file && lastShot.motion === motion && lastShot.viewKey === viewKey && lastShot.reference === result.webgl.image &&
+        lastShot.files.length === all.length && all.every((f,i) => f === lastShot.files[i])) common.previous = lastShot;
       $('summary').textContent += `${id}: ${JSON.stringify(result[id].metrics, (k, v) => k === 'slots' ? v.length : v)}\n`;
     }
-    $('status').textContent = '对照完成'; return result;
+    $('gpuCaption').textContent = `WebGPU · ${gradeNames[grade]}`;
+    if (common.previous) {
+      $('previousImage').src = common.previous.image; $('previousCaption').textContent = `上一次 WebGPU · ${gradeNames[common.previous.grade]}`; $('previous').hidden = false;
+      const changes = Object.entries(result.webgpu.metrics.regionStats ?? {}).map(([slot,{previousWebgpu:s}]) =>
+        s.pixels ? `槽 ${slot}：${s.changedPixels} / ${s.pixels} 像素改变` : `槽 ${slot}：无可测像素`);
+      if (changes.length) $('slotChanges').textContent = `与上一次 WebGPU 对照（按 WebGL 可见区域）：${changes.join('；')}。`;
+    }
+    // Keep only captures from one run, never renderers, materials or live models.
+    lastShot = { file, motion, viewKey, files:all, reference:result.webgl.image, pixels:common.gpuPixels, image:result.webgpu.image, grade };
+    $('status').textContent = emptyHybrid ? `尚未分配材质槽，本次显示${gradeNames[grade]}。` : '对照完成'; return result;
   } catch (err) { $('status').textContent = String(err); throw err; }
-  finally { busy = false; $('run').disabled = false; }
+  finally { busy = false; $('controls').disabled = false; }
 };
 
+const selectedActor = () => [...$('folder').files].find(f => PMX.test(f.name) && path(f) === $('pmx').value);
+function resetActorSlots() {
+  lastShot = undefined; $('previous').hidden = true; $('gpuCaption').textContent = 'WebGPU';
+  for (const id of ['webgl','webgpu','previousImage']) $(id).removeAttribute('src');
+  for (const id of ['summary','status','slotChanges']) $(id).textContent = '';
+  $('slotList').replaceChildren(); $('catalogStatus').textContent = '首次渲染对照后，这里会列出当前演员的材质。';
+  for (const id of ['regions','hairSlots','eyeSlots',...hybridRoles.map(key => `${key}Slots`)]) $(id).value = '';
+}
 function choices() {
+  const oldActor = $('pmx').value;
   const files = inputFiles(), options = type => files.filter(f => type.test(f.name)).map(f => new Option(path(f), path(f)));
   $('pmx').replaceChildren(...options(PMX)); $('clip').replaceChildren(new Option('原始站姿', ''), ...options(CLIP));
+  if ([...$('pmx').options].some(o => o.value === oldActor)) $('pmx').value = oldActor;
   if ($('motion').files[0]) $('clip').value = path($('motion').files[0]);
 }
-$('folder').onchange = $('motion').onchange = choices;
-const slotList = id => $(id).value.trim() ? $(id).value.trim().split(/[,，\s]+/).map(Number) : [];
+$('folder').onchange = () => { choices(); resetActorSlots(); };
+$('pmx').onchange = resetActorSlots; $('motion').onchange = choices;
+$('grade').onchange = () => {
+  const hybrid = $('grade').value === 'hybrid'; $('hybridControls').hidden = !hybrid;
+  if (hybrid) $('catalog').open = true;
+};
+const slotList = id => $(id).value.trim().split(/[,，\s]+/).filter(Boolean).map(s => /^\d+$/.test(s) ? Number(s) : NaN);
 $('run').onclick = () => window.compareActor({ pmx: $('pmx').value, vmd: $('clip').value, time: $('time').valueAsNumber,
-  lightYaw: $('light').value === '' ? undefined : Number($('light').value), focus:$('focus').value, yaw:$('yaw').value===''?originalYaw:Number($('yaw').value), balanced:$('grade').value==='balanced',
+  lightYaw: $('light').value === '' ? undefined : Number($('light').value), focus:$('focus').value, yaw:$('yaw').value===''?originalYaw:Number($('yaw').value), balanced:$('grade').value!=='legacy',
+  hybridSlots:$('grade').value==='hybrid'?Object.fromEntries(hybridRoles.map(key => [key, slotList(`${key}Slots`)])):undefined,
   studySlots:slotList('regions'), singlePassHair:$('singleHair').checked,
-  fringeStudy:$('hairSlots').value.trim()||$('eyeSlots').value.trim()?{hairSlots:slotList('hairSlots'),eyeSlots:slotList('eyeSlots')}:undefined }).catch(() => {});
+  fringeStudy:$('hairSlots').value.trim()||$('eyeSlots').value.trim()?{hairSlots:slotList('hairSlots'),eyeSlots:slotList('eyeSlots')}:undefined }).catch(err => { $('status').textContent = String(err); });

@@ -1,5 +1,6 @@
 import { createMmdTslPipeline } from '@yohawing/three-mmd-loader/webgpu';
 import { max, sRGBTransferEOTF, sRGBTransferOETF } from 'three/tsl';
+import { hybridToonColor, parseHybridSlots } from './hybridToon.js';
 
 // Fork 3ac1d8e, webgpu/material-core.ts: the pipeline's colorNode returns
 // EOTF(clamp(toon/sphere/specular composite, 0, 1)). Its public output cannot
@@ -21,7 +22,8 @@ function balancedToonColor(linear, ambientIntensity) {
  * once per frame before the fixture's own draw (not once per model or eye).
  * Pass { balancedModelColor: true, ambientIntensity } to test the stage's
  * default toon grade; pass the same ambient scalar as the WebGL reference.
- * Both omitting the options and passing false for the grade keep the loader baseline.
+ * hybridSlots optionally maps cloth/leather/metal to disjoint, zero-based PMX
+ * indices. Unlisted slots retain the requested grade (loader baseline if off).
  *
  * The fixture owns the renderer, light and loaded model, including its materials
  * and textures. In finally, detach(model) before the usual model disposal, and
@@ -29,7 +31,8 @@ function balancedToonColor(linear, ambientIntensity) {
  * Detach releases TSL compute/shadow helpers; it does not undo material and
  * outline replacement. Discard a failed/retired model rather than reattaching it.
  */
-export async function createActorMaterialAdapter(renderer, light, { balancedModelColor = false, ambientIntensity = 0.55 } = {}) {
+export async function createActorMaterialAdapter(renderer, light, { balancedModelColor = false, ambientIntensity = 0.55, hybridSlots } = {}) {
+  const slots = parseHybridSlots(hybridSlots);
   // The facade awaits init() and checks the selected backend after fallback.
   const pipeline = await createMmdTslPipeline(renderer, {
     light,
@@ -38,13 +41,20 @@ export async function createActorMaterialAdapter(renderer, light, { balancedMode
   return {
     loadOptions: pipeline.createModelLoadOptions(),
     attach(model, options) {
+      // Validate against authored slots before the fork replaces materials and
+      // appends outline slots. Invalid input leaves the loaded actor untouched.
+      const source = model.mesh.material, count = Array.isArray(source) ? source.length : 1;
+      for (const i of slots.keys()) {
+        if (i >= count) throw new RangeError(`Hybrid PMX slot ${i} outside authored slot count ${count}`);
+      }
       const attached = pipeline.attach(model, options);
-      if (attached && balancedModelColor) {
-        for (const material of [model.mesh.material].flat()) {
+      if (attached && (balancedModelColor || slots.size)) {
+        for (const [index, material] of [model.mesh.material].flat().entries()) {
           // Only fork toon surfaces have these uniforms. Appended edges use a
           // different material; opacityNode, alpha test and depth stay loader-owned.
           if (!material.userData.mmdTslMaterialUniforms) continue;
-          material.colorNode = balancedToonColor(material.colorNode, ambientIntensity);
+          if (balancedModelColor) material.colorNode = balancedToonColor(material.colorNode, ambientIntensity);
+          if (slots.has(index)) material.colorNode = hybridToonColor(material.colorNode, material, slots.get(index));
         }
       }
       return attached;
