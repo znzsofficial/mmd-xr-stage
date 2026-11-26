@@ -1,6 +1,6 @@
 # 会话交接｜2026-11-26
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `a96e4a2`](https://2626baa0.mmd-xr-stage.pages.dev) · [WebGPU 裙摆实验](https://mmd-xr-stage.pages.dev/labs/cloth/) · [发布记录](./release-history.md) · [文档索引](./README.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `a89ac63`](https://b3c336c5.mmd-xr-stage.pages.dev) · [WebGPU 裙摆实验](https://mmd-xr-stage.pages.dev/labs/cloth/) · [发布记录](./release-history.md) · [文档索引](./README.md)
 
 **洛茜第三版已出图：**`local-review/screenshots/rossi-hybrid-bust-v3/face-lights.png` 看二版／三版同姿下左右侧逆光及正光；`comparison.png` 看原半身机位，`hand-light.png` 单看露指透光开关。原模型的配套脸影图按头骨朝向和灯位取样，衣服和发色沿用二版。指骨区域估算厚薄，仅在逆光下作局部透光；毛耳、刘海真实投影与专用细描边未处理。三版侧逆光的鼻梁过渡更清楚，靠背光侧的脸颊仍偏灰。参照[官方洛茜战斗演示](https://www.youtube.com/watch?v=A5C7-5vi9SM)。
 

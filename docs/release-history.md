@@ -12,6 +12,7 @@
 
 | 功能提交 | 已发布内容与验证范围 |
 |---|---|
+| `a89ac63` | [固定版](https://b3c336c5.mmd-xr-stage.pages.dev)更新共用走路回调时序。正式舞台仍是 WebGL＋Bullet。内部 WebGPU 地台实测走动、转身后双眼／放置／双手托裙及失追归位；洛茜三版实绘另见[画风文档](./scenery/character-toon-references.md)。移动组件 3 项测试、构建及主域 5 项资源核对通过。 |
 | `a96e4a2` | [正式舞台固定版](https://2626baa0.mmd-xr-stage.pages.dev)保留 WebGL＋Bullet；新增可选的演员后端接口供[内部共享背包摄影地台](./webgpu-xr-status.md#正式背包与摄影地台如何走开发入口)使用。桌面 GPU 模拟双眼，0.4 s 暂停舞段的双托、先后撤手、同演员续播、全身 Bullet 回退及保留布局恢复 WebGL 通过。1062 项舞台测试、25 项工具测试通过；已构建的正式准备页有 XRFrame、独立布料实验有原衣双眼。360 个文件，19 项主域资源逐字节一致。 |
 | `d820377` | [线上独立实验](https://8261674e.mmd-xr-stage.pages.dev/labs/cloth/)改用与开发版 Three XR 房间共用的 WGSL 内核，主舞台入口资源未变。构建后的实验页用原衣、碰撞分组与模拟双眼回归，主域 19 项核对通过。[新房间的衣面/描边与双手实测](./webgpu-xr-status.md#原衣裙链已接入-three-房间)仅在内部入口。 |
 | `4922d5e` → `5c94a32` | [小行星交接](./architecture/gravity.md)：互斥活动模式、落地策略和单一 XR 视图输出；模拟双眼两跳后 1.810 m、约 0.02°。[移动固定版](https://2174bc2f.mmd-xr-stage.pages.dev)。随后只更新[实验室真实 VMD 同段对照](./performance/gpu-cloth-lab.md#真实-vmd-同段对照)；双模型桌面比较未证明进游戏的收益。分别用完整／快速发布档，同一制品上线，主域核对通过。[实验固定版](https://dc35cfbc.mmd-xr-stage.pages.dev/labs/cloth/) |
