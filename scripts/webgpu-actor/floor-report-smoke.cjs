@@ -5,7 +5,7 @@ const stereo=require('../../experiments/gpu-cloth/stereoShim.cjs'),extend=requir
 async function main(){
   const base=process.env.XR_SMOKE_DIR||path.join(os.tmpdir(),'opencode/xr-browser-smoke');
   const {chromium}=require(path.join(base,'node_modules/playwright-core')),{preview}=await import('vite');
-  const server=await preview({configFile:false,build:{outDir:'dist-qualification'},preview:{host:'127.0.0.1',port:0}});let browser;
+  const server=await preview({configFile:false,build:{outDir:process.argv[2]??'dist-qualification'},preview:{host:'127.0.0.1',port:0}});let browser;
   try{
     browser=await chromium.launch({channel:'msedge',headless:true,args:['--no-proxy-server','--enable-gpu','--ignore-gpu-blocklist','--use-angle=d3d11']});
     const page=await browser.newPage({locale:'zh-CN'}),errors=[];page.on('pageerror',e=>errors.push(e.message));
@@ -16,10 +16,15 @@ async function main(){
         s.supportedFrameRates=[80,90,120];s.updateTargetFrameRate=n=>{window.hint={n,submissions:s.stats.submissions};return new Promise(()=>{})};return s;
       }):gl(mode,init).then(s=>(window.glSession=s));
     })();`});
-    await page.goto(server.resolvedUrls.local[0]+'?set=floor&xrBackend=webgpu');
+    const hostRequests=[];page.on('request',r=>{if(/\/stage-host-[\w-]+\.js/.test(r.url()))hostRequests.push(r.url());});
+    await page.goto(server.resolvedUrls.local[0]);
+    await page.locator('.stage-first-room select').selectOption('floor');
+    assert.equal(await page.locator('[data-floor-renderer]').inputValue(),'webgl');
+    assert.equal(await page.locator('.stage-btn-primary').getAttribute('data-xr-backend'),'webgl');assert.equal(hostRequests.length,0);
     const {makeSwatch}=await import('../../experiments/gpu-cloth/swatch.js'),file=makeSwatch();
     await page.locator('input[type=file]').nth(1).setInputFiles({name:file.name,mimeType:'application/octet-stream',buffer:Buffer.from(await file.arrayBuffer())});
-    await page.locator('.stage-btn-primary[data-xr-backend=webgpu]').click();await page.locator('[data-xr-host=webgpu][data-phase=active]').waitFor();
+    await page.locator('[data-floor-renderer]').selectOption('webgpu');
+    await page.locator('.stage-btn-primary[data-xr-backend=webgpu]').click();await page.locator('[data-xr-host=webgpu][data-phase=active]').waitFor();assert(hostRequests.length>0);
     const first=await page.evaluate(()=>labSession.first);assert(first.light.every(x=>x>100)&&first.different>100);
     const hint=await page.evaluate(()=>window.hint);assert(hint.n>=80 && hint.submissions>0);
     await page.locator('.xr-stage-exit').click();await page.locator('[data-xr-host=webgpu]').waitFor({state:'detached'});

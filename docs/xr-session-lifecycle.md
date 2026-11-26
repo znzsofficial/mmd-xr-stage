@@ -33,7 +33,7 @@
 
 ## 摄影地台的 WebGPU 验证入口
 
-同一个 `src/main.tsx` 和准备页可以注入一个启动后端。在开发服务，或 `vite build --mode webgpu-qualification` 的独立产物中，用 `/?set=floor&xrBackend=webgpu`，再点击原来的「进入空舞台」或「继续上次舞台」。后端在按钮可用之前加载，点击时直接申请 XR；这一趟只由 WebGPU 宿主绑定和结束会话，绝不同时挂 WebGL Canvas。换到其他布景、普通屏幕观看或资格后端失败后的重试，仍走原实现。普通发布构建会剪去资格后端的动态导入；资格产物放在 `dist-qualification/`，与 `dist/` 分开。
+开发与正式站共用 `src/main.tsx` 和准备页。普通进入默认 WebGL；在摄影地台手选 WebGPU，或打开 `/?set=floor&xrBackend=webgpu` 后，才加载后端。点击「进入空舞台」或「继续上次舞台」时直接申请 XR；这次只由 WebGPU 宿主绑定和结束会话。其他布景、屏幕观看及失败回退仍走原实现。正常结束后每页可停放一份健康的渲染器与设备，停止帧循环，丢弃本场输入、演员、房间和投影层；再进场重新申请 XRSession，不刷新、不重导。设备丢失或离页则销毁它。独立验证产物仍放在 `dist-qualification/`。
 
 ## 实测发现的冷启动缺陷
 

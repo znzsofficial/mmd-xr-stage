@@ -1,16 +1,16 @@
 # 会话交接｜2026-11-26
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `b740d1b`](https://732a160a.mmd-xr-stage.pages.dev) · [摄影地台 · 双后端对照固定版](https://7fd73aba.mmd-xr-stage.pages.dev/?set=floor&xrBackend=webgpu) · [WebGPU 裙摆实验](https://mmd-xr-stage.pages.dev/labs/cloth/) · [发布记录](./release-history.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [正式 WebGPU 摄影地台](https://mmd-xr-stage.pages.dev/?set=floor&xrBackend=webgpu) · [Quest 重入实测固定版](https://4f690992.mmd-xr-stage.pages.dev/?set=floor&xrBackend=webgpu) · [发布记录](./release-history.md)
 
-**收尾主线：先定位 Quest 带演员续场时的 WebGPU device lost。** `b740d1b` 在 Quest 3S / Meta Browser 156 已取得空地台 WebGPU 的 90 个可见回调间隔；续同一页的洛茜＋《稳坦摇》、开物理时，XR 授权成功但设备丢失。原布局在 WebGL 续场成功，两眼有演员并播舞约 56 秒。尚无同演员 WebGPU 稳态段；主站仍默认 WebGL，单景入口不晋级。下一次只区分设备初始化／首个投影提交与原演员资源挂载的失败时序，保留同一文件和落点；不再让玩家从头排查 ADB、权限或重复测 WebGL。
+**已收工：主站可选的一景一人 WebGPU 摄影地台。** 准备页选摄影地台 →「WebGPU · 单角色」，或进上面的直达链接；屏幕观看、其他布景和默认入口仍是 WebGL。Quest 3S 上玩家确认放人、播舞、切换原 MMD／仿终末地；修复版同标签两趟都载入一位演员，玩家另确认「动作也能恢复」。两份重入导出里未采到播舞窗；旧版收到 19 个 WebGPU 播舞窗，中位 36 回调 FPS（实际 120 Hz，每眼 1680×1760），未证实相对 WebGL 提速。详见[设备证据](./webgpu-xr-status.md#正式背包与摄影地台如何走开发入口)。
 
 **可以现在结案：终末地角色缺图与 v5 样板。** 本机 12 份角色 PMX 均已在桌面 WebGPU 实绘，10 份能自动切画风。茶叶版提弗洛斯能加载，只有睫毛和表情的同一张 toon 使用默认渐变；另一份提弗洛斯的贴图全部命中。两份未切换的角色材质都能按原 MMD 显示。逐包结果见 `local-review/verification/endfield-pmx-audit/README.md`。无新阻断不继续扫库或做 v6。
 
-**WebGPU 回访：**玩家反馈早期 `ef79f621` 测试页「挺正常的」，该版不录 WebGPU 帧时。新的同页对照使用[滚动预览](https://webgpu-floor-preview.mmd-xr-stage.pages.dev/?set=floor&xrBackend=webgpu)；真实镜片、触觉及持续帧时仍未逐项确认。正式主站继续默认 WebGL。
+**发布后的任务盘点：没有另行开工的功能线。** 历史待办余五条：①准星／面板可读性和②校园、河街、持物握姿是真机回访；③角色首次拟合、泳池慢帧和④模型兼容／内存是按需专项；⑤恋活卡已搁置。普通 PMX 基础画风另存为停放计划。海边终点站、皮影台、唱片行是候选；[月面邮局等四幕](./gameplay/README.md#四幕玩法)及[喜院、医院连路、秦淮与音乐](./scenery/next-modeling-round.md)已上线，不算积压。若再开一轮，建议只选「单人舞段为什么掉帧」：同一机位、原 MMD、同一段动作做一次配对定位，拿到可重复改善才扩场。
 
 **先停放：普通 PMX 基础画风。** 珠霜舒芙蕾 3072×4096 的原 PMX 手动分槽渲染、机位及分组在 `local-review/screenshots/yvette-souffle-endfield/`。以后恢复时从 [`actorStyleSlots.js`](../scripts/webgpu-actor/actorStyleSlots.js) 与 [`actorStyle.js`](../scripts/webgpu-actor/actorStyle.js) 分开基础材质识别和专用图增强；沿用演员旁的选择，保留眉眼，用同演员播舞切换和暂停关物理切回的画面对照验收。此项不挡主站开放地台。
 
-**真机地点：**头显打开上面的滚动预览，从背包放人、绑舞段。比较后端时都选原 MMD，在准备页切渲染器后用「继续上次舞台」，同样的舞段各播一次再退出。页底「导出 WebGPU / WebGL 性能对照」包含同一页最近的两个纯地台会话。老预览和旧报告不需要重导。
+**可玩入口：**头显打开页首正式地台，从背包放人、绑舞段，退出后同页「继续上次舞台」。如以后做性能对照，两边都选原 MMD，页底一次导出同一页最近的两份纯地台记录；本轮不再征集导出。
 
 **双线已合到一个可玩里程碑。** WebGPU 摄影地台放下洛茜、选中演员 →「画风」切原 MMD／仿终末地。v5 在 v4 主光遮挡上增加了脸和身体的预积分皮肤扩散，以及按角色部位、近远和每眼像素调节的平滑描边。暂停舞段切换前后，双眼实测变化，切回原色精确恢复，续播同一演员。图在 `local-review/screenshots/rossi-hybrid-bust-v5/`，先看 `near-far-turn.webp` 和 `ablations.png`。远景发梢抗闪、Quest 镜片和帧时均没有实证；不要再安排一轮重复的背包或单效果演示。
 
@@ -18,17 +18,17 @@
 
 **衣料第二版已实绘：**`local-review/screenshots/rossi-hybrid-bust-v2/comparison.png` 并排对照两版，`cloth-detail.png` 看披肩与白衣局部。接入配套法线和 R/A 控制后，肩部转折、披肩压线、白衣折面更明显；红布高光仍宽，白裙背光褶谷略硬。无配套图恢复首版，脸与刘海取样区不变。
 
-[内部摄影地台](./webgpu-xr-status.md#正式背包与摄影地台如何走开发入口)已复用正式背包、StageRoom、动作时钟、身体 Bullet 与快照。「同一背包、一景一人」桌面实绘收工。正式舞台仍为 WebGL＋Bullet；新接线没有 Quest 实戴或同机帧率结论。
+[摄影地台](./webgpu-xr-status.md#正式背包与摄影地台如何走开发入口)复用正式背包、StageRoom、动作时钟、身体 Bullet 与快照。实机结果和开放范围以页首为准。
 
 ## 正在推进的线、收工点与决策
 
 | 工作线 | 接下来做什么 | 何时收束／谁决定 |
 |---|---|---|
-| **WebGPU：正式游戏流程** | [正式页入口与验证](./webgpu-xr-status.md#正式背包与摄影地台如何走开发入口)。准备页仍可选其他布景以 WebGL 运行。资格地台只容一位演员，但可选库中任何一个。 | 下一步在 Quest 集中验证入口、左右眼、射线、手部和退出。正式默认 WebGL。 |
+| **WebGPU：单景收工** | [正式页入口与验证](./webgpu-xr-status.md#正式背包与摄影地台如何走开发入口)。一景一位演员，未扩大到多人、道具或其他布景。 | 默认仍为 WebGL。扩大范围前再看配对慢帧、真实手部和持续体验。 |
 | **角色画风：洛茜 v5 收工** | [散射与细描边](./scenery/character-toon-references.md)已接舞台，普通 PMX 基础档已停放。 | 保留珠霜舒芙蕾的高分辨率图作后续参照。 |
 | **小 Bug：按需维护** | 入场失败保布局、移除演员后的播放时钟、暂停隐藏再显示的姿势均已修复上线。本轮无已确认的线上阻断项；教室后墙放置射线有规则反例，尚待实际操作复现。 | 丢布局、黑屏或主要操作失效才打断主线；普通问题复现后小修、针对性回归通过即收工。面板 5 条历史待办含设备回访、性能、兼容与搁置项，不是 5 个急修。 |
 
-**集成方向：**WebGPU 成熟后接回正式游戏入口；开发页只保留能测本轮行为的最少操作。新路径直接用正式舞台的背包与放置组件。开放可选入口之前，看同一接线在 Quest 上的双眼、输入与失败恢复；扩大场景或切默认，再看代表场景同机、同舞段、同刷新率与眼图尺寸的慢帧和观感。局部撕裂以后另议。[卡拉彼丘研究](./scenery/strinova-render-study.md)和[终末地 R/A 离线控制](./scenery/endfield-material-study.md)均已收工，按需查阅。
+**后续边界：**扩大场景或切默认，另看代表场景同机、同舞段、同刷新率与眼图尺寸的慢帧和观感。局部撕裂、卡拉彼丘画风和新景不随本次发布开工。
 
 ## 已完成的路线与证据
 

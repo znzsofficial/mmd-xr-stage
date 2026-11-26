@@ -1,7 +1,7 @@
 import {useEffect,useRef,useState} from 'react';
 import type { FloorSession, LoadFloorBackend, StartFloorSession } from '../xr/floorBackend';
 
-/** Preload only for a qualification link. Never await an import between the
+/** Preload only for the selected WebGPU floor. Never await an import between the
  * user's click and requestSession. A failed session returns to this same prep
  * page; the original WebGL launch buttons can then use the retained files. */
 export function useFloorBackend(load?:LoadFloorBackend) {

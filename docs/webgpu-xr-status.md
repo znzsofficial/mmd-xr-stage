@@ -2,6 +2,8 @@
 
 ## 已确认
 
+- **正式入口：**准备页开放单角色 WebGPU 地台，默认 WebGL。`6e7b9ab` 的修复在同一 Quest 标签页连续两趟 WebGPU 均加载演员，分别取得 804／480 个可见回调间隔；第二次使用 GPU 裙摆，玩家确认动作恢复。两趟录制窗口均未采到播放状态，动作恢复的证据是玩家反馈。旧版实戴播放窗是另一次采样。历史版本的「尚未开放」仅描述对应版本。
+
 - [Meta Browser 146.0](https://developers.meta.com/horizon/downloads/package/browser/146.0)（2026-04-21）宣布实验性 WebGPU in WebXR。
 - [Browser 150.1](https://developers.meta.com/horizon/downloads/package/browser/150.1) 增加实验性 WebGPU XR foveation；[152.1](https://developers.meta.com/vr/downloads/package/browser/152.1)（2026-10-02）增加实验性 composition layers，说明要求 `chrome://flags` 开启 webxr experiments。
 - [Meta Browser 156.0 发布说明](https://developers.meta.com/vr/downloads/package/browser/156.0/)（11-13，11-26 复查官方搜索索引）在 New Features 明列 “Support for WebGPU in WebXR”。同页标为实验性的 WebView 独立更新是另一条目。基本投影不依赖 foveation、额外合成层或特定刷新率；按当前设备实际会话选择后端。

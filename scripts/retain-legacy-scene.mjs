@@ -5,6 +5,15 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from 'node:path';
 
 const files = [
+  // Last WebGL-only production graph, before switching to usage-based chunks.
+  ['732a160a','index-BnFWFrOU.js','b57c23d2210d693976c94170f4a51bf0fac769319fc42fd6c64c2a33d4991776'],
+  ['732a160a','vendor-three-CB0j5q2y.js','345dc5d2af577856cdd6f6f7a50f0f290b70361c331e0b99c3fafd1ff98c27ff'],
+  ['732a160a','vendor-state-LPxIwNrD.js','9684347f765c3d5f8f6e09e4fdfafea24f1d7cb1f37a0284c3fc4a00583611cf'],
+  ['732a160a','vendor-react-DhRXJzO7.js','407bd19427c3ab62a277c17c22f6d36352d564c2ec2f2dcedc53cd3398b4e970'],
+  ['732a160a','vendor-mmd-dqVV9klw.js','daaffd814cab2573712bfa33a3958091f21c663953939abfa0c1ba3f2b21ddeb'],
+  ['732a160a','emulate-DewYAWRE.js','c7b946ba9e35b96419dd0c96e62119d100695419d8cf4ace4fa00f7b58d4d461'],
+  ['732a160a','PlanetPhysics-QTe78bwz.js','e91fef0395571c09b3b68452d251e9daad45b9b2f5595b575d98719bad93de62'],
+  ['732a160a','planet-physics-bS7P-_9I.js','15297482778d7bda4ae4c8f4670e89e83a07e0e30da139197ce3d6816137609d'],
   ['31d9de6f','index-CE1cn9w9.js','58312f981754d701883cd02f692bbdf28150d9540498964098cd4f261bfbab13'],
   ['31d9de6f','PlanetPhysics-BUXb2Ot5.js','acc5239f3811acaeceae7cda0f20f6c93e88f1e7ba5c7624847e54290160fc74'],
   ['b3c336c5','index-BjwQYFv_.js','91b61ec3079936bb14f5d4a52e8639835484b58c636974c938b0be594a637dc2'],

@@ -31,7 +31,7 @@ const CATALOG_GROUPS = [
   { kind: "motion", label: "mmdVrPrepMotions" },
 ] as const;
 
-export function MmdVrPrepApp({showOverlay=true,loadFloorBackend}:{showOverlay?:boolean;loadFloorBackend?:LoadFloorBackend} = {}) {
+export function MmdVrPrepApp({showOverlay=true,loadFloorBackend,initialFloorRenderer='webgl'}:{showOverlay?:boolean;loadFloorBackend?:LoadFloorBackend;initialFloorRenderer?:'webgpu'|'webgl'} = {}) {
   const t = useLanguageStore((state) => state.t);
   const phase = useMmdVrStore((state) => state.phase);
   const screenFailed = useMmdVrStore(state=>state.presentation==='screen'&&state.phase==='error');
@@ -44,9 +44,9 @@ export function MmdVrPrepApp({showOverlay=true,loadFloorBackend}:{showOverlay?:b
   const errorMessage = useMmdVrStore((state) => state.errorMessage);
   const performanceReport = useLastPerformanceReport((state) => state.report);
   const comparison=loadFloorBackend && samePagePair();
-  const [floorRenderer,setFloorRenderer]=useState<'webgpu'|'webgl'>('webgpu');
+  const [floorRenderer,setFloorRenderer]=useState(initialFloorRenderer);
   const prefs = useMmdVrStore((state) => state.prefs);
-  const floor=useFloorBackend(prefs.scenery==='floor'?loadFloorBackend:undefined);
+  const floor=useFloorBackend(prefs.scenery==='floor' && floorRenderer==='webgpu'?loadFloorBackend:undefined);
   const setPrefs = useMmdVrStore((state) => state.setPrefs);
 
   const folderInputRef = useRef<HTMLInputElement | null>(null);
@@ -540,7 +540,7 @@ export function MmdVrPrepApp({showOverlay=true,loadFloorBackend}:{showOverlay?:b
             {loadFloorBackend && prefs.scenery==='floor' && <label className="stage-field">
               <span className="stage-field-label">{t('floorXrRenderer')}</span>
               <select className="stage-select" data-floor-renderer value={floor.failed?'webgl':floorRenderer} disabled={!!floor.failed||phase==='entering'||phase==='active'} onChange={e=>setFloorRenderer(e.target.value==='webgpu'?'webgpu':'webgl')}>
-                <option value="webgpu">WebGPU</option><option value="webgl">WebGL</option>
+                <option value="webgl">WebGL</option><option value="webgpu">{t('floorWebgpuSolo')}</option>
               </select>
             </label>}
             <MusicPicker disabled={phase === 'entering' || phase === 'active'} />
