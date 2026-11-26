@@ -36,7 +36,8 @@ exports.trial = async function trial({ name, sites, pose }) {
   const world = ([x,y,z]) => [c*x+sn*z,y,-sn*x+c*z].map((v,i) => v*s.scale/.1+s.position[i]);
   const route=pose && window.stagePaused.route;
   const tracks = route?.tracks ?? sites.map(p => ({ start:world(p.start), end:world(p.end), spot:world(p.spot), away:world(p.start.map((v,i)=>v+.16*p.radial[i])) }));
-  const eyeY = (tracks[0].spot[1]+tracks[1].spot[1])/2-.025, eyeZ = Math.max(...tracks.map(p=>p.spot[2]))+.62;
+  const moved=cfg.movement,view=moved?.view(tracks);
+  const eyeY = view?.eyeY??(tracks[0].spot[1]+tracks[1].spot[1])/2-.025, eyeZ = view?.eyeZ??(Math.max(...tracks.map(p=>p.spot[2]))+.62);
   const phases = {112:'hold',184:'withdrawLeft',400:'release'};
   const images = {}, offsets = {}, grips = {}, native={};let submittedSample,maxBones=0,prevNative=s.actor.bulletSimulatedSteps;
   let frame = -160, clock = performance.now(), done, fail;
@@ -44,15 +45,18 @@ exports.trial = async function trial({ name, sites, pose }) {
   const take = { eyeY, eyeZ, time: clock,
     inputs(f) {
       take.time = clock += 1000/72;
-      f.getPose = space => {
-        const i = labSession.inputSources.findIndex(src => src.gripSpace === space);
-        if (i<0) return null;
-        const side = labSession.inputSources[i].handedness, h = tracks[side==='left'?0:1], release = side==='left'?128:200;
+      const position = side => {
+        const h = tracks[side==='left'?0:1], release = side==='left'?128:200;
         if (frame<0 || (name!==side && name!=='both') || frame>=release+24) return null;
         const [a,b,u] = frame<release ? [h.start,h.end,(frame-12)/72] : [h.end,h.away,(frame-release)/24];
-        const t = Math.max(0,Math.min(1,u)), w = t*t*(3-2*t), [x,y,z]=a.map((n,k)=>n+(b[k]-n)*w);
-        return {transform:{position:{x,y,z},orientation:{x:0,y:0,z:0,w:1},matrix:[1,0,0,0,0,1,0,0,0,0,1,0,x,y,z,1]}};
+        const t = Math.max(0,Math.min(1,u)), w = t*t*(3-2*t), p=a.map((n,k)=>n+(b[k]-n)*w);
+        return moved?moved.local(p):p;
       };
+      function sample(p){if(!p)return null;const [x,y,z]=p;
+        return {transform:{position:{x,y,z},orientation:{x:0,y:0,z:0,w:1},matrix:[1,0,0,0,0,1,0,0,0,0,1,0,x,y,z,1]}};
+      }
+      f.getPose=space=>{const src=labSession.inputSources.find(src=>src.gripSpace===space);return src?sample(position(src.handedness)):null;};
+      if(moved)f.getJointPose=j=>moved.joint(j,position(j.side));
     },
     measure(device,mesh,rig,points,goals,renderer) {
       const phase = phases[frame]; if (!phase) return;
@@ -103,6 +107,10 @@ exports.trial = async function trial({ name, sites, pose }) {
         }catch(e){fail(e);return;}
       }
       if (at) {
+        if(moved)try{
+          moved.verifyView([view.eyeX,eyeY,eyeZ]);
+          moved.verifySlots(tracks.map((t,i)=>name==='both'&&(at==='hold'||(at==='withdrawLeft'&&i===1))?t.end:null));
+        }catch(e){fail(e);return;}
         if (!offsets[at]) { fail(Error('Missing rendered cloth sample on '+at)); return; }
         images[at]=session.copyEyes(); images[at].catch(fail);
         grips[at]=stageRoomTest.status.actor.palms;
@@ -112,11 +120,11 @@ exports.trial = async function trial({ name, sites, pose }) {
   };
   const timer=setTimeout(()=>fail(Error('Timed out waiting for submitted hand-route frames')),90000);
   const oldX=cfg.headX;
-  try { if(route)cfg.headX=route.eyeX;cfg.take=take; await complete; } finally { clearTimeout(timer); cfg.take=null;cfg.headX=oldX; }
+  try { if(view||route)cfg.headX=(view??route).eyeX;cfg.take=take; await complete; } finally { clearTimeout(timer); cfg.take=null;cfg.headX=oldX; }
   for (const phase of Object.values(phases)) { offsets[phase]=await offsets[phase]; images[phase]=await images[phase]; }
   // Store only in this page while the next real actor is loading. Never put
   // diagnostic skin geometry, readback promises or photos in the stage store.
-  (window.stageTakes??={})[name]={eyeY,eyeZ,tracks,images,offsets,grips,native,areas:route?.areas};
+  (window.stageTakes??={})[name]={eyeY,eyeZ,tracks,images,offsets,grips,native,areas:view?.areas??route?.areas};
 };
 
 exports.compare = function compare(saveImages) {
@@ -135,9 +143,9 @@ exports.compare = function compare(saveImages) {
       return changed;
     }));
   }
-  const pixels={both:diff('both','empty','hold'),left:diff('left','empty','hold'),right:diff('right','empty','hold'),
-    addRight:diff('both','left','hold'),addLeft:diff('both','right','hold'),withdraw:diff('both','empty','withdrawLeft'),
-    vsRight:diff('both','right','withdrawLeft'),released:diff('both','empty','release')};
+  const pixels={both:diff('both','empty','hold'),withdraw:diff('both','empty','withdrawLeft'),released:diff('both','empty','release'),
+    ...(takes.left&&{left:diff('left','empty','hold'),right:diff('right','empty','hold'),addRight:diff('both','left','hold'),
+      addLeft:diff('both','right','hold'),vsRight:diff('both','right','withdrawLeft')})};
   const lift={}, images={};
   for (const [name,t] of Object.entries(takes)) {
     lift[name]={};
@@ -152,7 +160,7 @@ exports.compare = function compare(saveImages) {
     }
   }
   const grips=Object.fromEntries(Object.entries(takes).map(([key,t])=>[key,t.grips]));
-  const native=areas && Object.fromEntries(Object.entries(takes).map(([k,t])=>[k,t.native]));
+  const native=Object.keys(takes.empty.native).length && Object.fromEntries(Object.entries(takes).map(([k,t])=>[k,t.native]));
   delete window.stageTakes; return {pixels,lift,grips,images,...(native&&{native})};
 };
 

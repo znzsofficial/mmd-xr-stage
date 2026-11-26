@@ -1,7 +1,7 @@
 import React from 'react';
 import * as T from 'three/webgpu';
-import {advance,createRoot,extend,unmountComponentAtNode} from '@react-three/fiber';
-import {DefaultXRInputSourceRayPointer,XR} from '@react-three/xr';
+import {advance,createRoot,extend,unmountComponentAtNode,useFrame} from '@react-three/fiber';
+import {DefaultXRInputSourceRayPointer,XR,XROrigin} from '@react-three/xr';
 import {createAppXrStore} from '../../src/xr/createAppXrStore';
 import {BackpackPlacement} from '../../src/mmdVrShowcase/backpack/BackpackPlacement';
 import {HUD_RAY} from '../../src/mmdVrShowcase/hud/hudPointer';
@@ -16,6 +16,7 @@ import {bindR187ProjectionOutput} from './r187ProjectionOutput.js';
 import {createStageActorBackend} from './stageActorBackend.js';
 import {stageControls} from './stage-controls.js';
 import {trackedContacts} from './stage-tracked-contacts.js';
+import {usePlayerMovement} from '../../src/mmdVrShowcase/movement/usePlayerMovement';
 
 // Only this developer entry imports the WebGPU implementation. R3F renders
 // the product room on Three's native XR callback, never a second RAF.
@@ -26,8 +27,16 @@ function StageRay(){
   const aiming=useBackpack(s=>!!s.draft);
   return <DefaultXRInputSourceRayPointer makeDefault minDistance={.2} rayModel={aiming?HUD_RAY.rayModel:false} cursorModel={false}/>;
 }
+function FloorPlayer({origin,contacts}){
+  // This host already assigns the lower right face button to the VMD transport.
+  usePlayerMovement(origin,false,{jumpOnPrimary:false});
+  useFrame(({gl},_,frame)=>{
+    if(origin.current && frame)contacts.sample(frame,gl.xr.getReferenceSpace(),origin.current.matrixWorld,useMmdVrStore.getState().prefs.physicsColliderRadius);
+  },-1);
+  return <XROrigin ref={origin}/>;
+}
 export function startStageHost(selection,onStatus) {
-  const controls=stageControls(selection),contacts=trackedContacts(),log={phase:'request',frames:0};
+  const controls=stageControls(selection),contacts=trackedContacts(),origin=React.createRef(),log={phase:'request',frames:0};
   let closing=false,committed=false,session,ended=false,renderer,root,store,xrStore,backend,undo,epoch;
   let timer,backendTask,resolveStop,prevTime,elapsed=0;
   const stopped=new Promise(r=>resolveStop=r);
@@ -94,17 +103,14 @@ export function startStageHost(selection,onStatus) {
           if(session.visibilityState!=='visible'||!frame.getViewerPose(renderer.xr.getReferenceSpace())?.views.length){interrupt();return;}
           const dt=prevTime==null?0:(time-prevTime)*.001;prevTime=time;
           if(dt<0||dt>.25)interrupt(false);else elapsed+=dt;
-          if(committed){
-            contacts.sample(frame,renderer.xr.getReferenceSpace(),useMmdVrStore.getState().prefs.physicsColliderRadius);
-            controls.sample(session.inputSources);
-          }
+          if(committed)controls.sample(session.inputSources);
           advance(elapsed,false,store.getState(),frame);
           if(closing)return;
           if(++log.frames===1){
             // No actor, shader compile for PMX, or physics startup on the
             // critical path to the first pair of environment images.
             clearTimeout(timer);
-            backendTask=createStageActorBackend(renderer,scene,sun.current).then(b=>{
+            backendTask=createStageActorBackend(renderer,scene,sun.current,origin).then(b=>{
               backend=b;if(closing)return;
               const state=useMmdVrStore.getState();
               if(state.overlayOpen)throw Error('Another stage is active');
@@ -112,7 +118,10 @@ export function startStageHost(selection,onStatus) {
               if(state.prefs.scenery!=='floor')state.setPrefs({scenery:'floor'});
               state.openOverlay('xr');epoch=useMmdVrStore.getState().entryEpoch;committed=true;
               useMmdVrStore.setState({phase:'active',resumeStage:saved,physicsEnabled:saved?.physicsEnabled??true,physicsDebugEnabled:true});
-              root.render(<XR store={xrStore}><MmdVrStageContent backend={b}/><BackpackPlacement/></XR>);
+              // XR's sessionstart happened before this subtree mounted. Its
+              // pointer portal and Three's eye update both use camera.parent.
+              store.setState({camera:renderer.xr.getCamera()});
+              root.render(<XR store={xrStore}><FloorPlayer origin={origin} contacts={contacts}/><MmdVrStageContent backend={b}/><BackpackPlacement/></XR>);
             }).catch(stop);
           }
           if(committed&&log.phase!=='active'&&useMmdVrStore.getState().captureStage)publish('active');

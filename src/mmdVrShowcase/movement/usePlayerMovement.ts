@@ -19,7 +19,7 @@ import {eyeLift,headMargin} from './eyeHeight';
 import {arcadePassage} from '../scenery/arcade/arcadeTravel';
 import {observeStance,stanceProbe} from './stanceDiagnostics';
 
-export function usePlayerMovement(originRef:RefObject<Group|null>,dragging:boolean){
+export function usePlayerMovement(originRef:RefObject<Group|null>,dragging:boolean,{jumpOnPrimary=true}={}){
   const left=useXRInputSourceState('controller','left'),right=useXRInputSourceState('controller','right');
   const [s]=useState(()=>({body:groundedBody(0,0,0),safe:{x:0,y:0,z:0},mode:null as MovementMode|null,
     room:null as SceneryId|null,epoch:-1,xDown:false,gate:new RoomGate(),motor:createGroundMotor(),solids:createSolidColumns(),
@@ -29,7 +29,10 @@ export function usePlayerMovement(originRef:RefObject<Group|null>,dragging:boole
   useLayoutEffect(()=>observeStance(s.stance),[s]);
   useFrame(({gl,scene},elapsed,frame)=>{
     const origin=originRef.current,space=gl.xr.getReferenceSpace();if(!origin||!frame||!space)return;
-    const pose=(!frame.session.visibilityState||frame.session.visibilityState==='visible')&&frame.getViewerPose(space);if(!pose){s.aDown=s.xDown=true;s.snapReady=false;return;}
+    const pose=(!frame.session.visibilityState||frame.session.visibilityState==='visible')&&frame.getViewerPose(space);
+    // An externally advanced room can skip untracked frames and resume at dt=0.
+    // Retain its foot, but don't turn a held stick/button into a new edge.
+    if(!pose||elapsed===0){s.aDown=s.xDown=true;s.snapReady=false;if(!pose)return;}
     const {prefs,viewEpoch}=useMmdVrStore.getState(),{scenery:room,movementMode:mode}=prefs;
     const local=pose.transform.position,q=pose.transform.orientation;
     const dt=Math.min(.1,Math.max(0,elapsed)),speed=WALK_SPEED[prefs.walkSpeedPref==='auto'?'normal':prefs.walkSpeedPref];
@@ -37,7 +40,7 @@ export function usePlayerMovement(originRef:RefObject<Group|null>,dragging:boole
     const pressed=s.right.primary;
     const passage=room==='arcadeHall'&&s.left.primary&&!s.xDown&&!dragging;
     s.xDown=s.left.primary;
-    let jump=pressed&&!s.aDown&&!dragging;s.aDown=pressed;
+    let jump=jumpOnPrimary&&pressed&&!s.aDown&&!dragging;s.aDown=pressed;
     const turn=s.right.x;
     if(Math.abs(turn)<.5)s.snapReady=true;
     if(dragging)s.snapReady=false;
@@ -136,5 +139,5 @@ export function usePlayerMovement(originRef:RefObject<Group|null>,dragging:boole
     origin.rotation.set(0,yaw,0);origin.updateMatrixWorld(true);
     const d=s.stance;d.frame=frame;d.mode=mode;d.grounded=mode==='normal'&&s.body.grounded;if(returning)d.returns++;
     d.foot.set(s.body.x,s.body.y,s.body.z);d.wanted=prefs.normalEyeOffset;d.lift=lift;
-  },-2); // before hand (-1) and controller (0) collider samples
+  },-60); // after tracked spaces (-100), before ray picks (-50) and contact
 }

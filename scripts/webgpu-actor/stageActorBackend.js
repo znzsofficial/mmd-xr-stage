@@ -1,16 +1,15 @@
-import { DirectionalLight, Matrix4 } from 'three';
+import { DirectionalLight } from 'three';
 import { xrPalms } from '../../experiments/gpu-cloth/xrPalms.js';
 import { skirtPhysicsFilter } from '../../experiments/gpu-cloth/rig.js';
 import { createActorMaterialAdapter } from './materialAdapter.js';
 import { prepareRoomCloth, roomCloth } from './roomCloth.js';
 
-const identity = new Matrix4(); // This host's local-floor is the stage world.
 const empty = () => ({mode:'none', cloth:'none', nodes:0, clothSteps:0, fullBodies:0, keptBodies:0,
   bulletSteps:0, bulletSimulatedSteps:0, updatedBones:0, evaluations:0, poseSeconds:0, physicsDelta:0});
 
 /** Renderer resources only. StageRoom owns PMX/VMD, the one evaluator, the
  * visual placement scale and the physics rebind. Never request another RAF. */
-export async function createStageActorBackend(renderer, scene, light) {
+export async function createStageActorBackend(renderer, scene, light, origin) {
   // The landmark sun can unmount when StageRoom mounts its own. The facade
   // takes one stable light reference; mirror the live room's world direction.
   const sun = new DirectionalLight(), palms = xrPalms();
@@ -27,10 +26,10 @@ export async function createStageActorBackend(renderer, scene, light) {
       if (disposed) return;
       ++serial;
       seedFrame = reseed;
-      tracked = !!(space && frame?.session.visibilityState === 'visible' && frame.getViewerPose(space)?.views.length);
+      tracked = !!(origin.current && space && frame?.session.visibilityState === 'visible' && frame.getViewerPose(space)?.views.length);
       if (!tracked || reseed) { palms.reset(); actor?.cloth?.interrupt(); }
       if (!tracked) actor?.binding.interrupt();
-      worldPalms = tracked ? palms.read(frame,space,identity) : null;
+      worldPalms = tracked ? palms.read(frame,space,origin.current.matrixWorld) : null;
     },
     attach(model) {
       if (disposed) throw new DOMException('Room retired','AbortError');

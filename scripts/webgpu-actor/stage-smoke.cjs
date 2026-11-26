@@ -1,6 +1,7 @@
 // node scripts/webgpu-actor/stage-smoke.cjs <local-outfit.pmx> <body.vmd>
 //   [--plan <two-site-hand-plan.json>] [--out local-review/screenshots/<run>] [--fallback-only | --paused-hands-only]
 // node scripts/webgpu-actor/stage-smoke.cjs --placement-only <local-outfit.pmx> [body.vmd]
+// node scripts/webgpu-actor/stage-smoke.cjs --movement-only <local-outfit.pmx> --plan <two-site-hand-plan.json>
 // Real prep, backpack, StageRoom, Bullet, GPU and WebGL; simulated XR display
 // and inputs. One loopback dev server, one browser, strictly serial renderers.
 const assert = require('node:assert/strict');
@@ -18,11 +19,12 @@ const center=[0,0,-1.85], offCenter=[.46,0,-2.25];
 function atPosition(actual,expected){assert(actual?.length===3 && actual.every((n,i)=>Math.abs(n-expected[i])<.0005),`Expected foot at ${expected}, got ${actual}`);}
 
 async function main() {
-  const { values, positionals } = parseArgs({ allowPositionals:true, options:{plan:{type:'string'},out:{type:'string'},'fallback-only':{type:'boolean'},'paused-hands-only':{type:'boolean'},'placement-only':{type:'boolean'}} });
+  const { values, positionals } = parseArgs({ allowPositionals:true, options:{plan:{type:'string'},out:{type:'string'},'fallback-only':{type:'boolean'},'paused-hands-only':{type:'boolean'},'placement-only':{type:'boolean'},'movement-only':{type:'boolean'}} });
   const onlyFallback=!!values['fallback-only'];
   const posed=!!values['paused-hands-only'],onlyPlacement=!!values['placement-only'];
-  assert([posed,onlyPlacement,onlyFallback].filter(Boolean).length<=1 && (!posed||values.plan) && !(onlyPlacement&&values.plan),'Choose one focused mode; only hand trials need a plan');
-  assert(/\.pmx$/i.test(positionals[0]) && ((positionals.length===2 && /\.vmd$/i.test(positionals[1])) || (onlyPlacement && positionals.length===1)), 'Expected a local clothed PMX and matching body VMD (optional for --placement-only)');
+  const moving=!!values['movement-only'];
+  assert([posed,onlyPlacement,onlyFallback,moving].filter(Boolean).length<=1 && (!(posed||moving)||values.plan) && !(onlyPlacement&&values.plan),'Choose one focused mode; only hand trials need a plan');
+  assert(/\.pmx$/i.test(positionals[0]) && ((positionals.length===2 && /\.vmd$/i.test(positionals[1])) || ((onlyPlacement||moving) && positionals.length===1)), 'Expected a local clothed PMX and matching body VMD (optional for placement/movement)');
   const [pmx,vmd] = positionals.map(p=>path.resolve(p));
   await fs.access(pmx); if(vmd)await fs.access(vmd);
   const out = values.out && path.resolve(values.out);
@@ -90,7 +92,7 @@ async function main() {
     async function aim(point) {
       // The pick mesh sits 12 mm above its supporting deck. Direct the XR
       // device's -Z axis through that point, not through a fabricated hit.
-      const reads=await page.evaluate(p=>{labSession.aimRay('right',p && [p[0],p[1]+.012,p[2]]);return labSession.stats.targetRayReads.right;},point);
+      const reads=await page.evaluate(p=>{const at=p && [p[0],p[1]+.012,p[2]];labSession.aimRay('right',at && (labFixture.movement?.local(at)??at));return labSession.stats.targetRayReads.right;},point);
       await until('right targetRaySpace sampled on stage',(s,n)=>s.phase==='active' && labSession.stats.targetRayReads.right>=n+2,reads);
     }
     async function trigger(down) {
@@ -203,6 +205,38 @@ async function main() {
       await page.locator('.screen-back').click();return until('back from WebGL',s=>!s.overlay && !s.live && screenSmokeContext.isContextLost());
     }
     if(onlyFallback){await fallback();await exit();await finish();return;}
+    if(moving){
+      step='actual thumbsticks and submitted eye matrices';
+      const motion=report.movement=await page.evaluate(async()=>{
+        window.walkProbe=await import('/scripts/webgpu-actor/stage-smoke-movement.js');return walkProbe.walk();
+      });
+      motion.ray=await place(center);const actor=await gpuActor();motion.landing=actor.position;
+      // Keep the same actor, same rest pose and triangles. Change just the
+      // device trajectory, including real joints for the left-hand source.
+      await page.evaluate(()=>labSession.swapToHand('left'));
+      for(const name of ['empty','both']){step='walked textile: '+name;await page.evaluate(hands.trial,{name,sites});}
+      const {images,...proof}=await page.evaluate(hands.compare,!!out);motion.cloth=proof;
+      if(out)for(const [name,png] of Object.entries(images))await fs.writeFile(path.join(out,name+'.png'),Buffer.from(png,'base64'));
+      const {lift:{both},pixels,grips}=proof;
+      assert.deepEqual(grips.empty.hold,['missing','missing']);assert.deepEqual(grips.both.hold,['hand','grip']);
+      assert.deepEqual(grips.both.withdrawLeft,['missing','grip']);assert.deepEqual(grips.both.release,['missing','missing']);
+      assert(both.hold.every(n=>n>18)&&Math.abs(both.withdrawLeft[0])<14&&both.withdrawLeft[1]>18&&both.release.every(n=>Math.abs(n)<12),JSON.stringify(both));
+      assert(pixels.both.every((pair,i)=>pair.every((n,j)=>n>10&&n>pixels.released[i][j]))&&pixels.withdraw.every(pair=>pair[1]>10),JSON.stringify(pixels));
+      const stable=await read();assert(stable.runtimeId===actor.runtimeId && stable.actor.bulletSimulatedSteps>actor.actor.bulletSimulatedSteps);
+      step='tracking loss parks both solvers and preserves heading';
+      await page.evaluate(()=>labFixture.movement.armRecovery());
+      await until('both sources live immediately before tracking loss',s=>s.actor.palms.join(',')==='hand,grip');
+      const before=await page.evaluate(()=>{labFixture.movement.recovery();labFixture.tracking=false;labSession.inputSources.find(s=>s.gamepad).gamepad.axes[2]=-1;return labSession.stats.frames;});
+      await page.waitForFunction(n=>labSession.stats.frames>=n+3 && walkProbe.parked(),before);
+      const lost=await read();assert.deepEqual(lost.actor.palms,['missing','missing']);
+      await page.evaluate(()=>{labFixture.tracking=true;});const recovered=await until('tracked actor resumes on the same floor',(s,n)=>s.actor.palms.join(',')==='hand,grip'&&s.actor.clothSteps>n+4,lost.actor.clothSteps);
+      assert.equal(recovered.runtimeId,actor.runtimeId);motion.recoveryPalms=[lost.actor.palms,recovered.actor.palms];
+      motion.recoveredEye=await page.evaluate(()=>{labSession.inputSources.find(s=>s.gamepad).gamepad.axes[2]=0;const p=labFixture.movement.recovery();labFixture.take=null;return p;});
+      const saved=await exit();atPosition(saved.floor.position,center);assert(saved.filesIntact && await page.evaluate(()=>walkProbe.parked()));
+      await active(false);const restored=await gpuActor();assert(restored.filesIntact && restored.placeCommands===1);
+      motion.reenteredEye=await page.evaluate(()=>walkProbe.entry());await exit();assert(await page.evaluate(()=>walkProbe.parked()));
+      await finish();return;
+    }
     if(onlyPlacement){
       const witness=await place(offCenter,true);
       const model=await until('selected PMX evaluated at ray landing',s=>s.ready && s.selected && s.visible && s.modelCount===1 && s.live===1 && s.actor?.evaluations>0);

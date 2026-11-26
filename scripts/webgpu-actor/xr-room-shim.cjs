@@ -17,7 +17,7 @@ module.exports = function extendStereoShim() {
     return a;
   };
   // Build rigid transforms even on Chromium installations without native XR.
-  // The -Z axis of targetRaySpace points at the requested world-space point;
+  // The -Z axis of targetRaySpace points at the requested reference-space point;
   // gripSpace remains an independent pose used by the real cloth/hand path.
   function rigid(p, q={x:0,y:0,z:0,w:1}) {
     const position={...p,w:1}, {x,y,z,w}=q, m=new DOMMatrix().translate(p.x,p.y,p.z);
@@ -56,6 +56,17 @@ module.exports = function extendStereoShim() {
       rays.set(src.targetRaySpace,aim({x:side==='right'?.17:-.23,y:1.12,z:-.62},at));
     };
     for (const src of s.inputSources) s.aimRay(src.handedness,null);
+    s.swapToHand=side=>{
+      const i=s.inputSources.findIndex(src=>src.handedness===side),old=s.inputSources[i];
+      const hand=new Map([['wrist',{name:'wrist',side}]]);
+      for(const digit of ['thumb','index-finger','middle-finger','ring-finger','pinky-finger'])
+        for(const bone of ['metacarpal','phalanx-proximal',...(digit==='thumb'?[]:['phalanx-intermediate']),'phalanx-distal','tip']){
+          const name=`${digit}-${bone}`;hand.set(name,{name,side});
+        }
+      const next={hand,handedness:side,targetRaySpace:{handedness:side},targetRayMode:'tracked-pointer',profiles:['generic-hand-select']};
+      s.inputSources[i]=next;grips.delete(old.gripSpace);rays.delete(old.targetRaySpace);s.aimRay(side,null);
+      s.dispatchEvent(Object.assign(new Event('inputsourceschange'),{added:[next],removed:[old],session:s}));
+    };
     s.queueSelect=(side,down)=>{
       const inputSource=s.inputSources.find(a=>a.handedness===side);
       if(nextSelect || inputSource.gamepad.buttons[0].pressed===down)throw Error('Duplicate XR trigger transition');
@@ -79,8 +90,10 @@ module.exports = function extendStereoShim() {
         stats.pending--; stats.frames++; s.inFrame = true;
         const pose = f.getViewerPose(), before = stats.submissions;
         const take = cfg.take; // Optional deterministic two-hand input replay.
+        if(s.inputSources.some(src=>src.hand))f.getJointPose=()=>null;
         if (take) take.inputs(f,s,cfg);
-        for(const src of s.inputSources)src.gamepad.timestamp=t;
+        for(const src of s.inputSources)if(src.gamepad)src.gamepad.timestamp=t;
+        f.fillPoses=(spaces,base,out)=>{let i=0;for(const j of spaces){const m=f.getJointPose(j,base)?.transform.matrix;if(!m)return false;out.set(m,i);i+=16;}return true;};
         // Hand takes override (or clear) getPose to replay grips. Preserve just
         // those grips, including null; they must never replace a tracked ray.
         const gripPose=f.getPose.bind(f);
