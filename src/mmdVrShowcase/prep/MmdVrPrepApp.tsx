@@ -18,6 +18,9 @@ import { expandAssetFiles, AssetImportError, IMPORT_LIMITS, type ArchiveEncoding
 import { bindCompanion, mergeAssetFiles } from "../../mmdImport/assetPaths";
 import { inspectAssets, type ImportReport } from "../../mmdImport/inspectAssets";
 import { downloadPerformanceReport, useLastPerformanceReport } from "../diagnostics/performanceReport";
+import {usesFloorBackend,type LoadFloorBackend} from '../xr/floorBackend';
+import {useFloorBackend} from './useFloorBackend';
+import {stageHudVars} from '../pelvic/palette';
 
 type XrReadiness = "checking" | "ready" | "unverified" | "insecure" | "no-xr";
 
@@ -28,7 +31,7 @@ const CATALOG_GROUPS = [
   { kind: "motion", label: "mmdVrPrepMotions" },
 ] as const;
 
-export function MmdVrPrepApp({showOverlay=true}:{showOverlay?:boolean} = {}) {
+export function MmdVrPrepApp({showOverlay=true,loadFloorBackend}:{showOverlay?:boolean;loadFloorBackend?:LoadFloorBackend} = {}) {
   const t = useLanguageStore((state) => state.t);
   const phase = useMmdVrStore((state) => state.phase);
   const screenFailed = useMmdVrStore(state=>state.presentation==='screen'&&state.phase==='error');
@@ -41,6 +44,7 @@ export function MmdVrPrepApp({showOverlay=true}:{showOverlay?:boolean} = {}) {
   const errorMessage = useMmdVrStore((state) => state.errorMessage);
   const performanceReport = useLastPerformanceReport((state) => state.report);
   const prefs = useMmdVrStore((state) => state.prefs);
+  const floor=useFloorBackend(prefs.scenery==='floor'?loadFloorBackend:undefined);
   const setPrefs = useMmdVrStore((state) => state.setPrefs);
 
   const folderInputRef = useRef<HTMLInputElement | null>(null);
@@ -249,7 +253,10 @@ export function MmdVrPrepApp({showOverlay=true}:{showOverlay?:boolean} = {}) {
     publishFiles([...current, file]);
   }
 
+  const candidate=(resume=false)=>floor.enabled&&usesFloorBackend(prefs.scenery,resume,savedStage?.scenery);
   function enterVr(resume = false) {
+    if(floor.phase)return;
+    if(candidate(resume)){floor.enter(resume);return;}
     void requestMmdVrEnter({ t, assets: [], resume });
   }
 
@@ -271,7 +278,7 @@ export function MmdVrPrepApp({showOverlay=true}:{showOverlay?:boolean} = {}) {
           : t("mmdVrPrepReadyPending");
 
   return (
-    <><div className="stage-app">
+    <><div className="stage-app" inert={floor.phase!==null}>
       <header className="stage-header">
         <div className="stage-brand">
           <div className="stage-brand-badge" aria-hidden="true">
@@ -287,7 +294,7 @@ export function MmdVrPrepApp({showOverlay=true}:{showOverlay?:boolean} = {}) {
           <div className={`stage-env-badge ${readinessClass}`} title={readinessMessage}>
             <span className={`stage-env-dot ${phase === "entering" ? "is-busy" : ""}`} />
             <span className="stage-env-label">
-              {phase === "entering" ? t("mmdVrPrepEntering") : readinessMessage}
+              {phase === "entering" ? t("mmdVrPrepEntering") : readinessMessage}{candidate() ? ' · WebGPU' : ''}
             </span>
           </div>
 
@@ -311,16 +318,17 @@ export function MmdVrPrepApp({showOverlay=true}:{showOverlay?:boolean} = {}) {
             <h1 className="stage-intro-title">{t("mmdVrPrepTitle")}</h1>
              <p className="stage-intro-lead">{t("mmdVrPrepLead")}</p>
              {screenFailed&&errorMessage&&<p role="alert">{t('screenWebgl')} <small>{errorMessage}</small></p>}
+             {prefs.scenery==='floor'&&floor.failed&&<p role="alert">{t('floorWebglFallback')} <small>{floor.failed}</small></p>}
           </div>
           <div className="stage-launch-actions">
             <div className="stage-launch-row">
               <button type="button" className="stage-btn stage-btn-secondary stage-btn-lg" disabled={importing || checkingAssets || phase === 'entering' || phase === 'active'} onClick={enterScreen}>
                 <PrepIcon name="screen"/><span>{t('screenWatch')}</span>
               </button>
-              {savedStage && <button type="button" className="stage-btn stage-btn-secondary stage-btn-lg" disabled={entryDisabled} onClick={() => enterVr(true)}>
+              {savedStage && <button type="button" className="stage-btn stage-btn-secondary stage-btn-lg" data-xr-backend={candidate(true)?'webgpu':'webgl'} disabled={entryDisabled||(candidate(true)&&floor.loading)} onClick={() => enterVr(true)}>
                 <PrepIcon name="play" /><span>{t("stageContinue")}</span>
               </button>}
-              <button type="button" className="stage-btn stage-btn-primary stage-btn-lg" disabled={entryDisabled} onClick={() => enterVr(false)}>
+              <button type="button" className="stage-btn stage-btn-primary stage-btn-lg" data-xr-backend={candidate()?'webgpu':'webgl'} disabled={entryDisabled||(candidate()&&floor.loading)} onClick={() => enterVr(false)}>
                 <PrepIcon name="headset" size={21} /><span>{phase === "entering" ? t("settingsMmdVrEntering") : t("stageRestart")}</span><PrepIcon name="arrow" size={17} />
               </button>
             </div>
@@ -573,6 +581,9 @@ export function MmdVrPrepApp({showOverlay=true}:{showOverlay?:boolean} = {}) {
         </div>
       </footer>
 
-     </div>{showOverlay && <MmdVrOverlay />}</>
+    </div>{showOverlay && <MmdVrOverlay xrHost={floor.phase!==null &&
+      <div role="dialog" aria-modal="true" aria-label={t('settingsMmdVrShowcase')} className="xr-stage-overlay" style={stageHudVars} data-xr-host="webgpu" data-phase={floor.phase}>
+        <div className="xr-stage-hud"><button type="button" className="xr-stage-exit" onClick={floor.stop}>{t('settingsVrDesktopExit')}</button></div>
+      </div>}/>}</>
   );
 }

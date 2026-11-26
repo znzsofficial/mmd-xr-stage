@@ -9,11 +9,11 @@ const empty = () => ({mode:'none', cloth:'none', nodes:0, clothSteps:0, fullBodi
 
 /** Renderer resources only. StageRoom owns PMX/VMD, the one evaluator, the
  * visual placement scale and the physics rebind. Never request another RAF. */
-export async function createStageActorBackend(renderer, scene, light, origin) {
+export async function createStageActorBackend(renderer, scene, light, origin, grade={balancedModelColor:true}) {
   // The landmark sun can unmount when StageRoom mounts its own. The facade
   // takes one stable light reference; mirror the live room's world direction.
   const sun = new DirectionalLight(), palms = xrPalms();
-  const adapter = await createActorMaterialAdapter(renderer,sun,{balancedModelColor:true});
+  const adapter = await createActorMaterialAdapter(renderer,sun,grade);
   let actor, sourceLight = light, disposed = false, tracked = false, serial = 0, prepared = -1;
   let enabled = true, worldPalms = null, seedFrame = false;
   const status = () => ({...(actor?.log ?? empty()), enabled, palms:actor ? [...palms.kinds] : ['missing','missing']});
@@ -33,7 +33,7 @@ export async function createStageActorBackend(renderer, scene, light, origin) {
     },
     attach(model) {
       if (disposed) throw new DOMException('Room retired','AbortError');
-      if (actor) throw Error('This internal room supports one mounted actor');
+      if (actor) throw Error('This floor supports one mounted actor at a time');
       const log = empty();
       const g = model.mesh.geometry;
       // liveBounds reads GEOMETRY bounds, whereas the TSL facade caches the

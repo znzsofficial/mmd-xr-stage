@@ -19,7 +19,7 @@ function SceneEntry() {
   return <SceneBoundary><MmdVrScene /></SceneBoundary>;
 }
 
-export function MmdVrOverlay() {
+export function MmdVrOverlay({xrHost}:{xrHost?:ReactNode} = {}) {
   useLayoutEffect(() => {
     const { stop, select } = useStageMusic.getState();
     const unsubscribe = useMmdVrStore.subscribe((next, prev) => {
@@ -35,6 +35,7 @@ export function MmdVrOverlay() {
   const overlayOpen = useMmdVrStore((state) => state.overlayOpen);
   const entryEpoch = useMmdVrStore((state) => state.entryEpoch);
   const presentation = useMmdVrStore(state => state.presentation);
+  if(xrHost)return xrHost;
   if (overlayOpen && presentation === 'screen') return <SceneBoundary key={entryEpoch}><ScreenStage /></SceneBoundary>;
   return overlayOpen ? <SceneEntry key={entryEpoch} /> : null;
 }

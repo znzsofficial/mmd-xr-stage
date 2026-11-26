@@ -1,5 +1,6 @@
 node_modules/
 dist/
+/dist-qualification/
 dist-ssr/
 .wrangler/
 *.local

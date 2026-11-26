@@ -3,7 +3,7 @@ import { relativePath } from "../../mmdImport/folderFiles";
 import { useBackpack, type BackpackCommand, type BackpackLive } from "../backpack/store";
 import type { AssetLoadFailure, AssetLoadTask } from "./loading/mmdAssetLoadQueue";
 import type { MmdProjectModelAssets, MmdRuntimeHandle } from "../mmdRuntime/mmdRuntime";
-import { MMD_VR_MAX_MODELS, MMD_VR_MAX_OBJECTS, type MmdVrAssetSlot, type MmdVrObjectSlot } from "../backpack/sessionAssets";
+import { stageAssetLimit, type MmdVrAssetSlot, type MmdVrObjectSlot } from "../backpack/sessionAssets";
 import { createMmdVrGltfLoader } from "./loading/mmdVrGltf";
 import { createModelLoadTask } from "./loading/modelLoadTask";
 import { setObjectHeadingDegrees } from "./objectHeading";
@@ -266,11 +266,11 @@ export function createStageActors(scene: THREE.Scene, runtime: MmdRuntimeHandle,
     }
     const companionFiles = s.files.length ? [...s.files] : [entry.file], saved = s.stored[entry.id];
     if (entry.kind === "object") {
-      if (objects.size >= MMD_VR_MAX_OBJECTS) throw new Error("Stage is full");
+      if (objects.size >= stageAssetLimit('object')) throw new Error("Stage is full");
       await loadObject({ kind:"object", objectFile:entry.file, companionFiles }, x, stale, saved && "quaternion" in saved ? saved : undefined, command,y);
       return;
     }
-    if (active.length >= MMD_VR_MAX_MODELS) throw new Error("Stage is full");
+    if (active.length >= stageAssetLimit('model')) throw new Error("Stage is full");
     const binding = s.bindings[entry.id];
     const task = createModelLoadTask(runtime, { kind:"model", modelFile:entry.file, companionFiles, bodyMotionFile: binding?.body ?? null }, {
       work, transform, physicsEnabled, isStale: stale, saved: saved && "transform" in saved ? { ...saved, transform:{...saved.transform, ...transform}, visible:true } : undefined,

@@ -26,7 +26,7 @@ exports.observeStage = async function observeStage({ modelPath, motionName }) {
       time: layout.time, playing: layout.playing, physics: layout.physicsEnabled };
   }
   window.stageProbe = { read() {
-    const b = useBackpack.getState(), s = useMmdVrStore.getState(), h = stageRoomTest.status;
+    const b = useBackpack.getState(), s = useMmdVrStore.getState(), h = window.labFixture.hostStatus?.() ?? stageRoomTest.status;
     const live = b.live[model.id], entry = s.models.find(e => e.id === live?.runtimeId);
     return { phase: h.phase, frames: h.frames, actor: h.actor, bullet: h.bulletSteps, dynamic: h.dynamicBodies,
       modelCount: s.modelCount, live: Object.keys(b.live).length, visible: live?.visible, position: live?.position,
@@ -73,6 +73,7 @@ exports.inspectEyes = async function inspectEyes(kind) {
     return changed;
   }
   const pair = await eyes();
+  if (kind === 'baseline') { session.emptyPair = pair; return; }
   if (kind === 'empty') {
     const refs = [await eyes(-.032), await eyes(.032)];
     // Fetch the stereo pair again after the controls (static stage print may

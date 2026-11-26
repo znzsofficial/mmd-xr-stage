@@ -1,5 +1,6 @@
 import type { WebGLRenderer } from "three";
 import { HUD_RAY } from "../hud/hudPointer";
+import { bindHandVisibility } from './handVisibility';
 import { buildQuestVrSessionInit, createProductXrSession } from "../../xr";
 import { getMmdVrRenderProfile, type MmdVrQualityInput } from "../settings/mmdVrQuality";
 import { useMmdVrStore, type MmdVrRenderQuality } from "../mmdVrStore";
@@ -26,21 +27,7 @@ const session = createProductXrSession<MmdVrAttachQuality>({
 
 export const mmdVrXrStore = session.xrStore;
 
-/**
- * Applies hand model visibility while preserving the hand pointer.
- * Hand states only exist while hand tracking is active, so this has no effect
- * when controllers are used.
- */
-let appliedHandTracking: boolean | undefined;
-function applyHandTracking(handTracking: boolean) {
-  if (handTracking === appliedHandTracking) return;
-  appliedHandTracking = handTracking;
-  // Visibility is cosmetic: a hand-only viewer must always be able to point
-  // at Menu, including on first entry with an old saved false preference.
-  session.xrStore.setHand({model:handTracking,rayPointer:HUD_RAY,touchPointer:{hoverRadius:.16}});
-}
-applyHandTracking(useMmdVrStore.getState().prefs.handTracking);
-useMmdVrStore.subscribe((state) => applyHandTracking(state.prefs.handTracking));
+bindHandVisibility(session.xrStore);
 
 export function peekPendingMmdVrSession() {
   return session.peek();

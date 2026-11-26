@@ -199,6 +199,7 @@ export const en: Record<keyof ZhMessages, string> = {
   importInvalid: "Could not inspect file",
   importFallback: "Matched by filename",
   stageContinue: "Continue last stage",
+  floorWebglFallback: "WebGPU couldn't run. You can continue here with WebGL.",
   stageRestart: "Enter an empty stage",
   stageResumeHint: "Continue restores the last stage, including its placed items and playback position.",
   exportSessionPerformance: "Export last VR performance report (JSON)",

@@ -12,6 +12,7 @@ import type { StageSnapshot } from "../stage/stageSnapshot";
 import { resolveCompanion, withAssetPath } from "../../mmdImport/assetPaths";
 import { clearBackpack, useBackpack } from "../backpack/store";
 import { MMD_VR_MAX_MODELS, MMD_VR_MAX_OBJECTS } from "../backpack/sessionAssets";
+import type {StartFloorSession} from '../xr/floorBackend';
 
 vi.mock("../MmdVrOverlay", () => ({ MmdVrOverlay: () => null }));
 vi.mock("../xr/requestMmdVrEnter", () => ({ requestMmdVrEnter: vi.fn(async () => "entered") }));
@@ -53,6 +54,31 @@ const fresh = () => container.querySelector<HTMLButtonElement>(".stage-btn-prima
 const button = (text: string) => [...container.querySelectorAll<HTMLButtonElement>("button")].find(b => b.textContent === text);
 
 describe("prep import and resume controls", () => {
+  it('keeps imported files and the resume target when a floor renderer fails, and retries through normal WebGL', async()=>{
+    const previous=useMmdVrStore.getState().prefs;
+    try {
+      useMmdVrStore.setState({prefs:{...previous,scenery:'floor'}});
+      const status:{phase:string;error?:string}={phase:'request'};
+      let end!:()=>void, ready!:(fn:StartFloorSession)=>void;
+      const done=new Promise<void>(ok=>{end=ok;});
+      const loading=new Promise<StartFloorSession>(ok=>{ready=ok;});
+      const start=vi.fn<StartFloorSession>(()=>({done,status,stop:end})), load=()=>loading;
+      await act(async()=>root.render(<StrictMode><MmdVrPrepApp loadFloorBackend={load}/></StrictMode>));
+      expect(fresh().disabled).toBe(true);
+      const file=new File(['actor'],'sample.pmx');vi.mocked(expandAssetFiles).mockResolvedValue([file]);await choose(file);
+      const saved:StageSnapshot={scenery:'floor',assets:[{kind:'model',modelFile:file,bodyMotionFile:null,companionFiles:[file]}],models:[],objects:[],time:1,playing:false,loop:false,physicsEnabled:true,controllerCollisions:true};
+      await act(async()=>{useMmdVrStore.setState({savedStage:saved});ready(start);});
+      const resume=button('继续上次舞台')!;
+      expect(resume.dataset.xrBackend).toBe('webgpu');
+      act(()=>{resume.click();expect(start).toHaveBeenCalledWith(expect.objectContaining({resume:true}));});
+      expect(requestMmdVrEnter).not.toHaveBeenCalled();
+      await act(async()=>{status.error='No first tracked draw';end();});
+      expect(container.querySelector('[role="alert"]')?.textContent).toContain('WebGL');
+      expect(useBackpack.getState().files[0]).toBe(file);expect(useMmdVrStore.getState().savedStage).toBe(saved);
+      expect(resume.dataset.xrBackend).toBe('webgl');await act(async()=>resume.click());
+      expect(requestMmdVrEnter).toHaveBeenCalledWith(expect.objectContaining({resume:true}));
+    } finally {useMmdVrStore.setState({prefs:previous});}
+  });
   it('offers screen playback even when insecure LAN access disables immersive entry', async()=>{
     Object.defineProperty(window,'isSecureContext',{configurable:true,value:false});await mount();
     expect(fresh().disabled).toBe(true);const screen=button('屏幕观看')!;expect(screen.disabled).toBe(false);

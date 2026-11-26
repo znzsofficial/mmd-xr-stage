@@ -197,6 +197,7 @@ export const zh = {
   importInvalid: "无法检查文件",
   importFallback: "使用同名文件匹配",
   stageContinue: "继续上次舞台",
+  floorWebglFallback: "WebGPU 未能运行。可在此使用 WebGL 继续。",
   stageRestart: "进入空舞台",
   stageResumeHint: "继续可恢复上次的舞台，包括已摆放的角色、物件和播放位置。",
   exportSessionPerformance: "导出上次 VR 性能记录（JSON）",

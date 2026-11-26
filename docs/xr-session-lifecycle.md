@@ -2,7 +2,7 @@
 
 ## 状态与职责
 
-`src/xr/pendingSessionSlot.ts` 是浏览器 XRSession 的唯一所有者。每次进入都带单调递增的 generation，状态为：
+默认 WebGL 后端的浏览器 XRSession 归 `src/xr/pendingSessionSlot.ts` 持有。每次进入都带单调递增的 generation，状态为：
 
 `idle → requesting → created → bound → presenting`
 
@@ -30,6 +30,10 @@
 - overlay 由 entryEpoch 设置 React key，旧组件清理不触及新进入。
 - `<Canvas gl={{ ... }}>` 创建的 renderer 归 R3F 9.8.2 所有。Scene 不再手动 `gl.dispose()`，也不额外管理 GL ref。
 - 应用模型/物理资源仍由 runtime 与 Stage 自身释放。不要把浏览器 session、renderer 和模型 runtime 的释放职责混在一起。
+
+## 摄影地台的 WebGPU 验证入口
+
+同一个 `src/main.tsx` 和准备页可以注入一个启动后端。在开发服务，或 `vite build --mode webgpu-qualification` 的独立产物中，用 `/?set=floor&xrBackend=webgpu`，再点击原来的「进入空舞台」或「继续上次舞台」。后端在按钮可用之前加载，点击时直接申请 XR；这一趟只由 WebGPU 宿主绑定和结束会话，绝不同时挂 WebGL Canvas。换到其他布景、普通屏幕观看或资格后端失败后的重试，仍走原实现。普通发布构建会剪去资格后端的动态导入；资格产物放在 `dist-qualification/`，与 `dist/` 分开。
 
 ## 实测发现的冷启动缺陷
 

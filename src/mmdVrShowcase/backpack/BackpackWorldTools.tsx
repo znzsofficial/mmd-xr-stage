@@ -6,6 +6,7 @@ import { useBackpack, type BackpackEntry, type BackpackLive } from "./store";
 import { formatMmdVrModelScale, nextMmdVrModelScale, previousMmdVrModelScale } from "../settings/mmdVrAdjustments";
 import { useMmdVrStore } from "../mmdVrStore";
 import { PageControls } from "./BackpackPanels";
+import { isSoloFloorSession } from './sessionAssets';
 import { HudButton, HudLine, HudSheet } from "../hud/PorcelainControls";
 import { useHudWorldInput } from "../hud/hudWorldInput";
 import { isStoryRoom, STORIES, toyLabel } from '../play/propCatalog';
@@ -66,7 +67,7 @@ function SelectedTools({ entry, instance, blocked, preview }: { entry: BackpackE
     if (!group.current || (last.current && last.current.every((n, i) => n === pos[i]))) return;
     positionWorldTools(gl.xr.isPresenting ? gl.xr.getCamera() : camera, group.current, pos); last.current = [...pos];
   });
-  const locked = busy || physicsBusy;
+  const locked = busy || physicsBusy, advancedActorLocked = locked || !instance.visible || isSoloFloorSession();
   const scale = transform?.scale ?? 1, rotation = transform?.rotationY ?? 0;
   if(blocked && !(page==='body'&&preview))return null;
   if(page==='pose'||page==='wardrobe'||page==='insert'||page==='milk'||page==='body'||page==='observe'){
@@ -83,9 +84,9 @@ function SelectedTools({ entry, instance, blocked, preview }: { entry: BackpackE
       if (page !== 'tools' && entry.kind==='model') setPage('tools'); else useBackpack.getState().select(null);
     }} disabled={busy} />
     {page==='wand'?<WandControls live={instance} locked={locked||!instance.visible}/>:eggPage?<EggControls id={entry.id} locked={locked||!instance.visible}/>:page==='motions' ? <MotionPicker id={entry.id} locked={locked} /> : page==='prop' ? <CharacterPropTools id={entry.id} instance={instance} locked={locked}/> : page==='tools'?<>
-      {actorActions.map(([id,key],i)=><HudButton key={id} position={[(i-.5)*.63,.115,0]} size={[.60,.16]} label={t(key)} variant={i===0?'primary':'button'} disabled={locked||!instance.visible} onPress={()=>setPage(id)}/>)}
-      {([['wardrobe','actorWardrobe'],['pose','actorPose'],['observe','actorObservation']] as const).map(([id,key],i)=><HudButton key={id} position={[(i-1)*.418,-.105,0]} size={[.39,.16]} label={t(key)} disabled={locked||!instance.visible} onPress={()=>setPage(id)}/>)}
-      {([['body','actorBodyState'],['motions','hudChangeMotion'],['arrange','watchArrange']] as const).map(([id,key],i)=><HudButton key={id} position={[(i-1)*.418,-.325,0]} size={[.39,.15]} variant="quiet" label={t(key)} disabled={locked||(id==='body'&&!instance.visible)} onPress={()=>setPage(id)}/>)}
+      {actorActions.map(([id,key],i)=><HudButton key={id} position={[(i-.5)*.63,.115,0]} size={[.60,.16]} label={t(key)} variant={i===0?'primary':'button'} disabled={advancedActorLocked} onPress={()=>setPage(id)}/>)}
+      {([['wardrobe','actorWardrobe'],['pose','actorPose'],['observe','actorObservation']] as const).map(([id,key],i)=><HudButton key={id} position={[(i-1)*.418,-.105,0]} size={[.39,.16]} label={t(key)} disabled={advancedActorLocked} onPress={()=>setPage(id)}/>)}
+      {([['body','actorBodyState'],['motions','hudChangeMotion'],['arrange','watchArrange']] as const).map(([id,key],i)=><HudButton key={id} position={[(i-1)*.418,-.325,0]} size={[.39,.15]} variant="quiet" label={t(key)} disabled={locked||(id==='body'&&advancedActorLocked)} onPress={()=>setPage(id)}/>)}
       {(holding||carries)&&<HudButton position={[wandOut ? -.315 : 0,-.55,0]} size={[wandOut ? .59 : 1.22,.14]} label={t(held==='remoteEgg'?(wearer===entry.id?'eggControls':wearer?'eggTransfer':'eggWear'):carries?'propGrip':'propGive')} disabled={locked||(!instance.visible&&held==='remoteEgg')} onPress={()=>{if(held==='remoteEgg'&&wearer!==entry.id)bindRemoteEgg(entry.id);setPage('prop');}}/>}
       {wandOut&&<HudButton position={[(holding||carries) ? .315 : 0,-.55,0]} size={[(holding||carries) ? .59 : 1.22,.14]} label={t('wandResponse')} disabled={locked||!instance.visible} onPress={()=>setPage('wand')}/>}
     </>:<>

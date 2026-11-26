@@ -90,10 +90,11 @@ exports.trial = async function trial({ name, sites, pose }) {
       offsets[phase].catch(fail);
     },
     afterDraw(session) {
-      if (stageRoomTest.status.phase!=='active') { fail(Error('Room retired during hands trial')); return; }
+      const status=cfg.hostStatus?.() ?? stageRoomTest.status;
+      if (status.phase!=='active') { fail(Error('Room retired during hands trial')); return; }
       const at=phases[frame];
       if(pose) {
-        const a=stageRoomTest.status.actor;
+        const a=status.actor;
         if(a.mode!=='gpu'||a.poseSeconds!==pose.time) {fail(Error('Frozen evaluated pose changed during '+name));return;}
         maxBones=Math.max(maxBones,a.updatedBones);
         if(at) try {
@@ -113,7 +114,7 @@ exports.trial = async function trial({ name, sites, pose }) {
         }catch(e){fail(e);return;}
         if (!offsets[at]) { fail(Error('Missing rendered cloth sample on '+at)); return; }
         images[at]=session.copyEyes(); images[at].catch(fail);
-        grips[at]=stageRoomTest.status.actor.palms;
+        grips[at]=status.actor.palms;
       }
       if (++frame>400) { cfg.take=null; done(); }
     },

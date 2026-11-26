@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLanguageStore } from "../../languageStore";
 import { useBackpack } from "../backpack/store";
+import { isSoloFloorSession } from '../backpack/sessionAssets';
 import {
   formatMmdVrModelScale,
   mmdVrModelScaleToSlider,
@@ -62,7 +63,7 @@ export function AssetEditPanel({ asset, kind, editsLocked, onInteractionChange }
         position={[0, -0.46, 0]}
         label={t("settingsMmdVrMaterials")}
         size={[0.42, 0.08]}
-        disabled={!hasMaterials}
+        disabled={!hasMaterials || isSoloFloorSession()}
         onPress={() => setMaterialPanelModelId(runtimeId)}
       />}
     </group>

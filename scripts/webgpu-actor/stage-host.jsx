@@ -1,8 +1,13 @@
 import React from 'react';
+import * as THREE from 'three';
 import * as T from 'three/webgpu';
 import {advance,createRoot,extend,unmountComponentAtNode,useFrame} from '@react-three/fiber';
 import {DefaultXRInputSourceRayPointer,XR,XROrigin} from '@react-three/xr';
 import {createAppXrStore} from '../../src/xr/createAppXrStore';
+import {MmdVrGameRoom} from '../../src/mmdVrShowcase/xr/MmdVrGameRoom';
+import {bindHandVisibility} from '../../src/mmdVrShowcase/xr/handVisibility';
+import {clearMmdVrControllerColliders} from '../../src/mmdVrShowcase/xr/contact/controllerSlots';
+import {clearMmdVrHandColliders} from '../../src/mmdVrShowcase/xr/contact/handSlots';
 import {BackpackPlacement} from '../../src/mmdVrShowcase/backpack/BackpackPlacement';
 import {HUD_RAY} from '../../src/mmdVrShowcase/hud/hudPointer';
 import {MmdVrStageContent} from '../../src/mmdVrShowcase/stage/MmdVrStage';
@@ -13,16 +18,13 @@ import {useMmdVrStore} from '../../src/mmdVrShowcase/mmdVrStore';
 import {prepareBackpackEntry,useBackpack} from '../../src/mmdVrShowcase/backpack/store';
 import {beginMmdVrAssetSession} from '../../src/mmdVrShowcase/backpack/sessionAssets';
 import {bindR187ProjectionOutput} from './r187ProjectionOutput.js';
+import {gameHudRay} from './gameHudRay.js';
 import {createStageActorBackend} from './stageActorBackend.js';
 import {stageControls} from './stage-controls.js';
 import {trackedContacts} from './stage-tracked-contacts.js';
 import {usePlayerMovement} from '../../src/mmdVrShowcase/movement/usePlayerMovement';
 
-// Only this developer entry imports the WebGPU implementation. R3F renders
-// the product room on Three's native XR callback, never a second RAF.
-extend(T);
-// Keep the game's XR pointer and drop surface (including the footprint and
-// release checks). No test-specific hit test, drop coordinate or input event.
+// Input bindings for the old internal regression page only.
 function StageRay(){
   const aiming=useBackpack(s=>!!s.draft);
   return <DefaultXRInputSourceRayPointer makeDefault minDistance={.2} rayModel={aiming?HUD_RAY.rayModel:false} cursorModel={false}/>;
@@ -36,27 +38,64 @@ function FloorPlayer({origin,contacts}){
   return <XROrigin ref={origin}/>;
 }
 export function startStageHost(selection,onStatus) {
-  const controls=stageControls(selection),contacts=trackedContacts(),origin=React.createRef(),log={phase:'request',frames:0};
-  let closing=false,committed=false,session,ended=false,renderer,root,store,xrStore,backend,undo,epoch;
-  let timer,backendTask,resolveStop,prevTime,elapsed=0;
+  return startFloor({resume:true,onStatus,fixture:{controls:stageControls(selection),contacts:trackedContacts()}});
+}
+
+export function startGameFloor({resume=false,onStatus}) {
+  return startFloor({resume,onStatus});
+}
+
+function startFloor({resume,onStatus,fixture}) {
+  const origin=React.createRef(),log={phase:'request',frames:0};
+  const initialEpoch=useMmdVrStore.getState().entryEpoch;
+  let closing=false,committed=false,session,ended=false,ending,renderer,root,store,xrStore,backend,undo,unbindHands,epoch;
+  let timer,backendTask,resolveStop,resolveEarly,prevTime,elapsed=0;
   const stopped=new Promise(r=>resolveStop=r);
-  const publish=phase=>{log.phase=phase;onStatus();};
-  const snapshot=()=>useBackpack.getState().layouts.floor ?? (useMmdVrStore.getState().savedStage?.scenery==='floor'?useMmdVrStore.getState().savedStage:null);
+  const earlyExit=new Promise(r=>resolveEarly=r);
+  const publish=phase=>{if(log.phase!==phase){log.phase=phase;onStatus?.();}};
+  function readLayout(){
+    const state=useMmdVrStore.getState();
+    if(state.overlayOpen || state.entryEpoch!==initialEpoch)throw Error('Another stage was opened');
+    if(!fixture && (state.prefs.scenery!=='floor' || (resume && state.savedStage?.scenery!=='floor')))throw Error('请选择摄影地台。');
+    if(!resume)return null;
+    const layout=useBackpack.getState().layouts.floor, saved=state.savedStage?.scenery==='floor'?state.savedStage:null;
+    if([layout,saved].some(s=>s && (s.assets.length>1 || s.models.length>1 || s.objects.length || s.assets.some(slot=>slot.kind!=='model'))))throw Error('请在普通舞台把摄影地台整理为至多一位角色再进入。');
+    return layout??saved;
+  }
+  // A cancelled permission prompt can still resolve after the next click.
+  // End only the XRSession obtained by this invocation.
+  function endOwnSession(){
+    if(session && !ended && !ending){
+      const own=session;
+      ending=Promise.resolve().then(()=>own.end()).catch(e=>{log.error??=String(e);});
+    }
+    return ending;
+  }
+  function clearContacts(){
+    if(fixture)fixture.contacts.reset();
+    else {clearMmdVrControllerColliders();clearMmdVrHandColliders();}
+  }
   function stop(error){
     if(closing)return;
     if(error)log.error=String(error?.message??error);
-    closing=true;clearTimeout(timer);controls.reset();
+    closing=true;clearTimeout(timer);fixture?.controls.reset();
     if(committed && useMmdVrStore.getState().entryEpoch===epoch){
-      contacts.reset();
+      clearContacts();
       // Snapshot while the live room and its actor still exist.
       useMmdVrStore.getState().closeOverlay();
     }
     resolveStop();
+    if(!committed){
+      // Return prep immediately even if the browser hasn't resolved permission,
+      // device initialization or layer binding. run() retires its own resources.
+      void endOwnSession();publish(log.error?'failed':'ended');resolveEarly();
+    }
   }
   function interrupt(cancelDraft=true){
-    prevTime=undefined;controls.reset();
+    if(closing)return;
+    prevTime=undefined;fixture?.controls.reset();
     if(committed){
-      contacts.reset();
+      clearContacts();
       // A release after tracking or focus returns must not place a held draft.
       const bag=useBackpack.getState();if(cancelDraft&&bag.draft)bag.cancelPlace();
     }
@@ -67,16 +106,21 @@ export function startStageHost(selection,onStatus) {
   async function run(){
     try {
       if(T.REVISION!=='187'||!navigator.xr||!navigator.gpu||!globalThis.XRGPUBinding)throw Error('WebGPU XR 不可用');
-      const saved=snapshot();
-      if(saved && (saved.assets.length>1 || saved.objects.length || saved.assets.some(s=>s.kind!=='model')))throw Error('请在普通舞台把摄影地台整理为至多一位角色再进入。');
+      readLayout();
+      window.addEventListener('pagehide',pageHide);
       // Request from the original click. Until a tracked draw succeeds, no
       // page state, previous scene or asset binding is changed.
-      session=await navigator.xr.requestSession('immersive-vr',{requiredFeatures:['webgpu','local-floor'],optionalFeatures:['hand-tracking']});
-      session.addEventListener('end',endedSession);session.addEventListener('visibilitychange',interrupt);
+      const request=navigator.xr.requestSession('immersive-vr',{requiredFeatures:['webgpu','local-floor'],optionalFeatures:['hand-tracking']});
+      await Promise.race([request.then(granted=>{
+        session=granted;
+        if(closing){void endOwnSession();return;}
+        session.addEventListener('end',endedSession);session.addEventListener('visibilitychange',interrupt);
+      }),stopped]);
       if(closing)return;
       if(!session.enabledFeatures?.includes('webgpu'))throw Error('Session did not enable WebGPU');
-      window.addEventListener('error',onError);window.addEventListener('pagehide',pageHide);
-      publish('init');
+      window.addEventListener('error',onError);
+      publish('init');if(closing)return;
+      timer=setTimeout(()=>stop(Error('No first tracked draw within 15 s')),15000);
       renderer=new T.WebGPURenderer({antialias:false});
       renderer.xr.enabled=true;renderer.xr.setReferenceSpaceType('local-floor');
       renderer.onDeviceLost=info=>stop(`device lost: ${info.message}`);
@@ -86,14 +130,17 @@ export function startStageHost(selection,onStatus) {
       undo=bindR187ProjectionOutput(renderer);
       const scene=new T.Scene(),camera=new T.PerspectiveCamera(60,1,.05,40),sun=React.createRef();
       const prefs=useMmdVrStore.getState().prefs;
+      const lighting=resolveStageLighting(prefs.lightPreset,{});
+      extend(THREE); // Same JSX constructors as the product Canvas; no registry edits on preload.
       root=createRoot(renderer.domElement);
       await root.configure({gl:renderer,scene,camera,frameloop:'never',dpr:1,size:{width:320,height:320,top:0,left:0}});
       if(closing)return;
-      store=root.render(<StageEnvironment scenery="floor" prefs={prefs} profile={getMmdVrRenderProfile(prefs)} lighting={resolveStageLighting(prefs.lightPreset,{})} sunRef={sun}/>);
+      store=root.render(<StageEnvironment scenery="floor" prefs={prefs} profile={getMmdVrRenderProfile(prefs)} lighting={lighting} sunRef={sun}/>);
       // R3F's default sessionstart handler targets WebGL's xr.setAnimationLoop.
       // With an external r187 renderer, XRManager itself owns setSession + RAF.
       store.getState().xr.disconnect();
-      xrStore=createAppXrStore({controller:StageRay});xrStore.setHand(StageRay);
+      xrStore=createAppXrStore({controller:fixture?StageRay:{rayPointer:gameHudRay}});
+      if(fixture)xrStore.setHand(StageRay);else unbindHands=bindHandVisibility(xrStore,gameHudRay);
       // Bind input state before sessionstart, mount pointer elements only
       // after the first tracked draw. Three still owns the only projection layer.
       xrStore.setWebXRManager(renderer.xr);
@@ -103,32 +150,38 @@ export function startStageHost(selection,onStatus) {
           if(session.visibilityState!=='visible'||!frame.getViewerPose(renderer.xr.getReferenceSpace())?.views.length){interrupt();return;}
           const dt=prevTime==null?0:(time-prevTime)*.001;prevTime=time;
           if(dt<0||dt>.25)interrupt(false);else elapsed+=dt;
-          if(committed)controls.sample(session.inputSources);
+          if(!log.frames && !sun.current)return; // Fiber must have committed the landmark floor.
+          if(committed)fixture?.controls.sample(session.inputSources);
           advance(elapsed,false,store.getState(),frame);
           if(closing)return;
           if(++log.frames===1){
             // No actor, shader compile for PMX, or physics startup on the
             // critical path to the first pair of environment images.
             clearTimeout(timer);
-            backendTask=createStageActorBackend(renderer,scene,sun.current,origin).then(b=>{
+            timer=setTimeout(()=>stop(Error('Stage did not become ready after the first draw')),15000);
+            const grade=fixture?undefined:{balancedModelColor:prefs.balancedModelColor,ambientIntensity:lighting.ambient};
+            backendTask=createStageActorBackend(renderer,scene,sun.current,origin,grade).then(b=>{
               backend=b;if(closing)return;
+              const saved=readLayout();
               const state=useMmdVrStore.getState();
-              if(state.overlayOpen)throw Error('Another stage is active');
-              prepareBackpackEntry(true);beginMmdVrAssetSession(saved?.assets??[]);
+              beginMmdVrAssetSession(saved?.assets??[],'soloFloor');
+              prepareBackpackEntry(resume);
               if(state.prefs.scenery!=='floor')state.setPrefs({scenery:'floor'});
               state.openOverlay('xr');epoch=useMmdVrStore.getState().entryEpoch;committed=true;
-              useMmdVrStore.setState({phase:'active',resumeStage:saved,physicsEnabled:saved?.physicsEnabled??true,physicsDebugEnabled:true});
+              useMmdVrStore.setState({phase:'active',resumeStage:saved,...(!resume&&{savedStage:null}),
+                physicsEnabled:saved?.physicsEnabled??true,...(fixture&&{physicsDebugEnabled:true})});
               // XR's sessionstart happened before this subtree mounted. Its
               // pointer portal and Three's eye update both use camera.parent.
               store.setState({camera:renderer.xr.getCamera()});
-              root.render(<XR store={xrStore}><FloorPlayer origin={origin} contacts={contacts}/><MmdVrStageContent backend={b}/><BackpackPlacement/></XR>);
+              root.render(<XR store={xrStore}>{fixture?<><FloorPlayer origin={origin} contacts={fixture.contacts}/><MmdVrStageContent backend={b}/><BackpackPlacement/></>:
+                <MmdVrGameRoom originRef={origin} backend={b} onExit={stop} busy={false}/>}</XR>);
             }).catch(stop);
           }
-          if(committed&&log.phase!=='active'&&useMmdVrStore.getState().captureStage)publish('active');
+          if(committed&&log.phase!=='active'&&useMmdVrStore.getState().captureStage){clearTimeout(timer);publish('active');}
         }catch(e){stop(e);}
       });
       if(closing)return;
-      publish('bind');timer=setTimeout(()=>stop(Error('No first tracked draw within 15 s')),15000);
+      publish('bind');if(closing)return;
       await renderer.xr.setSession(session);
       if(!closing&&!log.frames)publish('waiting');
       await stopped;
@@ -136,9 +189,10 @@ export function startStageHost(selection,onStatus) {
     finally{
       closing=true;clearTimeout(timer);
       const release=async fn=>{try{await fn();}catch(e){log.error??=String(e);}};
-      if(session && !ended)await release(()=>session.end());
+      await release(endOwnSession);
       await release(()=>backendTask);
       if(root)await release(()=>new Promise(resolve=>unmountComponentAtNode(renderer.domElement,resolve)));
+      unbindHands?.();
       await release(()=>xrStore?.destroy());
       await release(()=>backend?.dispose());await release(()=>undo?.());await release(()=>renderer?.dispose());
       session?.removeEventListener('end',endedSession);session?.removeEventListener('visibilitychange',interrupt);
@@ -146,7 +200,7 @@ export function startStageHost(selection,onStatus) {
       publish(log.error?'failed':'ended');
     }
   }
-  const done=run();
+  const done=Promise.race([run(),earlyExit]);
   return {done,stop,get status(){
     const s=useMmdVrStore.getState();return {...log,actor:backend?.status??null,bulletSteps:s.physicsStepCount,dynamicBodies:s.physicsDynamicBodyCount};
   }};

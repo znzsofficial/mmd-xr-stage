@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { emptyAssetLoadProgress, type AssetLoadProgress } from "./stage/loading/mmdAssetLoadQueue";
 import type { StageSnapshot } from "./stage/stageSnapshot";
 import { LIGHT_ORDER, normalizeMmdVrPrefs, prefsStorage, type MmdVrPrefs } from './settings/preferences';
-import { endMmdVrAssetSession } from "./backpack/sessionAssets";
+import { endMmdVrAssetSession, isSoloFloorSession } from "./backpack/sessionAssets";
 import { invalidateBackpackCommands, prepareBackpackEntry, useBackpack } from "./backpack/store";
 import { resetMmdVrClock } from "./stage/mmdVrClock";
 import { resetViewOnMenuSwitch } from "./scenery/catalog";
@@ -206,6 +206,7 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
   },
   prefs: initialPrefs,
   setPrefs: (patch, options) => {
+    if (isSoloFloorSession() && patch.scenery && patch.scenery !== 'floor') return;
     const previousRoom = get().prefs.scenery;
     const prefs = normalizeMmdVrPrefs({ ...get().prefs, ...patch });
     prefsStorage.write(prefs);

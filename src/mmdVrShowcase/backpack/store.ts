@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { useLanguageStore } from "../../languageStore";
 import { listMmdModels, listMmdMotions, listMmdObjects, relativePath } from "../../mmdImport/folderFiles";
-import { MMD_VR_MAX_MODELS, MMD_VR_MAX_OBJECTS } from "./sessionAssets";
+import { stageAssetLimit } from "./sessionAssets";
 import type { SceneryId } from "../scenery/catalog";
 import type { SavedModel, SavedObject, StageSnapshot } from "../stage/stageSnapshot";
 
@@ -39,7 +39,7 @@ function fileId(file: File) {
 }
 function capacityError(s: State, entry: BackpackEntry) {
   if (s.live[entry.id]) return null;
-  const limit = entry.kind === "model" ? MMD_VR_MAX_MODELS : MMD_VR_MAX_OBJECTS;
+  const limit = stageAssetLimit(entry.kind === 'model' ? 'model' : 'object');
   if (s.entries.filter(e => e.kind === entry.kind && s.live[e.id]).length < limit) return null;
   return useLanguageStore.getState().language === "zh" ? "舞台位置已满，请先收回一个同类资产。" : "Stage is full. Put away an item of the same type first.";
 }

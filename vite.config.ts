@@ -2,16 +2,28 @@
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 
-function singleThreeRuntime(): Plugin {
+function singleThreeRuntime(floorQualification:boolean): Plugin {
   return {
     name: "single-three-runtime",
     apply: "build",
     generateBundle(_,bundle) {
       const ids = [...this.getModuleIds()].map(id=>id.replaceAll('\\','/'));
-      if(Object.values(bundle).some(c=>c.type==='chunk' && c.moduleIds.some(raw=>{
+      const floorModule=(raw:string)=>{
         const id=raw.replaceAll('\\','/');return id.includes('/scripts/webgpu-actor/')||/\/three\/build\/three\.webgpu(?:\.nodes)?\.js$/.test(id);
-      })))
+      };
+      const chunks=Object.values(bundle).filter(c=>c.type==='chunk');
+      if(!floorQualification && chunks.some(c=>c.moduleIds.some(floorModule)))
         this.error('The internal WebGPU room must stay outside the production stage graph');
+      if(floorQualification){
+        const visited=new Set<string>();
+        const eager=(file:string):boolean=>{
+          const c=bundle[file];if(visited.has(file)||c?.type!=='chunk')return false;visited.add(file);
+          return c.moduleIds.some(floorModule)||c.imports.some(eager);
+        };
+        const prep=chunks.find(c=>c.isEntry&&c.facadeModuleId?.endsWith('index.html'));
+        if(!prep||eager(prep.fileName)||!chunks.some(c=>c.moduleIds.some(id=>id.replaceAll('\\','/').endsWith('/scripts/webgpu-actor/stage-host.jsx'))))
+          this.error('The qualification renderer must load on demand from the real prep entry');
+      }
       const entries = ids.filter((id) => /\/three\/build\/three\.(module\.js|cjs)$/.test(id));
       if (entries.length !== 1) this.error(`Expected one Three.js runtime, found ${entries.length}: ${entries.join(", ")}`);
     },
@@ -46,7 +58,7 @@ function sceneReadyWithPrep(): Plugin {
 }
 
 export default defineConfig(({mode}) => ({
-  plugins: [react(), singleThreeRuntime(), sceneReadyWithPrep()],
+  plugins: [react(), singleThreeRuntime(mode==='webgpu-qualification'), sceneReadyWithPrep()],
   // experiments/ has standalone apps with their own React and Fiber. Scanning
   // their HTML into the product dev cache splits the Rapier/Fiber contexts.
   optimizeDeps:{entries:['index.html']},
@@ -63,10 +75,15 @@ export default defineConfig(({mode}) => ({
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
   },
   build: {
+    // Keep the optional real-device artifact separate from the production Pages upload.
+    ...(mode==='webgpu-qualification'&&{outDir:'dist-qualification'}),
     rollupOptions: {
       output: {
         manualChunks(id) {
           if (!id.includes("node_modules")) return undefined;
+          // Splitting the WebGPU and WebGL backends by vendor would eagerly
+          // preload both from prep. Let this candidate split by usage instead.
+          if(mode==='webgpu-qualification')return undefined;
           // Put only the standalone WASM package here. Putting its React
           // wrapper here would hoist shared Three/React deps into this chunk.
           if (/[\\/]node_modules[\\/]@dimforge[\\/]rapier3d-compat[\\/]/.test(id)) return 'planet-physics';

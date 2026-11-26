@@ -59,13 +59,15 @@ WebGPU 支持不代表这个项目自动更快；没有真实 Quest 3S 帧耗时
 
 ### 正式背包与摄影地台：如何走开发入口
 
-Vite 开发服务的 `/scripts/webgpu-actor/stage-room.html` 使用正式准备页。导入 PMX 目录和身体 VMD，选一位角色、一段动作。进入后左手柄 **X** 开始摆放，指地看脚印，在有效位置按下并松开扳机才放人；摆放中再按 X 取消，角色已上场则收回。右手柄 **A** 应用舞段、暂停或续播；托裙使用两侧握把或掌心。退出后可在同一页点普通屏幕观看，检查刚才的布局。已有多人或物件的摄影地台不会作为一人样板载入。
+**正式游戏路径**：从同一份准备页 `/?set=floor&xrBackend=webgpu` 进入（开发／资格构建）。点原来的 VR 进入按钮，右 B 召回菜单 → 背包 → 角色 → 放置，再指地松开扳机。动作从选中角色的详情绑定，播放和暂停仍用原 HUD。不必在桌面预选 PMX／VMD。原 WebGL 与资格后端挂同一个 `MmdVrGameRoom`；资格宿主加载自己的 renderer、投影层和演员后端。见[生命周期](./xr-session-lifecycle.md#摄影地台的-webgpu-验证入口)。
+
+**历史回归夹具**：`/scripts/webgpu-actor/stage-room.html` 的 X/A 选样捷径只供旧双眼、布料与故障回放；正式游戏的操作不在这个页面上开发。已有多人或物件的摄影地台不会作为一人样板续场。
 
 射线来自产品同款 XR store 的 `targetRaySpace`，落点、朝向、遮挡和确认由原 [`BackpackPlacement`](../src/mmdVrShowcase/backpack/BackpackPlacement.tsx) 处理。测试页只负责选样本和进出；脚印、放置规则和布局恢复无需再为正式游戏移植一遍。
 
 `stage-smoke.cjs --placement-only` 用实际 PMX、桌面 GPU、模拟 XR 控制器和左右眼检查：X 只开草稿，地台外松手发出零条命令，有效点按住仍无演员，`selectend` 只提交一次；实得 (0.46, 0, −2.25)，双眼都有角色，退出并打开正式 WebGL 观看后原位恢复。
 
-摄影地台已接正式 `usePlayerMovement` 和 `XROrigin`。同一帧先更新玩家原点，再做射线和接触取样；GPU 掌点和原生 Bullet 的掌指／握把都使用当前原点的世界矩阵。`--movement-only` 的桌面实绘：实际摇杆轴前行 0.80 m，再转 30°，检查提交的双眼，指向 (0,0,−1.85) 松手后角色落到该位置。原衣左掌＋右握把分侧托起 61.41／71.61 mm，撤左后 0.62／71.59 mm，双撤均回到空手基线 1 mm 以内。失追时 14 个输入槽停放，恢复时持续按住的转向杆没有额外转向。退出重进后演员仍在原落点，玩家回到入口。留样 `local-review/screenshots/webgpu-stage-walk/`。下一步在同一入口接正式背包选人；实际 Quest 的镜片、触觉和帧时仍未验。
+摄影地台已接正式 `usePlayerMovement` 和 `XROrigin`。同一帧先更新玩家原点，再做射线和接触取样；GPU 掌点和原生 Bullet 的掌指／握把都使用当前原点的世界矩阵。`--movement-only` 的桌面实绘：实际摇杆轴前行 0.80 m，再转 30°，检查提交的双眼，指向 (0,0,−1.85) 松手后角色落到该位置。原衣左掌＋右握把分侧托起 61.41／71.61 mm，撤左后 0.62／71.59 mm，双撤均回到空手基线 1 mm 以内。失追时 14 个输入槽停放，恢复时持续按住的转向杆没有额外转向。退出重进后演员仍在原落点，玩家回到入口。留样 `local-review/screenshots/webgpu-stage-walk/`。实际 Quest 的镜片、触觉和帧时仍未验。
 
 开发宿主先用实际 `StageEnvironment` 提交双眼。拿到首帧才允许打开房间；`MmdVrStageContent` / `StageRoom` 消费原背包命令、持有演员和快照、推进原动作时钟。Three 的 XRManager 持有唯一的 XR 帧回调，手动推进此 Fiber 根时只传本次会话的帧和秒数。角色后端的创建、GPU 子步与读取眼图分开；显示路径不回读求解结果。首次空场默认开物理，恢复则沿用原快照；左 **Y** 切换房间原有的角色物理。
 

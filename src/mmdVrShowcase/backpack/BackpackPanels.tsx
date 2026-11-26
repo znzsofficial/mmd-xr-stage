@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useLanguageStore } from "../../languageStore";
 import { useBackpack, type BackpackEntry } from "./store";
-import { MMD_VR_MAX_MODELS, MMD_VR_MAX_OBJECTS } from "./sessionAssets";
+import { isSoloFloorSession, stageAssetLimit } from "./sessionAssets";
 import { useMmdVrStore } from "../mmdVrStore";
 import { SCENERY, mainSceneryIds } from "../scenery/catalog";
 import { HudButton, HudLine, HudSheet } from "../hud/PorcelainControls";
@@ -22,7 +22,7 @@ export function SceneryPanel({ onClose, onSelected, locked }: { onClose: () => v
     <HudLine position={[-.91,top-.19,0]} text={t("hudScenery")} width={0.86} role="title" />
     <HudButton position={[1.02,top-.19,0]} label={t("hudBack")} size={[0.65,0.14]} onPress={onClose} variant="quiet" />
     {mainSceneryIds.map((id, i) => <HudButton key={id} position={[(i % cols - 1) * .94,top-.47-Math.floor(i/cols)*.23,0]}
-      label={t(SCENERY[id].label)} active={id === current} disabled={locked} size={[0.86, 0.17]} onPress={() => {
+      label={t(SCENERY[id].label)} active={id === current} disabled={locked || (isSoloFloorSession() && id !== 'floor')} size={[0.86, 0.17]} onPress={() => {
         if (useMmdVrStore.getState().prefs.scenery !== id) useMmdVrStore.getState().setPrefs({ scenery: id });
         onSelected();
       }} />)}
@@ -55,7 +55,7 @@ export function BackpackPanel({ onClose, locked }: { onClose: () => void; locked
   const [kind, setKind] = useState<keyof typeof pagesByKind>("model"), [index, setIndex] = useState(0);
   const list = useMemo(() => entries.filter(e => e.kind === kind), [entries, kind]);
   const used = list.filter(e => live[e.id]).length;
-  const limit = kind === "model" ? MMD_VR_MAX_MODELS : MMD_VR_MAX_OBJECTS;
+  const limit = stageAssetLimit(kind === 'model' ? 'model' : 'object');
   const full = used >= limit;
   const pages = Math.max(1, Math.ceil(list.length / ROWS)), page = Math.min(index, pages - 1);
   const hint = kind === "motion" ? t("hudApplyFromCharacter") : `${t("hudOnStage")} ${used} / ${limit}${full ? ` · ${t("hudReturnFirst")}` : ""}`;
@@ -64,7 +64,7 @@ export function BackpackPanel({ onClose, locked }: { onClose: () => void; locked
     <HudLine position={[-0.49, 0.69, 0]} text={t("hudBackpack")} role="title" width={1.05} />
     <HudButton position={[0.67, 0.69, 0]} size={[0.66, 0.14]} variant="quiet" label={t("hudBack")} onPress={onClose} />
     {(Object.keys(pagesByKind) as (keyof typeof pagesByKind)[]).map((k, i) => <HudButton key={k} position={[(i - 1.5) * 0.52, 0.45, 0]} size={[0.49, 0.16]}
-      label={t(pagesByKind[k])} active={k === kind} variant="tab" onPress={() => { setKind(k); setIndex(0); }} />)}
+      label={t(pagesByKind[k])} active={k === kind} variant="tab" disabled={isSoloFloorSession() && (k === 'object' || k === 'toy')} onPress={() => { setKind(k); setIndex(0); }} />)}
     {kind==='toy'?<ToyShelf locked={locked} onClose={onClose}/>:<>
     <HudLine position={[0, 0.26, 0]} text={hint} width={2.04} role={full && kind !== "motion" ? "warning" : "muted"} />
     {!list.length && <HudLine position={[0, -0.15, 0]} text={t("hudBagEmpty")} width={2.02} center />}

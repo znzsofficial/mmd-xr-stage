@@ -46,14 +46,14 @@ module.exports = function extendStereoShim() {
     const floor=new EventTarget(), origin=rigid({x:0,y:0,z:0});
     const rays=new Map(), grips=new Set(); let nextSelect;
     for (const src of s.inputSources) {
-      Object.assign(src,{profiles:['generic-trigger'],targetRayMode:'tracked-pointer',targetRaySpace:{handedness:src.handedness}});
+      Object.assign(src,{profiles:[cfg.controllerProfile ?? 'generic-trigger'],targetRayMode:'tracked-pointer',targetRaySpace:{handedness:src.handedness}});
       Object.assign(src.gamepad,{mapping:'xr-standard',id:'',index:-1,connected:true,axes:[0,0,0,0],hapticActuators:[],timestamp:0});
       for (const b of src.gamepad.buttons) Object.assign(b,{touched:false,value:0});
       grips.add(src.gripSpace);
     }
-    s.aimRay=(side,at)=>{
+    s.aimRay=(side,at,from={x:side==='right'?.17:-.23,y:1.12,z:-.62})=>{
       const src=s.inputSources.find(a=>a.handedness===side);
-      rays.set(src.targetRaySpace,aim({x:side==='right'?.17:-.23,y:1.12,z:-.62},at));
+      rays.set(src.targetRaySpace,aim(from,at));
     };
     for (const src of s.inputSources) s.aimRay(src.handedness,null);
     s.swapToHand=side=>{

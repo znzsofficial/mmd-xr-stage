@@ -6,16 +6,12 @@ import {
   AttachPendingMmdVrSession,
   MmdVrHeadsetHudGate,
 } from "./MmdVrSessionBridge";
-import { MmdVrPlayerRig } from "./MmdVrPlayerRig";
-import { MmdVrStageContent } from "../stage/MmdVrStage";
+import { MmdVrGameRoom } from './MmdVrGameRoom';
 import { endMmdVrSession, getMmdVrSessionSnapshot, mmdVrXrStore } from "./mmdVrSession";
 import { getMmdVrRenderProfile } from "../settings/mmdVrQuality";
 import { awaitingFreshXrFrame, useMmdVrStore } from "../mmdVrStore";
 import { describeRenderRequest } from "../diagnostics/renderDiagnostics";
 import { MmdVrDiagnostics } from "../diagnostics/MmdVrDiagnostics";
-import { BackpackPlacement } from "../backpack/BackpackPlacement";
-import { BackpackWorldTools } from "../backpack/BackpackWorldTools";
-import { StagePlay } from '../play/HeldPlay';
 import { stageHudVars } from '../pelvic/palette';
 
 export function MmdVrScene() {
@@ -62,13 +58,7 @@ export function MmdVrScene() {
           <MmdVrDiagnostics requested={requested} />
           <AttachPendingMmdVrSession />
           <MmdVrHeadsetHudGate onHideHud={setHideExitHud} />
-          {mountRoom && <>
-            <MmdVrPlayerRig onExit={exitVr} busy={exiting} />
-            <MmdVrStageContent />
-            <BackpackPlacement />
-            <BackpackWorldTools />
-            <StagePlay />
-          </>}
+          {mountRoom && <MmdVrGameRoom onExit={exitVr} busy={exiting}/>}
         </XR>
       </Canvas>
       {!hideExitHud ? (

@@ -2,6 +2,8 @@
 
 [正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `a89ac63`](https://b3c336c5.mmd-xr-stage.pages.dev) · [WebGPU 裙摆实验](https://mmd-xr-stage.pages.dev/labs/cloth/) · [发布记录](./release-history.md) · [文档索引](./README.md)
 
+**当前工作：正式首页的摄影地台后端接线 + 洛茜 v4 局部投影。** 前者用原 VR 按钮和同一份场内菜单／背包／演员工具，自带独立资格构建，普通发行保留 WebGL。后者在 v3 原灯光和相机上对照刘海／帽檐投影开关和短转头。以实际双眼操作及局部遮挡对照为收工条件。
+
 **洛茜第三版已出图：**`local-review/screenshots/rossi-hybrid-bust-v3/face-lights.png` 看二版／三版同姿下左右侧逆光及正光；`comparison.png` 看原半身机位，`hand-light.png` 单看露指透光开关。原模型的配套脸影图按头骨朝向和灯位取样，衣服和发色沿用二版。指骨区域估算厚薄，仅在逆光下作局部透光；毛耳、刘海真实投影与专用细描边未处理。三版侧逆光的鼻梁过渡更清楚，靠背光侧的脸颊仍偏灰。参照[官方洛茜战斗演示](https://www.youtube.com/watch?v=A5C7-5vi9SM)。
 
 **衣料第二版已实绘：**`local-review/screenshots/rossi-hybrid-bust-v2/comparison.png` 并排对照两版，`cloth-detail.png` 看披肩与白衣局部。接入配套法线和 R/A 控制后，肩部转折、披肩压线、白衣折面更明显；红布高光仍宽，白裙背光褶谷略硬。无配套图恢复首版，脸与刘海取样区不变。
