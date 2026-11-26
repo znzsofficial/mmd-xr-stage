@@ -12,6 +12,7 @@
 
 | 功能提交 | 已发布内容与验证范围 |
 |---|---|
+| `b740d1b` | [摄影地台](https://7fd73aba.mmd-xr-stage.pages.dev/?set=floor&xrBackend=webgpu)支持同一页选两种 XR 后端、续场、一次导出各自的实际刷新率、每眼视口和慢帧。编译后的准备页实走 WebGPU → WebGL 续场与下载；桌面 GPU＋模拟显示验证数据归属，未测 Quest 帧率。1075 项舞台测试通过，主域 19 项与预览 8 项资源逐字节核对；[正式版](https://732a160a.mmd-xr-stage.pages.dev)仍走 WebGL。 |
 | `8a4bd75` | [摄影地台预览](https://ef79f621.mmd-xr-stage.pages.dev/?set=floor&xrBackend=webgpu)在演员身边切换原 MMD／仿终末地，同一舞段不停播、不重载。包含面部／身体扩散、独立描边法线与每眼细线。真实 GPU、模拟双眼的暂停开关与续播通过；两眼定格恢复无像素残差。1074 项舞台、31 项工具测试通过，[正式版](https://26340952.mmd-xr-stage.pages.dev)保留 WebGL，主域 19 项和预览 8 项资源已核对。 |
 | `70f0b09` | [正式舞台固定版](https://31d9de6f.mmd-xr-stage.pages.dev)保持 WebGL。相同源码的[摄影地台资格预览](https://dda12b71.mmd-xr-stage.pages.dev/?set=floor&xrBackend=webgpu)从原菜单、背包、角色详情运行 WebGPU，已验模拟双眼的选人／托裙／续场换人／回退。1067 项舞台和 25 项工具测试通过；正式主域 19 项、预览入口及其依赖 7 项核对。洛茜 v4 对照留本地。 |
 | `a89ac63` | [固定版](https://b3c336c5.mmd-xr-stage.pages.dev)更新共用走路回调时序。正式舞台仍是 WebGL＋Bullet。内部 WebGPU 地台实测走动、转身后双眼／放置／双手托裙及失追归位；洛茜三版实绘另见[画风文档](./scenery/character-toon-references.md)。移动组件 3 项测试、构建及主域 5 项资源核对通过。 |

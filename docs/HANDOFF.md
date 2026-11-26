@@ -1,6 +1,6 @@
 # 会话交接｜2026-11-26
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `8a4bd75`](https://26340952.mmd-xr-stage.pages.dev) · [WebGPU 摄影地台 · 洛茜 v5](https://webgpu-floor-preview.mmd-xr-stage.pages.dev/?set=floor&xrBackend=webgpu) · [WebGPU 裙摆实验](https://mmd-xr-stage.pages.dev/labs/cloth/) · [发布记录](./release-history.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `b740d1b`](https://732a160a.mmd-xr-stage.pages.dev) · [摄影地台 · 双后端对照固定版](https://7fd73aba.mmd-xr-stage.pages.dev/?set=floor&xrBackend=webgpu) · [WebGPU 裙摆实验](https://mmd-xr-stage.pages.dev/labs/cloth/) · [发布记录](./release-history.md)
 
 **收尾主线：主站可选 WebGPU 摄影地台。** 在同一资格页选 WebGPU 或 WebGL，原背包和续场共用；退出两种后端各一次后可下载一份双报告。下一关在同一台 Quest、同一角色同一舞段比较实际刷新率、每眼尺寸与慢帧，集中确认双眼、手柄与手追、退出续场及失败回退。通过再开放主站单景可选入口；全场景、多演员和默认后端另算。
 
