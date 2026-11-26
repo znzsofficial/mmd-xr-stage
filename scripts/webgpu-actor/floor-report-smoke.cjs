@@ -24,8 +24,16 @@ async function main(){
     const hint=await page.evaluate(()=>window.hint);assert(hint.n>=80 && hint.submissions>0);
     await page.locator('.xr-stage-exit').click();await page.locator('[data-xr-host=webgpu]').waitFor({state:'detached'});
     async function download(){const button=page.locator('[data-performance-export]');const [file]=await Promise.all([page.waitForEvent('download'),button.click()]);return JSON.parse(await fs.readFile(await file.path(),'utf8'));}
-    const gpu=await download();assert.equal(gpu.backend,'webgpu');assert.deepEqual(gpu.eyeViewports,[{eye:'left',width:232,height:230},{eye:'right',width:232,height:230}]);
+    let gpu=await download();assert.equal(gpu.backend,'webgpu');assert.deepEqual(gpu.eyeViewports,[{eye:'left',width:232,height:230},{eye:'right',width:232,height:230}]);
     assert(gpu.reportedRefreshRates[72]>0 && gpu.windows.some(w=>w.width===240 && w.height===240) && gpu.callbackIntervalMs.worst>0);
+    const firstAdapters=await page.evaluate(()=>labFixture.adapters.length);
+    await page.evaluate(()=>{labFixture.reversed=true;});
+    await page.locator('.stage-launch-row button.stage-btn-secondary[data-xr-backend=webgpu]').click();
+    await page.locator('[data-xr-host=webgpu][data-phase=active]').waitFor();
+    const second=await page.evaluate(async()=>({eyes:await labSession.first,slices:labSession.stats.slices,adapters:labFixture.adapters.length}));
+    assert(second.eyes.light.every(x=>x>100)&&second.eyes.different>100);assert.deepEqual(second.slices,{left:1,right:0});assert.equal(second.adapters,firstAdapters);
+    await page.locator('.xr-stage-exit').click();await page.locator('[data-xr-host=webgpu]').waitFor({state:'detached'});
+    const again=await download();assert.notEqual(again.startedAt,gpu.startedAt);gpu=again;
     await page.locator('[data-floor-renderer]').selectOption('webgl');
     assert((await page.locator('[aria-labelledby=backpack-heading]').innerText()).includes(file.name));
     await page.locator('.stage-launch-row button.stage-btn-secondary[data-xr-backend=webgl]').click();

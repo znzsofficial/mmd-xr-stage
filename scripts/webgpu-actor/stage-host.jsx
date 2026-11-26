@@ -22,6 +22,7 @@ import {gameHudRay} from './gameHudRay.js';
 import {createStageActorBackend} from './stageActorBackend.js';
 import {stageControls} from './stage-controls.js';
 import {recordFloorPerformance} from './floorPerformance.js';
+import {takeFloorRenderer,returnFloorRenderer} from './floorRenderer.js';
 import {trackedContacts} from './stage-tracked-contacts.js';
 import {usePlayerMovement} from '../../src/mmdVrShowcase/movement/usePlayerMovement';
 
@@ -50,7 +51,7 @@ function startFloor({resume,onStatus,fixture}) {
   const origin=React.createRef(),log={phase:'request',frames:0};
   const initialEpoch=useMmdVrStore.getState().entryEpoch;
   let closing=false,committed=false,session,ended=false,ending,renderer,root,store,xrStore,backend,undo,unbindHands,epoch;
-  let timer,backendTask,resolveStop,resolveEarly,prevTime,elapsed=0;
+  let timer,backendTask,resolveStop,resolveEarly,prevTime,elapsed=0,pageRetired=false,lost=false;
   const profile=getMmdVrRenderProfile(useMmdVrStore.getState().prefs);
   const recording=fixture?null:recordFloorPerformance(performance.now(),profile.targetFrameRateHz ? `${profile.targetFrameRateHz} Hz` : String(profile.frameRate));
   const stopped=new Promise(r=>resolveStop=r);
@@ -80,19 +81,23 @@ function startFloor({resume,onStatus,fixture}) {
   }
   function stop(error){
     if(closing)return;
-    if(error)log.error=String(error?.message??error);
+    if(error){
+      const actor=backend?.status,s=useMmdVrStore.getState();
+      log.error=`${error?.message??error} [${resume?'resume':'fresh'}; phase=${log.phase}; trackedDraws=${log.frames}; room=${committed?'mounted':'pending'}; loading=${committed&&s.assetLoad.running}; actor=${actor?.evaluations?'evaluated':actor?.style?'attached':'none'}]`;
+    }
     closing=true;clearTimeout(timer);fixture?.controls.reset();
     if(committed && useMmdVrStore.getState().entryEpoch===epoch){
-      recording?.finish();
+      if(!error)recording?.finish();
       clearContacts();
       // Snapshot while the live room and its actor still exist.
       useMmdVrStore.getState().closeOverlay();
     }
     resolveStop();
     if(!committed){
-      // Return prep immediately even if the browser hasn't resolved permission,
-      // device initialization or layer binding. run() retires its own resources.
-      void endOwnSession();publish(log.error?'failed':'ended');resolveEarly();
+      // An unanswered permission dialog owns no session. Once granted, end the
+      // session now; don't offer another immersive entry while it is retiring.
+      void endOwnSession();
+      if(!session){publish(log.error?'failed':'ended');resolveEarly();}
     }
   }
   function interrupt(cancelDraft=true){
@@ -107,11 +112,12 @@ function startFloor({resume,onStatus,fixture}) {
     backend?.beginFrame(null,null,true);
   }
   const endedSession=()=>{ended=true;stop();};
-  const onError=e=>stop(e.error??e.message), pageHide=()=>stop();
+  const onError=e=>stop(e.error??e.message), pageHide=()=>{pageRetired=true;stop();};
   async function run(){
     try {
       if(T.REVISION!=='187'||!navigator.xr||!navigator.gpu||!globalThis.XRGPUBinding)throw Error('WebGPU XR 不可用');
-      readLayout();
+       readLayout();
+       recording?.begin();
       window.addEventListener('pagehide',pageHide);
       // Request from the original click. Until a tracked draw succeeds, no
       // page state, previous scene or asset binding is changed.
@@ -126,9 +132,9 @@ function startFloor({resume,onStatus,fixture}) {
       window.addEventListener('error',onError);
       publish('init');if(closing)return;
       timer=setTimeout(()=>stop(Error('No first tracked draw within 15 s')),15000);
-      renderer=new T.WebGPURenderer({antialias:false});
+      renderer=takeFloorRenderer();
       renderer.xr.enabled=true;renderer.xr.setReferenceSpaceType('local-floor');
-      renderer.onDeviceLost=info=>stop(`device lost: ${info.message}`);
+      renderer.onDeviceLost=info=>{lost=true;stop(`device lost: ${info.message}`);};
       renderer.onError=info=>stop(`${info.type}: ${info.message}`);
       await renderer.init();if(closing)return;
       if(!renderer.backend.isWebGPUBackend)throw Error('WebGPU adapter unavailable');
@@ -161,17 +167,16 @@ function startFloor({resume,onStatus,fixture}) {
           advance(elapsed,false,store.getState(),frame);
           if(closing)return;
           recording?.draw(time,frame,views,renderer,backend);
-           if(++log.frames===1){
+          if(++log.frames===1){
             // No actor, shader compile for PMX, or physics startup on the
             // critical path to the first pair of environment images.
-             clearTimeout(timer);
-             // Mirror the product's explicit or low/mid/high rate policy only
-             // after the first tracked draw. Some runtimes never settle this hint.
-             const rates=session.supportedFrameRates;
-             if(!fixture && rates?.length && session.updateTargetFrameRate){
-               const policy=profile.frameRate,rate=typeof policy==='function'?policy(rates):policy && rates[Math.ceil((rates.length-1)*(policy==='high'?1:policy==='mid'?.5:0))];
-               if(rate && rate!==session.frameRate){try{void session.updateTargetFrameRate(rate).catch(()=>{});}catch{/* optional device hint */}}
-             }
+            clearTimeout(timer);
+            // Mirror the product's rate policy after the first tracked draw.
+            const rates=session.supportedFrameRates;
+            if(!fixture && rates?.length && session.updateTargetFrameRate){
+              const policy=profile.frameRate,rate=typeof policy==='function'?policy(rates):policy && rates[Math.ceil((rates.length-1)*(policy==='high'?1:policy==='mid'?.5:0))];
+              if(rate && rate!==session.frameRate){try{void session.updateTargetFrameRate(rate).catch(()=>{});}catch{/* optional device hint */}}
+            }
             timer=setTimeout(()=>stop(Error('Stage did not become ready after the first draw')),15000);
             const grade=fixture?undefined:{balancedModelColor:prefs.balancedModelColor,ambientIntensity:lighting.ambient};
             backendTask=createStageActorBackend(renderer,scene,sun.current,origin,grade).then(b=>{
@@ -208,7 +213,8 @@ function startFloor({resume,onStatus,fixture}) {
       if(root)await release(()=>new Promise(resolve=>unmountComponentAtNode(renderer.domElement,resolve)));
       unbindHands?.();
       await release(()=>xrStore?.destroy());
-      await release(()=>backend?.dispose());await release(()=>undo?.());await release(()=>renderer?.dispose());
+      await release(()=>backend?.dispose());await release(()=>undo?.());
+      if(renderer)await release(()=>returnFloorRenderer(renderer,committed&&!lost&&!pageRetired&&!log.error));
       session?.removeEventListener('end',endedSession);session?.removeEventListener('visibilitychange',interrupt);
       window.removeEventListener('error',onError);window.removeEventListener('pagehide',pageHide);
       publish(log.error?'failed':'ended');

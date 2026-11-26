@@ -147,14 +147,15 @@ module.exports = function extendStereoShim() {
   window.XRGPUBinding = class extends window.XRGPUBinding {
     constructor(s, device) {
       super(s, device);
-      const submit = device.queue.submit.bind(device.queue);
-      device.queue.submit = commands => {
+      const original = device.queue.submit;
+      const submit = device.queue.submit = commands => {
         if (!s.readback) {
           if (!s.inFrame) throw Error('GPU queue.submit outside the owning XR frame');
           s.stats.submissions++;
         }
-        return submit(commands);
+        return original.call(device.queue,commands);
       };
+      s.addEventListener('end',()=>{if(device.queue.submit===submit)device.queue.submit=original;},{once:true});
     }
     createProjectionLayer(init) {
       if (cfg.rejectLayer) throw new DOMException('injected layer failure', 'NotSupportedError');

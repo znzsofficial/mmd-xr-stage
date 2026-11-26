@@ -3,6 +3,7 @@ import { requestImmersiveEnter } from "../../xr";
 import type { MmdVrAssetSlot } from "../backpack/sessionAssets";
 import { beginMmdVrAssetSession } from "../backpack/sessionAssets";
 import { prepareBackpackEntry } from "../backpack/store";
+import {beginPerformanceAttempt} from '../diagnostics/performanceReport';
 import { useMmdVrStore } from "../mmdVrStore";
 import { beginMmdVrSessionFromClick, endMmdVrSession, getMmdVrSessionSnapshot, waitForMmdVrPresentation } from "./mmdVrSession";
 
@@ -33,6 +34,7 @@ export function requestMmdVrEnter(opts: {
       return current.overlayOpen || current.phase === "entering" || current.phase === "active";
     },
     setEntering: () => {
+      beginPerformanceAttempt('webgl');
       useMmdVrStore.setState({presentation:'xr'});
       const saved = opts.resume ? store.savedStage : null;
       // Clear transient selection/commands only. Fresh layouts commit in

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { createPerformanceRecording, publishPerformanceReport, samePagePair } from "./performanceReport";
+import { beginPerformanceAttempt, createPerformanceRecording, publishPerformanceReport, samePagePair,useLastPerformanceReport } from "./performanceReport";
 import type { RenderDiagnostics } from "./renderDiagnostics";
 
 const request = { frameRate: "120 Hz", antialias: true, framebufferScale: 1, foveation: null };
@@ -13,6 +13,8 @@ describe("completed XR performance report", () => {
     const gpu=run('webgpu',['floor']);publishPerformanceReport(gpu);
     expect(gpu).toMatchObject({backend:'webgpu',visibleIntervalMs:330,intervalCount:2,reportedRefreshRates:{90:1},overOneAndHalfBudgetsFraction:1});
     const gl=run('webgl',['floor']);publishPerformanceReport(gl);expect(samePagePair()).toEqual({webgpu:gpu,webgl:gl});
+    beginPerformanceAttempt('webgpu');expect(samePagePair()).toBeNull();expect(useLastPerformanceReport.getState().report).toBe(gl);
+    publishPerformanceReport(gpu);expect(samePagePair()).toEqual({webgpu:gpu,webgl:gl});
     publishPerformanceReport(run('webgl',['floor','classroom']));expect(samePagePair()).toBeNull();
   });
   it('measures finished rebuilds on a wall clock independent of visible callback gaps, omitting abandoned rooms',()=>{

@@ -117,6 +117,12 @@ export const useLastPerformanceReport = create<{ report: Report | null }>(() => 
 // Only the qualification page offers the two backends in one tab. Keep at most
 // one completed run per backend for a single export; never cross page loads.
 const pair:Partial<Record<XrBackend,Report>>={};
+/** A requested but failed take must not silently export an older take as its
+ * half of a new comparison (e.g. an empty floor in place of a dancing actor). */
+export function beginPerformanceAttempt(backend:XrBackend) {
+  delete pair[backend];
+  if(useLastPerformanceReport.getState().report?.backend===backend)useLastPerformanceReport.setState({report:null});
+}
 export function publishPerformanceReport(report:Report) {
   if(report.scenes.length===1 && report.scenes[0]==='floor')pair[report.backend]=report;
   else delete pair[report.backend];

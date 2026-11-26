@@ -1,4 +1,4 @@
-import {createPerformanceRecording,publishPerformanceReport} from '../../src/mmdVrShowcase/diagnostics/performanceReport';
+import {beginPerformanceAttempt,createPerformanceRecording,publishPerformanceReport} from '../../src/mmdVrShowcase/diagnostics/performanceReport';
 import {useMmdVrStore} from '../../src/mmdVrShowcase/mmdVrStore';
 
 // Called after a tracked draw. Sample the display from Three's populated eye
@@ -9,6 +9,7 @@ export function recordFloorPerformance(started,frameRate) {
   recording.scene('floor');
   let sampledAt,frames=0;
   return {
+    begin(){beginPerformanceAttempt('webgpu');},
     draw(time,frame,views,renderer,backend) {
       const hz=frame.session.frameRate;
       recording.timestamp(time,hz);
