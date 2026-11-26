@@ -12,6 +12,7 @@
 
 | 功能提交 | 已发布内容与验证范围 |
 |---|---|
+| `65597d3` | [正式窗边教室](https://mmd-xr-stage.pages.dev/?set=classroom&xrBackend=webgpu) · [固定部署](https://bbc4610a.mmd-xr-stage.pages.dev/?set=classroom&xrBackend=webgpu)。单角色 WebGPU 支持教室／地台场内往返。桌面硬件 GPU＋模拟手柄完成洛茜放置、播停、换景原位恢复与续播；生产产物验证教室二次入场及 WebGL 续场。1076 项舞台、31 项工具测试通过，主域 18 项资源核对。教室 Quest 持续帧时未测。 |
 | `72e1cac` | [主站单角色 WebGPU 摄影地台](https://mmd-xr-stage.pages.dev/?set=floor&xrBackend=webgpu) · [固定部署](https://9003cf5e.mmd-xr-stage.pages.dev/?set=floor&xrBackend=webgpu)。默认 WebGL，手选 WebGPU 才取后端模块。沿用 `6e7b9ab` 真机二次入场修复：两次都加载演员，玩家确认动作恢复。正式产物走通普通入口、两次 WebGPU 与 WebGL 续场／下载；1075 项舞台测试通过，线上 18 项资源与发布产物一致。单景发布不代表已提速或已适配其他场景。 |
 | `b740d1b` | [摄影地台](https://7fd73aba.mmd-xr-stage.pages.dev/?set=floor&xrBackend=webgpu)支持同一页选两种 XR 后端、续场、一次导出各自的实际刷新率、每眼视口和慢帧。编译后的准备页实走 WebGPU → WebGL 续场与下载；桌面 GPU＋模拟显示验证数据归属，未测 Quest 帧率。1075 项舞台测试通过，主域 19 项与预览 8 项资源逐字节核对；[正式版](https://732a160a.mmd-xr-stage.pages.dev)仍走 WebGL。 |
 | `8a4bd75` | [摄影地台预览](https://ef79f621.mmd-xr-stage.pages.dev/?set=floor&xrBackend=webgpu)在演员身边切换原 MMD／仿终末地，同一舞段不停播、不重载。包含面部／身体扩散、独立描边法线与每眼细线。真实 GPU、模拟双眼的暂停开关与续播通过；两眼定格恢复无像素残差。1074 项舞台、31 项工具测试通过，[正式版](https://26340952.mmd-xr-stage.pages.dev)保留 WebGL，主域 19 项和预览 8 项资源已核对。 |
