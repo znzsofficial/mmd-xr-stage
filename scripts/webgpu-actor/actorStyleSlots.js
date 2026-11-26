@@ -4,41 +4,40 @@
 const names = {
   face: /^(?:face|顔|颜|臉|脸|面)(?:skin|肌|皮肤)?$/,
   skin: /^(?:skin|bodyskin|skinbody|肌|皮膚|皮肤|身体肌)$/,
-  hair: /^(?:(?:front|back|side)?hair|bangs|髪|前髪|後髪|头发|頭髮|发|髮)(?:alpha|透過|透明)?$/,
-  cloth: /^(?:cloth(?:ing)?|fabric|dress|coat|skirt|cape|hood|布料?|服装|衣服|裙|スカート)$/,
-  leather: /^(?:leather|皮革|革)$/,
-  metal: /^(?:metal|metallic|金属|金屬)$/,
+  hair: /^(?:(?:front|back|side)?hair|bangs|髪|前髪|後髪|头发|頭髮|发|髮)(?:alpha|透過|透明)?\d*$/,
+  cloth: /^(?:cloth(?:ing)?|fabric|dress|coat|skirt|cape|hood|stockings?|tights|布料?|服装|衣服|裙(?:子|内|內)?|丝袜|絲襪|嗨丝|スカート)\d*$/,
+  leather: /^(?:leather(?:gloves?)?|皮革(?:手套)?|革)$/,
+  metal: /^(?:metal|metallic|(?:发饰|髮飾)?(?:金属|金屬))$/,
 };
 const roles = Object.keys(names);
-const detail = /eye|iris|pupil|lash|brow|shadow|highlight|mouth|tooth|teeth|tongue|blush|expression|decal|瞳|眼|眉|睫|目|口|歯|牙|舌|表情|影/iu;
-function namedRole(label) {
-  const word = label.normalize('NFKC').toLowerCase().replace(/(?:^mat(?:erial)?[ _.:-]+)|[\s_.:#\d-]/g,'');
-  return roles.find(role => names[role].test(word));
-}
+const detail = /eye|iris|pupil|lash|brow|shadow|highlight|mouth|tooth|teeth|tongue|blush|expression|decal|瞳|眼|眉|睫|目|口|嘴|唇|歯|牙|舌|表情|影/u;
+const word = v => v.normalize('NFKC').trim().toLowerCase().replace(/^mat(?:erial)?[ _.:-]+|[\s_.:#-]/g,'');
+// A numbered face may be an eye surround on the *same* face atlas. Even a
+// generic translated "Face" on that draw cannot establish that it is cheeks.
+const protectedLabel = v => detail.test(v) || (/\d+$/.test(v) && names.face.test(v.replace(/\d+$/, '')));
 
 export function inspectActorStyle(model) {
   const hybridSlots = Object.fromEntries(roles.map(role => [role, []]));
   const inputs = [];
   for (const [i, material] of [model.mesh.material].flat().entries()) {
     const meta = material?.userData?.mmdMaterial, map = material?.map;
-    if (typeof meta?.texturePath !== 'string' || meta.materialIndex !== i || !(meta.faceCount > 0) || !map?.image) continue;
-    const labels = [meta.name, meta.englishName].filter(v => typeof v === 'string' && v.trim());
-    if (labels.some(v => detail.test(v))) continue;
-    const kinds = new Set(labels.map(namedRole).filter(Boolean));
+    if (meta?.materialIndex !== i || !(meta.faceCount > 0)) continue;
+    const labels = [meta.name, meta.englishName].filter(v => typeof v === 'string').map(word);
+    if (labels.some(protectedLabel)) continue;
+    const kinds = new Set(labels.map(v => roles.find(role => names[role].test(v))).filter(Boolean));
     if (kinds.size !== 1) continue;
     const [role] = kinds;
-    // A named surface and its authored diffuse family must agree. A generic
-    // Body atlas is not evidence of skin unless the material itself says skin.
-    const base = meta.texturePath.split(/[\\/]/).at(-1);
-    const family = base.match(/(?:^|[_-])(face|body|skin|hair|cloth|leather|metal)(?:[_-]?\d+)?_d\.png$/i)?.[1].toLowerCase();
-    if (!(role === family || (role === 'skin' && family === 'body') || (role === 'leather' && family === 'cloth'))) continue;
     hybridSlots[role].push(i);
-    if (role === 'cloth' || role === 'face') {
+    // The base grade works with any diffuse (or just the PMX pigment). Only
+    // a matching face/cloth diffuse convention can nominate optional data.
+    const base = typeof meta.texturePath === 'string' && meta.texturePath.split(/[\\/]/).at(-1);
+    const family = base && base.match(/(?:^|[_-])(face|cloth)(?:[_-]?\d+)?_d\.png$/i)?.[1].toLowerCase();
+    if (role === family && map?.image) {
       // Snapshot the decoder inputs before TSL replaces the source materials.
       // No image, live mesh or GPU resource needs to cross the worker boundary.
       inputs.push({ i, role, ref:meta.texturePath, width:map.image.width, height:map.image.height,
         wrapS:map.wrapS, wrapT:map.wrapT, flipY:map.flipY });
     }
   }
-  return { hybridSlots, inputs };
+  return { hybridSlots, inputs, hasBase:roles.some(role => hybridSlots[role].length > 0) };
 }

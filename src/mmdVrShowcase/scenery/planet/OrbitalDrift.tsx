@@ -1,3 +1,4 @@
+import {RoomShader} from '../daylightMaterials';
 import {useEffect,useMemo,useRef} from 'react';
 import {useFrame} from '@react-three/fiber';
 import {AdditiveBlending,type ShaderMaterial} from 'three';
@@ -125,10 +126,10 @@ export function OrbitalDrift(){
   });
   return <group name="planet:orbital-drift" pointerEvents="none">
     <mesh name="drift:fracture-families" geometry={rocks} raycast={noPick} userData={visualOnly} renderOrder={-1}>
-      <shaderMaterial ref={stone} uniforms={uniforms} vertexShader={rocksVertex} fragmentShader={rocksFragment} transparent depthWrite/>
+      <RoomShader effect="driftStone" ref={stone} uniforms={uniforms} vertexShader={rocksVertex} fragmentShader={rocksFragment} transparent depthWrite/>
     </mesh>
     <mesh name="drift:ion-wakes" geometry={ions} raycast={noPick} userData={visualOnly}>
-      <shaderMaterial ref={dust} uniforms={uniforms} vertexShader={ionVertex} fragmentShader={ionFragment}
+      <RoomShader effect="ion" ref={dust} uniforms={uniforms} vertexShader={ionVertex} fragmentShader={ionFragment}
         transparent blending={AdditiveBlending} depthWrite={false} toneMapped={false}/>
     </mesh>
   </group>;

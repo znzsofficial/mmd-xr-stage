@@ -1,3 +1,4 @@
+import {RoomShader} from './daylightMaterials';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { BackSide, BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Group, OctahedronGeometry, SRGBColorSpace, TextureLoader, type Texture } from 'three';
@@ -155,7 +156,7 @@ export function CourtSky(){
   const uniforms=useMemo(()=>({panorama:{value:map}}),[map]);
   if(!map)return null;
   return <mesh name="court:sky" frustumCulled={false} renderOrder={-100} raycast={noPick}><sphereGeometry args={[1,48,24]}/>
-    <shaderMaterial side={BackSide} depthWrite={false} uniforms={uniforms}
+    <RoomShader effect="courtSky" side={BackSide} depthWrite={false} uniforms={uniforms}
       vertexShader={`varying vec2 skyUv; void main(){skyUv=uv;vec4 p=projectionMatrix*vec4(mat3(viewMatrix)*position,1.);gl_Position=p.xyww;}`}
       fragmentShader={`varying vec2 skyUv; uniform sampler2D panorama;void main(){gl_FragColor=texture2D(panorama,skyUv);
       #include <colorspace_fragment>

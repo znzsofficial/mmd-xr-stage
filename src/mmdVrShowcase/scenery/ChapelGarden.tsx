@@ -1,3 +1,4 @@
+import {RoomShader} from './daylightMaterials';
 import {useCallback,useEffect,useMemo} from 'react';
 import {useFrame} from '@react-three/fiber';
 import {Color,DoubleSide,Float32BufferAttribute,LatheGeometry,Vector2,type InstancedMesh,type Texture} from 'three';
@@ -64,7 +65,7 @@ function gardenParts(){const blocks:Part[]=[],round:Part[]=[],trees:Part[]=[],he
 // A low-cost rippled reflection of the dawn sky over a patterned basin; no
 // stereo reflection buffers. A radial wave starts beneath the stone finial.
 function BasinWater(){const uniforms=useMemo(()=>({t:{value:0}}),[]);useFrame((_,dt)=>{uniforms.t.value=(uniforms.t.value+Math.min(dt,.1))%240});
-  return <mesh rotation-x={-Math.PI/2} position-y={.48} raycast={noPick}><circleGeometry args={[1.78,56]}/><shaderMaterial uniforms={uniforms}
+  return <mesh rotation-x={-Math.PI/2} position-y={.48} raycast={noPick}><circleGeometry args={[1.78,56]}/><RoomShader effect="basin" uniforms={uniforms}
     vertexShader={`varying vec2 p;varying vec3 eye;void main(){p=position.xy;vec4 w=modelMatrix*vec4(position,1.);eye=cameraPosition-w.xyz;gl_Position=projectionMatrix*viewMatrix*w;}`}
     fragmentShader={`uniform float t;varying vec2 p;varying vec3 eye;void main(){float r=length(p);float w=sin(r*28.-t*2.)*.5+.5;vec2 d=normalize(p+.00001)*(.035*cos(r*28.-t*2.))+.021*vec2(sin(p.y*12.+t),cos(p.x*15.-t));vec3 n=normalize(vec3(d.x,1.,-d.y)),v=normalize(eye);
     float fr=pow(1.-max(dot(v,n),0.),3.);vec3 refl=reflect(-v,n);float sky=smoothstep(-.06,.65,refl.y);vec3 water=mix(vec3(.074,.258,.244),vec3(.22,.48,.41),smoothstep(.3,1.7,r));

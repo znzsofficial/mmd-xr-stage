@@ -1,3 +1,4 @@
+import {RoomShader} from './daylightMaterials';
 import {useMemo} from 'react';
 import {DoubleSide,type Texture} from 'three';
 
@@ -5,7 +6,7 @@ import {DoubleSide,type Texture} from 'three';
  * lead transmit much less. View-space incidence is evaluated per XR eye. */
 export function ChapelGlass({map}:{map:Texture}){
   const uniforms=useMemo(()=>({cartoon:{value:map}}),[map]);
-  return <shaderMaterial uniforms={uniforms} transparent depthWrite={false} side={DoubleSide} forceSinglePass toneMapped={false}
+  return <RoomShader effect="glass" uniforms={uniforms} transparent depthWrite={false} side={DoubleSide} forceSinglePass toneMapped={false}
     vertexShader={`varying vec2 vUv;varying vec3 toEye,n;
       void main(){vUv=uv;vec4 p=modelViewMatrix*vec4(position,1.);toEye=-p.xyz;n=normalMatrix*normal;gl_Position=projectionMatrix*p;}`}
     fragmentShader={`uniform sampler2D cartoon;varying vec2 vUv;varying vec3 toEye,n;

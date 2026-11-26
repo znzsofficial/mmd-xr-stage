@@ -56,7 +56,7 @@ export async function createStageActorBackend(renderer, scene, light, origin, gr
       catch (error) { log.cloth = 'unsupported'; log.clothError = String(error?.message ?? error); }
       const plan = inspectActorStyle(model);
       try {
-        adapter.attach(model,undefined,source && plan.inputs.length ? {hybridSlots:plan.hybridSlots,pmxBytes:source.pmxBytes} : undefined);
+        adapter.attach(model,undefined,plan.hasBase ? {hybridSlots:plan.hybridSlots,pmxBytes:source?.pmxBytes} : undefined);
         if (rig) cloth = roomCloth(renderer,model,rig,log);
       } catch (error) { adapter.detach(model); throw error; }
 

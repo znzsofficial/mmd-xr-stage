@@ -28,6 +28,11 @@ function textures(result) {
 }
 
 export async function loadActorStyleMaps({file,resolver,companionFiles}, inputs, signal, workerFor = factory) {
+  signal.throwIfAborted();
+  const root = folder(file);
+  // Loose files in the page backpack carry no package identity. A single PMX
+  // there does not establish the owner of an independently imported face set.
+  if (!root) return {cloth:new Map(),face:new Map()};
   const refs = new Map();
   for (const {ref} of inputs) if (!refs.has(ref)) {
     signal.throwIfAborted(); refs.set(ref,await resolver.resolve(ref));
@@ -35,13 +40,16 @@ export async function loadActorStyleMaps({file,resolver,companionFiles}, inputs,
   signal.throwIfAborted();
   const resolved = [...refs.values()].filter(Boolean);
   const diffuseNames = new Set(resolved.map(f=>f.name.toLowerCase()));
-  const roots = new Set(resolved.map(folder)), root = folder(file);
-  const single = !root && companionFiles.filter(f=>/\.pm[dx]$/i.test(f.name)).length === 1;
+  const models = companionFiles.filter(f=>/\.pm[dx]$/i.test(f.name));
+  const nested = [...new Set(models.map(folder))].filter(dir=>dir.startsWith(root+'/'));
+  const within = (dir, parent) => dir === parent || dir.startsWith(parent+'/');
   // A package may have an author-supplied duplicate diffuse in another map
   // subdirectory. The shared readers require its bytes to match before use.
   const files = [...new Set(companionFiles)].filter(f => {
     const dir = folder(f);
-    return (single || roots.has(dir) || (root && (dir === root || dir.startsWith(root+'/')))) &&
+    // Basename fallback can display a diffuse from another import. That does
+    // not make its directory (or another model's subtree) this actor's pack.
+    return within(dir,root) && !nested.some(p=>within(dir,p)) &&
       (diffuseNames.has(f.name.toLowerCase()) || /_(?:n|p|sdf|cm_m|rd)\.png$/i.test(f.name));
   });
   const indices = new Map(files.map((f,i)=>[f,i]));

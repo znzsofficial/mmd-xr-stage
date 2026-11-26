@@ -1,3 +1,4 @@
+import {RoomShader} from '../daylightMaterials';
 import {useEffect,useLayoutEffect,useMemo,useRef} from 'react';
 import {useFrame,useThree} from '@react-three/fiber';
 import {Box3,DoubleSide,Ray,Vector3,type Group,type Mesh,type BufferGeometry,type ShaderMaterial} from 'three';
@@ -73,7 +74,7 @@ export function TidalMoon(){
   useEffect(()=>()=>{pool.dispose();map.dispose();},[pool,map]);
   return <group name="tide:moon"><TideCavern clock={clock}/><group ref={shore} position={[tideCentre.x,seaBase(),tideCentre.z]} userData={{playerCollision:false}}>
     <mesh ref={water} position-y={ebbLevel} name="tide:pool" geometry={pool} renderOrder={1} raycast={noPick} pointerEvents="none">
-      <shaderMaterial vertexShader={tideWaterVertex} fragmentShader={tideWaterFragment} uniforms={u} transparent depthWrite={false} side={DoubleSide} forceSinglePass/>
+      <RoomShader effect="tide" vertexShader={tideWaterVertex} fragmentShader={tideWaterFragment} uniforms={u} transparent depthWrite={false} side={DoubleSide} forceSinglePass/>
     </mesh><TideSounder clock={clock}/>
   </group></group>;
 }

@@ -1,3 +1,4 @@
+import {RoomShader} from '../daylightMaterials';
 import {useEffect,useMemo} from 'react';
 import {BackSide,DoubleSide,type MeshStandardMaterial} from 'three';
 import {Batch} from '../SceneryBatch';
@@ -32,7 +33,7 @@ const joinery:MeshStandardMaterial['onBeforeCompile']=shader=>{
     vec2 l=vec2(abs(qWorld.x)-3.44,qWorld.z-4.65);diffuseColor.rgb+=vec3(.041,.014,.003)*exp(-dot(l,l)*.49)*(1.-smoothstep(0.,2.0,qWorld.y));`);
 };
 export function RiverSky(){return <mesh name="qinhuai:evening-sky" renderOrder={-100} frustumCulled={false} raycast={noPick}>
-  <sphereGeometry args={[1,36,20]}/><shaderMaterial side={BackSide} depthWrite={false} depthTest={false}
+  <sphereGeometry args={[1,36,20]}/><RoomShader effect="riverSky" side={BackSide} depthWrite={false} depthTest={false}
     vertexShader={`varying vec3 skyDir;void main(){skyDir=position;vec4 p=projectionMatrix*vec4(mat3(viewMatrix)*position,1.);gl_Position=vec4(p.xy,0.,p.w);}`}
     fragmentShader={`varying vec3 skyDir;void main(){vec3 d=normalize(skyDir);float h=max(0.,d.y);vec3 c=mix(vec3(.62,.465,.37),vec3(.13,.19,.278),smoothstep(0.,.85,sqrt(h)));
     float bank=.012+.022*sin(d.x*9.+d.z*7.)+.009*sin(d.x*31.-d.z*17.);c=mix(vec3(.27,.29,.31),c,smoothstep(bank-.005,bank+.004,d.y));
@@ -44,7 +45,7 @@ export function RiverSky(){return <mesh name="qinhuai:evening-sky" renderOrder={
 // Static ripple field in world metres. The broad wake and lantern tracks are
 // intentionally painted reflections; no second camera, simulation or frame loop.
 export function QinhuaiWater(){return <mesh name="qinhuai:water" position={[0,-.535,4]} rotation-x={-Math.PI/2} raycast={noPick}>
-  <planeGeometry args={[140,85]}/><shaderMaterial vertexShader={`varying vec2 w;void main(){vec4 p=modelMatrix*vec4(position,1.);w=p.xz;gl_Position=projectionMatrix*viewMatrix*p;}`}
+  <planeGeometry args={[140,85]}/><RoomShader effect="riverWater" vertexShader={`varying vec2 w;void main(){vec4 p=modelMatrix*vec4(position,1.);w=p.xz;gl_Position=projectionMatrix*viewMatrix*p;}`}
     fragmentShader={`varying vec2 w;
     float hash(vec2 p){return fract(sin(dot(p,vec2(31.7,127.1)))*43758.5453);}
     float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+1.),f.x),f.y);}

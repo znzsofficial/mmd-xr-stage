@@ -11,7 +11,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/loader-sync.mjs verify && tsc -b && vite build && pnpm build:cloth-lab",
+    "build": "node scripts/loader-sync.mjs verify && node scripts/build-room-nodes.mjs --check && tsc -b && vite build && pnpm build:cloth-lab",
     "loader:verify": "node scripts/loader-sync.mjs verify",
     "loader:export": "node scripts/loader-sync.mjs export",
     "loader:upstream": "node scripts/loader-sync.mjs upstream",

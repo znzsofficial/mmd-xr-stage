@@ -1,3 +1,4 @@
+import {RoomShader} from '../../daylightMaterials';
 import {useFrame} from '@react-three/fiber';
 import {useEffect,useLayoutEffect,useMemo} from 'react';
 import {Color,CustomBlending,Float32BufferAttribute,InstancedBufferAttribute,InstancedBufferGeometry,OneMinusSrcAlphaFactor,RepeatWrapping,SrcAlphaFactor,Vector3} from 'three';
@@ -95,6 +96,6 @@ export function DistantSystem(){
   const u=useMemo(()=>({centre:{value:new Vector3(-29,19,-146)},radius:{value:18},extent:{value:2.34},sun:{value:sunDirection},belts:{value:map},mapped:{value:map?1:0},spin:{value:0}}),[map]);
   useFrame((_,dt)=>{u.spin.value=(u.spin.value+Math.min(.1,dt)*.0011)%1;});
   return <><mesh name="sky:rock-moons" frustumCulled={false} geometry={batch} renderOrder={-970} raycast={noPick}>
-    <shaderMaterial {...material} defines={rockDefines} uniforms={rockUniforms}/></mesh>
-    <mesh name="sky:body-amber" frustumCulled={false} renderOrder={-960} raycast={noPick}><planeGeometry args={[1,1]}/><shaderMaterial {...material} uniforms={u}/></mesh></>;
+    <RoomShader effect="rocks" {...material} defines={rockDefines} uniforms={rockUniforms}/></mesh>
+    <mesh name="sky:body-amber" frustumCulled={false} renderOrder={-960} raycast={noPick}><planeGeometry args={[1,1]}/><RoomShader effect="amber" {...material} uniforms={u}/></mesh></>;
 }

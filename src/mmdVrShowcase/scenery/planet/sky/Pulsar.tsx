@@ -1,3 +1,4 @@
+import {RoomShader} from '../../daylightMaterials';
 import {useEffect,useMemo} from 'react';
 import {useFrame} from '@react-three/fiber';
 import {AdditiveBlending,BufferGeometry,DoubleSide,Float32BufferAttribute,Vector3} from 'three';
@@ -43,7 +44,7 @@ export function Pulsar(){
   const attention=useSkyAttention(),geo=useMemo(ejecta,[]),u=useMemo(()=>({time:{value:0},attention}),[attention]);
   useEffect(()=>()=>geo.dispose(),[geo]);useFrame((_,dt)=>{u.time.value=(u.time.value+Math.min(.10,dt))%100;u.attention.value=attention.value;});
   return <mesh name="sky:pulsar" renderOrder={-980} frustumCulled={false} geometry={geo} raycast={noPick}>
-    <shaderMaterial uniforms={u} depthWrite={false} depthTest={false} blending={AdditiveBlending} side={DoubleSide} toneMapped={false}
+    <RoomShader effect="pulsar" uniforms={u} depthWrite={false} depthTest={false} blending={AdditiveBlending} side={DoubleSide} toneMapped={false}
       vertexShader={`${skySpace}attribute vec3 spine;attribute float width;varying vec2 local;varying float core;
         void main(){vec3 ray=position-skyEye(cameraPosition);core=step(width,0.);local=uv;vec3 d=mat3(viewMatrix)*ray;
           if(width>0.)d+=mat3(viewMatrix)*normalize(cross(spine,ray))*width*uv.x;else d.xy+=-width*uv;

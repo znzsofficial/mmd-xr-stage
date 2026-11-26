@@ -1,3 +1,4 @@
+import {RoomShader} from '../../daylightMaterials';
 import {useMemo} from 'react';
 import {useFrame} from '@react-three/fiber';
 import {BackSide,type Texture} from 'three';
@@ -10,7 +11,7 @@ export function TidalNebula({map}:{map:Texture|null}){
   const attention=useSkyAttention(),u=useMemo(()=>({fields:{value:map},mapped:{value:map?1:0},clock:{value:0},sunDir:{value:sunDirection},attention}),[map,attention]);
   useFrame((_,dt)=>{u.clock.value=(u.clock.value+Math.min(.1,dt))%48;u.attention.value=attention.value;});
   return <mesh name="sky:tidal-nebula" frustumCulled={false} renderOrder={-1000} raycast={noPick}><sphereGeometry args={[1,48,32]}/>
-    <shaderMaterial uniforms={u} side={BackSide} depthWrite={false} depthTest={false} toneMapped={false}
+    <RoomShader effect="nebula" uniforms={u} side={BackSide} depthWrite={false} depthTest={false} toneMapped={false}
       vertexShader={`varying vec3 dir;void main(){dir=position;vec4 p=projectionMatrix*vec4(mat3(viewMatrix)*position,1.);gl_Position=p.xyww;}`}
       fragmentShader={`${skySpace}${sampleLongitude}
         uniform sampler2D fields;uniform float mapped,clock,attention;uniform vec3 sunDir;varying vec3 dir;

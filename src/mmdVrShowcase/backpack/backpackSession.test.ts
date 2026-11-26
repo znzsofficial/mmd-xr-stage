@@ -9,13 +9,13 @@ afterEach(() => { endMmdVrAssetSession();useMmdVrStore.setState(initial); clearB
 
 describe('backpack session boundary', () => {
   const room: StageSnapshot = { scenery:'classroom',assets:[],models:[],objects:[],time:0,playing:false,loop:true,physicsEnabled:false,controllerCollisions:true };
-  it('allows the classroom but preserves an incompatible saved destination and blocks a lawn crossing',()=>{
+  it('preserves an incompatible saved destination but allows walking across supported rooms',()=>{
     initial.setPrefs({scenery:'floor'});beginMmdVrAssetSession([],'soloFloor');initial.openOverlay();
     const prop=new File([],'chair.glb'), saved:StageSnapshot={...room,assets:[{kind:'object',objectFile:prop,companionFiles:[]}]};
     useBackpack.setState({layouts:{classroom:saved}});initial.setPrefs({scenery:'classroom'});
     expect(useMmdVrStore.getState().prefs.scenery).toBe('floor');expect(useBackpack.getState().layouts.classroom).toBe(saved);
     useBackpack.setState({layouts:{classroom:room}});initial.setPrefs({scenery:'classroom'});expect(useMmdVrStore.getState().prefs.scenery).toBe('classroom');
-    initial.setPrefs({scenery:'lawn'},{preserveViewOnCrossing:true});expect(useMmdVrStore.getState().prefs.scenery).toBe('classroom');
+    initial.setPrefs({scenery:'lawn'},{preserveViewOnCrossing:true});expect(useMmdVrStore.getState().prefs.scenery).toBe('lawn');
   });
   it('can choose the second imported actor for a solo floor, and normal limits return on exit',()=>{
     syncBackpackFiles(['one.pmx','two.pmx','lamp.glb'].map(name=>new File([],name)));
@@ -25,7 +25,7 @@ describe('backpack session boundary', () => {
     bag.publishLive({[two.id]:{position:[0,0,0],visible:false,runtimeId:'live:2'}});
     bag.beginPlace(one.id);expect(useBackpack.getState().draft).toBeNull();
     bag.beginPlace(prop.id);expect(useBackpack.getState().draft).toBeNull();
-    initial.setPrefs({scenery:'pool'});expect(useMmdVrStore.getState().prefs.scenery).toBe('floor');
+    initial.setPrefs({scenery:'pool'});expect(useMmdVrStore.getState().prefs.scenery).toBe('pool');
     initial.closeOverlay();bag.beginPlace(prop.id);expect(useBackpack.getState().draft).toBe(prop.id);
     initial.setPrefs({scenery:'pool'});expect(useMmdVrStore.getState().prefs.scenery).toBe('pool');
   });

@@ -72,7 +72,7 @@ Desktop and immersive views share the backpack and stage layouts. Only the activ
 
 ## WebXR requirements
 
-Screen viewing requires WebGL 2. Immersive viewing also needs a browser and headset that support `immersive-vr`, served over HTTPS or localhost. WebGL is the default. The [window-side classroom](https://mmd-xr-stage.pages.dev/?set=classroom&xrBackend=webgpu) and [photo floor](https://mmd-xr-stage.pages.dev/?set=floor&xrBackend=webgpu) offer single-actor WebGPU. Switch rooms from the VR menu; returning restores each room's own layout and motion. See [WebGPU XR support and measurements](./docs/webgpu-xr-status.md).
+Screen viewing requires WebGL 2. Immersive viewing needs an `immersive-vr` headset and HTTPS or localhost. WebGL is the default. All 16 built-in rooms offer [single-actor WebGPU](https://mmd-xr-stage.pages.dev/?set=astralCourt&xrBackend=webgpu). Switch rooms from the VR menu; each remembers its layout and motion. Named PMX surfaces can use the optional toon style without dedicated detail maps. See [WebGPU XR support and measurements](./docs/webgpu-xr-status.md).
 
 The app requests hand tracking as an optional session feature. It marks VR entry as active when the renderer receives its first `XRFrame`, rather than when the session request resolves. WebGL 2 projection layers support MSAA via the antialias setting. See the [XR session lifecycle](./docs/xr-session-lifecycle.md) for startup and teardown. Controller collision and haptics target Meta Quest Browser; desktop simulation does not establish headset comfort or frame rate.
 

@@ -1,3 +1,4 @@
+import {RoomShader} from './daylightMaterials';
 import { useMemo, useRef, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { BufferGeometry, Color, CylinderGeometry, DoubleSide, Float32BufferAttribute, IcosahedronGeometry, TorusGeometry, Vector3, type Mesh,type ShaderMaterial } from 'three';
@@ -135,7 +136,7 @@ function Water() {
   const uniforms=useMemo(()=>({time:{value:0},sun:{value:new Vector3(...POOL_SUN).normalize()}}),[]);
   const w=POOL.water;const ref=useRef<ShaderMaterial>(null);
   useFrame((_,dt)=>{if(ref.current)uniforms.time.value=(uniforms.time.value+Math.min(.05,dt))%1000;});
-  return <mesh position={[w.x,-.16,w.z]} rotation-x={-Math.PI/2} raycast={noPick} name="pool-water"><planeGeometry args={[w.w,w.d]} /><shaderMaterial ref={ref} uniforms={uniforms}
+  return <mesh position={[w.x,-.16,w.z]} rotation-x={-Math.PI/2} raycast={noPick} name="pool-water"><planeGeometry args={[w.w,w.d]} /><RoomShader effect="pool" ref={ref} uniforms={uniforms}
     vertexShader={`varying vec3 wp; void main(){wp=(modelMatrix*vec4(position,1.)).xyz;gl_Position=projectionMatrix*viewMatrix*vec4(wp,1.);}`}
     fragmentShader={`varying vec3 wp;uniform float time;uniform vec3 sun;
     void main(){vec2 p=wp.xz; vec3 eye=normalize(cameraPosition-wp);float t=time*.68;

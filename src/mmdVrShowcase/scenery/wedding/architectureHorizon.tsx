@@ -1,3 +1,4 @@
+import {RoomShader} from '../daylightMaterials';
 import {useEffect,useMemo} from 'react';
 import {useThree} from '@react-three/fiber';
 import {BufferGeometry,Color,Float32BufferAttribute} from 'three';
@@ -21,7 +22,7 @@ export function ArchitectureHorizon(){
   useEffect(()=>()=>view.g.dispose(),[view]);
   return <mesh name="wedding:mist-hills" geometry={view.g} raycast={noPick} renderOrder={-90} frustumCulled={false}
     onBeforeRender={()=>{if(scene.fog)view.uniforms.mist.value.copy(scene.fog.color);}}>
-    <shaderMaterial uniforms={view.uniforms} depthWrite={false} depthTest={false}
+    <RoomShader effect="hills" uniforms={view.uniforms} depthWrite={false} depthTest={false}
       vertexShader={`attribute float haze;varying float h;void main(){h=haze;vec4 p=projectionMatrix*vec4(mat3(viewMatrix)*position,1.);gl_Position=vec4(p.xy,0.,p.w);}`}
       fragmentShader={`varying float h;uniform vec3 mist,hill;void main(){gl_FragColor=vec4(mix(mist,hill,h),1.);
       #include <colorspace_fragment>

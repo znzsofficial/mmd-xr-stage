@@ -1,3 +1,4 @@
+import {RoomShader} from '../daylightMaterials';
 import {useEffect,useMemo} from 'react';
 import {useFrame} from '@react-three/fiber';
 import {BufferGeometry,Color,DoubleSide,Float32BufferAttribute,Quaternion,SphereGeometry,Vector3,type Texture} from 'three';
@@ -118,8 +119,8 @@ export function Reedwater({moon,grain}:{moon:Moon;grain:Texture|null}){
     plumb:{value:new Vector3(.13,0,.13).applyQuaternion(new Quaternion().setFromUnitVectors(axis,reedGaugeUp)).addScaledVector(reedGaugeUp,reedRadius+reedSeaLevel)}}),[grain]);
   useFrame((_,dt)=>{u.clock.value=(u.clock.value+Math.min(.08,dt))%(Math.PI*2);});
   useEffect(()=>()=>{ground.dispose();water.dispose();plants.dispose();},[ground,water,plants]);
-  return <group position={moon.centre} userData={{playerCollision:false}}><mesh name="planet:moon-reed" geometry={ground} raycast={noPick}><shaderMaterial uniforms={u} vertexShader={vert} fragmentShader={groundFrag}/></mesh>
+  return <group position={moon.centre} userData={{playerCollision:false}}><mesh name="planet:moon-reed" geometry={ground} raycast={noPick}><RoomShader effect="reed" uniforms={u} vertexShader={vert} fragmentShader={groundFrag}/></mesh>
     <mesh name="reed:living-shore" geometry={plants} raycast={noPick}><meshStandardMaterial vertexColors roughness={.80} side={DoubleSide} fog={false}/></mesh>
     <ReedSkimmers/>
-    <mesh name="reed:lagoon-water" geometry={water} renderOrder={1} raycast={noPick}><shaderMaterial uniforms={u} vertexShader={vert} fragmentShader={waterFrag} transparent depthWrite={false}/></mesh></group>;
+    <mesh name="reed:lagoon-water" geometry={water} renderOrder={1} raycast={noPick}><RoomShader effect="reedWater" uniforms={u} vertexShader={vert} fragmentShader={waterFrag} transparent depthWrite={false}/></mesh></group>;
 }

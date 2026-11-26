@@ -23,7 +23,7 @@ export function SceneryPanel({ onClose, onSelected, locked }: { onClose: () => v
     <HudSheet size={[2.90,height]} />
     <HudLine position={[-.91,top-.19,0]} text={t("hudScenery")} width={0.86} role="title" />
     <HudButton position={[1.02,top-.19,0]} label={t("hudBack")} size={[0.65,0.14]} onPress={onClose} variant="quiet" />
-    {rooms.map((id, i) => <HudButton key={id} position={[(i % cols - (solo ? .5 : 1)) * .94,top-.47-Math.floor(i/cols)*.23,0]}
+    {rooms.map((id, i) => <HudButton key={id} position={[(i % cols - 1) * .94,top-.47-Math.floor(i/cols)*.23,0]}
       label={t(SCENERY[id].label)} active={id === current} disabled={locked || (solo && !fitsWebgpuRoom(layouts[id]))} size={[0.86, 0.17]} onPress={() => {
         if (useMmdVrStore.getState().prefs.scenery !== id) useMmdVrStore.getState().setPrefs({ scenery: id });
         onSelected();

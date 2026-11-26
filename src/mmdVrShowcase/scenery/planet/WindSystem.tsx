@@ -1,3 +1,4 @@
+import {RoomShader} from '../daylightMaterials';
 import {useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react';
 import {useFrame} from '@react-three/fiber';
 import {DoubleSide,InstancedMesh,Object3D,Quaternion,Vector3,type Texture} from 'three';
@@ -38,7 +39,7 @@ function Satellite({moon,grain}:{moon:Extract<Moon,{relief:keyof typeof prints}>
   const u=useMemo(()=>({albedo:{value:map},printMap:{value:map},mapped:{value:map?1:0},grainMap:{value:grain},grainReady:{value:grain?1:0},core:{value:moon.centre},sun:{value:sunDirection},ice:{value:moon.relief==='rifts'?1:0},probe:{value:moon.station.base},probeUp:{value:moon.station.up}}),[map,moon,grain]);
   useEffect(()=>()=>g.dispose(),[g]);
   return <mesh name={'planet:moon-'+moon.id} geometry={g} position={moon.centre} userData={{playerCollision:false}} raycast={noPick}>
-    {twin?<shaderMaterial uniforms={u} defines={moon.relief==='salt'?halite:undefined} vertexShader={mineralVertex} fragmentShader={mineralFragment}/>:map?<shaderMaterial uniforms={u} vertexShader={`varying vec2 st;varying vec3 n,v,world;
+    {twin?<RoomShader effect="mineral" uniforms={u} defines={moon.relief==='salt'?halite:undefined} vertexShader={mineralVertex} fragmentShader={mineralFragment}/>:map?<RoomShader effect="satellite" uniforms={u} vertexShader={`varying vec2 st;varying vec3 n,v,world;
       void main(){st=uv;n=mat3(modelMatrix)*normal;vec4 p=modelMatrix*vec4(position,1.);world=p.xyz;v=cameraPosition-p.xyz;gl_Position=projectionMatrix*viewMatrix*p;}`}
       fragmentShader={`${surfaceGrain}\nuniform sampler2D albedo;uniform vec3 sun,probe,probeUp,core;uniform float ice;varying vec2 st;varying vec3 n,v,world;
         float shade(vec3 center,float rad){vec3 diff=center-world;float t=dot(diff,sun);return smoothstep(.015,.15,t)*(1.-smoothstep(rad*.75,rad+.03,length(diff-t*sun)));}
@@ -88,7 +89,7 @@ function SurveyProbe({moon}:{moon:Exclude<Moon,{id:'lantern'|'tide'}>}){
   const s=moon.station,g=useMemo(()=>windProbeModel(moon),[moon]);
   const q=useMemo(()=>new Quaternion().setFromUnitVectors(axis,s.up),[s]);useEffect(()=>()=>g.dispose(),[g]);
   return <mesh name={'planet:survey-'+moon.id} geometry={g} position={s.base} quaternion={q} raycast={noPick}>
-    {moon.instrument==='prism'||moon.instrument==='kiln'?<shaderMaterial vertexColors uniforms={daylight} vertexShader={instrumentVertex} fragmentShader={instrumentFragment}/>:<meshStandardMaterial vertexColors metalness={.22} roughness={.58} fog={false}/>}
+    {moon.instrument==='prism'||moon.instrument==='kiln'?<RoomShader effect="instrument" vertexColors uniforms={daylight} vertexShader={instrumentVertex} fragmentShader={instrumentFragment}/>:<meshStandardMaterial vertexColors metalness={.22} roughness={.58} fog={false}/>}
   </mesh>;
 }
 function Terminal({site,active,pick}:{site:WindTerminal;active:boolean;pick:(lane:WindLane)=>void}){

@@ -35,9 +35,9 @@ async function makeImport(folder, pmx, vmd) {
 }
 
 async function main() {
-  const [pmx, vmd, plan] = process.argv.slice(2).map(v => ['--actor-style','--classroom'].includes(v)?v:path.resolve(v));
+  const [pmx, vmd, plan] = process.argv.slice(2).map(v => ['--actor-style','--basic-style','--classroom'].includes(v)?v:path.resolve(v));
   assert(pmx && vmd && plan, 'Expected a clothed PMX, body VMD and a matching textured-triangle hand plan');
-  const styleOnly=plan==='--actor-style',classroom=plan==='--classroom', json = !styleOnly && !classroom && JSON.parse(await fs.readFile(plan, 'utf8'));
+  const basic=plan==='--basic-style',styleOnly=basic||plan==='--actor-style',classroom=plan==='--classroom', json = !styleOnly && !classroom && JSON.parse(await fs.readFile(plan, 'utf8'));
   const sites = json && (json.plan ?? json).sites.map(({start,end,spot,radial,marks,mat}) => ({start,end,spot,radial,marks,mat}));
   if(json)assert.equal(sites.length, 2);
   const {chromium} = require(process.env.PLAYWRIGHT_CORE || path.join(process.env.XR_SMOKE_DIR || path.join(temp,'xr-browser-smoke'),'node_modules/playwright-core'));
@@ -143,7 +143,10 @@ async function main() {
       await until('classroom PMX placed',s=>s.ready&&s.selected&&s.visible&&s.actor?.evaluations>0,null,60000);
       await click('hudChangeMotion');await click('hudApplyBody');await until('classroom VMD playing',s=>s.playing&&s.time>.1&&s.actor.poseSeconds>0);
       await bButton();await click('settingsMmdVrPause');const held=await until('held dance',s=>!s.playing&&s.hasBinding&&s.time>0);
-      await bButton();await click('hudScenery');await click('hudSimpleStage');
+      await bButton();await click('hudScenery');await click('hudPool');
+      await until('pool owns the empty destination',s=>s.room==='pool'&&s.ready&&!s.live&&!s.actor?.evaluations);
+      assert(await page.evaluate(()=>!!gameTargets.find({name:'pool-water'})));
+      if(!await page.evaluate(()=>!!gameTargets.find({key:'hudScenery'})))await bButton();await click('hudScenery');await click('hudSimpleStage');
       await until('plinth is empty',s=>s.room==='floor'&&s.ready&&s.floor?.assets===0&&!s.live&&!s.actor?.evaluations);
       assert(!await page.evaluate(()=>!!gameTargets.find({name:'scenery:classroom'})));
       if(!await page.evaluate(()=>!!gameTargets.find({key:'hudScenery'})))await bButton();await click('hudScenery');await click('hudClassroom');
@@ -156,8 +159,8 @@ async function main() {
       assert.deepEqual(errors,[]);assert.deepEqual(consoles.filter(x=>/shader|validation|wgsl|nodebuilder|pipeline/i.test(x)),[]);console.log(JSON.stringify({entry:report.entry,held:held.time,restored:restored.time,placedAt:held.position,eyes,emptyEyes:base}));return;
     }
     if(styleOnly) {
-      report.style=await require('./game-floor-style.cjs')({page,ids,click,until,bButton,frames,target,pickMounted,idleRay});
-      assert.deepEqual(errors,[]);console.log(JSON.stringify(report,null,2));return;
+      report.style=await require('./game-floor-style.cjs')({page,ids,click,until,bButton,frames,target,pickMounted,idleRay,basic});
+      assert.deepEqual(errors,[]);assert.deepEqual(consoles.filter(x=>/shader|validation|wgsl|nodebuilder|pipeline/i.test(x)),[]);console.log(JSON.stringify(report,null,2));return;
     }
     const actor=await until('selected second PMX on GPU cloth and native Bullet',s=>s.ready && s.selected && s.live===1 && s.modelCount===1 && s.actor?.mode==='gpu' && s.actor.clothSteps>2 && s.actor.bulletSimulatedSteps>1,null,60000);
     assert(actor.visible && actor.filesIntact && !actor.hasBinding && actor.placeCommands===1 && actor.confirmedOn==='selectend');

@@ -2,7 +2,8 @@ import React,{useEffect,useMemo} from 'react';
 import {BackSide,Color,MeshBasicNodeMaterial,MeshStandardNodeMaterial} from 'three/webgpu';
 import {attribute,cameraProjectionMatrix,cameraViewMatrix,color,diffuseColor,float,instanceIndex,mix,normalWorld,positionGeometry,positionLocal,positionWorld,roughness,smoothstep,texture,uv,vec2,vec3,vec4,cameraPosition} from 'three/tsl';
 import {CLASS_SUN,ROOM} from '../../src/mmdVrShowcase/scenery/ClassroomLayout';
-import {classroomSunlight} from '../../src/mmdVrShowcase/scenery/ClassroomLight';
+import {classroomBounce,classroomSunlight} from '../../src/mmdVrShowcase/scenery/ClassroomLight';
+import {SceneShader} from './sceneShader.jsx';
 import {boardDay,backDay,steelDay,parquetContact} from '../../src/mmdVrShowcase/scenery/ClassroomFinish';
 import {useBakedSurface} from '../../src/mmdVrShowcase/scenery/useBakedSurface';
 import cloudsUrl from '../../src/mmdVrShowcase/scenery/day-clouds.webp';
@@ -39,6 +40,7 @@ function Surface({onBeforeCompile:shade,map,color:tint='white',roughness:base=.8
       m.colorNode=edge.select(vec3(.77,.72,.68),vec3(fibre));m.roughnessNode=edge.select(.43,wear.mul(-.18).add(.52));
     }else{m.map=map??null;if(tube)m.roughnessNode=mix(.78,.34,smoothstep(.03,.033,positionGeometry.y));}
     if(shade===parquetContact&&map)m.aoNode=texture(map).a;
+    if(!(wood||tube||shade===classroomSunlight||shade===classroomBounce||shade===parquetContact))return m;
     const fill=diffuseColor.rgb.mul(windowFill(shade===classroomSunlight||wood||tube));
     m.emissiveNode=wood||tube?fill.add(windowGlint(roughness)):fill;return m;
   },[shade,map,tint,base,side,vertexColors]);useEffect(()=>()=>mat.dispose(),[mat]);return <primitive object={mat} attach="material"/>;
@@ -52,4 +54,4 @@ function Sky({sun,warm}){
     mat.colorNode=mix(c,vec3(.92,.94,.94),cloud.mul(.78)).add(vec3(1,.78,.48).mul(a.pow(30).mul(.23).add(a.pow(330).mul(.45)).add(smoothstep(.007,.013,d.sub(s).length()).oneMinus().mul(1.8))).mul(cloud.mul(.72).oneMinus()));return mat;
   },[x,y,z,warm,clouds]);useEffect(()=>()=>m.dispose(),[m]);return <mesh name="day-sky" renderOrder={-100} frustumCulled={false} raycast={()=>null}><sphereGeometry args={[1,36,18]}/><primitive object={m} attach="material"/></mesh>;
 }
-export const classroomMaterials={Surface,Sky};
+export const classroomMaterials={Surface,Sky,Shader:SceneShader};

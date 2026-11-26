@@ -1,3 +1,4 @@
+import {RoomShader} from '../daylightMaterials';
 import {useEffect,useMemo} from 'react';
 import {useFrame} from '@react-three/fiber';
 import {BufferGeometry,Color,DoubleSide,Float32BufferAttribute,Vector3} from 'three';
@@ -26,7 +27,7 @@ function skimmers(){const pos:number[]=[],colors:number[]=[],perch:number[]=[],m
 }
 export function ReedSkimmers(){const g=useMemo(skimmers,[]),u=useMemo(()=>({cycle:{value:0}}),[]);
   useEffect(()=>()=>g.dispose(),[g]);useFrame((_,dt)=>{u.cycle.value=(u.cycle.value+Math.min(.08,dt)*.24)%(2*Math.PI);});
-  return <mesh name="reed:damselflies" geometry={g} frustumCulled={false} raycast={noPick}><shaderMaterial side={DoubleSide} toneMapped={false} uniforms={u}
+  return <mesh name="reed:damselflies" geometry={g} frustumCulled={false} raycast={noPick}><RoomShader effect="skimmers" side={DoubleSide} toneMapped={false} uniforms={u}
     vertexShader={`attribute vec3 colour,perch;attribute vec2 motion;uniform float cycle;varying vec3 ink;
       void main(){vec3 N=normalize(perch),E=normalize(cross(vec3(0.,0.,1.),N)),B=cross(N,E);
         float a=cycle+motion.x;vec3 p=perch+E*.45*sin(a*2.)+B*.30*sin(a*3.)+N*.074*cos(a*2.);

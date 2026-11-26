@@ -1,11 +1,12 @@
-import {useEffect,useMemo} from 'react';
-import {AdditiveBlending,BufferGeometry,Color,Float32BufferAttribute,Vector4,type Texture} from 'three';
+import {RoomShader,DaylightMaterials} from '../../daylightMaterials';
+import {useContext,useEffect,useMemo} from 'react';
+import {AdditiveBlending,BufferGeometry,Color,Float32BufferAttribute,InstancedBufferGeometry,InstancedBufferAttribute,Vector4,type Texture} from 'three';
 import {noPick} from '../../sceneryPaint';
 import {skySpace} from './skySpace';
 
 // Stars are positions, magnitudes and colours, not texels. All points share
 // one draw. A minority form a loose group in front of the luminous arm.
-function catalogue(){
+function catalogue(quads:boolean){
   let seed=271828;
   const rand=()=>((seed=(Math.imul(1664525,seed)+1013904223)>>>0)/4294967296);
   const p:number[]=[],rgb:number[]=[],data:number[]=[],c=new Color();
@@ -19,15 +20,18 @@ function catalogue(){
     p.push(x,y,z);data.push(depth,(prominent?.0034:.00060+.00135*mag),prominent?1:.19+.64*mag);
     c.set(palette[Math.min(4,Math.floor(rand()*5))]);rgb.push(c.r,c.g,c.b);
   }
+  if(quads){const g=new InstancedBufferGeometry();g.setIndex([0,1,2,2,1,3]);g.setAttribute('position',new Float32BufferAttribute([-.5,-.5,0,.5,-.5,0,-.5,.5,0,.5,.5,0],3));g.setAttribute('uv',new Float32BufferAttribute([0,0,1,0,0,1,1,1],2));
+    for(const [k,v] of [['starDirection',p],['colour',rgb],['stellar',data]] as const)g.setAttribute(k,new InstancedBufferAttribute(Float32Array.from(v),3));g.instanceCount=p.length/3;return g;}
   const g=new BufferGeometry();g.setAttribute('position',new Float32BufferAttribute(p,3));g.setAttribute('colour',new Float32BufferAttribute(rgb,3));g.setAttribute('stellar',new Float32BufferAttribute(data,3));return g;
 }
 
 export function StarCatalogue({dust}:{dust:Texture|null}){
-  const g=useMemo(catalogue,[]),vp=useMemo(()=>new Vector4(),[]),u=useMemo(()=>({height:{value:720},dust:{value:dust},mapped:{value:dust?1:0}}),[dust]);
+  const quads=!!useContext(DaylightMaterials),Primitive=quads?'mesh':'points';
+  const g=useMemo(()=>catalogue(quads),[quads]),vp=useMemo(()=>new Vector4(),[]),u=useMemo(()=>({height:{value:720},dust:{value:dust},mapped:{value:dust?1:0}}),[dust]);
   useEffect(()=>()=>g.dispose(),[g]);
-  return <points name="sky:stellar-catalogue" geometry={g} renderOrder={-990} frustumCulled={false} raycast={noPick}
-    onBeforeRender={r=>{u.height.value=r.getCurrentViewport(vp).w;}}>
-    <shaderMaterial uniforms={u} blending={AdditiveBlending} depthTest={false} depthWrite={false} toneMapped={false}
+  return <Primitive name="sky:stellar-catalogue" geometry={g} renderOrder={-990} frustumCulled={false} raycast={noPick}
+    onBeforeRender={r=>{if(!quads)u.height.value=r.getCurrentViewport(vp).w;}}>
+    <RoomShader effect="catalogue" uniforms={u} blending={AdditiveBlending} depthTest={false} depthWrite={false} toneMapped={false}
       vertexShader={`${skySpace}
         attribute vec3 stellar,colour;uniform float height,mapped;uniform sampler2D dust;varying vec3 tint;varying float size,energy,spikes;
         void main(){vec3 eye=skyEye(cameraPosition);vec3 n=stellar.x>0.?normalize(position*stellar.x-eye):position;
@@ -45,5 +49,5 @@ export function StarCatalogue({dust}:{dust:Texture|null}){
           gl_FragColor=vec4(mix(tint,vec3(1.),.32*core),min(1.,flux));
           #include <colorspace_fragment>
         }`}/>
-  </points>;
+  </Primitive>;
 }

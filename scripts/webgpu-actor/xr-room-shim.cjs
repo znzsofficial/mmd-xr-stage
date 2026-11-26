@@ -112,7 +112,8 @@ module.exports = function extendStereoShim() {
         };
         for (const v of pose?.views ?? []) {
           const m=v.transform.inverse.matrix;
-          v.transform=rigid({x:cfg.sameEye?0:-m[12],y:take?.eyeY??-m[13],z:take?.eyeZ??-m[14]});
+          const yaw=take?.eyeYaw??0;
+          v.transform=rigid({x:cfg.sameEye?0:-m[12],y:take?.eyeY??-m[13],z:take?.eyeZ??-m[14]}, {x:0,y:Math.sin(yaw/2),z:0,w:Math.cos(yaw/2)});
           // A finite WebGPU projection (clip-space Z in [0,1]). The lab's
           // infinite-far fixture doesn't exercise Three's frustum construction.
           const { depthNear: n, depthFar: z } = s.renderState;

@@ -1,3 +1,4 @@
+import {RoomShader} from '../../scenery/daylightMaterials';
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import type { ShaderMaterial } from 'three';
@@ -57,7 +58,7 @@ function PrintedCurtain({ first, complete }: { first: Wing; complete: boolean })
   });
   return <mesh name={`encore:print:${first}`} position={[0, 2.125, -5.297]} raycast={noPick}>
     <planeGeometry args={[6.42, 4.19, 144, 12]} />
-    <shaderMaterial ref={material} uniforms={uniforms} vertexShader={silkVertex} fragmentShader={silkFragment} toneMapped={false} />
+    <RoomShader effect="encore" ref={material} uniforms={uniforms} vertexShader={silkVertex} fragmentShader={silkFragment} toneMapped={false} />
   </mesh>;
 }
 

@@ -1,3 +1,4 @@
+import {RoomShader} from '../daylightMaterials';
 import { useEffect, useMemo } from 'react';
 import { DoubleSide, SphereGeometry, type MeshStandardMaterial } from 'three';
 import { Batch } from '../SceneryBatch';
@@ -99,7 +100,7 @@ export function ClinicWard({ shadows }: {shadows:boolean}) {
       <primitive object={geo.teaching} attach="geometry"/><meshBasicMaterial key={teaching?'teaching':'paper'} map={teaching} color={teaching?'white':'#efe8d8'}/>
     </mesh>
     <mesh name="clinic:twin-vanity-mirrors" position={[FIXTURES.sinks.x,MIRROR_Y,-8.853]} raycast={noPick}>
-      <planeGeometry args={[2.394,.77]}/><shaderMaterial vertexShader={mirrorV} fragmentShader={mirrorF}/>
+      <planeGeometry args={[2.394,.77]}/><RoomShader effect="mirror" vertexShader={mirrorV} fragmentShader={mirrorF}/>
     </mesh>
   </group>;
 }

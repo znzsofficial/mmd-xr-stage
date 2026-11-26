@@ -1,3 +1,4 @@
+import {RoomShader} from '../daylightMaterials';
 import {useEffect,useMemo} from 'react';
 import {useFrame} from '@react-three/fiber';
 import {Color,Float32BufferAttribute,InstancedBufferAttribute,InstancedBufferGeometry,Vector3} from 'three';
@@ -31,7 +32,7 @@ export function StationFallout(){
   const g=useMemo(grains,[]),u=useMemo(()=>({time:{value:0},sun:{value:sunDirection}}),[]);
   useEffect(()=>()=>g.dispose(),[g]);useFrame((_,dt)=>{u.time.value+=Math.min(.05,dt);});
   return <mesh name="planet:gravity-grains" geometry={g} frustumCulled={false} raycast={noPick} userData={{playerCollision:false}}>
-    <shaderMaterial uniforms={u} toneMapped={false} vertexShader={`
+    <RoomShader effect="fallout" uniforms={u} toneMapped={false} vertexShader={`
       attribute vec3 launch,axis,drift,tint;attribute vec4 grain;uniform float time;uniform vec3 sun;varying vec3 ink;
       void main(){float duration=2.*grain.y/grain.x;float t=fract(time/(duration+.46)+grain.z)*(duration+.46);
         float h=max(0.,grain.y*t-.5*grain.x*t*t);vec3 foot=launch+axis*h+drift*t;

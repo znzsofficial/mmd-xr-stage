@@ -1,7 +1,7 @@
 // Compare the *final* stereo images at a held dance pose. Controls and the
 // clock below are the real game components, never injected store commands.
 const assert=require('node:assert/strict');
-module.exports=async function({page,ids,click,until,bButton,frames,target,pickMounted,idleRay}){
+module.exports=async function({page,ids,click,until,bButton,frames,target,pickMounted,idleRay,basic=false}){
   const actor=await until('eligible PMX placed on floor',s=>s.ready&&s.selected&&s.actor?.evaluations>1);
   // VMD pause alone does not freeze native hair or GPU cloth. Use the real
   // character setting for the pixel controls, before binding the dance.
@@ -22,7 +22,7 @@ module.exports=async function({page,ids,click,until,bButton,frames,target,pickMo
     (cfg.styleEyes??={})[key]=out;
   },key);}
   await quiet();await eyes('base');await pick('actorStyleEndfield');
-  const style=await until('v5 installed with face and clothing maps in a tracked frame',s=>s.actor?.style?.mode==='endfield'&&s.actor.style.clothMaps>0&&s.actor.style.faceMaps>0,null,45000);
+  const style=await until('selected grade installed in a tracked frame',(s,basic)=>s.actor?.style?.mode==='endfield'&&(basic?s.actor.style.clothMaps===0&&s.actor.style.faceMaps===0:s.actor.style.clothMaps>0&&s.actor.style.faceMaps>0),basic,45000);
   await frames(4);await eyes('on');
   // Demand more than the pointer or the HUD changing. Both final layer pairs
   // are sampled with the sheet dismissed, in the central actor region.
@@ -33,11 +33,16 @@ module.exports=async function({page,ids,click,until,bButton,frames,target,pickMo
   assert(change.every(x=>x.changed>=100),`Style did not reach both actor images: ${JSON.stringify(change)}`);
   await pick('actorStyleMmd');await until('ungraded actor restored',s=>s.actor?.style?.mode==='mmd');await frames(8);await eyes('off');const restore=await diff('base','off');
   assert(restore.every((x,i)=>x.l1<change[i].l1*.35),`Switching back did not restore actor pixels: ${JSON.stringify({restore,change})}`);
+  if(basic){
+    assert(restore.every(x=>x.l1===0),'Held, physics-off original MMD did not restore pixel-exactly');
+    const png=await page.evaluate(()=>{const {base,on}=labFixture.styleEyes,c=document.createElement('canvas');c.width=base[0].width*2;c.height=base[0].height;const ctx=c.getContext('2d');ctx.putImageData(base[0],0,0);ctx.putImageData(on[0],base[0].width,0);return c.toDataURL('image/png').split(',')[1];});
+    const fs=require('node:fs/promises'),p=require('node:path'),dir=p.join(__dirname,'../../local-review/screenshots/basic-style-stage');await fs.mkdir(dir,{recursive:true});await fs.writeFile(p.join(dir,'mmd-and-basic.png'),Buffer.from(png,'base64'));
+  }
   await until('same paused evaluator after A/B',(s,p)=>s.runtimeId===p.id&&s.actor.poseSeconds===p.time&&s.time===p.time&&s.hasBinding&&!s.playing,{id:actor.runtimeId,time:paused.time});
   await bButton();await click('settingsMmdVrPlay');await until('paused VMD resumed',(s,t)=>s.playing&&s.time>t+.05,paused.time);
   await pickMounted(ids.model);await click('actorStyleEndfield');
   const running=await until('live style change kept the same performance',(s,p)=>s.ready&&s.playing&&s.runtimeId===p.id&&s.hasBinding&&s.actor.style?.mode==='endfield'&&s.time>p.time&&s.actor.poseSeconds>p.time,{id:actor.runtimeId,time:paused.time+.12});
   await bButton();await click('settingsVrDesktopExit',{retiring:true});await until('room retired',s=>s.phase==='ended'&&!s.overlay&&!s.live);
   const adapters=await page.evaluate(()=>labFixture.adapters);assert(adapters.some(a=>a.xrCompatible)&&adapters.every(a=>a.vendor&&!a.fallback&&!/swiftshader|warp|software/i.test(JSON.stringify(a))));
-  return {changedEyes:change,restoredEyes:restore,pausedTime:paused.time,resumedTime:running.time,sameRuntime:true,faceMaps:style.actor.style.faceMaps,clothMaps:style.actor.style.clothMaps};
+  return {changedEyes:change,restoredEyes:restore,pausedTime:paused.time,resumedTime:running.time,sameRuntime:true,slots:style.actor.style.slots,faceMaps:style.actor.style.faceMaps,clothMaps:style.actor.style.clothMaps};
 };
