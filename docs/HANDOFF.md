@@ -1,4 +1,4 @@
-# 会话交接｜2026-11-25
+# 会话交接｜2026-11-26
 
 [正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `1d450e3`](https://8bb257f7.mmd-xr-stage.pages.dev) · [WebGPU 裙摆实验](https://mmd-xr-stage.pages.dev/labs/cloth/) · [发布记录](./release-history.md) · [文档索引](./README.md)
 
@@ -11,13 +11,13 @@
 | 第一阶段已交付：保护旧布局 | 当前代次的首个 XRFrame 确认前，不让新空房读取或替换已保存的布局；原背包文件跨入场保留。PR 与主线复用统一检查；发布同一个经检查、冒烟和指纹核对的目录。 | 两景布局／绑定覆盖拒权、取消、超时、迟到结果和成功首帧；构建后在模拟双眼实走拒权保留两景、成功空场仍留文件。主域已核对，无需玩家补测。 |
 | ① 已收口：小行星 | [互斥活动模式、接地结果与 XR 原点出口](../src/mmdVrShowcase/movement/planetJourney.ts)，保留既有物理参数、普通与受保护落地。 | `4922d5e`：28 项针对性交接测试通过；生产构建 IWER 从风道到棱盐连跳两次，不按 Y，续走净高 1.810 m、基座倾角约 0.02°。移动冻结，不追加实戴请求。 |
 | ② 已对照：GPU 裙摆 | 现有实验页可选本地身体 VMD，播放／暂停／续播；自动用同一段动作和掌球轨迹对比原 Bullet 与 GPU。 | [两件原衣的真实舞段](./performance/gpu-cloth-lab.md#真实-vmd-同段对照)：本机无可重复的播舞整帧收益，稀疏裙承托也未证实。保留实验，不进入③。与真机站姿数据分开。 |
-| ③ 玩家入口暂缓；先做底层 | [单演员 WebGPU 材质对照](./webgpu-xr-status.md#11-25-后续计划先做好底层再切玩家入口)已用原衣 PMX 和 VMD 在桌面跑通。同姿、描边与隐藏衣料有实图；当前 WebGPU 的脸和浅色衣料略亮。 | 下一步先核对局部材质和半透明发片，再接房间、裙摆及双眼；正式舞台继续走 WebGL。 |
+| ③ 玩家入口暂缓；先做底层 | [开发版材质近景与 Three XR 小房间](./webgpu-xr-status.md#11-26近景和-three-双眼)：已对齐脸与白衣亮部，发片正控已分离双面绘制与剩余叠色差；原衣、首帧地标及两种双眼切片顺序有桌面实图。 | 下一项查发片覆盖眼睛时的剩余叠色差。正式房间、同背包、XR 控件和新接线的实戴表现仍待验；不要求玩家为内部小样补测。 |
 
 **暂缓：**Bullet 直调负结果已结案；Babylon 迁移、新景／玩法、跨模型扫库、校园长测及内存专项保留原记录，有能阻塞上述操作的新证据再提级。同一行为第二次因模式交接回退，或一项新功能要求复制整套演员加载／时钟／生命周期时，先界定状态归谁，再增加功能。并行只用于当前里程碑的实现和验证。
 
 演员播放两项已复现并修复：背包和详情移除演员时都按剩余动作更新播放时钟和快照；暂停并关闭物理时，隐藏期间拖过时间轴的演员会在首次重新显示时更新姿势。其余审计候选（场景透墙射线／退役的走路测试、根 Ecctrl 依赖、旧分块支持期限和归档）未排期。
 
-**实验页盘点（按入口，不按候选算法、旧部署 URL 或截图数）：**Git 追踪 `experiments/` 下 **4** 份 HTML。暂停 Babylon 迁移留下 **2** 个仍能打开的独立预览入口（[引擎 A/B](https://babylon-classroom.mmd-xr-stage.pages.dev/)、[教室](https://babylon-classroom.mmd-xr-stage.pages.dev/classroom)）；[行走选型探针](../experiments/three-planet-wheel/README.md) **1** 个，已结项留档；活跃 WebGPU 裙摆实验 **1** 个。正式站当前构建只含主入口与 `/labs/cloth/`。另有 `scripts/` 的 **27** 份开发 HTML（含同姿材质对照），不随站发布；本机 `local-review/` 的留样／构建副本不计作独立实验项目。
+**实验页盘点（按入口，不按候选算法、旧部署 URL 或截图数）：**Git 追踪 `experiments/` 下 **4** 份 HTML。暂停 Babylon 迁移留下 **2** 个仍能打开的独立预览入口（[引擎 A/B](https://babylon-classroom.mmd-xr-stage.pages.dev/)、[教室](https://babylon-classroom.mmd-xr-stage.pages.dev/classroom)）；[行走选型探针](../experiments/three-planet-wheel/README.md) **1** 个，已结项留档；活跃 WebGPU 裙摆实验 **1** 个。正式站当前构建只含主入口与 `/labs/cloth/`。另有 `scripts/` 的 **28** 份开发 HTML（含同姿材质对照及 Three XR 小房间），不随站发布；本机 `local-review/` 的留样／构建副本不计作独立实验项目。
 
 ## 排期所依据的记录
 

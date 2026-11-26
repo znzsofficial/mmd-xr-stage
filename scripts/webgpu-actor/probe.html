@@ -7,12 +7,18 @@
   section{display:flex;flex-wrap:wrap;gap:1rem} figure{margin:0;flex:1 1 18rem;min-width:0} img[src]{display:block;width:100%;background:#646870} pre{white-space:pre-wrap}
 </style>
 <h1>PMX 同姿画面对照</h1>
-<p>WebGL 使用舞台的默认平衡色材质增强与 rig 空间蒙皮；WebGPU 使用 loader 的 TSL 材质。固定机位，无物理、环境贴图、阴影或后期。透明 PNG 下的灰底仅供查看。</p>
+<p>两边用相同灯光、动作时刻和机位。WebGL 用舞台平衡色，WebGPU 可对照平衡色与 loader 原色。无物理、环境贴图、场景投影或后期。<a href="./xr-room.html">Three XR 双眼房间</a></p>
 <label>模型及贴图目录 <input id="folder" type="file" webkitdirectory multiple></label>
 <label>另选动作或姿势 <input id="motion" type="file" accept=".vmd,.vpd"></label><br>
 <label>演员 <select id="pmx"></select></label> <label>姿势 <select id="clip"><option value="">原始站姿</option></select></label>
 <label>时间（秒） <input id="time" type="number" min="0" step="any" value="0"></label>
 <label>主光 <select id="light"><option value="">基准</option><option value="-60">左前 60°</option><option value="0">正前</option><option value="60">右前 60°</option></select></label>
+<label>镜头 <select id="focus"><option value="body">全身</option><option value="face">脸部</option><option value="bust">半身</option></select></label>
+<label>方位 <select id="yaw"><option value="">基准</option><option value="0">正面</option><option value="45">侧前 45°</option><option value="75">近侧面 75°</option></select></label>
+<label>WebGPU 亮部 <select id="grade"><option value="balanced">舞台平衡色</option><option value="legacy">Loader 原色</option></select></label>
+<details><summary>按原 PMX 材质槽取样</summary><small>从 0 起，多项用逗号分隔；眼周对照同时填写发片和眼睛。</small><br>
+<label>测色材质 <input id="regions" size="8"></label><label>发片 <input id="hairSlots" size="8"></label><label>眼睛 <input id="eyeSlots" size="8"></label>
+<label><input type="checkbox" id="singleHair">诊断：WebGL 双面透明发片只画一遍</label></details>
 <button id="run">渲染对照</button>
 <p id="status" role="status"></p>
 <section><figure><figcaption>WebGL</figcaption><img id="webgl" alt="WebGL 演员画面"></figure>

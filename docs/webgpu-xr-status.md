@@ -1,12 +1,12 @@
-# WebGPU / WebXR 核查（2026-11-17）
+# WebGPU / WebXR 核查（更新至 2026-11-26）
 
 ## 已确认
 
 - [Meta Browser 146.0](https://developers.meta.com/horizon/downloads/package/browser/146.0)（2026-04-21）宣布实验性 WebGPU in WebXR。
 - [Browser 150.1](https://developers.meta.com/horizon/downloads/package/browser/150.1) 增加实验性 WebGPU XR foveation；[152.1](https://developers.meta.com/vr/downloads/package/browser/152.1)（2026-10-02）增加实验性 composition layers，说明要求 `chrome://flags` 开启 webxr experiments。
-- [Meta 发布索引](https://developers.meta.com/vr/release-notes/)列出的 156.0（2026-11-13）摘要写有 WebGPU in WebXR；本次未能获取其完整发布页，不能凭摘要判断所有设备是否默认开启、全部功能是否已取消实验标记。
-- [W3C Binding 编辑草案](https://immersive-web.github.io/webxr-webgpu-binding/)需要 XR-compatible GPUAdapter、带 `webgpu` feature 的 session、XRGPUBinding 与投影层。`navigator.gpu` 存在不等于沉浸式 WebGPU 可用。
-- 本仓安装的 Three r187 `src/renderers/common/XRManager.js` 已实现 `_initWebGPUSession` / `getWebGPUBinding`，并明确在 WebGPU XR 会话中禁用 multiview。
+- [Meta Browser 156.0 发布说明](https://developers.meta.com/vr/downloads/package/browser/156.0/)（11-13，11-26 复查官方搜索索引）在 New Features 明列 “Support for WebGPU in WebXR”。同页标为实验性的 WebView 独立更新是另一条目。基本投影不依赖 foveation、额外合成层或特定刷新率；按当前设备实际会话选择后端。
+- [WebXR/WebGPU 绑定草案](https://immersive-web.github.io/webxr-webgpu-binding/)及[最小示例](https://immersive-web.github.io/webxr-samples/webgpu/vr-barebones.html)：从用户点击请求 `immersive-vr` 和 `webgpu`，用 XR 兼容设备创建投影层，按 XRFrame 的视图描述准备眼图。
+- 锁定的 Three r187：`WebGPUBackend.init` 读取 `renderer.xr.enabled` 来申请 XR-compatible adapter，因此要在 `renderer.init()` **之前**启用 XR；绑定时由 `renderer.xr.setSession(session)` 创建投影层、读取每眼纹理视图并管理 XR 帧循环。不要同时装实验页的原生手写 binding，也不要按默认左右序号猜切片。r187 的这条路径禁用 multiview。已戴机出画的记录属于[原生 WGSL 实验页](./performance/quest-2026-11-25-1149.md#布料实验实际跑了什么)，Three 房间另验。
 
 ## 对本项目的意义
 
@@ -16,7 +16,7 @@ WebGPU 支持不代表这个项目自动更快；没有真实 Quest 3S 帧耗时
 
 ## 11-25 后续计划：先做好底层，再切玩家入口
 
-状态：已有[单演员材质适配](../scripts/webgpu-actor/materialAdapter.js)与本地同姿对照，房间/背包和 XR 接线待做。正式舞台继续走 WebGL。后续可用一块地面、一个角色的内部入口调试；房间继续拥有演员、动作时钟与布局。
+状态：已有[单演员材质适配](../scripts/webgpu-actor/materialAdapter.js)、本地同姿对照及 [Three XR 开发小房间](../scripts/webgpu-actor/xr-room.html)。正式舞台继续走 WebGL；同背包、正式房间及其输入仍待接入。
 
 1. **先画演员，用原 Bullet 作对照。** 从房间现有加载路径注入模型加载选项、材质挂载和 GPU 预热。复用锁定 loader 的 `createMmdTslPipeline`，现有 Studio 的 `src/appModules/mmdStudio/mmdTslPipeline.ts` 是可参考的按需加载封装。由房间统一调度求值和绘制，别让 pipeline 再开一个渲染循环。固定镜头、姿势和灯光比较脸、发片透明排序、轮廓、表情与 UV；SDEF/QDEF 用同一肘膝在原始和摆放比例下比较。独立自阴影在当前 fork 降级，记作切换前的画面差异。
 2. **验证计算结果进正式材质，再接裙摆。** Three r187 的 WebGPU 后端可接收现成的 XR-compatible `GPUDevice`；先用一个已知位移的裙节点证明计算输出能被角色正面和描边同帧读取，随后接 [PMX 裙链、碰撞许可](../experiments/gpu-cloth/rig.js)和[实际织面承托](../experiments/gpu-cloth/handPass.js)。优先用 Three 管理的 storage buffer；原生 WGSL 输出如何交给 TSL 材质是待验接口。若现有写法只能靠私有缓存互操作，先评估把最小写入 pass 改为 Three compute 节点。物理结果留在 GPU，形态和服装显隐仍由原演员管理。密裙、稀疏裙各跑同舞段暂停、双托、先后撤手和续播，看最终衣片及描边。
@@ -33,3 +33,13 @@ WebGPU 支持不代表这个项目自动更快；没有真实 Quest 3S 帧耗时
 **今晚的实图基线。** 在项目根目录用 `pnpm dev`，打开 `/scripts/webgpu-actor/probe.html`，选原衣 PMX 目录与 VMD。两边各用自己的模型实例，同一组本地文件、相机、比例与动作时间，关物理和阴影；WebGL 加舞台平衡色和特殊蒙皮准备，原生 WebGPU 加锁定 loader 的 TSL 材质。可固定姿势只换主光。此页不进入产品构建。
 
 桌面 Edge，600×600，一件真实 PMX、21 个有贴图的材质、比例 0.1。同一 VMD 在 0 秒与 4 秒两边骨骼/形态的取样差均为 0；第 4 秒两边前景同为 50,555 像素，关闭原生描边分别改变 2,469 / 2,484 像素。主光左前转右前，衣面两边都有可见变化；单独隐藏原外裙槽后两边前景同降到 48,667。当前 WebGPU 略亮：第 4 秒共同前景亮度中位（屏幕 RGB 码值，0–255）WebGL 127.8、WebGPU 132.5。先以脸和浅色衣料为局部区域复查，再决定是否调材质。当前样本最终没有半透明前景像素，发片叠色、其他特殊蒙皮和 Quest 双眼需另外选样。对照图仅在本机 `local-review/screenshots/webgpu-actor-material/comparison.png`。
+
+## 11-26：近景和 Three 双眼
+
+**同姿亮部。** 开发对照页可选脸部、半身、相机方位，以及只作用于角色的舞台平衡色。保留原色档；在 TSL 正面材质合成后、与背景混合前，沿用 WebGL 的环境增益和亮部曲线，不改全局曝光或描边。锁定的 loader 已在其输出前截断 RGB，因此这层不能恢复更早丢失的纹理层次。固定 VMD 第 4 秒、左前 60° 入光；通过逐材质显隐取两边共同可见的像素，比较 RGB 三通道平均绝对差（0–255）：脸部近景 **20.6 → 1.0**、半身白衣 **13.0 → 3.0**。露脸与衣纹的对照图存于 `local-review/screenshots/webgpu-closeup/grade.png`。这是一个样本的画面结果，不是提帧证据。
+
+**发片与眼睛叠色。** 单画发片，分别隐藏眼睛、发片或两者，对比最终 RGB；脸后方的不透明像素不会掩盖这项测量。CPU 补查 20 件原 PMX、38 个发槽；这批样本中未找到原样就在正、侧两向透出虹膜的前发。选一件前发原贴图含 232–255 alpha、原样被判作不透明的模型，固定刘海覆盖眼睛的姿势；另存**正控**只把该材质的常量透明度从 1 改为其前一个 float32，原贴图、UV 和 8 位 alpha 不变。两后端均在正控走混合，未改原件均走不透明。这件原衣另有两处同样的缺图告警，均非被测发/眼槽。
+
+正控正面和侧前 50° 中，两后端均看到发片与眼部共同贡献。原绘制路径的眼周并集 RGB 平均差为 **4.14 / 5.40**；发片单画时该区域 alpha 平均差 **5.12 / 4.59**（0–255）。只把 WebGL 对照中的双面透明发片改为单遍，后两数均降至 **0**，正面重叠区域也吻合。最终叠色仍有差异（并集 RGB 差 **2.92 / 4.29**）；这是定位用的开关，正式 WebGL 不变。暂不把一个正控推广成通用透明修正。下一步沿这个固定视角区分混合空间、与眼部其他透明层的绘制顺序；先看局部颜色与遮挡，不再扩大扫库。
+
+**Three.r187 投影层。** 开发小房间用一个 Three 渲染器同时画地面、远近色柱和原衣，首帧不等 PMX 读取或刷新率协商；选的是本地文件，尚未接游戏背包。用 `node scripts/webgpu-actor/xr-room-smoke.cjs <本地原衣.pmx>` 启动一个桌面 GPU 和模拟会话做对照（无参数仅生成测试裙）。默认 sRGB 输出先画线性中间目标，再用单相机全屏 quad 逐眼转色。r187 在这个最后的 pass 按眼序号选择目标层；交换绑定返回的两眼切片时，未修版的近、远柱左右视差分别由 +7、+3 像素反成 −7、−3。仅在这个固定版本的开发渲染器实例，[映射最终输出到绑定报告的切片](../scripts/webgpu-actor/r187ProjectionOutput.js)，保留中间源眼序号和其余渲染行为。普通、反序两次重入的视差都为 +7、+3；演员加入后两眼各有约 3,300 个像素相对地标帧变化。拒权、建层失败后重试、应用和系统两种退出均覆盖。该适配只处理已复现的输出路径，升级 Three 时先去掉适配、跑两个切片顺序再决定是否保留。新房间还没有 Quest 镜片结果。

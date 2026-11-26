@@ -7,8 +7,10 @@ import { materialSlotKeys } from '../../src/mmdVrShowcase/mmdRuntime/materialSlo
 import { prepareMmdVrModel } from '../../src/mmdVrShowcase/stage/loading/prepareMmdVrModel';
 import { firstCharacterScale } from '../../src/mmdVrShowcase/stage/loading/firstCharacterScale';
 import { createActorMaterialAdapter } from './materialAdapter.js';
+import { measureFringe } from './fringeStudy.js';
 
 const SIZE = 600, AMBIENT = .55;
+const originalYaw = T.MathUtils.radToDeg(Math.atan2(.18,1.7));
 const $ = id => document.getElementById(id);
 const path = f => f.webkitRelativePath || f.name;
 const inputFiles = () => [...$('folder').files, ...$('motion').files];
@@ -23,12 +25,28 @@ function pick(files, selector, type) {
 }
 const PMX = /\.pmx$/i, CLIP = /\.(vmd|vpd)$/i;
 
-// Fixed to bind geometry, never re-fit to one backend's evaluated/deformed pixels.
-function framing(model, scale = firstCharacterScale(model.root) ?? 1) {
+// Full-body framing uses bind geometry; close-ups follow the evaluated reference
+// eyes. Both renderers share that reference camera, never a separate pixel fit.
+function framing(model, scale, focus, yaw) {
   const box = new T.Box3().setFromBufferAttribute(model.mesh.geometry.getAttribute('position'));
   const height = box.max.y - box.min.y, center = box.getCenter(new T.Vector3()).multiplyScalar(scale);
-  const eye = center.clone().addScaledVector(new T.Vector3(.18, .06, 1.7), height * scale);
-  return { scale, eye: eye.toArray(), center: center.toArray() };
+  const originalRadius = Math.hypot(.18,1.7);
+  let radius = originalRadius * height * scale;
+  if (focus !== 'body') {
+    const bones = model.mesh.skeleton.bones;
+    const bone = names => bones.find(b => [b.name,b.userData.mmdBoneName,b.userData.mmdEnglishBoneName].some(n => n && names.includes(n.toLowerCase())));
+    const eyes = [bone(['左目','left eye','eye_l']),bone(['右目','right eye','eye_r'])];
+    if (eyes.every(Boolean)) center.copy(eyes[0].getWorldPosition(new T.Vector3())).lerp(eyes[1].getWorldPosition(new T.Vector3()), .5);
+    else {
+      const head = bone(['頭','head']);
+      if (head) head.getWorldPosition(center).y += height * scale * .06;
+      else center.y = (box.max.y - height * .135) * scale;
+    }
+    center.y -= height * scale * (focus === 'face' ? .012 : .14);
+    radius = height * scale * (focus === 'face' ? .335 : .83);
+  }
+  const a = T.MathUtils.degToRad(yaw), eye = center.clone().addScaledVector(new T.Vector3(Math.sin(a), .06/originalRadius, Math.cos(a)),radius);
+  return { scale, focus, yaw, eye: eye.toArray(), center: center.toArray() };
 }
 
 function prepareWebGL(model, light) {
@@ -65,6 +83,33 @@ function changedPixels(a, b) {
   return changed;
 }
 
+// Determine a material's visible contribution at the chosen pose by toggling its
+// actual draws. Compare only foreground pixels both backends attribute to it.
+function studySlots(indices, total, draws, full, redraw, common, gpu) {
+  const stats = {};
+  for (const slot of indices) {
+    if (!Number.isInteger(slot) || slot < 0 || slot >= total) throw Error('Invalid study slot');
+    const members = [...draws].filter(([,s]) => s.slot === slot && s.visible);
+    let off;
+    try { for (const [m] of members) m.visible=false; off=redraw(); }
+    finally { for (const [m] of members) m.visible=true; }
+    const mask=new Uint8Array(full.length/4);
+    for(let j=0;j<full.length;j+=4) if(full[j+3]>240 && Math.max(Math.abs(full[j]-off[j]),Math.abs(full[j+1]-off[j+1]),Math.abs(full[j+2]-off[j+2]),Math.abs(full[j+3]-off[j+3]))>8)mask[j/4]=1;
+    if (!gpu) { (common.slots ??= new Map()).set(slot,{mask,full}); continue; }
+    const ref=common.slots.get(slot), levels=[[],[]]; let sum=0,n=0;
+    const luma=(p,j)=>.2126*p[j]+.7152*p[j+1]+.0722*p[j+2];
+    for(let i=0;i<mask.length;i++) if(mask[i]&&ref.mask[i]) {
+      const j=i*4; n++;
+      levels[0].push(luma(ref.full,j)); levels[1].push(luma(full,j));
+      for(let k=0;k<3;k++)sum+=Math.abs(full[j+k]-ref.full[j+k]);
+    }
+    stats[slot]={commonPixels:n,meanAbsoluteRgb:n?+(sum/(n*3)).toFixed(2):null, lumaP50P90:levels.map(values=>{
+      values.sort((a,b)=>a-b);return n?[.5,.9].map(q=>+values[Math.floor((n-1)*q)].toFixed(2)):null;
+    })};
+  }
+  return stats;
+}
+
 async function draw(gpu, input, common) {
   const params = { alpha: true, antialias: false };
   const renderer = gpu ? new WebGPURenderer(params) : new T.WebGLRenderer(params);
@@ -79,7 +124,7 @@ async function draw(gpu, input, common) {
   if (gpu) renderer.onError = info => { gpuError ??= new Error(`WebGPU ${info.type}: ${info.message}`); };
   let adapter, model;
   try {
-    if (gpu) adapter = await createActorMaterialAdapter(renderer, light); // rejects WebGL fallback
+    if (gpu) adapter = await createActorMaterialAdapter(renderer, light, {balancedModelColor:input.balanced,ambientIntensity:AMBIENT}); // rejects WebGL fallback
     renderer.setPixelRatio(1); renderer.setSize(SIZE, SIZE, false); renderer.setClearColor(0, 0);
     renderer.outputColorSpace = T.SRGBColorSpace; renderer.toneMapping = T.NoToneMapping;
     model = await input.loader.loadModel(input.pmx, adapter?.loadOptions);
@@ -89,10 +134,8 @@ async function draw(gpu, input, common) {
       index: i, textured: !!source[i].map, edge: !!source[i].userData.mmdMaterial?.flags?.edge,
       pmxAlpha: pmxTransparencyMode, textureAlpha: textureTransparencyMode ?? null, resolvedAlpha: finalTransparencyMode,
     }));
-    const frame = common.frame ??= framing(model, input.scale ?? undefined);
-    const camera = new T.PerspectiveCamera(35, 1, .005 * frame.scale, 1500 * frame.scale);
-    camera.position.fromArray(frame.eye); camera.lookAt(...frame.center); camera.updateMatrixWorld();
-    scene.add(model.root); model.root.scale.setScalar(frame.scale); model.root.updateMatrixWorld(true);
+    const scale = common.scale ??= input.scale ?? firstCharacterScale(model.root) ?? 1;
+    scene.add(model.root); model.root.scale.setScalar(scale); model.root.updateMatrixWorld(true);
     const bind = poseVector(model.mesh);
     if (adapter) await adapter.attach(model);
     if (input.clip) model.setAnimation(input.clip);
@@ -101,6 +144,9 @@ async function draw(gpu, input, common) {
     const pose = poseVector(model.mesh), poseDeltaFromBind = maxDelta(pose, bind);
     const poseDeltaFromGL = maxDelta(pose, common.pose ??= pose);
     if (poseDeltaFromGL > 1e-5) throw Error(`CPU bone/morph poses differ by ${poseDeltaFromGL}`);
+    const frame = common.frame ??= framing(model, scale, input.focus, input.yaw);
+    const camera = new T.PerspectiveCamera(35, 1, .005 * scale, 1500 * scale);
+    camera.position.fromArray(frame.eye); camera.lookAt(...frame.center); camera.updateMatrixWorld();
     if (adapter) await adapter.prepare(scene); else prepareWebGL(model, light);
     const evaluatedMaterials = materials(model.mesh);
     for (const slot of slots) {
@@ -110,7 +156,7 @@ async function draw(gpu, input, common) {
 
     // Map actual draws (including split-body/proxy draws) to original slots.
     // TSL appends edge materials to the list; they are not additional PMX slots.
-    const edges = new Set();
+    const edges = new Set(), draws = new Map();
     model.root.traverse(o => {
       if (!o.isMesh) return;
       for (const m of materials(o)) {
@@ -118,6 +164,10 @@ async function draw(gpu, input, common) {
         if (edge) edges.add(m);
         const slot = edge?.sourceMaterialIndex ?? m.userData.mmdMaterial?.materialIndex ?? o.userData.mmdMaterialRenderProxy?.materialIndex;
         if (input.hideSlot != null && slot === input.hideSlot) m.visible = false;
+        // Geometry control only: r187 WebGL normally draws transparent,
+        // double-sided materials back then front; this TSL path draws once.
+        if (!gpu && input.singlePassHair && !edge && m.transparent && m.side===T.DoubleSide && input.fringeStudy?.hairSlots.includes(slot)) m.forceSinglePass=true;
+        draws.set(m, {slot, edge:!!edge, visible:m.visible});
       }
     });
     const shot = snapshot(renderer, scene, camera), info = renderer.info.render;
@@ -128,6 +178,26 @@ async function draw(gpu, input, common) {
       if (shot.pixels[i] > 0 && shot.pixels[i] < 255) partialAlphaPixels++;
     }
     if (visiblePixels < 60) throw Error(`${gpu ? 'WebGPU' : 'WebGL'}: no actor visible in the fixed camera`);
+    const regionStats = input.studySlots?.length ? studySlots(input.studySlots,slotCount,draws,shot.pixels,()=>snapshot(renderer,scene,camera).pixels,common,gpu) : undefined;
+    let fringe;
+    if (input.fringeStudy) {
+      const {stats, mask, hairAlpha} = measureFringe(draws,input.fringeStudy,slotCount,()=>snapshot(renderer,scene,camera).pixels,shot.pixels);
+      fringe = stats;
+      if (!gpu) common.fringe = {mask, hairAlpha, pixels:shot.pixels};
+      else {
+        let n = 0, sum = 0, union = 0, alphaDelta = 0, unionRgb = 0, largeRgb = 0;
+        for (let i=0; i<mask.length; i++) {
+          if (mask[i] || common.fringe.mask[i]) {
+            union++; alphaDelta+=Math.abs(hairAlpha[i]-common.fringe.hairAlpha[i]);let max=0;
+            for(let k=0;k<3;k++){const delta=Math.abs(shot.pixels[4*i+k]-common.fringe.pixels[4*i+k]);unionRgb+=delta;max=Math.max(max,delta);}
+            if(max>16)largeRgb++;
+          }
+          if (mask[i] && common.fringe.mask[i]) { n++; for(let k=0;k<3;k++)sum+=Math.abs(shot.pixels[4*i+k]-common.fringe.pixels[4*i+k]); }
+        }
+        Object.assign(fringe,{commonOverlap:n,overlapIoU:union?+(n/union).toFixed(4):null,commonRgbMAE:n?+(sum/(n*3)).toFixed(2):null,
+          unionOverlap:union,unionRgbMAE:union?+(unionRgb/(union*3)).toFixed(2):null,unionLargeRgb:largeRgb,isolatedAlphaMAE:union?+(alphaDelta/union).toFixed(2):null});
+      }
+    }
     // Same evaluated pose, camera and material state; turn off only authored edge draws.
     const activeEdges = [...edges].filter(m => m.visible);
     for (const m of activeEdges) m.visible = false;
@@ -141,8 +211,8 @@ async function draw(gpu, input, common) {
       const gl = renderer.getContext();
       for (const p of renderer.info.programs) if (!gl.getProgramParameter(p.program, gl.LINK_STATUS)) throw Error('WebGL program failed to link');
     }
-    return { image: shot.copy.toDataURL('image/png'), metrics: { ...frame, time: input.time, lightPosition: light.position.toArray(), evaluatedFrame: evaluated.frame, poseDeltaFromBind, poseDeltaFromGL,
-      visiblePixels, partialAlphaPixels, outlineDrawMaterials: activeEdges.length, outlineChangedPixels, drawCalls, slots,
+    return { image: shot.copy.toDataURL('image/png'), metrics: { ...frame, time: input.time, glSinglePassHairControl:!gpu && input.singlePassHair, lightPosition: light.position.toArray(), evaluatedFrame: evaluated.frame, poseDeltaFromBind, poseDeltaFromGL,
+      visiblePixels, partialAlphaPixels, outlineDrawMaterials: activeEdges.length, outlineChangedPixels, drawCalls, slots, fringe, regionStats,
       textureWarnings: model.diagnostics.textures.map(({ code, materialIndex }) => ({ code, materialIndex })),
     } };
   } finally {
@@ -154,10 +224,11 @@ async function draw(gpu, input, common) {
 // Selectors accept a File in files, an exact relative path or a unique basename.
 // Omit vmd for bind pose; pass a .vpd via pose instead. hideSlot is zero-based.
 let busy = false;
-window.compareActor = async ({ files = inputFiles(), pmx, vmd, pose, time = 0, scale, hideSlot, lightYaw } = {}) => {
+window.compareActor = async ({ files = inputFiles(), pmx, vmd, pose, time = 0, scale, hideSlot, lightYaw, focus = 'body', yaw = originalYaw, balanced = true, fringeStudy, studySlots, singlePassHair = false } = {}) => {
   if (busy) throw Error('A comparison is running');
   if (!Number.isFinite(time) || time < 0 || (scale != null && (!Number.isFinite(scale) || scale < .01 || scale > 10))) throw Error('Invalid time or placement scale');
   if (lightYaw != null && !Number.isFinite(lightYaw)) throw Error('Invalid light angle');
+  if (!['body','face','bust'].includes(focus) || !Number.isFinite(yaw)) throw Error('Invalid camera framing');
   busy = true; $('run').disabled = true; $('summary').textContent = '';
   for (const id of ['webgl', 'webgpu']) $(id).removeAttribute('src');
   try {
@@ -165,7 +236,7 @@ window.compareActor = async ({ files = inputFiles(), pmx, vmd, pose, time = 0, s
     const loader = new ThreeMmdLoader({ textureResolver: createLocalTextureResolver(file, all), geometryAwareAlpha: true, runtime: { physics: 'none' } });
     const selected = pose ?? vmd, motion = selected ? pick(all, selected, CLIP) : null;
     const clip = !motion ? null : /\.vpd$/i.test(motion.name) ? await loader.loadPoseAnimation(motion) : await loader.loadAnimation(motion);
-    const input = { pmx: file, loader, clip, time, scale, hideSlot, lightYaw }, common = {}, result = {};
+    const input = { pmx: file, loader, clip, time, scale, hideSlot, lightYaw, focus, yaw, balanced, fringeStudy, studySlots, singlePassHair }, common = {}, result = {};
     for (const id of ['webgl', 'webgpu']) {
       $('status').textContent = `渲染 ${id}…`;
       result[id] = await draw(id === 'webgpu', input, common); $(id).src = result[id].image;
@@ -182,5 +253,8 @@ function choices() {
   if ($('motion').files[0]) $('clip').value = path($('motion').files[0]);
 }
 $('folder').onchange = $('motion').onchange = choices;
+const slotList = id => $(id).value.trim() ? $(id).value.trim().split(/[,，\s]+/).map(Number) : [];
 $('run').onclick = () => window.compareActor({ pmx: $('pmx').value, vmd: $('clip').value, time: $('time').valueAsNumber,
-  lightYaw: $('light').value === '' ? undefined : Number($('light').value) }).catch(() => {});
+  lightYaw: $('light').value === '' ? undefined : Number($('light').value), focus:$('focus').value, yaw:$('yaw').value===''?originalYaw:Number($('yaw').value), balanced:$('grade').value==='balanced',
+  studySlots:slotList('regions'), singlePassHair:$('singleHair').checked,
+  fringeStudy:$('hairSlots').value.trim()||$('eyeSlots').value.trim()?{hairSlots:slotList('hairSlots'),eyeSlots:slotList('eyeSlots')}:undefined }).catch(() => {});
