@@ -1,6 +1,7 @@
 import { cameraViewMatrix, max, mix, normalView, objectPosition, objectWorldMatrix, positionViewDirection,
   positionWorld, smoothstep, uniform, vec3, vec4 } from 'three/tsl';
 import { diffusePigment, hybridToonColor } from './hybridToon.js';
+import { endfieldCloth } from './endfieldCloth.js';
 
 // A broad plane across both cheeks avoids putting a sharp terminator on the
 // small nose polygons. Anchor the width and midline to the evaluated skeleton.
@@ -15,7 +16,7 @@ function cheekLight(mesh, L, geometric) {
   return mix(z.dot(L).mul(.80).add(across.mul(x.dot(L)).mul(.78)), geometric, .22);
 }
 
-export function endfieldColor(base, material, role, mesh) {
+export function endfieldColor(base, material, role, mesh, clothMap) {
   const u = material.userData.mmdTslMaterialUniforms, paint = diffusePigment(material, u);
   const light = uniform(u.lightColor), worldL = uniform(u.lightDirection);
   const L = cameraViewMatrix.mul(vec4(worldL, 0)).xyz, nl = normalView.dot(L);
@@ -35,6 +36,7 @@ export function endfieldColor(base, material, role, mesh) {
     const body = paint.pow(.83).mul(mix(vec3(.64,.53,.58), vec3(1.42,1.31,1.16), form));
     return mix(body,base,.12).add(paint.mul(vec3(.42,.36,.26)).mul(glint)).clamp();
   }
+  if (role === 'cloth' && clothMap) return endfieldCloth(paint,base,clothMap,L,light,key);
   // Feed painted fabric into the existing directional BRDF. Re-light most of
   // its albedo so the old toon shadow doesn't double up with the fabric band.
   return hybridToonColor(mix(base, paint.pow(.90).mul(1.22), .78), material, role);

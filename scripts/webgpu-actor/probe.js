@@ -8,6 +8,7 @@ import { prepareMmdVrModel } from '../../src/mmdVrShowcase/stage/loading/prepare
 import { firstCharacterScale } from '../../src/mmdVrShowcase/stage/loading/firstCharacterScale';
 import { createActorMaterialAdapter } from './materialAdapter.js';
 import { nprRoles, parseHybridSlots } from './hybridToon.js';
+import { loadClothDetails } from './endfieldCloth.js';
 import { measureFringe } from './fringeStudy.js';
 
 const SIZE = 600, AMBIENT = .55;
@@ -148,7 +149,7 @@ async function draw(gpu, input, common) {
   scene.add(light, new T.AmbientLight(0xffffff, AMBIENT));
   let gpuError;
   if (gpu) renderer.onError = info => { gpuError ??= new Error(`WebGPU ${info.type}: ${info.message}`); };
-  let adapter, model;
+  let adapter, model, clothMaps;
   try {
     if (gpu) adapter = await createActorMaterialAdapter(renderer, light, {balancedModelColor:input.balanced,ambientIntensity:AMBIENT,hybridSlots:input.hybridSlots,endfield:input.grade==='endfield'}); // rejects WebGL fallback
     renderer.setPixelRatio(input.focus === 'portrait' ? 2 : 1); renderer.setSize(SIZE, SIZE, false); renderer.setClearColor(0, 0);
@@ -169,7 +170,10 @@ async function draw(gpu, input, common) {
     const scale = common.scale ??= input.scale ?? firstCharacterScale(model.root) ?? 1;
     scene.add(model.root); model.root.scale.setScalar(scale); model.root.updateMatrixWorld(true);
     const bind = poseVector(model.mesh);
-    if (adapter) await adapter.attach(model);
+    if (adapter) {
+      if (input.grade === 'endfield') clothMaps = await loadClothDetails(model,input.hybridSlots.cloth,input.resolver,input.files);
+      await adapter.attach(model,undefined,clothMaps);
+    }
     if (input.clip) model.setAnimation(input.clip);
     const evaluated = model.update(input.time, { physics: false, ik: !!input.clip });
     model.root.updateMatrixWorld(true);
@@ -246,11 +250,12 @@ async function draw(gpu, input, common) {
     }
     return { image: shot.copy.toDataURL('image/png'), metrics: { ...frame, time: input.time, glSinglePassHairControl:!gpu && input.singlePassHair, lightPosition: light.position.toArray(), evaluatedFrame: evaluated.frame, poseDeltaFromBind, poseDeltaFromGL,
       visiblePixels, partialAlphaPixels, outlineDrawMaterials: activeEdges.length, outlineChangedPixels, drawCalls, slots, fringe, regionStats,
-      grade: gpu ? input.grade : 'balanced', hybridSlots: gpu ? input.hybridSlots : undefined, previousWebgpuGrade: gpu ? common.previous?.grade : undefined,
+      grade: gpu ? input.grade : 'balanced', hybridSlots: gpu ? input.hybridSlots : undefined, detailSlots: clothMaps && [...clothMaps.keys()], previousWebgpuGrade: gpu ? common.previous?.grade : undefined,
       textureWarnings: model.diagnostics.textures.map(({ code, materialIndex }) => ({ code, materialIndex })),
     } };
   } finally {
     if (model) { adapter?.detach(model); disposeMmdModel(model, { textures: 'owned' }); }
+    for (const t of new Set(clothMaps?.values())) t.dispose();
     adapter?.dispose(); await renderer.dispose(); renderer.forceContextLoss?.();
   }
 }
@@ -272,10 +277,11 @@ window.compareActor = async ({ files = inputFiles(), pmx, vmd, pose, time = 0, s
     hybridSlots = selection.size ? Object.fromEntries((endfield ? endfieldRoles : hybridRoles).map(k => [k, [...(hybridSlots[k] ?? [])]])) : undefined;
     const grade = hybridSlots ? (endfield ? 'endfield' : 'hybrid') : balanced ? 'balanced' : 'legacy';
     const all = Array.from(files), file = pick(all, pmx, PMX);
-    const loader = new ThreeMmdLoader({ textureResolver: createLocalTextureResolver(file, all), geometryAwareAlpha: true, runtime: { physics: 'none' } });
+    const resolver = createLocalTextureResolver(file, all);
+    const loader = new ThreeMmdLoader({ textureResolver: resolver, geometryAwareAlpha: true, runtime: { physics: 'none' } });
     const selected = pose ?? vmd, motion = selected ? pick(all, selected, CLIP) : null;
     const clip = !motion ? null : /\.vpd$/i.test(motion.name) ? await loader.loadPoseAnimation(motion) : await loader.loadAnimation(motion);
-    const input = { pmx: file, loader, clip, time, scale, hideSlot, lightYaw, focus, yaw, balanced, grade, hybridSlots, fringeStudy, studySlots, singlePassHair }, common = {}, result = {};
+    const input = { pmx: file, loader, files: all, resolver, clip, time, scale, hideSlot, lightYaw, focus, yaw, balanced, grade, hybridSlots, fringeStudy, studySlots, singlePassHair }, common = {}, result = {};
     const viewKey = JSON.stringify([time,scale,hideSlot,lightYaw,focus,yaw,singlePassHair]);
     for (const id of ['webgl', 'webgpu']) {
       $('status').textContent = `渲染 ${id}…`;

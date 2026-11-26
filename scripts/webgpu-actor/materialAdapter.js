@@ -41,7 +41,7 @@ export async function createActorMaterialAdapter(renderer, light, { balancedMode
   });
   return {
     loadOptions: pipeline.createModelLoadOptions(),
-    attach(model, options) {
+    attach(model, options, clothMaps) {
       // Validate against authored slots before the fork replaces materials and
       // appends outline slots. Invalid input leaves the loaded actor untouched.
       const source = model.mesh.material, count = Array.isArray(source) ? source.length : 1;
@@ -59,7 +59,7 @@ export async function createActorMaterialAdapter(renderer, light, { balancedMode
           // different material; opacityNode, alpha test and depth stay loader-owned.
           if (!material.userData.mmdTslMaterialUniforms) continue;
           if (balancedModelColor) material.colorNode = balancedToonColor(material.colorNode, ambientIntensity);
-          if (slots.has(index)) material.colorNode = endfield ? endfieldColor(material.colorNode, material, slots.get(index), model.mesh) : hybridToonColor(material.colorNode, material, slots.get(index));
+          if (slots.has(index)) material.colorNode = endfield ? endfieldColor(material.colorNode, material, slots.get(index), model.mesh, clothMaps?.get(index)) : hybridToonColor(material.colorNode, material, slots.get(index));
         }
       }
       return attached;
