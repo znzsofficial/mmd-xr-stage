@@ -2,6 +2,10 @@
 
 [正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `8a4bd75`](https://26340952.mmd-xr-stage.pages.dev) · [WebGPU 摄影地台 · 洛茜 v5](https://webgpu-floor-preview.mmd-xr-stage.pages.dev/?set=floor&xrBackend=webgpu) · [WebGPU 裙摆实验](https://mmd-xr-stage.pages.dev/labs/cloth/) · [发布记录](./release-history.md)
 
+**收尾决定：画风先停在 v5，下一步由 Quest 3S 真机定是否开放主站单景入口。** v5 交付的是适配洛茜配套贴图的可玩仿风格样板：布料的美术高光、局部皮肤扩散和描边均有各自的开关证据；未证实原作管线还原度、跨模型普适性或远景抗闪。WebGPU 已接正式菜单、背包、演员和动作时钟，但仅发布为一景一人的独立预览。桌面真实 GPU＋模拟 XR 已通过；当前预览没有 Quest 镜片、触觉、持续帧时或稳定提速结论，旧布料实验的实戴记录不计入。
+
+**真机地点：**头显内用 Meta Quest Browser 打开[本轮固定 WebGPU 预览（`ef79f621`）](https://ef79f621.mmd-xr-stage.pages.dev/?set=floor&xrBackend=webgpu)，确认准备页显示 `WebGPU`。导入洛茜完整目录和身体 VMD →「进入空舞台」→ 右 B「背包」选角色放置 → 演员「换动作／用于身体」，播舞时在「画风」来回切换 → 退出后同页「继续上次舞台」。若显示已回退 WebGL，单独记为 WebGPU 启动失败。实戴反馈先看双眼、近看观感／卡顿、操作与重进恢复；正式开放单景前再核同机同舞段、匹配刷新率和眼图尺寸的慢帧。全游戏默认后端另看代表场景，本轮不设切换日期。
+
 **双线已合到一个可玩里程碑。** WebGPU 摄影地台放下洛茜、选中演员 →「画风」切原 MMD／仿终末地。v5 在 v4 主光遮挡上增加了脸和身体的预积分皮肤扩散，以及按角色部位、近远和每眼像素调节的平滑描边。暂停舞段切换前后，双眼实测变化，切回原色精确恢复，续播同一演员。图在 `local-review/screenshots/rossi-hybrid-bust-v5/`，先看 `near-far-turn.webp` 和 `ablations.png`。远景发梢抗闪、Quest 镜片和帧时均没有实证；不要再安排一轮重复的背包或单效果演示。
 
 **洛茜第三版已出图：**`local-review/screenshots/rossi-hybrid-bust-v3/face-lights.png` 看二版／三版同姿下左右侧逆光及正光；`comparison.png` 看原半身机位，`hand-light.png` 单看露指透光开关。原模型的配套脸影图按头骨朝向和灯位取样，衣服和发色沿用二版。指骨区域估算厚薄，仅在逆光下作局部透光；毛耳、刘海真实投影与专用细描边未处理。三版侧逆光的鼻梁过渡更清楚，靠背光侧的脸颊仍偏灰。参照[官方洛茜战斗演示](https://www.youtube.com/watch?v=A5C7-5vi9SM)。
@@ -31,7 +35,7 @@
 | ② 已对照：GPU 裙摆 | 现有实验页可选本地身体 VMD，播放／暂停／续播；自动用同一段动作和掌球轨迹对比原 Bullet 与 GPU。 | [两件原衣的真实舞段](./performance/gpu-cloth-lab.md#真实-vmd-同段对照)：当轮未测出可重复的播舞整帧收益，稀疏裙双侧承托也未证实，因此未开放游戏内入口。之后另行推进③的内部底层接入。 |
 | ③ 原衣求解到共享演员 | [独立 Three 房间](./webgpu-xr-status.md#原衣裙链已接入-three-房间)先验衣面和描边；随后在正式背包的一景一人接线验暂停舞段的双手、身体物理及退场。 | 桌面原衣成立，Quest 实戴效果未确认；正式默认 WebGL。 |
 
-另已完成内部材质页的[写实卡渲样板](./scenery/character-toon-references.md#写实卡渲用同一束光认出材质)：按原 PMX 槽选布料、皮革、金属，在原衣上验过转灯、绕人及恢复原色。风格尚未接进游戏或 XR 小房间。
+早期内部材质页的[写实卡渲样板](./scenery/character-toon-references.md#写实卡渲用同一束光认出材质)用于按原 PMX 槽验证布、皮、金属转灯与恢复原色。后续已接入 WebGPU 摄影地台的演员画风选择，当前范围以页首收尾结论为准。
 
 **暂缓：**Bullet 直调负结果已结案；Babylon 迁移、新景／玩法、跨模型扫库、校园长测及内存专项保留原记录，有能阻塞上述操作的新证据再提级。同一行为第二次因模式交接回退，或一项新功能要求复制整套演员加载／时钟／生命周期时，先界定状态归谁，再增加功能。并行只用于当前里程碑的实现和验证。
 
