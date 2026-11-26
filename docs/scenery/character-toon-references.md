@@ -12,6 +12,8 @@
 
 同一角色、姿势、曝光，四种组合对照散射／描边。源图 `local-review/screenshots/rossi-hybrid-bust-v5/{comparison.png,ablations.png,outline-detail.png,near-far-turn.webp}`。正常半身差异轻，近景鼻头灰影变柔、侧逆光处暗颊与上臂略暖；部分实体发束更连贯，近看仍有断线。31 帧动图是配对推拉与转头，不冒充头显录屏。[从舞台演员切换的方法](../webgpu-xr-status.md#正式背包与摄影地台如何走开发入口)与材质近景用同一渲染分支。
 
+单独比较边界保守版和最终 UV 接缝配对版：93 条边通过一致性检查，但这处修正没有改变固定近景的帽缘；31 帧转头仅两帧各有一个像素不同。不能把整个 v5／v4 对照的差异归功于修接缝。
+
 洛茜第二版保留首图的脸、发、光线与机位；[衣料材质](../../scripts/webgpu-actor/endfieldCloth.js)按同一 UV 读取配套法线和参数，缎面与高 R 饰边各自反射。帧间对照在 `local-review/screenshots/rossi-hybrid-bust-v2/`：看红披肩折面及白衣明褶，暗侧的衣褶目前较硬。脸与刘海取样区逐像素相同，缺少配套图恢复首版。内部页只沿用既有的布料选槽，没有新增画风控件。
 
 **着色范围和可复用实现：**通用按槽材质有方向光 GGX、Smith 近似与 Schlick Fresnel；第二版有图的衣料走法线／粗糙度／金属遮罩控制的美术高光，没用通用槽的 GGX。第二版的脸是头骨驱动的程序渐变。现有 loader 按视口像素外扩轮廓；专用平滑描边法线可参考 [OutlineNormalSmoother](https://github.com/JasonMa0012/OutlineNormalSmoother)（MIT），单独验近远机位的发梢断线／闪烁。这些是实现参考，并非鹰角管线证据。

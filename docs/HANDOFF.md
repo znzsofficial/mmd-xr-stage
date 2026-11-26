@@ -1,6 +1,6 @@
 # 会话交接｜2026-11-26
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `70f0b09`](https://31d9de6f.mmd-xr-stage.pages.dev) · [正式首页 WebGPU 摄影地台预览](https://webgpu-floor-preview.mmd-xr-stage.pages.dev/?set=floor&xrBackend=webgpu) · [WebGPU 裙摆实验](https://mmd-xr-stage.pages.dev/labs/cloth/) · [发布记录](./release-history.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `8a4bd75`](https://26340952.mmd-xr-stage.pages.dev) · [WebGPU 摄影地台 · 洛茜 v5](https://webgpu-floor-preview.mmd-xr-stage.pages.dev/?set=floor&xrBackend=webgpu) · [WebGPU 裙摆实验](https://mmd-xr-stage.pages.dev/labs/cloth/) · [发布记录](./release-history.md)
 
 **双线已合到一个可玩里程碑。** WebGPU 摄影地台放下洛茜、选中演员 →「画风」切原 MMD／仿终末地。v5 在 v4 主光遮挡上增加了脸和身体的预积分皮肤扩散，以及按角色部位、近远和每眼像素调节的平滑描边。暂停舞段切换前后，双眼实测变化，切回原色精确恢复，续播同一演员。图在 `local-review/screenshots/rossi-hybrid-bust-v5/`，先看 `near-far-turn.webp` 和 `ablations.png`。远景发梢抗闪、Quest 镜片和帧时均没有实证；不要再安排一轮重复的背包或单效果演示。
 
