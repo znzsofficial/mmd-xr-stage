@@ -532,7 +532,7 @@ export function MmdVrPrepApp({showOverlay=true,loadFloorBackend}:{showOverlay?:b
            <label className="stage-field stage-first-room">
              <span className="stage-field-label"><PrepIcon name="window" />{t("sceneryPicker")}</span>
              <select className="stage-select" value={prefs.scenery} onChange={(event) => setPrefs({ scenery: resolveScenery(event.target.value) })}>
-                <SceneryOptions current={prefs.scenery}/>
+                 <SceneryOptions current={prefs.scenery} offerFloor={!!loadFloorBackend}/>
              </select>
            </label>
            <MusicPicker disabled={phase === 'entering' || phase === 'active'} />

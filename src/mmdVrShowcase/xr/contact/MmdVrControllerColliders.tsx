@@ -15,6 +15,7 @@ import {
   type MmdVrHapticGamepad,
 } from "./mmdVrHaptics";
 import { useMmdVrStore } from "../../mmdVrStore";
+import { isSoloFloorSession } from '../../backpack/sessionAssets';
 
 function ControllerCollider({ handedness, index }: { handedness: "left" | "right"; index: 0 | 1 }) {
   const controller = useXRInputSourceState("controller", handedness);
@@ -35,7 +36,9 @@ function ControllerCollider({ handedness, index }: { handedness: "left" | "right
   useFrame((state, delta, frame) => {
     const object = ref.current;
     const tracked = object as (THREE.Object3D & { transformReady?: boolean }) | null;
-    const trackingReady = Boolean(frame?.session.visibilityState === "visible" && tracked?.visible && tracked.transformReady !== false);
+    // The external XR loop resumes at dt=0 after lost tracking. Let Bullet
+    // consume a parked slot before a newly acquired pose can move this body.
+    const trackingReady = Boolean((delta > 0 || !isSoloFloorSession()) && frame?.session.visibilityState === "visible" && tracked?.visible && tracked.transformReady !== false);
     if (!trackingReady) {
       setMmdVrControllerColliderMatrix(index, null);
       lastPositionRef.current = null;

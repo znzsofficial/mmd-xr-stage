@@ -15,6 +15,7 @@ import { AssetEditPanel, MaterialPanel } from "./AssetPanels";
 import { LoadRecoveryPanel } from "./LoadRecoveryPanel";
 import { BackpackPanel, SceneryPanel } from "../backpack/BackpackPanels";
 import { useBackpack } from "../backpack/store";
+import { isSoloFloorSession } from '../backpack/sessionAssets';
 import { useHudWorldInput } from "./hudWorldInput";
 import { useStagePlay } from '../play/stagePlay';
 import { useLanguageStore } from "../../languageStore";
@@ -683,7 +684,7 @@ export function MmdVrControlBar({onExit,busy,onDragChange:reportInteraction}:{on
       <HudButton position={[0.98, 0.83, 0.03]} label={t("hudBack")} size={[0.55, 0.14]} variant="quiet" onPress={() => setPage("watch")} />
       {tab!=='models'&&<group name="hud:settings-rail" position={[-1.07,.42,.025]}>
         {settingsSections.map(([value,label],i)=><HudButton key={value}
-           position={[0,-i*.25,0]} size={[.47,.18]} label={t(label)} variant="tab" active={tab===value} disabled={inputHeld} onPress={()=>setTab(value)}/>)}
+           position={[0,-i*.25,0]} size={[.47,.18]} label={t(label)} variant="tab" active={tab===value} disabled={inputHeld || (value==='environment' && isSoloFloorSession())} onPress={()=>setTab(value)}/>)}
         {hasMusic && <HudButton position={[0,-settingsSections.length*.25,0]} size={[.47,.18]} label={t('musicTitle')} variant="tab" active={tab==='music'} disabled={inputHeld} onPress={()=>setTab('music')}/>}
       </group>}
       <group position-x={tab==='models'?0:.30}>

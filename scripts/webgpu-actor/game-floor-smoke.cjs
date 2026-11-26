@@ -42,7 +42,7 @@ async function main() {
   assert.equal(sites.length, 2);
   const {chromium} = require(process.env.PLAYWRIGHT_CORE || path.join(process.env.XR_SMOKE_DIR || path.join(temp,'xr-browser-smoke'),'node_modules/playwright-core'));
   const folder = await fs.mkdtemp(path.join(temp,'game-floor-files-'));
-  const report = {entry:'/?xrBackend=webgpu', simulated:'Quest controller input and projection display'};
+  const report = {entry:process.env.FLOOR_DEEPLINK?'/?xrBackend=webgpu&set=floor':'/?xrBackend=webgpu', simulated:'Quest controller input and projection display'};
   const errors = [], consoles = [];
   let server, browser, page, step = 'prepare', localProfile = false;
   try {
@@ -61,7 +61,8 @@ async function main() {
     page.on('response', r => {if(r.ok() && r.url()===new URL('/xr-input/1.0.20/meta-quest-touch-plus/profile.json',href).href)localProfile=true;});
     await page.addInitScript({content:`(${stereo})(); (${extend})(); labFixture.controllerProfile='meta-quest-touch-plus'; labFixture.hostStatus=()=>({phase:'idle'});`});
     await page.goto(href.href);
-    await page.locator('.stage-first-room select').selectOption('floor');
+    const selector=page.locator('.stage-first-room select');
+    if(process.env.FLOOR_DEEPLINK)assert.equal(await selector.inputValue(),'floor');else await selector.selectOption('floor');
     await page.locator('.stage-drop-zone input[webkitdirectory]').setInputFiles(folder);
     await page.locator('.stage-report-stats').waitFor();
     const ids = await page.evaluate(probes.observeStage,{modelPath:`${path.basename(folder)}/${second}`,motionName:`${path.basename(folder)}/${motion}`});

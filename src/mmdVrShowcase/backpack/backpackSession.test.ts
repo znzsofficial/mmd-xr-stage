@@ -2,12 +2,25 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { clearBackpack, syncBackpackFiles, useBackpack } from './store';
 import { useMmdVrStore } from '../mmdVrStore';
 import type { StageSnapshot } from '../stage/stageSnapshot';
+import {beginMmdVrAssetSession,endMmdVrAssetSession} from './sessionAssets';
 
 const initial = useMmdVrStore.getState();
-afterEach(() => { useMmdVrStore.setState(initial); clearBackpack(); });
+afterEach(() => { endMmdVrAssetSession();useMmdVrStore.setState(initial); clearBackpack(); });
 
 describe('backpack session boundary', () => {
   const room: StageSnapshot = { scenery:'classroom',assets:[],models:[],objects:[],time:0,playing:false,loop:true,physicsEnabled:false,controllerCollisions:true };
+  it('can choose the second imported actor for a solo floor, and normal limits return on exit',()=>{
+    syncBackpackFiles(['one.pmx','two.pmx','lamp.glb'].map(name=>new File([],name)));
+    const bag=useBackpack.getState(), [one,two,prop]=bag.entries;
+    initial.setPrefs({scenery:'floor'});beginMmdVrAssetSession([],'soloFloor');initial.openOverlay();
+    bag.beginPlace(two.id);expect(useBackpack.getState().draft).toBe(two.id);bag.cancelPlace();
+    bag.publishLive({[two.id]:{position:[0,0,0],visible:false,runtimeId:'live:2'}});
+    bag.beginPlace(one.id);expect(useBackpack.getState().draft).toBeNull();
+    bag.beginPlace(prop.id);expect(useBackpack.getState().draft).toBeNull();
+    initial.setPrefs({scenery:'pool'});expect(useMmdVrStore.getState().prefs.scenery).toBe('floor');
+    initial.closeOverlay();bag.beginPlace(prop.id);expect(useBackpack.getState().draft).toBe(prop.id);
+    initial.setPrefs({scenery:'pool'});expect(useMmdVrStore.getState().prefs.scenery).toBe('pool');
+  });
   it('captures before discarding a draft; Continue uses the captured room, not a later prep selection', () => {
     syncBackpackFiles([new File([], 'prop.glb')]);
     const b = useBackpack.getState(), id = b.entries[0].id;

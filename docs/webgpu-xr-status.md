@@ -61,6 +61,8 @@ WebGPU 支持不代表这个项目自动更快；没有真实 Quest 3S 帧耗时
 
 **正式游戏路径**：从同一份准备页 `/?set=floor&xrBackend=webgpu` 进入（开发／资格构建）。点原来的 VR 进入按钮，右 B 召回菜单 → 背包 → 角色 → 放置，再指地松开扳机。动作从选中角色的详情绑定，播放和暂停仍用原 HUD。不必在桌面预选 PMX／VMD。原 WebGL 与资格后端挂同一个 `MmdVrGameRoom`；资格宿主加载自己的 renderer、投影层和演员后端。见[生命周期](./xr-session-lifecycle.md#摄影地台的-webgpu-验证入口)。
 
+**全流程实测（桌面硬件 GPU＋模拟双眼）：**[正式首页回归](../scripts/webgpu-actor/game-floor-smoke.cjs)用真实 B 键／扳机选背包第二行 B；松手后落地，双眼均绘出 B。原衣双托 61.41／71.61 mm，单撤左 0.62／71.59 mm。33.7 s 舞段暂停在 0.5651 s，原 WebGL 屏幕观看还原相同时刻；续场后收回 B，遍历隐藏节点也无演员，换上 A 后只有 A。完整证据 `local-review/verification/game-floor-smoke.log`。不带 `set` 的资格链接也能在原准备页下拉中手选地台；进入资格之前拒权、取消与迟到授权均保留文件，可以在同页重试 WebGL。未测新入口的 Quest 镜片或性能。
+
 **历史回归夹具**：`/scripts/webgpu-actor/stage-room.html` 的 X/A 选样捷径只供旧双眼、布料与故障回放；正式游戏的操作不在这个页面上开发。已有多人或物件的摄影地台不会作为一人样板续场。
 
 射线来自产品同款 XR store 的 `targetRaySpace`，落点、朝向、遮挡和确认由原 [`BackpackPlacement`](../src/mmdVrShowcase/backpack/BackpackPlacement.tsx) 处理。测试页只负责选样本和进出；脚印、放置规则和布局恢复无需再为正式游戏移植一遍。
