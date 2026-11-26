@@ -19,12 +19,12 @@ describe("XR diagnostic sampling lifecycle", () => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     const newSession = (frameRate: number) => Object.assign(new EventTarget(), { frameRate, visibilityState: "visible" });
     let session: ReturnType<typeof newSession> | null = newSession(90);
-    const tick = (dt: number) => harness.frame(null, dt, session ? {session} : undefined);
+    const tick = (dt: number) => harness.frame(null, dt, session ? Object.assign({session},{getViewerPose:()=>({views:[{eye:'right'},{eye:'left'}]})}) : undefined);
     harness.scene = new Scene();
     const memory = {textures:1,geometries:0};
     harness.gl = {
       info: {memory,render:{calls:1,triangles:2}},
-      xr: { isPresenting: true, getSession: () => session, getBaseLayer: () => ({ framebufferWidth: 2000, framebufferHeight: 1000, antialias: true }) },
+      xr: { isPresenting: true, getSession: () => session, getReferenceSpace:()=>({}),getCamera:()=>({cameras:[{viewport:{z:960,w:978}},{viewport:{z:958,w:976}}]}),getBaseLayer: () => ({ framebufferWidth: 2000, framebufferHeight: 1000, antialias: true }) },
       getRenderTarget: () => null,
       shadowMap: { enabled: false },
       getContext: () => ({ getContextAttributes: () => ({ antialias: true }) }),
@@ -42,7 +42,7 @@ describe("XR diagnostic sampling lifecycle", () => {
       expect(useRenderDiagnostics.getState().current?.fps).toBeNull();
       session = newSession(72);
       tick(0.01);
-      expect(useLastPerformanceReport.getState().report).toMatchObject({ intervalCount: 3, reportedRefreshRates: {90: 3},
+      expect(useLastPerformanceReport.getState().report).toMatchObject({ backend:'webgl',eyeViewports:[{eye:'right',width:960,height:978},{eye:'left',width:958,height:976}],intervalCount: 3, reportedRefreshRates: {90: 3},
         modelMemory:{runs:[{textures:1}],mounts:[]} });
       expect(useRenderDiagnostics.getState().current).toMatchObject({ refreshRate: 72, fps: null });
       session = null;

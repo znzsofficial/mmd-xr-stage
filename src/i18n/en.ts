@@ -204,6 +204,7 @@ export const en: Record<keyof ZhMessages, string> = {
   stageRestart: "Enter an empty stage",
   stageResumeHint: "Continue restores the last stage, including its placed items and playback position.",
   exportSessionPerformance: "Export last VR performance report (JSON)",
+  floorXrRenderer: 'Photo floor VR renderer', exportBackendComparison:'Export WebGPU / WebGL performance comparison (JSON)',
   loadScene: "Preparing the VR scene",
   loadSceneHint: "Downloading the scene module. You can return to setup without losing your file selection.",
   loadBack: "Back to setup",

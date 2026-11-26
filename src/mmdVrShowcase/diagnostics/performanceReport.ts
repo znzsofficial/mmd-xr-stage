@@ -8,28 +8,43 @@ import type {PhysicsSwitchWork} from './physicsSwitchWork';
 import type {FigureWork} from './diagramTiming';
 import type {ModelMemoryTrace} from './modelMemory';
 
-type SceneSample = { models: number; objects: number; physics: boolean; scenery?: string; liveHouse: boolean; shadows: boolean; playing: boolean; actorPalmClothRequested?:boolean; heldToy?: import('../play/stagePlay').Toy | null; planetMovement?:ReturnType<typeof import('../movement/planetDiagnostics').samplePlanetMovement>;figureWork?:FigureWork;rodState?:'parked'|'running'|'inside' };
+export type XrBackend = 'webgl' | 'webgpu';
+type EyeSize = {eye:XREye;width:number;height:number};
+type SceneSample = { models: number; objects: number; physics: boolean; scenery?: string; liveHouse: boolean; shadows: boolean; playing: boolean; actorStyle?:string; clothMode?:string; actorPalmClothRequested?:boolean; heldToy?: import('../play/stagePlay').Toy | null; planetMovement?:ReturnType<typeof import('../movement/planetDiagnostics').samplePlanetMovement>;figureWork?:FigureWork;rodState?:'parked'|'running'|'inside' };
 type MovementSample = { playerStance?:ReturnType<typeof import('../movement/stanceDiagnostics').samplePlayerStance> };
-type Window = Omit<RenderDiagnostics, "requested" | "active"> & SceneSample & MovementSample & { elapsedMs: number };
+type Window = Omit<RenderDiagnostics, "requested" | "active"> & SceneSample & MovementSample & { elapsedMs: number; eyeViewports:EyeSize[]; intervals:number; intervalsWithRate:number; slowIntervals:number };
 const MAX_WINDOWS = 1800;
 
 /** Aggregates in page memory; only visible XR callback intervals enter the histogram. */
-export function createPerformanceRecording(requested: RenderRequest, entryStartedAt: number | null = null) {
+export function createPerformanceRecording(requested: RenderRequest, entryStartedAt: number | null = null, backend:XrBackend='webgl') {
   const startedAt = new Date().toISOString(), entryAsset = stageBuild('stage');
   const bins = new Uint32Array(8002); // 0.25ms upper bounds, last bin is >2000ms
   const windows: Window[] = [];
   const roomRestores:RoomRestoreEvent[]=[];
   const rates = new Map<number, number>();
+  const scenes=new Set<string>();
   const placements: { kind: "model" | "object"; moved: boolean; selectToPointMs: number | null; confirmToReadyFrameMs: number; modelWork?: BackpackPlacementTiming['work'] }[] = [];
   let lastPlacementToken = -1;
   let count = 0, duration = 0, max = 0, knownBudget = 0, over = 0, late = 0, written = 0;
   let skipNext = true;
+  let previousTimestamp:number|undefined;
+  let eyeViewports:EyeSize[]=[], lastCount=0,lastKnown=0,lastLate=0;
   let firstVisibleXrFrameMs: number | null = null, firstFrameAfterAssetsReadyMs: number | null = null;
   const wallStart=performance.now();
   const physicsRebuilds:{scenery:SceneryId;requestedEnabled:boolean;startWallMs:number;durationWallMs:number;success:boolean;work?:PhysicsSwitchWork}[]=[];
   let rebuilding:{scenery:SceneryId;requestedEnabled:boolean;at:number;work?:PhysicsSwitchWork}|null=null;
   return {
     wallStart,
+    scene(name:string){scenes.add(name);},
+    // Three fills camera[i].viewport from view[i]'s actual layer viewport before
+    // the application callback. Neither a texture-array layer nor a packed GL
+    // framebuffer size is the per-eye drawing size. Never retain XRView objects.
+    eyes(views:readonly {eye:XREye}[],cameras:readonly {viewport?:{z:number;w:number}}[]) {
+      eyeViewports=views.flatMap(({eye},i)=>{
+        const v=cameras[i]?.viewport;
+        return v && Number.isInteger(v.z) && Number.isInteger(v.w) && v.z>0 && v.w>0 ? [{eye,width:v.z,height:v.w}] : [];
+      });
+    },
     restored(event:RoomRestoreEvent){if(roomRestores.length===64)roomRestores.shift();roomRestores.push(event);},
     beginRebuild(scenery:SceneryId,requestedEnabled:boolean,work?:PhysicsSwitchWork){rebuilding={scenery,requestedEnabled,at:performance.now(),work};},
     abandonRebuild(){rebuilding=null;},
@@ -51,7 +66,12 @@ export function createPerformanceRecording(requested: RenderRequest, entryStarte
       if (firstVisibleXrFrameMs === null) firstVisibleXrFrameMs = Math.round(performance.now() - entryStartedAt);
       if (assetsReady) firstFrameAfterAssetsReadyMs = Math.round(performance.now() - entryStartedAt);
     },
-    interrupt() { skipNext = true; },
+    interrupt() { skipNext = true; previousTimestamp=undefined; },
+    timestamp(time:number,rate?:number|null) {
+      if(!Number.isFinite(time)){this.interrupt();return;}
+      if(previousTimestamp!==undefined && time>previousTimestamp)this.interval((time-previousTimestamp)/1000,rate);
+      previousTimestamp=time;skipNext=false;
+    },
     interval(deltaSeconds: number, refreshRate?: number | null) {
       if (!(deltaSeconds > 0) || !Number.isFinite(deltaSeconds)) { skipNext = true; return; }
       if (skipNext) { skipNext = false; return; }
@@ -67,7 +87,9 @@ export function createPerformanceRecording(requested: RenderRequest, entryStarte
     },
     sample(data: RenderDiagnostics, scene: SceneSample & MovementSample) {
       const { requested: _requested, active: _active, ...metrics } = data;
-      windows[written++ % MAX_WINDOWS] = { elapsedMs: Math.round(duration), ...scene, ...metrics };
+      windows[written++ % MAX_WINDOWS] = { elapsedMs: Math.round(duration), ...scene, ...metrics, eyeViewports,
+        intervals:count-lastCount,intervalsWithRate:knownBudget-lastKnown,slowIntervals:late-lastLate };
+      lastCount=count;lastKnown=knownBudget;lastLate=late;
     },
     finish(modelMemory?: ModelMemoryTrace) {
       if (!count) return null;
@@ -77,7 +99,7 @@ export function createPerformanceRecording(requested: RenderRequest, entryStarte
         return null;
       };
       const start = written > MAX_WINDOWS ? written % MAX_WINDOWS : 0;
-      return { schemaVersion: 1, startedAt, entryAsset, requested, visibleIntervalMs: Math.round(duration), intervalCount: count,
+      return { schemaVersion: 1, backend, scenes:[...scenes], eyeViewports, startedAt, entryAsset, requested, visibleIntervalMs: Math.round(duration), intervalCount: count,
          startup: { firstVisibleXrFrameMs, firstFrameAfterAssetsReadyMs }, placements, physicsRebuilds, roomRestores, ...(modelMemory && {modelMemory}),
         reportedRefreshRates: Object.fromEntries(rates), intervalsWithReportedRate: knownBudget,
         callbackIntervalMs: { mean: duration / count, p50Upper: quantile(.50), p95Upper: quantile(.95), p99Upper: quantile(.99), worst: max },
@@ -92,10 +114,20 @@ export function createPerformanceRecording(requested: RenderRequest, entryStarte
 type Report = NonNullable<ReturnType<ReturnType<typeof createPerformanceRecording>["finish"]>>;
 export const useLastPerformanceReport = create<{ report: Report | null }>(() => ({ report: null }));
 
-export function downloadPerformanceReport(report: Report) {
-  const url = URL.createObjectURL(new Blob([JSON.stringify(report, null, 2)], { type: "application/json" }));
+// Only the qualification page offers the two backends in one tab. Keep at most
+// one completed run per backend for a single export; never cross page loads.
+const pair:Partial<Record<XrBackend,Report>>={};
+export function publishPerformanceReport(report:Report) {
+  if(report.scenes.length===1 && report.scenes[0]==='floor')pair[report.backend]=report;
+  else delete pair[report.backend];
+  useLastPerformanceReport.setState({report});
+}
+export function samePagePair() {return pair.webgpu && pair.webgl ? {webgpu:pair.webgpu,webgl:pair.webgl} : null;}
+
+export function downloadPerformanceReport(report: Report, comparison?:NonNullable<ReturnType<typeof samePagePair>>|null) {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(comparison??report, null, 2)], { type: "application/json" }));
   const link = document.createElement("a");
-  link.href = url; link.download = `mmd-xr-performance-${report.startedAt.replace(/[:.]/g, "-")}.json`;
+  link.href = url; link.download = `mmd-xr-performance-${comparison?'webgpu-webgl':report.backend}-${report.startedAt.replace(/[:.]/g, "-")}.json`;
   document.body.appendChild(link);
   try { link.click(); } finally { link.remove(); window.setTimeout(() => URL.revokeObjectURL(url), 1000); }
 }

@@ -9,7 +9,7 @@ import {takeFigureWork} from './diagramTiming';
 import {usePelvic} from '../pelvic/store';
 import { useBackpack } from "../backpack/store";
 import { useStagePlay } from '../play/stagePlay';
-import { createPerformanceRecording, useLastPerformanceReport } from "./performanceReport";
+import { createPerformanceRecording, publishPerformanceReport } from "./performanceReport";
 import {observeModelMemory} from './modelMemory';
 import { useMmdVrStore } from "../mmdVrStore";
 import { createFrameCadence, readRenderDiagnostics, useRenderDiagnostics, type RenderRequest } from "./renderDiagnostics";
@@ -21,6 +21,7 @@ export function MmdVrDiagnostics({ requested }: { requested: RenderRequest }) {
   const cadence = useRef(createFrameCadence());
   const lastSession = useRef<XRSession | null>(null);
   const recording = useRef<ReturnType<typeof createPerformanceRecording> | null>(null);
+  const seenEyes=useRef(false);
   function finish() {
     discardSweepWork();
     xrRoomRestoreTiming.cancel();
@@ -29,9 +30,9 @@ export function MmdVrDiagnostics({ requested }: { requested: RenderRequest }) {
       lastSession.current?.removeEventListener("visibilitychange", discardSweepWork);
       const report = recording.current.finish(memory.current?.finish());
       memory.current = undefined;
-      if (report) useLastPerformanceReport.setState({ report });
+      if (report) publishPerformanceReport(report);
     }
-    recording.current = null; lastSession.current = null;
+    recording.current = null; lastSession.current = null; seenEyes.current=false;
   }
   useEffect(() => () => { finish(); runtimeTiming.readAndReset(); useRenderDiagnostics.getState().set(null); }, []);
   useEffect(()=>useMmdVrStore.subscribe((s,p)=>{
@@ -58,11 +59,15 @@ export function MmdVrDiagnostics({ requested }: { requested: RenderRequest }) {
       useRenderDiagnostics.getState().set(readRenderDiagnostics(gl, requested, null));
     }
     if (!session || !gl.xr.isPresenting) return;
-    const visibleFrame = frame?.session === session && (!session.visibilityState || session.visibilityState === "visible");
+    const space=gl.xr.getReferenceSpace();
+    const pose=frame?.session===session && space && (!session.visibilityState || session.visibilityState==='visible') ? frame.getViewerPose(space) : null;
+    const visibleFrame=!!pose?.views.length;
+    if (visibleFrame && !seenEyes.current) {recording.current?.eyes(pose.views,gl.xr.getCamera().cameras);seenEyes.current=true;}
     if (visibleFrame) {
       if (!memory.current && recording.current && gl.info?.memory) memory.current = observeModelMemory(scene,gl,session,recording.current.wallStart);
       memory.current?.frame();
       const s = useMmdVrStore.getState();
+      recording.current?.scene(s.prefs.scenery);
       const restore=xrRoomRestoreTiming.frame(s.prefs.scenery);if(restore)recording.current?.restored(restore);
       recording.current?.startupFrame(!s.assetLoad.running && (s.modelCount > 0 || s.objects.length > 0));
       recording.current?.placementFrame(useBackpack.getState().lastCompletedPlacement);
@@ -80,6 +85,7 @@ export function MmdVrDiagnostics({ requested }: { requested: RenderRequest }) {
     finishSweepFrame();
     const measured = cadence.current.sample(delta);
     if (measured) {
+      recording.current?.eyes(pose.views,gl.xr.getCamera().cameras);
       const data = readRenderDiagnostics(gl, requested, measured, runtimeTiming.readAndReset());
       useRenderDiagnostics.getState().set(data);
       const s = useMmdVrStore.getState(),figureWork=takeFigureWork(session),rod=usePelvic.getState();

@@ -2,15 +2,15 @@
 
 [正式舞台](https://mmd-xr-stage.pages.dev) · [固定版 `8a4bd75`](https://26340952.mmd-xr-stage.pages.dev) · [WebGPU 摄影地台 · 洛茜 v5](https://webgpu-floor-preview.mmd-xr-stage.pages.dev/?set=floor&xrBackend=webgpu) · [WebGPU 裙摆实验](https://mmd-xr-stage.pages.dev/labs/cloth/) · [发布记录](./release-history.md)
 
-**收尾只留一条主线：建议先把「主站可选 WebGPU 摄影地台」做完。** 背包放一人、播舞、暂停托裙和换画风已经在同一套游戏组件里跑通。剩下最短的路：让现有预览记录本场实际后端、刷新率、每眼尺寸与慢帧，再用同一台 Quest、同一角色同一舞段与 WebGL 对照；集中确认双眼、手柄与手追、退出续场及失败回退。通过就开放主站单景可选入口并结束这一阶段；遇到问题只修阻断项，继续用已发布预览。全场景、多演员和默认后端另算，不挂在本次收工条件上。
+**收尾主线：主站可选 WebGPU 摄影地台。** 在同一资格页选 WebGPU 或 WebGL，原背包和续场共用；退出两种后端各一次后可下载一份双报告。下一关在同一台 Quest、同一角色同一舞段比较实际刷新率、每眼尺寸与慢帧，集中确认双眼、手柄与手追、退出续场及失败回退。通过再开放主站单景可选入口；全场景、多演员和默认后端另算。
 
 **可以现在结案：终末地角色缺图与 v5 样板。** 本机 12 份角色 PMX 均已在桌面 WebGPU 实绘，10 份能自动切画风。茶叶版提弗洛斯能加载，只有睫毛和表情的同一张 toon 使用默认渐变；另一份提弗洛斯的贴图全部命中。两份未切换的角色材质都能按原 MMD 显示。逐包结果见 `local-review/verification/endfield-pmx-audit/README.md`。无新阻断不继续扫库或做 v6。
 
-**WebGPU 回访：**玩家反馈测试页「挺正常的」。当前预览宿主不生成 WebGPU 会话性能 JSON，不要求补导出；镜片、触觉、退出重进及持续帧时尚未逐项确认。正式主站继续默认 WebGL。
+**WebGPU 回访：**玩家反馈早期 `ef79f621` 测试页「挺正常的」，该版不录 WebGPU 帧时。新的同页对照使用[滚动预览](https://webgpu-floor-preview.mmd-xr-stage.pages.dev/?set=floor&xrBackend=webgpu)；真实镜片、触觉及持续帧时仍未逐项确认。正式主站继续默认 WebGL。
 
 **先停放：普通 PMX 基础画风。** 珠霜舒芙蕾 3072×4096 的原 PMX 手动分槽渲染、机位及分组在 `local-review/screenshots/yvette-souffle-endfield/`。以后恢复时从 [`actorStyleSlots.js`](../scripts/webgpu-actor/actorStyleSlots.js) 与 [`actorStyle.js`](../scripts/webgpu-actor/actorStyle.js) 分开基础材质识别和专用图增强；沿用演员旁的选择，保留眉眼，用同演员播舞切换和暂停关物理切回的画面对照验收。此项不挡主站开放地台。
 
-**真机地点：**头显内用 Meta Quest Browser 打开[本轮固定 WebGPU 预览（`ef79f621`）](https://ef79f621.mmd-xr-stage.pages.dev/?set=floor&xrBackend=webgpu)，确认准备页显示 `WebGPU`。导入洛茜完整目录和身体 VMD →「进入空舞台」→ 右 B「背包」选角色放置 → 演员「换动作／用于身体」，播舞时在「画风」来回切换 → 退出后同页「继续上次舞台」。若显示已回退 WebGL，单独记为 WebGPU 启动失败。实戴反馈先看双眼、近看观感／卡顿、操作与重进恢复；正式开放单景前再核同机同舞段、匹配刷新率和眼图尺寸的慢帧。全游戏默认后端另看代表场景，本轮不设切换日期。
+**真机地点：**头显打开上面的滚动预览，从背包放人、绑舞段。比较后端时都选原 MMD，在准备页切渲染器后用「继续上次舞台」，同样的舞段各播一次再退出。页底「导出 WebGPU / WebGL 性能对照」包含同一页最近的两个纯地台会话。老预览和旧报告不需要重导。
 
 **双线已合到一个可玩里程碑。** WebGPU 摄影地台放下洛茜、选中演员 →「画风」切原 MMD／仿终末地。v5 在 v4 主光遮挡上增加了脸和身体的预积分皮肤扩散，以及按角色部位、近远和每眼像素调节的平滑描边。暂停舞段切换前后，双眼实测变化，切回原色精确恢复，续播同一演员。图在 `local-review/screenshots/rossi-hybrid-bust-v5/`，先看 `near-far-turn.webp` 和 `ablations.png`。远景发梢抗闪、Quest 镜片和帧时均没有实证；不要再安排一轮重复的背包或单效果演示。
 

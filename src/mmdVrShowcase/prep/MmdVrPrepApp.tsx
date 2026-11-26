@@ -17,7 +17,7 @@ import { SceneryOptions } from '../scenery/SceneryOptions';
 import { expandAssetFiles, AssetImportError, IMPORT_LIMITS, type ArchiveEncoding, type ImportProgress } from "../../mmdImport/importArchive";
 import { bindCompanion, mergeAssetFiles } from "../../mmdImport/assetPaths";
 import { inspectAssets, type ImportReport } from "../../mmdImport/inspectAssets";
-import { downloadPerformanceReport, useLastPerformanceReport } from "../diagnostics/performanceReport";
+import { downloadPerformanceReport, samePagePair, useLastPerformanceReport } from "../diagnostics/performanceReport";
 import {usesFloorBackend,type LoadFloorBackend} from '../xr/floorBackend';
 import {useFloorBackend} from './useFloorBackend';
 import {stageHudVars} from '../pelvic/palette';
@@ -43,6 +43,8 @@ export function MmdVrPrepApp({showOverlay=true,loadFloorBackend}:{showOverlay?:b
   const bindings = useBackpack((state) => state.bindings);
   const errorMessage = useMmdVrStore((state) => state.errorMessage);
   const performanceReport = useLastPerformanceReport((state) => state.report);
+  const comparison=loadFloorBackend && samePagePair();
+  const [floorRenderer,setFloorRenderer]=useState<'webgpu'|'webgl'>('webgpu');
   const prefs = useMmdVrStore((state) => state.prefs);
   const floor=useFloorBackend(prefs.scenery==='floor'?loadFloorBackend:undefined);
   const setPrefs = useMmdVrStore((state) => state.setPrefs);
@@ -253,7 +255,7 @@ export function MmdVrPrepApp({showOverlay=true,loadFloorBackend}:{showOverlay?:b
     publishFiles([...current, file]);
   }
 
-  const candidate=(resume=false)=>floor.enabled&&usesFloorBackend(prefs.scenery,resume,savedStage?.scenery);
+  const candidate=(resume=false)=>floorRenderer==='webgpu'&&floor.enabled&&usesFloorBackend(prefs.scenery,resume,savedStage?.scenery);
   function enterVr(resume = false) {
     if(floor.phase)return;
     if(candidate(resume)){floor.enter(resume);return;}
@@ -535,7 +537,13 @@ export function MmdVrPrepApp({showOverlay=true,loadFloorBackend}:{showOverlay?:b
                  <SceneryOptions current={prefs.scenery} offerFloor={!!loadFloorBackend}/>
              </select>
            </label>
-           <MusicPicker disabled={phase === 'entering' || phase === 'active'} />
+            {loadFloorBackend && prefs.scenery==='floor' && <label className="stage-field">
+              <span className="stage-field-label">{t('floorXrRenderer')}</span>
+              <select className="stage-select" data-floor-renderer value={floor.failed?'webgl':floorRenderer} disabled={!!floor.failed||phase==='entering'||phase==='active'} onChange={e=>setFloorRenderer(e.target.value==='webgpu'?'webgpu':'webgl')}>
+                <option value="webgpu">WebGPU</option><option value="webgl">WebGL</option>
+              </select>
+            </label>}
+            <MusicPicker disabled={phase === 'entering' || phase === 'active'} />
            <DeviceSettings/>
         </aside></div>
       </main>
@@ -577,7 +585,7 @@ export function MmdVrPrepApp({showOverlay=true,loadFloorBackend}:{showOverlay?:b
             </div>
           )}
 
-          {performanceReport && phase !== "active" && phase !== "entering" && <button type="button" className="stage-btn stage-btn-secondary" onClick={() => downloadPerformanceReport(performanceReport)}>{t("exportSessionPerformance")}</button>}
+          {performanceReport && phase !== "active" && phase !== "entering" && <button type="button" className="stage-btn stage-btn-secondary" data-performance-export onClick={() => downloadPerformanceReport(performanceReport,comparison)}>{comparison?t('exportBackendComparison'):`${t('exportSessionPerformance')} · ${performanceReport.backend==='webgpu'?'WebGPU':'WebGL'}`}</button>}
         </div>
       </footer>
 

@@ -14,6 +14,8 @@
 
 单独比较边界保守版和最终 UV 接缝配对版：93 条边通过一致性检查，但这处修正没有改变固定近景的帽缘；31 帧转头仅两帧各有一个像素不同。不能把整个 v5／v4 对照的差异归功于修接缝。
 
+**后续对照：保留 v5。** 侧逆光下给脸影受光值再做空间扩散，正光、眼线与脸外均保持，但同一侧眼下已有亮斑与邻近脸颊的亮度差从 22 降到 4，而鼻侧从 53 到 42。半身画面的局部收益不足以增加每个脸像素八次采样，候选未合入。原尺寸 A/B：`local-review/screenshots/rossi-v5-cheek-study/side-native-ab.png`。
+
 洛茜第二版保留首图的脸、发、光线与机位；[衣料材质](../../scripts/webgpu-actor/endfieldCloth.js)按同一 UV 读取配套法线和参数，缎面与高 R 饰边各自反射。帧间对照在 `local-review/screenshots/rossi-hybrid-bust-v2/`：看红披肩折面及白衣明褶，暗侧的衣褶目前较硬。脸与刘海取样区逐像素相同，缺少配套图恢复首版。内部页只沿用既有的布料选槽，没有新增画风控件。
 
 **着色范围和可复用实现：**通用按槽材质有方向光 GGX、Smith 近似与 Schlick Fresnel；第二版有图的衣料走法线／粗糙度／金属遮罩控制的美术高光，没用通用槽的 GGX。第二版的脸是头骨驱动的程序渐变。现有 loader 按视口像素外扩轮廓；专用平滑描边法线可参考 [OutlineNormalSmoother](https://github.com/JasonMa0012/OutlineNormalSmoother)（MIT），单独验近远机位的发梢断线／闪烁。这些是实现参考，并非鹰角管线证据。

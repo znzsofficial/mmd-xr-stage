@@ -69,7 +69,11 @@ describe("prep import and resume controls", () => {
       const saved:StageSnapshot={scenery:'floor',assets:[{kind:'model',modelFile:file,bodyMotionFile:null,companionFiles:[file]}],models:[],objects:[],time:1,playing:false,loop:false,physicsEnabled:true,controllerCollisions:true};
       await act(async()=>{useMmdVrStore.setState({savedStage:saved});ready(start);});
       const resume=button('继续上次舞台')!;
-      expect(resume.dataset.xrBackend).toBe('webgpu');
+       expect(resume.dataset.xrBackend).toBe('webgpu');
+       const renderer=container.querySelector<HTMLSelectElement>('[data-floor-renderer]')!;
+       await act(async()=>{renderer.value='webgl';renderer.dispatchEvent(new Event('change',{bubbles:true}));});
+       expect(resume.dataset.xrBackend).toBe('webgl');expect(useMmdVrStore.getState().savedStage).toBe(saved);
+       await act(async()=>{renderer.value='webgpu';renderer.dispatchEvent(new Event('change',{bubbles:true}));});
       act(()=>{resume.click();expect(start).toHaveBeenCalledWith(expect.objectContaining({resume:true}));});
       expect(requestMmdVrEnter).not.toHaveBeenCalled();
       await act(async()=>{status.error='No first tracked draw';end();});

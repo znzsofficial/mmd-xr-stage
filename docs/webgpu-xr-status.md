@@ -61,11 +61,15 @@ WebGPU 支持不代表这个项目自动更快；没有真实 Quest 3S 帧耗时
 
 **正式游戏路径**：从同一份准备页 `/?set=floor&xrBackend=webgpu` 进入（开发／资格构建）。点原来的 VR 进入按钮，右 B 召回菜单 → 背包 → 角色 → 放置，再指地松开扳机。动作从选中角色的详情绑定，播放和暂停仍用原 HUD。不必在桌面预选 PMX／VMD。原 WebGL 与资格后端挂同一个 `MmdVrGameRoom`；资格宿主加载自己的 renderer、投影层和演员后端。见[生命周期](./xr-session-lifecycle.md#摄影地台的-webgpu-验证入口)。
 
+**同页双后端对照**：资格链接的「摄影地台 VR 渲染器」可选 WebGPU / WebGL，留在原标签页沿用背包与暂停快照。两次都用原 MMD、同一演员和舞段。退出后，单次 JSON 标明实际 `backend`；两种后端各有一次只在地台的会话时，导出按钮打包该页最近的两份记录。`eyeViewports` 是各眼实际绘图视口，不拿整层宽度除二；刷新率取设备报告值。看双方一人、播舞、同物理设置的窗口，再对齐实际刷新率和每眼尺寸。`slowIntervals` 是窗口内大于 1.5 个刷新周期的可见 XR 回调间隔；追踪暂停不计，持续可见的长帧计入。这不是 GPU 耗时或合成器掉帧。双报告保留各自结果，不自动认定性能可比或更快。
+
 **全流程实测（桌面硬件 GPU＋模拟双眼）：**[正式首页回归](../scripts/webgpu-actor/game-floor-smoke.cjs)用真实 B 键／扳机选背包第二行 B；松手后落地，双眼均绘出 B。原衣双托 61.41／71.61 mm，单撤左 0.62／71.59 mm。33.7 s 舞段暂停在 0.5651 s，原 WebGL 屏幕观看还原相同时刻；续场后收回 B，遍历隐藏节点也无演员，换上 A 后只有 A。完整证据 `local-review/verification/game-floor-smoke.log`。不带 `set` 的资格链接也能在原准备页下拉中手选地台；进入资格之前拒权、取消与迟到授权均保留文件，可以在同页重试 WebGL。未测新入口的 Quest 镜片或性能。
 
 **演员画风（v5）：**本地导入 PMX 所在的完整目录，包含原贴图和配套材质图。放到摄影地台 → 选中演员 → 旁边工具首页的「画风」选「仿终末地」。按原 PMX 材质标签与纹理用途配对，眼白／眉／嘴不按共用脸图误选；缺少合适的配套图保持 MMD。第一次选择才派专属 worker 解码，回到原 MMD 不重载演员、VMD 或物理。工作线程只回寄像素；房间在可见的 tracked draw、最终姿势确定后才切换。暂停 VMD 且关闭物理时也能切换，不必先续播。
 
-**本轮回访（`8a4bd75`）：**玩家反馈预览页「挺正常的」。当前会话性能录制组件 `MmdVrDiagnostics` 只挂在 WebGL XR 入口，不能拿准备页上已有的上次报告说明本次 WebGPU 的帧率；本次无需导出。另核过本地提弗洛斯的 `textures/face_t.bmp` 提示：睫毛和表情引用的自定义 toon 渐变确实缺失，脸部底色仍在，loader 会报告告警并使用默认渐变。无需阻断放置、忽略其他缺图或借用另一角色的文件。可在获得原 BMP 后从导入报告补绑。详情留 `local-review/verification/webgpu-floor-v5-player-feedback.md`。
+**双报告验收：**[编译版同页下载回放](../scripts/webgpu-actor/floor-report-smoke.cjs)通过实际导出按钮读取 JSON，WebGPU 模拟显示给出每眼 232×230（图层 240×240）、72 Hz；WebGL 续场给出每眼 640×720、90 Hz。WebGPU 的可选刷新率请求始终不兑现时仍能进场、退出、导出实得值。这里故意用了不同显示条件，验证归属而非测速度。
+
+**早期回访（`8a4bd75`）：**玩家反馈预览页「挺正常的」。当时只有 WebGL XR 录制会话，不用补导出。另核过本地提弗洛斯的 `textures/face_t.bmp` 提示：睫毛和表情引用的自定义 toon 渐变确实缺失，脸部底色仍在，loader 会报告告警并使用默认渐变。无需阻断放置、忽略其他缺图或借用另一角色的文件。可在获得原 BMP 后从导入报告补绑。详情留 `local-review/verification/webgpu-floor-v5-player-feedback.md`。
 
 `game-floor-smoke.cjs <pmx> <vmd> --actor-style` 实际用射线在场内切换：同一 33.7 s 舞段暂停在 0.206 s，左右眼角色区域分别有 4,257／4,268 个像素变化（阈值 6／255），切回后两眼取样区域全部通道恢复。续播时切换仍保留同一 runtimeId 和动作，探针实取 1 套脸图、3 个衣料槽。证据 `local-review/verification/game-floor-v5.log`。这里的 MMD 是玩家切换前的舞台色彩档，不调整房间的曝光或灯光。
 

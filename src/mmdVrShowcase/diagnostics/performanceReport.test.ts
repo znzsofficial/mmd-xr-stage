@@ -1,9 +1,20 @@
 import { describe, it, expect, vi } from "vitest";
-import { createPerformanceRecording } from "./performanceReport";
+import { createPerformanceRecording, publishPerformanceReport, samePagePair } from "./performanceReport";
 import type { RenderDiagnostics } from "./renderDiagnostics";
 
 const request = { frameRate: "120 Hz", antialias: true, framebufferScale: 1, foveation: null };
 describe("completed XR performance report", () => {
+  it('compares only floor runs, retaining a visible stall but not a tracking gap or an invented Hz',()=>{
+    const run=(backend:'webgl'|'webgpu',scenes:string[])=>{
+      const r=createPerformanceRecording(request,null,backend);scenes.forEach(s=>r.scene(s));
+      r.timestamp(100,90);r.timestamp(420,90);r.interrupt();r.timestamp(2600,90);r.timestamp(2610);
+      return r.finish()!;
+    };
+    const gpu=run('webgpu',['floor']);publishPerformanceReport(gpu);
+    expect(gpu).toMatchObject({backend:'webgpu',visibleIntervalMs:330,intervalCount:2,reportedRefreshRates:{90:1},overOneAndHalfBudgetsFraction:1});
+    const gl=run('webgl',['floor']);publishPerformanceReport(gl);expect(samePagePair()).toEqual({webgpu:gpu,webgl:gl});
+    publishPerformanceReport(run('webgl',['floor','classroom']));expect(samePagePair()).toBeNull();
+  });
   it('measures finished rebuilds on a wall clock independent of visible callback gaps, omitting abandoned rooms',()=>{
     const clock=vi.spyOn(performance,'now');try{
       clock.mockReturnValue(1000);const rec=createPerformanceRecording(request);rec.interval(.01,120);rec.interval(.02,120);

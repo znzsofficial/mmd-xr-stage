@@ -21,6 +21,7 @@ import {bindR187ProjectionOutput} from './r187ProjectionOutput.js';
 import {gameHudRay} from './gameHudRay.js';
 import {createStageActorBackend} from './stageActorBackend.js';
 import {stageControls} from './stage-controls.js';
+import {recordFloorPerformance} from './floorPerformance.js';
 import {trackedContacts} from './stage-tracked-contacts.js';
 import {usePlayerMovement} from '../../src/mmdVrShowcase/movement/usePlayerMovement';
 
@@ -50,6 +51,8 @@ function startFloor({resume,onStatus,fixture}) {
   const initialEpoch=useMmdVrStore.getState().entryEpoch;
   let closing=false,committed=false,session,ended=false,ending,renderer,root,store,xrStore,backend,undo,unbindHands,epoch;
   let timer,backendTask,resolveStop,resolveEarly,prevTime,elapsed=0;
+  const profile=getMmdVrRenderProfile(useMmdVrStore.getState().prefs);
+  const recording=fixture?null:recordFloorPerformance(performance.now(),profile.targetFrameRateHz ? `${profile.targetFrameRateHz} Hz` : String(profile.frameRate));
   const stopped=new Promise(r=>resolveStop=r);
   const earlyExit=new Promise(r=>resolveEarly=r);
   const publish=phase=>{if(log.phase!==phase){log.phase=phase;onStatus?.();}};
@@ -80,6 +83,7 @@ function startFloor({resume,onStatus,fixture}) {
     if(error)log.error=String(error?.message??error);
     closing=true;clearTimeout(timer);fixture?.controls.reset();
     if(committed && useMmdVrStore.getState().entryEpoch===epoch){
+      recording?.finish();
       clearContacts();
       // Snapshot while the live room and its actor still exist.
       useMmdVrStore.getState().closeOverlay();
@@ -93,6 +97,7 @@ function startFloor({resume,onStatus,fixture}) {
   }
   function interrupt(cancelDraft=true){
     if(closing)return;
+    if(cancelDraft!==false)recording?.interrupt(); // a long *visible* interval is a real stall
     prevTime=undefined;fixture?.controls.reset();
     if(committed){
       clearContacts();
@@ -147,17 +152,26 @@ function startFloor({resume,onStatus,fixture}) {
       await renderer.setAnimationLoop((time,frame)=>{
         if(closing || !frame || frame.session!==session || !renderer.xr.isPresenting)return;
         try{
-          if(session.visibilityState!=='visible'||!frame.getViewerPose(renderer.xr.getReferenceSpace())?.views.length){interrupt();return;}
+          const views=session.visibilityState==='visible' && frame.getViewerPose(renderer.xr.getReferenceSpace())?.views;
+          if(!views?.length){interrupt();return;}
           const dt=prevTime==null?0:(time-prevTime)*.001;prevTime=time;
           if(dt<0||dt>.25)interrupt(false);else elapsed+=dt;
           if(!log.frames && !sun.current)return; // Fiber must have committed the landmark floor.
           if(committed)fixture?.controls.sample(session.inputSources);
           advance(elapsed,false,store.getState(),frame);
           if(closing)return;
-          if(++log.frames===1){
+          recording?.draw(time,frame,views,renderer,backend);
+           if(++log.frames===1){
             // No actor, shader compile for PMX, or physics startup on the
             // critical path to the first pair of environment images.
-            clearTimeout(timer);
+             clearTimeout(timer);
+             // Mirror the product's explicit or low/mid/high rate policy only
+             // after the first tracked draw. Some runtimes never settle this hint.
+             const rates=session.supportedFrameRates;
+             if(!fixture && rates?.length && session.updateTargetFrameRate){
+               const policy=profile.frameRate,rate=typeof policy==='function'?policy(rates):policy && rates[Math.ceil((rates.length-1)*(policy==='high'?1:policy==='mid'?.5:0))];
+               if(rate && rate!==session.frameRate){try{void session.updateTargetFrameRate(rate).catch(()=>{});}catch{/* optional device hint */}}
+             }
             timer=setTimeout(()=>stop(Error('Stage did not become ready after the first draw')),15000);
             const grade=fixture?undefined:{balancedModelColor:prefs.balancedModelColor,ambientIntensity:lighting.ambient};
             backendTask=createStageActorBackend(renderer,scene,sun.current,origin,grade).then(b=>{
