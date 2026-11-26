@@ -12,6 +12,7 @@
 
 | 功能提交 | 已发布内容与验证范围 |
 |---|---|
+| `d820377` | [线上独立实验](https://8261674e.mmd-xr-stage.pages.dev/labs/cloth/)改用与开发版 Three XR 房间共用的 WGSL 内核，主舞台入口资源未变。构建后的实验页用原衣、碰撞分组与模拟双眼回归，主域 19 项核对通过。[新房间的衣面/描边与双手实测](./webgpu-xr-status.md#原衣裙链已接入-three-房间)仅在内部入口。 |
 | `4922d5e` → `5c94a32` | [小行星交接](./architecture/gravity.md)：互斥活动模式、落地策略和单一 XR 视图输出；模拟双眼两跳后 1.810 m、约 0.02°。[移动固定版](https://2174bc2f.mmd-xr-stage.pages.dev)。随后只更新[实验室真实 VMD 同段对照](./performance/gpu-cloth-lab.md#真实-vmd-同段对照)；双模型桌面比较未证明进游戏的收益。分别用完整／快速发布档，同一制品上线，主域核对通过。[实验固定版](https://dc35cfbc.mmd-xr-stage.pages.dev/labs/cloth/) |
 | `0287c44`（含 `a449694`） | [进入空舞台](./xr-session-lifecycle.md)在匹配首个 XRFrame 后才提交布局替换。4 项新增两景回归修前均失败，修后通过；实际构建用两个合成 PMX 走通屏幕放置、拒权恢复两景、模拟双眼成功进空场并保留背包。1055 项舞台测试、21 项工具／实验测试、类型及构建通过；[主分支 CI](https://github.com/znzsofficial/mmd-xr-stage/actions/runs/45625336447)通过。354 个文件（含 221 项旧资源）收据 `5ff134e57909…`；同一 dist 上传，两入口及关键资源共 19 个主域路径逐字节一致。[固定版](https://36f88ec9.mmd-xr-stage.pages.dev) |
 | `1d54f10` | [小卫星同井连跳、站姿双手托衣](./performance/quest-2026-11-25-1149.md)。棱盐模拟双眼连跳后净高 0.463→1.810 m、基座倾角 66.18→0.007°。独立 WebGPU 实验在真实原衣三角面采样、逐侧承托与释放；相同双手输入衣面抬升从左／右 2.5／3.8 mm 到 60.7／73.4 mm。1051 项舞台测试、12 项实验局部测试、构建和实际 GPU 回归通过；主域 HTML 与 20 份资源匹配。修后手感、Quest 稳态另验。[固定版](https://d9d044ee.mmd-xr-stage.pages.dev) |
