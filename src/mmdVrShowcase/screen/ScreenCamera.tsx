@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, type RefObject } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { Box3, PerspectiveCamera, Vector3 } from 'three';
+import { PerspectiveCamera, Vector3 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { useBackpack } from '../backpack/store';
 import { useMmdVrStore } from '../mmdVrStore';
@@ -16,6 +16,7 @@ import {usePoseSession} from '../pose/poseSession';
 import {screenWindTravel} from './screenWindTravel';
 import {usePelvic} from '../pelvic/store';
 import {upperBodyView,type CloseUpFocus,type ScreenCloseUp} from './upperBodyView';
+import {partnerView} from './partnerView';
 import {planetCenterDrop} from './planetCenterDrop';
 
 type Point = [number,number,number];
@@ -93,13 +94,16 @@ export function ScreenCamera({actions,onReady,onCloseUpChange,viewport}:{actions
       const piece=rig?.getObjectByName(partner?'pelvic:partner':'pelvic:stand-piece');
       if(!rig?.visible||!port?.visible||!piece?.visible)return;
       forgetCloseUp();wind?.dispose();align();
+      setLens(46);
+      if(partner){
+        const actor=scene.children.find(o=>o.userData.mmdModelId===active.runtimeId);
+        piece.updateWorldMatrix(true,true);const shot=partnerView(piece,actor,camera.aspect,camera.fov);
+        orbit.target.copy(shot.target);camera.position.copy(shot.eye);orbit.update();return;
+      }
       const at=port.getWorldPosition(new Vector3()),base=piece.getWorldPosition(new Vector3());
-      const bounds=partner?new Box3().setFromObject(piece).expandByPoint(at):null;
       const dir=new Vector3(.85,0,1).transformDirection(port.matrixWorld);dir.y=.16;dir.normalize();
-      orbit.target.copy(at).lerp(base,.45);setLens(46);
-      if(bounds)bounds.getCenter(orbit.target);
-      const span=bounds?bounds.getSize(new Vector3()).length():0;
-      const distance=Math.max(.52,span*1.30,at.distanceTo(base)*1.7)/Math.min(1,Math.max(.35,camera.aspect));
+      orbit.target.copy(at).lerp(base,.45);
+      const distance=Math.max(.52,at.distanceTo(base)*1.7)/Math.min(1,Math.max(.35,camera.aspect));
       camera.position.copy(orbit.target).addScaledVector(dir,distance);orbit.update();
     };
     let releaseHints:(()=>void)|undefined;

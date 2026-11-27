@@ -9,6 +9,7 @@ import { rod } from './path';
 
 const sky=new Vector3(0,1,0);
 const clamp=(x:number,min:number,max:number)=>Math.min(max,Math.max(min,x));
+const trunkSections=[[.22,.10],[.38,.14],[.63,.103]] as const; // abdomen, chest, head: height and depth margin
 
 // Keep a side-lying limb on the partner's side (+Z) of the displayed actor
 // segment. The margin fades at its edge so a moving thigh doesn't kick the IK.
@@ -19,6 +20,16 @@ function clearSegment(p: Vector3, a: Vector3, b: Vector3, radius: number, weight
   const distance = Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy);
   const shell = a.z + t * (b.z - a.z) + radius;
   p.z += weight * Math.max(0, shell - p.z) * (1 - MathUtils.smoothstep(distance, radius * .7, radius * 1.35));
+}
+
+// Estimate the required depth on our side of the actor's torso (in the
+// partner's horizontal frame). A span far from this cross section contributes
+// nothing: a partner already leaning over a reclined actor can stay there.
+function bodyClearance(p: Vector3, a: Vector3, b: Vector3, radius: number) {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const u = clamp(((p.x-a.x)*dx + (p.y-a.y)*dy) / Math.max(1e-8, dx*dx+dy*dy), 0, 1);
+  const radial = radius*radius - (p.x-a.x-u*dx)**2 - (p.y-a.y-u*dy)**2;
+  return radial > 0 ? a.z + u*(b.z-a.z) + Math.sqrt(radial) : -Infinity;
 }
 
 // Each two-link solve preserves both bone lengths. If the preferred knee
@@ -96,8 +107,29 @@ export function createPartnerDrawing(host:Object3D,actor:Object3D,anchor:Object3
     const floor=(floorY-root.y)/f.scale, low=clamp(1-(entry.y-floor-.20)/.59,0,1);
     const hasNeck=Number.isFinite(neck.x),headward=-Math.sign(roll);
     const lean=-.06-.91*low*(1-.70*rear);
-    const sideLean=clamp(((hasNeck?MathUtils.lerp(hip.z,neck.z,.7):hip.z)+.27)/.43,.08,.60);
-    pelvis.rotation.z=roll;torso.rotation.set(MathUtils.lerp(lean,sideLean,lateral),0,roll,'ZXY');
+    let pitch=MathUtils.lerp(lean,.08,lateral);
+    if(hasNeck){
+      const spineLength=neck.distanceTo(hip);
+      const vertical=spineLength>1e-5 ? Math.abs(neck.y-hip.y)/spineLength : 0;
+      const fitWeight=Math.max(lateral,MathUtils.smoothstep(vertical,.55,.86));
+      // Pitch about the attached waist; keep the upper trunk and head out of
+      // the actor's chest even when a low upright actor leans towards us. The
+      // roll follows pitch, so pitch always moves these points along local Z.
+      const width=sides[0].shoulder.distanceTo(sides[1].shoulder);
+      const chestRadius=Number.isFinite(width)?clamp(.82*width,.15,.29):.20;
+      let fitted=pitch;
+      for(const [height,margin] of trunkSections){
+        const projected=height*Math.cos(fitted);
+        candidate.set(-Math.sin(roll)*projected,Math.cos(roll)*projected,0);
+        const depth=bodyClearance(candidate,hip,neck,chestRadius+margin);
+        fitted=Math.max(fitted,Math.asin(clamp(depth/height,-.99,.75)));
+      }
+      // Even at the far stop, a side-lying partner's spine still runs beside
+      // the actor; the clearance fit may not turn it into a backward arch.
+      const maxPitch=MathUtils.lerp(.77,.49,lateral);
+      pitch=MathUtils.lerp(pitch,Math.min(maxPitch,fitted),fitWeight);
+    }
+    pelvis.rotation.z=roll;torso.rotation.set(pitch,0,roll,'ZXY');
     head.rotation.x=-.17-.12*(1-low);
     bodyRight.copy(side).multiplyScalar(Math.cos(roll)).addScaledVector(sky,Math.sin(roll));
     const correspondence=bodyRight.dot(left);

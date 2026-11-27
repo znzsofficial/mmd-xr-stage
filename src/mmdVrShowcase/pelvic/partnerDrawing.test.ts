@@ -114,6 +114,18 @@ it.each([[.64,-.82],[1.52,1.29]])('fits the displayed spine, shoulders and each 
     }
     for(const id of ['sideForwardLeg','halfKneel','supineKneeHug'] as const){
       expect(pose.applyPreset(id)).toBe(true);evaluate();draw(.025);clearance(id);
+      const hip=bone('LeftThigh').lerp(bone('RightThigh'),.5),spine=bone('LeftArm').lerp(bone('RightArm'),.5).sub(hip);
+      for(const depth of [-.055,.035,.08]){
+        draw(depth);
+        // The head pivot is the neck, not the volume of the drawn skull.
+        // Check both centres against the nearest point on the actor's posed
+        // chest midline, not the feet, camera pixels or shoulder directions.
+        for(const [name,h,radius] of [['head',.10,.245],['torso',.36,.215]] as const){
+          const center=part(name).localToWorld(new Vector3(0,h,0)).sub(hip);
+          const t=Math.min(1,Math.max(0,center.dot(spine)/spine.lengthSq()));
+          expect(center.addScaledVector(spine,-t).length()/frame().scale,`${id}: ${name}, travel ${depth}`).toBeGreaterThan(radius);
+        }
+      }
       if(id==='halfKneel')expect(Math.abs(axis('torso',1,0,0).y)).toBeLessThan(.15);
       if(id==='supineKneeHug')expect(Math.abs(point('right-hand').y-point('left-hand').y)/scale).toBeGreaterThan(.08);
       if(id==='sideForwardLeg'){

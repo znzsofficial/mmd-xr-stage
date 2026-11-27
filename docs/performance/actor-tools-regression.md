@@ -27,7 +27,7 @@
 
 ### 搭档姿势、单腿编辑与重新跨入
 
-在同一穿衣 PMX、关角色物理、桌面硬件 WebGPU 和模拟 XR 控制器上，以侧卧撩腿、侧卧前伸腿、单膝半跪、仰卧单腿抱膝、四点跪撑、跪趴翘臀、种付位顺次进入「调整姿势」。每次从原搭档退到外侧，保留姿势再推进；实测七次均从外向内到 3.79 cm，返回时主要关节和搭档支撑点位置残差为零，未产生剂量。侧卧时用手柄调演员左膝：左膝移 15.5 cm，上手移 4.4 cm（固定机位两眼分别移 2.42 px），另一膝和下方支撑手不动。半跪时实际前鞋底／后膝表面距地面 4.9／4.2 mm，未用踝关节高度代替鞋底。私有图与各姿势数据：`local-review/screenshots/partner-workbench/covered-pose-measurements.json`；[一趟复核脚本](../../scripts/webgpu-actor/game-floor-partner-poses.cjs)。
+在同一穿衣 PMX、关角色物理、桌面硬件 WebGPU 和模拟 XR 控制器上，以侧卧撩腿、侧卧前伸腿、单膝半跪、仰卧单腿抱膝、四点跪撑、跪趴翘臀、种付位顺次进入「调整姿势」。每次从原搭档退到外侧，保留姿势再推进；实测七次均从外向内到 3.79 cm，返回时主要关节和搭档支撑点位置残差为零，未产生剂量。侧卧时用手柄调演员左膝：左膝移 15.5 cm，上手移约 4.5 cm（固定机位两眼约 2.4 px），另一膝和下方支撑手不动。半跪时实际前鞋底／后膝表面距地面 4.9／4.2 mm。屏幕 WebGL 开物理复看半跪时发现搭档头部进入演员胸前；按肩宽与躯干方向给头胸让位，并按两人实际姿势取景后复查。私有图与各姿势数据：`local-review/screenshots/partner-workbench/covered-pose-measurements.json`；[一趟复核脚本](../../scripts/webgpu-actor/game-floor-partner-poses.cjs)。
 
 ### WebGPU 单角色泌乳
 
