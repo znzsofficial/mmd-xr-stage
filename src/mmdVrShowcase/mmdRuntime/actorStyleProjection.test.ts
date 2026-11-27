@@ -7,6 +7,7 @@ vi.mock('@yohawing/three-mmd-loader/webgpu',()=>({createMmdTslPipeline:async()=>
 vi.mock('../../../scripts/webgpu-actor/endfieldOutline.js',()=>({prepareOutline:f.bake,installOutline:vi.fn()}));
 vi.mock('../../../scripts/webgpu-actor/faceKeyShadow.js',()=>({createFaceKeyShadow:()=>({setEnabled:f.enable,prepare:f.draw,dispose:f.dispose,visibility:1})}));
 vi.mock('../../../scripts/webgpu-actor/endfieldToon.js',()=>({endfieldColor:()=>({name:'styled'})}));
+vi.mock('../../../scripts/webgpu-actor/strinovaToon.js',()=>({strinovaColor:()=>({name:'painted'})}));
 // Isolate optional-caster lifetime from shader graph construction. The real
 // pigment graphs are exercised on WebGPU in stylePigment.proof.js.
 vi.mock('../../../scripts/webgpu-actor/mmdStylePigment.js',()=>({mmdStylePigment:()=>({paint:1,resolve:(node:unknown)=>node})}));
@@ -33,4 +34,21 @@ it('attaches the original pipeline once even if the optional bake is unsupported
   expect(adapter.attach(model,undefined,{hybridSlots:{face:[0]}})).toBe(true);
   expect(adapter.prepareStyle(model,{})).toBe(false);expect(f.attach).toHaveBeenCalledOnce();
   expect(model.mesh.material[0].colorNode?.name).toBe('original');adapter.detach(model);
+});
+
+it('switches only the selected actor and draws the projected face shadow only for Endfield',async()=>{
+  f.draw.mockClear();f.enable.mockClear();
+  const adapter=await createActorMaterialAdapter({xr:{enabled:false}},{}), a=actor(), b=actor();
+  const original=a.mesh.material[0].colorNode, other=b.mesh.material[0].colorNode;
+  for(const model of [a,b])adapter.attach(model,undefined,{hybridSlots:{face:[0]}});
+  expect(adapter.prepareStyle(a,{face:new Map([[0,{}]]),faceCasterSlots:[1]},'endfield')).toBe(true);
+  expect(adapter.prepareStyle(a,{},'strinova')).toBe(true);
+  for(const mode of ['endfield','strinova','mmd','endfield']){
+    expect(adapter.setStyle(a,mode)).toBe(true);adapter.prepare({});
+    expect(a.mesh.material[0].colorNode?.name).toBe(mode==='strinova'?'painted':mode==='mmd'?'original':'styled');
+    if(mode==='mmd')expect(a.mesh.material[0].colorNode).toBe(original);
+    expect(b.mesh.material[0].colorNode).toBe(other);
+    expect(f.enable).toHaveBeenLastCalledWith(mode==='endfield');
+  }
+  expect(f.draw).toHaveBeenCalledTimes(2);adapter.detach(a);adapter.detach(b);
 });

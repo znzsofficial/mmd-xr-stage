@@ -5,6 +5,8 @@ import { inspectActorStyle } from '../../../scripts/webgpu-actor/actorStyleSlots
 import { createActorStyle } from '../../../scripts/webgpu-actor/actorStyle.js';
 // @ts-expect-error renderer-only JS lives outside the normal product graph
 import { loadActorStyleMaps } from '../../../scripts/webgpu-actor/actorStyleMaps.js';
+// @ts-expect-error optional worker-side PNG reader
+import { loadStrandMasks } from '../../../scripts/webgpu-actor/strandMasks.js';
 
 it('styles named draws even on a shared atlas or without a texture; only matching diffuse families can nominate maps',()=>{
   const material=[['face','face_03_D.png'],['face２','face_03_D.png','Face'],['cloth1','set_cloth_01_D.png'],
@@ -69,8 +71,8 @@ it('prepares one graph on the next displayed frame only for the latest choice; s
   expect(style.snapshot).toMatchObject({mode:'mmd',requested:'mmd',phase:'ready',clothMaps:2});
   style.frame(); expect(adapter.prepareStyle).not.toHaveBeenCalled();
   style.choose(true); expect(adapter.setStyle).not.toHaveBeenCalled(); style.frame(); style.frame();
-  expect(style.snapshot.mode).toBe('endfield'); expect(adapter.prepareStyle).toHaveBeenCalledExactlyOnceWith(model,result);
-  style.choose(false); style.frame(); expect(adapter.setStyle.mock.calls).toEqual([[model,true],[model,false]]);
+  expect(style.snapshot.mode).toBe('endfield'); expect(adapter.prepareStyle).toHaveBeenCalledExactlyOnceWith(model,result,'endfield');
+  style.choose(false); style.frame(); expect(adapter.setStyle.mock.calls).toEqual([[model,'endfield'],[model,'mmd']]);
   style.dispose(); expect(result.cloth.get(2)!.dispose).toHaveBeenCalledOnce();
 });
 
@@ -78,7 +80,7 @@ it('uses the next frame without a decoder for base-only slots, and keeps unrecog
   const {style,load,adapter,model}=setup([]);
   style.choose(true);expect(load).not.toHaveBeenCalled();expect(adapter.prepareStyle).not.toHaveBeenCalled();
   style.frame();expect(style.snapshot).toMatchObject({phase:'ready',mode:'endfield',faceMaps:0,clothMaps:0});
-  style.choose(false);style.frame();expect(adapter.setStyle.mock.calls).toEqual([[model,true],[model,false]]);style.dispose();
+  style.choose(false);style.frame();expect(adapter.setStyle.mock.calls).toEqual([[model,'endfield'],[model,'mmd']]);style.dispose();
   const plan=inspectActorStyle({mesh:{material:[{userData:{mmdMaterial:{materialIndex:0,faceCount:3,name:'unknown'}}}]}});
   const unknown=createActorStyle({}, {},plan,adapter,vi.fn(),load);unknown.choose(true);expect(unknown.frame()).toBe(false);
   expect(unknown.snapshot).toMatchObject({phase:'unavailable',requested:'mmd',mode:'mmd'});unknown.dispose();
@@ -103,8 +105,19 @@ it('discards late resources after actor retirement and restores MMD if preparing
   const bad=setup(); bad.style.choose(true); bad.pending.resolve(bad.result); await bad.pending.promise;
   bad.adapter.prepareStyle.mockImplementation(()=>{throw Error('unsupported graph')}); bad.style.frame();
   expect(bad.style.snapshot).toMatchObject({phase:'failed',mode:'mmd',requested:'mmd'});
-  expect(bad.adapter.setStyle).toHaveBeenCalledExactlyOnceWith(bad.model,false);
+  expect(bad.adapter.setStyle).toHaveBeenCalledExactlyOnceWith(bad.model,'mmd');
+  bad.adapter.prepareStyle.mockReturnValueOnce(true);bad.style.choose('strinova');bad.style.frame();
+  expect(bad.style.snapshot).toMatchObject({mode:'strinova',failedModes:['endfield']});
   bad.style.dispose(); expect(bad.result.cloth.get(2)!.dispose).toHaveBeenCalledOnce();
+});
+
+it('installs Strinova while Endfield maps are pending and ignores the stale choice when they arrive',async()=>{
+  const {style,adapter,pending,result,model}=setup();
+  style.choose('endfield');style.choose('strinova');expect(style.frame()).toBe(true);
+  expect(style.snapshot).toMatchObject({mode:'strinova',requested:'strinova',hairMasks:0});
+  pending.resolve(result);await pending.promise;expect(style.frame()).toBe(false);
+  style.choose('endfield');style.frame();style.choose('mmd');style.frame();
+  expect(adapter.setStyle.mock.calls).toEqual(['strinova','endfield','mmd'].map(mode=>[model,mode]));style.dispose();
 });
 
 it('only sends the selected package and resolved diffuse; retiring the actor terminates its decoder',async()=>{
@@ -125,4 +138,18 @@ it('only sends the selected package and resolved diffuse; retiring the actor ter
   const loose=await loadActorStyleMaps({file:looseFiles[0],resolver:{resolve:()=>looseFiles[1]},companionFiles:looseFiles},
     [{i:0,role:'cloth',ref:diffuse.name}],new AbortController().signal,factory);
   expect(loose.cloth.size).toBe(0);expect(factory).toHaveBeenCalledOnce();
+});
+
+it('reads only an explicitly paired hair UV mask, with raw red and alpha coverage',async()=>{
+  const bytes=Uint8Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAG0lEQVR4nGNkYGD4//9ERSPD////GQQYGv4DAEXFCE3ymKBGAAAAAElFTkSuQmCC','base64'));
+  const at=(path:string)=>Object.defineProperty(new File([bytes],path.split('/').at(-1)!), 'webkitRelativePath',{value:path});
+  const diffuse=at('model/hair.bmp'), mask=at('model/hair.bmp.strand-mask.png');
+  const wrong=at('foreign/hair.bmp.strand-mask.png'),generic=at('model/hair_Mask.png');
+  const slot={role:'hair',i:3,file:0,width:256,height:256,flipY:true};
+  const maps=await loadStrandMasks([slot,{...slot,role:'cloth',i:2}],[diffuse,wrong,mask]);
+  expect([...maps.keys()]).toEqual([3]);const texture=maps.get(3);
+  expect(texture.flipY).toBe(true);expect([...texture.image.data]).toEqual([0,128,0,16]);texture.dispose();
+  expect((await loadStrandMasks([slot],[diffuse,wrong,generic])).size).toBe(0);
+  expect((await loadStrandMasks([slot],[diffuse,mask,at('model/hair.bmp.strand-mask.png')])).size).toBe(0);
+  expect((await loadStrandMasks([{...slot,width:512}],[diffuse,mask])).size).toBe(0);
 });

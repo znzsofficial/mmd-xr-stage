@@ -19,6 +19,9 @@ export function resolveActor({assetId,runtimeId}:Actor){
   return f&&stage.materialModels[runtimeId]?stage.runtimeRef?.getWardrobe?.(runtimeId,f)??null:null;
 }
 export function hasWardrobeUndo(model:WardrobeModel){return !!history.get(model.file)?.size||!!skinHistory.get(model.file)?.size;}
+export function recheckClothing(assetId:string){
+  if(usePelvic.getState().byAsset[assetId]?.clothingClear)patchPelvic(assetId,{clothingClear:false});
+}
 export function editWardrobe(actor:Actor,model:WardrobeModel,key:string,change:{visible:boolean}|{opacity:number}|{weight:number|null},remember=true){
   // Callback may have survived React batching, physics rollback, or a new
   // instance of the same File with the same runtime ID. Check the actual mesh.
@@ -40,7 +43,7 @@ export function editWardrobe(actor:Actor,model:WardrobeModel,key:string,change:{
   if(Object.keys(receipt.before).length)changes.set(journalKey,receipt);else changes.delete(journalKey);
   // A wardrobe edit cannot itself verify exposed skin. The independent
   // clothed mode (when selected) stays clothed, not promoted to clear.
-  if(usePelvic.getState().byAsset[actor.assetId]?.clothingClear)patchPelvic(actor.assetId,{clothingClear:false});
+  recheckClothing(actor.assetId);
   if(morph)stage.runtimeRef?.invalidateWardrobe?.();
   else if('visible' in change)stage.setMaterialVisible(actor.runtimeId,key,change.visible);
   else stage.setMaterialParam(actor.runtimeId,key,'opacity',change.opacity);
@@ -85,7 +88,7 @@ export async function selectSkin(actor:Actor,model:WardrobeModel,key:string,file
   if(original===file)journal.delete(key);else journal.set(key,{before:original,last:file});
   // A colour-map swap is never proof of bare skin; old confirmations refer
   // to a different surface appearance. The geometry probes keep final say.
-  if(usePelvic.getState().byAsset[actor.assetId]?.clothingClear)patchPelvic(actor.assetId,{clothingClear:false});
+  recheckClothing(actor.assetId);
   const body=useBodyState.getState().byAsset[actor.assetId];if(body?.bareLeft||body?.bareRight)setActorMilk(actor,{bareLeft:false,bareRight:false});
   const stage=useMmdVrStore.getState(),list=stage.materialModels[actor.runtimeId];
   if(list)stage.setMaterialModels({...stage.materialModels,[actor.runtimeId]:[...list]});

@@ -4,6 +4,8 @@ import { materialEmissive, materialOpacity, max, sRGBTransferEOTF, sRGBTransferO
 import { invalidateDraws } from '../../src/mmdVrShowcase/wardrobe/draws';
 import { actorKeyLight, hybridToonColor, parseHybridSlots } from './hybridToon.js';
 import { endfieldColor } from './endfieldToon.js';
+import { strinovaColor } from './strinovaToon.js';
+import { actorStyleMode } from './actorStyleSlots.js';
 import { mmdStylePigment } from './mmdStylePigment.js';
 import { prepareSkinTransmission } from './skinTransmission.js';
 import { createFaceKeyShadow } from './faceKeyShadow.js';
@@ -42,13 +44,15 @@ function editableStageColor(mesh, material, balanced, ambientIntensity) {
   const brightColor = sRGBTransferEOTF(sRGBTransferOETF(original).mul(ambient.mul(.77).add(.72)));
   material.colorNode = enabled.select(balancedColor, brightColor);
   const emission = uniform(new Color(0));
+  const originalDiffuseWeight = uniform(1);
   material.emissiveNode = materialEmissive.add(emission);
   let previousIntensity = 0, previousTint = '#ffffff';
   material.userData.stageMaterial = {
-    diffuse,
+    diffuse, originalDiffuseWeight,
     setDiffuse(map) {
       if (!diffuse || diffuse.value === map) return;
       diffuse.value = map;
+      originalDiffuseWeight.value = Number(map === refs.diffuseMap);
       invalidateDraws(mesh); // redraw the optional face projection on a held pose
     },
     sync(override, lighting) {
@@ -96,30 +100,36 @@ export async function createActorMaterialAdapter(renderer, light, { balancedMode
     light,
     selfShadowEnabled: false, // The stage owns its lighting and submits both XR eyes itself.
   });
-  function setStyle(model,enabled) {
-    const a=actors.get(model);if(!a?.styled || a.enabled===enabled)return !!a?.styled;
+  function setStyle(model,value) {
+    const a=actors.get(model), mode=actorStyleMode(value);
+    const colors=mode==='mmd' ? a?.base : a?.styles.get(mode);
+    if(!colors || a.mode===mode)return !!colors;
     try {
-      a.outline?.setEnabled(enabled && a.smoothOutline);
-      a.shadow?.setEnabled(enabled && a.cast);
-      for(const [material,color] of a.styled){material.colorNode=enabled?color:a.base.get(material);material.needsUpdate=true;}
+      a.outline?.setEnabled(mode==='endfield' && a.smoothOutline);
+      a.shadow?.setEnabled(mode==='endfield' && a.cast);
+      for(const [material,color] of colors){material.colorNode=color;material.needsUpdate=true;}
     } catch(e){
       for(const [material,color] of a.base){material.colorNode=color;material.needsUpdate=true;}
-      a.enabled=false;
+      a.mode='mmd';
       try {a.outline?.setEnabled(false);} finally {a.shadow?.setEnabled(false);}
       throw e;
     }
-    a.enabled=enabled;
+    a.mode=mode;
     return true;
   }
-  function prepareStyle(model,maps={}) {
-    const a=actors.get(model);if(!a?.slots.size || a.styled)return !!a?.styled;
+  function prepareStyle(model,maps={},mode='endfield') {
+    const a=actors.get(model);
+    if(!a?.slots.size)return false;
+    if(a.styles.has(mode))return true;
+    if(mode==='endfield' && !a.endfieldReady)return false;
+    if(mode!=='strinova' && mode!=='endfield')return false;
     const {slots}=a;
     const details={...maps,thinSkin:a.thinSkin};
     const casters=details.faceCasterSlots ?? (details.face?.size ? [...slots].filter(([,role])=>['hair','cloth','leather'].includes(role)).map(([i])=>i) : []);
     if(casters.some(i=>!Number.isInteger(i)||i<0||i>=a.count||slots.get(i)==='face'))throw new RangeError('Expected authored non-receiver face caster slots');
     const styled=new Map(),materials=[model.mesh.material].flat();let shadow,outline;
     try {
-      if(details.face?.size && casters.length) {
+      if(mode==='endfield' && details.face?.size && casters.length) {
         try {
           shadow=createFaceKeyShadow(renderer,model.mesh,light,new Set(casters));
           if(shadow){details.faceKeyVisibility=shadow.visibility;shadow.setEnabled(false);}
@@ -128,17 +138,20 @@ export async function createActorMaterialAdapter(renderer, light, { balancedMode
       for(const [index,role] of slots){
         const material=materials[index];
         if(!a.base.has(material))continue;
-        styled.set(material,endfieldColor(a.input.get(material),a.base.get(material),material,role,model.mesh,details,index));
+        const color = mode==='strinova' ? strinovaColor(a.base.get(material),material,role,model.mesh,details.hair?.get(index)) :
+          endfieldColor(a.input.get(material),a.base.get(material),material,role,model.mesh,details,index);
+        styled.set(material,color);
       }
       if(!styled.size){shadow?.dispose();return false;}
-      if(a.bake)outline=installOutline(model.mesh,a.bake,{enabled:false});
+      if(mode==='endfield' && a.bake)outline=installOutline(model.mesh,a.bake,{enabled:false});
     } catch(e){outline?.dispose();shadow?.dispose();throw e;}
-    a.styled=styled;a.shadow=shadow;a.outline=outline;a.smoothOutline=details.smoothOutline!==false;
+    a.styles.set(mode,styled);
+    if(mode==='endfield'){a.shadow=shadow;a.outline=outline;a.smoothOutline=details.smoothOutline!==false;}
     return true;
   }
   function retire(model){
     const a=actors.get(model);if(!a)return;
-    setStyle(model,false);a.outline?.dispose();a.shadow?.dispose();actors.delete(model);
+    setStyle(model,'mmd');a.outline?.dispose();a.shadow?.dispose();actors.delete(model);
   }
   return {
     loadOptions: pipeline.createModelLoadOptions(),
@@ -192,17 +205,17 @@ export async function createActorMaterialAdapter(renderer, light, { balancedMode
             input.set(material,endfield?material.colorNode:original);
           }
         }
-        if(canStyle&&styleReady)actors.set(model,{base,input,count,slots,bake,thinSkin,cast:true,enabled:false});
-        if(endfield && prepareStyle(model,detailMaps))setStyle(model,true);
+        if(canStyle)actors.set(model,{base,input,count,slots,bake,thinSkin,cast:true,endfieldReady:styleReady,styles:new Map(),mode:'mmd'});
+        if(endfield && prepareStyle(model,detailMaps))setStyle(model,'endfield');
       }
       return attached;
     },
     prepareStyle,setStyle,
-    setFaceCastersEnabled(model,on) {const a=actors.get(model);if(a&&!a.shadowFailed){a.cast=!!on;a.shadow?.setEnabled(a.enabled&&a.cast);}},
+    setFaceCastersEnabled(model,on) {const a=actors.get(model);if(a&&!a.shadowFailed){a.cast=!!on;a.shadow?.setEnabled(a.mode==='endfield'&&a.cast);}},
     prepare(scene,afterMaterialSync) {
       const ready=pipeline.prepareRender(scene);
       afterMaterialSync?.();
-      if (ready) for (const a of actors.values()) if(a.enabled&&a.cast&&a.shadow){
+      if (ready) for (const a of actors.values()) if(a.mode==='endfield'&&a.cast&&a.shadow){
         try {a.shadow.prepare();} catch(e){shadowFailure(a,e);}
       }
       return ready;

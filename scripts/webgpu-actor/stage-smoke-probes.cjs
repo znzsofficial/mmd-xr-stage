@@ -1,6 +1,6 @@
 // Browser-side, read-only observers. Keep File references here rather than
 // serializing names, paths, material keys or contents to a smoke report.
-exports.observeStage = async function observeStage({ modelPath, motionName }) {
+exports.observeStage = async function observeStage({ modelPath, motionName, optionalToon }) {
   const { useBackpack } = await import('/src/mmdVrShowcase/backpack/store.ts');
   const { useMmdVrStore } = await import('/src/mmdVrShowcase/mmdVrStore.ts');
   const { getMmdVrClock } = await import('/src/mmdVrShowcase/stage/mmdVrClock.ts');
@@ -28,6 +28,9 @@ exports.observeStage = async function observeStage({ modelPath, motionName }) {
   window.stageProbe = { read() {
     const b = useBackpack.getState(), s = useMmdVrStore.getState(), h = window.labFixture.hostStatus?.() ?? stageRoomTest.status;
     const live = b.live[model.id], entry = s.models.find(e => e.id === live?.runtimeId);
+    const failures=s.assetLoad.failures;
+    const knownToon=optionalToon && failures.length===1 && failures[0].phase==='model' &&
+      failures[0].fileName===model.path && failures[0].message===`${optionalToon}\nTEXTURE_RESOLVE_FAILED: ${optionalToon}`;
     return { phase: h.phase, frames: h.frames, actor: h.actor, bullet: h.bulletSteps, dynamic: h.dynamicBodies,
       modelCount: s.modelCount, live: Object.keys(b.live).length, visible: live?.visible, position: live?.position,
       runtimeId:live?.runtimeId, selected:b.selected===model.id,
@@ -39,7 +42,10 @@ exports.observeStage = async function observeStage({ modelPath, motionName }) {
       stagePhase: s.phase, presentation: s.presentation, overlay: s.overlayOpen, playing: s.playing,
       time: getMmdVrClock().time, duration: getMmdVrClock().duration, physics: s.physicsEnabled,
       ready: !!s.captureStage && !s.assetLoad.running && !s.physicsBusy && !b.busy,
-      problem: !!(h.error || s.physicsError || s.physicsFatal || s.assetLoad.failures.length || b.error) };
+      missingFixtureToon:!!knownToon, fixtureBagNotice:!!(knownToon && b.error===failures[0].message),
+      problem:h.error || s.physicsError || (s.physicsFatal && 'Fatal physics error') ||
+        (!knownToon && failures.map(f=>`${f.phase}/${f.fileName}: ${f.message}`).join('; ')) ||
+        (b.error && (!knownToon || b.error!==failures[0].message) && b.error) || false };
   } };
   return { model: model.id, motion: motion?.id, index: b.entries.filter(e => e.kind === 'model').indexOf(model) };
 };

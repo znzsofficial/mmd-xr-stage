@@ -1,8 +1,8 @@
 import { float, mix, normalView, objectPosition, objectWorldMatrix, positionViewDirection,
   positionWorld, smoothstep, vec3, vec4 } from 'three/tsl';
-import { actorKeyLight, hybridToonColor } from './hybridToon.js';
+import { actorKeyLight } from './hybridToon.js';
 import { mmdStylePigment } from './mmdStylePigment.js';
-import { endfieldCloth } from './endfieldCloth.js';
+import { endfieldGarment } from './endfieldCloth.js';
 import { mappedFace } from './endfieldFace.js';
 import { skinBandDelta, surfaceRadii } from './skinDiffusion.js';
 import { skinTransmission } from './skinTransmission.js';
@@ -66,8 +66,7 @@ export function endfieldColor(base, mmd, material, role, mesh, maps, index) {
     const body = paint.pow(.83).mul(mix(vec3(.64,.53,.58), vec3(1.42,1.31,1.16), form));
     return resolve(mix(body,base,.12).add(paint.mul(vec3(.42,.36,.26)).mul(glint)).clamp(),mmd);
   }
-  if (role === 'cloth' && maps?.cloth?.has(index)) return endfieldCloth(paint,base,maps.cloth.get(index),L,light,key);
-  // Feed painted fabric into the existing directional BRDF. Re-light most of
-  // its albedo so the old toon shadow doesn't double up with the fabric band.
-  return resolve(hybridToonColor(mix(base, paint.pow(.90).mul(1.22), .78), incident, role, paint),mmd);
+  const dataMap = role === 'cloth' && maps?.cloth?.get(index);
+  const garment = endfieldGarment(paint, base, role, incident, dataMap);
+  return dataMap ? garment : resolve(garment, mmd);
 }

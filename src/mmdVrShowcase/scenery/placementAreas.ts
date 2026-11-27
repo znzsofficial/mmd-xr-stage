@@ -15,6 +15,7 @@ import { arcadePlace, arcadeSight, pickDecks } from './arcade/arcadePlacement';
 import { streetsIn } from './routes/streets';
 import type { PickDeck, RoutePoint as Point } from './routes/types';
 import {platform,quay,shorePlace,shoreSight} from './terminus/shoreLayout';
+import {laneMouth,parkDeck} from './terminus/parkLayout';
 
 type Sight = (from: Point, x: number, y: number, z: number) => boolean;
 type PlacementRule = {
@@ -31,7 +32,7 @@ const retreat = (room: Retreat) => flat((x,z) => retreatPlace(room,x,z), (from,x
 
 // One entry per set, independent of render components and the player's ground motor.
 const rules: Record<SceneryId, PlacementRule> = {
-  seasideTerminus:{decks:[platform,quay],visible:shoreSight,resolve:(x,z,y=0)=>y===0&&shorePlace(x,z)?0:null},
+  seasideTerminus:{decks:[platform,quay,parkDeck,laneMouth],visible:shoreSight,resolve:(x,z,y=0)=>y===0&&shorePlace(x,z)?0:null},
   floor: flat(plinthPlace),
   liveHouse: flat(liveHousePlace),
   classroom: flat(classroomPlace),

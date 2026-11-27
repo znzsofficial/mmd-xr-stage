@@ -21,4 +21,29 @@ async function captureHarbour(){
   function png(im){const c=document.createElement('canvas');c.width=im.width;c.height=im.height;c.getContext('2d').putImageData(im,0,0);return c.toDataURL().split(',')[1];}
   return {images:[...a,...step].map(png),stats:a.map((im,i)=>({skyWalk:delta(im,step[i],.07,.31),seaWalk:delta(im,step[i],.68,.89),skyTurn:delta(im,turn[i],.07,.31),seaTurn:delta(im,turn[i],.68,.89),skyReturn:delta(im,back[i],.07,.31),seaReturn:delta(im,back[i],.68,.89)}))};
 }
-module.exports={captureHarbour};
+// Read the final color-converted projection at human eye height, rather than
+// relying on a correctly shaped basin or a nonzero shader clock.
+async function capturePark(){
+  const cfg=window.labFixture;
+  async function photo(eye,at,frames){
+    const dx=eye[0]-at[0],dz=eye[2]-at[2];cfg.headX=eye[0];
+    return new Promise((done,fail)=>{
+      const timer=setTimeout(()=>{cfg.take=null;fail(Error('Park projection timed out'));},15000);
+      cfg.take={eyeY:eye[1],eyeZ:eye[2],eyeYaw:Math.atan2(dx,dz),eyePitch:Math.atan2(at[1]-eye[1],Math.hypot(dx,dz)),
+        inputs(){this.time=performance.now();},afterDraw(s){if(--frames)return;cfg.take=null;clearTimeout(timer);s.copyEyes().then(done,fail);}};
+    });
+  }
+  function diff(a,b,x0,y0,x1,y1){let changed=0;
+    for(let y=Math.floor(a.height*y0);y<a.height*y1;y++)for(let x=Math.floor(a.width*x0);x<a.width*x1;x++){
+      const k=4*(y*a.width+x);if([0,1,2].some(c=>Math.abs(a.data[k+c]-b.data[k+c])>5))changed++;
+    }return changed;
+  }
+  const overviewEye=[-.9,1.6,17],overviewAt=[4,1,24],rimEye=[3.1,1.43,19.8],waterAt=[4,.37,23];
+  try{
+    const overview=await photo(overviewEye,overviewAt,12),near=await photo(rimEye,waterAt,6),later=await photo(rimEye,waterAt,23);
+    const png=im=>{const c=document.createElement('canvas');c.width=im.width;c.height=im.height;c.getContext('2d').putImageData(im,0,0);return c.toDataURL().split(',')[1];};
+    return {motion:near.map((eye,i)=>diff(eye,later[i],.32,.43,.68,.65)),parallax:diff(overview[0],overview[1],.08,.17,.92,.92),
+      images:[...overview,near[0]].map(png)};
+  }finally{cfg.headX=0;cfg.take=null;}
+}
+module.exports={captureHarbour,capturePark};

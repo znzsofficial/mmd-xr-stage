@@ -8,6 +8,7 @@ import { StudioPlinth } from '../scenery/StudioPlinth';
 import { showSceneryGrid, type SceneryId } from '../scenery/catalog';
 import { RiverSky } from '../scenery/qinhuai/Songhouse';
 import {HarbourSky} from '../scenery/terminus/HarbourSky';
+import {HarbourShadows} from '../scenery/terminus/HarbourShadows';
 import {HarbourLight} from '../scenery/terminus/harbourAtmosphere';
 import { RoomSet, roomSets } from '../scenery/roomSets';
 import { StreetScenery } from '../scenery/routes/StreetScenery';
@@ -79,7 +80,7 @@ export function StageEnvironment({scenery, lighting, prefs, profile, sunRef}: Pr
   const { viewDistance, lightPreset } = prefs;
   const harbour=scenery==='seasideTerminus';
   const extent = harbour ? 13 : profile.quality === 'high' ? 6 : profile.quality === 'balanced' ? 5 : 4;
-  const far = harbour ? 58 : profile.quality === 'high' ? 24 : profile.quality === 'balanced' ? 20 : 16;
+  const far = harbour ? 85 : profile.quality === 'high' ? 24 : profile.quality === 'balanced' ? 20 : 16;
   const shadowSize = profile.shadows ? profile.shadowMapSize : 256;
   const rim = lighting.rimIntensity > 0 ? lighting.rimIntensity : .28;
   const lamps = hasStageLamps(scenery);
@@ -94,7 +95,8 @@ export function StageEnvironment({scenery, lighting, prefs, profile, sunRef}: Pr
     <directionalLight ref={sunRef} position={lighting.sunPos} color={lighting.sunColor} intensity={lighting.sun}
       castShadow={profile.shadows} shadow-mapSize-width={shadowSize} shadow-mapSize-height={shadowSize}
       shadow-camera-near={.5} shadow-camera-far={far} shadow-camera-left={-extent} shadow-camera-right={extent}
-      shadow-camera-top={extent} shadow-camera-bottom={-extent}/>
+       shadow-camera-top={extent} shadow-camera-bottom={-extent}/>
+    {harbour&&profile.shadows&&<HarbourShadows sun={sunRef}/>}
     <hemisphereLight args={[lighting.hemiSky, lighting.hemiGround, lighting.hemi]}/>
     {lamps && prefs.stageRimLightEnabled && <pointLight color={lighting.rimColor} intensity={rim} distance={8} decay={2} position={lighting.rimPosition}/>}
     <group name="player:room-solids">

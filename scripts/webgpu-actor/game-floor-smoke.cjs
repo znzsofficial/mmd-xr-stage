@@ -1,11 +1,12 @@
 // node scripts/webgpu-actor/game-floor-smoke.cjs <local-clothed.pmx> <body.vmd> <two-site-hand-plan.json | --actor-style>
+// node scripts/webgpu-actor/game-floor-smoke.cjs <local-clothed.pmx> <body.vmd> --strinova-style
 // node scripts/webgpu-actor/game-floor-smoke.cjs <local.pmx> <--milk-covered | --milk-exposed>
 // node scripts/webgpu-actor/game-floor-smoke.cjs <local.pmx> <--stand-covered | --stand-exposed>
 // node scripts/webgpu-actor/game-floor-smoke.cjs <local-adult.pmx> --partner [--covered | --exposed]
 // node scripts/webgpu-actor/game-floor-smoke.cjs <local.pmx> --lunar-post
 // node scripts/webgpu-actor/game-floor-smoke.cjs <local-clothed.pmx> --environment [--shadow-sources]
 // node scripts/webgpu-actor/game-floor-smoke.cjs <small-actor-with-wrists.pmx> --story-props
-// node scripts/webgpu-actor/game-floor-smoke.cjs <clothed.pmx> <body.vmd> --single-actor [tools wand pose materials contact clearance]
+// node scripts/webgpu-actor/game-floor-smoke.cjs <local.pmx> <body.vmd> --single-actor [tools wand pose materials contact clearance stockings]
 // Product /?xrBackend=webgpu only. Two library identities, one live actor,
 // one hardware renderer at a time. No injected menu, store actions or shortcut.
 const assert = require('node:assert/strict');
@@ -55,7 +56,9 @@ async function main() {
   const [pmx,vmd,plan]=(withoutMotion?[process.argv[2],null,process.argv[3]]:process.argv.slice(2,5)).map(v=>!v||v.startsWith('--')?v:path.resolve(v));
   assert(pmx && (vmd||withoutMotion) && plan, 'Expected a PMX and a smoke take');
   const singleActor=plan==='--single-actor';
-  const basic=plan==='--basic-style',styleOnly=basic||plan==='--actor-style',classroom=plan==='--classroom',portrait=plan==='--room-light', json = !withoutMotion && !styleOnly && !classroom && !portrait && !singleActor && JSON.parse(await fs.readFile(plan, 'utf8'));
+  const stockingsOnly=singleActor && process.argv.length===6 && process.argv[5]==='stockings';
+  const strinova=plan==='--strinova-style';
+  const basic=plan==='--basic-style',styleOnly=basic||strinova||plan==='--actor-style',classroom=plan==='--classroom',portrait=plan==='--room-light', json = !withoutMotion && !styleOnly && !classroom && !portrait && !singleActor && JSON.parse(await fs.readFile(plan, 'utf8'));
   const entryRoom=stories?'pool':post?'astralCourt':portrait?process.argv[5]:classroom?'classroom':'floor';
   if(portrait)assert(['classroom','seasideTerminus'].includes(entryRoom),'Expected a lit portrait room');
   const sites = json && (json.plan ?? json).sites.map(({start,end,spot,radial,marks,mat}) => ({start,end,spot,radial,marks,mat}));
@@ -67,6 +70,19 @@ async function main() {
   let server, browser, page, step = 'prepare', localProfile = false;
   try {
     await makeImport(folder,pmx,vmd);
+    if(strinova){
+      // Same asset bytes under another File and runtime ID: any shared style
+      // cache keyed by PMX data, texture or slot name leaks into this control.
+      await fs.copyFile(pmx,path.join(folder,first));
+      if(process.env.STRINOVA_STRAND_MASK){
+        const mask=process.env.STRINOVA_STRAND_MASK, suffix='.strand-mask.png';
+        assert(mask.toLowerCase().endsWith(suffix));
+        const diffuse=path.basename(mask).slice(0,-suffix.length).toLowerCase();
+        const matches=(await fs.readdir(folder,{recursive:true})).filter(f=>path.basename(f).toLowerCase()===diffuse);
+        assert.equal(matches.length,1,'Expected one matching diffuse in the staged test copy');
+        await fs.copyFile(mask,path.join(folder,matches[0]+suffix));
+      }
+    }
     const shadowSources=environment&&process.argv.includes('--shadow-sources');
     if(shadowSources)await (await import('./layout-signs.mjs')).writeSigns(folder);
     if(singleActor && process.argv.slice(5).includes('materials')) {
@@ -85,13 +101,14 @@ async function main() {
     page.on('console', m => {if (m.type()==='error') consoles.push(m.text().slice(0,350));});
     const href = new URL(report.entry,server.resolvedUrls.local[0]);
     page.on('response', r => {if(r.ok() && r.url()===new URL('/xr-input/1.0.20/meta-quest-touch-plus/profile.json',href).href)localProfile=true;});
-    await page.addInitScript({content:`(${stereo})(${portrait||withoutMotion||singleActor?640:240}); (${extend})(); labFixture.controllerProfile='meta-quest-touch-plus'; labFixture.hostStatus=()=>({phase:'idle'}); ${environment?`(${require('./environment-take.cjs').display})();`:''}`});
+    await page.addInitScript({content:`(${stereo})(${portrait||withoutMotion||singleActor||strinova?640:240}); (${extend})(); labFixture.controllerProfile='meta-quest-touch-plus'; labFixture.hostStatus=()=>({phase:'idle'}); ${environment?`(${require('./environment-take.cjs').display})();`:''}`});
     await page.goto(href.href);
     const selector=page.locator('.stage-first-room select');
     assert.equal(await selector.inputValue(),entryRoom);
     await page.locator('.stage-drop-zone input[webkitdirectory]').setInputFiles(folder);
     await page.locator('.stage-report-stats').waitFor();
-    const ids = await page.evaluate(probes.observeStage,{modelPath:`${path.basename(folder)}/${second}`,motionName:vmd&&`${path.basename(folder)}/${motion}`});
+    const ids = await page.evaluate(probes.observeStage,{modelPath:`${path.basename(folder)}/${second}`,motionName:vmd&&`${path.basename(folder)}/${motion}`,
+      optionalToon:stockingsOnly?process.env.STOCKING_OPTIONAL_TOON:undefined});
     assert.equal(ids.index,1); if(vmd)assert(ids.motion);
     await page.evaluate(async () => {window.gameTargets=await import('/scripts/webgpu-actor/game-floor-targets.js');});
 
@@ -139,17 +156,17 @@ async function main() {
     async function pickMounted(id) {
       await aim(await target({name:`backpack:pick:${id}`}));await trigger(true);await trigger(false);
     }
-    async function placeFromBag(name,point,before) {
+    async function placeFromBag(name,point,before,live=0) {
       await bButton();await click('hudBackpack');await target({name:'hud-backpack'});
       const row=await target({key:'hudPlace',row:name});
-      assert(await page.evaluate(n=>!!gameTargets.find({key:'hudPlace',row:n}),name===first?second:first));
+      if(!live)assert(await page.evaluate(n=>!!gameTargets.find({key:'hudPlace',row:n}),name===first?second:first));
       const k=(.012-handOrigin.y)/(row[1]-handOrigin.y);
       assert(k>1 && Math.hypot(handOrigin.x+k*(row[0]-handOrigin.x),handOrigin.z+k*(row[2]-handOrigin.z))<7.9,'Aim the bag row over valid plinth ground');
       await aim(row);await trigger(true);assert(!await page.evaluate(n=>gameTargets.model(n).draft,name));
-      let s=await read();assert(!s.live && !s.modelCount && s.placeCommands===before);
-      await trigger(false);await until('bag row opens only its draft',(s,[n,b])=>gameTargets.model(n).draft && !s.live && !s.modelCount && s.placeCommands===b,[name,before]);
+      let s=await read();assert(s.live===live && s.modelCount===live && s.placeCommands===before);
+      await trigger(false);await until('bag row opens only its draft',(s,[n,b,l])=>gameTargets.model(n).draft && s.live===l && s.modelCount===l && s.placeCommands===b,[name,before,live]);
       await aim([point[0],.012,point[2]]);await until('real ground preview',(s,n)=>gameTargets.model(n).draft && s.previewMs!=null,name);
-      await trigger(true);s=await read();assert(!s.live && s.placeCommands===before && s.filesIntact);
+      await trigger(true);s=await read();assert(s.live===live && s.placeCommands===before && s.filesIntact);
       await trigger(false);assert.equal((await read()).placeCommands,before+1);
     }
 
@@ -207,15 +224,23 @@ async function main() {
     if(singleActor){
       await placeFromBag(second,landing,0);
       const actor=await until('selected clothed actor in the game room',s=>s.ready&&s.live===1&&s.selected&&s.actor?.evaluations>0,null,120000);
+      if (actor.missingFixtureToon) { await click('loadContinue'); if(actor.fixtureBagNotice) await click('hudBack'); }
       const ctx={page,ids,click,until,bButton,frames,target,pickMounted,aim,trigger,idleRay};
       const takes={tools:'./game-floor-actor-tools.cjs',wand:'./game-floor-wand.cjs',pose:'./game-floor-pose-take.cjs',materials:'./game-floor-materials.cjs',
-        contact:'./game-floor-contact.cjs',clearance:'./game-floor-clearance.cjs'};
+        contact:'./game-floor-contact.cjs',clearance:'./game-floor-clearance.cjs',stockings:'./game-floor-stockings.cjs'};
       const phases=process.argv.length>5?process.argv.slice(5):['tools','wand','pose'];
       for(const phase of phases){
         assert(Object.hasOwn(takes,phase),`Unknown actor take: ${phase}`);
         const result=await require(takes[phase])(ctx);
         await until('same actor after '+phase,(s,id)=>s.ready&&s.live===1&&s.runtimeId===id&&s.selected,actor.runtimeId);
         console.log(phase,JSON.stringify(result));
+      }
+      // A partially repaired outfit cannot make a valid resume snapshot. This
+      // opt-in fixture checks its complete stocking route on this live actor.
+      if(actor.missingFixtureToon){
+        await bButton();await click('settingsVrDesktopExit',{retiring:true});
+        await until('retire partial fixture after its stocking take',s=>s.phase==='ended'&&!s.overlay&&!s.live);
+        assert.deepEqual(errors,[]);assert.deepEqual(consoles.filter(x=>/shader|validation|wgsl|nodebuilder|pipeline/i.test(x)),[]);return;
       }
       const resumed=await checkFallback();
       await bButton();await click('settingsVrDesktopExit',{retiring:true});
@@ -224,6 +249,12 @@ async function main() {
       assert(adapters.some(a=>a.xrCompatible)&&adapters.every(a=>a.vendor&&!a.fallback&&!/swiftshader|warp|software|llvmpipe/i.test(JSON.stringify(a))));
       assert.deepEqual(errors,[]);assert.deepEqual(consoles.filter(x=>/shader|validation|wgsl|nodebuilder|pipeline/i.test(x)),[]);
       console.log('WebGL fallback and XR continue',JSON.stringify({restoredAt:resumed.time,...report.webgl}));return;
+    }
+    if(strinova){
+      await placeFromBag(second,landing,0);
+      report.style=await require('./strinova-take.cjs')({page,ids,click,until,bButton,frames,target,pickMounted,idleRay,placeFromBag,first});
+      assert.deepEqual(errors,[]);assert.deepEqual(consoles.filter(x=>/shader|validation|wgsl|nodebuilder|pipeline/i.test(x)),[]);
+      console.log(JSON.stringify(report,null,2));return;
     }
     report.emptyEyes=await page.evaluate(probes.inspectEyes,'empty');
     const base=report.emptyEyes;assert(base.different>100 && base.controls.every(n=>n===0) && base.matched.every((n,i)=>n<base.crossed[i]*.4),'Wrong final XR eye assignment');

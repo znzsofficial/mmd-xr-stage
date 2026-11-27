@@ -61,7 +61,7 @@ export async function createStageActorBackend(renderer, scene, light, origin, gr
     }),
     styles:{subscribe(f) { listeners.add(f); return () => { listeners.delete(f); }; },
       read:(id,file) => styleFor(id,file)?.snapshot ?? null,
-      choose:(id,file,enabled) => styleFor(id,file)?.choose(enabled)},
+      choose:(id,file,mode) => styleFor(id,file)?.choose(mode)},
     get status() { return status(); }, getStatus:status,
     setLight(value) { sourceLight = value; displayDirty = true; },
     setClothEnabled(value) { enabled = !!value; if (!enabled) for(const actor of actors.values())actor.binding.interrupt(); },

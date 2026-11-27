@@ -1,6 +1,5 @@
-import { DataTexture, LinearFilter, LinearMipmapLinearFilter } from 'three';
-import { NormalRGPacking } from 'three';
-import { mix, normalMap, normalView, positionViewDirection, smoothstep, texture, uv, vec2, vec3 } from 'three/tsl';
+import { DataTexture, LinearFilter, LinearMipmapLinearFilter, NormalRGPacking } from 'three';
+import { cameraViewMatrix, float, mix, normalMap, normalView, positionViewDirection, smoothstep, texture, uv, vec2, vec3, vec4 } from 'three/tsl';
 import { unzlibSync } from 'three/addons/libs/fflate.module.js';
 
 // This fixture accepts the paired RG-normal / R+A-parameter convention only
@@ -88,26 +87,84 @@ export async function loadClothDetails(model, indices, resolver, files) {
   return maps;
 }
 
-export function endfieldCloth(paint, base, dataMap, L, light, key) {
-  const sample = texture(dataMap).sample(uv()), metal = sample.b, rough = sample.a.clamp(.10,1);
-  // UV0 has V down. Transform the packed tangent slope with the posed surface
-  // derivatives, including mirrored islands; never bake the portrait light into D.
-  const N = normalMap(sample, vec2(.92,-.92)); N.unpackNormalMode = NormalRGPacking;
-  const V = positionViewDirection, hv = L.add(V), H = hv.div(hv.length().max(.0001));
-  const nl = N.dot(L), nh = N.dot(H).clamp(), form = mix(normalView.dot(L),nl,.83);
-  const band = smoothstep(-.18,.40,form), plane = smoothstep(.27,.84,form);
-  const ink = mix(paint,base,.08);
-  const dye = ink.mul(mix(vec3(.37,.40,.48),vec3(1.02,1.00,1.01), band.mul(key)))
-    .mul(plane.mul(key).mul(.30).add(1));
-  // Broad satin roll crossing several pleats, with a narrower crest on the
-  // slicker threads. High-R trim carries a dyed reflection rather than fabric nap.
-  const r = rough.pow(1/2.2), soft = smoothstep(r.mul(-.24).add(.87),.994,nh);
-  const crest = smoothstep(r.mul(-.10).add(.973),.999,nh);
-  const facing = smoothstep(-.12,.34,nl);
-  const fiber = paint.sqrt().mul(.68).add(vec3(.28,.26,.28));
-  const silk = dye.add(light.mul(fiber).mul(facing).mul(soft.mul(.24).add(crest.mul(r.oneMinus()).mul(.20))));
-  const trimGlint = smoothstep(rough.mul(-.30).add(.96),.998,nh);
-  const trim = dye.mul(.70).add(light.mul(paint.mul(.76).add(.14)).mul(facing).mul(trimGlint).mul(.91));
-  const rgb = mix(silk,trim,metal), peak = rgb.r.max(rgb.g).max(rgb.b).max(.74), over = peak.sub(.74);
-  return rgb.mul(over.mul(.24).div(over.add(.24)).add(.74).div(peak));
+// A reflected strip on small fittings. Its long axis stays upright relative
+// to the room key; turning the viewer cannot rotate the strip with the screen.
+function hardwareReflection(N, L, V, nv, rough, paint) {
+  const up = cameraViewMatrix.mul(vec4(0, 1, 0, 0)).xyz;
+  const forward = cameraViewMatrix.mul(vec4(0, 0, 1, 0)).xyz;
+  const axis = L.cross(L.dot(up).abs().greaterThan(.98).select(forward, up));
+  const side = axis.div(axis.length().max(.0001));
+  const ray = N.mul(nv.mul(2)).sub(V);
+  const miss = ray.dot(L).oneMinus().max(0).add(ray.dot(side).pow2().mul(3));
+  const width = rough.pow2().mul(.44).add(.07);
+  const strip = smoothstep(width.mul(.12), width, miss).oneMinus();
+  const bloom = smoothstep(0, width.add(.5), miss).oneMinus();
+  const conductor = paint.mul(.79).add(.16);
+  return conductor.mul(strip.mul(rough.mul(-.64).add(1.18)).add(bloom.mul(.24)));
+}
+
+// Where the detail normal departs from the underlying plane, their cross
+// product runs along the local fold. Stretch the satin reflection along it.
+// Nearly flat texels lose anisotropy continuously (no guessed UV weave axis).
+function satinReflection(N, H, nh, rough, paint) {
+  const fold = normalView.cross(N);
+  const along = H.dot(fold).pow2().div(fold.dot(fold).add(.04));
+  const miss = nh.pow2().oneMinus().sub(along.mul(.64)).max(0);
+  const roll = smoothstep(0, rough.mul(.35).add(.12), miss).oneMinus();
+  const fiber = mix(vec3(.62), paint.sqrt(), .62);
+  return fiber.mul(roll).mul(rough.oneMinus().pow2().mul(.44).add(.045));
+}
+
+export function endfieldGarment(paint, base, role, incident, dataMap) {
+  const { view:L, rgb:light, band:key } = incident;
+  const sample = dataMap && texture(dataMap).sample(uv());
+  let N = normalView;
+  if (sample) {
+    // UV0 has V down. Reconstruct the slope on the posed surface, including
+    // mirrored islands. Use the same packed lookup for R/A, never D's alpha.
+    N = normalMap(sample, vec2(.82, -.82));
+    N.unpackNormalMode = NormalRGPacking;
+  }
+  const V = positionViewDirection, half = L.add(V), H = half.div(half.length().max(.0001));
+  const nl = N.dot(L), nv = N.dot(V).clamp(), nh = N.dot(H).clamp();
+  // The broad form is also the painted underlayer for reflective hardware.
+  const fold = sample ? mix(normalView.dot(L), nl, .58) : nl;
+  const form = smoothstep(-.46, .48, fold).mul(.57).add(fold.clamp().mul(.43));
+  const direct = key.mul(form);
+  const ink = mix(paint, base, sample ? .08 : .16);
+  // Sheen needs light on this side of the surface. Fade its last few grazing
+  // degrees instead of tracing a bright line around the character in stereo.
+  const reflectionLight = light.mul(smoothstep(0, .40, nl)).mul(smoothstep(0, .24, nv));
+
+  let rgb;
+  if (role === 'leather') {
+    const body = ink.mul(direct.mul(.55).add(.34));
+    const broad = smoothstep(.64, .98, nh).pow2(), crest = smoothstep(.92, .998, nh);
+    rgb = body.add(reflectionLight.mul(broad.mul(.082).add(crest.mul(.066))));
+  } else {
+    if (!sample && role === 'cloth') {
+      // Unmapped cloth is matte; reserve the bright roll for authored data.
+      const cloth = ink.mul(vec3(.39, .405, .44).add(direct.mul(vec3(.65, .64, .61))));
+      const nap = nv.oneMinus().pow2().mul(.035).mul(nl.clamp());
+      rgb = cloth.add(reflectionLight.mul(nap).mul(paint.sqrt()));
+    } else {
+      const rough = sample ? sample.a.clamp(.12, 1) : float(.32);
+      const metal = ink.mul(direct.mul(.44).add(.26))
+        .add(reflectionLight.mul(hardwareReflection(N, L, V, nv, rough, paint)));
+      if (sample) {
+        // Light the two sides of an authored pleat even when the viewer is
+        // outside its satin reflection. The wider second band opens the
+        // light-facing slope; the trough retains the shadow pigment.
+        const pleat = mix(normalView.dot(L), nl, .80);
+        const lit = smoothstep(-.24, .44, pleat), slope = smoothstep(.18, .84, pleat);
+        const diffuse = vec3(.34, .36, .40).add(key.mul(vec3(.82, .80, .77).mul(lit).add(slope.mul(.47))));
+        const silk = ink.mul(diffuse).add(reflectionLight.mul(satinReflection(N, H, nh, sample.a.pow(1 / 2.2).max(.12), paint)));
+        rgb = mix(silk, metal, sample.b); // continuous source P.R, before highlight roll-off
+      } else rgb = metal;
+    }
+  }
+  // Keep bright diffuse gradients up to .83 linear; compress only the peak
+  // of a reflection, with one scale for RGB so a gold fitting stays gold.
+  const peak = rgb.r.max(rgb.g).max(rgb.b).max(.83), over = peak.sub(.83);
+  return rgb.mul(over.mul(.165).div(over.add(.165)).add(.83).div(peak));
 }

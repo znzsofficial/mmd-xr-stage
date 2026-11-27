@@ -1,0 +1,43 @@
+import {useEffect,useLayoutEffect,useMemo} from 'react';
+import {DoubleSide,RepeatWrapping} from 'three';
+import {noPick} from '../sceneryPaint';
+import {useBakedSurface} from '../useBakedSurface';
+import {parkArchitecture} from './parkArchitecture';
+import {inlandEmbankment,parkPavement,parkPlanting,parkStreetFurniture} from './parkGroundArt';
+import {fountainCourt,parkTrees} from './parkLayout';
+import {ParkFountain} from './park/ParkFountain';
+import {ParkTrees} from './park/ParkTrees';
+import joinery from './waiting-bay.webp';
+
+const shadeReceiver={parkLeafShadeReceiver:true};
+const decorativeReceiver={playerCollision:false,parkLeafShadeReceiver:true};
+
+export function StationPark({shadows}:{shadows:boolean}){
+  const park=useMemo(()=>({architecture:parkArchitecture(),paving:parkPavement(),street:parkStreetFurniture(),
+    garden:parkPlanting(),foundation:inlandEmbankment()}),[]);
+  useEffect(()=>()=>{
+    park.architecture.solid.dispose();park.architecture.prints.dispose();park.paving.dispose();park.foundation.dispose();
+    park.street.oak.dispose();park.street.hardware.dispose();park.garden.beds.dispose();park.garden.leaves.dispose();park.garden.turf.dispose();
+  },[park]);
+  const shops=useBakedSurface('/scenery/terminus/park-shops.webp'),pavers=useBakedSurface('/scenery/terminus/park-paving.webp'),oak=useBakedSurface(joinery);
+  useLayoutEffect(()=>{if(pavers){pavers.wrapS=pavers.wrapT=RepeatWrapping;pavers.needsUpdate=true;}},[pavers]);
+  return <group name="terminus:station-park" pointerEvents="none">
+    <mesh name="park:city-embankment" geometry={park.foundation} raycast={noPick} receiveShadow><meshStandardMaterial vertexColors roughness={.93}/></mesh>
+    <mesh name="park:paving" geometry={park.paving} raycast={noPick} receiveShadow userData={decorativeReceiver}>
+      <meshStandardMaterial key={pavers?'granite':'stone'} map={pavers} vertexColors roughness={.83} color={pavers?'white':'#d2c9b4'}/>
+    </mesh>
+    <mesh name="park:shopfronts" geometry={park.architecture.solid} raycast={noPick} castShadow={shadows} receiveShadow><meshStandardMaterial vertexColors roughness={.73}/></mesh>
+    <mesh name="park:shop-windows" geometry={park.architecture.prints} raycast={noPick} receiveShadow userData={{playerCollision:false}}>
+      <meshStandardMaterial key={shops?'display':'glass'} map={shops} roughness={.60} vertexColors color={shops?'white':'#bfcec4'} polygonOffset polygonOffsetFactor={-1} polygonOffsetUnits={-1}/>
+    </mesh>
+    <mesh name="park:street-furniture" geometry={park.street.hardware} raycast={noPick} castShadow={shadows} receiveShadow userData={shadeReceiver}><meshStandardMaterial vertexColors roughness={.53} metalness={.12}/></mesh>
+    <mesh name="park:oak-benches" geometry={park.street.oak} raycast={noPick} castShadow={shadows} receiveShadow userData={shadeReceiver}>
+      <meshStandardMaterial key={oak?'wood':'plain'} map={oak} roughness={.56} color={oak?'white':'#a6825d'}/>
+    </mesh>
+    <mesh name="park:planted-borders" geometry={park.garden.beds} raycast={noPick} receiveShadow userData={shadeReceiver}><meshStandardMaterial vertexColors roughness={.9}/></mesh>
+    <mesh name="park:lawns" geometry={park.garden.turf} raycast={noPick} receiveShadow userData={decorativeReceiver}><meshStandardMaterial key={shops?'turf':'grass'} map={shops} color={shops?'white':'#92a477'} roughness={.97}/></mesh>
+    <mesh name="park:perennials" geometry={park.garden.leaves} raycast={noPick} receiveShadow userData={{playerCollision:false}}><meshStandardMaterial side={DoubleSide} vertexColors roughness={.89}/></mesh>
+    <group position={[fountainCourt.x,0,fountainCourt.z]} pointerEvents="none"><ParkFountain shadows={shadows}/></group>
+    <ParkTrees trees={parkTrees} shadows={shadows}/>
+  </group>;
+}

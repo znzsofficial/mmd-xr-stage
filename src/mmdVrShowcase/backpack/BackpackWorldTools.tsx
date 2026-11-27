@@ -115,10 +115,10 @@ function ActorStyleChoice({styles,file,id,y,locked}:{styles:RoomActorStyles;file
   const hint=phase==='unavailable'?'actorStyleNoMaps':phase==='failed'?'actorStyleFailed':phase==='loading'?'actorStyleLoading':null;
   return <group name="actor-style-choice" position-y={y}>
     <HudLine position={[0,.15,0]} width={1.22} role="muted" text={hint?`${t('actorStyle')} · ${t(hint)}`:t('actorStyle')}/>
-    {(['mmd','endfield'] as const).map((mode,i)=><HudButton key={mode} position={[(i-.5)*.63,0,0]} size={[.59,.15]} variant="tab"
-      label={t(mode==='mmd'?'actorStyleMmd':'actorStyleEndfield')} active={mode===state?.mode}
-      disabled={locked||!state||(mode==='endfield'&&(phase==='unavailable'||phase==='failed'))}
-      onPress={()=>styles.choose(id,file,mode==='endfield')}/>)}
+    {([['mmd','actorStyleMmd'],['endfield','actorStyleEndfield'],['strinova','actorStyleStrinova']] as const).map(([mode,key],i)=><HudButton key={mode} position={[(i-1)*.418,0,0]} size={[.39,.15]} variant="tab"
+      label={t(key)} active={mode===state?.mode}
+      disabled={locked||!state||(mode!=='mmd'&&(phase==='unavailable'||state.failedModes.includes(mode)))}
+      onPress={()=>styles.choose(id,file,mode)}/>)}
   </group>;
 }
 

@@ -12,10 +12,12 @@ import {HarbourWater} from './HarbourWater';
 import {PlatformFinish,StationClock,TicketOfficePrint} from './platformFinish';
 import {Headlands} from './coastline';
 import {WaitingBay} from './WaitingBay';
+import {StationPark} from './StationPark';
+import {PlatformWayfinding} from './PlatformWayfinding';
 
 function stationPrint(){return paintedSurface(1024,380,c=>{
   c.fillStyle='#eeefe9';c.fillRect(0,0,1024,380);c.fillStyle='#235653';c.fillRect(10,10,1004,5);c.fillRect(10,365,1004,5);
-  c.fillStyle='#356459';c.fillRect(0,248,1024,112);c.fillStyle='#efe9d5';c.font='500 39px system-ui';c.fillText('←　海 岬',68,320);c.textAlign='right';c.fillText('终 点　•',958,320);
+  c.fillStyle='#356459';c.fillRect(0,248,1024,112);c.fillStyle='#efe9d5';c.font='500 39px system-ui';c.fillText('海 岬　•　终 点',68,320);c.textAlign='right';c.fillText('城市出口　/　喷泉公园',958,320);
   c.textAlign='center';c.fillStyle='#253f3c';c.font='bold 105px SimSun,serif';c.fillText('海 边 终 点 站',512,151);c.font='500 35px system-ui';c.fillText('S E A S I D E   T E R M I N U S',512,216);
 });}
 function timetable(){return paintedSurface(480,600,c=>{c.fillStyle='#eadfc5';c.fillRect(0,0,480,600);c.fillStyle='#315952';c.fillRect(11,12,458,92);c.fillStyle='#f5eedb';c.textAlign='center';c.font='bold 42px serif';c.fillText('海 岸 线',240,72);c.fillStyle='#34534a';c.font='bold 30px system-ui';c.fillText('DEPARTURES',240,160);
@@ -40,8 +42,9 @@ function Sounder({clock}:{clock:ReturnType<typeof createTideClock>}){
 }
 export function SeasideTerminus({shadows}:{shadows:boolean}){const p=useMemo(stationParts,[]),clock=useMemo(createTideClock,[]);
   return <group name="scenery:seaside-terminus"><group pointerEvents="none">
+    <PlatformWayfinding/>
     <Batch name="terminus:enamelled-ironwork" parts={p.enamel} roughness={.39} casts={shadows}/><Batch name="terminus:track-and-joinery" parts={p.trim} casts={shadows}/>
     <Batch name="terminus:tubular-iron" parts={p.tubes} round roughness={.39}/><Batch name="terminus:lamp-glass" parts={p.glow} lit/>
     <Batch name="terminus:breakwater-and-headland" parts={p.land} foliage/><Batch name="terminus:windbreak" parts={p.pines} foliage/>
-    <PlatformFinish shadows={shadows}/><WaitingBay shadows={shadows}/><StationClock/><TicketOfficePrint/><Headlands/><Signage/><HarbourWater clock={clock}/></group><Sounder clock={clock}/></group>;
+    <PlatformFinish shadows={shadows}/><WaitingBay shadows={shadows}/><StationClock/><TicketOfficePrint/><Headlands/><Signage/><HarbourWater clock={clock}/><StationPark shadows={shadows}/></group><Sounder clock={clock}/></group>;
 }

@@ -48,7 +48,12 @@ async function verifyLive(quick){
       paths.add(`mmd/${bulletVersion}/mmd_bullet.js`);
       paths.add(`mmd/${bulletVersion}/mmd_bullet.wasm`);
     }
-    const js=await readFile(join(dir,entry),'utf8');
+     const js=await readFile(join(dir,entry),'utf8');
+     const organ=js.match(/organ\.worker-[\w-]+\.js/)?.[0];assert(organ,'Missing current anatomy worker');paths.add('assets/'+organ);
+     // Fresh entry into the station park must serve the actual local images;
+     // a Pages SPA fallback returns HTTP 200 for missing print/probe URLs.
+     for(const file of await readdir(join(dir,'scenery/terminus')))if(/^park-.*\.webp$|^fountain-(px|nx|py|ny|pz|nz)\.webp$/.test(file))paths.add('scenery/terminus/'+file);
+     for(const file of await readdir(join(dir,'assets')))if(/^zelkova-(sprays|shade|bark)-.*\.webp$/.test(file))paths.add('assets/'+file);
     const host=js.match(/stage-host-[\w-]+\.js/)?.[0];assert(host,'Missing optional WebGPU floor');
     paths.add('assets/'+host);
     const floorJs=await readFile(join(dir,'assets',host),'utf8');

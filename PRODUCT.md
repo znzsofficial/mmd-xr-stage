@@ -14,6 +14,8 @@ The viewer imports game characters. Built-in modelling means places for those ch
 
 The viewer especially likes fantastical settings such as the Opal Planetoid. Give these worlds a prominent place when curating destinations; adding more small rooms is not itself a goal.
 
+The small enclosed sets were moved off the main list because the viewer finds them oppressive. For new everyday locations, favor connected open-air places with long sightlines, sunlight, tree shade and room to watch a character at different distances. A lively seaside city park is a better reference than another intimate interior.
+
 “Scene people” defaults off and remembers the viewer’s choice. It controls only people already authored into the environment (such as the clinic nurse). It must not spawn a sample actor, affect the viewer’s imported characters or treat static teaching exhibits as people.
 
 At arm’s length, different surfaces should respond to light like different materials: a sealed cabinet side, the grain of a wood shelf and a paper carton should not all read as the same coloured plastic. Give close-up assets appropriate edge profiles, roughness, subtle surface normals and contact shade; compare them in the actual stage under the same lighting.

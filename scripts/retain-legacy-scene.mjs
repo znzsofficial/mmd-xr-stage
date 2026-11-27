@@ -5,6 +5,11 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from 'node:path';
 
 const files = [
+  ['703e0c9c','index-Dgm_zNK_.js','9aa3e77630824096b55a2c0d4653e4f23a25143d8f35dc54e8857ef95b008deb'],
+  ['703e0c9c','stage-host-B1PLgttT.js','fdb7e682467cdb4d29029cc65b82f992206c464cd87c4ef95d666049f59d6ca4'],
+  ['703e0c9c','PlanetPhysics-D-5e2xbR.js','e21ba0d308d9a680074992023a8e7cf053bab6871215bbd9b532eeb2ebb0ed25'],
+  ['703e0c9c','rapier-Bc1Y0pEm.js','509c29ad65970b4210ebdb2e23c4614d9f4f0e3536cee0e44bfa2f6f916cc959'],
+  ['703e0c9c','emulate-vRcuuRqL.js','2039d162707afd3908f60bd1b16c3b222c9ee3043c6cb976d2b284d4a7e1bcb9'],
   // The previous mixed-layout tab can still open its WebGPU room or planet.
   ['0ae4a810','index-CKi68f3V.js','45e8f30a0acf99f6ed73ca641320ea9d74d9570ac224bd573ce910a6ee272eca'],
   ['0ae4a810','stage-host-Cr9N19tn.js','68b90fb089d7fab7c5c9a2de4b12df8cfa1a2e1ab041754effd5ad35a301a310'],

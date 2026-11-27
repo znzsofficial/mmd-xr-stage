@@ -2,7 +2,9 @@
 
 **十七个独立布景，主列表十一个入口。** [屏幕直接进星环传送大厅](https://mmd-xr-stage.pages.dev/?set=astralCourt&view=screen) · [Quest 入口](https://mmd-xr-stage.pages.dev/?set=astralCourt) · [角色站位](../gameplay/vr-controls.md#在布景中给角色选位置) · [接入新区域](./adding-a-set.md)
 
-**海边终点站（本地候选，`/?set=seasideTerminus&view=screen`）**：从候车棚走到终点站牌，右转沿干堤放人，或从两端阶梯下到潮道。「潮阶 · 向海望日」能同时看见晴空的日盘和水面碎光；「干堤 · 海上渔舟」可近看船舱。均衡／低档反射云天，高档水面额外反射船、堤灯和两段岸壁，使用有限几何近似，不再画一次场景。海阶受淹时透过浅水可见石缝，涉水减速；拨潮盘可提前涨落。云图为静态摄影半球，海雾为距离近似；[摄影来源](../THIRD_PARTY_NOTICES.md#seaside-terminus-sky-and-shoreline)。
+**[海边终点站与站前公园](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&view=screen)**：背海走出候车棚，沿「公园出口」到潮音广场，看喷泉、榉树荫下的长椅和汐见小路的沿街店铺。屏幕端可直接从「导览」选公园入口、喷泉、长椅、商店街或回望车站。公园与海堤共用布局；把演员留在长椅旁，再走回站台，不用重新上场。水面、座椅和花池不能放置演员。
+
+沿另一侧走到终点站牌，右转沿干堤放人，或从两端阶梯下到潮道。海面均衡／低档反射云天，高档额外反射船、堤灯和两段岸壁。海阶受淹时透过浅水可见石缝，涉水减速；拨潮盘可提前涨落。**广场喷泉**独立于海潮：三道水柱落到不同水圈，水面法线随落点波纹变化，倒影来自预烘的天空和周围街景。树叶会随风轻摆，实时阴影打开时投到地面与长椅；关闭时沿同一日照方向投烘焙树影。城市街层参考[《异环》制作人的海特洛介绍](https://blog.playstation.com/2024/07/17/neverness-to-everness-gameplay-showcases-supernatural-urban-open-world-rpg-coming-to-ps5/)，保留海站晴天的开放视线。[摄影来源](../THIRD_PARTY_NOTICES.md#seaside-terminus-sky-and-shoreline)。
 
 星环遗庭的罗盘旁有六扇星门：黑绒私摄棚、情侣套房、双人私汤、中世纪刑讯室、Live House 和简易地台（月面邮局）。鼠标点击门中的实景；VR 先收起菜单，用射线瞄准门面，按下并松开扳机。回程点「返回大厅」（VR：右 B 召回后点）。每景仍记自己的角色、动作和摆位，原来的直达链接也可用。琉璃小行星和晨光礼拜堂仍在主列表。
 

@@ -12,6 +12,8 @@ The harbour cliff albedo and tangent normal derive from [**Cliff Side**](https:/
 
 The bench and ticket shelf use board strips cropped from [**Oak Wood Planks**](https://polyhaven.com/a/oak_wood_planks) by Dimitrios Savva (Poly Haven, CC0 1.0). [`bake-waiting-bay.py`](../src/mmdVrShowcase/scenery/terminus/bake-waiting-bay.py) verifies the original 2K diffuse and roughness maps and adds the cut ends, wear and metal finishes to the two local atlases. No third-party textures are requested at runtime.
 
+The park benches reuse these oak strips. The park's bark texture derives from [**Bark Brown 02**](https://polyhaven.com/a/bark_brown_02), Poly Haven, CC0 1.0. The [tree bake](../src/mmdVrShowcase/scenery/terminus/park/bake-trees.py) also draws the original leaf sprays and canopy shade. The fountain's [reflection bake](../src/mmdVrShowcase/scenery/terminus/park/bake-fountain-probe.py) incorporates the same credited harbour sky. The park geometry, storefronts and signs are original work.
+
 ## Planetoid locomotion (npm packages)
 
 The on-demand XR planet module uses [React Three Rapier 2.2.0](https://github.com/pmndrs/react-three-rapier) and [Rapier JS 0.19.2](https://github.com/dimforge/rapier.js) (Apache-2.0). Its WASM is distributed in the compat package. The standalone planet experiment and retained earlier release modules use [Ecctrl 2.0.2](https://github.com/pmndrs/ecctrl) (MIT, © 2023–2026 Erdong Chen). These are independent of the MMD Bullet backend.

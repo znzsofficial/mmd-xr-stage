@@ -1,5 +1,6 @@
 import { loadClothDetails } from './endfieldCloth.js';
 import { loadFaceDetails } from './endfieldFace.js';
+import { loadStrandMasks } from './strandMasks.js';
 
 // Inflate and validate optional data on a disposable worker, not on the XR
 // thread. Reuse the same map readers as the reference renderer. Only their
@@ -14,21 +15,23 @@ self.onmessage = async ({data:{inputs,files}}) => {
     for (const {i,role,ref,file,width,height,wrapS,wrapT,flipY} of inputs) {
       refs.set(ref,members[file]);
       materials[i] = { userData:{mmdMaterial:{texturePath:ref}}, map:{image:{width,height},wrapS,wrapT,flipY} };
-      (role === 'face' ? face : cloth).push(i);
+      if (role === 'face') face.push(i);
+      if (role === 'cloth') cloth.push(i);
     }
     const model = {mesh:{material:materials}}, resolver = {resolve:ref => refs.get(ref)};
     const clothMaps = await loadClothDetails(model,cloth,resolver,members);
     const faceMaps = await loadFaceDetails(model,face,resolver,members);
+    const hairMaps = await loadStrandMasks(inputs,members);
     const images = new Map(), buffers = [];
     function image(texture) {
       if (!images.has(texture)) {
-        const {image:{data,width,height},wrapS,wrapT,flipY,magFilter,minFilter,generateMipmaps} = texture;
-        images.set(texture,{data,width,height,wrapS,wrapT,flipY,magFilter,minFilter,generateMipmaps});
+        const {image:{data,width,height},format,wrapS,wrapT,flipY,magFilter,minFilter,generateMipmaps} = texture;
+        images.set(texture,{data,width,height,format,wrapS,wrapT,flipY,magFilter,minFilter,generateMipmaps});
         buffers.push(data.buffer);
       }
       return images.get(texture);
     }
-    self.postMessage({cloth:[...clothMaps].map(([i,t])=>[i,image(t)]),
+    self.postMessage({cloth:[...clothMaps].map(([i,t])=>[i,image(t)]),hair:[...hairMaps].map(([i,t])=>[i,image(t)]),
       face:[...faceMaps].map(([i,{field,ramp}])=>[i,{field:image(field),ramp:image(ramp)}])},buffers);
   } catch { self.postMessage({failed:true}); }
 };

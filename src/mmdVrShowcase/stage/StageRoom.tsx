@@ -31,7 +31,8 @@ import type {RoomAlphaTiles} from '../mmdRuntime/roomAlphaTiles';
 import { createRoomRuntime, type RoomActorBackend } from './createRoomRuntime';
 import { createPlacementWork } from '../diagnostics/placementWork';
 import type { SceneryId } from "../scenery/catalog";
-import { resolvePlacementHeight } from "../scenery/placementAreas";
+import { resolvePlacementHeight, visiblePick } from "../scenery/placementAreas";
+import { mountStockingRoom } from '../wardrobe/stockingSurface';
 import {
   clearMmdVrHapticContacts,
   MMD_VR_HAPTIC_POLL_INTERVAL,
@@ -166,6 +167,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles,
   const poseSettle=useRef(0);
   const bodyRoom=useRef<ReturnType<typeof createBodyRoom>|null>(null);
   const milkRoom=useRef<ReturnType<typeof mountRoomMilk>|null>(null);
+  const stockingRoom=useRef<ReturnType<typeof mountStockingRoom>|null>(null);
   const poseRoom=useRef<ReturnType<typeof mountPoseRoom>|null>(null);
   const runtime = useMemo(() => createRoomRuntime(scene, gl, camera, motionCache, alphaTiles,propFeed,backend),
     [scene, gl, motionCache, alphaTiles,propFeed,backend]);
@@ -196,6 +198,12 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles,
     const milk=mountRoomMilk(scene,gl,runtime,isRoomStale);milkRoom.current=milk;
     return ()=>{milkRoom.current=null;milk.dispose();};
   },[scene,gl,runtime,scenery]);
+
+  useLayoutEffect(()=>{
+    const room=mountStockingRoom(scene,runtime,isRoomStale,(ray,p)=>visiblePick(scenery,ray.origin,p.x,p.y,p.z));
+    stockingRoom.current=room;
+    return ()=>{stockingRoom.current=null;room.dispose();};
+  },[scene,runtime,scenery,isRoomStale]);
 
   useLayoutEffect(()=>{
     const body=createBodyRoom(runtime,()=>{lastEvaluatedTimeRef.current=-Infinity;});bodyRoom.current=body;
@@ -683,6 +691,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles,
     // layers, without re-evaluating VMD or dispatching idle GPU pose work.
     const propMorphChanged=propDisplay.consumeMorphChange();
     backend?.prepareRender(evaluate||propMorphChanged);
+    stockingRoom.current?.advance(evaluate||propMorphChanged);
     milkRoom.current?.advance(delta,frame);
     if(store.presentation!=='xr')return;
     hapticContactPollRef.current += delta;

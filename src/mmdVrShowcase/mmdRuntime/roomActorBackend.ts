@@ -37,10 +37,14 @@ export interface RoomActorStatus {
   style: ActorStyleState | null;
 }
 
+export type ActorStyleMode = 'mmd'|'endfield'|'strinova';
+
 export interface ActorStyleState {
   phase:'available'|'loading'|'ready'|'unavailable'|'failed';
-  requested:'mmd'|'endfield';
-  mode:'mmd'|'endfield';
+  requested:ActorStyleMode;
+  mode:ActorStyleMode;
+  failedModes:readonly ActorStyleMode[];
+  hairMasks:number;
   clothMaps:number;
   faceMaps:number;
   slots:Readonly<Record<string,number>>;
@@ -49,7 +53,7 @@ export interface ActorStyleState {
 export interface RoomActorStyles {
   subscribe(listener:()=>void):()=>void;
   read(id:string,file:File):Readonly<ActorStyleState>|null;
-  choose(id:string,file:File,enabled:boolean):void;
+  choose(id:string,file:File,mode:ActorStyleMode):void;
 }
 
 export interface RoomActorBackend {

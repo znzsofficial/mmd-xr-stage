@@ -16,6 +16,9 @@ const word = v => v.normalize('NFKC').trim().toLowerCase().replace(/^mat(?:erial
 const roleOf = v => sleeve.test(v) ? 'cloth' : roles.find(role => names[role].test(v));
 const numberedFace = v => /\d+$/.test(v) && names.face.test(v.replace(/\d+$/, ''));
 
+// Older material probes call the original two-state API.
+export const actorStyleMode = value => value === true ? 'endfield' : value === false ? 'mmd' : value;
+
 function authoredRole(meta) {
   const primary = word(meta.name ?? ''), alias = meta.englishName?.normalize('NFKC').trim() ?? '';
   let translated = word(alias);
@@ -42,7 +45,7 @@ function authoredRole(meta) {
 
 export function inspectActorStyle(model) {
   const hybridSlots = Object.fromEntries(roles.map(role => [role, []]));
-  const inputs = [];
+  const inputs = [], hairInputs = [];
   for (const [i, material] of [model.mesh.material].flat().entries()) {
     const meta = material?.userData?.mmdMaterial, map = material?.map;
     if (meta?.materialIndex !== i || !(meta.faceCount > 0)) continue;
@@ -53,12 +56,12 @@ export function inspectActorStyle(model) {
     // a matching face/cloth diffuse convention can nominate optional data.
     const base = typeof meta.texturePath === 'string' && meta.texturePath.split(/[\\/]/).at(-1);
     const family = base && base.match(/(?:^|[_-])(face|cloth)(?:[_-]?\d+)?_d\.png$/i)?.[1].toLowerCase();
-    if (role === family && map?.image) {
+    if (base && (role === family || role === 'hair') && map?.image) {
       // Snapshot the decoder inputs before TSL replaces the source materials.
       // No image, live mesh or GPU resource needs to cross the worker boundary.
-      inputs.push({ i, role, ref:meta.texturePath, width:map.image.width, height:map.image.height,
+      (role === 'hair' ? hairInputs : inputs).push({ i, role, ref:meta.texturePath, width:map.image.width, height:map.image.height,
         wrapS:map.wrapS, wrapT:map.wrapT, flipY:map.flipY });
     }
   }
-  return { hybridSlots, inputs, hasBase:roles.some(role => hybridSlots[role].length > 0) };
+  return { hybridSlots, inputs, hairInputs, hasBase:roles.some(role => hybridSlots[role].length > 0) };
 }
