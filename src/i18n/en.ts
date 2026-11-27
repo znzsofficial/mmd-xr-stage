@@ -2,6 +2,9 @@ import type { ZhMessages } from "./zh";
 
 /** English UI strings — must cover every key in zh. */
 export const en: Record<keyof ZhMessages, string> = {
+  shoreSeaward:'Tide steps · open sea',
+  shoreBoat:'Quay · fishing boat',
+  shoreBench:'Shelter · waiting bench',
   hudSeasideTerminus:'Seaside terminus',shorePlatform:'Platform · station sign',shoreWaterline:'Lower tide steps',shoreReturn:'Beacon · look back',shoreSounder:'Quay · tide dial',
   actorPelvic:'Pelvic attachment',
   screenInspectStand:'Look at stand',
@@ -66,7 +69,7 @@ export const en: Record<keyof ZhMessages, string> = {
   toyWand:'Cordless massage wand',guideWandVr:'Squeeze for low, high, then off. Feel the beat in the holding hand; the first touch accents one beat.',guideWandScreen:'Give it to a wrist. Use a pose or motion for contact; choose low or high for the soft head.',guideWandEnd:'With physics on, the head or grip can lift cloth even with the motor off.',
   wandMotor:'Wand motor',wandLow:'Low',wandHigh:'High',
   toyRemoteEgg:'Remote vibrating egg',guideEggVr:'Take the remote and fit the egg to an adult actor to start on low. Pick a pattern on the panel, or close it and squeeze to cycle through steady, rising, intermittent and off.',guideEggScreen:'Pick Low steady, Rising or Intermittent. Picking the current pattern keeps its timing. Watch the shell and supported facial expressions; enable physics for cloth contact.',guideEggEnd:'Stop motor leaves the egg in place. Pick any pattern to restart, or transfer the egg from another actor’s tools.',
-  eggWear:'Fit egg and start',eggTransfer:'Transfer here and start',eggControls:'Egg controls',eggStop:'Stop motor',eggRemove:'Remove egg',eggFit:'Adjust fit',eggReset:'Reset fit',eggMode:'Vibration pattern',eggOff:'Off',eggSteady:'Low steady',eggRamp:'Rising',eggPulse:'Intermittent',
+  eggWear:'Fit egg and start',eggTransfer:'Transfer here and start',eggControls:'Egg controls',eggStop:'Stop motor',eggRemove:'Remove egg',eggFit:'Adjust fit',eggCloth:'Waist front',eggChest:'Chest',eggReset:'Reset fit',eggMode:'Vibration pattern',eggOff:'Off',eggSteady:'Low steady',eggRamp:'Rising',eggPulse:'Intermittent',
   eggX:'Side',eggY:'Height',eggZ:'Depth',
   wandResponse:'Contact response',wandEnabled:'Enable contact response',wandDisabled:'Contact response off',wandMorph:'Contact expression',wandNone:'No expression',wandStrength:'Expression strength',wandNoMorph:'No supported vertex expressions on this model',
   toyFeather:'Feather teaser',guideFeatherVr:'Hold the lacquered grip and turn your wrist to sweep the plumes.',guideFeatherScreen:'Give it to either hand of your chosen adult character. Tilt the grip to aim the feathers.',guideFeatherEnd:'For posing only. Stow the brush or change sets to put it away.',

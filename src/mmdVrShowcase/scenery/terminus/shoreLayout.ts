@@ -15,7 +15,7 @@ export const bench={x:1.97,z:-3.62,w:.66,d:2.72,bottom:0,top:.87};
 export const sign={x:-2.0,z:-8.85,w:2.15,d:.16,bottom:0,top:2.32};
 export const gauge={x:6.8,z:-13.45,w:.42,d:.3,bottom:0,top:1.22};
 export const lantern={x:15.9,z:-11.78,w:1.02,d:1.02,bottom:0,top:4.6};
-export const SHORE_SUN: [number,number,number]=[-4.2,4.5,2.6];
+export const SHORE_SUN: [number,number,number]=[3,3,-7];
 export const canopyEaves={x:-.285,y:3.035,z:-1.23,w:6.78,d:11.73};
 export const posts=[2.68,-3.25].flatMap(x=>[-5.75,-1.25,3.25].map(z=>({x,z,w:.14,d:.15,bottom:0,top:2.93})));
 const shelter={x:-.3,z:-1.0,w:6.5,d:11.4,bottom:2.88,top:3.55};
@@ -34,4 +34,7 @@ export const shoreView={entry:[[-2.69,1.58,2.85],[1.58,1.19,-8.45]],shots:[
   {key:'shoreWaterline',eye:[2.1,1.04,-17.1],aim:[14.5,1.38,-13]},
   {key:'shoreReturn',eye:[14.32,1.55,-12.46],aim:[-1.12,1.28,-7.25]},
   {key:'shoreSounder',eye:[6.22,1.49,-11.32],aim:[6.8,1.02,-13.45]},
+  {key:'shoreSeaward',eye:[2.25,1.10,-17.21],aim:[6.65,1.10,-28.0]},
+  {key:'shoreBoat',eye:[9.5,1.6,-13.65],aim:[9.1,.1,-24.2]},
+  {key:'shoreBench',eye:[.31,1.11,-1.97],aim:[1.98,.49,-3.72]},
 ]} as const;

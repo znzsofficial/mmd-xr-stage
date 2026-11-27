@@ -11,12 +11,12 @@ import {gauge,shoreSight,sign} from './shoreLayout';
 import {HarbourWater} from './HarbourWater';
 import {PlatformFinish,StationClock,TicketOfficePrint} from './platformFinish';
 import {Headlands} from './coastline';
+import {WaitingBay} from './WaitingBay';
 
 function stationPrint(){return paintedSurface(1024,380,c=>{
   c.fillStyle='#eeefe9';c.fillRect(0,0,1024,380);c.fillStyle='#235653';c.fillRect(10,10,1004,5);c.fillRect(10,365,1004,5);
   c.fillStyle='#356459';c.fillRect(0,248,1024,112);c.fillStyle='#efe9d5';c.font='500 39px system-ui';c.fillText('←　海 岬',68,320);c.textAlign='right';c.fillText('终 点　•',958,320);
   c.textAlign='center';c.fillStyle='#253f3c';c.font='bold 105px SimSun,serif';c.fillText('海 边 终 点 站',512,151);c.font='500 35px system-ui';c.fillText('S E A S I D E   T E R M I N U S',512,216);
-  for(const x of [23,1001])for(const y of [26,353]){c.fillStyle='#9c9c88';c.beginPath();c.arc(x,y,5,0,7);c.fill();}
 });}
 function timetable(){return paintedSurface(480,600,c=>{c.fillStyle='#eadfc5';c.fillRect(0,0,480,600);c.fillStyle='#315952';c.fillRect(11,12,458,92);c.fillStyle='#f5eedb';c.textAlign='center';c.font='bold 42px serif';c.fillText('海 岸 线',240,72);c.fillStyle='#34534a';c.font='bold 30px system-ui';c.fillText('DEPARTURES',240,160);
   const times=['06:18','08:42','11:16','13:40','16:12','18:28'];for(let i=0;i<6;i++){const y=215+53*i;c.fillStyle='#c3baa1';c.fillRect(34,y+15,412,2);c.fillStyle='#394d45';c.textAlign='left';c.font='28px monospace';c.fillText(times[i],48,y);c.font='22px serif';c.fillText(i%2?'各站停靠':'往海岬',225,y);}
@@ -43,5 +43,5 @@ export function SeasideTerminus({shadows}:{shadows:boolean}){const p=useMemo(sta
     <Batch name="terminus:enamelled-ironwork" parts={p.enamel} roughness={.39} casts={shadows}/><Batch name="terminus:track-and-joinery" parts={p.trim} casts={shadows}/>
     <Batch name="terminus:tubular-iron" parts={p.tubes} round roughness={.39}/><Batch name="terminus:lamp-glass" parts={p.glow} lit/>
     <Batch name="terminus:breakwater-and-headland" parts={p.land} foliage/><Batch name="terminus:windbreak" parts={p.pines} foliage/>
-    <PlatformFinish shadows={shadows}/><StationClock/><TicketOfficePrint/><Headlands/><Signage/><HarbourWater clock={clock}/></group><Sounder clock={clock}/></group>;
+    <PlatformFinish shadows={shadows}/><WaitingBay shadows={shadows}/><StationClock/><TicketOfficePrint/><Headlands/><Signage/><HarbourWater clock={clock}/></group><Sounder clock={clock}/></group>;
 }

@@ -29,7 +29,7 @@ it('shades the sheltered platform tiles while leaving the open platform and far 
       .addScaledVector(new Vector3().fromBufferAttribute(colour,face.c),weights.z);
   }
   try{
-    const shade=sample(0,-4),sun=sample(-2.6,-4);
+    const shade=sample(-2.1,3.2),sun=sample(1.5,-4);
     expect(shade.x).toBeLessThan(shade.z);
     expect(shade.z).toBeLessThan(sun.z);
     expect(sun.toArray()).toEqual([1,1,1]);

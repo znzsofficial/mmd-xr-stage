@@ -1,5 +1,8 @@
 /** Chinese (zh) UI strings — source of truth for TranslationKey keys. */
 export const zh = {
+  shoreSeaward:'潮阶 · 向海望日',
+  shoreBoat:'干堤 · 海上渔舟',
+  shoreBench:'候车棚 · 木长椅',
   hudSeasideTerminus:'海边终点站',shorePlatform:'站台 · 搪瓷站牌',shoreWaterline:'潮阶 · 岸边',shoreReturn:'堤灯 · 回望站台',shoreSounder:'海堤 · 拨潮盘',
   actorPelvic:'骨盆附件',
   screenInspectStand:'近看支架',
@@ -64,7 +67,7 @@ export const zh = {
   toyWand:'无线按摩棒',guideWandVr:'侧握切低档、高档、关。持棒手随棒头振动，低档轻缓，高档更密；初触加重一拍。',guideWandScreen:'递给手腕后用动作或握姿接触；低／高档可压软头、叠加表情。',guideWandEnd:'开启角色物理，棒头或握柄都能托动活动衣摆，停机也有效。',
   wandMotor:'棒头档位',wandLow:'低速',wandHigh:'高速',
   toyRemoteEgg:'遥控跳蛋',guideEggVr:'拿遥控器，选成年角色并佩戴，即从低档常振开始。面板可直接点选节律；收起面板后，侧握依次切换常振、渐强、间歇和停机。',guideEggScreen:'点选低档常振、渐强或间歇；再点当前档不会从头开始。看佩戴者身上的外壳和适配表情，需要碰动裙片时再开角色物理。',guideEggEnd:'停机保留佩戴位置，点任一档即可重新启动。要换人，可在另一人面板直接转戴。',
-  eggWear:'佩戴跳蛋并启动',eggTransfer:'转戴到此人并启动',eggControls:'跳蛋控制',eggStop:'停机',eggRemove:'摘下',eggFit:'佩戴位置',eggReset:'复位位置',eggMode:'振动节律',eggOff:'关闭',eggSteady:'低档常振',eggRamp:'渐强',eggPulse:'间歇',
+  eggWear:'佩戴跳蛋并启动',eggTransfer:'转戴到此人并启动',eggControls:'跳蛋控制',eggStop:'停机',eggRemove:'摘下',eggFit:'佩戴微调',eggCloth:'腰前衣面',eggChest:'胸前',eggReset:'复位位置',eggMode:'振动节律',eggOff:'关闭',eggSteady:'低档常振',eggRamp:'渐强',eggPulse:'间歇',
   eggX:'横向',eggY:'高度',eggZ:'前后',
   wandResponse:'接触反馈',wandEnabled:'启用接触反馈',wandDisabled:'接触反馈已关',wandMorph:'接触表情',wandNone:'无表情',wandStrength:'表情强度',wandNoMorph:'此模型没有可用的顶点表情',
   toyFeather:'羽毛挑逗刷',guideFeatherVr:'握住漆柄，转动手腕即可挥动羽束。',guideFeatherScreen:'递给自选成年角色的左手或右手，调握姿可改变羽端朝向。',guideFeatherEnd:'只用于持握摆姿；收回或切景即可放下。',

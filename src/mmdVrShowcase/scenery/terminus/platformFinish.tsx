@@ -2,6 +2,7 @@ import {useEffect,useMemo} from 'react';
 import {BufferGeometry,Float32BufferAttribute,RepeatWrapping} from 'three';
 import {noPick,paintedSurface} from '../sceneryPaint';
 import {canopyEaves,platform,quay,SHORE_SUN} from './shoreLayout';
+import {stationClockPosition} from './waitingBayGeometry';
 
 // A hand-lettered railway travel print, not an external photo or a UI panel.
 function coastPrint(){return paintedSurface(420,600,c=>{
@@ -71,7 +72,5 @@ export function StationClock(){const plate=useMemo(()=>paintedSurface(320,320,c=
   c.fillStyle='#f2ead5';c.fillRect(0,0,320,320);c.translate(160,160);for(let i=0;i<60;i++){c.save();c.rotate(i*Math.PI/30);c.fillStyle=i%5?'#798176':'#364e48';c.fillRect(i%5?-1:-3,-142,i%5?2:6,i%5?6:15);c.restore();}
   c.fillStyle='#3d5046';c.textAlign='center';c.textBaseline='middle';c.font='bold 33px serif';for(const [s,x,y] of [['12',0,-99],['3',101,0],['6',0,102],['9',-101,0]] as const)c.fillText(s,x,y);
   for(const [a,w,l] of [[-.84,9,65],[1.69,5,95]]){c.save();c.rotate(a);c.fillRect(-w/2,-l,w,l+12);c.restore();}c.fillStyle='#a05b3c';c.beginPath();c.arc(0,0,7,0,7);c.fill();
-}),[]);useEffect(()=>()=>plate.dispose(),[plate]);return <group position={[-1.63,2.49,-5.72]}>
-  <mesh position-y={.40}><boxGeometry args={[.047,.37,.051]}/><meshStandardMaterial color="#42655d"/></mesh>
-  <mesh rotation-x={Math.PI/2}><cylinderGeometry args={[.284,.284,.147,48]}/><meshStandardMaterial color="#43625a" roughness={.44} metalness={.22}/></mesh>
+}),[]);useEffect(()=>()=>plate.dispose(),[plate]);return <group position={stationClockPosition}>
   {[-1,1].map(s=><mesh key={s} position-z={.075*s} rotation-y={s<0?Math.PI:0} raycast={noPick}><circleGeometry args={[.258,48]}/><meshStandardMaterial map={plate} roughness={.67}/></mesh>)}</group>;}

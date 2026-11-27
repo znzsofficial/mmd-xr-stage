@@ -24,12 +24,14 @@ import type {RoomLightingOverrides} from '../stage/lighting';
 // Deliberately separate from the prep-page catalog. The registry holds
 // component types, never mounted meshes, textures or inactive room worlds.
 type RoomSetDefinition=RoomLightingOverrides & {view:ComponentType<{shadows:boolean;concert:boolean}>;
-  sky?:'day'|'court'|'river'|'stars';warm?:boolean};
+  sky?:'day'|'court'|'river'|'stars'|'harbour';warm?:boolean};
 const day={sky:'day',hemi:.32,hemiSky:'#d4e5ee',hemiGround:'#a79d8d',fog:'#c5dfe6',warmFog:'#e7c8a7'} as const;
+const [shoreX,shoreY,shoreZ]=SHORE_SUN;
 export const roomSets:Record<SceneryId,RoomSetDefinition>={
-  seasideTerminus:{...day,view:SeasideTerminus,sun:SHORE_SUN,warm:true,
-    stageLight:{sun:1.55,sunColor:'#ffdfb5',ambientColor:'#e4f1f4'},
-    hemiSky:'#d7edf3',hemiGround:'#bdc9be',hemi:.86,fog:'#cddfe0'},
+  // Move the directional shadow camera up its own ray so the outer quay is in front of it.
+  seasideTerminus:{view:SeasideTerminus,sky:'harbour',sun:[shoreX*4,shoreY*4,shoreZ*4],
+    stageLight:{sun:1.58,sunColor:'#ffedce',ambientColor:'#e5efff'},
+    hemiSky:'#c8e4ff',hemiGround:'#ccd4ca',hemi:.86,fog:'#c2dde8',warmFog:'#e4d5c3'},
   arcadeHall:{...day,view:ArcadeHall,sun:[-4,6,3],ambient:.33,hemi:.65},
   glassPlanet:{view:GlassPlanet,sky:'stars',sun:[-5,3.2,3.8],hemiSky:'#e2d8fb',hemiGround:'#b4a0bf',hemi:.54,fog:'#15192f'},
   floor:{view:()=>null}, // StudioPlinth belongs to the shared StageFloor.

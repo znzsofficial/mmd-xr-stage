@@ -44,7 +44,7 @@ module.exports = function extendStereoShim() {
     const stats = s.stats = { layers: 0, frames: 0, submissions: 0, pending: 0, maxPending: 0, references: [] };
     s.enabledFeatures = [...init.requiredFeatures]; s.environmentBlendMode='opaque'; s.renderState = { depthNear: .05, depthFar: 30 };
     const floor=new EventTarget(), origin=rigid({x:0,y:0,z:0});
-    const rays=new Map(), grips=new Set(); let nextSelect;
+    const rays=new Map(), grips=new Set(), controllerGrips=new Map(); let nextSelect;
     for (const src of s.inputSources) {
       Object.assign(src,{profiles:[cfg.controllerProfile ?? 'generic-trigger'],targetRayMode:'tracked-pointer',targetRaySpace:{handedness:src.handedness}});
       Object.assign(src.gamepad,{mapping:'xr-standard',id:'',index:-1,connected:true,axes:[0,0,0,0],hapticActuators:[],timestamp:0});
@@ -56,6 +56,13 @@ module.exports = function extendStereoShim() {
       rays.set(src.targetRaySpace,aim(from,at));
     };
     for (const src of s.inputSources) s.aimRay(src.handedness,null);
+    // An authored controller take can roll the physical tool and lose only
+    // gripSpace. Its target ray remains independent of the other hand's UI.
+    s.setControllerPose=(side,grip,ray)=>{
+      const src=s.inputSources.find(a=>a.handedness===side&&!a.hand);
+      controllerGrips.set(src.gripSpace,grip&&rigid(grip.position,grip.orientation));
+      rays.set(src.targetRaySpace,ray&&rigid(ray.position,ray.orientation));
+    };
     s.swapToHand=side=>{
       const i=s.inputSources.findIndex(src=>src.handedness===side),old=s.inputSources[i];
       const hand=new Map([['wrist',{name:'wrist',side}]]);
@@ -100,7 +107,8 @@ module.exports = function extendStereoShim() {
         function world(space) {
           if(space===floor)return origin;
           if(rays.has(space)){stats.targetRayReads[space.handedness]++;return rays.get(space);}
-          if(!grips.has(space))return null;
+           if(!grips.has(space))return null;
+           if(controllerGrips.has(space))return controllerGrips.get(space);
           const t=gripPose(space,floor)?.transform;
           return t && rigid(t.position,t.orientation);
         }
@@ -112,14 +120,17 @@ module.exports = function extendStereoShim() {
         };
         for (const v of pose?.views ?? []) {
           const m=v.transform.inverse.matrix;
-          const yaw=take?.eyeYaw??0;
-          v.transform=rigid({x:cfg.sameEye?0:-m[12],y:take?.eyeY??-m[13],z:take?.eyeZ??-m[14]}, {x:0,y:Math.sin(yaw/2),z:0,w:Math.cos(yaw/2)});
+          const yaw=take?.eyeYaw??0,pitch=take?.eyePitch??0;
+          const side=cfg.sameEye?0:-m[12]-cfg.headX;
+          const sy=Math.sin(yaw/2),cy=Math.cos(yaw/2),sp=Math.sin(pitch/2),cp=Math.cos(pitch/2);
+          v.transform=rigid({x:cfg.headX+side*Math.cos(yaw),y:take?.eyeY??-m[13],z:(take?.eyeZ??-m[14])-side*Math.sin(yaw)},
+            {x:cy*sp,y:sy*cp,z:-sy*sp,w:cy*cp});
           // A finite WebGPU projection (clip-space Z in [0,1]). The lab's
           // infinite-far fixture doesn't exercise Three's frustum construction.
           const { depthNear: n, depthFar: z } = s.renderState;
           v.projectionMatrix[10] = z / (n-z); v.projectionMatrix[14] = z*n / (n-z);
         }
-        if(pose){const [l,r]=pose.views.map(v=>v.transform.position);pose.transform=rigid({x:(l.x+r.x)/2,y:l.y,z:l.z});pose.emulatedPosition=false;}
+        if(pose){const [l,r]=pose.views.map(v=>v.transform.position);pose.transform=rigid({x:(l.x+r.x)/2,y:l.y,z:(l.z+r.z)/2},pose.views[0].transform.orientation);pose.emulatedPosition=false;}
         f.getViewerPose = () => pose;
         try {
           const transition=pose && nextSelect;

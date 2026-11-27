@@ -7,6 +7,8 @@ import { DaySky } from '../scenery/DaylightSets';
 import { StudioPlinth } from '../scenery/StudioPlinth';
 import { showSceneryGrid, type SceneryId } from '../scenery/catalog';
 import { RiverSky } from '../scenery/qinhuai/Songhouse';
+import {HarbourSky} from '../scenery/terminus/HarbourSky';
+import {HarbourLight} from '../scenery/terminus/harbourAtmosphere';
 import { RoomSet, roomSets } from '../scenery/roomSets';
 import { StreetScenery } from '../scenery/routes/StreetScenery';
 import { hasStageLamps } from '../settings/stageLamps';
@@ -41,6 +43,7 @@ function Sky({scenery, lighting, warm}: {scenery: SceneryId; lighting: StageLigh
     case 'stars': return <PlanetSky/>;
     case 'river': return <RiverSky/>;
     case 'court': return <CourtSky/>;
+    case 'harbour': return <HarbourSky/>;
     case 'day': return <Day sun={lighting.sunPos} warm={warm || !!roomSets[scenery].warm}/>;
     default: return <GradientSky zenith={lighting.skyZenith} horizon={lighting.skyHorizon} bottom={lighting.fogColor}/>;
   }
@@ -74,17 +77,21 @@ type Props = {
 /** Render-only scenery shared by screen and XR. BackpackPlacement owns placement picks. */
 export function StageEnvironment({scenery, lighting, prefs, profile, sunRef}: Props) {
   const { viewDistance, lightPreset } = prefs;
-  const extent = profile.quality === 'high' ? 6 : profile.quality === 'balanced' ? 5 : 4;
-  const far = profile.quality === 'high' ? 24 : profile.quality === 'balanced' ? 20 : 16;
+  const harbour=scenery==='seasideTerminus';
+  const extent = harbour ? 13 : profile.quality === 'high' ? 6 : profile.quality === 'balanced' ? 5 : 4;
+  const far = harbour ? 58 : profile.quality === 'high' ? 24 : profile.quality === 'balanced' ? 20 : 16;
   const shadowSize = profile.shadows ? profile.shadowMapSize : 256;
   const rim = lighting.rimIntensity > 0 ? lighting.rimIntensity : .28;
   const lamps = hasStageLamps(scenery);
   // The opt-in GPU stage does not enable renderer shadow maps. Both daylight
   // sets need their baked shading even if the WebGL preference requests shadows.
   const useBakedDay=!!useContext(DaylightMaterials) && (scenery==='classroom'||scenery==='seasideTerminus');
-  return <>
+  const harbourLight=useMemo(()=>({lighting,skyEnabled:prefs.stageSkyEnabled}),[lighting,prefs.stageSkyEnabled]);
+  // Keep the outer cliffs distinct while admitting sea air along their feet.
+  const fogFar=harbour?Math.max(65,viewDistance):viewDistance;
+  const environment=<>
     <color attach="background" args={['#171a1d']}/>
-    {prefs.stageFogEnabled && scenery!=='glassPlanet' && <fog attach="fog" args={[lighting.fogColor, Math.min(10, viewDistance*.45), viewDistance]}/>}
+    {prefs.stageFogEnabled && scenery!=='glassPlanet' && <fog attach="fog" args={[lighting.fogColor, Math.min(10, viewDistance*.45), fogFar]}/>}
     {prefs.stageSkyEnabled && <Sky scenery={scenery} lighting={lighting} warm={lightPreset==='warm'}/>}
     <ambientLight color={lighting.ambientColor} intensity={lighting.ambient}/>
     <directionalLight ref={sunRef} position={lighting.sunPos} color={lighting.sunColor} intensity={lighting.sun}
@@ -101,4 +108,5 @@ export function StageEnvironment({scenery, lighting, prefs, profile, sunRef}: Pr
     {lamps && prefs.stageLightPoolEnabled && <LightPool color={lighting.poolColor} opacity={Math.min(.14, rim*.08)}/>}
     {showSceneryGrid(scenery, profile.showGrid, prefs.gridPref==='on') && <gridHelper args={[12,12,'#d8dce0','#a5aaae']} position={[0,.01,0]}/>}
   </>;
+  return harbour?<HarbourLight.Provider value={harbourLight}>{environment}</HarbourLight.Provider>:environment;
 }

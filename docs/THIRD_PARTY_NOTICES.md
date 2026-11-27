@@ -2,6 +2,16 @@
 
 This file records notices for third-party code copied into the repository rather than installed only through the package manager.
 
+## Seaside Terminus sky and shoreline
+
+The two WebP hemispheres in `public/scenery/terminus/` derive from [**Kloofendal 48d Partly Cloudy (Pure Sky)**](https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky), photographed by Greg Zaal, with sky edits by Jarod Guest. Poly Haven releases this HDRI under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) ([asset licence and redistribution terms](https://polyhaven.com/license)). The [original 4K Radiance HDR](https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/4k/kloofendal_48d_partly_cloudy_puresky_4k.hdr) has MD5 `816340c969d2e60d659051d13ac3c4dc`.
+
+The station uses the upper hemisphere only. The sun-facing cloud bank is reprojected above the room key, keeping the horizon and zenith fixed and leaving a clear line of sight to the sun from the steps. The HDR exposure is compressed and graded for blue marine daylight. The photographic solar core is removed for a directional disc and aureole drawn at runtime, and the lowest few degrees are blended into coastal haze. The 512 × 128 water reflection is an area average of the same 4096 × 1024 sky in linear light. The source HDR is not distributed with the game.
+
+The harbour cliff albedo and tangent normal derive from [**Cliff Side**](https://polyhaven.com/a/cliff_side), photographed by James Ray Cock and Dario Barresi, processed by Jenelle van Heerden, under the same CC0 licence. The stage uses a desaturated, resized 768px albedo and a resized, renormalized 384px OpenGL normal map. Source 1K JPEG MD5: `a64986e5f858e4f8df30f0394ededd78` (diffuse), `604fd4101fe5ad92181c22b96ed795c5` (normal).
+
+The bench and ticket shelf use board strips cropped from [**Oak Wood Planks**](https://polyhaven.com/a/oak_wood_planks) by Dimitrios Savva (Poly Haven, CC0 1.0). [`bake-waiting-bay.py`](../src/mmdVrShowcase/scenery/terminus/bake-waiting-bay.py) verifies the original 2K diffuse and roughness maps and adds the cut ends, wear and metal finishes to the two local atlases. No third-party textures are requested at runtime.
+
 ## Planetoid locomotion (npm packages)
 
 The on-demand XR planet module uses [React Three Rapier 2.2.0](https://github.com/pmndrs/react-three-rapier) and [Rapier JS 0.19.2](https://github.com/dimforge/rapier.js) (Apache-2.0). Its WASM is distributed in the compat package. The standalone planet experiment and retained earlier release modules use [Ecctrl 2.0.2](https://github.com/pmndrs/ecctrl) (MIT, © 2023–2026 Erdong Chen). These are independent of the MMD Bullet backend.

@@ -1,6 +1,7 @@
 import type {Part} from '../SceneryBatch';
 import {span} from '../detailParts';
-import {bench,booth,canopyEaves,floors,gauge,lantern,posts,railRuns,sign} from './shoreLayout';
+import {booth,canopyEaves,floors,gauge,lantern,posts,railRuns} from './shoreLayout';
+import {beaconPaint} from './harbourFixtures';
 
 export function stationParts(){
   const enamel:Part[]=[],trim:Part[]=[],tubes:Part[]=[],glow:Part[]=[],land:Part[]=[],pines:Part[]=[];
@@ -26,7 +27,7 @@ export function stationParts(){
     trim.push(span([x,-.14,-8.94],[x,.75,-8.12],.16,oxide),span([x,-.14,-7.18],[x,.75,-8.12],.16,oxide));}
   box(-6,.76,-8.15,2.62,.27,.30,'#ad6249');for(const x of [-6.77,-5.23]){box(x,.76,-7.94,.31,.32,.22,'#453f37');box(x,.76,-8.325,.69,.083,.016,cream);}
   // Enamelled riveted ironwork; shallow gable, visible rafters and battens.
-  for(const post of posts){const {x,z}=post;box(x,1.47,z,.13,2.94,.15,steel,enamel);box(x,.16,z,.24,.32,.26,'#888579');box(x,1.44,z,.155,.061,.175,brass);
+  for(const post of posts){const {x,z}=post;
     for(const dz of [-.55,.55])enamel.push(span([x,2.41,z],[x,2.94,z+dz],.065,mint));}
   for(const x of [-3.25,2.68])box(x,2.98,-1.28,.14,.19,11.42,steel,enamel);
   for(let z=-6.82;z<4.56;z+=1.12){box(-.285,3.03,z,6.32,.12,.077,'#817e64');for(const side of [-1,1])trim.push(span([-.285,3.64,z],[-.285+side*3.35,3.05,z],.077,cream));}
@@ -37,25 +38,22 @@ export function stationParts(){
   for(const z of [-5.2,2.66]){rod([-.35,3.46,z],[-.35,2.79,z],.022);box(-.35,2.76,z,.45,.07,.28,steel);box(-.35,2.718,z,.34,.025,.21,'#ffe7b6',glow);}
   // Old ticket office: a service opening, sliding sash, shelf and lower
   // vertical boarding; windows face the passenger aisle (west side).
-  const b=booth,front=b.x-b.w/2;box(b.x,1.26,b.z,b.w,2.52,b.d,'#e4e3d6');box(b.x,.38,b.z,b.w+.035,.76,b.d+.035,'#8daba0');
-  for(let z=b.z-b.d/2+.08;z<b.z+b.d/2;z+=.155)box(front-.021,.38,z,.018,.68,.012,steel);
+  const b=booth,front=b.x-b.w/2;box(b.x,1.26,b.z,b.w,2.52,b.d,'#e4e3d6');box(b.x,.38,b.z,b.w+.035,.76,b.d+.035,'#859388');
+  box(b.x,.735,b.z,b.w+.047,.036,b.d+.047,'#acb5a6');box(b.x,.034,b.z,b.w+.047,.067,b.d+.047,'#727f73');
   box(front-.025,1.53,b.z,.04,1.15,3.25,'#3d5c5a');box(front-.052,1.56,b.z,.042,.91,3.01,'#75959a');
   for(const z of [-.9,0,.95])box(front-.081,1.54,b.z+z,.045,1.04,.054,cream);
   for(const y of [1.045,1.85,2.06])box(front-.09,y,b.z,.07,.055,3.2,cream);
-  box(front-.15,1.016,b.z,.35,.07,3.5,'#9a7959');box(b.x,2.6,b.z,b.w+.17,.12,b.d+.24,steel);
+  box(b.x,2.6,b.z,b.w+.17,.12,b.d+.24,steel);
   for(let z=-.72;z<3.7;z+=.32)box(b.x,2.671,z,b.w+.12,.022,.028,mint);
-  for(const dz of [-.94,.94]){const z=bench.z+dz;box(bench.x,.20,z,.48,.40,.13,steel,enamel);box(bench.x+.26,.59,z,.075,.59,.075,steel,enamel);}
-  for(let i=0;i<4;i++)box(bench.x-.24+i*.14,.454,bench.z,.118,.061,bench.d,i%2?'#ba895e':'#b17e55');
-  for(let i=0;i<3;i++)box(bench.x+.29,.595+i*.11,bench.z,.065,.092,bench.d,'#ad7d57');
-  for(const dx of [-.90,.90]){const x=sign.x+dx;box(x,1.14,sign.z,.072,2.28,.072,steel,enamel);box(x,.10,sign.z,.20,.20,.20,'#969385');}
-  box(sign.x,1.85,sign.z,2.17,.84,.115,steel,enamel);
   // Tubular guard rails leave both sets of steps open from the dry upper quay.
   for(const [x,z,a,bz] of railRuns){const n=Math.ceil(Math.hypot(a-x,bz-z)/1.55);for(let i=0;i<=n;i++){const k=i/n,px=x+(a-x)*k,pz=z+(bz-z)*k;
     rod([px,.025,pz],[px,.91,pz],.049);box(px,.029,pz,.135,.058,.135,'#696f63');}
     for(const y of [.49,.89])rod([x,y,z],[a,y,bz],y>.5?.049:.030);}
   const l=lantern;box(l.x,.17,l.z,1,.34,1,'#a2a18c');
-  rod([l.x,.32,l.z],[l.x,3.53,l.z],.51,cream);for(const y of [1.05,2.40])rod([l.x,y,l.z],[l.x,y+.58,l.z],.523,oxide);
-  rod([l.x,3.48,l.z],[l.x,3.62,l.z],.82,'#445d57');rod([l.x,3.63,l.z],[l.x,4.13,l.z],.53,'#f9df95');
+  const paint=beaconPaint;
+  rod([l.x,paint.shaftBottom,l.z],[l.x,paint.shaftTop,l.z],paint.shaftWidth,cream);
+  for(const y of paint.stripeStarts)rod([l.x,y,l.z],[l.x,y+paint.stripeHeight,l.z],.523,oxide);
+  rod([l.x,3.48,l.z],[l.x,3.62,l.z],.82,'#445d57');rod([l.x,paint.glassBottom,l.z],[l.x,paint.glassTop,l.z],paint.glassWidth,'#f9df95');
   for(let i=0;i<6;i++){const x=l.x+.278*Math.sin(i*Math.PI/3),z=l.z+.278*Math.cos(i*Math.PI/3);rod([x,3.62,z],[x,4.15,z],.031);}
   rod([l.x,4.12,l.z],[l.x,4.23,l.z],.76,steel);rod([l.x,4.23,l.z],[l.x,4.5,l.z],.065,brass);
   box(gauge.x,.49,gauge.z,.19,.98,.21,steel,enamel);box(gauge.x,1.02,gauge.z,.44,.33,.15,cream,enamel);

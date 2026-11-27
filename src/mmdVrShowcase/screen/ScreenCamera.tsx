@@ -52,7 +52,7 @@ export function ScreenCamera({actions,onReady,onCloseUpChange,viewport}:{actions
       arrival.current=null;return false;
     }};
     const canOrbit=()=>!useBackpack.getState().draft&&!usePoseSession.getState().dragging;
-    const makeOrbit=()=>{orbitUp.copy(camera.up);const o=new OrbitControls(camera,gl.domElement);o.minDistance=.18;o.maxDistance=scenery==='astralCourt'?52:scenery==='glassPlanet'?38:22;o.maxPolarAngle=Math.PI*(scenery==='qinhuai'?.64:scenery==='glassPlanet'?1:scenery==='arcadeHall'?.99:.49);o.rotateSpeed=.70;o.enabled=canOrbit();return o;};
+    const makeOrbit=()=>{orbitUp.copy(camera.up);const o=new OrbitControls(camera,gl.domElement);o.minDistance=.18;o.maxDistance=scenery==='astralCourt'?52:scenery==='glassPlanet'?38:22;o.maxPolarAngle=Math.PI*(scenery==='qinhuai'?.64:scenery==='glassPlanet'?1:scenery==='arcadeHall'?.99:scenery==='seasideTerminus'?.83:.49);o.rotateSpeed=.70;o.enabled=canOrbit();return o;};
     let orbit=makeOrbit();const wup=[0,1,0] as const;
     function align(up:readonly [number,number,number]=wup,preserveHeld=false){
       camera.up.fromArray(up);if(orbitUp.distanceToSquared(camera.up)<1e-10)return;

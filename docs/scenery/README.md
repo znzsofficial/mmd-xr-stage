@@ -2,9 +2,11 @@
 
 **十七个独立布景，主列表十一个入口。** [屏幕直接进星环传送大厅](https://mmd-xr-stage.pages.dev/?set=astralCourt&view=screen) · [Quest 入口](https://mmd-xr-stage.pages.dev/?set=astralCourt) · [角色站位](../gameplay/vr-controls.md#在布景中给角色选位置) · [接入新区域](./adding-a-set.md)
 
-**[海边终点站](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&view=screen)**：沿候车棚走到终点站牌，轨道在车挡收尾。右转上干海堤，在堤灯前放角色，或走两端阶梯下到潮道。点堤边拨潮盘可提前涨落；下层受淹时走得更慢，演员留在站台或海堤。屏幕导览可从水线回望站台。
+**海边终点站（本地候选，`/?set=seasideTerminus&view=screen`）**：从候车棚走到终点站牌，右转沿干堤放人，或从两端阶梯下到潮道。「潮阶 · 向海望日」能同时看见晴空的日盘和水面碎光；「干堤 · 海上渔舟」可近看船舱。均衡／低档反射云天，高档水面额外反射船、堤灯和两段岸壁，使用有限几何近似，不再画一次场景。海阶受淹时透过浅水可见石缝，涉水减速；拨潮盘可提前涨落。云图为静态摄影半球，海雾为距离近似；[摄影来源](../THIRD_PARTY_NOTICES.md#seaside-terminus-sky-and-shoreline)。
 
 星环遗庭的罗盘旁有六扇星门：黑绒私摄棚、情侣套房、双人私汤、中世纪刑讯室、Live House 和简易地台（月面邮局）。鼠标点击门中的实景；VR 先收起菜单，用射线瞄准门面，按下并松开扳机。回程点「返回大厅」（VR：右 B 召回后点）。每景仍记自己的角色、动作和摆位，原来的直达链接也可用。琉璃小行星和晨光礼拜堂仍在主列表。
+
+海站的「候车棚 · 木长椅」可近看顺纹、切口、磨亮的座板与铸铁支座。旧椅和新椅在同一光照、同一机位比较；关实时阴影时，新增座椅／站具合并的一次不透明绘制和一次接地阴影。岩岬采用按岸线连续展开的摄影石纹与法线，船舷、护栏、索具和驾驶舱窗框合并绘制。WebGL/WebGPU 共用场景数据；在桌面 GPU 模拟双眼中，同朝向横移半米，天空取样区保持不动，水面产生视差，回到原位时两个取样区都恢复。未据此推算 Quest 帧率。对照保存在 `local-review/screenshots/sunny-harbour/`。
 
 - **校园**：[教室、草坪、门诊和泳池](./campus-garden-routes.md)已有三条双向连接；[校园电玩环线](./campus-arcade-loop.md)将[双层电玩厅](./arcade-hall.md)接入步行网。门诊内三间房共享一层，原有护士默认隐藏。[陈列与显隐](./clinic-teaching.md)
 - **江南**：[双喜堂](./wedding-court.md)看喜幔、婚书与喜房；沿[枕河街](./jiangnan-river-street.md)可到[秦淮歌楼](./qinhuai.md)埠头、听曲廊和月蘅馆。跨景各存布局，楼内步行不卸载角色。
