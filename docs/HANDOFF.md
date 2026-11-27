@@ -1,11 +1,11 @@
 # 会话交接｜2026-11-27
 
-**本轮已结项，无待发布的产品改动。** [正式舞台](https://mmd-xr-stage.pages.dev) · [WebGPU 海站](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [`c8758cf` 固定部署](https://0ae4a810.mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [发布记录](./release-history.md)。后续产品改动验证通过就发布，除非用户明确要求暂缓。
+**本轮已结项，无待发布的产品改动。** [正式舞台](https://mmd-xr-stage.pages.dev) · [WebGPU 海站](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [`b124f61` 固定部署](https://703e0c9c.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md)。后续产品改动验证通过就发布，除非用户明确要求暂缓。
 
 ## 正式站能做什么
 
 - 17 个布景、13 件背包道具。WebGL 和 WebGPU 可在同一标签页续接 **3 名 PMX 演员＋3 件 GLB/glTF 物件**的布局，保留各自的动作、材质、摆位和舞段时刻。屏幕观看与默认 XR 入口仍用 WebGL。[物件导入](./gameplay/asset-workflow.md#放一件-glb-或-gltf) · [跨后端、换肤、接触和阴影的实绘对照](./webgpu-xr-status.md#混合布局材质与环境的画面对照)
-- 正式制品通过 1090 项舞台测试和 31 项工具测试；部署后核对 17 项主域页面与资源，并在模拟 XR 实际进入海站、提交双眼、退出。穿衣演员与混合布局验证使用桌面硬件 GPU；本版未测 Quest 的持续帧率或实机触感，未安排玩家补测。[角色工具回归](./performance/actor-tools-regression.md) · [历史 Quest 记录及不可直接比较的原因](./performance/quest-floor-dance.md)
+- 新增种付位、俯卧侧屈膝和后撑分腿坐；[半透明搭档](./gameplay/pelvic-attachment.md#选择支架或半透明搭档)可替代支架与假阳具。尺寸页直接预览面板阴道模型；自动往复可从主操作排预约一次体外释放。正式制品通过 1107 项舞台＋31 项工具测试；17 项主域页面与资源一致。屏幕 WebGL 与模拟 WebGPU XR 均使用桌面硬件 GPU 和本地 PMX，未测 Quest 实戴。[角色工具回归](./performance/actor-tools-regression.md#阴道尺寸快速体位与半透明搭档) · [历史 Quest 记录](./performance/quest-floor-dance.md)
 
 ## Loader 和上游 PR
 
