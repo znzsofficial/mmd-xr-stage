@@ -1,6 +1,6 @@
 # MMD XR Stage 文档
 
-**会话压缩后先读[交接页](./HANDOFF.md)。** 查线上功能看[发布记录](./release-history.md)；想接着改善体验看[流程与 HUD 评审](./gameplay/actor-flow-review.md)，想查帧率看[性能优先级](./performance/README.md)。[角色工具回归](./performance/actor-tools-regression.md)记录实模和模拟双眼测到了什么，[下次 Quest 导出](./performance/next-quest-export.md)列出仍缺的真机证据。
+**会话压缩后先读[交接页](./HANDOFF.md)。** 查线上功能看[发布记录](./release-history.md)；下一项玩法建议与验收条件在[角色工具候选](./gameplay/next-actor-tools.md#候选主动表情)，查慢帧从[WebGPU 单人播舞](./performance/README.md#webgpu-单人播舞)开始。[角色工具回归](./performance/actor-tools-regression.md)记录实模和模拟双眼测到了什么，[下次 Quest 导出](./performance/next-quest-export.md)列出仍缺的真机证据。
 
 | 要做什么 | 入口 |
 |---|---|
