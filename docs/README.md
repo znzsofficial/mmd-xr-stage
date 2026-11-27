@@ -4,7 +4,7 @@
 
 | 要做什么 | 入口 |
 |---|---|
-| 接续 WebGPU 正式发布 | [剩余单角色能力、可并行分工和发布条件](./webgpu-xr-status.md#下一版补齐单角色玩法并开放到正式站) · [部署与主域核验](./deployment.md#当前部署路径) |
+| 从哪里进 WebGPU，哪些功能要用 WebGL | [当前正式版：入口、玩法和后端选择](./webgpu-xr-status.md#当前正式版) |
 | 导入、摆角色、观看、续场 | [文件与背包](./gameplay/asset-workflow.md) · [Blender 角色包](./gameplay/blender-characters.md) · [屏幕键鼠](./gameplay/screen-viewing.md) · [VR 控制](./gameplay/vr-controls.md) |
 | 编辑已上场的角色 | [服装、互动与身体观察](./gameplay/actor-tools.md) · [快速体位](./gameplay/pose-and-body-states.md#快速体位) · [手动调关节](./gameplay/pose-and-body-states.md#从站姿调成坐姿) · [胸型与观察](./gameplay/pose-and-body-states.md#先看模型上的胸型变化) · [泌乳效果](./gameplay/pose-and-body-states.md#泌乳目前能看到什么) · [支架与附件](./gameplay/pelvic-attachment.md) |
 | 查裙摆掉回腿间、侧髋或深跪穿模 | [微调后的前幅、深跪小腿与黑斑反例](./performance/pose-cloth-contact.md) · [仰卧侧边与腰饰](./performance/supine-side-skirt.md) · [三种裙型的早期对照](./performance/actor-tools-regression.md#手动体位的局部裙片修正) · [Quest 短测](./performance/next-quest-export.md#裙摆与外阴近景) |
