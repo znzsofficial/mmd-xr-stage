@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { stageBuild } from '../../shared/stageBuild';
 import {supportsWebgpuRoom} from '../xr/floorBackend';
+import { getMmdVrClock } from '../stage/mmdVrClock';
 import type { RenderDiagnostics, RenderRequest } from "./renderDiagnostics";
 import type { BackpackPlacementTiming } from "../backpack/store";
 import type { SceneryId } from '../scenery/catalog';
@@ -13,7 +14,14 @@ export type XrBackend = 'webgl' | 'webgpu';
 type EyeSize = {eye:XREye;width:number;height:number};
 type SceneSample = { models: number; objects: number; physics: boolean; scenery?: string; liveHouse: boolean; shadows: boolean; playing: boolean; actorStyle?:string; clothMode?:string; actorPalmClothRequested?:boolean; heldToy?: import('../play/stagePlay').Toy | null; planetMovement?:ReturnType<typeof import('../movement/planetDiagnostics').samplePlanetMovement>;figureWork?:FigureWork;rodState?:'parked'|'running'|'inside' };
 type MovementSample = { playerStance?:ReturnType<typeof import('../movement/stanceDiagnostics').samplePlayerStance> };
-type Window = Omit<RenderDiagnostics, "requested" | "active"> & SceneSample & MovementSample & { elapsedMs: number; eyeViewports:EyeSize[]; intervals:number; intervalsWithRate:number; slowIntervals:number };
+type Window = Omit<RenderDiagnostics, "requested" | "active"> & SceneSample & MovementSample & {
+  elapsedMs: number;
+  eyeViewports: EyeSize[];
+  intervals: number;
+  intervalsWithRate: number;
+  slowIntervals: number;
+  stageClock?: { timeMs: number; durationMs: number };
+};
 const MAX_WINDOWS = 1800;
 
 /** Aggregates in page memory; only visible XR callback intervals enter the histogram. */
@@ -88,7 +96,12 @@ export function createPerformanceRecording(requested: RenderRequest, entryStarte
     },
     sample(data: RenderDiagnostics, scene: SceneSample & MovementSample) {
       const { requested: _requested, active: _active, ...metrics } = data;
+      // Window-end observation, not a wall-time estimate of the VMD position.
+      const { time, duration: motionDuration } = getMmdVrClock();
+      const stageClock = scene.models === 1 && motionDuration > 0 && time <= motionDuration
+        ? { timeMs: Math.round(time * 1000), durationMs: Math.round(motionDuration * 1000) } : undefined;
       windows[written++ % MAX_WINDOWS] = { elapsedMs: Math.round(duration), ...scene, ...metrics, eyeViewports,
+        ...(stageClock && { stageClock }),
         intervals:count-lastCount,intervalsWithRate:knownBudget-lastKnown,slowIntervals:late-lastLate };
       lastCount=count;lastKnown=knownBudget;lastLate=late;
     },

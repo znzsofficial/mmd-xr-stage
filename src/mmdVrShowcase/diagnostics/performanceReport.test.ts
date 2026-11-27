@@ -1,9 +1,34 @@
 import { describe, it, expect, vi } from "vitest";
 import { beginPerformanceAttempt, createPerformanceRecording, publishPerformanceReport, samePagePair,useLastPerformanceReport } from "./performanceReport";
 import type { RenderDiagnostics } from "./renderDiagnostics";
+import { resetMmdVrClock, setMmdVrClockDuration, setMmdVrClockTime } from '../stage/mmdVrClock';
 
 const request = { frameRate: "120 Hz", antialias: true, framebufferScale: 1, foveation: null };
 describe("completed XR performance report", () => {
+  it.each(['webgl', 'webgpu'] as const)('exports the single-actor stage clock independently of visible time (%s)', backend => {
+    const recording = createPerformanceRecording(request, null, backend);
+    const metrics = { requested: request, active: true } as RenderDiagnostics;
+    const sample = (models: number, playing: boolean) => {
+      recording.interval(1, 120);
+      recording.sample(metrics, { models, objects: 0, playing, physics: true, liveHouse: false, shadows: false });
+    };
+    resetMmdVrClock();
+    try {
+      sample(1, false); // no motion yet
+      setMmdVrClockDuration(16.133333);
+      setMmdVrClockTime(11.3204);
+      sample(1, true);
+      sample(1, false); // held pose while callback time still advances
+      setMmdVrClockTime(0);
+      sample(1, true); // loop or seek; no extrapolation from elapsedMs
+      sample(0, false);
+      sample(2, true);
+      const { windows } = recording.finish()!;
+      expect(windows.map(w => w.elapsedMs)).toEqual([0, 1000, 2000, 3000, 4000, 5000]);
+      const held = { timeMs: 11320, durationMs: 16133 };
+      expect(windows.map(w => w.stageClock)).toEqual([undefined, held, held, { timeMs: 0, durationMs: 16133 }, undefined, undefined]);
+    } finally { resetMmdVrClock(); }
+  });
   it('compares only matching single-room runs, retaining a visible stall but not a tracking gap or an invented Hz',()=>{
     const run=(backend:'webgl'|'webgpu',scenes:string[])=>{
       const r=createPerformanceRecording(request,null,backend);scenes.forEach(s=>r.scene(s));
