@@ -9,6 +9,9 @@ const files = [
   ['bf94c6d3','index-CuPTWg9O.js','105f898d28db633865bc1a8655c86151eedfb451a643a2fb897f208d746d007b'],
   ['bf94c6d3','stage-host-CoaHNyfO.js','e01e2e7e73a98913c5877c25946dde469a5c1955e5f6b93f233d34b55e8afb25'],
   ['bf94c6d3','PlanetPhysics-DgZhXRUR.js','66725a4b479ba9fa6b23aab8e564bd5e8413bffade9f9436fa28234c0d3a8615'],
+  ['bf94c6d3','emulate-cLu1rowc.js','c69ec5594d6ba5f3bc02a36ea20530fd92ab5926e0d258e8264b8ab0f64b687c'],
+  ['bf94c6d3','__vite-browser-external-PNOBllL0.js','ff6e561efd039c71a40fe4a787697498f143c89180a8d70698fb2952df7a187b'],
+  ['bf94c6d3','rapier-xXJW31G1.js','dbb97f48daedcd14e6ac59849712274075de8a1264f6605b7844f62c9ff8d2b4'],
   // Vite 8.4 renames shared chunks even when the package source is unchanged.
   ['9d9f1ae6','three.module-DVJnBgdk.js','b476d87290924fc73209689ed51577abe9a985e383f27a4ac3f6bd632193a5c8'],
   ['9d9f1ae6','three.core-B3xvqeNo.js','2ab09df1ace934298a5055887c017d6886e7bab66c68447949a8735f366cc847'],
