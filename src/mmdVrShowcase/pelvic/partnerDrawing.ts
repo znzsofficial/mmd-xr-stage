@@ -95,9 +95,15 @@ export function createPartnerDrawing(host:Object3D,actor:Object3D,anchor:Object3
     // a preset ID: manual edits, new presets and a playing VMD take this path.
     torso.rotation.x=-.06-.91*low;head.rotation.x=-.17-.12*(1-low);
     if(joints.neck)neck.applyMatrix4(inverse);
-    let width=.16+.08*low;
+    let width=.16+.08*low,braceY=(entry.y+.15)*(1-low)+(floor+.022)*low;
     for(const knee of joints.knees)if(knee){knee.getWorldPosition(joint).applyMatrix4(inverse);
-      if(joint.y>entry.y+.08)width=Math.max(width,Math.min(.53,Math.abs(joint.x-entry.x)+.105));}
+      // A tucked pelvis can sit higher than its own folded knees. Check for
+      // a knee alongside the torso, not just its elevation above the socket.
+      if(joint.y>entry.y-.08&&joint.z<entry.z+.12){
+        width=Math.max(width,Math.min(.53,Math.abs(joint.x-entry.x)+.115));
+        braceY=Math.max(braceY,joint.y-.025);
+      }
+    }
     for(const limb of limbs){
       const s=limb.sign;
       leg.set(s*.097,-.026,.014);
@@ -105,9 +111,8 @@ export function createPartnerDrawing(host:Object3D,actor:Object3D,anchor:Object3
       limb.foot.position.copy(limb.leg(leg,target,pole.set(s*(.48+.65*low),-.52,-1),floor+.056));
       limb.foot.rotation.y=-s*.13;
       shoulder.set(s*.175,.426,.005).applyQuaternion(torso.quaternion);
-      const handY=(entry.y+.15)*(1-low)+(floor+.022)*low;
       const reach=joints.neck?clamp((neck.z-entry.z)*.77,-.50,-.10):-.14-.21*low;
-      target.set(entry.x+s*width,Math.max(floor+.022,handY),entry.z+reach);
+      target.set(entry.x+s*width,Math.max(floor+.022,braceY),entry.z+reach);
       limb.hand.position.copy(limb.arm(shoulder,target,pole.set(s*.84,.09,.68),floor+.044));
       limb.hand.rotation.set(-.70*(1-low),s*.11,0);
     }
