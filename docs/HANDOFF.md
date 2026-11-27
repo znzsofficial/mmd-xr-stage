@@ -1,12 +1,20 @@
 # 会话交接｜2026-11-27
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [WebGPU 直达](https://mmd-xr-stage.pages.dev/?set=astralCourt&xrBackend=webgpu) · [本轮固定版](https://9d9f1ae6.mmd-xr-stage.pages.dev/?set=astralCourt&xrBackend=webgpu) · [发布记录](./release-history.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [正式 WebGPU 入口](https://mmd-xr-stage.pages.dev/?set=astralCourt&xrBackend=webgpu) · [线上 `3aa231f` 固定版](https://9d9f1ae6.mmd-xr-stage.pages.dev/?set=astralCourt&xrBackend=webgpu) · [发布记录](./release-history.md)
 
 **线上仍是 `3aa231f`；本机候选按玩家要求暂不发布。** 本机主列表恢复只显示大布景，六个片场通过星环遗庭或旧链接进入。新建的海边终点站是第 17 景：沿站台上干堤，拨潮盘提前涨落；堤下潮阶能涉水，两端均可走回。小行星撤下 07 潮汐洞星，旧干台布局在恢复时迁回母星北台，01–06 编号不变。终点站的屏幕／模拟 XR 实走见 `scripts/verify-seaside-walk.cjs`。提丰两份 PMX 的脸色按同灯同姿比较，见[角色画风记录](./scenery/character-toon-references.md)。
 
 **本机工具链：**Node 26.13.1、pnpm 11.29、Vite 8.4、Vitest 5.1.2；`@types/node` / `@types/react` 分别更新至 26.6.11 / 19.3.3。独立 Babylon 对照实验使用 9.38，不进入游戏。主项目 Rapier 与 `@react-three/rapier` 继续配套 0.19.2，Three r187、loader fork 和 XR 输入补丁保持锁定。
 
-## 本机候选：人物与房间共用光色
+## 压缩后先做：补齐剩余单角色适配，尽快上正式站
+
+**从 `8f1006f` 的已验功能接续。** 本机 17 景、12/13 件道具；正式站仍为上方链接的 16 景版本。`8f1006f` 已走完整发布准备（1075 项舞台＋31 项工具测试，393 个文件），但没有推送、部署。用户这次要的是整理文档和下轮排期；上次「先别发布」仍适用于本次收尾。
+
+1. **并行补三组缺口**：最后一件无线按摩棒的可见接触与触觉；衣柜＋独立身体观察／设置；手动摆姿＋插入的手选开合形态、支架手法录放。复用同一演员、同一套道具和服装状态，别再造 WebGPU 版玩法。
+2. **一趟验新增能力，一份包上线**：穿衣实模换衣 → 摆姿与回放 → 道具接触与停机 → 退出续场／WebGL 回退。设备可用时补一次集中的 Quest 3S 短测。按[适配与发布清单](./webgpu-xr-status.md#下一版补齐单角色玩法并开放到正式站)收束；拿最终提交的已测制品上线并验证主域。
+3. **后排事项**：GLB 物件、多人、默认后端切换不阻塞这个单角色里程碑。Quest 慢舞段等有同机同段记录再归因；当前没有证据支持用环境降画质换角色提速。
+
+## 本次在本机完成：布景、角色与玩法
 
 - **场内**：WebGPU 右 B → 更多 → 环境，可直接选择日光或暖光，继续看同一个演员。教室保持窗影、书页和木桌面的分层；海站在檐下保留冷色软影，干堤仍在日照中。`local-review/screenshots/room-light/scenery.png` 是两景新旧同机位；`stage-portraits.png` 是从游戏背包放人、用实际 XR 菜单换灯后读回的角色与布景。
 - **角色**：洛茜的金发、披肩与白衣按[同一盏灯的对照](./scenery/character-toon-references.md#终末地参照同一束光照到白球和角色)核验。专图生效的脸和衣料保留其着色；无专图的 PMX 从作者底色保守重照。洛茜透明侧发的亮带仍比官图碎。三模九次同光切回原 MMD 均零像素差。

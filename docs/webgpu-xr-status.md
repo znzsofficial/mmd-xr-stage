@@ -1,4 +1,20 @@
-# WebGPU / WebXR 核查（更新至 2026-11-26）
+# WebGPU / WebXR 核查（更新至 2026-11-27）
+
+## 下一版：补齐单角色玩法并开放到正式站
+
+线上 `3aa231f` 已开放 16 景的单角色 WebGPU 观看。本机 `8f1006f` 已有第 17 景、四幕、泌乳、标定后的手持／支架插入、修复后的遥控跳蛋；背包可用 **12/13** 件，最后一件是无线按摩棒。`8f1006f` 的完整收据：1075 项舞台测试、31 项工具测试、393 个文件；已验证构建产物中的 WebGPU 海站双眼。新增交互的硬件 GPU＋模拟控制器证据见[角色工具实录](./performance/actor-tools-regression.md#webgpu-支架与手持)。这不是新版本的 Quest 实戴或稳态帧率数据。
+
+**下轮交付目标：玩家在正式站手选 WebGPU，能给一名穿衣演员换装、摆姿、看身体状态并使用最后一件道具，退出后在同一页续场。** 以下三线可并行，均为待办：
+
+| 工作 | 从哪里接 | 到哪里算完成 |
+|---|---|---|
+| **无线按摩棒：补到 13/13** | [`propCatalog.ts`](../src/mmdVrShowcase/play/propCatalog.ts) 的 `needsMotorContact`、[`wandContact.ts`](../src/mmdVrShowcase/play/wandContact.ts) 和 [`roomPropDisplay.ts`](../src/mmdVrShowcase/stage/roomPropDisplay.ts)。沿用现有节律、表面接触与手柄反馈。 | 同一实模空挥／接触对照，区分低高档、初触加重与停机；暂停舞蹈仍按渲染时钟运行，收回、失追或换手不留下振动。模拟输入只能证明脉冲调用，真机手感另标。 |
+| **衣柜、身体观察与身体设置** | [`BackpackWorldTools.tsx`](../src/mmdVrShowcase/backpack/BackpackWorldTools.tsx) 的 `advancedActorLocked`、[`AssetPanels.tsx`](../src/mmdVrShowcase/hud/AssetPanels.tsx)、`wardrobe/`、`observation/`、`bodyState/`。复用演员材质显隐、观察图和草稿。 | 换一件原衣后双眼外观、射线与遮挡一致；旋转观察图不动演员、不改存量；身体设置的预览、取消和保存均符合当前演员的可见状态。 |
+| **摆姿与高级插入** | `pose/`、[`usePelvicControls.ts`](../src/mmdVrShowcase/pelvic/usePelvicControls.ts) 和 [`fitRows.ts`](../src/mmdVrShowcase/pelvic/fitRows.ts) 的 `soloFloor` 分支。接回手选开合形态、支架手法录放。 | 同一演员定格摆姿、退出编辑、续播；一段手法含停留、退回起点、重播，必须重新实际跨过入口才计量。衣柜与互动页的互跳由同一人合入。 |
+
+**发布收束。** 浏览器、GPU 和 Quest 串行；复用已有穿衣实模及同页重入脚本，一趟串起新增机制，不为每件道具重复跑全套。保留原 MMD、WebGL 回退与旧标签页资源。设备可用时做一次 Quest 3S 进退场、接触／触感短测；同舞段性能配对单列。最终干净提交执行一次 `release:prepare`，用这份 `dist` 冒烟；获准上线后正常推送并部署到已有 Pages 项目，核对主域和 WebGPU 入口，再登记固定链接及已知限制。`stage-release.local` 绑定提交，文档或源码前进后不能拿 `8f1006f` 的收据发布新 HEAD。见[发布步骤](./deployment.md#当前部署路径)。
+
+**仍有限制。** 单角色、WebGL 默认、屏幕观看走 WebGL 是本轮选择。导入 GLB/glTF 物件、多人布局、环境高级设置（如实时阴影）与角色色彩档的切换仍未完整开放。物件须另验装载、放置、释放和回场；不把它或多人重构塞进单角色首发。若某个高级页确实受阻，记录具体影响，再决定是否先发已验能力。继续打磨侧发、更多布景写实化、手持柔光灯均不占这条发布主线。
 
 ## 已确认
 
