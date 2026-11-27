@@ -118,10 +118,11 @@ function HudHold({mode,page,x}:{mode:MilkMode;page:Page;x:number}){
   </mesh>;
 }
 
-export function MilkHudControls(props:Props){
+export function MilkHudControls(props:Props & {inlineFigure?:boolean}){
   const page=useMilkPage(props),{p,l}=page;
   const go=(fn:()=>void)=>{page.stop();fn();};
-  const inlineFigure=!props.onObserve,extra=inlineFigure?.47:0;
+  const inlineFigure=props.inlineFigure ?? !props.onObserve;
+  const extra=inlineFigure ? .47 : 0, hasLinks=!!(props.onObserve||props.onClothing);
   return <group name="milk:interaction"><group position-y={extra/2}><HudSheet size={[1.51,1.03+extra]}/></group>
     <ActorHudTitle position={[-.25,.406+extra,0]} width={.93} text={page.settings?page.settingsLabel:page.title}/>
     <HudButton position={[.48,.406+extra,0]} size={[.45,.14]} variant="quiet" label={page.settings?l('返回泌乳','Back to milk'):page.back}
@@ -139,7 +140,7 @@ export function MilkHudControls(props:Props){
         {modes.map((mode,i)=><HudHold key={mode} mode={mode} x={(i-1)*.48} page={page}/>)}</>:<HudButton position={[0,.13,0]} size={[1.42,.16]} variant="primary" label={page.enable} disabled={page.locked} onPress={()=>page.change({lactating:true})}/>}
       {p.lactating&&props.onObserve&&<HudButton position={[-.48,-.175,0]} size={[.45,.14]} label={page.observe} onPress={()=>go(props.onObserve!)}/>}
       {props.onClothing&&<HudButton position={[0,-.175,0]} size={[.45,.14]} label={l('服装','Clothing')} onPress={()=>go(props.onClothing!)}/>}
-      {p.lactating&&<HudButton position={[inlineFigure?0:.48,-.175,0]} size={[inlineFigure?1.42:.45,.14]} label={page.settingsLabel} onPress={()=>page.setSettings(true)}/>}
+      {p.lactating&&<HudButton position={[hasLinks ? .48 : 0,-.175,0]} size={[hasLinks ? .45 : 1.42,.14]} label={page.settingsLabel} onPress={()=>page.setSettings(true)}/>}
       <HudLine position={[p.lactating?-.20:0,-.382,0]} width={p.lactating?.97:1.42} role="muted" text={page.hint}/>
       {p.lactating&&<HudButton position={[.52,-.382,0]} size={[.39,.14]} variant="quiet" label={l('关闭泌乳','Disable lactation')} disabled={page.locked} onPress={()=>page.change({lactating:false})}/>}
     </>}

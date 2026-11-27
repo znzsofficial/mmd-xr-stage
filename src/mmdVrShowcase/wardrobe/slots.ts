@@ -12,7 +12,7 @@ export type SlotBinding=ClothingSlot & {source:Material;maps:Mapped[];wires:Wire
  * proxies when the logical source draws zero indices. Visibility is an edit,
  * not topology: a previously hidden slot must remain findable. */
 export function bindSlots(mesh:SkinnedMesh,model:ModelDraws={}):SlotBinding[]{
-  const source=[mesh.material].flat(),keys=materialSlotKeys(source),slots=new Map<number,SlotBinding>();
+  const source=[mesh.material].flat().filter(m=>!m.userData.mmdTslOutlineMaterial),keys=materialSlotKeys(source),slots=new Map<number,SlotBinding>();
   const bodies=[mesh,...(mesh.userData.mmdMorphSplitBodyMeshes??[]) as SkinnedMesh[],...(model.renderOrderMeshes??[])];
   const addMap=(slot:SlotBinding,m?:Material)=>{
     if(m&&'map' in m&&m.map&&(m.map as Texture).isTexture&&!slot.maps.includes(m as Mapped))slot.maps.push(m as Mapped);
@@ -21,7 +21,7 @@ export function bindSlots(mesh:SkinnedMesh,model:ModelDraws={}):SlotBinding[]{
     const g=owner.geometry,total=g.index?.count??g.attributes.position?.count??0,r=modelDrawRange(owner);
     const draw=(mat:Material|undefined,local:number,start:number,end:number)=>{
       const n=Math.floor((Math.min(total,r.start+r.count,end)-Math.max(0,r.start,start))/3);
-      if(!mat||n<=0||!Number.isFinite(n)||mat.userData.mmdShadowOnlyRenderProxy||!mat.colorWrite)return;
+      if(!mat||n<=0||!Number.isFinite(n)||mat.userData.mmdShadowOnlyRenderProxy||mat.userData.mmdTslOutlineMaterial||!mat.colorWrite)return;
       const i=sourceMaterialSlot(owner,source,mat,local),m=source[i];if(!m)return;
       // The PMX loader gives different authored slots distinct materials even
       // if their maps/names match. Do not offer unsafe edits on an aliased mesh.

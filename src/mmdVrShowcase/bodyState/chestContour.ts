@@ -1,4 +1,5 @@
 import { Box3, Matrix3, Matrix4, Quaternion, Vector3, type Bone, type SkinnedMesh } from 'three';
+import { authoredSurface } from '../play/authoredSurface';
 
 // Fit in the PMX mesh's bind frame (+Z forward, +Y up). The placement root
 // and the current dance/Bullet pose must not influence these measurements.
@@ -9,7 +10,8 @@ export function fitChestContours(mesh:SkinnedMesh, candidates:readonly Bone[], s
   const meshInverse=mesh.bindMatrix.clone().invert(), p=new Vector3();
   const bodies:SkinnedMesh[]=mesh.userData.mmdMorphSplitBodyMeshes??[mesh];
   if(wanted.size)for(const body of bodies){
-    const {skinIndex,skinWeight,position}=body.geometry.attributes;
+    const {skinIndex,skinWeight}=body.geometry.attributes;
+    const position=authoredSurface.get(body)?.position??body.geometry.attributes.position;
     if(body.skeleton!==mesh.skeleton || !position || skinIndex?.itemSize!==4 || skinWeight?.itemSize!==4 ||
       position.count!==skinIndex.count || position.count!==skinWeight.count)continue;
     const toModel=new Matrix4().multiplyMatrices(meshInverse,body.bindMatrix);

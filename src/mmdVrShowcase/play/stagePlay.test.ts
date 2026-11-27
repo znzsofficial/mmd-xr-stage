@@ -15,14 +15,13 @@ const get=useStagePlay.getState, forward=new Vector3(0,0,-1);
 beforeEach(()=>get().reset());
 
 describe('shared prop catalog and ownership',()=>{
-  it('shares the solo entertainment shelf and wrists without displacing a stand on a rejected contact tool',()=>{
+  it('shares all thirteen props in the solo room, replacing the existing owner',()=>{
     beginMmdVrAssetSession([], 'soloFloor');
     try {
       get().mountStand('actor');
-      get().equip('wand','right');
-      expect(get().stand?.assetId).toBe('actor');expect(get().held).toBeNull();
       get().equip('remoteEgg','right');expect(get().held?.toy).toBe('remoteEgg');expect(get().stand).toBeNull();
-      for(const toy of ['post','kite','encore','bubbles','saber','dildo','feather','lotusFan','constellation','ribbonPen','lanternPod'] as const){
+      expect(shelfToys).toHaveLength(13);
+      for(const toy of shelfToys.filter(toy=>toy!=='remoteEgg')){
         get().equip(toy,'left');expect(get().held).toEqual({toy,hand:'left'});expect(get().stand).toBeNull();
         get().give('actor','right');expect(get().character).toMatchObject({toy,assetId:'actor',hand:'right'});
         get().stow();expect(get().held).toBeNull();expect(get().character).toBeNull();

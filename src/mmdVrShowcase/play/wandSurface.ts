@@ -3,6 +3,7 @@ import {modelDrawRange} from '../mmdRuntime/modelDrawRange';
 import type {ContactCap} from './wandHead';
 import {createWandPose,type PositionDeltas as Attr} from './wandPose';
 import {visibleTexel} from './wandOpacity';
+import {authoredSurface,type AuthoredSurface} from './authoredSurface';
 
 export type WandModel={root:Object3D;mesh:SkinnedMesh;renderOrderMeshes:readonly SkinnedMesh[]};
 export type WandHit={depth:number;axis:Vector3};
@@ -15,22 +16,23 @@ const maxVertices=450_000,maxFaces=800_000;
 
 /** Build material-scoped clusters incrementally; a large cold PMX must not
  * trigger a full topology scan in the XR frame in which the head approaches. */
-function* build(model:WandModel){
+function* build(model:WandModel,authored:AuthoredSurface|undefined){
   const source=model.mesh, meshes:SkinnedMesh[]=source.userData.mmdMorphSplitBodyMeshes??[source];
   const layers:Layer[]=[], p=v(),center=v(),lo=v(),hi=v();
   let vertices=0,faces=0;
   const cellSize=Math.max(1e-5,(source.geometry.boundingSphere?.radius||1)*.1);
   for(const mesh of meshes){
-    const g=mesh.geometry,{position,skinWeight:w,skinIndex:ix,matricesSdefEnabled:sdef,matricesQdefEnabled:qdef}=g.attributes;
+    const g=mesh.geometry,{skinWeight:w,skinIndex:ix,matricesSdefEnabled:sdef,matricesQdefEnabled:qdef}=g.attributes;
+    const position=authored?.position??g.attributes.position;
     if(!position || (vertices+=position.count)>maxVertices)return [];
     const total=g.index?.count??position.count, index=g.index;
-    const pose=createWandPose(mesh,source),materials=Array.isArray(mesh.material)?mesh.material:[mesh.material],unbind=mesh.bindMatrix.clone().invert();
+    const pose=createWandPose(mesh,source,authored?.morphs,position),materials=Array.isArray(mesh.material)?mesh.material:[mesh.material],unbind=mesh.bindMatrix.clone().invert();
     const r=modelDrawRange(mesh),proxies=mesh===source&&model.renderOrderMeshes.length>0&&r.count===0;
     const ranges=proxies?model.renderOrderMeshes.map(owner=>({owner,material:Array.isArray(owner.material)?owner.material[0]:owner.material,...modelDrawRange(owner)})):
       (Array.isArray(mesh.material)?g.groups:[{start:0,count:total,materialIndex:0}]).map(group=>({owner:mesh,material:materials[group.materialIndex??0],
         start:Math.max(r.start,group.start),count:Math.min(r.start+r.count,group.start+group.count)-Math.max(r.start,group.start)}));
     for(const {owner,material,start,count} of ranges){
-      if(!material||count<=0)continue;
+      if(!material||count<=0||material.userData.mmdTslOutlineMaterial||material.userData.mmdShadowOnlyRenderProxy)continue;
       type Bucket={faces:number[];bones:Set<number>;box:Box3;swing:number;qdef:boolean};
       const buckets=new Map<string,Bucket>(),end=Math.min(total,start+count);
       for(let j=start;j+2<end;j+=3){
@@ -74,7 +76,8 @@ function* measure(attr:Attr){let max=0;
 }
 
 export function createWandSurface(model:WandModel){
-  let builder:ReturnType<typeof build>|null=build(model), layers:Layer[]=[];
+  const authored=authoredSurface.get(model.mesh),ids=[0,0,0];
+  let builder:ReturnType<typeof build>|null=build(model,authored), layers:Layer[]=[];
   const pending=new WeakMap<Attr,ReturnType<typeof measure>>(), box=new Box3(),center=v(),a=v(),b=v(),c=v(),point=v();
   const tri=new Triangle(a,b,c),zero=v(),mid=v(),worldToCap=new Matrix4(),bestAxis=v();
   let lastLayer:Layer|null=null,lastFace=-1,nextLayer=0,nextCell=0,nextFace=0;
@@ -84,11 +87,13 @@ export function createWandSurface(model:WandModel){
   }
   function face(l:Layer,j:number,cap:ContactCap,out:WandHit){
     const index=l.mesh.geometry.index;
-    l.pose.vertex(index?.getX(j)??j,a).applyMatrix4(worldToCap);
-    l.pose.vertex(index?.getX(j+1)??j+1,b).applyMatrix4(worldToCap);
-    l.pose.vertex(index?.getX(j+2)??j+2,c).applyMatrix4(worldToCap);
+    for(let k=0;k<3;k++)ids[k]=index?.getX(j+k)??j+k;
+    l.pose.vertex(ids[0],a).applyMatrix4(worldToCap);
+    l.pose.vertex(ids[1],b).applyMatrix4(worldToCap);
+    l.pose.vertex(ids[2],c).applyMatrix4(worldToCap);
     tri.closestPointToPoint(zero,point);
-    const d=point.length();if(!(d<1)||1-d<=out.depth||!visibleTexel(l.material,l.mesh.geometry,j,tri,point))return;
+    const d=point.length();if(!(d<1)||1-d<=out.depth||authored&&!authored.sampleable(ids,l.material)||
+      !visibleTexel(l.material,l.mesh.geometry,j,tri,point,authored?.uv))return;
     out.depth=1-d;
     if(d>1e-6)bestAxis.copy(point);else tri.getNormal(bestAxis);
     bestAxis.applyMatrix3(cap.normalToPart).normalize();

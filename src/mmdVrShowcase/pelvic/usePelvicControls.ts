@@ -20,16 +20,23 @@ const main=(label:string,press:()=>void,disabled=false)=>buttons(key(label,press
 const link=(label:string,press:()=>void)=>buttons(key(label,press));
 
 export type PelvicNavigation={onClothing?:()=>void;cameraKey?:Pick<Key,'label'|'press'>;backLabel?:string;soloFloor?:boolean};
+
+/** The insertion activity owns the tool through its wardrobe detour. Only a
+ * deliberate handoff to world input can outlive the entire operator sheet. */
+export function usePelvicToolLifetime(assetId:string,runtimeId:string,active:boolean){
+  useLayoutEffect(()=>()=>{
+    const a=usePelvic.getState().active;
+    if(!active||a?.source!=='xr'||a.assetId!==assetId||a.runtimeId!==runtimeId)return;
+    if(a.mode==='xrManual'&&a.running&&!useBackpack.getState().selected)return;
+    releasePelvic(assetId);
+  },[assetId,runtimeId,active]);
+}
+
 export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen'|'xr',{onClothing,cameraKey,backLabel,soloFloor=false}:PelvicNavigation) {
   const zh=useLanguageStore(s=>s.language==='zh'),l=(a:string,b:string)=>zh?a:b;
   const [page,go]=useState<Page>('use'),[fit,setFit]=useState<Fit>('position');
   const pending=useRef<(()=>void)|null>(null);
-  const handoffToken=useRef<number|undefined>(undefined);
   useLayoutEffect(()=>()=>{pending.current?.();pending.current=null;},[assetId,runtimeId,source,page]);
-  useLayoutEffect(()=>()=>{
-    const a=usePelvic.getState().active;
-    if(soloFloor&&a?.assetId===assetId&&a.runtimeId===runtimeId&&a.source===source&&a.token!==handoffToken.current)releasePelvic(assetId);
-  },[assetId,runtimeId,source,soloFloor]);
   const [listPage,setListPage]=useState(0),[morphPage,setMorphPage]=useState(0);
   const [clothesBack,setClothesBack]=useState<'fit'|'use'>('use');
   const morph=useApertureMorph(assetId),names=useBackpack(s=>s.live[assetId]?.propMorphs);
@@ -86,7 +93,7 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen
   const assign=(m:PelvicMode,h?:'left'|'right')=>{if(assignPelvic(assetId,m,source,h))go('use');};
   const start=()=>{
     if(!startPelvic(assetId))return;
-    if(mode==='xrManual'){handoffToken.current=usePelvic.getState().active?.token;useBackpack.getState().select(null);return;}
+    if(mode==='xrManual')useBackpack.getState().select(null);
   };
   const setTarget=(n:number)=>{const a=active(usePelvic.getState());if(a?.mode==='standManual')nudgePelvic(assetId,n-a.position);};
   const ready=canStartAtOpening(profile,support);
@@ -141,7 +148,7 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen
     result.status=!known?l('没有找到入口。到「模型」手动指定起点。','Opening not found. Set an origin under Model.'):
        fit==='model'?[profile.showAdapter?l('外阴附件已开启','Vulva attachment on'):l('外阴附件已关闭','Vulva attachment off'),coverage].filter(Boolean).join(' · '):
       l('入口标定','Opening calibration');
-    rows.push(...fitRows({assetId,runtimeId,source,l,profile,support,fit,setFit,morph,names:names??[],page:morphPage,setPage:setMorphPage,clothes,soloFloor,clear:()=>{disablePelvic(assetId);go('use');}}));
+    rows.push(...fitRows({assetId,runtimeId,source,l,profile,support,fit,setFit,morph,names:names??[],page:morphPage,setPage:setMorphPage,clothes:soloFloor&&onClothing?onClothing:clothes,soloFloor,clear:()=>{disablePelvic(assetId);go('use');}}));
   }else if(page==='fluid'){
     const c=profile.container,uterine=c==='fantasyUterine',amount=profile.fluid[c];
     result.status=`${uterine?l('宫腔','Uterus'):l('阴道','Vagina')} · ${amount} / ${profile.capacity[c]} ${l('单位','units')}`;
@@ -194,12 +201,12 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen
     if(soloFloor){
       if(known&&handAllowed)rows.push(chooseHand(h=>{if(mode!=='xrManual'||h!==hand)assign('xrManual',h);},running));
       if(mode)rows.push(link(l('收起假阳具','Put rod away'),()=>releasePelvic(assetId)));
-    }else{
-      rows.push(buttons(key(clothesLabel,onClothing??clothes),...(cameraKey?[{...cameraKey,id:'actor-camera'}]:[])));
-      const takes=!!profile.technique||mode==='standManual'&&ready;
-      if(known||takes)rows.push(buttons(...(known?[key(l('更多操作','More controls'),()=>go('holder'))]:[]),
-        ...(takes?[key(l('手法录放','Rail takes'),()=>go('technique'))]:[])));
     }
+    const takes=!!profile.technique||mode==='standManual'&&ready;
+    rows.push(buttons(key(clothesLabel,onClothing??clothes),...(cameraKey?[{...cameraKey,id:'actor-camera'}]:[])));
+    const more=known&&!soloFloor;
+    if(more||takes)rows.push(buttons(...(more?[key(l('更多操作','More controls'),()=>go('holder'))]:[]),
+      ...(takes?[key(l('手法录放','Rail takes'),()=>go('technique'))]:[])));
   }
   return result;
 }

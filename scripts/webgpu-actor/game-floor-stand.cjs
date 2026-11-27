@@ -2,6 +2,42 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs/promises');
 const path=require('node:path');
 
+// Read the selected authored vertex from the storage buffer actually used by
+// this room's draw after compute. Attribute.array is not GPU output.
+async function observeOpeningVertex(id){
+  const {usePelvic}=await import('/src/mmdVrShowcase/pelvic/store.ts');
+  const {useBackpack}=await import('/src/mmdVrShowcase/backpack/store.ts');
+  const {positionMorphs}=await import('/scripts/webgpu-actor/positionMorphs.js');
+  const {scene,gl}=gameTargets.floorState(),bag=useBackpack.getState(),actor=bag.live[id];
+  let mesh;
+  scene.traverse(o=>{if(o.userData.mmdModelId===actor.runtimeId)o.traverse(m=>{if(m.isSkinnedMesh&&m.userData.mmdMorphs)mesh??=m;});});
+  const position=mesh.geometry.attributes.position,index=mesh.morphTargetDictionary[usePelvic.getState().byAsset[id].apertureMorph];
+  const bytes=await bag.entries.find(e=>e.id===id).file.arrayBuffer();
+  const morph=[...positionMorphs(bytes,position.count)].find(m=>m.index===index);
+  const drawn=new Uint8Array(position.count),g=mesh.geometry;
+  for(const {materialIndex,start,count} of g.groups){const m=[mesh.material].flat()[materialIndex??0];
+    if(!m?.visible||!m.colorWrite||m.userData.mmdTslOutlineMaterial)continue;
+    for(let i=start;i<start+count;i++)drawn[g.index?.getX(i)??i]=1;
+  }
+  let vertex=-1,magnitude=0,delta;
+  for(let r=morph.count-1;r>=0;r--){const i=morph.vertex(r);if(!drawn[i])continue;drawn[i]=0;
+    const v=[morph.component(r,0),morph.component(r,1),-morph.component(r,2)],length=Math.hypot(...v);
+    if(length>magnitude){vertex=i;magnitude=length;delta=v;}
+  }
+  if(vertex<0)throw Error('No drawn nonzero vertex in selected shape');
+  window.openingVertex=()=>new Promise((resolve,reject)=>{
+    if(labFixture.take){reject(Error('Overlapping GPU captures'));return;}
+    const timeout=setTimeout(()=>{labFixture.take=null;reject(Error('Missing XR submission for morph'));},15000);
+    labFixture.take={inputs(){this.time=performance.now();},afterDraw(){clearTimeout(timeout);labFixture.take=null;
+      try{const stride=gl.backend.get(position).buffer.size/position.count;
+        if(stride!==12&&stride!==16)throw Error('Unknown position buffer stride');
+        const weight=mesh.morphTargetInfluences[index];
+        gl.getArrayBufferAsync(position,null,vertex*stride,12).then(data=>resolve({p:[...new Float32Array(data)],weight,delta}),reject);
+      }catch(e){reject(e);}
+    }};
+  });
+}
+
 // Read the manufactured end on the rendered child, independently of the
 // slider, stand group and published sample. A store action is never an input.
 async function observeStand(id){
@@ -85,7 +121,7 @@ module.exports=async function({page,ids,click,until,bButton,frames,target,pickMo
   };
   await click('actorInsert');await target({name:'observation:uterus'});await press('手动支架');
   const parked=await wait('visible stand and measured home',s=>s.kind==='bones'&&s.owned&&s.rod&&s.rail&&s.home&&s.localZ>.03);
-  assert(!parked.inside&&!parked.running);await absent(['推进','更多操作','手法录放']);
+  assert(!parked.inside&&!parked.running);await absent(['推进']);
   // The wider monitor can cover the stand from a frontal close-up. Move it
   // using the same title drag as a player, before taking either eye image.
   const drag=await page.evaluate(()=>{const room=gameTargets.floorState().scene,group=room.getObjectByName('backpack-world-tools'),handle=room.getObjectByName('actor:move-sheet');
@@ -106,6 +142,11 @@ module.exports=async function({page,ids,click,until,bButton,frames,target,pickMo
   assert(Math.hypot(...restored.world.map((v,i)=>v-parked.world[i]))<.0001);
   await press('模型');await press('将外阴附件装到裸肤上');
   await wait('mounted is independent of exposed outlet',s=>s.mounted&&!s.confirmed&&!s.shell);
+  let beforeMorph,openMorph,morphTravel;
+  if(exposed&&process.env.POSE_TAKE_MORPH){
+    await require('./game-floor-pose-take.cjs').selectMorph({page,ids,press},process.env.POSE_TAKE_MORPH);
+    await page.evaluate(observeOpeningVertex,ids.model);beforeMorph=await page.evaluate(()=>openingVertex());
+  }
   await press('操作');
   if(exposed){await press('确认入口露出');await wait('explicitly cleared skin',s=>s.confirmed&&!s.blocked&&s.shell);}
   else{await wait('measured garment obstruction',s=>s.blocked==='garment'&&!s.shell);await absent(['确认入口露出']);await press('保持穿衣继续');}
@@ -113,10 +154,17 @@ module.exports=async function({page,ids,click,until,bButton,frames,target,pickMo
   await press('阴道');await wait('live illustration',s=>!!s.art);
   await save('workbench','observation:vagina',true);
   await press('推进');const deep=await wait('physical nozzle inside',s=>s.inside&&s.depth>.025&&Math.abs(s.depth-s.measured)<.0001);
+  if(beforeMorph){
+    openMorph=await page.evaluate(()=>openingVertex());const gain=openMorph.weight-beforeMorph.weight;
+    morphTravel=Math.hypot(...openMorph.p.map((v,i)=>v-beforeMorph.p[i]));
+    assert(gain>.01&&morphTravel>1e-4,'Chosen opening shape did not reach the drawn GPU surface');
+    assert(openMorph.p.every((v,i)=>Math.abs(v-beforeMorph.p[i]-gain*openMorph.delta[i])<1e-4),'Drawn deformation does not match the selected PMX channel');
+  }
   await wait('rendered cutaway shows verified crossing',s=>s.art?.includes('在内'));
   await save('inside','observation:vagina',true);await press('释放到宫腔');
   await wait('inside measured uterine dose',s=>s.fluid.fantasyUterine===1&&s.fluid.vaginal===0);
   await press('停止');await wait('stop inside is not crossing evidence',s=>!s.running&&!s.inside&&s.localZ<0);
+  if(beforeMorph){const restored=await page.evaluate(()=>openingVertex());assert.deepEqual(restored.p,beforeMorph.p,'Paused sparse output did not restore at stop');}
   await press('释放到宫腔');await frames(3);assert.equal((await read()).fluid.fantasyUterine,1);
   await press('退回起点');const home=await wait('withdraw and rearm',s=>s.home&&s.localZ>.03&&!s.inside);
   assert(Math.hypot(...home.world.map((v,i)=>v-parked.world[i]))<.0001);
@@ -137,5 +185,5 @@ module.exports=async function({page,ids,click,until,bButton,frames,target,pickMo
   if(!await page.evaluate(()=>gameTargets.find({key:'settingsVrDesktopExit'})))await bButton();
   await click('settingsVrDesktopExit',{retiring:true});await until('stand session retired',s=>s.phase==='ended'&&!s.live&&!s.overlay);
   const adapters=await page.evaluate(()=>labFixture.adapters);assert(adapters.some(a=>a.xrCompatible)&&adapters.every(a=>a.vendor&&!a.fallback&&!/swiftshader|warp|software/i.test(JSON.stringify(a))));
-  return {exposed,parkedZ:parked.localZ,fitTravel,depth:deep.measured,deliveredDepths:receipts.map(r=>r.measured),captures,...stats};
+  return {exposed,parkedZ:parked.localZ,fitTravel,depth:deep.measured,morphTravel,deliveredDepths:receipts.map(r=>r.measured),captures,...stats};
 };

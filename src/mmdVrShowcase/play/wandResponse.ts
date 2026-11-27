@@ -1,5 +1,6 @@
 import type { SkinnedMesh } from 'three';
 import { create } from 'zustand';
+import { authoredSurface } from './authoredSurface';
 
 export type WandResponse = { morph:string|null; strength:number };
 export const defaultWandResponse: Readonly<WandResponse> = { morph:null, strength:.65 };
@@ -22,7 +23,7 @@ export function forgetWandResponses(ids:readonly string[]) {
  * morphs require re-running the evaluator and aren't display-only weights. */
 export function wandMorphNames(source:SkinnedMesh):readonly string[] {
   if(source.userData.mmdOutline || source.userData.mmdOutlineProxy || source.userData.mmdMaterialRenderProxy || source.userData.mmdMorphSplitBody)return [];
-  const valid=new Set<number>();
+  const valid=new Set<number>(authoredSurface.get(source)?.morphIndices);
   const bodies:SkinnedMesh[]=source.userData.mmdMorphSplitBodyMeshes??[source];
   for(const body of bodies){
     const attrs=body.geometry.morphAttributes.position??[], map=body.userData.mmdMorphSplitBody?.morphTargetIndices;

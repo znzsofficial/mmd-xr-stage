@@ -11,7 +11,7 @@ import {createEggResponse} from '../play/remote/eggResponse';
 import {useRemoteEgg} from '../play/remote/remoteMotor';
 import {useStagePlay} from '../play/stagePlay';
 import {createRoomWand} from '../play/wandContact';
-import {useWandMotor} from '../play/wandMotor';
+import {useWandMotor,wandFrameMs} from '../play/wandMotor';
 import {forgetWandResponses,useWandResponse} from '../play/wandResponse';
 import type {SceneryId} from '../scenery/catalog';
 
@@ -19,9 +19,11 @@ import type {SceneryId} from '../scenery/catalog';
  * order, whether the next consumer is VMD, Bullet or the pose editor. */
 export function createRoomPropDisplay(){
   const wand=createRoomWand(),aperture=createApertureLayer(),response=createActorResponse(),egg=createEggResponse();
+  let pelvicApplied=false,pelvicChanged=false;
+  function retirePelvic(){if(pelvicApplied)pelvicChanged=true;pelvicApplied=false;}
   // The wearable and wand are mutually exclusive top layers, above contact.
-  function restore(){egg.restore();wand.restore();response.restore();aperture.restore();}
-  function reset(){egg.restore();wand.reset();response.reset();aperture.restore();}
+  function restore(){egg.restore();wand.restore();response.restore();aperture.restore();retirePelvic();}
+  function reset(){egg.restore();wand.reset();response.reset();aperture.restore();retirePelvic();}
   function subscribe(scenery:SceneryId){
     const off=[
       useRemoteEgg.subscribe((s,p)=>{if(s.mode!==p.mode||s.assetId!==p.assetId)egg.restore();}),
@@ -30,7 +32,7 @@ export function createRoomPropDisplay(){
       usePelvic.subscribe((s,p)=>{
         const a=p.active;
         if(a?.running&&(!s.active?.running||a.token!==s.active.token)){
-          egg.restore();wand.restore();response.reset();aperture.restore();
+          egg.restore();wand.restore();response.reset();aperture.restore();retirePelvic();
         }else if(a?.running&&s.byAsset[a.assetId]?.responseMorph!==p.byAsset[a.assetId]?.responseMorph){
           egg.restore();wand.restore();response.reset();
         }
@@ -47,17 +49,22 @@ export function createRoomPropDisplay(){
     ];
     return ()=>{off.forEach(unsubscribe=>unsubscribe());reset();forgetWandResponses(useMmdVrStore.getState().models.map(m=>m.id));};
   }
-  function present(runtime:Pick<MmdRuntimeHandle,'getModelSurface'>,scene:Scene,wrist:Object3D|null,rig:PelvicRigHandle|null,frame:XRFrame|undefined,clock:Pick<Clock,'oldTime'>){
+  function present(runtime:Pick<MmdRuntimeHandle,'getModelSurface'>,scene:Scene,wrist:Object3D|null,rig:PelvicRigHandle|null,frame:XRFrame|undefined,clock:Pick<Clock,'oldTime'>,skipSoftHead=false){
     const opening=rig?.getAperture();
     if(opening)aperture.apply(opening.assetId,runtime.getModelSurface(opening.runtimeId),opening.amount);
     const contact=rig?.getActorContact()??null, profile=contact&&usePelvic.getState().byAsset[contact.assetId];
     response.present(contact,profile&&contact?runtime.getModelSurface(contact.runtimeId):null,profile?.responseMorph);
+    if((opening&&opening.amount>0)||contact)pelvicApplied=pelvicChanged=true;
     const {stand,held,character}=useStagePlay.getState(),toy=(held??character??stand)?.toy;
     if(held?.toy==='remoteEgg'){egg.present(scene,runtime.getModelSurface);return;}
-    if(toy!=='wand'&&toy!=='dildo')return;
+    if(skipSoftHead||toy!=='wand'&&toy!=='dildo')return;
     const stage=useMmdVrStore.getState();
-    wand.advance(scene,stand?rig?.getStandRoot()??null:wrist,toy,held?.hand??null,frame,clock.oldTime,
+    wand.advance(scene,stand?rig?.getStandRoot()??null:wrist,toy,held?.hand??null,frame,wandFrameMs(frame,clock.oldTime),
       stage.prefs.physicsHapticLevel,stage.models,runtime.getModelSurface);
   }
-  return {restore,subscribe,present,eggMorphChanged:egg.consumeChange};
+  function consumeMorphChange(){
+    const eggDirty=egg.consumeChange(),wandDirty=wand.consumeChange(),pelvicDirty=pelvicChanged;
+    pelvicChanged=false;return eggDirty||wandDirty||pelvicDirty;
+  }
+  return {restore,subscribe,present,consumeMorphChange};
 }

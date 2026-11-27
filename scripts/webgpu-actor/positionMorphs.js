@@ -1,5 +1,19 @@
 import {parsePmxSectionInventory} from '@yohawing/three-mmd-loader/parser';
 
+// Match the sparse packer's last-row-wins rule; an empty morph or a channel
+// consisting only of zero offsets is not a display control. Scan lazily on
+// the first actor tool that requests the list, without building a dense atlas.
+export function hasDisplayedPositionOffset(morph,seen){
+  const stamp=morph.index+1;
+  for(let row=morph.count-1;row>=0;row--){
+    const i=morph.vertex(row);
+    if(i>=seen.length||seen[i]===stamp)continue;
+    seen[i]=stamp;
+    if(morph.component(row,0)||morph.component(row,1)||morph.component(row,2))return true;
+  }
+  return false;
+}
+
 // Walk the same validated PMX that produced this unsplit mesh. No second PMX
 // loader, dense morph atlas or dependency on a private loader symbol.
 export function* positionMorphs(bytes, vertexCount) {

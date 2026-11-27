@@ -1,6 +1,5 @@
 import type { TranslationKey as Key } from '../../languageStore';
 import type { SceneryId } from '../scenery/catalog';
-import { isSoloFloorSession } from '../backpack/sessionAssets';
 import type { Vector3 } from 'three';
 import { getKiteWind, resetKite, setKiteWind } from './kite/kiteStore';
 import { aimFerry, launchFerry, resetFerry } from './ferry/voyage';
@@ -17,8 +16,6 @@ type Definition = {
   label:Key; homeLabel:Key; homeName?:Key;
   /** The handheld effect can travel even when a station stays in its own set. */
   portable?:boolean;
-  /** Requires the WebGL motor/contact response at the wand head. */
-  needsMotorContact?:boolean;
   guide:{vr:Key; screen:Key; end:Key};
   // Type-only link. Import the actual components only on the rendering side.
   view:keyof typeof import('./propViews');
@@ -65,7 +62,7 @@ const catalog = {
     guide:{vr:'guideDildoVr', screen:'guideDildoScreen', end:'guideDildoEnd'},
   },
   wand: {
-    label:'toyWand', portable:true, needsMotorContact:true, home:null, homeLabel:'allSets', visit:null, view:'cordless',grip:{point:[0,-.034,-.041],pitch:.48},
+    label:'toyWand', portable:true, home:null, homeLabel:'allSets', visit:null, view:'cordless',grip:{point:[0,-.034,-.041],pitch:.48},
     guide:{vr:'guideWandVr',screen:'guideWandScreen',end:'guideWandEnd'},
     onGrip:cycleWand, onScreenEquip:cycleWand, onStow:stopWand,
   },
@@ -99,8 +96,7 @@ const catalog = {
 export type Toy = keyof typeof catalog;
 export const TOYS: Readonly<Record<Toy,Definition>> = catalog;
 export const shelfToys = Object.keys(catalog) as readonly Toy[];
-const soloFloorToys=shelfToys.filter(toy=>!TOYS[toy].needsMotorContact);
-export function sessionToys() { return isSoloFloorSession() ? soloFloorToys : shelfToys; }
+export function sessionToys() { return shelfToys; }
 export function toyLabel(toy:Toy, room:SceneryId) {
   const {home, homeName, label} = TOYS[toy];
   return home===room && homeName ? homeName : label;

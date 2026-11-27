@@ -1,5 +1,5 @@
 import { Box3, Triangle, Vector3, type BufferGeometry, type Material, type Mesh, type Object3D, type SkinnedMesh } from 'three';
-import { createWandPose } from '../play/wandPose';
+import { createWandPose, type PositionMorphs } from '../play/wandPose';
 import type { WandModel } from '../play/wandSurface';
 import { materialSlotKeys, sourceMaterialSlot } from '../mmdRuntime/materialSlotKey';
 import { modelDrawRange } from '../mmdRuntime/modelDrawRange';
@@ -22,7 +22,7 @@ type Chunk={layer:Layer;start:number;end:number;rest:Box3;bones:number[];linear:
 export type Obstruction='garment'|'unverified'|undefined;
 /** An unsplit sparse renderer supplies its original positions. No CPU reader
  * may infer the displayed positions from a GPU-only storage attribute. */
-export type GarmentPose={position:BufferGeometry['attributes'][string];sampleable:()=>boolean};
+export type GarmentPose={position:BufferGeometry['attributes'][string];readonly morphs?:PositionMorphs;sampleable:()=>boolean};
 const chunksPerSample=128,trianglesPerSample=1400,maxPoseValues=131072;
 
 /** Preindex topology ONCE in bounded slices. Cull only ordinary linear blends
@@ -44,12 +44,12 @@ function indexGarmentGuard(root:Object3D,surface?:WandModel|null,registered?:Rea
     const g=mesh.geometry,pos=g?.attributes.position;if(!pos)return;
     const total=g.index?.count??pos.count,oversize=pos.count>450_000||total>2_400_000;
     let pose:ReturnType<typeof createWandPose>|null=null,body:Body|undefined;
-    const sourceMaterials=source?[source.material].flat():[mesh.material].flat(),keys=materialSlotKeys(sourceMaterials);
+    const sourceMaterials=[(source??mesh).material].flat().filter(m=>!m.userData.mmdTslOutlineMaterial),keys=materialSlotKeys(sourceMaterials);
     const range=(owner:Object3D,m:Material|undefined,start:number,end:number,localIndex=0)=>{
       if(!m||end<=start||m.userData.mmdTslOutlineMaterial)return;
       const i=sourceMaterialSlot(owner,sourceMaterials,m,localIndex),author=sourceMaterials[i]??m;
       const key=keys[i];if(!registered?.has(key)&&!garment(m)&&(author===m||!garment(author)))return;
-      if(source&&!oversize)pose??=createWandPose(mesh as SkinnedMesh,source,undefined,base?.position);
+      if(source&&!oversize)pose??=createWandPose(mesh as SkinnedMesh,source,base?.morphs,base?.position);
       if(!body)bodies.push(body={mesh,source,bones:new Set(),shown:false});
       layers.push({body,mesh,owner,material:m,key,start,end:Math.min(total,end),pose,oversize,invalid:false,shown:false});
     };

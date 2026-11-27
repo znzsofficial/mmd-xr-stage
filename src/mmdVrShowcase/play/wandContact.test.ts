@@ -8,6 +8,7 @@ import {createWandSurface} from './wandSurface';
 import {centerZ,siliconeCrown,siliconeMount,siliconeTilt} from './siliconeProfile';
 import {makeSilicone} from './workshopModels';
 import {useWandMotor,stopWand} from './wandMotor';
+import {authoredSurface} from './authoredSurface';
 
 function rig(){
   const root=new Group(),g=new BufferGeometry(),m=new MeshBasicMaterial();
@@ -19,6 +20,25 @@ function rig(){
 }
 const hit=()=>({depth:0,axis:new Vector3()});
 function at(x:number,y:number,z:number){const pivot=new Group();pivot.position.set(x,y-capY,z);return pivot;}
+
+it('queries the authored sparse actor at its morphed pose, excluding a hidden surface and its still-drawn outline',()=>{
+  const {model,mesh,g,m}=rig(),position=g.attributes.position;
+  const uv=new Float32BufferAttribute([0,0,1,0,0,1],2);
+  const delta=new Float32BufferAttribute([0,0,.2,0,0,.2,0,0,.2],3);
+  mesh.morphTargetInfluences=[1];g.morphTargetsRelative=true;
+  g.setAttribute('position',new Float32BufferAttribute(new Float32Array(9),3));
+  g.setAttribute('uv',new Float32BufferAttribute(new Float32Array(6),2));
+  const outline=new MeshBasicMaterial();outline.userData.mmdTslOutlineMaterial={sourceMaterialIndex:0};
+  const drawn:SkinnedMesh=mesh;drawn.material=[m,outline];g.addGroup(0,3,0);g.addGroup(0,3,1);
+  m.alphaTest=.5;m.map=new DataTexture(new Uint8Array([255,255,255,0,255,255,255,255]),2,1);
+  let canSample=true;
+  authoredSurface.set(mesh,{position,uv,morphs:[delta],sampleable:()=>canSample});
+  const pass=createWandSurface(model),h=hit(),depth=(x:number,z:number)=>{pass.query(at(x,-.3,z),wandCap,h,Infinity);return h.depth;};
+  expect(depth(.12,.2)).toBeCloseTo(1);expect(depth(.12,0)).toBe(0);expect(depth(-.2,.2)).toBe(0);
+  m.visible=false;expect(depth(.12,.2)).toBe(0);m.visible=true;
+  canSample=false;expect(depth(.12,.2)).toBe(0);canSample=true;
+  mesh.morphTargetInfluences[0]=0;expect(depth(.12,0)).toBeCloseTo(1);expect(depth(.12,.2)).toBe(0);
+});
 
 it('requires actual posed triangles (including triangle interiors); excludes empty AABB corners, handle-only overlap, hidden material, hidden actor and proxy ranges',()=>{
   const {model,mesh,m,root,g}=rig(),h=hit(),proxy=new SkinnedMesh(g.clone(),m);proxy.bind(mesh.skeleton,mesh.bindMatrix);root.add(proxy);

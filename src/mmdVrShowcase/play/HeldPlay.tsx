@@ -11,6 +11,7 @@ import * as views from './propViews';
 import { StoryStations } from './StoryStations';
 import { isContactTool, mountHeldColliderSource } from './propColliders';
 import {queuePelvicGrip} from '../pelvic/input';
+import {stopWand} from './wandMotor';
 
 export function PlayPiece({toy}:{toy:Toy}) {
   const {Piece}=views[TOYS[toy].view];
@@ -38,6 +39,7 @@ function InHand({toy,hand}:{toy:Toy;hand:Hand}) {
     const grip=visible&&source?.gripSpace?frame.getPose(source.gripSpace,ref):null;
     const ray=visible&&source?frame.getPose(source.targetRaySpace,ref):null;
     prop.visible=!!grip&&!!ray;
+    if(toy==='wand'&&(!prop.visible||s.source&&s.source!==source))stopWand();
     if(s.source!==(source??null)){s.latch(false,false);s.source=source??null;}
     prop.userData.propSource=s.source;
     const bag=useBackpack.getState(),stage=useMmdVrStore.getState();

@@ -96,14 +96,14 @@ module.exports=async function({page,ids,click,until,bButton,frames,target,pickMo
     await fs.writeFile(path.join(dir,`${exposed?'exposed':'covered'}-${label}.png`),Buffer.from(png,'base64'));
     return result;
   };
-  // Disabled first-sheet routes must not be able to enter another tool.
-  for(const key of ['actorPose','actorWardrobe','actorBodyState','actorObservation']){
-    await click(key);assert(await page.evaluate(()=>!!gameTargets.find({key:'actorMilk'})));
-  }
   await click('actorMilk');await press('开启泌乳');await wait(()=>milkTake.read().art);
   const expected=exposed?'confirm':'blocked';await wait(k=>milkTake.read().read?.every(s=>s===k),expected);
   const figure=await take('figure','panel');assert(figure.eyes.every(e=>e.ink>80),'Missing breast illustration in an eye: '+JSON.stringify(figure.eyes));
-  assert(!await page.evaluate(()=>gameTargets.find({name:'hud:服装'})||gameTargets.find({name:'hud:看乳房'})));
+  const beforeNavigation=await read();
+  await press('看乳房');await target({name:'hud:定格图像'});await click('backToMilk');
+  await press('服装');await target({name:'wardrobe-hud'});await click('backToMilk');
+  await wait(()=>milkTake.read().art && !!milkTake.read().read);
+  assert.deepEqual((await read()).debits,beforeNavigation.debits);
   const receipts={};
   for(const [side,label,other] of [['left','左侧','right'],['right','右侧','left']]){
     await press('确认露出');await press(label+' · 确认裸露');await press('返回泌乳');

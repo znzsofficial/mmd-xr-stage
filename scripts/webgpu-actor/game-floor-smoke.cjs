@@ -3,6 +3,7 @@
 // node scripts/webgpu-actor/game-floor-smoke.cjs <local.pmx> <--stand-covered | --stand-exposed>
 // node scripts/webgpu-actor/game-floor-smoke.cjs <local.pmx> --lunar-post
 // node scripts/webgpu-actor/game-floor-smoke.cjs <small-actor-with-wrists.pmx> --story-props
+// node scripts/webgpu-actor/game-floor-smoke.cjs <clothed.pmx> <body.vmd> --single-actor [tools wand pose]
 // Product /?xrBackend=webgpu only. Two library identities, one live actor,
 // one hardware renderer at a time. No injected menu, store actions or shortcut.
 const assert = require('node:assert/strict');
@@ -48,7 +49,8 @@ async function main() {
   const withoutMotion=milk||post||stories||stand||handheld||remote;
   const [pmx,vmd,plan]=(withoutMotion?[process.argv[2],null,process.argv[3]]:process.argv.slice(2,5)).map(v=>!v||v.startsWith('--')?v:path.resolve(v));
   assert(pmx && (vmd||withoutMotion) && plan, 'Expected a PMX and a smoke take');
-  const basic=plan==='--basic-style',styleOnly=basic||plan==='--actor-style',classroom=plan==='--classroom',portrait=plan==='--room-light', json = !withoutMotion && !styleOnly && !classroom && !portrait && JSON.parse(await fs.readFile(plan, 'utf8'));
+  const singleActor=plan==='--single-actor';
+  const basic=plan==='--basic-style',styleOnly=basic||plan==='--actor-style',classroom=plan==='--classroom',portrait=plan==='--room-light', json = !withoutMotion && !styleOnly && !classroom && !portrait && !singleActor && JSON.parse(await fs.readFile(plan, 'utf8'));
   const entryRoom=stories?'pool':post?'astralCourt':portrait?process.argv[5]:classroom?'classroom':'floor';
   if(portrait)assert(['classroom','seasideTerminus'].includes(entryRoom),'Expected a lit portrait room');
   const sites = json && (json.plan ?? json).sites.map(({start,end,spot,radial,marks,mat}) => ({start,end,spot,radial,marks,mat}));
@@ -72,7 +74,7 @@ async function main() {
     page.on('console', m => {if (m.type()==='error') consoles.push(m.text().slice(0,350));});
     const href = new URL(report.entry,server.resolvedUrls.local[0]);
     page.on('response', r => {if(r.ok() && r.url()===new URL('/xr-input/1.0.20/meta-quest-touch-plus/profile.json',href).href)localProfile=true;});
-    await page.addInitScript({content:`(${stereo})(${portrait||withoutMotion?640:240}); (${extend})(); labFixture.controllerProfile='meta-quest-touch-plus'; labFixture.hostStatus=()=>({phase:'idle'});`});
+    await page.addInitScript({content:`(${stereo})(${portrait||withoutMotion||singleActor?640:240}); (${extend})(); labFixture.controllerProfile='meta-quest-touch-plus'; labFixture.hostStatus=()=>({phase:'idle'});`});
     await page.goto(href.href);
     const selector=page.locator('.stage-first-room select');
     assert.equal(await selector.inputValue(),entryRoom);
@@ -184,6 +186,26 @@ async function main() {
       assert.deepEqual(errors,[]);assert.deepEqual(consoles.filter(x=>/shader|validation|wgsl|nodebuilder|pipeline/i.test(x)),[]);
       console.log(JSON.stringify(result));return;
     }
+    if(singleActor){
+      await placeFromBag(second,landing,0);
+      const actor=await until('selected clothed actor in the game room',s=>s.ready&&s.live===1&&s.selected&&s.actor?.evaluations>0,null,120000);
+      const ctx={page,ids,click,until,bButton,frames,target,pickMounted,aim,trigger,idleRay};
+      const takes={tools:'./game-floor-actor-tools.cjs',wand:'./game-floor-wand.cjs',pose:'./game-floor-pose-take.cjs'};
+      const phases=process.argv.length>5?process.argv.slice(5):Object.keys(takes);
+      for(const phase of phases){
+        assert(Object.hasOwn(takes,phase),`Unknown actor take: ${phase}`);
+        const result=await require(takes[phase])(ctx);
+        await until('same actor after '+phase,(s,id)=>s.ready&&s.live===1&&s.runtimeId===id&&s.selected,actor.runtimeId);
+        console.log(phase,JSON.stringify(result));
+      }
+      const resumed=await checkFallback();
+      await bButton();await click('settingsVrDesktopExit',{retiring:true});
+      await until('retire resumed actor',s=>s.phase==='ended'&&!s.overlay&&!s.live);
+      const adapters=await page.evaluate(()=>labFixture.adapters);
+      assert(adapters.some(a=>a.xrCompatible)&&adapters.every(a=>a.vendor&&!a.fallback&&!/swiftshader|warp|software|llvmpipe/i.test(JSON.stringify(a))));
+      assert.deepEqual(errors,[]);assert.deepEqual(consoles.filter(x=>/shader|validation|wgsl|nodebuilder|pipeline/i.test(x)),[]);
+      console.log('WebGL fallback and XR continue',JSON.stringify({restoredAt:resumed.time,...report.webgl}));return;
+    }
     report.emptyEyes=await page.evaluate(probes.inspectEyes,'empty');
     const base=report.emptyEyes;assert(base.different>100 && base.controls.every(n=>n===0) && base.matched.every((n,i)=>n<base.crossed[i]*.4),'Wrong final XR eye assignment');
 
@@ -236,28 +258,44 @@ async function main() {
     await frames(6);assert.equal((await read()).time,paused.time);
     await bButton();await click('settingsMmdVrPlay');await until('HUD resumes same actor and motion',(s,t)=>s.hasBinding && s.playing && s.time>t+.06,paused.time);
     await bButton();await click('settingsMmdVrPause');const stopped=await until('pause for handoff',s=>!s.playing && s.ready && s.hasBinding);
-    await bButton();await click('settingsVrDesktopExit',{retiring:true});
-    const end=await until('WebGPU host and XR room retired',s=>s.phase==='ended' && !s.overlay && !s.live);
-    const saved=end.floor;assert(saved?.assets===1 && saved.models===1 && saved.hasModel && saved.hasMotion && !saved.playing && saved.time===stopped.time && end.filesIntact);atFoot(saved.position);
-    report.xr={pausedAt:stopped.time,duration:stopped.duration,selectEvents:await page.evaluate(()=>labSession.stats.selectEvents.length)};
+    // Both takes leave a placed, motion-bound actor. Cross backends through the
+    // same prep buttons and check the original files, transform and held time.
+    async function checkFallback(paused){
+      if(!paused){
+        if(!(await read()).hasBinding){
+          await click('hudChangeMotion');await click('hudApplyBody');
+          await until('bound VMD',s=>s.ready&&s.playing&&s.hasBinding);
+        }
+        if((await read()).playing){await bButton();await click('settingsMmdVrPause');}
+        paused=await until('paused actor for handoff',s=>s.ready&&!s.playing&&s.hasBinding);
+      }
+      await bButton();await click('settingsVrDesktopExit',{retiring:true});
+      const end=await until('WebGPU host and XR room retired',s=>s.phase==='ended' && !s.overlay && !s.live);
+      const saved=end.floor;assert(saved?.assets===1 && saved.models===1 && saved.hasModel && saved.hasMotion && !saved.playing && saved.time===paused.time && end.filesIntact);
+      assert.deepEqual(saved.position,paused.position);
+      report.xr={pausedAt:paused.time,duration:paused.duration,selectEvents:await page.evaluate(()=>labSession.stats.selectEvents.length)};
 
-    step='original WebGL screen entry';await page.locator('.stage-launch-row button.stage-btn-secondary').first().click();
-    const gl=await until('same files, actor, VMD and paused time in actual WebGL room',s=>s.presentation==='screen' && s.overlay && s.ready && s.modelCount===1 && s.live===1 && s.hasBinding && s.duration>0,null,60000);
-    assert(gl.filesIntact && gl.visible && !gl.playing && gl.duration===stopped.duration && gl.time===stopped.time);atFoot(gl.position);
-    const canvas=page.locator('.screen-picture canvas');assert(await canvas.evaluate(c=>{const gl=labFixture.screenContext=c.getContext('webgl2');return !!gl && !gl.isContextLost() && gl.drawingBufferWidth>0;}));
-    await page.locator('.screen-corner button[aria-expanded]').click();await page.locator('.screen-item').filter({hasText:second}).click();
-    const toggle=page.locator('.screen-actor-home > .screen-buttons button').nth(1);
-    const shown=await canvas.screenshot();await toggle.click();await until('hide restored WebGL actor',s=>s.visible===false);
-    const hidden=await canvas.screenshot();await toggle.click();await until('show same WebGL actor',s=>s.visible===true);
-    const changed=await page.evaluate(probes.screenDiff,[shown,hidden].map(b=>b.toString('base64')));assert(changed>250);
-    await page.locator('.screen-play').click();await until('WebGL VMD advances beyond restored time',(s,t)=>s.playing && s.time>t+.06,gl.time);
-    await page.locator('.screen-play').click(); const heldGL=await until('pause B before returning to WebGPU',s=>!s.playing);
-    await page.locator('.screen-back').click();report.webgl={restoredAt:gl.time,characterPixels:changed};
-    await until('WebGL renderer released',s=>!s.overlay && !s.live && labFixture.screenContext.isContextLost());
+      step='original WebGL screen entry';await page.locator('.stage-launch-row button.stage-btn-secondary').first().click();
+      const gl=await until('same files, actor, VMD and paused time in actual WebGL room',s=>s.presentation==='screen' && s.overlay && s.ready && s.modelCount===1 && s.live===1 && s.hasBinding && s.duration>0,null,60000);
+      assert(gl.filesIntact && gl.visible && !gl.playing && gl.duration===paused.duration && gl.time===paused.time);assert.deepEqual(gl.position,saved.position);
+      const canvas=page.locator('.screen-picture canvas');assert(await canvas.evaluate(c=>{const gl=labFixture.screenContext=c.getContext('webgl2');return !!gl && !gl.isContextLost() && gl.drawingBufferWidth>0;}));
+      await page.locator('.screen-corner button[aria-expanded]').click();await page.locator('.screen-item').filter({hasText:second}).click();
+      const toggle=page.locator('.screen-actor-home > .screen-buttons button').nth(1);
+      const shown=await canvas.screenshot();await toggle.click();await until('hide restored WebGL actor',s=>s.visible===false);
+      const hidden=await canvas.screenshot();await toggle.click();await until('show same WebGL actor',s=>s.visible===true);
+      const changed=await page.evaluate(probes.screenDiff,[shown,hidden].map(b=>b.toString('base64')));assert(changed>250);
+      await page.locator('.screen-play').click();await until('WebGL VMD advances beyond restored time',(s,t)=>s.playing && s.time>t+.06,gl.time);
+      await page.locator('.screen-play').click();const heldGL=await until('pause B before returning to WebGPU',s=>!s.playing);
+      await page.locator('.screen-back').click();report.webgl={restoredAt:gl.time,characterPixels:changed};
+      await until('WebGL renderer released',s=>!s.overlay && !s.live && labFixture.screenContext.isContextLost());
 
-    step='original VR continue with B';await page.locator('.stage-launch-row button.stage-btn-secondary[data-xr-backend="webgpu"]').click();
-    const resumed=await until('same B before put-away',(s,t)=>s.phase==='active' && s.ready && s.runtimeId && s.live===1 && s.hasBinding && !s.playing && s.time===t && s.actor?.evaluations>0,heldGL.time,60000);
-    assert(resumed.filesIntact);assert.deepEqual(await page.evaluate(n=>gameTargets.model(n).mounted,second),[resumed.runtimeId]);
+      step='original VR continue with B';await page.locator('.stage-launch-row button.stage-btn-secondary[data-xr-backend="webgpu"]').click();
+      const resumed=await until('same B before put-away',(s,t)=>s.phase==='active' && s.ready && s.runtimeId && s.live===1 && s.hasBinding && !s.playing && s.time===t && s.actor?.evaluations>0,heldGL.time,60000);
+      assert(resumed.filesIntact);assert.deepEqual(await page.evaluate(n=>gameTargets.model(n).mounted,second),[resumed.runtimeId]);
+      return resumed;
+    }
+
+    const resumed=await checkFallback(stopped);
     await pickMounted(ids.model);await click('watchArrange');await click('hudPutAway');
     const removed=await until('B and its runtime leave the floor',s=>s.ready && !s.live && !s.modelCount && !s.duration && !s.playing && s.floor?.assets===0 && s.actor?.mode==='none' && s.actor.nodes===0);
     assert(removed.filesIntact && removed.hasBinding);assert.deepEqual(await page.evaluate(n=>gameTargets.model(n).mounted,second),[]);

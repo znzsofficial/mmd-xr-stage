@@ -3,16 +3,16 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { DoubleSide, type Group } from 'three';
 import { makeBrushHandle, makePlume, makeWandHandle, makeWandHead, wandLights } from './boutiqueModels';
 import { TOYS } from './propCatalog';
-import { useWandMotor, wandTurns } from './wandMotor';
+import { useWandMotor, wandFrameMs, wandTurns } from './wandMotor';
 import {createWandHead,mountWandHead} from './wandHead';
 
 export function CordlessWand() {
   const handle=useMemo(makeWandHandle,[]),head=useMemo(makeWandHead,[]), pivot=useRef<Group>(null);
   const speed=useWandMotor(s=>s.speed),grip=TOYS.wand.grip;
-  useFrame(({clock})=>{
+  useFrame(({clock},_,frame)=>{
     const joint=pivot.current,motor=useWandMotor.getState();if(!joint)return;
     if(!motor.speed){if(joint.rotation.x||joint.rotation.z)joint.rotation.set(0,0,0);return;}
-    const phase=(wandTurns(motor,clock.oldTime)%1)*2*Math.PI,arc=motor.speed===1?.047:.095;
+    const phase=(wandTurns(motor,wandFrameMs(frame,clock.oldTime))%1)*2*Math.PI,arc=motor.speed===1?.047:.095;
     joint.rotation.set(arc*.65*Math.cos(phase),0,arc*Math.sin(phase));
   },-.5); // After the held grip switches speed, before contact and Bullet sample the cap.
   useLayoutEffect(()=>{if(pivot.current)return mountWandHead(createWandHead(pivot.current,head));},[head]);

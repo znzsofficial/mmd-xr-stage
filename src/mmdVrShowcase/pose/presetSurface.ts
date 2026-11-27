@@ -1,4 +1,5 @@
 import { Matrix4, Vector3, type Bone, type SkinnedMesh } from 'three';
+import {authoredSurface} from '../play/authoredSurface';
 
 export type Region = 'trunk' | `${'left'|'right'}${'Leg'|'Foot'|'Arm'|'Hand'}`;
 const regionsOfBody:Region[]=['trunk','leftLeg','rightLeg','leftFoot','rightFoot','leftArm','rightArm','leftHand','rightHand'];
@@ -27,7 +28,8 @@ export function createPresetSurface(source: SkinnedMesh, rig: SkinnedMesh, regio
   const bodies: SkinnedMesh[] = source.userData.mmdMorphSplitBodyMeshes?.length ? source.userData.mmdMorphSplitBodyMeshes : [source];
   const matrix = new Matrix4();
   const surfaces = bodies.flatMap(body => {
-    const { position:p, skinIndex:ix, skinWeight:w } = body.geometry.attributes;
+    const { position, skinIndex:ix, skinWeight:w } = body.geometry.attributes;
+    const p = authoredSurface.get(body)?.position ?? position;
     if (body.skeleton !== source.skeleton || !p || ix?.itemSize !== 4 || w?.itemSize !== 4 || ix.count !== p.count || w.count !== p.count) return [];
     const bins=Object.fromEntries(regionsOfBody.map(r=>[r,[] as number[]])) as Record<Region,number[]>;
     const chest:number[]=[];

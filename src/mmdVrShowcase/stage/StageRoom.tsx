@@ -675,18 +675,17 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles,
     const posedCarrier=poseCharacterProp(rt);
     wristCue.driver.current?.advance(delta,posedCarrier);
     presentRemoteWearable(scene);
-    if(!backend)pelvic.current?.advance(delta,frame,pelvicBlocked);
-    // Both holders share the calibrated solver. The optional soft-tip/face
-    // path also queries CPU triangles which the sparse renderer replaced.
-    const gpuRod=backend&&(owners.stand||owners.held?.toy==='dildo'||owners.character?.toy==='dildo');
-    if(!gpuRod&&!isRoomStale()&&!store.physicsBusy&&!store.physicsFatal&&!store.assetLoad.running)
-      propDisplay.present(rt,scene,wristGroup.current,pelvic.current,frame,clock);
+    pelvic.current?.advance(delta,frame,pelvicBlocked);
+    // Both renderers need this frame's measured opening and response. Only
+    // the rod's separate soft-tip query needs the original CPU triangles.
+    const skipSoftHead=!!backend&&!!(owners.stand||owners.held?.toy==='dildo'||owners.character?.toy==='dildo');
+    if(!isRoomStale()&&!store.physicsBusy&&!store.physicsFatal&&!store.assetLoad.running)
+      propDisplay.present(rt,scene,wristGroup.current,pelvic.current,frame,clock,skipSoftHead);
     // Mail from an actor-style decode can arrive even while VMD and physics
     // are both paused. Commit on this tracked draw, after all displayed pose
     // layers, without re-evaluating VMD or dispatching idle GPU pose work.
-    const eggMorphChanged=propDisplay.eggMorphChanged();
-    backend?.prepareRender(evaluate||eggMorphChanged);
-    if(backend)pelvic.current?.advance(delta,frame,pelvicBlocked);
+    const propMorphChanged=propDisplay.consumeMorphChange();
+    backend?.prepareRender(evaluate||propMorphChanged);
     milkRoom.current?.advance(delta,frame);
     if(store.presentation!=='xr')return;
     hapticContactPollRef.current += delta;

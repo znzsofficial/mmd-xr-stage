@@ -4,6 +4,7 @@ import { expect, it } from 'vitest';
 import { poseFixture } from './poseFixture.testSupport';
 import { posePresets } from './presetCatalog';
 import { createPoseSolver } from './poseSolver';
+import {authoredSurface} from '../play/authoredSurface';
 
 const edit={physics:false,ik:false};
 const at=(m:ThreeMmdModel,n:string)=>m.mesh.skeleton.getBoneByName(n)!;
@@ -109,6 +110,22 @@ it('has no partial preset on a broken elbow chain, even when pins are held',asyn
     for(const {id} of posePresets){expect(s.canPreset(id)).toBe(false);expect(s.applyPreset(id)).toBe(false);}
     expect(s.capture()).toEqual(before);
   }finally{s.restore();disposeMmdModel(m);}
+});
+
+it('grounds the same actor on its authored skin when sparse GPU output replaces position',async()=>{
+  const f=poseFixture(),loader=new ThreeMmdLoader(),m=await loader.loadModel(f.pmx,{materialRenderOrder:false,outline:false});
+  const vmd=await loader.loadAnimation(f.vmd);addSkin(m);const g=m.mesh.geometry,base=g.attributes.position;
+  m.setAnimation(vmd);m.update(.6,{physics:false});const original=frame(m),native=m.runtime;
+  function kneel(sparse:boolean){
+    if(sparse){g.setAttribute('position',new Float32BufferAttribute(new Float32Array(base.count*3),3));
+      authoredSurface.set(m.mesh,{position:base,uv:g.attributes.uv,morphs:[],sampleable:()=>true});}
+    const editPose=createPoseSolver(m,vmd,.6);
+    try{expect(editPose.applyPreset('allFours')).toBe(true);m.update(.6,edit);return frame(m);}
+    finally{editPose.restore();g.setAttribute('position',base);}
+  }
+  try{const dense=kneel(false);expect(error(dense,kneel(true))).toBeLessThan(1e-6);
+    expect(m.runtime).toBe(native);expect(error(original,frame(m))).toBeLessThan(2e-5);
+  }finally{disposeMmdModel(m);}
 });
 
 it('cups the drawn inner thighs: the palms follow a thicker leg without moving the knees',async()=>{

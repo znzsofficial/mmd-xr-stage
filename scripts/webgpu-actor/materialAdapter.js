@@ -118,6 +118,11 @@ export async function createActorMaterialAdapter(renderer, light, { balancedMode
         styleReady=false;
       }
       const attached = pipeline.attach(model, options);
+      // Slot identities were captured before TSL attach; the replacement
+      // material carries PMX metadata but has an empty Three material name.
+      if(attached){const draws=[model.mesh.material].flat();
+        for(const [i,m] of [source].flat().entries())draws[i].name=m.name;
+      }
       // r187 adds layer 1 to its left eye. The fork's optional shadow-only
       // geometry uses that same layer and draws an untextured white silhouette
       // in the color pass. This adapter has no dedicated XR shadow pass.
@@ -148,8 +153,9 @@ export async function createActorMaterialAdapter(renderer, light, { balancedMode
     },
     prepareStyle,setStyle,
     setFaceCastersEnabled(model,on) {const a=actors.get(model);if(a&&!a.shadowFailed){a.cast=!!on;a.shadow?.setEnabled(a.enabled&&a.cast);}},
-    prepare(scene) {
+    prepare(scene,afterMaterialSync) {
       const ready=pipeline.prepareRender(scene);
+      afterMaterialSync?.();
       if (ready) for (const a of actors.values()) if(a.enabled&&a.cast&&a.shadow){
         try {a.shadow.prepare();} catch(e){shadowFailure(a,e);}
       }

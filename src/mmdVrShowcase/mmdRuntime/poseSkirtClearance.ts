@@ -6,6 +6,7 @@ import {ClothCrossing} from './clothCrossing';
 import {clothMorphGuard} from './clothMorphGuard';
 import {fitRaisedSkirt} from './raisedSkirt';
 import {fitKneelContact} from './kneelContact';
+import {authoredSurface} from '../play/authoredSurface';
 
 type Body=ReturnType<MmdModel['rigidBodies']>[number];
 type Patch={mesh:SkinnedMesh; material:Material; positions:BufferAttribute; vertices:Vertex[]; faces:Vertex[]; touched:Vertex[]; shown:boolean; base:number};
@@ -46,6 +47,10 @@ function fitLegs(mesh:SkinnedMesh,raw:Body[]){
 // Fit in bind space, once per mounted rig and only on explicit manual-pose
 // reseeds. Negative fits are cached too. No scan on entry, playback or XR ticks.
 export function fitPoseSkirt(mesh:SkinnedMesh){
+  // This correction edits CPU-backed vertex attributes. Never read or overwrite
+  // a sparse GPU compute destination; the manual pose still has native Bullet.
+  const source=authoredSurface.get(mesh);
+  if(source&&source.position!==mesh.geometry.attributes.position)return null;
   const raw:Body[]|undefined=mesh.userData.mmdPhysics?.rigidBodies,bones=mesh.skeleton.bones;
   if(!Array.isArray(raw)||raw.length>2400||bones.length>3000)return null;
   const legs=fitLegs(mesh,raw);if(!legs)return null;

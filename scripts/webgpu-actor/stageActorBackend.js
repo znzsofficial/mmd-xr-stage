@@ -5,8 +5,10 @@ import { createActorMaterialAdapter } from './materialAdapter.js';
 import { prepareRoomCloth, roomCloth } from './roomCloth.js';
 import { inspectActorStyle } from './actorStyleSlots.js';
 import { createActorStyle } from './actorStyle.js';
+import { drawRevision, presentDraws, restoreDraws } from '../../src/mmdVrShowcase/wardrobe/draws';
 import { prepareFloorMilk } from './actorMilk.js';
 import {makeEggSurface} from './eggSurface.js';
+import {bindAuthoredSurface} from './authoredSurface.js';
 
 const empty = () => ({mode:'none', cloth:'none', nodes:0, clothSteps:0, fullBodies:0, keptBodies:0,
   bulletSteps:0, bulletSimulatedSteps:0, updatedBones:0, evaluations:0, poseSeconds:0, physicsDelta:0});
@@ -67,6 +69,7 @@ export async function createStageActorBackend(renderer, scene, light, origin, gr
       } catch (error) { adapter.detach(model); throw error; }
 
       const style = createActorStyle(model,source,plan,adapter,notify);
+      const surface=bindAuthoredSurface(model.mesh,basePosition,baseUv,source?.pmxBytes,rig,()=>cloth?.active);
       const filter = rig && skirtPhysicsFilter(rig);
       let ready = false, cut = false, stepped = false, lastPose = -1, retired = false, interrupted = true;
       const binding = {
@@ -112,10 +115,11 @@ export async function createStageActorBackend(renderer, scene, light, origin, gr
           }
         },
       };
-      // The native palette still drives the original skin. While a GPU-only
-      // morph or cloth offset is in use we cannot clear an exterior surface.
-      const offsets=model.mesh.userData.mmdMorphs.flatMap((m,i)=>['vertex','uv','material','unknown'].includes(m.type)?[i]:[]);
-      const garment={position:basePosition,sampleable:()=>!retired&&!cloth?.active&&offsets.every(i=>model.mesh.morphTargetInfluences[i]===0)};
+      // Bone and sparse vertex shape edits are sampleable on the displayed
+      // garment. A GPU cloth offset or unverified moving cutout is not.
+      const offsets=model.mesh.userData.mmdMorphs.flatMap((m,i)=>['uv','material','unknown'].includes(m.type)?[i]:[]);
+      const garment={position:basePosition,get morphs(){return surface.morphs;},
+        sampleable:()=>!retired&&!cloth?.active&&surface.sampleable([])&&offsets.every(i=>model.mesh.morphTargetInfluences[i]===0)};
       actor = {log,binding,cloth,model,file:source?.file,style,garment,egg:()=>egg??=makeEggSurface(model.mesh,basePosition,baseUv,source?.pmxBytes,rig,()=>cloth?.active)};
       notify();
       return binding;
@@ -124,14 +128,19 @@ export async function createStageActorBackend(renderer, scene, light, origin, gr
       if (!actor || !tracked || disposed || serial === prepared) return;
       prepared = serial;
       const styleChanged = actor.model.root.parent && actor.model.root.visible && actor.style.frame();
-      if (!poseUpdated && !styleChanged && !displayDirty) return;
+      const mesh=actor.model.mesh, revision=drawRevision(mesh);
+      if (!poseUpdated && !styleChanged && !displayDirty && actor.drawRevision===revision) return;
+      actor.drawRevision=revision;
       displayDirty = false;
       sun.visible = !!sourceLight?.visible;
       if (sourceLight) {
         sun.intensity = sourceLight.intensity; sun.color.copy(sourceLight.color);
         sourceLight.getWorldPosition(sun.position); sourceLight.target.getWorldPosition(sun.target.position);
       }
-      adapter.prepare(scene);
+      // The loader rewrites surface + outline flags during prepareRender.
+      // Reapply the wardrobe before the style's face shadow and both eye draws.
+      restoreDraws(mesh);
+      try {adapter.prepare(scene,()=>presentDraws(mesh));} finally {presentDraws(mesh);}
     },
     dispose() {
       if (disposed) return;

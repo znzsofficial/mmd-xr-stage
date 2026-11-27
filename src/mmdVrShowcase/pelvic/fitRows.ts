@@ -37,12 +37,9 @@ export function fitRows({assetId,runtimeId,source,l,profile,support,fit,setFit,m
     rows.push(buttons(profile.showAdapter?key(l('关闭外阴附件','Turn off vulva attachment'),()=>setPelvicAdapter(assetId,runtimeId,false)):
       key(l('将外阴附件装到裸肤上','Fit vulva attachment to skin'),()=>setPelvicAdapter(assetId,runtimeId,true),{disabled:!ready})));
     if(!profile.clothingClear&&ready&&!support.obstruction)rows.push(buttons(key(l('确认入口露出','Confirm exposure'),()=>patchPelvic(assetId,{clothingClear:true}))));
-    if(soloFloor){
-      if(profile.showAdapter&&(!profile.clothingClear||support?.obstruction))rows.push(note(l('附件已安装 · 等待确认露出','Attachment fitted · exposure unconfirmed')));
-    }else{
-      if(support?.obstruction)rows.push(buttons(key(l('调整服装','Clothing'),clothes)));
-      rows.push(buttons(key(l('选择开合形态','Choose opening morph'),()=>{setPage(Math.max(0,Math.floor(names.indexOf(morph??'')/3)));setFit('morph');})));
-    }
+    if(soloFloor&&profile.showAdapter&&(!profile.clothingClear||support?.obstruction))rows.push(note(l('附件已安装 · 等待确认露出','Attachment fitted · exposure unconfirmed')));
+    if(support?.obstruction)rows.push(buttons(key(l('调整服装','Clothing'),clothes)));
+    rows.push(buttons(key(l('选择开合形态','Choose opening morph'),()=>{setPage(Math.max(0,Math.floor(names.indexOf(morph??'')/3)));setFit('morph');})));
     rows.push(
       buttons(key(c.manual?l('改用骨骼定位','Use bone position'):l('手动指定起点','Set origin manually'),()=>{if(c.manual)patch({manual:null});else if(support?.manualSeed){patch({manual:support.manualSeed});setFit('position');}},{disabled:!c.manual&&!support?.manualSeed})),
       buttons(key(l('还原入口设置','Reset opening fit'),()=>patch({...defaultPelvicCalibration,manual:c.manual}))),

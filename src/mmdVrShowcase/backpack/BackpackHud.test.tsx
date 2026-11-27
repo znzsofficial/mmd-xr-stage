@@ -89,11 +89,11 @@ it('shows where to take a toy, keeps it on the player for unsupported wrists and
   await click(t('toyStow'));expect(useStagePlay.getState().character).toBeNull();
 });
 
-it('offers the supported shelf on the solo floor without imported GLB placement or contact motors',async()=>{
+it('offers the complete prop shelf on the solo floor without imported GLB placement',async()=>{
   beginMmdVrAssetSession([], 'soloFloor');await render();await recall();await click(t('hudBackpack'));
   await click(t('hudObjects'));expect(labels()).not.toContain('Lamp.glb');
   await click(t('hudToys'));
-  const expected=shelfToys.filter(toy=>toy!=='wand');
+  const expected=shelfToys;
   const rows=()=>[...host.querySelectorAll('[name^="play:shelf:"]')].map(row=>row.getAttribute('name')!.slice('play:shelf:'.length));
   for(let first=0;first<expected.length;first+=3){
     if(first)await click(t('loadNext'));expect(rows()).toEqual(expected.slice(first,first+3));
@@ -189,18 +189,36 @@ it('sets both chance endpoints in XR without mounting a prop, and opens the matc
   expect(useBodyState.getState().draft).toBeNull();
 });
 
-it('hands off the metre readout to the passive hand figure when starting dismisses the actor sheet',async()=>{
+it.each(['full','soloFloor'] as const)('hands off the metre readout when starting hand control dismisses the %s actor sheet',async scope=>{
+  beginMmdVrAssetSession([],scope);
   useBackpack.setState({selected:'a0',live:{a0:instance('actor0')}});
   useMmdVrStore.setState({overlayOpen:true,presentation:'xr'});vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValue(null);
   enablePelvic('a0',true);patchPelvic('a0',{clothed:true});publishPelvicSupport('a0',{runtimeId:'actor0',kind:'bones',anchorName:'hips'});
   await act(()=>root.render(<><BackpackWorldTools/><PelvicObserver rig={{current:null}}/></>));
-  await click(t('actorInsert'));await click('更多操作');await click('交给左手');
+  await click(t('actorInsert'));if(scope==='full')await click('更多操作');await click('交给左手');
   expect(mesh('hud-label:实际到达')).toBeDefined();expect(mesh('hud-label:目标深度')).toBeUndefined();
   await click('开始手持并收起面板');const active=usePelvic.getState().active!;
   expect(active).toMatchObject({mode:'xrManual',running:true});expect(bag().selected).toBeNull();
   await act(()=>{publishPelvicSample(active.token,{depth:.043,outletInside:true,aligned:true,atCervix:false,tip:[0,0,-.043],tail:[0,0,.09],radiusM:.025,lengthM:.09,angleDeg:0});});
   expect(host.querySelector('[name="pelvic:hand-depth"] [name="hud-label:实际到达"]')).not.toBeNull();expect(button('开始手持并收起面板')).toBeUndefined();
   await act(()=>bag().select('a0'));expect(host.querySelector('[name="pelvic:hand-depth"]')).toBeNull();expect(usePelvic.getState().sample).toBeNull();
+});
+
+it('keeps the same solo stand through a wardrobe visit and retires it on leaving Insertion',async()=>{
+  beginMmdVrAssetSession([], 'soloFloor');
+  useBackpack.setState({selected:'a0',live:{a0:instance('actor0')}});
+  useMmdVrStore.setState({overlayOpen:true,presentation:'xr'});
+  vi.spyOn(document,'hidden','get').mockReturnValue(false);
+  vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValue(null);
+  await render();await click(t('actorInsert'));await click('手动支架');
+  await act(()=>publishPelvicSupport('a0',{runtimeId:'actor0',kind:'bones',anchorName:'hips'}));
+  const stand=usePelvic.getState().active;
+  expect(stand).toMatchObject({mode:'standManual',runtimeId:'actor0'});
+  await click('调整服装');expect(host.querySelector('[name="wardrobe-hud"]')).not.toBeNull();
+  expect(usePelvic.getState().active).toBe(stand);
+  await click(t('backToInsert'));expect(usePelvic.getState().active).toBe(stand);
+  await click(t('actorBack'));expect(usePelvic.getState().active).toBeNull();
+  expect(useStagePlay.getState().stand).toBeNull();
 });
 
 it("targets the selected runtime for transforms, but the stable character and exact file for body/face motions", async () => {
