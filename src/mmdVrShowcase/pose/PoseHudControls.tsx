@@ -85,9 +85,9 @@ function QuickPoseKeys(props: QuickPoseProps) {
   return <>
     {groups.map((g,i) => <Key key={g.id} x={i ? half : -half} y={.30} w={.59} text={g.label}
       active={g.active} disabled={props.busy} press={g.select}/>)}
-    {choices.map((p,i) => <Key key={p.id} x={i%2 ? half : -half} y={.105 - Math.floor(i/2)*.17} w={.59}
+    {choices.map((p,i) => <Key key={p.id} x={i%2 ? half : -half} y={.125 - Math.floor(i/2)*.165} w={.59}
       text={p.label} disabled={props.busy || !p.supported} press={() => apply(p.id)}/>)}
-    <Line y={-.39} text={status} muted/>
-    <Key x={half} y={-.505} w={.59} text={props.t.undo} disabled={props.busy || !props.canUndo} press={undo}/>
+    <HudLine position={[-.19,-.52,0]} width={.84} role="muted" text={status}/>
+    <Key x={.44} y={-.52} w={.34} text={props.t.undo} disabled={props.busy || !props.canUndo} press={undo}/>
   </>;
 }

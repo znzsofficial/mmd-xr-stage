@@ -6,6 +6,7 @@ export const zh = {
   hudSeasideTerminus:'海边终点站',shorePlatform:'站台 · 搪瓷站牌',shoreWaterline:'潮阶 · 岸边',shoreReturn:'堤灯 · 回望站台',shoreSounder:'海堤 · 拨潮盘',
   actorPelvic:'骨盆附件',
   screenInspectStand:'近看支架',
+  screenInspectPartner:'近看搭档',
   screenCloseUp:'近看角色',screenFrameFace:'近看表情',screenReturnView:'返回原机位',
   actorPose:'摆姿势', actorBodyState:'身体设置',
   actorChance:'受孕率（游戏）',actorChestShape:'胸型',actorMilkStock:'初始乳量',

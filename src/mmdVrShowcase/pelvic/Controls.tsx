@@ -3,6 +3,9 @@ import { createPanelTexture } from '../../shared/panelTexture';
 import type { PelvicActor } from './Section';
 import { AtlasHudPanel, AtlasScreenPanel } from './atlas/AtlasPanel';
 import { LivePelvicHudView, LivePelvicScreenView, livePaneHeight, type LiveMonitorNavigation } from '../observation/LivePelvicView';
+import {ObservationDiagram} from '../observation/ObservationDiagram';
+import {useLanguageStore} from '../../languageStore';
+import {SECTION_H,SECTION_W} from './sectionPaint';
 import {DepthHudReadout,DepthScreenReadout,StrokeHudReadout,StrokeScreenReadout,strokeReadoutHeight} from './StrokeReadout';
 import { PrivateButton, PrivateLine, PrivateSheet } from './HudPrivateControls';
 import {HudField,ScreenField} from './WorkbenchField';
@@ -42,6 +45,10 @@ function ScreenRow({row,blocked,actor}:{row:Row;blocked:boolean;actor:PelvicActo
     {row.names.map(s=><option value={s} key={s}>{s}</option>)}</select></label>;
   return <ScreenField row={row} blocked={blocked}/>;
 }
+function SizePreview(props:PelvicActor&{widthM?:number}) {
+  const loading=useLanguageStore(s=>s.language==='zh'?'绘制中…':'Drawing…');
+  return <ObservationDiagram {...props} part="vagina" loading={loading}/>;
+}
 function ScreenEditor({assetId,runtimeId,onBack,lens,...navigation}:ScreenProps) {
   const vm=usePelvicControls({assetId,runtimeId},'screen',navigation);
   const page=useRef<HTMLDivElement>(null);
@@ -50,7 +57,8 @@ function ScreenEditor({assetId,runtimeId,onBack,lens,...navigation}:ScreenProps)
   },[]);
   return <div className="pelvic-screen" ref={page} role="group" aria-label={vm.title}>
     <header className="pelvic-heading"><h3>{vm.title}</h3>{vm.stop&&<ScreenKeys items={[vm.stop]} blocked={vm.blocked} stop/>}{onBack&&<button type="button" className="pelvic-key pelvic-back" onClick={onBack}>{vm.back}</button>}</header>
-    <div className="pelvic-body" data-chart={vm.chart} data-live={vm.live}>
+    <div className="pelvic-body" data-chart={vm.chart} data-live={vm.live} data-size-preview={vm.sizePreview||undefined}>
+      {vm.sizePreview&&<div className="pelvic-size-preview"><SizePreview assetId={assetId} runtimeId={runtimeId}/></div>}
       {vm.live?<div className="pelvic-live-plate"><LivePelvicScreenView assetId={assetId} runtimeId={runtimeId} lens={lens} blocked={vm.blocked}/></div>:
         vm.chart&&<div className="pelvic-plate"><AtlasScreenPanel assetId={assetId} runtimeId={runtimeId}/></div>}
       <div className="pelvic-operation">
@@ -120,7 +128,7 @@ function HudColumn({items,from,w,blocked,actor,live}:{items:HudRow[];from:number
   })}</>;
 }
 function HudEditor({assetId,runtimeId,onBack,lens,...navigation}:HudProps) {
-  const vm=usePelvicControls({assetId,runtimeId},'xr',navigation), split=vm.chart||vm.live,width=split?panelW:1.34;
+  const vm=usePelvicControls({assetId,runtimeId},'xr',navigation), split=vm.chart||vm.live||vm.sizePreview,width=split?panelW:1.34;
   const cw=split?editorW:width-.1;
   // Note wrapping must not allocate a measurement canvas on each sampling or
   // slider tick; rows only need new metrics when their content/layout changes.
@@ -131,12 +139,14 @@ function HudEditor({assetId,runtimeId,onBack,lens,...navigation}:HudProps) {
   const plateTop=top-.21,contentTop=vm.enabled?top-.365:plateTop,stopH=vm.stop?.label ? .135+rowGap : 0;
   const statusH=vm.motorReadout?0:((vm.live?Math.max(3,statusLines.length):statusLines.length)*35+5)/density;
   const columnHeight=(a:HudRow[])=>a.reduce((sum,r)=>sum+r.h+rowGap,0);
-  const h=Math.max(top-contentTop+stopH+statusH+rowGap+columnHeight(rows),top-plateTop+(vm.live?livePaneHeight:vm.chart?chartH:0))+.036;
+  const previewH=chartW*SECTION_H/SECTION_W;
+  const h=Math.max(top-contentTop+stopH+statusH+rowGap+columnHeight(rows),top-plateTop+(vm.live?livePaneHeight:vm.chart?chartH:vm.sizePreview?previewH:0))+.036;
   return <group name="pelvic:controls" pointerEventsOrder={1} pointerEventsType={{allow:['ray']}}>
     <group position-y={top-h/2}><PrivateSheet size={[width,h]}/></group>
     <ActorHudTitle position={[-.20,top-.087,0]} width={width-.51} text={vm.title}/>
     <PrivateButton position={[width/2-.218,top-.087,0]} size={[.337,.135]} label={vm.back} variant="quiet" onPress={onBack}/>
     {vm.enabled&&<group position={[split?rightX:0,top-.253,0]}><HudKeys items={vm.tabs} blocked={false} w={cw} tabs live={vm.live}/></group>}
+    {vm.sizePreview&&<group position={[leftX,plateTop-previewH/2,0]}><SizePreview assetId={assetId} runtimeId={runtimeId} widthM={chartW}/></group>}
     {vm.live?<group position={[leftX,plateTop,0]}><LivePelvicHudView assetId={assetId} runtimeId={runtimeId} widthM={chartW} lens={lens} blocked={vm.blocked}/></group>:
       vm.chart&&<group position={[leftX,plateTop-chartH/2,0]}><AtlasHudPanel assetId={assetId} runtimeId={runtimeId} widthM={chartW}/></group>}
     <group position-x={split?rightX:0}>

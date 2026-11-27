@@ -34,17 +34,23 @@ function useReadout({assetId,runtimeId}:PelvicActor){
     const p=s.byAsset[assetId];if(!p?.clothed&&s.support[assetId]?.obstruction)return 'blocked';
     return s.sample?'running':'starting';
   });
-  const phase=usePelvic(s=>s.active?.assetId===assetId&&s.active.runtimeId===runtimeId?(s.strokeOrder?.phase??s.strokeReceipt):null);
+  const phase=usePelvic(s=>s.active?.assetId===assetId&&s.active.runtimeId===runtimeId?
+    (s.strokeOrder?.target==='external'?'pendingOutside':s.strokeOrder?.phase??s.strokeReceipt):null);
   const p=usePelvic(s=>s.byAsset[assetId]);
   const site=p?.container==='fantasyUterine'?l('宫腔','Uterus'):l('阴道','Vagina');
-  const position=signal==='stopped'?l('支架静止','Stand at rest'):signal==='blocked'?l('入口受阻','Opening blocked'):
-    signal==='running'?l('支架往复中','Stand in motion'):signal==='starting'?l('支架启动中','Starting the stand'):l('支架就位中','Positioning the stand');
-  const action=phase==='waiting'||phase==='dispatched'?l('待释放 · 1 单位','Release pending · 1 unit'):
+  const partner=p?.standAppearance==='partner';
+  const position=signal==='blocked'?l('入口受阻','Opening blocked'):
+    signal==='stopped'?(partner?l('搭档静止','Partner at rest'):l('支架静止','Stand at rest')):
+    signal==='running'?(partner?l('搭档往复中','Partner in motion'):l('支架往复中','Stand in motion')):
+    signal==='starting'?l('启动中','Starting'):l('就位中','Positioning');
+  const action=phase==='pendingOutside'?l('待体外释放 · 1 单位','Outside release pending · 1 unit'):
+    phase==='deliveredOutside'?l('已体外释放 · 1 单位','Released outside · 1 unit'):
+    phase==='waiting'||phase==='dispatched'?l('待释放 · 1 单位','Release pending · 1 unit'):
     phase==='delivered'?l('已释放 · 1 单位','Released · 1 unit'):
     phase==='missed'?l('本次未释放','Not released'):phase==='expired'?l('未释放 · 已超时','Not released · timed out'):
     phase==='cancelled'?l('已取消释放','Release cancelled'):
     signal==='running'?l('单次释放 · 1 单位','Single release · 1 unit'):'';
-  return {position,action,delivered:phase==='delivered',balance:p?`${site}　${p.fluid[p.container]} / ${p.capacity[p.container]}${p.overflow?l(` · 溢出 ${p.overflow}`,` · Overflow ${p.overflow}`):''}`:''};
+  return {position,action,delivered:phase==='delivered'||phase==='deliveredOutside',balance:p?`${site}　${p.fluid[p.container]} / ${p.capacity[p.container]}${p.overflow?l(` · 溢出 ${p.overflow}`,` · Overflow ${p.overflow}`):''}`:''};
 }
 export function StrokeScreenReadout(actor:PelvicActor){
   const r=useReadout(actor);

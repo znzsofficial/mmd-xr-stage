@@ -12,6 +12,7 @@ export const PELVIC_LIMITS = {
 export type PelvicContainer = 'vaginal'|'fantasyUterine';
 export type PelvicDoseTarget = PelvicContainer|'external';
 export type PelvicMode = 'xrManual'|'standManual'|'standAuto';
+export type StandAppearance = 'stand'|'partner';
 export type PelvicProfile = {
   /** A clothed session never confirms a visibly exposed opening. Both choices
    * belong to this fit and are cleared when its calibration changes. */
@@ -19,6 +20,8 @@ export type PelvicProfile = {
   apertureMorph?:string|null;
   /** Actor-local mount choice, independent of calibration and outlet exposure. */
   showAdapter:boolean;
+  /** Per-actor rail presentation. Older profiles use the mechanical stand. */
+  standAppearance?:StandAppearance;
   /** A chosen game event, local to this backpack actor. No medical meaning. */
   rimMode?:RimMode; rimMemory?:'left'|'right'|'center';
   /** Auto from the mounted face by default; null turns actor response off. */
@@ -27,7 +30,7 @@ export type PelvicProfile = {
   overflow:number; drained:number; speedHz:number; stroke:number;
   technique?:RailTechnique; replayRate?:number; replayLoop?:boolean;
 };
-export type PelvicPatch = Partial<Pick<PelvicProfile,'clothingClear'|'clothed'|'container'|'speedHz'|'stroke'|'replayRate'|'replayLoop'|'rimMode'>> & {
+export type PelvicPatch = Partial<Pick<PelvicProfile,'clothingClear'|'clothed'|'container'|'speedHz'|'stroke'|'replayRate'|'replayLoop'|'rimMode'|'standAppearance'>> & {
   calibration?:Partial<PelvicCalibration>;
 };
 export type PelvicActive = {
@@ -39,6 +42,8 @@ export type PelvicActive = {
  * no current geometry, never a nozzle implied by a slider or a saved depth. */
 export type PelvicSample = {
   depth:number; outletInside:boolean; outletVisible?:boolean; exteriorCovered?:boolean; aligned:boolean; atCervix:boolean;
+  /** A continuous, aligned motor pose can accept a one-shot order. Only a fresh exterior frame can deliver it. */
+  exteriorOrderReady?:boolean;
   tip:PelvicXYZ; tail:PelvicXYZ; shaft?:readonly PelvicXYZ[]; angleDeg:number; radiusM:number; lengthM:number;
   /** A measured, fully retracted stand, not the slider target or an admission flag. */
   railHome?:boolean;
@@ -55,4 +60,11 @@ export const canDrawAdapter=(p:PelvicProfile,s:PelvicSupport)=>p.showAdapter&&s.
 
 export function canStartAtOpening(p:PelvicProfile,s:PelvicSupport|undefined){
   return !!s&&s.kind!=='missing'&&(!!p.clothed||p.clothingClear&&!s.obstruction);
+}
+
+export function exteriorExposureBlock(p:PelvicProfile,s:PelvicSupport|undefined){
+  if(s?.obstruction==='garment')return 'garment';
+  if(p.clothed)return 'clothed';
+  if(!p.clothingClear||!s||s.kind==='missing'||s.obstruction)return 'unconfirmed';
+  return null;
 }

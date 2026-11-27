@@ -8,6 +8,7 @@ export const en: Record<keyof ZhMessages, string> = {
   hudSeasideTerminus:'Seaside terminus',shorePlatform:'Platform · station sign',shoreWaterline:'Lower tide steps',shoreReturn:'Beacon · look back',shoreSounder:'Quay · tide dial',
   actorPelvic:'Pelvic attachment',
   screenInspectStand:'Look at stand',
+  screenInspectPartner:'Look at partner',
   screenCloseUp:'Close-up',screenFrameFace:'Frame face',screenReturnView:'Restore view',
   actorPose:'Pose actor', actorBodyState:'Body settings',
   actorChance:'Conception chance (game)',actorChestShape:'Chest shape',actorMilkStock:'Milk supply',

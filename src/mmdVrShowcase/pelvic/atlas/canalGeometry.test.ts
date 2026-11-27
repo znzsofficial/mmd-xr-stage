@@ -9,8 +9,8 @@ import {createOrganArt,type OrganArtOptions} from './organArt';
 
 // The marker, sleeve and wall receive the *same* current, admitted mould on
 // the calibrated curved path. No fabricated shaft axis or target depth.
-function session(x=0){
-  const solver=createPelvicSolver(),f={world:new Matrix4(),inverse:new Matrix4(),scale:1,radiusM:.024,lengthM:.092};
+function session(x=0,lengthM=.092){
+  const solver=createPelvicSolver(),f={world:new Matrix4(),inverse:new Matrix4(),scale:1,radiusM:.024,lengthM};
   let mm=-20;
   function frame():PelvicSample{
     const m=pelvicRailMatrix(f,mm/1000);m.elements[12]+=x;
@@ -63,19 +63,23 @@ it('flattens actual posterior fold crests under the measured shaft and recovers 
 
 // Capture the production CPU z-buffer *before* the separate tip annotations.
 // A changed dot, caption or ledger alone cannot make this comparison pass.
-it('rasterizes a local impression in the actual oblique brush; dwell reuses the image and retraction restores the deep tissue',()=>{
+function canalRaster(w:number,h:number){
   let pixels:Uint8ClampedArray|undefined,uploads=0;
   class Bitmap {width:number;height:number;constructor(w:number,h:number){this.width=w;this.height=h;}
     getContext(){return {createImageData:(w:number,h:number)=>({data:new Uint8ClampedArray(w*h*4)}),putImageData:(img:{data:Uint8ClampedArray})=>{pixels=img.data.slice();uploads++;}};}}
   vi.stubGlobal('OffscreenCanvas',Bitmap);
   const ctx=new Proxy({getTransform:()=>({a:1,b:0,c:0,d:1})},{get:(o,k)=>k==='getTransform'?o.getTransform:()=>{},set:()=>true}) as unknown as CanvasRenderingContext2D;
-  const art=createOrganArt(),pose=session(.002),w=228,h=186;
+  const art=createOrganArt();
   const o:OrganArtOptions={x:0,y:0,width:w,height:h,yaw:38*Math.PI/180,time:0,lining:.5,shedding:0,fluid:0,vaginalFluid:0,fantasy:false,focus:'vagina',pressure:0,zh:true};
   const draw=(patch:Partial<OrganArtOptions>={})=>{art.draw(ctx,{...o,...patch});return pixels!;};
+  return {draw,get uploads(){return uploads;},dispose(){art.dispose();vi.unstubAllGlobals();}};
+}
+it('rasterizes a local impression in the actual oblique brush; dwell reuses the image and retraction restores the deep tissue',()=>{
+  const w=228,h=186,raster=canalRaster(w,h),draw=raster.draw,pose=session(.002);
   function changed(a:Uint8ClampedArray,b:Uint8ClampedArray,first:number,last:number){let diff=0;
     for(let i=4*w*Math.floor(first*h);i<4*w*Math.floor(last*h);i+=4)if(Math.abs(a[i]-b[i])+Math.abs(a[i+1]-b[i+1])+Math.abs(a[i+2]-b[i+2])>9)diff++;return diff;}
   try{
-    const rest=draw(),deep=draw({sample:pose(60)}),before=uploads;draw({sample:pose(60),time:5,pressure:1});expect(uploads).toBe(before);
+    const rest=draw(),deep=draw({sample:pose(60)}),before=raster.uploads;draw({sample:pose(60),time:5,pressure:1});expect(raster.uploads).toBe(before);
     const pull=draw({sample:pose(18)});
     expect(changed(rest,deep,0,.36)).toBe(0);expect(changed(rest,deep,.51,.68)).toBeGreaterThan(65);
     expect(changed(rest,pull,.51,.68)).toBe(0);expect(changed(rest,pull,.74,.89)).toBeGreaterThan(28);
@@ -83,7 +87,37 @@ it('rasterizes a local impression in the actual oblique brush; dwell reuses the 
     const wet=draw({vaginalFluid:.4});expect(changed(rest,wet,.66,.91)).toBeGreaterThan(30);expect(changed(rest,wet,0,.40)).toBe(0);
     const side=draw({yaw:Math.PI/2}),front=draw({yaw:0});expect(changed(side,front,.15,.83)).toBeGreaterThan(400);
     expect(changed(rest,draw(),0,1)).toBe(0);
-  }finally{art.dispose();vi.unstubAllGlobals();}
+  }finally{raster.dispose();}
+});
+
+it.each([0,38,90])('renders the calibrated length and measured contact on the 156 px plate at %i°',degrees=>{
+  const w=156,h=128,raster=canalRaster(w,h),yaw=degrees*Math.PI/180;
+  function bounds(pixels:Uint8ClampedArray,rest?:Uint8ClampedArray){
+    let top=h,bottom=-1,left=w,right=-1,count=0;
+    for(let i=0;i<pixels.length;i+=4){
+      // Silhouette on the plum ground, or only the pixels changed by actual contact.
+      if(rest?Math.abs(pixels[i]-rest[i])+Math.abs(pixels[i+1]-rest[i+1])+Math.abs(pixels[i+2]-rest[i+2])<=18:pixels[i]<=60)continue;
+      const x=(i/4)%w,y=Math.floor(i/(4*w));count++;
+      top=Math.min(top,y);bottom=Math.max(bottom,y);left=Math.min(left,x);right=Math.max(right,x);
+    }
+    return {top,bottom,left,right,count};
+  }
+  try{
+    const results=[.035,.092,.20].map(canalLengthM=>{
+      const options={yaw,canalLengthM},rest=raster.draw(options),shape=bounds(rest);
+      expect(shape.count).toBeGreaterThan(1900);expect(shape.top).toBeGreaterThan(3);
+      expect(shape.bottom).toBeLessThan(h-3);expect(shape.left).toBeGreaterThan(3);expect(shape.right).toBeLessThan(w-3);
+      const pose=session(.0018,canalLengthM),sample=pose(25);expect(sample.outletInside).toBe(true);
+      const engaged=bounds(raster.draw({...options,sample}),rest);expect(engaged.count).toBeGreaterThan(130);
+      expect(Buffer.from(raster.draw({...options,sample:pose(-10)})).equals(Buffer.from(rest))).toBe(true);
+      return {shape,reach:(shape.bottom-engaged.top)/(shape.bottom-shape.top)};
+    });
+    const [short,medium,long]=results;
+    expect(short.shape.top-medium.shape.top).toBeGreaterThan(10);expect(medium.shape.top-long.shape.top).toBeGreaterThan(16);
+    expect(Math.abs(long.shape.bottom-short.shape.bottom)).toBeLessThanOrEqual(2);
+    // The same 25 mm reaches farther into the short canal, not to the same painted fold.
+    expect(short.reach).toBeGreaterThan(medium.reach+.06);expect(medium.reach).toBeGreaterThan(long.reach+.05);
+  }finally{raster.dispose();}
 });
 
 it('impresses only intersected shaft sections, keeps dwell, releases vacated folds first, and ignores stale HUD depth',()=>{

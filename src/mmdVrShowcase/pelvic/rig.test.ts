@@ -108,6 +108,24 @@ it.each(['screen','xr'] as const)('delivers one motor order at the physical nozz
   for(let i=0;i<400;i++)tick();expect(emissions.some(e=>e.action==='start')).toBe(false);expect(st().byAsset.a.fluid).toEqual({vaginal:0,fantasyUterine:2});
 });
 
+it.each(['screen','xr'] as const)('waits for the mounted outlet to withdraw, then emits exactly once on %s',source=>{
+  const {tick,piece,emissions}=fixture(source);
+  patchPelvic('a',{container:'fantasyUterine'});tick();assignPelvic('a','standAuto',source);tick();startPelvic('a');
+  for(let i=0;i<50;i++)tick();
+  const t=st().active!.token,profile=st().byAsset.a;
+  expect(st().sample).toMatchObject({outletInside:true,exteriorOrderReady:true});
+  expect(requestStrokeDose('a',t,'external')).toBe(true);expect(requestStrokeDose('a',t,'vaginal')).toBe(false);
+  for(let i=0;i<200;i++){
+    tick();const emission=emissions.at(-1)!;
+    if(emission.action==='start'){
+      expect(st().sample).toMatchObject({outletInside:false,outletVisible:true});
+      expect(emission.at.distanceTo(piece.localToWorld(new Vector3(...siliconeOutlet.position)))).toBeLessThan(1e-7);
+    }
+  }
+  expect(emissions.filter(e=>e.action==='start')).toHaveLength(1);expect(st().strokeReceipt).toBe('deliveredOutside');
+  expect(st().byAsset.a).toBe(profile);expect(st().active).toMatchObject({running:true,token:t});
+});
+
 it.each(['lost tracking','obstructed','long frame','target','selection','room','stop','actor jump'] as const)(
   'drops an outside motor order on %s; a future valid crossing cannot spend it',cause=>{
     const {root,viewer,session,tick,driver,emissions}=fixture('xr');
@@ -277,6 +295,36 @@ it('draws an unconfirmed mount, measures its physical nozzle and carriage, and c
   for(let i=0;i<4;i++){root.position.z+=.04;tick();}expect(new Vector3(...st().parkedSample!.tip).distanceTo(tip())).toBeLessThan(1e-6);
   expect(startPelvic('a')).toBe(false);useStagePlay.getState().stow();tick();expect(stand.visible||piece.visible).toBe(false);
   expect(st().parkedSample).toBeNull();
+});
+
+it.each(['standManual','standAuto'] as const)('changes the drawn %s partner at the real moving outlet and releases it with the room',mode=>{
+  const {scene,root,piece,tick,driver}=fixture('screen');tick();assignPelvic('a',mode,'screen');tick();
+  const bag=useBackpack.getState(),stand=scene.getObjectByName('pelvic:stand')!;
+  const c=st().byAsset.a.calibration,f=samplePelvicFrame(registerPelvicSocket(root,c),c)!;
+  const endpoint=(parent:Group)=>parent.getObjectByName('play:piece:dildo')!.localToWorld(new Vector3(0,tipHeight,centerZ(tipHeight)));
+  const parked=endpoint(piece);patchPelvic('a',{standAppearance:'partner'});tick();
+  const body=scene.getObjectByName('pelvic:partner')!,contact=body.getObjectByName('pelvic:partner-piece') as Group;
+  expect(body.visible).toBe(true);expect(stand.visible||piece.visible).toBe(false);expect(endpoint(contact).distanceTo(parked)).toBeLessThan(1e-7);
+  expect(driver.getStandRoot()).toBeNull();expect(st().parkedSample?.outletInside).toBe(false);
+  const hips=body.getWorldPosition(new Vector3()),boot=body.getObjectByName('pelvic:partner-left-foot')!,foot=boot.getWorldPosition(new Vector3());
+  expect(startPelvic('a')).toBe(true);if(mode==='standManual')nudgePelvic('a',.8);
+  for(let i=0;i<45;i++)tick();
+  expect(st().sample?.outletInside).toBe(true);expect(driver.getStandRoot()).toBe(contact);
+  expect(body.getWorldPosition(new Vector3()).distanceTo(hips)).toBeGreaterThan(.06);
+  expect(boot.getWorldPosition(new Vector3()).distanceTo(foot)).toBeLessThan(1e-6);
+  const token=st().active!.token,key=driver.getStandBinding(),inside=endpoint(contact),before=st().sample;
+  // A slow frame may replace the artwork at this same verified pose. It
+  // cannot move the contact, stop the motor or advance the actor's sample.
+  patchPelvic('a',{standAppearance:'stand'});driver.advance(.16);
+  expect(driver.getStandRoot()).toBe(piece);expect(stand.visible&&piece.visible).toBe(true);expect(body.parent).toBeNull();
+  expect(endpoint(piece).distanceTo(inside)).toBeLessThan(1e-7);expect(st().sample?.depth).toBe(before?.depth);
+  patchPelvic('a',{standAppearance:'partner'});driver.advance(.16);
+  const replacement=driver.getStandRoot()!;expect(replacement).not.toBe(contact);
+  expect(endpoint(replacement).distanceTo(inside)).toBeLessThan(1e-7);expect(driver.getStandBinding()).toBe(key);expect(st().active!.token).toBe(token);
+  expect(endpoint(replacement).applyMatrix4(f.inverse).z).toBeLessThan(0);
+  expect(useBackpack.getState().live).toBe(bag.live);expect(useBackpack.getState().entries).toBe(bag.entries);
+  driver.dispose();expect(scene.getObjectByName('pelvic:partner')).toBeUndefined();expect(driver.getStandRoot()).toBeNull();expect(st().active).toBeNull();
+  expect(st().byAsset.a.standAppearance).toBe('partner');
 });
 
 it.each(['stop/restart','tracking','actor','room','off/on','swap'] as const)('restores the actual clothed stand actor on %s without forwarding the last admitted frame',cause=>{

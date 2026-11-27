@@ -30,8 +30,8 @@ const token=()=>get().active!.token;
 const inside={outletInside:true,outletVisible:false}, external={outletInside:false,outletVisible:true}, occluded={outletInside:false,outletVisible:false};
 // Store-only fixtures: publish the last HUD reading, then pass the independent
 // current render-frame reading to consume. rig.test covers the actual meshes.
-function reading(outlet:typeof inside){publishPelvicSample(token(),{tip:[0,0,outlet.outletInside?-.02:.04],tail:[0,0,.1],depth:outlet.outletInside?.02:0,
-  shaft:[[0,0,.1],[0,0,0]],radiusM:.024,lengthM:.09,angleDeg:0,aligned:true,atCervix:false,...outlet});}
+function reading(outlet:typeof inside,exteriorOrderReady=false){publishPelvicSample(token(),{tip:[0,0,outlet.outletInside?-.02:.04],tail:[0,0,.1],depth:outlet.outletInside?.02:0,
+  shaft:[[0,0,.1],[0,0,0]],radiusM:.024,lengthM:.09,angleDeg:0,aligned:true,atCervix:false,exteriorOrderReady,...outlet});}
 beforeEach(()=>useHudWorldInput.setState({blocked:false}));
 afterEach(()=>{clearBackpack();play().reset();useHudWorldInput.setState({blocked:false});useMmdVrStore.setState(initialStage);});
 
@@ -165,6 +165,26 @@ it.each(['missed pass','deadline','slowed motor'] as const)('retires a single au
   expect(get().strokeReceipt).toBe(cause==='missed pass'?'missed':'expired');expect(get().strokeOrder).toBeNull();
   advancePelvic(t,.01);expect(consumePelvicDose(t,{...inside,motion:'enter'})).toBe('none');expect(get().byAsset.a.fluid.vaginal).toBe(0);
 });
+
+it.each(['unverified outlet','tracking gap','garment','deadline','deselect','stop'] as const)(
+  'retires the exterior order on %s; later clearance cannot emit or credit a container',cause=>{
+    opted();assignPelvic('a','standAuto','screen');startPelvic('a');const t=token(),ask=()=>requestStrokeDose('a',t,'external');
+    expect(ask()).toBe(false);reading(inside,true);expect(ask()).toBe(true);
+    const verifiedOutside={...external,continuous:true};
+    switch(cause){
+      case 'unverified outlet':expect(consumePelvicDose(t,{...occluded,continuous:true})).toBe('none');break;
+      case 'tracking gap':expect(consumePelvicDose(t,{...external,continuous:false})).toBe('none');break;
+      case 'garment':publishPelvicSupport('a',{...support('1'),obstruction:'garment'});expect(ask()).toBe(false);publishPelvicSupport('a',support('1'));break;
+      case 'deadline':{
+        const clock=vi.spyOn(performance,'now').mockReturnValue(get().strokeOrder!.deadline+1);
+        try{expect(consumePelvicDose(t,verifiedOutside)).toBe('none');}finally{clock.mockRestore();}break;
+      }
+      case 'deselect':bag().select(null);bag().select('a');break;
+      case 'stop':stopPelvic('a');startPelvic('a');break;
+    }
+    expect(get().strokeOrder).toBeNull();advancePelvic(token(),.016);expect(consumePelvicDose(token(),verifiedOutside)).toBe('none');
+    expect(get().byAsset.a.fluid).toEqual({vaginal:0,fantasyUterine:0});
+  });
 
 it('consumes but never dispenses an unverified or over-stop trigger, including on two subsequent confirmed frames',()=>{
   opted('xr');assignPelvic('a','xrManual','xr');startPelvic('a');bag().select(null);

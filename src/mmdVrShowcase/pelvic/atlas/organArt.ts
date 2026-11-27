@@ -1,6 +1,7 @@
-import type { PelvicSample } from '../stateTypes';
+import { PELVIC_LIMITS, type PelvicSample } from '../stateTypes';
+import {defaultPelvicCalibration} from '../contract';
 import {semenColor,semenRGB} from '../../play/semenAppearance';
-import { cavityColumn, clamp, ENTRY, organMeshes, ovary, tubePath, smooth, STOP, stride } from './model';
+import { canalY, cavityColumn, clamp, ENTRY, organMeshes, ovary, tubePath, smooth, STOP, stride } from './model';
 import {canalBands,canalStudy,type CanalStudy} from './canalGeometry';
 import {createCanalContact,fitWall,type CanalContact} from './canalContact';
 import {createOverviewTract} from './overviewTract';
@@ -16,6 +17,8 @@ import type {FoldStyle,RimState} from '../vulvaForm';
 export interface OrganArtOptions {
   x:number; y:number; width:number; height:number; yaw:number; time:number;
   focus?:'uterus'|'vagina'|'vulva'|'egg';
+  /** Actor reference metres. The sample's world-metre ruler also includes placement scale. */
+  canalLengthM?:number;
   event?:ConceptionEvent;encounterSeconds?:number;egg?:Ovum;
   foldStyle?:FoldStyle;rim?:RimState;exteriorDisplayScale?:number;
   /** Illustrative normalized tissue inputs, not physical measurements. */
@@ -36,12 +39,27 @@ function plate(w:number,h:number,base=false):Plate {
 type Lens=ReturnType<typeof lens>;
 type CanalFraming={frontPitch:number;sidePitch:number;width:number;height:number;lateral:number};
 const focusedFraming:CanalFraming={frontPitch:-.13,sidePitch:-.0975,width:.80,height:.89,lateral:-.12};
-function lens(w:number,h:number,yaw:number,canal?:CanalFraming){
+const referenceLength=defaultPelvicCalibration.lengthM;
+// The vault above the cervical stop translates intact rather than growing with the canal.
+function canalHeight(z:number,stretch:number){return z+(stretch-1)*clamp(z-ENTRY,0,STOP-ENTRY);}
+function lens(w:number,h:number,yaw:number,canal?:CanalFraming,stretch=1){
   const ca=cos(yaw),sa=sin(yaw),a=Math.acos(clamp(abs(ca),0,1));
   const cut=smooth(.72,1.54,a),angle=cut*(sa<0?-1:1)*PI/2;
-  const pitch=canal?mix(canal.sidePitch,canal.frontPitch,abs(ca)):.095*abs(ca),cp=cos(pitch),sp=sin(pitch),scale=canal?Math.min(w*canal.width/3.1,h*canal.height/3.6):Math.min(w*.91/11.99,h*.88/8.78);
+  const pitch=canal?mix(canal.sidePitch,canal.frontPitch,abs(ca)):.095*abs(ca),cp=cos(pitch),sp=sin(pitch);
+  let scale=Math.min(w*.91/11.99,h*.88/8.78),ox=w*.5+.37*sa*scale,oy=h*.5+.45*scale;
+  if(canal){
+    // Ease back on the longer studies while reserving visibly less height
+    // for a short canal. Fitting every length to the same box hides the edit.
+    const [min,max]=PELVIC_LIMITS.lengthM,travel=(stretch*referenceLength-min)/(max-min);
+    const extent=3.6+(stretch-1)*(STOP-ENTRY);
+    scale=Math.min(w*canal.width/3.1,h*canal.height*mix(.74,1,travel)/extent);
+    // Register the camera on the same entrance in front, oblique and side views.
+    const entryY=canalY(0);
+    ox=w*(.5+canal.lateral*sa/3.1)+entryY*sa*scale;
+    oy=h*.91+(ENTRY*cp-entryY*ca*sp)*scale;
+  }
   return {ca,sa,cut,cp,sp,scale,dc:cos(yaw-angle),ds:sin(yaw-angle),
-    ox:w*.5+(canal?.lateral??.37)*sa*scale,oy:h*.5+(canal?ENTRY+1.61:.45)*scale,nearAlpha:1-smooth(.96,1.45,a),farAlpha:1-smooth(1.29,1.54,a)};
+    ox,oy,nearAlpha:1-smooth(.96,1.45,a),farAlpha:1-smooth(1.29,1.54,a)};
 }
 function point(l:Lens,x:number,y:number,z:number):V{
   const d=l.sa*x+l.ca*y;return [l.ox+(l.ca*x-l.sa*y)*l.scale,l.oy-(z*l.cp-d*l.sp)*l.scale,d*l.cp+z*l.sp];
@@ -80,12 +98,15 @@ function triangles(p:Plate,mesh:Topology,v:Float32Array,sectionMix=0,indexCount=
 // Dedicated cutaway uses object-space XYZ for BOTH materials, one invariant
 // dissection and actual displaced normals. No interpolation of view-specific
 // plates. The overview tract also supplies actual world-space positions here.
-function projectCanal(mesh:Mesh,data:Float32Array,out:Float32Array,l:Lens){
+function projectCanal(mesh:Mesh,data:Float32Array,out:Float32Array,l:Lens,stretch=1){
   for(let i=0,j=0;i<data.length;i+=stride,j+=N){
-    const x=data[i],y=data[i+1],z=data[i+2],d=x*l.sa+y*l.ca;
+    const x=data[i],y=data[i+1],restZ=data[i+2],z=canalHeight(restZ,stretch),d=x*l.sa+y*l.ca;
     out[j]=l.ox+(x*l.ca-y*l.sa)*l.scale;out[j+1]=l.oy-(z*l.cp-d*l.sp)*l.scale;out[j+2]=d*l.cp+z*l.sp;
-    let nx=data[i+3]*l.ca-data[i+4]*l.sa,front=data[i+3]*l.sa+data[i+4]*l.ca,up=data[i+5]*l.cp-front*l.sp;
-    front=front*l.cp+data[i+5]*l.sp;if(front<0){nx=-nx;up=-up;front=-front;}
+    let nx=data[i+3]*l.ca-data[i+4]*l.sa,front=data[i+3]*l.sa+data[i+4]*l.ca,nz=data[i+5];
+    if(stretch!==1&&restZ>ENTRY&&restZ<STOP){
+      nz/=stretch;const norm=1/(sqrt(nx*nx+front*front+nz*nz)||1);nx*=norm;front*=norm;nz*=norm;
+    }
+    let up=nz*l.cp-front*l.sp;front=front*l.cp+nz*l.sp;if(front<0){nx=-nx;up=-up;front=-front;}
     const diffuse=clamp(.35-.39*nx+.48*up+.43*front),gloss=mesh.a[i+11];
     // The long softbox breaks into small highlights as the fold tips turn;
     // only the exposed epithelium carries the sharp reflection. The broad
@@ -108,8 +129,9 @@ function sleeveTopology():Topology{
     const a=j*sleeveCols+i;indices.set([a,a+1,a+sleeveCols,a+1,a+sleeveCols+1,a+sleeveCols],k);k+=6;
   }return {cols:sleeveCols,rows,indices};
 }
-function drawSleeve(contact:CanalContact,mesh:Topology,out:Float32Array,p:Plate,l:Lens,overview=false){
-  const rows=contact.rings((row,z,x,y,rx,ry,shear)=>{
+function drawSleeve(contact:CanalContact,mesh:Topology,out:Float32Array,p:Plate,l:Lens,overview=false,stretch=1){
+  const rows=contact.rings((row,restZ,x,y,rx,ry,shear)=>{
+    const z=canalHeight(restZ,stretch);
     for(let i=0,j=row*sleeveCols*N;i<sleeveCols;i++,j+=N){const [cx,cy]=sleeveCircle[i],sx=x+cx*rx,sy=y+cy*ry+cx*rx*shear,d=sx*l.sa+sy*l.ca;
       out[j]=l.ox+(sx*l.ca-sy*l.sa)*l.scale;out[j+1]=l.oy-(z*l.cp-d*l.sp)*l.scale;out[j+2]=d*l.cp+z*l.sp;
     }
@@ -226,6 +248,7 @@ export function createOrganArt(canalFraming:CanalFraming=focusedFraming){
   let frame:Plate|undefined,back:Plate|undefined,near:Plate|undefined,img:ImageData|undefined,lastYaw=NaN;
   let meshes:Mesh[]|undefined,work=new Float32Array(0),lastFocus:OrganArtOptions['focus'];
   let cut:CanalStudy|undefined,liquid:ReturnType<typeof createCanalLiquid>|undefined,contact:CanalContact|undefined,dynamic:Float32Array[]|undefined,sleeve:Topology|undefined,previousFill=NaN;
+  let previousStretch=NaN;
   let overview:ReturnType<typeof createOverviewTract>|undefined,overviewKey='',labelAnchors:[V,V]|undefined,lastPress=false;
   return {draw(ctx:CanvasRenderingContext2D,o:OrganArtOptions){
     if(!(o.width>0&&o.height>0))return;
@@ -234,6 +257,7 @@ export function createOrganArt(canalFraming:CanalFraming=focusedFraming){
       ctx.save();ctx.translate(o.x,o.y);drawEncounter(ctx,o.egg,o.width,o.height,o.zh,o.encounterSeconds,o.yaw*180/PI);ctx.restore();return;
     }
     const canal=o.focus==='vagina',whole=o.focus==='uterus';
+    const stretch=canal&&o.canalLengthM!==undefined&&Number.isFinite(o.canalLengthM)?clamp(o.canalLengthM,...PELVIC_LIMITS.lengthM)/referenceLength:1;
     if(canal||whole){contact??=createCanalContact();sleeve??=sleeveTopology();}
     if(canal){
       if(!cut){cut=canalStudy();liquid=createCanalLiquid(cut);dynamic=[cut.posterior.a.slice(),cut.anterior.a.slice()];}
@@ -251,17 +275,17 @@ export function createOrganArt(canalFraming:CanalFraming=focusedFraming){
       canvas.width=w;canvas.height=h;ic=canvas.getContext('2d') as typeof ic;if(!ic)return;
       frame=plate(w,h);back=plate(w,h,true);near=undefined;img=ic.createImageData(w,h);lastYaw=NaN;
     }
-    const framing=canal?canalFraming:undefined,l=lens(w,h,yaw,framing);
+    const framing=canal?canalFraming:undefined,l=lens(w,h,yaw,framing,stretch);
     const sectioning=!canal&&l.nearAlpha>0&&l.nearAlpha<1;
     const pageChanged=o.focus!==lastFocus,turned=yaw!==lastYaw||pageChanged;
     // A moving mould does not invalidate the corpus or the adnexa. Keep the
     // ledger/tissue in the same cached depth plate as the organ. Workers receive
     // structured clones, so use the tissue values rather than object identity.
     const tissue=o.tissue,key=whole?[o.lining,o.shedding,o.uterineFluid??0,tissue?.functionalDepth,tissue?.breakdown,tissue?.glandCoil,tissue?.vesselCoil,o.width/w,o.height/h].join('|'):'';
-    const newBase=turned||whole&&key!==overviewKey;
+    const newBase=turned||whole&&key!==overviewKey||canal&&stretch!==previousStretch;
     if(newBase){new Uint32Array(back.color.buffer).fill(0xff221721);back.z.fill(-1e4);
       if(sectioning){near??=plate(w,h);near.z.fill(-1e4);}
-      if(canal){for(const mesh of [cut!.commissure,cut!.vault,cut!.fornix,cut!.cervix]){projectCanal(mesh,mesh.a,work,l);triangles(back,mesh,work);}}
+      if(canal){for(const mesh of [cut!.commissure,cut!.vault,cut!.fornix,cut!.cervix]){projectCanal(mesh,mesh.a,work,l,stretch);triangles(back,mesh,work);}}
       else for(const mesh of meshes!)if(!mesh.section){const ipsi=mesh.wing===(l.sa<0?-1:1);
         if((ipsi?l.nearAlpha:l.farAlpha)===0)continue;
         projectMesh(mesh,work,l,o,false);triangles(ipsi&&sectioning?near!:back,mesh,work);}
@@ -277,18 +301,18 @@ export function createOrganArt(canalFraming:CanalFraming=focusedFraming){
         // plate; strokes and the lower cervical lip are entirely inferior.
         if(sectioning&&near)veil(back,near,l.nearAlpha);
       }
-      lastYaw=yaw;lastFocus=o.focus;overviewKey=key;
+      lastYaw=yaw;lastFocus=o.focus;overviewKey=key;previousStretch=stretch;
     }
     if(canal){
       const fit=contact!,s=cut!,shifted=fit.update(o.sample,o.parked),fill=sane(o.vaginalFluid??0);
-      if(turned||shifted||fill!==previousFill){
+      if(newBase||shifted||fill!==previousFill){
         frame.z.set(back.z);frame.color.set(back.color);previousFill=fill;
         for(const [i,mesh] of [s.posterior,s.anterior].entries()){
           if((shifted||pageChanged)&&fit.active)fitWall(mesh,i===0?-1:1,fit,dynamic![i]);
-          projectCanal(mesh,fit.active?dynamic![i]:mesh.a,work,l);triangles(frame,mesh,work);
+          projectCanal(mesh,fit.active?dynamic![i]:mesh.a,work,l,stretch);triangles(frame,mesh,work);
         }
-        for(const m of liquid!.update(fill,fit.active?dynamic![0]:s.posterior.a,shifted||pageChanged)){projectCanal(m,m.a,work,l);triangles(frame,m,work);}
-        if(fit.active)drawSleeve(fit,sleeve!,work,frame,l);
+        for(const m of liquid!.update(fill,fit.active?dynamic![0]:s.posterior.a,shifted||pageChanged)){projectCanal(m,m.a,work,l,stretch);triangles(frame,m,work);}
+        if(fit.active)drawSleeve(fit,sleeve!,work,frame,l,false,stretch);
         img.data.set(frame.color);ic!.putImageData(img,0,0);
       }
     }else{
@@ -313,7 +337,7 @@ export function createOrganArt(canalFraming:CanalFraming=focusedFraming){
       }
     }
     ctx.save();ctx.translate(o.x,o.y);ctx.beginPath();ctx.rect(0,0,o.width,o.height);ctx.clip();
-    ctx.drawImage(canvas,0,0,o.width,o.height);const logical=lens(o.width,o.height,yaw,framing);
+    ctx.drawImage(canvas,0,0,o.width,o.height);const logical=lens(o.width,o.height,yaw,framing,stretch);
     if((o.labels||whole)&&!canal&&labelAnchors)annotations(ctx,logical,o,...labelAnchors);
     if(o.focus==='uterus'&&o.event)drawTransit(ctx,o.event,v=>point(logical,...v),Math.min(o.width/344,o.height/282),o.encounterSeconds);
     ctx.restore();

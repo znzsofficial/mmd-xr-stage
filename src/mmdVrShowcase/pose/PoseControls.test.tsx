@@ -55,7 +55,7 @@ async function editor(surface: 'screen' | 'xr', partial = false) {
 }
 const delta = (a: number[], b: number[]) => Math.max(...a.map((n,i) => Math.abs(n-b[i])));
 
-it.each(['screen','xr'] as const)('groups all ten one-press poses on %s; changing group keeps the pose, undo, save and restore', async surface => {
+it.each(['screen','xr'] as const)('groups all one-press poses on %s; changing group keeps the pose, undo, save and restore', async surface => {
   const ui = await editor(surface);
   try {
     const original = ui.sample(); await ui.mount();
@@ -66,6 +66,14 @@ it.each(['screen','xr'] as const)('groups all ten one-press poses on %s; changin
     for (const [group,choices] of Object.entries(presetGroups)) {
       await ui.press(group==='basic'?'基础体位':'挑逗体位'); expect(delta(ui.sample(),last)).toBeLessThan(.001);
       expect(ui.key(group==='basic'?'跪坐掩胸':'仰卧屈膝')).toBeFalsy();
+      if(surface==='xr'){
+        // All pose keys use .14-high meshes. Leave clear space on either side
+        // of the grid for the group tabs and the receipt/undo row.
+        const keyY=(name:string)=>Number(ui.key(name)!.getAttribute('position')!.split(',')[1]);
+        const rows=choices.filter((_,i)=>i%2===0).map(p=>keyY(p.zh));
+        const y=[keyY('基础体位'),...rows,keyY('撤销'),keyY('恢复原动作')];
+        for(let i=1;i<y.length;i++)expect(y[i-1]-y[i]).toBeGreaterThan(.14);
+      }
       for(const preset of choices) {
         await ui.press(preset.zh); expect(ui.status()).toContain(`已应用 · ${preset.zh}`);
         before = last; last = ui.sample(); expect(delta(last, before)).toBeGreaterThan(.04);

@@ -14,8 +14,9 @@ import { createPelvicSolver, pelvicRailMatrix, registerPelvicSocket, samplePelvi
 import { createPelvicInput, isMountedVisible, mountPelvicInput, samplePelvicNozzle } from './input';
 import { measuredRailPosition, pelvicRailTravel } from './path';
 import {createStandHold} from './rigHold';
+import {createPartnerDrawing} from './partnerDrawing';
 import {visibleRim} from './vulvaForm';
-import { advancePelvic, canDrawAdapter, clearPelvicSupport, consumePelvicDose, discardPelvicDoses, endPelvic, interruptPelvic,
+import { advancePelvic, canDrawAdapter, clearPelvicSupport, consumePelvicDose, discardPelvicDoses, endPelvic, interruptPelvic, tracksExteriorOrder,
   presentRailTechnique, publishParkedSample, publishPelvicSample, publishPelvicSupport, rememberRimEntry, usePelvic, PELVIC_LIMITS, type PelvicSample, type PelvicSupport } from './store';
 
 export type PelvicRigProps={getRoot:(runtimeId:string)=>Object3D|null;getSurface?:(runtimeId:string)=>WandModel|null;
@@ -68,6 +69,7 @@ export function mountPelvicRig(o:Options):PelvicRigHandle&{dispose:()=>void}{
   const bindings=new Map<string,Binding>(),solver=createPelvicSolver(),sample=observations(),railWorld=new Matrix4(),observer=new Vector3();
   const spray:GripFrame={at:new Vector3(),dir:new Vector3(),action:'off',usable:false,dt:0},hold=createStandHold();
   let rimEdge:'left'|'right'|'center'|null=null;
+  let partner:ReturnType<typeof createPartnerDrawing>|null=null,partnerAnchor:Object3D|null=null;
    let token=-1,owner:object|null=null,actor:Object3D|null=null,source:XRInputSource|null=null,epoch=0,aperture:Aperture|null=null,response:ActorContactFrame|null=null,heldContact:PelvicContact|undefined,
     standKey:object|null=null,stand:ReturnType<typeof createStandDrawing>|null=null,session:XRSession|null=null,disposed=false,hasObserver=false;
   const input=createPelvicInput(o.scene,()=>{
@@ -75,7 +77,20 @@ export function mountPelvicRig(o:Options):PelvicRigHandle&{dispose:()=>void}{
     return a?.mode==='xrManual'&&h?.toy==='dildo'?{token:a.token,hand:h.hand}:null;
   }),unmountInput=mountPelvicInput(o.scene,input);
 
-  function hideStand(){if(stand)stand.body.visible=false;const piece=o.standPiece();if(piece)piece.visible=false;standKey=null;hold.clear();}
+  function retirePartner(){partner?.dispose();partner=null;partnerAnchor=null;}
+  function drawnStandPiece(){return partner?.group.visible?partner.piece:o.standPiece();}
+  function hideStand(){if(partner)partner.group.visible=false;if(stand)stand.body.visible=false;const piece=o.standPiece();if(piece)piece.visible=false;standKey=null;hold.clear();}
+  function drawStand(b:Binding,f:PelvicFrame,holder:Group,floorY:number,asPartner:boolean){
+    if(asPartner){
+      const host=holder.parent!,anchor=b.socket!.anchor;
+      if(partner&&(partner.group.parent!==host||partnerAnchor!==anchor))retirePartner();
+      partner??=createPartnerDrawing(host,b.root,anchor);partnerAnchor=anchor;
+      holder.visible=false;if(stand)stand.body.visible=false;
+      partner.draw(f,railWorld,floorY);return partner.piece;
+    }
+    retirePartner();placeWorld(holder,railWorld);holder.visible=true;
+    stand??=createStandDrawing(o.host);stand.draw(f,railWorld,floorY);return holder;
+  }
   function reset(clearInput=true){solver.reset();rimEdge=null;source=null;epoch=0;aperture=null;response=null;heldContact=undefined;hasObserver=false;hideStand();if(clearInput)input.clear();}
   function currentRoomToken(){
     const state=usePelvic.getState(),a=state.active,play=useStagePlay.getState();if(!a)return null;
@@ -93,8 +108,9 @@ export function mountPelvicRig(o:Options):PelvicRigHandle&{dispose:()=>void}{
     for(const name of ['end','inputsourceschange','visibilitychange'] as const){session?.removeEventListener(name,change);next?.addEventListener(name,change);}session=next;}
   const hidden=()=>{if(document.hidden)interrupt();};if(typeof document!=='undefined')document.addEventListener('visibilitychange',hidden);
   function remove(id:string,b:Binding){clearPelvicSupport(id,b.support);b.port.dispose();bindings.delete(id);}
-  function validStand(){const a=usePelvic.getState().active,b=a&&bindings.get(a.assetId),p=o.standPiece();
+  function validStand(){const a=usePelvic.getState().active,b=a&&bindings.get(a.assetId),p=drawnStandPiece(),holder=o.standPiece();
     return !!(standKey&&a?.running&&a.mode!=='xrManual'&&a.token===token&&useStagePlay.getState().stand===owner&&b&&p&&
+       holder?.parent&&(!partner||partner.group.parent===holder.parent)&&
       o.getRoot(a.runtimeId)===actor&&b.root===actor&&useBackpack.getState().live[a.assetId]?.visible&&b.root.visible&&
        b.c===usePelvic.getState().byAsset[a.assetId]?.calibration&&isMountedVisible(p,o.scene)&&hold.shown(p));}
 
@@ -143,10 +159,10 @@ export function mountPelvicRig(o:Options):PelvicRigHandle&{dispose:()=>void}{
         else if(!a?.running||a.assetId!==id)b.port.draw(b.frame,b.showShell,bag.selected===id,undefined,visibleRim(profile),b.guard?.print());
         else b.port.group.visible=false; // a running piece draws only after its pose is known (including a verified hold)
       }
-      if(!a){if(owner)reset();token=-1;owner=actor=null;return;}
+      if(!a){if(owner)reset();retirePartner();token=-1;owner=actor=null;return;}
       const b=bindings.get(a.assetId),profile=state.byAsset[a.assetId],play=useStagePlay.getState(),manual=a.mode==='xrManual',currentOwner=manual?play.held:play.stand,f=b?.frame;
       const rebound=token!==a.token||actor!==b?.root||owner!==currentOwner;
-      if(rebound){reset(false);token=a.token;owner=currentOwner;actor=b?.root??null;}
+      if(rebound){if(manual||actor!==b?.root||owner!==currentOwner)retirePartner();reset(false);token=a.token;owner=currentOwner;actor=b?.root??null;}
       if(!b||!f||!profile||!currentOwner||currentOwner.toy!=='dildo'||!manual&&play.stand?.assetId!==a.assetId||b.runtimeId!==a.runtimeId||
         usePelvic.getState().active?.token!==a.token){cancel(a.token);return;}
       // Starting requires a clothing choice. The current skin/garment check
@@ -154,10 +170,11 @@ export function mountPelvicRig(o:Options):PelvicRigHandle&{dispose:()=>void}{
       const exposed=profile.clothingClear&&!b.support.obstruction;
       if(o.getGarmentPose&&a.running&&!profile.clothed&&!exposed){interrupt();return;}
       if(a.awaitingWorld){hideStand();return;}
-      const piece=manual?queued?.root:o.standPiece();
+      const holder=o.standPiece(),asPartner=profile.standAppearance==='partner',floorY=bag.live[a.assetId].position[1];
+      let piece=manual?queued?.root:drawnStandPiece();
       // React can commit the single stand mesh one render after an ownership
       // change. Never start/advance the motor until its actual piece is live.
-      if(!piece||!hold.shown(piece)||!manual&&(!piece.parent||!isMountedVisible(piece.parent,o.scene))){
+      if(!piece||!hold.shown(piece)||!manual&&(!holder?.parent||!isMountedVisible(holder.parent,o.scene)||!piece.parent||!isMountedVisible(piece.parent,o.scene))){
         if(!a.running||manual||standKey||a.take)interrupt();else discardPelvicDoses(a.token);return;
       }
       if(manual){hideStand();if(!a.running||!queued)return;
@@ -174,11 +191,18 @@ export function mountPelvicRig(o:Options):PelvicRigHandle&{dispose:()=>void}{
              typeof document!=='undefined'&&document.hidden||!hold.matches(f,piece)){interrupt();return;}
            discardPelvicDoses(token,true);
            if(a.take?.kind==='record')presentRailTechnique(token,delta,null);
+           // A change of artwork on a held frame reuses the verified rigid
+           // transform. There is no travel or fresh crossing to report.
+           if(asPartner!==!!partner?.group.visible){piece=drawStand(b,f,holder!,floorY,asPartner);hold.record(f,piece);}
+           else if(asPartner)partner?.draw(f,railWorld,floorY);
             const show=b.showShell;
             b.port.draw(f,show,bag.selected===a.assetId,exposed||show?heldContact:undefined,visibleRim(profile),b.guard?.print());
-            if(!exposed){
-             if(state.sample?.outletVisible)publishPelvicSample(token,{...state.sample,outletVisible:false,exteriorCovered:true});
-            }else aperture=lastAperture;
+            const previous=state.sample;
+            if(previous&&(previous.exteriorOrderReady||previous.outletVisible&&!exposed)){
+              publishPelvicSample(token,{...previous,exteriorOrderReady:false,outletVisible:exposed&&previous.outletVisible,
+                exteriorCovered:previous.exteriorCovered||(!exposed&&previous.outletVisible)});
+            }
+            if(exposed)aperture=lastAperture;
             // This particular stand is still verified at the last measured
             // pose. Allow an existing expression to settle; never replay an
             // entrance/exit edge or integrate the elapsed stall into a stroke.
@@ -191,8 +215,8 @@ export function mountPelvicRig(o:Options):PelvicRigHandle&{dispose:()=>void}{
       const travel=a.running?advancePelvic(a.token,delta):a.position;
       if(usePelvic.getState().active?.token!==a.token){interrupt();return;}
       if(!manual){
-        pelvicRailMatrix(f,pelvicRailTravel(f,travel),railWorld);placeWorld(piece,railWorld);piece.visible=true;
-        if(!stand)stand=createStandDrawing(o.host);stand.draw(f,railWorld,bag.live[a.assetId].position[1]);
+        pelvicRailMatrix(f,pelvicRailTravel(f,travel),railWorld);
+        piece=drawStand(b,f,holder!,floorY,asPartner);
         if(a.running)standKey??={};
       }
       samplePelvicNozzle(piece,spray);
@@ -203,6 +227,7 @@ export function mountPelvicRig(o:Options):PelvicRigHandle&{dispose:()=>void}{
       if(exteriorCovered)contact.outletVisible=false;
       if(!contact.shaftLocal.length){interrupt();return;}
       const measured=a.mode==='standManual'?measuredRailPosition(f,contact.outletLocal):null,reading=sample(f,contact,spray.dir,exteriorCovered);
+      reading.exteriorOrderReady=a.mode==='standAuto'&&exposed&&reading.aligned&&tracksExteriorOrder(contact);
       reading.railHome=reading.aligned&&measured!==null&&Math.abs(measured-PELVIC_LIMITS.position[0])<=1e-6;
       if(rebound&&a.take&&!reading.railHome){interrupt();return;}
       if(!a.running){publishParkedSample(a.token,reading);return;}
@@ -234,10 +259,10 @@ export function mountPelvicRig(o:Options):PelvicRigHandle&{dispose:()=>void}{
       if(!standReady){spray.usable=false;spray.action='off';}o.standSpray()?.(spray);
     }
   }
-  return {advance,interrupt,getStandRoot:()=>validStand()?o.standPiece():null,getStandBinding:()=>validStand()?standKey:null,
+  return {advance,interrupt,getStandRoot:()=>validStand()?drawnStandPiece():null,getStandBinding:()=>validStand()?standKey:null,
     getAperture:()=>usePelvic.getState().active?.token===token?aperture:null,
     getActorContact:()=>response&&usePelvic.getState().active?.running&&currentRoomToken()===token?response:null,
     getObserverAnchor(out){if(!hasObserver||!actor?.visible||currentRoomToken()!==token)return false;out.copy(observer);return true;},
     dispose(){if(disposed)return;const last=currentRoomToken()??token;disposed=true;listen(null);if(typeof document!=='undefined')document.removeEventListener('visibilitychange',hidden);
-      unmountInput();reset();stand?.dispose();if(last!==-1)endPelvic(last);for(const [id,b] of bindings)remove(id,b);}};
+       unmountInput();reset();retirePartner();stand?.dispose();if(last!==-1)endPelvic(last);for(const [id,b] of bindings)remove(id,b);}};
 }

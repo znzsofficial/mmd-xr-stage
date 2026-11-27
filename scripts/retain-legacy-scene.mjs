@@ -5,6 +5,12 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from 'node:path';
 
 const files = [
+  // The previous mixed-layout tab can still open its WebGPU room or planet.
+  ['0ae4a810','index-CKi68f3V.js','45e8f30a0acf99f6ed73ca641320ea9d74d9570ac224bd573ce910a6ee272eca'],
+  ['0ae4a810','stage-host-Cr9N19tn.js','68b90fb089d7fab7c5c9a2de4b12df8cfa1a2e1ab041754effd5ad35a301a310'],
+  ['0ae4a810','PlanetPhysics-D8721lOP.js','b49565c8c71eb64674a9dbd28bd0160de3fa05f177a61c6d992fb1f536f00657'],
+  ['0ae4a810','rapier-zhxF_OHb.js','bcb1aef7b964e86681fa7451fa9b20566fac44d70920529bc5adc1c52df3f742'],
+  ['0ae4a810','emulate-Tkbd3JaN.js','fb46b214e17bee80f025f99558212c10bc6b710f8122d18304803198f0af3eb4'],
   // A tab opened with 0.8.6 may not have parsed its first model yet. Each
   // entry built the same native evaluator at its own absolute asset URL.
   ['bf94c6d3','mmd_anim_wasm_bg-CY5Cf0iI.wasm','b764d802403f042e38ee83d3c34abab468c064dd5e98ab4d49cc8ea2ca9dbce6'],

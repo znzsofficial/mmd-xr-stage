@@ -123,7 +123,8 @@ export function atlasPainter(canvas:HTMLCanvasElement,{assetId,runtimeId}:AtlasA
       // With body state disabled the neutral illustration is not a measured lining.
       art??=organOutput(result=>{if(result==='retry')dirty=true;wake();});
           art.submit({scale:viewport?.scale??canvas.width/W,options:{x:0,y:0,width:W,height:observation?H:H-32,focus:observation?scope:undefined,exteriorDisplayScale:viewport?.scale,foldStyle:v.foldStyle,rim:visibleRim(profile),yaw,time,lining:tissue.functionalDepth,shedding:0,tissue,labels:v.labels,
-           event:scope==='uterus'?event:undefined,egg,encounterSeconds:age,fluid:volume/capacity,fantasy,vaginalFluid:profile?profile.fluid.vaginal/profile.capacity.vaginal:0,
+            canalLengthM:scope==='vagina'?profile?.calibration.lengthM:undefined,
+            event:scope==='uterus'?event:undefined,egg,encounterSeconds:age,fluid:volume/capacity,fantasy,vaginalFluid:profile?profile.fluid.vaginal/profile.capacity.vaginal:0,
           uterineFluid:profile&&(scope==='uterus'||scope==='pelvic')?profile.fluid.fantasyUterine/profile.capacity.fantasyUterine:undefined,
          pressure:!parked&&sample?.outletInside?Math.min(1,sample.depth/Math.max(.0001,sample.lengthM)):0,sample,parked,zh},paint:draw=>{
         ctx.save();ctx.scale(canvas.width/W,canvas.height/H);ctx.fillStyle='#211722';ctx.fillRect(0,0,W,H);draw(ctx);

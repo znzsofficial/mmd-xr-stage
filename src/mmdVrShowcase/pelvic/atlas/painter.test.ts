@@ -52,6 +52,22 @@ function slowWorker(){
   return {get current(){return worker;},options:()=>worker.postMessage.mock.lastCall![0].options,
     reply(){const b={close:vi.fn()};worker.onmessage!({data:{bitmap:b}});return b;}};
 }
+it('replaces a pending neutral view when the calibrated length changes and reopens with the actor’s saved length',()=>{
+  const worker=slowWorker(),canvas=paper(),upload=vi.fn();setAtlasView('a',{motion:false});
+  let panel=atlasPainter(canvas,actor,'vagina',()=>{},upload);
+  try{
+    panel.tick(0);expect(worker.options().sample).toBeNull();expect(usePelvic.getState().byAsset.a).toBeUndefined();
+    const change=(lengthM:number)=>usePelvic.setState({byAsset:{a:{...calibrated,calibration:{...defaultPelvicCalibration,lengthM}}}});
+    change(.035);const obsolete=worker.reply();panel.tick(16);expect(obsolete.close).toHaveBeenCalledOnce();
+    expect(worker.options()).toMatchObject({canalLengthM:.035,focus:'vagina',sample:null});
+    const short=worker.reply();change(.20);panel.tick(32);expect(short.close).toHaveBeenCalledOnce();
+    expect(upload).not.toHaveBeenCalled();expect(worker.options()).toMatchObject({canalLengthM:.20,sample:null});
+    worker.reply();panel.tick(48);expect(upload).toHaveBeenCalledOnce();panel.dispose();
+    panel=atlasPainter(canvas,actor,'vagina',()=>{},upload);panel.tick(64);
+    expect(worker.options()).toMatchObject({canalLengthM:.20,sample:null});expect(usePelvic.getState().active).toBeNull();
+    expect(useBodyState.getState().draft).toBeNull();
+  }finally{panel.dispose();}
+});
 it('invalidates only the observed egg bitmap; another egg can receive the dose while the player keeps this one selected',()=>{
   useBackpack.setState({entries:['a','b'].map(id=>({id,kind:'model' as const,path:'fixture.pmx',file:new File([],'fixture.pmx')})),
     selected:'b',live:{a:{runtimeId:'r',visible:true,position:[0,0,0]},b:{runtimeId:'r2',visible:true,position:[0,0,0]}}});

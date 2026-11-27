@@ -36,11 +36,12 @@
 .pelvic-depth-reading b { color:var(--pelvic-gold);font-variant-numeric:tabular-nums;white-space:nowrap }
 .pelvic-field-pair { display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,8rem),1fr));gap:.35rem .65rem;align-items:end }
 @media (min-width:651px) {
-  .screen-workspace .screen-library:has(.pelvic-body[data-live=true]) { width:min(49rem,60%) }
-  .pelvic-body[data-live=true] { grid-template-columns:minmax(0,1.16fr) minmax(0,1fr);gap:clamp(.6rem,1.2vw,1rem) }
-  .pelvic-live-plate { position:sticky;top:3.7rem }
+  .screen-workspace .screen-library:has(.pelvic-body:is([data-live=true],[data-size-preview])) { width:min(49rem,60%) }
+  .pelvic-body:is([data-live=true],[data-size-preview]) { grid-template-columns:minmax(0,1.16fr) minmax(0,1fr);gap:clamp(.6rem,1.2vw,1rem) }
+  .pelvic-live-plate,.pelvic-size-preview { position:sticky;top:3.7rem }
 }
 @media (max-width:650px) {
+  .pelvic-size-preview .observation-art canvas { max-height:clamp(6.5rem,17dvh,10rem) }
   /* Keep the operating controls at one baseline across all four lenses. The
      detail column can scroll on a short phone or when using enlarged text. */
   .pelvic-live-plate .live-pelvic-view { display:flex;flex-direction:column;align-items:stretch }

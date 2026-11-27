@@ -47,7 +47,8 @@ export function ScreenStage(){
   const dialog=useRef<HTMLDialogElement>(null),actions=useRef<CameraActions|null>(null),life=useRef(0);
   const viewport=useRef<HTMLDivElement>(null);
   const [closeUp,setCloseUp]=useState<CloseUpFocus|null>(null);
-  const inspectStand=usePelvic(s=>!!selected&&s.active?.assetId===selected&&s.active.mode!=='xrManual'&&!!(s.parkedSample||s.sample));
+  const inspectStand=usePelvic(s=>selected&&s.active?.assetId===selected&&s.active.mode!=='xrManual'&&(s.parkedSample||s.sample)
+    ?s.byAsset[selected]?.standAppearance==='partner'?'screenInspectPartner':'screenInspectStand':null);
   const [cameraReady,setCameraReady]=useState(false),locked=!cameraReady||busy||load.running||physicsBusy||fatal;
   useLayoutEffect(()=>{const el=dialog.current!;el.showModal();viewport.current?.focus({preventScroll:true});return ()=>el.close();},[]);
   useEffect(()=>{const generation=++life.current,epoch=useMmdVrStore.getState().entryEpoch;
@@ -69,7 +70,7 @@ export function ScreenStage(){
          {library.suspended&&!draft&&<button ref={resume} className="screen-resume-preview" onClick={library.openItem}>{t('bodyResume')}</button>}
          <button onClick={()=>actions.current?.reset()}>{t('settingsMmdVrResetView')}</button>
          {tourShots(prefs.scenery).length>0&&<select aria-label={t('courtTour')} value="" onChange={e=>actions.current?.tour(Number(e.target.value))}><option value="" disabled>{t('courtTour')}</option>{prefs.scenery==='glassPlanet'?planetTourGroups.map(g=><optgroup key={g.label} label={t(g.label)}>{g.items.map(s=><option key={s.key} value={s.index}>{t(s.key)}</option>)}</optgroup>):tourShots(prefs.scenery).map((s,i)=><option key={s.key} disabled={!!s.link&&(locked||!!draft||load.failures.length>0)} value={i}>{t(s.key)}</option>)}</select>}
-         {library.visible&&inspectStand&&!draft&&<button disabled={locked} onClick={()=>actions.current?.inspectStand()}>{t('screenInspectStand')}</button>}
+         {library.visible&&inspectStand&&!draft&&<button disabled={locked} onClick={()=>actions.current?.inspectStand()}>{t(inspectStand)}</button>}
          {isPortalRoom(prefs.scenery)&&<button disabled={locked||!!draft} onClick={()=>stage.setPrefs({scenery:portalHall})}>{t('returnPortalHall')}</button>}
        </div>
        {prefs.scenery===portalHall&&!draft&&<div className="screen-arcade-hint">{t('portalHint')}</div>}

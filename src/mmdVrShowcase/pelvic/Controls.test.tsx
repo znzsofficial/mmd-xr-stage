@@ -22,6 +22,29 @@ const actor={assetId:'a',runtimeId:'r'},initial:PelvicSample={tip:[0,0,.06],tail
   atCervix:false,outletInside:false,outletVisible:false,radiusM:.024,lengthM:.092};
 afterEach(()=>{clearBackpack();useMmdVrStore.setState(stage);vi.restoreAllMocks();vi.unstubAllGlobals();});
 
+it('places the partner on its first press, keeps a running stroke on appearance changes, and previews canal sizing beside its slider',async()=>{
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);vi.spyOn(document,'hidden','get').mockReturnValue(false);
+  useMmdVrStore.setState({overlayOpen:true,presentation:'screen'});
+  useBackpack.setState({selected:'a',entries:[{id:'a',kind:'model',file:new File([],'a.pmx'),path:'a.pmx'}],live:{a:{runtimeId:'r',visible:true,position:[0,0,0]}}});
+  const host=document.createElement('div'),root=createRoot(host);
+  const button=(text:string)=>[...host.querySelectorAll('button')].find(b=>b.textContent===text)!;
+  const click=async(text:string)=>{expect(button(text)?.disabled).toBe(false);await act(()=>button(text).click());};
+  try{
+    await act(()=>root.render(<PelvicScreenControls {...actor}/>));await click('半透明搭档');
+    await act(()=>publishPelvicSupport('a',{runtimeId:'r',kind:'bones',anchorName:'hips'}));
+    expect(pelvic().active?.mode).toBe('standManual');expect(button('半透明搭档').getAttribute('aria-pressed')).toBe('true');
+    await act(()=>publishParkedSample(pelvic().active!.token,initial));await click('确认入口露出');
+    await act(()=>publishParkedSample(pelvic().active!.token,initial));await click('推进');
+    const token=pelvic().active!.token;
+    for(const label of ['支架','半透明搭档']){
+      await click(label);expect(button(label).getAttribute('aria-pressed')).toBe('true');expect(pelvic().active).toMatchObject({token,running:true});
+    }
+    await click('调整入口');await click('尺寸');expect(host.querySelector('input[aria-label="阴道长度"]')).toBeTruthy();
+    expect(host.querySelector('.pelvic-size-preview [data-part="vagina"]')).toBeTruthy();
+    await click('操作');expect(host.querySelector('.live-pelvic-view')?.getAttribute('data-part')).toBe('uterus');
+  }finally{await act(()=>root.unmount());}
+});
+
 it('sets any rim mode directly without placing a stand or replacing an actor’s recorded entry',async()=>{
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);
   vi.spyOn(document,'hidden','get').mockReturnValue(false);
@@ -126,6 +149,8 @@ it('places the automatic stand directly and holds its controls and monitor in pl
     expect(button('阴道').closest('.pelvic-live-plate')).not.toBeNull();expect(button('目标：阴道')).toBeUndefined();
     expect(host.querySelector('.pelvic-depth-reading b')?.textContent).toBe('0.0 cm');
     expect(button('释放到阴道').closest('.pelvic-operation')).not.toBeNull();expect(host.querySelector('.pelvic-stroke-readout')?.textContent).toContain('支架静止');
+    expect(button('释放到宫腔').nextElementSibling).toBe(button('体外释放'));expect(button('体外释放').disabled).toBe(true);
+    expect(host.querySelector('.pelvic-operation')?.textContent).toContain('体外释放：当前为穿衣模式');
     expect(button('释放到宫腔').disabled).toBe(true);expect(host.querySelector('input[aria-label="每秒往复"]')).toBeTruthy();
     const motor=button('开始往复'),cancel=button('取消释放');expect(motor.nextElementSibling).toBe(cancel);
     expect(button('释放到阴道').nextElementSibling).toBe(button('释放到宫腔'));expect(motor.parentElement).not.toBe(button('释放到阴道').parentElement);
@@ -187,14 +212,15 @@ it('operates the actual paused stand from the recording sheet and requires a phy
   }finally{await act(()=>root.unmount());room.dispose();rod.geometry.dispose();rod.material.dispose();}
 });
 
-it('drives the mounted outlet to two different calibrated motor limits and a manual target from the main sheet',async()=>{
+it('sets calibrated travel and requests one exterior release during the inward stroke from the main sheet',async()=>{
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);vi.spyOn(document,'hidden','get').mockReturnValue(false);
   useMmdVrStore.setState({overlayOpen:true,presentation:'screen',playing:false});
   useBackpack.setState({selected:'a',entries:[{id:'a',kind:'model',file:new File([],'a.pmx'),path:'a.pmx'}],live:{a:{runtimeId:'r',visible:true,position:[0,0,0]}}});
-  enablePelvic('a',true);patchPelvic('a',{calibration:{manual:{origin:[0,0,0],unitsPerMeter:1},offsetM:[0,0,0],lengthM:.09,pitchDeg:0}});patchPelvic('a',{clothed:true});
+  enablePelvic('a',true);patchPelvic('a',{calibration:{manual:{origin:[0,0,0],unitsPerMeter:1},offsetM:[0,0,0],lengthM:.09,pitchDeg:0}});patchPelvic('a',{clothingClear:true});
   const scene=new Scene(),model=new Group(),holder=new Group(),piece=new Group(),rod=new Mesh(makeSilicone(),new MeshBasicMaterial());
   model.scale.setScalar(1.25);rod.name='play:piece:dildo';rod.position.fromArray(siliconeMount);rod.rotation.x=siliconeTilt;piece.add(rod);holder.add(piece);scene.add(holder,model);
-  const room=mountPelvicRig({scene,host:holder,getRoot:()=>model,standPiece:()=>piece,standSpray:()=>null}),frame=()=>room.advance(1/60);
+  const emit=vi.fn();
+  const room=mountPelvicRig({scene,host:holder,getRoot:()=>model,standPiece:()=>piece,standSpray:()=>f=>{if(f.action==='start')emit(f.at.clone());}}),frame=()=>room.advance(1/60);
   const host=document.createElement('div'),root=createRoot(host),f={lengthM:.09*1.25},range=pelvicRailLimit(f);
   const click=(label:string)=>act(()=>{const k=Array.from(host.querySelectorAll('button')).find(b=>b.textContent===label);expect(k?.disabled,label).toBe(false);k!.click();});
   const adjust=(label:string,n:number)=>act(()=>{const field=host.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)!;expect(field?.disabled,label).toBe(false);
@@ -204,7 +230,13 @@ it('drives the mounted outlet to two different calibrated motor limits and a man
   try{
     frame();assignPelvic('a','standAuto','screen');frame();await act(()=>root.render(<PelvicScreenControls {...actor}/>));
     await adjust('最深位置',25);await click('开始往复');expect(await maxTravel()).toBeCloseTo(range*.25,4);
-    await adjust('最深位置',85);expect(await maxTravel()).toBeCloseTo(range*.85,2);await click('停止往复');
+    await adjust('最深位置',85);expect(await maxTravel()).toBeCloseTo(range*.85,2);
+    await act(()=>{for(let i=0;i<150&&!pelvic().sample?.outletInside;i++)frame();});expect(pelvic().sample?.outletInside).toBe(true);
+    const token=pelvic().active!.token;
+    await click('体外释放');expect(host.querySelector('.pelvic-stroke-readout [role=status]')?.textContent).toBe('待体外释放 · 1 单位');
+    await click('取消释放');await maxTravel();expect(emit).not.toHaveBeenCalled();expect(pelvic().active).toMatchObject({running:true,token});
+    await click('体外释放');await maxTravel();expect(emit).toHaveBeenCalledTimes(1);expect(pelvic().byAsset.a.fluid).toEqual({vaginal:0,fantasyUterine:0});
+    expect(host.querySelector('.pelvic-stroke-readout [role=status]')?.textContent).toBe('已体外释放 · 1 单位');await click('停止往复');
     await click('手动支架');await act(()=>frame());await adjust('目标深度',55);await act(()=>{for(let i=0;i<60;i++)frame();});
     expect(measured()).toBeCloseTo(range*.55,5);expect(pelvic().sample?.outletInside).toBe(true);
     expect(host.querySelector('.pelvic-depth-reading b')?.textContent).toBe(`${(measured()*100).toFixed(1)} cm`);
