@@ -12,7 +12,7 @@ import {patchJointDispatch} from './joint-direct.mjs';
 
 export const phases = ['other', 'updateAabbs', 'calculateOverlappingPairs', 'dispatchAllCollisionPairs', 'calculateSimulationIslands', 'solveConstraints'];
 export const ROOT = 6, SUBSTEP = 7;
-const wasmUrl = new URL('../../public/mmd/0.8.6/mmd_bullet.wasm', import.meta.url);
+export const profileBulletDir = new URL('../../public/mmd/0.8.6/', import.meta.url);
 
 export function probeOptions(flags) {
   const counts=flags.includes('--joint-counts'), costs=flags.includes('--joint-costs');
@@ -93,7 +93,7 @@ function instrument(wat, raw, solver, rowLoops, joints) {
 export async function createProfiledModule(mark, {rowLoops=false, solver=rowLoops, joints, dispatch} = {}) {
   assert(!rowLoops || solver); assert(!joints || (solver && ['counts','costs'].includes(joints)));
   assert(!dispatch || !(mark || solver || rowLoops || joints),'A/B must not contain any timing marks');
-  const raw = readFileSync(wasmUrl);
+  const raw = readFileSync(new URL('mmd_bullet.wasm', profileBulletDir));
   assert.equal(createHash('sha256').update(raw).digest('hex'), '02e32a4c9ec3b16d166feec06edc20cf689be9a60e3286f2048c3c02392bebc9');
   const wabt = await wabtFactory(), input = wabt.readWasm(raw, {});
   let patched;
@@ -121,7 +121,7 @@ export async function createProfiledModule(mark, {rowLoops=false, solver=rowLoop
     const m=await createNodeBulletModule({instantiateWasm(imports, ready) {
       const instance=new WebAssembly.Instance(compiled,dispatch ? imports : {...imports, stage:{mark,nowNs}});
       exports=instance.exports; ready(instance,compiled);
-    }});
+    }}, profileBulletDir);
     if(joints==='counts') m.drainJointPasses=()=>drainJointPasses(exports);
     if(joints==='costs') m.jointCosts=()=>costSnapshot(exports);
     if(dispatch==='audit') m.jointTargetAudit=()=>Object.fromEntries(['jointCalls','jointFirst','jointDifferent'].map(k=>[k,exports[k].value]));

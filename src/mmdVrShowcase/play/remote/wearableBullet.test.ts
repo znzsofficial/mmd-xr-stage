@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { runInNewContext } from 'node:vm';
 import { Group, Matrix4, PerspectiveCamera, Scene, Vector3, type Object3D } from 'three';
 import { createCustomBulletMmdPhysicsBackend, type CustomBulletMmdModule } from '@yohawing/three-mmd-loader/physics';
 import { afterEach, beforeAll, expect, it, vi } from 'vitest';
@@ -15,9 +13,8 @@ vi.mock('../../mmdRuntime/bulletModule',()=>({getBulletModule:async()=>({module:
   createCustomBulletMmdPhysicsBackend:(...a:Parameters<typeof createCustomBulletMmdPhysicsBackend>)=>{
     const world=createCustomBulletMmdPhysicsBackend(...a);natives.push(world);return world;}})}));
 beforeAll(async()=>{
-  const dir=new URL('../../../../public/mmd/0.8.6/',import.meta.url);
-  const make=runInNewContext(`${readFileSync(new URL('mmd_bullet.js',dir),'utf8')};MmdBullet`,{console});
-  bullet=await make({wasmBinary:readFileSync(new URL('mmd_bullet.wasm',dir))});
+  const {createNodeBulletModule} = await import(new URL('../../../../scripts/node-bullet-stage.mjs',import.meta.url).href);
+  bullet = await createNodeBulletModule();
 });
 afterEach(()=>{clearRemoteEgg();vi.restoreAllMocks();natives.length=0;});
 

@@ -10,7 +10,7 @@ overrides:
 
 patchedDependencies:
   '@pmndrs/xr@6.6.32': 82446919f4cdeff5e0782ad8008296a7291d6b9c4acc579052899034a767f882
-  '@yohawing/three-mmd-loader@0.8.6': 9f5001ae9bbc446b687adab34c80af8c42f5400928f1926616c71b2cfd083685
+  '@yohawing/three-mmd-loader@0.9.0': 1d658f7752935f4637a4c8c0dfc40c545d41fc686b59d46971bcd03ab3916888
 
 importers:
 
@@ -29,8 +29,8 @@ importers:
         specifier: ^6.6.32
         version: 6.6.32(@react-three/fiber@9.8.2(@types/react@19.3.3)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(three@0.187.0))(@types/react@19.3.3)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(three@0.187.0)
       '@yohawing/three-mmd-loader':
-        specifier: 0.8.6
-        version: 0.8.6(patch_hash=9f5001ae9bbc446b687adab34c80af8c42f5400928f1926616c71b2cfd083685)(three@0.187.0)
+        specifier: 0.9.0
+        version: 0.9.0(patch_hash=1d658f7752935f4637a4c8c0dfc40c545d41fc686b59d46971bcd03ab3916888)(@types/three@0.187.0)(three@0.187.0)
       '@zip.js/zip.js':
         specifier: ^2.25.0
         version: 2.25.0
@@ -531,10 +531,14 @@ packages:
   '@vitest/spy@5.1.2':
     resolution: {integrity: sha512-PQl0/3+p9GaY71+MHywN6oyHfLhVDD5kcbm7oNRldA2F0ExMU3S8RQdnpteJ9gFAdK5P6KCgE6LqCpUgy57KzA==}
 
-  '@yohawing/three-mmd-loader@0.8.6':
-    resolution: {integrity: sha512-F3vz/aCo9d/CxEstRQWF5l4oE6eXqtTlP436iI2L66+nkaePFZ/Hw7wZiISlUrMNaAjSUiKRsJpufEZ7+ckDNQ==}
+  '@yohawing/three-mmd-loader@0.9.0':
+    resolution: {integrity: sha512-e4coAkSRvwC6/wsAoHch28uiUPjr8Cu4r5MRJsdk1wRE8kVu3JpSGUcu56me+b2d8OtVCac6cHNhBAiLG6T9HQ==}
     peerDependencies:
+      '@types/three': '>=0.176.0 <1.0.0'
       three: '>=0.176.0 <1.0.0'
+    peerDependenciesMeta:
+      '@types/three':
+        optional: true
 
   '@zip.js/zip.js@2.25.0':
     resolution: {integrity: sha512-oNRqUuU1XFu6G5d7Z0jufJ9dS9WteO0xiU/PNxsUrb4itZCsSbn191jpJzU00Gmc6S680X3DPZeF5EV4zAEMAg==}
@@ -1461,10 +1465,11 @@ snapshots:
 
   '@vitest/spy@5.1.2': {}
 
-  '@yohawing/three-mmd-loader@0.8.6(patch_hash=9f5001ae9bbc446b687adab34c80af8c42f5400928f1926616c71b2cfd083685)(three@0.187.0)':
+  '@yohawing/three-mmd-loader@0.9.0(patch_hash=1d658f7752935f4637a4c8c0dfc40c545d41fc686b59d46971bcd03ab3916888)(@types/three@0.187.0)(three@0.187.0)':
     dependencies:
-      '@types/three': 0.187.0
       three: 0.187.0
+    optionalDependencies:
+      '@types/three': 0.187.0
 
   '@zip.js/zip.js@2.25.0': {}
 

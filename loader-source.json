@@ -1,13 +1,13 @@
 {
-  "version": "0.8.6",
-  "upstreamTag": "9c47b947fa61228e57227f97a9f67ad186268fcd",
-  "upstreamMain": "9c47b947fa61228e57227f97a9f67ad186268fcd",
-  "forkCommit": "3ac1d8ef93fe85a9bb4463933aef4a5198bd259a",
-  "registryIntegrity": "sha512-F3vz/aCo9d/CxEstRQWF5l4oE6eXqtTlP436iI2L66+nkaePFZ/Hw7wZiISlUrMNaAjSUiKRsJpufEZ7+ckDNQ==",
-  "apiSha256": "39cd34d5e139eb5ccb75c73ffaaef25c4cf3f7894e22f243fe72feca2ad0f76e",
+  "version": "0.9.0",
+  "upstreamTag": "62ce0477088dfff5287349ca8df32260c02ef018",
+  "upstreamMain": "62ce0477088dfff5287349ca8df32260c02ef018",
+  "forkCommit": "c76250712a07d3f1ded5a0cb39d19af70c8522c4",
+  "registryIntegrity": "sha512-e4coAkSRvwC6/wsAoHch28uiUPjr8Cu4r5MRJsdk1wRE8kVu3JpSGUcu56me+b2d8OtVCac6cHNhBAiLG6T9HQ==",
+  "apiSha256": "a6523a0491a815438ed42bf89ca9907eb444ccbaa2d3858e2194825165668131",
   "dist": {
-    "files": 243,
-    "sha256": "b1a45ecab5aa98a08b5dd89c826edf4d892e81374af4e0bb3d2f832367bb2c00"
+    "files": 347,
+    "sha256": "6edd1a27e2676ece119828f508b9c4a68caa41f6ea81ae6ca9dc52fab6e8ef6b"
   },
-  "patchSha256": "9f5001ae9bbc446b687adab34c80af8c42f5400928f1926616c71b2cfd083685"
+  "patchSha256": "1d658f7752935f4637a4c8c0dfc40c545d41fc686b59d46971bcd03ab3916888"
 }

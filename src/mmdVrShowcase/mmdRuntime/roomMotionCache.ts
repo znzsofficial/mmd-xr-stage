@@ -9,7 +9,7 @@ const LAST_BODY_LIMIT = 32 * 1024 * 1024;
 type Clip = { promise: Promise<ThreeMmdAnimation>; ready: boolean };
 
 function mostlyPackedBody(file: File, clip: ThreeMmdAnimation) {
-  // In 0.8.6 bone/morph records (111/23 bytes on disk) become packed
+  // VMD bone/morph records (111/23 bytes on disk) become packed
   // typed arrays (97/8 bytes). Other sections and track names are JS objects;
   // don't grant camera-/IK-heavy files the enlarged allowance.
   const a = clip.animation;

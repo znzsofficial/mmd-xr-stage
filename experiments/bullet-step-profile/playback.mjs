@@ -5,7 +5,7 @@ import {Matrix4, PerspectiveCamera, Scene, Vector3} from 'three';
 import {createCustomBulletMmdPhysicsBackend} from '@yohawing/three-mmd-loader/physics';
 import {loadNodeBulletStage} from '../../scripts/node-bullet-stage.mjs';
 import {createLedger} from './ledger.mjs';
-import {createProfiledModule, phases, probeOptions} from './module.mjs';
+import {createProfiledModule, phases, probeOptions, profileBulletDir} from './module.mjs';
 import {solverBins, solverTotals} from './solver.mjs';
 import {rowBinNames} from './row-loops.mjs';
 import {passReport,kinds} from './joint-counts.mjs';
@@ -63,7 +63,7 @@ const {createMmdRuntimeHandle, close} = await loadNodeBulletStage((base, options
   }
   row.module = m;
   return row.native = createCustomBulletMmdPhysicsBackend(m, options);
-});
+}, profileBulletDir);
 const {handContactShape,handReferenceRadius} = await import('../../src/mmdVrShowcase/xr/contact/handContactProfile.ts');
 const {propColliderShape} = await import('../../src/mmdVrShowcase/play/propColliders.ts');
 const sum = a => a.reduce((s,v)=>s+v,0), mean = a => sum(a)/a.length;

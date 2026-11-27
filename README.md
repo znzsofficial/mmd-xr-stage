@@ -64,7 +64,7 @@ Fly a kite from a character’s wrist, send a ferry across the pool, dye a conce
 | --- | --- |
 | Application | React 19, TypeScript, Vite |
 | 3D and XR | Three.js r187, React Three Fiber 9.8, `@react-three/xr` 6.6.32 |
-| MMD animation and physics | `@yohawing/three-mmd-loader` 0.8.6 (patched), Bullet WebAssembly |
+| MMD animation and physics | `@yohawing/three-mmd-loader` 0.9.0 (stage fork), mmd-anim 0.5.5 and Bullet WebAssembly |
 | State | Zustand |
 | Hosting | Cloudflare Pages |
 

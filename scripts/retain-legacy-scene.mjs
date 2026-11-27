@@ -5,6 +5,14 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from 'node:path';
 
 const files = [
+  // A tab opened with 0.8.6 may not have parsed its first model yet. Each
+  // entry built the same native evaluator at its own absolute asset URL.
+  ['bf94c6d3','mmd_anim_wasm_bg-CY5Cf0iI.wasm','b764d802403f042e38ee83d3c34abab468c064dd5e98ab4d49cc8ea2ca9dbce6'],
+  ['bf94c6d3','mmd_anim_wasm_bg-CY5Cf0iI.wasm','b764d802403f042e38ee83d3c34abab468c064dd5e98ab4d49cc8ea2ca9dbce6','labs/cloth/assets'],
+  ['bf94c6d3','zip.js-BdBnQRQJ.js','08f10833a9bed37090f375be4abfe99642288140fd2acc5877c35262efe9d23f'],
+  ['bf94c6d3','actorStyleMaps.worker-yodQ4YTa.js','03a41d437a7510d5a30464c8043bfd288056ba02f901462edfc1c0a595edc4a7'],
+  ['bf94c6d3','organ.worker-CmzUDroX.js','7d55655497ae99506cd273cdaa1d6856eff10302a807d8d78614213bffabc978'],
+  ['bf94c6d3','reference.worker-7qCx2iwZ.js','612316ec27b1805e110bcda71722bf788a2d3ad923a365dc5e1cbf9c7b158393'],
   // Open single-actor tabs can still choose WebGPU or enter the planet after this update.
   ['bf94c6d3','index-CuPTWg9O.js','105f898d28db633865bc1a8655c86151eedfb451a643a2fb897f208d746d007b'],
   ['bf94c6d3','stage-host-CoaHNyfO.js','e01e2e7e73a98913c5877c25946dde469a5c1955e5f6b93f233d34b55e8afb25'],
@@ -277,8 +285,8 @@ const files = [
   ["d55e5a7f", "vendor-mmd-B024cD5e.js", "e765b2d02f0db182191aab998b459520d2a70ff46d7c85159d2098f74c43f75c"],
   ["d55e5a7f", "emulate-M6ay1N5Q.js", "fc6816057946f69b0e74edf88c1cdf25176f5c8aa67a7394971c87364594fe41"],
 ];
-async function retain([id, file, expected]) {
-  const path = new URL(`../dist/assets/${file}`, import.meta.url);
+async function retain([id, file, expected, dir = 'assets']) {
+  const path = new URL(`../dist/${dir}/${file}`, import.meta.url);
   const verify = bytes => {
     if (createHash("sha256").update(bytes).digest("hex") !== expected) throw new Error(`Unexpected content: ${file}`);
   };
@@ -289,7 +297,7 @@ async function retain([id, file, expected]) {
     catch (error) { if (error.code !== 'ENOENT') throw error; }
   }
   if (!bytes) {
-    const res = await fetch(`https://${id}.mmd-xr-stage.pages.dev/assets/${file}`, { signal: AbortSignal.timeout(45000) });
+    const res = await fetch(`https://${id}.mmd-xr-stage.pages.dev/${dir}/${file}`, { signal: AbortSignal.timeout(45000) });
     if (!res.ok) throw new Error(`${file}: HTTP ${res.status}`);
     bytes = Buffer.from(await res.arrayBuffer());
   }

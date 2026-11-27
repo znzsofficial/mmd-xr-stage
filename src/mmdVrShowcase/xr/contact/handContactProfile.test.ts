@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { runInNewContext } from "node:vm";
 import { beforeAll, expect, it } from "vitest";
 import { Matrix4, Vector3 } from "three";
 import { createCustomBulletMmdPhysicsBackend, type MmdPhysicsStepContext } from "@yohawing/three-mmd-loader/physics";
@@ -9,12 +7,8 @@ import { handContactLayout, handContactShape, handReferenceRadius } from "./hand
 type Bullet = Parameters<typeof createCustomBulletMmdPhysicsBackend>[0];
 let bullet: Bullet;
 beforeAll(async () => {
-  // Evaluate the shipped Emscripten classic script as in a browser, using the
-  // matching local WASM bytes. No fake solver or network service in this test.
-  const dir = new URL("../../../../public/mmd/0.8.6/", import.meta.url);
-  const js = readFileSync(new URL("mmd_bullet.js", dir), "utf8");
-  const factory = runInNewContext(`${js};MmdBullet`, { console }) as (o: {wasmBinary: Uint8Array}) => Promise<Bullet>;
-  bullet = await factory({ wasmBinary: readFileSync(new URL("mmd_bullet.wasm", dir)) });
+  const {createNodeBulletModule} = await import(new URL('../../../../scripts/node-bullet-stage.mjs',import.meta.url).href);
+  bullet = await createNodeBulletModule();
 });
 
 // Drop a 3mm model body at a known location relative to the tracked joint.

@@ -1,8 +1,8 @@
 diff --git a/dist/physics/customBulletMmd.d.ts b/dist/physics/customBulletMmd.d.ts
-index 3a8cd5f..8d8ebb0 100644
+index efd3adf..c8d0de3 100644
 --- a/dist/physics/customBulletMmd.d.ts
 +++ b/dist/physics/customBulletMmd.d.ts
-@@ -7,14 +7,18 @@ export interface CustomBulletMmdLoaderOptions {
+@@ -7,12 +7,15 @@ export interface CustomBulletMmdLoaderOptions {
      readonly timeoutMs?: number;
  }
  export interface CustomBulletMmdPhysicsBackendOptions {
@@ -17,15 +17,12 @@ index 3a8cd5f..8d8ebb0 100644
 +    readRigidBodyCenters(indices: readonly number[], out: Float32Array): boolean;
      debugContactCount(): number;
      debugPhysicsContacts(): readonly MmdAnimBulletContactPoint[];
-+    debugPhysicsContactsForRigidBodyRange(firstRigidBodyIndex: number, rigidBodyCount: number): readonly MmdAnimBulletContactPoint[];
- }
- export declare function resolveCustomBulletMmdScriptUrl(baseUrl?: string): string;
- export declare function loadCustomBulletMmdModule(options?: CustomBulletMmdLoaderOptions): Promise<CustomBulletMmdModule>;
+     /**
 diff --git a/dist/physics/customBulletMmd.js b/dist/physics/customBulletMmd.js
-index 75621cc..4c37586 100644
+index 69fb6a2..4c37586 100644
 --- a/dist/physics/customBulletMmd.js
 +++ b/dist/physics/customBulletMmd.js
-@@ -77,7 +77,13 @@ class CustomBulletMmdCompatibilityBackend {
+@@ -77,6 +77,9 @@ class CustomBulletMmdCompatibilityBackend {
      debugContactCount() {
          return this.backend.debugContactCount();
      }
@@ -35,22 +32,21 @@ index 75621cc..4c37586 100644
      debugPhysicsContacts() {
          return this.backend.debugPhysicsContacts();
      }
-+    debugPhysicsContactsForRigidBodyRange(firstRigidBodyIndex, rigidBodyCount) {
-+        return this.backend.debugPhysicsContactsForRigidBodyRange(firstRigidBodyIndex, rigidBodyCount);
-+    }
- }
 diff --git a/dist/physics/mmdAnimBullet.d.ts b/dist/physics/mmdAnimBullet.d.ts
-index cfc8532..0b2acac 100644
+index 36336a6..c37a079 100644
 --- a/dist/physics/mmdAnimBullet.d.ts
 +++ b/dist/physics/mmdAnimBullet.d.ts
-@@ -42,10 +42,15 @@ export interface MmdAnimBulletContactPoint {
+@@ -42,6 +42,7 @@ export interface MmdAnimBulletContactPoint {
      readonly normalWorldOnB: readonly [number, number, number];
  }
  export interface MmdAnimBulletPhysicsBackend extends MmdPhysicsBackend {
 +    readRigidBodyCenters(indices: readonly number[], out: Float32Array): boolean;
      debugContactCount(): number;
      debugPhysicsContacts(): readonly MmdAnimBulletContactPoint[];
-+    debugPhysicsContactsForRigidBodyRange(firstRigidBodyIndex: number, rigidBodyCount: number): readonly MmdAnimBulletContactPoint[];
+     /**
+@@ -50,7 +51,10 @@ export interface MmdAnimBulletPhysicsBackend extends MmdPhysicsBackend {
+      */
+     debugPhysicsContactsForRigidBodyRange(firstRigidBodyIndex: number, rigidBodyCount: number): readonly MmdAnimBulletContactPoint[];
  }
 -export declare function createMmdAnimBulletPhysicsBackend(module: MmdAnimBulletModule, options?: {
 +interface BulletStepOptions {
@@ -62,7 +58,7 @@ index cfc8532..0b2acac 100644
 +export declare function createMmdAnimBulletPhysicsBackend(module: MmdAnimBulletModule, options?: BulletStepOptions): MmdAnimBulletPhysicsBackend;
 +export {};
 diff --git a/dist/physics/mmdAnimBullet.js b/dist/physics/mmdAnimBullet.js
-index 35ad780..0edb707 100644
+index ca36aed..edcdf4c 100644
 --- a/dist/physics/mmdAnimBullet.js
 +++ b/dist/physics/mmdAnimBullet.js
 @@ -64,6 +64,8 @@ class MmdAnimBulletPhysicsBackendImpl {
@@ -102,40 +98,7 @@ index 35ad780..0edb707 100644
          return { simulated: !seedOnly && updated > 0, updatedBoneCount: updated };
      }
      reset(_context) {
-@@ -124,6 +134,12 @@ class MmdAnimBulletPhysicsBackendImpl {
-         return this.module.HEAPU32?.[this.contactCountPointer >>> 2] ?? 0;
-     }
-     debugPhysicsContacts() {
-+        return this.collectPhysicsContacts(0, undefined);
-+    }
-+    debugPhysicsContactsForRigidBodyRange(firstRigidBodyIndex, rigidBodyCount) {
-+        return this.collectPhysicsContacts(firstRigidBodyIndex, rigidBodyCount);
-+    }
-+    collectPhysicsContacts(firstRigidBodyIndex, rigidBodyCount) {
-         const collect = this.module._mmd_anim_bullet_world_collect_contacts;
-         const count = this.debugContactCount();
-         if (!collect || count <= 0)
-@@ -143,11 +159,17 @@ class MmdAnimBulletPhysicsBackendImpl {
-         const heapI32 = new Int32Array(heap.buffer);
-         const written = Math.min(this.module.HEAPU32?.[this.contactCountPointer >>> 2] ?? 0, this.contactBufferCapacity);
-         const contacts = [];
-+        const rangeEnd = firstRigidBodyIndex + (rigidBodyCount ?? 0);
-         for (let index = 0; index < written; index += 1) {
-             const base = (this.contactBufferPointer + index * CONTACT_POINT_BYTES) >>> 2;
-+            const rigidBodyIndexA = heapI32[base] ?? -1;
-+            const rigidBodyIndexB = heapI32[base + 1] ?? -1;
-+            if (rigidBodyCount !== undefined && !((rigidBodyIndexA >= firstRigidBodyIndex && rigidBodyIndexA < rangeEnd) ||
-+                (rigidBodyIndexB >= firstRigidBodyIndex && rigidBodyIndexB < rangeEnd)))
-+                continue;
-             contacts.push({
--                rigidBodyIndexA: heapI32[base] ?? -1,
--                rigidBodyIndexB: heapI32[base + 1] ?? -1,
-+                rigidBodyIndexA,
-+                rigidBodyIndexB,
-                 distance: heap[base + 2] ?? 0,
-                 positionWorldOnA: [heap[base + 3] ?? 0, heap[base + 4] ?? 0, heap[base + 5] ?? 0],
-                 positionWorldOnB: [heap[base + 6] ?? 0, heap[base + 7] ?? 0, heap[base + 8] ?? 0],
-@@ -156,6 +178,22 @@ class MmdAnimBulletPhysicsBackendImpl {
+@@ -173,6 +183,22 @@ class MmdAnimBulletPhysicsBackendImpl {
          }
          return contacts;
      }
@@ -159,12 +122,12 @@ index 35ad780..0edb707 100644
          const bodies = context.rigidBodies;
          if (!bodies)
 diff --git a/dist/runtime/core.d.ts b/dist/runtime/core.d.ts
-index 09c2d22..454b27c 100644
+index bc9e38c..b458191 100644
 --- a/dist/runtime/core.d.ts
 +++ b/dist/runtime/core.d.ts
 @@ -2,6 +2,9 @@ import * as THREE from "three";
- import type { CameraState, LightState, MmdAnimation } from "../parser/model/modelTypes.js";
- import type { DefaultMmdRuntimeOptions, MmdFrameState, MmdRuntime, MmdRuntimeDebugState, MmdRuntimeEvaluateOptions, MmdRuntimeTickOptions } from "./types.js";
+ import type { MmdCameraState, MmdLightState, MmdAnimation } from "../parser/model/modelTypes.js";
+ import type { MmdRuntimeOptions, MmdFrameState, MmdRuntime, MmdRuntimeDebugState, MmdRuntimeEvaluateOptions, MmdRuntimeTickOptions } from "./types.js";
  export declare class DefaultMmdRuntime implements MmdRuntime {
 +    private readonly captureStageSnapshots;
 +    private readonly coalescePhysicsWorldUpdates;
@@ -173,25 +136,12 @@ index 09c2d22..454b27c 100644
      private readonly ikSolver;
      private mesh;
 diff --git a/dist/runtime/core.js b/dist/runtime/core.js
-index 0f31e1a..7cfbc7c 100644
+index 0802695..b1e7d0e 100644
 --- a/dist/runtime/core.js
 +++ b/dist/runtime/core.js
-@@ -1,16 +1,20 @@
- import * as THREE from "three";
-+import { syncRenderPalettes } from "./syncRenderPalettes.js";
- import { validateMorphOverrides } from "./morphOverrides.js";
- import { writeBonePhysicsToggleBuffer } from "../physics/legacyPhysicsBridge.js";
- import { applyMmdAnimation, isMmdAnimation, preparePreAppendTransforms, sampleMmdCameraTrackInto, sampleMmdLightTrackInto } from "./animation.js";
- import { appendTransformOrder, applyAppendTransforms, reapplyAppendTransformsForSources } from "./append.js";
- import { createCcdIkStaticBones, readIkChains, solvePreparedIk } from "./ik-bridge.js";
- import { CcdIkSolver } from "./ik/index.js";
--import { copyNumbersToFloat32Scratch, ensureFloat32ArrayLength, normalizeFrameRate, prepareQuaternionScratchArray, prepareVector3ScratchArray, threeQuaternionToMmd, writeQuaternionToBuffer, writeVector3ToBuffer } from "./math.js";
-+import { ensureFloat32ArrayLength, normalizeFrameRate, prepareQuaternionScratchArray, prepareVector3ScratchArray, threeQuaternionToMmd, writeQuaternionToBuffer, writeVector3ToBuffer } from "./math.js";
- import { syncMorphSplitTargetInfluences } from "./morphSplitSync.js";
--import { StatefulSpringPhysicsSimulation, applyPhysicsOutputToSkeleton, captureRuntimeDebugStageInto, cloneDebugStage, createEmptyDebugStages, createPhysicsResetContext, createPrePhysicsInputBuffersIfNeeded, extractMmdWorldMatricesInto, mergePhysicsOutputDeltas, readRuntimeExternalPhysics, readRuntimePhysics } from "./physics.js";
-+import { StatefulSpringPhysicsSimulation, applyPhysicsOutputToSkeleton, captureRuntimeDebugStageInto, cloneDebugStage, createEmptyDebugStages, createPhysicsResetContext, createPrePhysicsInputBuffersIfNeeded, mergePhysicsOutputDeltas, readRuntimeExternalPhysics, readRuntimePhysics } from "./physics.js";
- import { readMmdBoneUserData, readMmdMeshRuntimeData } from "./userData.js";
- const mmdMatrixAxisSigns = [1, 1, -1, 1];
+@@ -17,6 +17,9 @@ import { ensureTuple3ScratchLength } from "./defaultPhysics.js";
+ import { copyFrameStateInto, createFrameState, writeFrameState } from "./frameState.js";
+ import { isObject3D, syncRuntimeMeshForRender } from "./renderSync.js";
  export class DefaultMmdRuntime {
 +    captureStageSnapshots;
 +    coalescePhysicsWorldUpdates;
@@ -199,19 +149,9 @@ index 0f31e1a..7cfbc7c 100644
      frameRate;
      ikSolver = new CcdIkSolver();
      mesh;
-@@ -91,8 +95,7 @@ export class DefaultMmdRuntime {
-         outputRotations: new Float32Array(0),
-         outputWorldMatricesColumnMajor: new Float32Array(0),
-         updatedBoneIndices: [],
--        bonePhysicsToggleBuffer: new Uint8Array(0),
--        worldMatricesColumnMajorNumbers: []
-+        bonePhysicsToggleBuffer: new Uint8Array(0)
+@@ -85,6 +88,9 @@ export class DefaultMmdRuntime {
      };
-     scratchPrePhysics = {
-         preTranslations: new Float32Array(0),
-@@ -109,30 +112,39 @@ export class DefaultMmdRuntime {
-         localRotation: new THREE.Quaternion()
-     };
+     scratchStatefulSpringTranslations = [];
      constructor(options = {}) {
 +        this.captureStageSnapshots = options.captureStageSnapshots !== false;
 +        this.coalescePhysicsWorldUpdates = options.coalescePhysicsWorldUpdates === true && !this.captureStageSnapshots;
@@ -219,6 +159,7 @@ index 0f31e1a..7cfbc7c 100644
          this.frameRate = normalizeFrameRate(options.frameRate ?? 30);
          this.physicsMode = options.physics ?? "none";
          this.physicsBackend = options.physicsBackend;
+@@ -92,24 +98,30 @@ export class DefaultMmdRuntime {
          this.state = createFrameState(options.initialSeconds ?? 0, this.frameRate);
      }
      evaluate(seconds, options) {
@@ -228,12 +169,12 @@ index 0f31e1a..7cfbc7c 100644
              validateMorphOverrides(options.morphOverrides, Array.isArray(morphs) ? morphs.length : this.mesh?.morphTargetInfluences?.length ?? 0);
          }
          const previousSeconds = this.state.seconds;
-+        const defer = this.coalescePhysicsWorldUpdates && options?.physics !== false && this.externalPhysicsData &&
-+            this.physicsBackend && !this.physicsBackend.disabled && !this.physicsBackend.disposed;
++        const defer = this.coalescePhysicsWorldUpdates && options?.physics !== false &&
++            this.externalPhysicsStepper.activeBackend !== undefined;
          writeFrameState(this.state, seconds, this.frameRate);
          if (this.mesh && (this.mmdAnimation || options?.morphOverrides || this.hadMorphOverrides)) {
              this.applyCurrentMmdAnimation(this.state.frame, options?.morphOverrides);
-             this.updateCurrentIkStates(this.state.frame);
+             this.ikEnableState.update(this.mmdAnimation?.propertyFrames, this.state.frame, this.mesh.skeleton.bones);
 -            this.captureDebugStage("vmdInterpolation");
 +            if (!defer)
 +                this.captureDebugStage("vmdInterpolation");
@@ -253,38 +194,29 @@ index 0f31e1a..7cfbc7c 100644
          if (options?.physics === false) {
              if (!this.physicsDisabled) {
                  this.resetPhysicsState();
-@@ -141,7 +153,7 @@ export class DefaultMmdRuntime {
+@@ -118,7 +130,7 @@ export class DefaultMmdRuntime {
          }
          else {
              this.stepStatefulSpringPhysics();
--            this.stepExternalPhysics(previousSeconds);
-+            this.stepExternalPhysics(previousSeconds, started);
+-            this.externalPhysicsStepper.step(this.mesh, this.state, previousSeconds, this.bonePhysicsToggles);
++            this.externalPhysicsStepper.step(this.mesh, this.state, previousSeconds, this.bonePhysicsToggles, started, this.onPhysicsPoseWork);
              this.physicsDisabled = false;
          }
          this.mesh?.skeleton.update();
-@@ -165,7 +177,7 @@ export class DefaultMmdRuntime {
-             evaluateOptions = meshOrOptions;
-         }
-         const state = this.evaluate(seconds, evaluateOptions);
--        syncRuntimeMeshForRender(mesh ?? undefined);
-+        syncRenderPalettes(mesh ?? undefined);
-         return state;
-     }
-     seek(seconds) {
-@@ -316,10 +328,10 @@ export class DefaultMmdRuntime {
+@@ -281,10 +293,10 @@ export class DefaultMmdRuntime {
              transform.quaternion.copy(bone.quaternion);
          }
      }
 -    solveIk() {
-+    solveIk(propagate = true) {
-         const chains = this.currentEnabledIkChains();
++    solveIk(propagate) {
+         const chains = this.ikEnableState.enabledChains();
          if (!this.hasHandTwistIkChain()) {
 -            const sourceBoneIndices = solvePreparedIk(this.mesh, this.ikSolver, chains, this.scratchIk);
 +            const sourceBoneIndices = solvePreparedIk(this.mesh, this.ikSolver, chains, this.scratchIk, propagate);
              this.reapplyCurrentAppendTransformsForSources(sourceBoneIndices);
              return sourceBoneIndices;
          }
-@@ -328,7 +340,7 @@ export class DefaultMmdRuntime {
+@@ -293,7 +305,7 @@ export class DefaultMmdRuntime {
          for (const chain of chains) {
              this.scratchSingleIkChain[0] = chain;
              this.scratchSingleIkChain.length = 1;
@@ -293,52 +225,7 @@ index 0f31e1a..7cfbc7c 100644
              for (const index of chainSourceBoneIndices) {
                  changedBoneIndices.add(index);
              }
-@@ -471,13 +483,14 @@ export class DefaultMmdRuntime {
-             }
-         }
-     }
--    stepExternalPhysics(previousSeconds) {
-+    stepExternalPhysics(previousSeconds, started) {
-         const mesh = this.mesh;
-         const data = this.externalPhysicsData;
-         const backend = this.physicsBackend;
-         if (!mesh || !data || !backend || backend.disabled || backend.disposed) {
-             return;
-         }
-+        const prepareAt = started === undefined ? 0 : performance.now();
-         mesh.updateWorldMatrix(false, true);
-         const boneCount = mesh.skeleton.bones.length;
-         const directBuffers = acquireDirectStepBuffersIfPossible(backend, data, boneCount);
-@@ -516,7 +529,8 @@ export class DefaultMmdRuntime {
-             inputWorldMatricesColumnMajor = extractMmdWorldMatricesIntoFloat32(mesh, directBuffers.inputWorldMatricesColumnMajor);
-         }
-         else {
--            inputWorldMatricesColumnMajor = copyNumbersToFloat32Scratch(extractMmdWorldMatricesInto(mesh, this.scratchExternalPhysicsInput.worldMatricesColumnMajorNumbers), this.scratchExternalPhysicsInput.worldMatricesColumnMajor);
-+            const storage = ensureFloat32ArrayLength(this.scratchExternalPhysicsInput.worldMatricesColumnMajor, boneCount * 16);
-+            inputWorldMatricesColumnMajor = extractMmdWorldMatricesIntoFloat32(mesh, storage);
-             this.scratchExternalPhysicsInput.worldMatricesColumnMajor = inputWorldMatricesColumnMajor;
-         }
-         const prePhysics = createPrePhysicsInputBuffersIfNeeded(data.skeleton, inputTranslations, inputRotations, inputWorldMatricesColumnMajor, this.scratchPrePhysics);
-@@ -579,7 +593,9 @@ export class DefaultMmdRuntime {
-             bonePhysicsToggles: bonePhysicsToggleBuffer,
-             morphImpulses: data.morphImpulses
-         };
-+        const stepAt = started === undefined ? 0 : performance.now();
-         const result = backend.step(context);
-+        const writeAt = started === undefined ? 0 : performance.now();
-         const updatedBoneCount = result.updatedBoneCount ?? context.output?.updatedBoneIndices?.length ?? 0;
-         if (!result.simulated && updatedBoneCount === 0) {
-             return;
-@@ -588,6 +604,8 @@ export class DefaultMmdRuntime {
-             mergePhysicsOutputDeltas(context, inputTranslations, inputRotations, prePhysics, this.scratchPrePhysics);
-         }
-         applyPhysicsOutputToSkeleton(mesh, context, updatedBoneCount);
-+        if (started !== undefined)
-+            this.onPhysicsPoseWork?.(prepareAt - started, stepAt - prepareAt, writeAt - stepAt, performance.now() - writeAt);
-     }
-     resetPhysicsState() {
-         this.physicsSimulation?.reset(this.state.seconds);
-@@ -595,6 +613,10 @@ export class DefaultMmdRuntime {
+@@ -365,6 +377,10 @@ export class DefaultMmdRuntime {
      }
      captureDebugStage(stage) {
          const mesh = this.mesh;
@@ -349,39 +236,71 @@ index 0f31e1a..7cfbc7c 100644
          if (!mesh) {
              clearDebugStage(this.debugStages[stage]);
              return;
-@@ -617,32 +639,9 @@ function findPropertyFrameIndex(frames, frame) {
+diff --git a/dist/runtime/externalPhysicsStepper.d.ts b/dist/runtime/externalPhysicsStepper.d.ts
+index 61aab27..4a51b31 100644
+--- a/dist/runtime/externalPhysicsStepper.d.ts
++++ b/dist/runtime/externalPhysicsStepper.d.ts
+@@ -1,6 +1,6 @@
+ import * as THREE from "three";
+ import type { MmdPhysicsBackend } from "../physics/index.js";
+-import type { MmdFrameState, RuntimeExternalPhysicsData } from "./types.js";
++import type { MmdFrameState, MmdRuntimeOptions, RuntimeExternalPhysicsData } from "./types.js";
+ export declare class ExternalPhysicsStepper {
+     private readonly physicsBackend;
+     private externalPhysicsData;
+@@ -18,5 +18,6 @@ export declare class ExternalPhysicsStepper {
+     });
+     bind(data: RuntimeExternalPhysicsData | undefined): void;
+     markEvaluated(seconds: number | undefined): void;
+-    step(mesh: THREE.SkinnedMesh | undefined, state: MmdFrameState, previousSeconds: number, bonePhysicsToggles: Record<string, number>): boolean;
++    get activeBackend(): MmdPhysicsBackend | undefined;
++    step(mesh: THREE.SkinnedMesh | undefined, state: MmdFrameState, previousSeconds: number, bonePhysicsToggles: Record<string, number>, started?: number, onPoseWork?: MmdRuntimeOptions["onPhysicsPoseWork"]): boolean;
+ }
+diff --git a/dist/runtime/externalPhysicsStepper.js b/dist/runtime/externalPhysicsStepper.js
+index a010d1f..538af1c 100644
+--- a/dist/runtime/externalPhysicsStepper.js
++++ b/dist/runtime/externalPhysicsStepper.js
+@@ -74,12 +74,17 @@ export class ExternalPhysicsStepper {
+     markEvaluated(seconds) {
+         this.previousEvaluateSeconds = seconds;
      }
-     return Math.max(0, high);
+-    step(mesh, state, previousSeconds, bonePhysicsToggles) {
+-        const data = this.externalPhysicsData;
++    get activeBackend() {
+         const backend = this.physicsBackend;
+-        if (!mesh || !data || !backend || backend.disabled || backend.disposed) {
++        return this.externalPhysicsData && backend && !backend.disabled && !backend.disposed ? backend : undefined;
++    }
++    step(mesh, state, previousSeconds, bonePhysicsToggles, started, onPoseWork) {
++        const data = this.externalPhysicsData;
++        const backend = this.activeBackend;
++        if (!mesh || !data || !backend) {
+             return false;
+         }
++        const prepareAt = started === undefined ? 0 : performance.now();
+         mesh.updateWorldMatrix(false, true);
+         const boneCount = mesh.skeleton.bones.length;
+         this.ensureLayout(boneCount);
+@@ -175,7 +180,9 @@ export class ExternalPhysicsStepper {
+         this.output.worldMatricesColumnMajor = outputWorldMatricesColumnMajor;
+         this.output.updatedBoneIndices = resetDirectUpdatedBoneIndices(directBuffers?.updatedBoneIndices) ??
+             resetNumberArray(this.scratchExternalPhysicsInput.updatedBoneIndices);
++        const stepAt = started === undefined ? 0 : performance.now();
+         const result = backend.step(context);
++        const writeAt = started === undefined ? 0 : performance.now();
+         const updatedBoneCount = result.updatedBoneCount ?? context.output?.updatedBoneIndices?.length ?? 0;
+         if (!result.simulated && updatedBoneCount === 0) {
+             return false;
+@@ -184,6 +191,9 @@ export class ExternalPhysicsStepper {
+             mergePhysicsOutputDeltas(context, inputTranslations, inputRotations, prePhysics);
+         }
+         applyPhysicsOutputToSkeleton(mesh, context, this.scratchExternalPhysicsInput.appliedBones, updatedBoneCount);
++        if (started !== undefined) {
++            onPoseWork?.(prepareAt - started, stepAt - prepareAt, writeAt - stepAt, performance.now() - writeAt);
++        }
+         return true;
+     }
  }
--function syncRuntimeMeshForRender(mesh) {
--    if (!mesh) {
--        return;
--    }
--    // Keep renderer-facing world and bone matrices in sync after runtime evaluation.
--    mesh.updateMatrixWorld(true);
--    updateSkinnedMeshSkeletons(mesh);
--}
--function updateSkinnedMeshSkeletons(object) {
--    if (isSkinnedMesh(object)) {
--        object.skeleton.update();
--    }
--    const children = object.children;
--    for (let index = 0; index < children.length; index += 1) {
--        const child = children[index];
--        if (child) {
--            updateSkinnedMeshSkeletons(child);
--        }
--    }
--}
- function isObject3D(value) {
-     return value instanceof THREE.Object3D || hasBooleanFlag(value, "isObject3D");
- }
--function isSkinnedMesh(value) {
--    return value instanceof THREE.SkinnedMesh || hasBooleanFlag(value, "isSkinnedMesh");
--}
- function hasBooleanFlag(value, key) {
-     return (typeof value === "object" &&
-         value !== null &&
 diff --git a/dist/runtime/ik-bridge.d.ts b/dist/runtime/ik-bridge.d.ts
 index e67e531..f4ebd0a 100644
 --- a/dist/runtime/ik-bridge.d.ts
@@ -478,10 +397,17 @@ index ca63b52..cad8bad 100644
      private scratchMatrices;
      private readonly scratchBaseRotations;
 diff --git a/dist/runtime/ik/CcdIkSolver.js b/dist/runtime/ik/CcdIkSolver.js
-index abe9f16..025708f 100644
+index 88e143a..fc72d29 100644
 --- a/dist/runtime/ik/CcdIkSolver.js
 +++ b/dist/runtime/ik/CcdIkSolver.js
-@@ -5,6 +5,7 @@ const matrixElementCount = 16;
+@@ -1,12 +1,13 @@
+ import { solveChain } from "./chainSolve.js";
+ import { subtractVectors, vectorLength } from "./math.js";
+-import { composeWorldMatrices, matrixElementCount, matrixTranslation } from "./worldMatrices.js";
++import { collectActiveOrder, composeWorldMatrices, matrixElementCount, matrixTranslation } from "./worldMatrices.js";
+ import { assertFiniteBoneTranslations, validateChain, validatePose, validateSkeleton } from "./validation.js";
+ const PREPARED_CHAIN_BRAND = Symbol("PreparedCcdIkChain");
+ const maxIkLoopCount = 256;
  export class CcdIkSolver {
      scratchComposeLocalMatrix = new Float32Array(matrixElementCount);
      scratchComposeStates = new Uint8Array(0);
@@ -489,32 +415,54 @@ index abe9f16..025708f 100644
      scratchTranslations = [];
      scratchMatrices = new Float32Array(0);
      scratchBaseRotations = [];
-@@ -94,10 +95,14 @@ export class CcdIkSolver {
+@@ -96,10 +97,13 @@ export class CcdIkSolver {
          const composeStates = this.ensureComposeStatesCapacity(input.bones.length);
          let totalIterations = 0;
          composeWorldMatrices(input.bones, translations, input.pose.rotations, matrices, this.scratchComposeLocalMatrix, composeStates);
-+        // The initial full compose still validates the hierarchy. Inside CCD
-+        // only joints, targets, effectors and their ancestors will be read.
-+        const activeOrder = this.scratchActiveOrder;
-+        collectActiveOrder(input.bones, input.chains, composeStates, activeOrder);
++        // Keep the initial hierarchy check; only chain bones and their ancestors
++        // are read between link rotations in the inner loop.
++        collectActiveOrder(input.bones, input.chains, composeStates, this.scratchActiveOrder);
          for (const chain of input.chains) {
              const iterationCount = Math.min(Math.max(Math.trunc(chain.iterationCount), 0), maxIkLoopCount);
              totalIterations +=
 -                solveChain(input.bones, translations, input.pose.rotations, matrices, chain, iterationCount, this.scratchComposeLocalMatrix, composeStates, this.scratchBaseRotations, this.scratchIkRotations, this.scratchBestRotations, this.scratchChainState, this.scratchIkVectors, this.scratchLinkLimits, this.scratchIkQuaternions, this.scratchIkEulerVectors, this.scratchRotation3);
-+                solveChain(input.bones, translations, input.pose.rotations, matrices, chain, iterationCount, this.scratchComposeLocalMatrix, activeOrder, this.scratchBaseRotations, this.scratchIkRotations, this.scratchBestRotations, this.scratchChainState, this.scratchIkVectors, this.scratchLinkLimits, this.scratchIkQuaternions, this.scratchIkEulerVectors, this.scratchRotation3);
++                solveChain(input.bones, translations, input.pose.rotations, matrices, chain, iterationCount, this.scratchComposeLocalMatrix, this.scratchActiveOrder, this.scratchBaseRotations, this.scratchIkRotations, this.scratchBestRotations, this.scratchChainState, this.scratchIkVectors, this.scratchLinkLimits, this.scratchIkQuaternions, this.scratchIkEulerVectors, this.scratchRotation3);
              if (finalDistances) {
                  finalDistances.push(vectorLength(subtractVectors(matrixTranslation(matrices, chain.effectorBoneIndex), matrixTranslation(matrices, chain.goalBoneIndex))));
              }
-@@ -220,7 +225,7 @@ function copyQuaternionInto(source, target) {
-     target[2] = source[2];
-     target[3] = source[3];
+diff --git a/dist/runtime/ik/chainSolve.d.ts b/dist/runtime/ik/chainSolve.d.ts
+index 17008a2..228f46b 100644
+--- a/dist/runtime/ik/chainSolve.d.ts
++++ b/dist/runtime/ik/chainSolve.d.ts
+@@ -5,4 +5,4 @@ export interface IkChainState {
+     previousAngle: [number, number, number];
+     planeModeAngle: number;
  }
--function solveChain(bones, translations, rotations, matrices, chain, iterationCount, composeLocalMatrix, composeStates, baseRotations, ikRotations, bestRotations, chainState, vectorScratch, linkLimitsScratch, quaternionScratch, eulerScratch, rotation3Scratch) {
-+function solveChain(bones, translations, rotations, matrices, chain, iterationCount, composeLocalMatrix, activeOrder, baseRotations, ikRotations, bestRotations, chainState, vectorScratch, linkLimitsScratch, quaternionScratch, eulerScratch, rotation3Scratch) {
+-export declare function solveChain(bones: readonly CcdIkBone[], translations: readonly [number, number, number][], rotations: MutableQuatTuple[], matrices: Float32Array, chain: CcdIkChain, iterationCount: number, composeLocalMatrix: Float32Array, composeStates: Uint8Array, baseRotations: [number, number, number, number][], ikRotations: [number, number, number, number][], bestRotations: [number, number, number, number][], chainState: IkChainState[], vectorScratch: [number, number, number][], linkLimitsScratch: LinkLimits[], quaternionScratch: MutableQuatTuple[], eulerScratch: MutableVec3Tuple[], rotation3Scratch: Rotation3Tuple): number;
++export declare function solveChain(bones: readonly CcdIkBone[], translations: readonly [number, number, number][], rotations: MutableQuatTuple[], matrices: Float32Array, chain: CcdIkChain, iterationCount: number, composeLocalMatrix: Float32Array, activeOrder: readonly number[], baseRotations: [number, number, number, number][], ikRotations: [number, number, number, number][], bestRotations: [number, number, number, number][], chainState: IkChainState[], vectorScratch: [number, number, number][], linkLimitsScratch: LinkLimits[], quaternionScratch: MutableQuatTuple[], eulerScratch: MutableVec3Tuple[], rotation3Scratch: Rotation3Tuple): number;
+diff --git a/dist/runtime/ik/chainSolve.js b/dist/runtime/ik/chainSolve.js
+index 0ec14dc..ce424ba 100644
+--- a/dist/runtime/ik/chainSolve.js
++++ b/dist/runtime/ik/chainSolve.js
+@@ -1,7 +1,7 @@
+ import { applyEffectiveRotation, axisAngleQuaternionInto, clamp, copyQuaternionInto, crossVectorsInto, dotVectors, invertQuaternionInto, multiplyQuaternionsInto, normalizeVectorInto, signedProjectedAngleInto, stablePerpendicularAxisInto, subtractVectorsInto, vectorLength } from "./math.js";
+ import { clampLimitedRotationInto, getSingleAxisLimit, projectQuaternionOntoAxisInto, rotationIsWithinLimits, toLinkLimitsInto, usableFixedAxis } from "./linkLimits.js";
+ import { solvePlaneLink } from "./planeLink.js";
+-import { composeWorldMatrices, matrixTranslationInto, transformDirectionByInverseMatrixInto } from "./worldMatrices.js";
++import { composeActiveMatrices, matrixTranslationInto, transformDirectionByInverseMatrixInto } from "./worldMatrices.js";
+ const defaultIkTolerance = 1e-4;
+ function copyRotationsInto(rotations, target) {
+     for (let index = 0; index < rotations.length; index += 1) {
+@@ -35,7 +35,7 @@ function resetChainStateScratch(chainState, length) {
+         state.planeModeAngle = 0;
+     }
+ }
+-export function solveChain(bones, translations, rotations, matrices, chain, iterationCount, composeLocalMatrix, composeStates, baseRotations, ikRotations, bestRotations, chainState, vectorScratch, linkLimitsScratch, quaternionScratch, eulerScratch, rotation3Scratch) {
++export function solveChain(bones, translations, rotations, matrices, chain, iterationCount, composeLocalMatrix, activeOrder, baseRotations, ikRotations, bestRotations, chainState, vectorScratch, linkLimitsScratch, quaternionScratch, eulerScratch, rotation3Scratch) {
      resetChainStateScratch(chainState, chain.links.length);
      copyRotationsInto(rotations, baseRotations);
      resetIkRotations(ikRotations, rotations.length);
-@@ -272,7 +277,7 @@ function solveChain(bones, translations, rotations, matrices, chain, iterationCo
+@@ -87,7 +87,7 @@ export function solveChain(bones, translations, rotations, matrices, chain, iter
                      limitAngle,
                      axisIndex: singleAxis,
                      composeLocalMatrix,
@@ -523,7 +471,7 @@ index abe9f16..025708f 100644
                      vectorScratch,
                      quaternionScratch
                  });
-@@ -334,7 +339,7 @@ function solveChain(bones, translations, rotations, matrices, chain, iterationCo
+@@ -149,7 +149,7 @@ export function solveChain(bones, translations, rotations, matrices, chain, iter
                  }
              }
              applyEffectiveRotation(rotations, baseRotations, ikRotations, link.boneIndex);
@@ -532,7 +480,7 @@ index abe9f16..025708f 100644
          }
          completedIterations += 1;
          const currentTargetPosition = matrixTranslationInto(matrices, chain.effectorBoneIndex, vectorScratch[0]);
-@@ -361,7 +366,7 @@ function solveChain(bones, translations, rotations, matrices, chain, iterationCo
+@@ -176,7 +176,7 @@ export function solveChain(bones, translations, rotations, matrices, chain, iter
                      applyEffectiveRotation(rotations, baseRotations, ikRotations, boneIndex);
                  }
              }
@@ -541,36 +489,82 @@ index abe9f16..025708f 100644
              break;
          }
      }
-@@ -379,7 +384,7 @@ function axisTupleInto(axisIndex, target) {
+diff --git a/dist/runtime/ik/planeLink.d.ts b/dist/runtime/ik/planeLink.d.ts
+index 9f6c32e..97e7fc6 100644
+--- a/dist/runtime/ik/planeLink.d.ts
++++ b/dist/runtime/ik/planeLink.d.ts
+@@ -1,7 +1,7 @@
+ import type { CcdIkBone, CcdIkLink, MutableQuatTuple } from "./CcdIkSolver.js";
+ import type { IkChainState } from "./chainSolve.js";
+ import type { LinkLimits } from "./linkLimits.js";
+-export declare function solvePlaneLink({ bones, translations, baseRotations, ikRotations, rotations, matrices, ikBoneIndex, ikTargetIndex, link, limits, linkIndex, chainState, iteration, limitAngle, axisIndex, composeLocalMatrix, composeStates, vectorScratch, quaternionScratch }: {
++export declare function solvePlaneLink({ bones, translations, baseRotations, ikRotations, rotations, matrices, ikBoneIndex, ikTargetIndex, link, limits, linkIndex, chainState, iteration, limitAngle, axisIndex, composeLocalMatrix, activeOrder, vectorScratch, quaternionScratch }: {
+     readonly bones: readonly CcdIkBone[];
+     readonly translations: readonly [number, number, number][];
+     readonly baseRotations: readonly [number, number, number, number][];
+@@ -18,7 +18,7 @@ export declare function solvePlaneLink({ bones, translations, baseRotations, ikR
+     readonly limitAngle: number;
+     readonly axisIndex: number;
+     readonly composeLocalMatrix: Float32Array;
+-    readonly composeStates: Uint8Array;
++    readonly activeOrder: readonly number[];
+     readonly vectorScratch: [number, number, number][];
+     readonly quaternionScratch: MutableQuatTuple[];
+ }): void;
+diff --git a/dist/runtime/ik/planeLink.js b/dist/runtime/ik/planeLink.js
+index ce0493b..7c61845 100644
+--- a/dist/runtime/ik/planeLink.js
++++ b/dist/runtime/ik/planeLink.js
+@@ -1,12 +1,12 @@
+ import { applyEffectiveRotation, axisAngleQuaternionInto, clamp, dotVectors, invertQuaternionInto, multiplyQuaternionsInto, normalizeVectorInto, rotateVectorByQuaternionInto, subtractVectorsInto } from "./math.js";
+-import { composeWorldMatrices, matrixTranslationInto, transformDirectionByInverseMatrixInto } from "./worldMatrices.js";
++import { composeActiveMatrices, matrixTranslationInto, transformDirectionByInverseMatrixInto } from "./worldMatrices.js";
+ function axisTupleInto(axisIndex, target) {
+     target[0] = axisIndex === 0 ? 1 : 0;
+     target[1] = axisIndex === 1 ? 1 : 0;
      target[2] = axisIndex === 2 ? 1 : 0;
      return target;
  }
--function solvePlaneLink({ bones, translations, baseRotations, ikRotations, rotations, matrices, ikBoneIndex, ikTargetIndex, link, limits, linkIndex, chainState, iteration, limitAngle, axisIndex, composeLocalMatrix, composeStates, vectorScratch, quaternionScratch }) {
-+function solvePlaneLink({ bones, translations, baseRotations, ikRotations, rotations, matrices, ikBoneIndex, ikTargetIndex, link, limits, linkIndex, chainState, iteration, limitAngle, axisIndex, composeLocalMatrix, activeOrder, vectorScratch, quaternionScratch }) {
+-export function solvePlaneLink({ bones, translations, baseRotations, ikRotations, rotations, matrices, ikBoneIndex, ikTargetIndex, link, limits, linkIndex, chainState, iteration, limitAngle, axisIndex, composeLocalMatrix, composeStates, vectorScratch, quaternionScratch }) {
++export function solvePlaneLink({ bones, translations, baseRotations, ikRotations, rotations, matrices, ikBoneIndex, ikTargetIndex, link, limits, linkIndex, chainState, iteration, limitAngle, axisIndex, composeLocalMatrix, activeOrder, vectorScratch, quaternionScratch }) {
      const rotateAxis = axisTupleInto(axisIndex, vectorScratch[5]);
      const ikPosition = matrixTranslationInto(matrices, ikBoneIndex, vectorScratch[6]);
      const targetPosition = matrixTranslationInto(matrices, ikTargetIndex, vectorScratch[7]);
-@@ -427,7 +432,7 @@ function solvePlaneLink({ bones, translations, baseRotations, ikRotations, rotat
+@@ -54,5 +54,5 @@ export function solvePlaneLink({ bones, translations, baseRotations, ikRotations
          : localChainRotation;
      multiplyQuaternionsInto(chainRotation, invertQuaternionInto(baseRotation, quaternionScratch[3]), ikRotations[link.boneIndex]);
      applyEffectiveRotation(rotations, baseRotations, ikRotations, link.boneIndex);
 -    composeWorldMatrices(bones, translations, rotations, matrices, composeLocalMatrix, composeStates);
 +    composeActiveMatrices(bones, translations, rotations, matrices, composeLocalMatrix, activeOrder);
  }
- function validateSkeleton(bones) {
-     for (const [index, bone] of bones.entries()) {
-@@ -506,6 +511,34 @@ function assertAcyclicParentChain(bones, boneIndex) {
-         currentIndex = bones[currentIndex]?.parentIndex ?? -1;
-     }
- }
-+function collectActiveOrder(bones, chains, visited, order) {
+diff --git a/dist/runtime/ik/worldMatrices.d.ts b/dist/runtime/ik/worldMatrices.d.ts
+index 2e7cece..f250f51 100644
+--- a/dist/runtime/ik/worldMatrices.d.ts
++++ b/dist/runtime/ik/worldMatrices.d.ts
+@@ -1,5 +1,7 @@
+-import type { CcdIkBone, QuatTuple } from "./CcdIkSolver.js";
++import type { CcdIkBone, CcdIkChain, QuatTuple } from "./CcdIkSolver.js";
+ export declare const matrixElementCount = 16;
++export declare function collectActiveOrder(bones: readonly CcdIkBone[], chains: readonly CcdIkChain[], visited: Uint8Array, order: number[]): void;
++export declare function composeActiveMatrices(bones: readonly CcdIkBone[], translations: readonly [number, number, number][], rotations: readonly QuatTuple[], matrices: Float32Array, local: Float32Array, order: readonly number[]): void;
+ export declare function composeWorldMatrices(bones: readonly CcdIkBone[], translations: readonly [number, number, number][], rotations: readonly QuatTuple[], matrices: Float32Array, local: Float32Array, states: Uint8Array): void;
+ export declare function matrixTranslation(matrices: Float32Array, index: number): [number, number, number];
+ export declare function matrixTranslationInto(matrices: Float32Array, index: number, target: [number, number, number]): [number, number, number];
+diff --git a/dist/runtime/ik/worldMatrices.js b/dist/runtime/ik/worldMatrices.js
+index abbe055..73829c0 100644
+--- a/dist/runtime/ik/worldMatrices.js
++++ b/dist/runtime/ik/worldMatrices.js
+@@ -1,4 +1,34 @@
+ export const matrixElementCount = 16;
++export function collectActiveOrder(bones, chains, visited, order) {
 +    visited.fill(0, 0, bones.length);
 +    order.length = 0;
 +    for (const chain of chains) {
 +        appendAncestors(chain.goalBoneIndex, bones, visited, order);
 +        appendAncestors(chain.effectorBoneIndex, bones, visited, order);
-+        for (const link of chain.links)
++        for (const link of chain.links) {
 +            appendAncestors(link.boneIndex, bones, visited, order);
++        }
 +    }
 +}
 +function appendAncestors(index, bones, visited, order) {
@@ -580,44 +574,42 @@ index abe9f16..025708f 100644
 +        order.push(index);
 +        index = bones[index].parentIndex;
 +    }
-+    // Reverse only this branch: parents may occur after children in a PMX.
-+    for (let a = start, b = order.length - 1; a < b; a++, b--) {
-+        const tmp = order[a];
-+        order[a] = order[b];
-+        order[b] = tmp;
++    // Parent indices in a PMX need not precede their children.
++    for (let left = start, right = order.length - 1; left < right; left++, right--) {
++        const swap = order[left];
++        order[left] = order[right];
++        order[right] = swap;
 +    }
 +}
-+function composeActiveMatrices(bones, translations, rotations, matrices, local, order) {
-+    for (const index of order)
++export function composeActiveMatrices(bones, translations, rotations, matrices, local, order) {
++    for (const index of order) {
 +        composeWorldMatrixInOrder(index, bones, translations, rotations, matrices, local);
++    }
 +}
- function composeWorldMatrices(bones, translations, rotations, matrices, local, states) {
+ export function composeWorldMatrices(bones, translations, rotations, matrices, local, states) {
      if (isParentBeforeChildOrdered(bones)) {
          for (let index = 0; index < bones.length; index += 1) {
-diff --git a/dist/runtime/mmdAnimRuntime.js b/dist/runtime/mmdAnimRuntime.js
-index 039ebe2..bbb7e53 100644
---- a/dist/runtime/mmdAnimRuntime.js
-+++ b/dist/runtime/mmdAnimRuntime.js
-@@ -1,4 +1,5 @@
- import * as THREE from "three";
-+import { syncRenderPalettes } from "./syncRenderPalettes.js";
- import { applyMorphOverrides, validateMorphOverrides } from "./morphOverrides.js";
- import { writeBonePhysicsToggleBuffer } from "../physics/legacyPhysicsBridge.js";
- import { sampleMmdCameraTrackInto, sampleMmdLightTrackInto } from "./animation.js";
-@@ -352,7 +353,7 @@ export class MmdAnimRuntime {
-             evaluateOptions = meshOrOptions;
-         }
-         const state = this.evaluate(seconds, evaluateOptions);
--        syncRuntimeObjectForRender(renderObject ?? this.mesh);
-+        syncRenderPalettes(renderObject ?? this.mesh);
-         return state;
-     }
-     seek(seconds) {
-@@ -762,25 +763,6 @@ function syncMorphWeights(mesh, weights) {
+diff --git a/dist/runtime/mmdAnimMesh.d.ts b/dist/runtime/mmdAnimMesh.d.ts
+index 69054d4..34e01c9 100644
+--- a/dist/runtime/mmdAnimMesh.d.ts
++++ b/dist/runtime/mmdAnimMesh.d.ts
+@@ -2,7 +2,4 @@ import * as THREE from "three";
+ export declare function syncWorldMatricesToSkeleton(mesh: THREE.SkinnedMesh, matrices: Float32Array, worldMatrices: THREE.Matrix4[], parentBoneIndices: readonly number[], threeWorldMatrix: THREE.Matrix4, localMatrix: THREE.Matrix4, parentInverseMatrix: THREE.Matrix4): void;
+ export declare function writeParentBoneIndices(bones: readonly THREE.Bone[], target: number[]): void;
+ export declare function syncMorphWeights(mesh: THREE.SkinnedMesh, weights: Float32Array): void;
+-export declare function syncRuntimeObjectForRender(object: THREE.Object3D | undefined): void;
+ export declare function ensureScratchMatrixArrayLength(matrices: THREE.Matrix4[], length: number): THREE.Matrix4[];
+-export declare function isObject3D(value: unknown): value is THREE.Object3D;
+-export declare function isSkinnedMesh(value: THREE.Object3D): value is THREE.SkinnedMesh;
+diff --git a/dist/runtime/mmdAnimMesh.js b/dist/runtime/mmdAnimMesh.js
+index 2313bd0..7a88638 100644
+--- a/dist/runtime/mmdAnimMesh.js
++++ b/dist/runtime/mmdAnimMesh.js
+@@ -53,25 +53,6 @@ export function syncMorphWeights(mesh, weights) {
          influences[index] = weights[index] ?? 0;
      }
  }
--function syncRuntimeObjectForRender(object) {
+-export function syncRuntimeObjectForRender(object) {
 -    if (!object) {
 -        return;
 -    }
@@ -636,58 +628,118 @@ index 039ebe2..bbb7e53 100644
 -        }
 -    }
 -}
- function ensureScratchMatrixArrayLength(matrices, length) {
+ export function ensureScratchMatrixArrayLength(matrices, length) {
      for (let index = matrices.length; index < length; index += 1) {
          matrices.push(new THREE.Matrix4());
-diff --git a/dist/runtime/syncRenderPalettes.d.ts b/dist/runtime/syncRenderPalettes.d.ts
-new file mode 100644
-index 0000000..55674ed
---- /dev/null
-+++ b/dist/runtime/syncRenderPalettes.d.ts
-@@ -0,0 +1,4 @@
-+import type { Object3D } from "three";
-+/** A material split or outline proxy can share its neighbour's Skeleton.
-+ * Revisit the hierarchy each tick: both reparenting and rebinding are legal. */
-+export declare function syncRenderPalettes(root: Object3D | undefined): void;
-diff --git a/dist/runtime/syncRenderPalettes.js b/dist/runtime/syncRenderPalettes.js
-new file mode 100644
-index 0000000..490e3d9
---- /dev/null
-+++ b/dist/runtime/syncRenderPalettes.js
-@@ -0,0 +1,25 @@
-+/** A material split or outline proxy can share its neighbour's Skeleton.
-+ * Revisit the hierarchy each tick: both reparenting and rebinding are legal. */
-+export function syncRenderPalettes(root) {
-+    if (!root)
-+        return;
-+    root.updateMatrixWorld(true);
-+    let first, others;
-+    function visit(object) {
-+        const mesh = object;
-+        if (mesh.isSkinnedMesh === true) {
-+            const skeleton = mesh.skeleton;
-+            if (first === undefined) {
-+                first = skeleton;
+@@ -79,14 +60,3 @@ export function ensureScratchMatrixArrayLength(matrices, length) {
+     matrices.length = length;
+     return matrices;
+ }
+-export function isObject3D(value) {
+-    return value instanceof THREE.Object3D || hasBooleanFlag(value, "isObject3D");
+-}
+-export function isSkinnedMesh(value) {
+-    return value instanceof THREE.SkinnedMesh || hasBooleanFlag(value, "isSkinnedMesh");
+-}
+-function hasBooleanFlag(value, key) {
+-    return (typeof value === "object" &&
+-        value !== null &&
+-        value[key] === true);
+-}
+diff --git a/dist/runtime/mmdAnimRuntime.js b/dist/runtime/mmdAnimRuntime.js
+index 4eb047c..a8b808c 100644
+--- a/dist/runtime/mmdAnimRuntime.js
++++ b/dist/runtime/mmdAnimRuntime.js
+@@ -3,6 +3,7 @@ import { applyMorphOverrides, validateMorphOverrides } from "./morphOverrides.js
+ import { sampleMmdCameraTrackInto, sampleMmdLightTrackInto } from "./sceneTrackSampling.js";
+ import { DefaultMmdRuntime } from "./core.js";
+ import { ExternalPhysicsStepper } from "./externalPhysicsStepper.js";
++import { isObject3D, isSkinnedMesh, syncRuntimeMeshForRender } from "./renderSync.js";
+ import { normalizeFrameRate } from "./math.js";
+ import { syncMorphSplitTargetInfluences } from "./morphSplitSync.js";
+ import { HostRigPhysics } from "./hostRigPhysics.js";
+@@ -11,7 +12,7 @@ import { captureRuntimeDebugStageInto, copyArrayLikeToNumberArray } from "./debu
+ import { createPhysicsResetContext } from "./physicsPose.js";
+ import { createWasmModelFromPmxBytes, createWasmRuntime } from "./mmdAnimWasm.js";
+ import { createMmdAnimWasmCameraTrack, createMmdAnimWasmLightTrack, sampleMmdAnimWasmCameraTrackInto, sampleMmdAnimWasmLightTrackInto } from "./mmdAnimTracks.js";
+-import { syncWorldMatricesToSkeleton, writeParentBoneIndices, syncMorphWeights, syncRuntimeObjectForRender, ensureScratchMatrixArrayLength, isObject3D, isSkinnedMesh } from "./mmdAnimMesh.js";
++import { syncWorldMatricesToSkeleton, writeParentBoneIndices, syncMorphWeights, ensureScratchMatrixArrayLength } from "./mmdAnimMesh.js";
+ const defaultMmdAnimIkTolerance = 1.0e-2;
+ const emptyBonePhysicsToggles = Object.freeze({});
+ /**
+@@ -276,7 +277,7 @@ export class MmdAnimRuntime {
+             evaluateOptions = meshOrOptions;
+         }
+         const state = this.evaluate(seconds, evaluateOptions);
+-        syncRuntimeObjectForRender(renderObject ?? this.mesh);
++        syncRuntimeMeshForRender(renderObject ?? this.mesh);
+         return state;
+     }
+     seek(seconds) {
+diff --git a/dist/runtime/renderSync.d.ts b/dist/runtime/renderSync.d.ts
+index 4dcc021..86ef5ff 100644
+--- a/dist/runtime/renderSync.d.ts
++++ b/dist/runtime/renderSync.d.ts
+@@ -1,3 +1,4 @@
+ import * as THREE from "three";
+ export declare function syncRuntimeMeshForRender(mesh: THREE.Object3D | undefined): void;
+ export declare function isObject3D(value: unknown): value is THREE.Object3D;
++export declare function isSkinnedMesh(value: THREE.Object3D): value is THREE.SkinnedMesh;
+diff --git a/dist/runtime/renderSync.js b/dist/runtime/renderSync.js
+index 7eb9e93..3be4d54 100644
+--- a/dist/runtime/renderSync.js
++++ b/dist/runtime/renderSync.js
+@@ -7,22 +7,38 @@ export function syncRuntimeMeshForRender(mesh) {
+     mesh.updateMatrixWorld(true);
+     updateSkinnedMeshSkeletons(mesh);
+ }
+-function updateSkinnedMeshSkeletons(object) {
++// Body, material-order and outline meshes can share their CPU palette. Keep
++// identity local to this walk: proxies can be rebound between ticks. The
++// usual single-skeleton hierarchy doesn't need to allocate a Set.
++function updateSkinnedMeshSkeletons(object, seen) {
+     if (isSkinnedMesh(object)) {
+-        object.skeleton.update();
++        const skeleton = object.skeleton;
++        if (seen === undefined) {
++            skeleton.update();
++            seen = skeleton;
++        }
++        else if (seen !== skeleton) {
++            if (!(seen instanceof Set))
++                seen = new Set([seen]);
++            if (!seen.has(skeleton)) {
 +                skeleton.update();
-+            }
-+            else if (skeleton !== first && !others?.has(skeleton)) {
-+                (others ??= new Set()).add(skeleton);
-+                skeleton.update();
++                seen.add(skeleton);
 +            }
 +        }
-+        for (const child of object.children)
-+            visit(child);
-+    }
-+    visit(root);
-+}
+     }
+     const children = object.children;
+     for (let index = 0; index < children.length; index += 1) {
+         const child = children[index];
+         if (child) {
+-            updateSkinnedMeshSkeletons(child);
++            seen = updateSkinnedMeshSkeletons(child, seen);
+         }
+     }
++    return seen;
+ }
+ export function isObject3D(value) {
+     return value instanceof THREE.Object3D || hasBooleanFlag(value, "isObject3D");
+ }
+-function isSkinnedMesh(value) {
++export function isSkinnedMesh(value) {
+     return value instanceof THREE.SkinnedMesh || hasBooleanFlag(value, "isSkinnedMesh");
+ }
+ function hasBooleanFlag(value, key) {
 diff --git a/dist/runtime/types.d.ts b/dist/runtime/types.d.ts
-index d82f2a2..c6e33dd 100644
+index bd916af..3071dd4 100644
 --- a/dist/runtime/types.d.ts
 +++ b/dist/runtime/types.d.ts
 @@ -100,6 +100,12 @@ export interface MmdRuntimeAsyncTickOptions extends MmdRuntimeTickOptions {
      readonly signal?: AbortSignal;
  }
- export interface DefaultMmdRuntimeOptions {
+ export interface MmdRuntimeOptions {
 +    /** JS runtime only: false skips copying the intermediate debugging snapshots. */
 +    readonly captureStageSnapshots?: boolean;
 +    /** Defer intermediate matrix propagation to the external physics barrier when snapshots are off. */
@@ -697,58 +749,167 @@ index d82f2a2..c6e33dd 100644
      /** MMD timeline frame rate. Defaults to 30. */
      readonly frameRate?: number;
      /** Initial runtime time in seconds. Defaults to 0. */
-diff --git a/dist/three/index.d.ts b/dist/three/index.d.ts
-index 32cdfea..9cf0a04 100644
---- a/dist/three/index.d.ts
-+++ b/dist/three/index.d.ts
-@@ -5,7 +5,7 @@ import type { MaterialTransparencyDiagnostic, TextureLoadDiagnostic, ThreeMmdTex
- import type { LoaderPerformanceMeasure, LoaderPerformanceOptions } from "./performance.js";
- import type { ModelSource } from "./modelSource.js";
- import type { ModelSourceDiagnostic, ModelSourceFetch } from "./modelSource.js";
--import type { TextureMap, TextureResolver } from "./textures.js";
-+import type { LocalPngAlphaTiles, TextureMap, TextureResolver } from "./textures.js";
- export { createThreeBufferGeometry, createThreeMorphSplitGeometries } from "./geometry.js";
- export type { ThreeMmdGeometryOptions } from "./geometry.js";
- export { applyMmdCameraStateToThreeCamera } from "./camera.js";
-@@ -53,6 +53,8 @@ export interface ThreeMmdLoaderOptions {
-     readonly ddsLoader?: ThreeMmdTextureLoader;
-     /** Enables geometry-aware texture alpha checks. Defaults to off, except when outlines require it internally. */
-     readonly geometryAwareAlpha?: boolean;
-+    /** Cache the exact UV sampling lattice by local PNG File identity and dimensions. */
-+    readonly localPngAlphaTiles?: LocalPngAlphaTiles;
-     /** Options forwarded to the per-model runtime. */
-     readonly runtime?: DefaultMmdRuntimeOptions;
-     /** Creates a per-model runtime. When omitted, the bundled mmd-anim runtime is used for PMX. */
-@@ -129,6 +131,8 @@ export interface ThreeMmdModel {
+diff --git a/dist/three/loaded-model.d.ts b/dist/three/loaded-model.d.ts
+index 97b2ddc..e0ff8cb 100644
+--- a/dist/three/loaded-model.d.ts
++++ b/dist/three/loaded-model.d.ts
+@@ -38,6 +38,8 @@ export interface ThreeMmdModel {
      readonly renderOrderMeshes: readonly THREE.SkinnedMesh[];
      /** Runtime bound to this model. */
      readonly runtime: MmdRuntime;
-+    /** Swap the evaluator used by all model methods, returning the previous one to its owner. */
++    /** Swaps the evaluator used by this model and returns the previous one to its owner. */
 +    exchangeRuntime(next: MmdRuntime): MmdRuntime;
      readonly source: ThreeMmdModelSourceDescriptor;
      /** Structured diagnostics grouped by subsystem. */
      readonly diagnostics: {
-@@ -184,6 +188,7 @@ export declare class ThreeMmdLoader {
+@@ -64,7 +66,7 @@ export interface ThreeMmdModel {
+     /** Evaluates and applies an exact frame before resolving. */
+     updateAsync(seconds: number, options?: MmdRuntimeAsyncEvaluateOptions): Promise<MmdFrameState>;
+ }
+-export declare function createThreeMmdModel(options: {
++export declare function createThreeMmdModel({ runtime, morphs, ...options }: {
+     readonly mesh: THREE.SkinnedMesh;
+     readonly runtime: MmdRuntime;
+     readonly source: ThreeMmdModelSourceDescriptor;
+@@ -74,6 +76,7 @@ export declare function createThreeMmdModel(options: {
+     readonly materialDiagnostics: readonly MaterialTransparencyDiagnostic[];
+     readonly performanceDiagnostics: readonly LoaderPerformanceMeasure[];
+     readonly materials: readonly LoaderMmdModelData["materials"][number][];
++    readonly morphs: LoaderMmdModelData["morphs"];
+     readonly outlines: boolean;
+     readonly renderOrderProxies: boolean;
+ } & Pick<ThreeMmdModel, "metadata" | "bones" | "rigidBodies" | "joints">): ThreeMmdModel;
+diff --git a/dist/three/loaded-model.js b/dist/three/loaded-model.js
+index e062c1e..54fe799 100644
+--- a/dist/three/loaded-model.js
++++ b/dist/three/loaded-model.js
+@@ -1,10 +1,11 @@
+ import * as THREE from "three";
+ import { MMD_SELF_SHADOW_LAYER } from "./shadow.js";
++import { createSurfaceMorphSync } from "./surface-morphs.js";
+ import { mmdMaterialCastsSelfShadow, syncMmdModelShadowFlags, mmdMaterialCastsShadow as mmdMaterialCastsShadowInternal } from "./material/material-metadata.js";
+ import { createMmdMaterialRenderOrderMeshes as createMmdMaterialRenderOrderMeshesInternal, createMmdOutlineMeshes as createMmdOutlineMeshesInternal } from "./outline.js";
+ import { warnDeprecatedApi } from "./loader-options.js";
+ import { unwrapThreeMmdAnimation } from "./loader-animation.js";
+-export function createThreeMmdModel(options) {
++export function createThreeMmdModel({ runtime, morphs, ...options }) {
+     const bodyMeshes = readMorphSplitBodyMeshes(options.mesh);
+     const outlineSources = bodyMeshes.length > 0 ? bodyMeshes : [options.mesh];
+     const outlineMeshes = options.outlines
+@@ -40,6 +41,7 @@ export function createThreeMmdModel(options) {
+     object.name = options.mesh.name;
+     object.add(options.mesh, ...bodyMeshes, ...renderOrderMeshes, ...outlineMeshes);
+     const runtimeTickOptions = { mesh: object };
++    const syncSurface = createSurfaceMorphSync(options.mesh, bodyMeshes, renderOrderMeshes, outlineMeshes, options.materials, morphs);
+     return {
+         root: object,
+         get object() {
+@@ -53,7 +55,14 @@ export function createThreeMmdModel(options) {
+         joints: options.joints,
+         outlineMeshes,
+         renderOrderMeshes,
+-        runtime: options.runtime,
++        get runtime() {
++            return runtime;
++        },
++        exchangeRuntime(next) {
++            const previous = runtime;
++            runtime = next;
++            return previous;
++        },
+         source: options.source,
+         diagnostics: {
+             core: options.coreDiagnostic,
+@@ -67,26 +76,32 @@ export function createThreeMmdModel(options) {
+             return options.textureDiagnostics;
+         },
+         setAnimation(animation) {
+-            options.runtime.setAnimation(unwrapThreeMmdAnimation(animation), options.mesh);
++            runtime.setAnimation(unwrapThreeMmdAnimation(animation), options.mesh);
+         },
+         update(seconds, updateOptions) {
+             runtimeTickOptions.physics = updateOptions?.physics;
+             runtimeTickOptions.ik = updateOptions?.ik;
+             runtimeTickOptions.morphOverrides = updateOptions?.morphOverrides;
+-            return options.runtime.tick(seconds, runtimeTickOptions);
++            const state = runtime.tick(seconds, runtimeTickOptions);
++            syncSurface?.();
++            return state;
+         },
+         updateAsync(seconds, updateOptions) {
+             runtimeTickOptions.physics = updateOptions?.physics;
+             runtimeTickOptions.ik = updateOptions?.ik;
+             runtimeTickOptions.morphOverrides = updateOptions?.morphOverrides;
+-            const tickAsync = options.runtime.tickAsync;
+-            if (tickAsync) {
+-                return tickAsync.call(options.runtime, seconds, {
++            if (runtime.tickAsync) {
++                const pending = runtime.tickAsync(seconds, {
+                     ...runtimeTickOptions,
+                     signal: updateOptions?.signal
+                 });
++                return syncSurface ? pending.then((state) => {
++                    syncSurface();
++                    return state;
++                }) : pending;
+             }
+-            const state = options.runtime.tick(seconds, runtimeTickOptions);
++            const state = runtime.tick(seconds, runtimeTickOptions);
++            syncSurface?.();
+             return Promise.resolve({
+                 seconds: state.seconds,
+                 frame: state.frame,
+diff --git a/dist/three/loader-options.d.ts b/dist/three/loader-options.d.ts
+index 82ae852..3d4039b 100644
+--- a/dist/three/loader-options.d.ts
++++ b/dist/three/loader-options.d.ts
+@@ -4,7 +4,7 @@ import type { MmdRuntimeOptions, MmdRuntime } from "../runtime/index.js";
+ import type { ThreeMmdTextureLoader } from "./materials.js";
+ import type { LoaderPerformanceOptions } from "./performance.js";
+ import type { ModelSourceFetch } from "./modelSource.js";
+-import type { TextureMap, TextureResolver } from "./textures.js";
++import type { LocalPngAlphaTiles, TextureMap, TextureResolver } from "./textures.js";
+ import type { ThreeMmdModelSourceDescriptor } from "./loaded-model.js";
+ export interface ThreeMmdLoaderOptions {
+     /** Resolves MMD-relative texture paths when loading model materials. */
+@@ -17,6 +17,8 @@ export interface ThreeMmdLoaderOptions {
+     readonly ddsLoader?: ThreeMmdTextureLoader;
+     /** Enables geometry-aware texture alpha checks. Defaults to off, except when outlines require it internally. */
+     readonly geometryAwareAlpha?: boolean;
++    /** Caches exact alpha samples by local PNG File identity and dimensions. */
++    readonly localPngAlphaTiles?: LocalPngAlphaTiles;
+     /** Options forwarded to the per-model runtime. */
+     readonly runtime?: MmdRuntimeOptions;
+     /** Creates a per-model runtime. When omitted, the bundled mmd-anim runtime is used for PMX. */
+diff --git a/dist/three/loader.d.ts b/dist/three/loader.d.ts
+index 560d6ff..eaf2afc 100644
+--- a/dist/three/loader.d.ts
++++ b/dist/three/loader.d.ts
+@@ -1,8 +1,8 @@
+ import { type MmdCameraTrackSampler, type MmdLightTrackSampler } from "./trackSampler.js";
+ import type { MmdAnimation } from "../parser/model/modelTypes.js";
+-import { type MmdAnimRuntimeWasmCameraTrack, type MmdAnimRuntimeWasmLightTrack } from "../runtime/index.js";
++import { type MmdAnimRuntimeWasmCameraTrack, type MmdAnimRuntimeWasmLightTrack, type MmdRuntime } from "../runtime/index.js";
+ import { type ModelSource } from "./modelSource.js";
+-import { type ThreeMmdLoaderOptions, type ThreeMmdLoadModelOptions } from "./loader-options.js";
++import { type ThreeMmdLoaderOptions, type ThreeMmdRuntimeFactoryContext, type ThreeMmdLoadModelOptions } from "./loader-options.js";
+ import { type ThreeMmdModel } from "./loaded-model.js";
+ import { type ThreeMmdAnimation, type ThreeMmdPose } from "./loader-animation.js";
+ export declare class ThreeMmdLoader {
+@@ -15,6 +15,8 @@ export declare class ThreeMmdLoader {
      private implicitMmdAnimWasmReady;
      constructor(options?: ThreeMmdLoaderOptions);
      loadModel(source: ModelSource, options?: ThreeMmdLoadModelOptions): Promise<ThreeMmdModel>;
++    /** Creates a replacement evaluator without allocating a second mesh or its textures. */
 +    createDetachedRuntime(context: ThreeMmdRuntimeFactoryContext): Promise<MmdRuntime>;
      private createRuntime;
      private canCreateImplicitMmdAnimRuntime;
      private getCore;
-diff --git a/dist/three/index.js b/dist/three/index.js
-index e1ceb53..07cf9a0 100644
---- a/dist/three/index.js
-+++ b/dist/three/index.js
-@@ -14,6 +14,7 @@ import { createMmdMaterialRenderOrderMeshes, createMmdOutlineMeshes } from "./ou
- import { createLoaderPerformanceProfile } from "./performance.js";
- import { MMD_SELF_SHADOW_LAYER } from "./shadow.js";
- import { createThreeSkeleton } from "./skeleton.js";
-+import { createSurfaceMorphSync } from "./surface-morphs.js";
- export { createThreeBufferGeometry, createThreeMorphSplitGeometries } from "./geometry.js";
- export { applyMmdCameraStateToThreeCamera } from "./camera.js";
- export { applyMmdLightStateToThreeDirectionalLight } from "./light.js";
-@@ -88,8 +89,10 @@ export class ThreeMmdLoader {
+diff --git a/dist/three/loader.js b/dist/three/loader.js
+index 71f735a..ebfbfc0 100644
+--- a/dist/three/loader.js
++++ b/dist/three/loader.js
+@@ -74,8 +74,10 @@ export class ThreeMmdLoader {
                      geometry: mesh.geometry,
                      morphs: modelData.morphs,
                      geometryAwareAlpha: this.options.geometryAwareAlpha || effectiveOutlines,
@@ -760,19 +921,19 @@ index e1ceb53..07cf9a0 100644
                  });
                  const textureDiagnostics = await texturePromise;
                  profile?.mark("textures");
-@@ -122,7 +125,7 @@ export class ThreeMmdLoader {
+@@ -110,6 +112,7 @@ export class ThreeMmdLoader {
+                     materialDiagnostics,
+                     performanceDiagnostics: profile?.measures ?? [],
                      materials: modelData.materials,
++                    morphs: modelData.morphs,
                      outlines: effectiveOutlines,
                      renderOrderProxies: options.materialRenderOrder ?? options.renderOrderProxies ?? true
--                });
-+                }, modelData.morphs);
-                 profile?.mark("assembled");
-                 profile?.measure("read-bytes", "start", "bytes");
-                 profile?.measure("parse-model", "bytes", "parsed");
-@@ -147,6 +150,10 @@ export class ThreeMmdLoader {
+                 });
+@@ -137,6 +140,11 @@ export class ThreeMmdLoader {
              profile?.clear();
          }
      }
++    /** Creates a replacement evaluator without allocating a second mesh or its textures. */
 +    async createDetachedRuntime(context) {
 +        await this.getCore();
 +        return this.createRuntime(context);
@@ -780,73 +941,15 @@ index e1ceb53..07cf9a0 100644
      createRuntime(context) {
          const explicitRuntime = this.options.runtimeFactory?.(context);
          if (explicitRuntime) {
-@@ -331,7 +338,7 @@ export class ThreeMmdLoader {
-         };
-     }
- }
--function createThreeMmdModel(options) {
-+function createThreeMmdModel(options, morphs) {
-     const bodyMeshes = readMorphSplitBodyMeshes(options.mesh);
-     const outlineSources = bodyMeshes.length > 0 ? bodyMeshes : [options.mesh];
-     const outlineMeshes = options.outlines
-@@ -367,6 +374,7 @@ function createThreeMmdModel(options) {
-     object.name = options.mesh.name;
-     object.add(options.mesh, ...bodyMeshes, ...renderOrderMeshes, ...outlineMeshes);
-     const runtimeTickOptions = { mesh: object };
-+    const syncSurface = createSurfaceMorphSync(options.mesh, bodyMeshes, renderOrderMeshes, outlineMeshes, options.materials, morphs);
-     return {
-         root: object,
-         get object() {
-@@ -376,7 +384,12 @@ function createThreeMmdModel(options) {
-         mesh: options.mesh,
-         outlineMeshes,
-         renderOrderMeshes,
--        runtime: options.runtime,
-+        get runtime() { return options.runtime; },
-+        exchangeRuntime(next) {
-+            const previous = options.runtime;
-+            options.runtime = next;
-+            return previous;
-+        },
-         source: options.source,
-         diagnostics: {
-             core: options.coreDiagnostic,
-@@ -396,7 +409,9 @@ function createThreeMmdModel(options) {
-             runtimeTickOptions.physics = updateOptions?.physics;
-             runtimeTickOptions.ik = updateOptions?.ik;
-             runtimeTickOptions.morphOverrides = updateOptions?.morphOverrides;
--            return options.runtime.tick(seconds, runtimeTickOptions);
-+            const state = options.runtime.tick(seconds, runtimeTickOptions);
-+            syncSurface?.();
-+            return state;
-         },
-         updateAsync(seconds, updateOptions) {
-             runtimeTickOptions.physics = updateOptions?.physics;
-@@ -404,12 +419,14 @@ function createThreeMmdModel(options) {
-             runtimeTickOptions.morphOverrides = updateOptions?.morphOverrides;
-             const tickAsync = options.runtime.tickAsync;
-             if (tickAsync) {
--                return tickAsync.call(options.runtime, seconds, {
-+                const pending = tickAsync.call(options.runtime, seconds, {
-                     ...runtimeTickOptions,
-                     signal: updateOptions?.signal
-                 });
-+                return syncSurface ? pending.then(state => { syncSurface(); return state; }) : pending;
-             }
-             const state = options.runtime.tick(seconds, runtimeTickOptions);
-+            syncSurface?.();
-             return Promise.resolve({
-                 seconds: state.seconds,
-                 frame: state.frame,
 diff --git a/dist/three/material/material-texture-set.d.ts b/dist/three/material/material-texture-set.d.ts
-index 2f0df61..c535cad 100644
+index 2f0df61..cf92c73 100644
 --- a/dist/three/material/material-texture-set.d.ts
 +++ b/dist/three/material/material-texture-set.d.ts
 @@ -2,12 +2,15 @@ import type { MaterialInfo, MorphData } from "../../parser/model/modelTypes.js";
  import type * as THREE from "three";
  import type { TextureLoadDiagnostic, ThreeMmdTextureLoader } from "../materials.js";
  import type { MmdMaterialTransparencyMode, TextureResolver } from "../textures.js";
-+import * as textureAlpha from "../textures.js";
++import * as textureAlpha from "../texture-alpha.js";
  export interface MmdDefaultMaterialTextureSet {
      readonly texture: THREE.Texture | undefined;
      readonly gradientMap: THREE.Texture | undefined;
@@ -859,10 +962,10 @@ index 2f0df61..c535cad 100644
  }
  export type MmdMaterialTransparencyReason = "pmx" | "texture-metadata" | "texture-alpha-scan" | "geometry-alpha-scan" | "morph-alpha" | "name-heuristic";
 diff --git a/dist/three/material/material-texture-set.js b/dist/three/material/material-texture-set.js
-index 968b2d0..b0e6e3e 100644
+index 1153eab..6e3fba7 100644
 --- a/dist/three/material/material-texture-set.js
 +++ b/dist/three/material/material-texture-set.js
-@@ -37,7 +37,7 @@ export function evaluateMmdDefaultMaterialTransparency(material, morphs, geometr
+@@ -39,7 +39,7 @@ export function evaluateMmdDefaultMaterialTransparency(material, morphs, geometr
      const rawTextureTransparencyMode = (shouldUseTextureMetadata ? textureMetadataTransparencyMode : undefined) ??
          (texture && needsTextureTransparencyScan
              ? (options.geometryAwareAlpha
@@ -871,7 +974,7 @@ index 968b2d0..b0e6e3e 100644
                  : textureAlpha.evaluateMmdTextureAlphaTexture(texture))
              : undefined);
      const textureTransparencyMode = rawTextureTransparencyMode === "alphaTest" && isLikelyMmdSoftAlphaOverlayMaterial(material)
-@@ -112,7 +112,7 @@ function isLikelyMmdSoftAlphaOverlayMaterial(material) {
+@@ -114,7 +114,7 @@ function isLikelyMmdSoftAlphaOverlayMaterial(material) {
      const materialName = `${material.name} ${material.englishName}`.toLowerCase();
      return /(hair\s*shadow|hairshadow|shadow|shade|cheek|blush|髪影|髪の影|影|頬|ほほ|チーク)/u.test(materialName);
  }
@@ -880,7 +983,7 @@ index 968b2d0..b0e6e3e 100644
      let geometryCache = geometryAlphaCache.get(texture);
      if (!geometryCache) {
          geometryCache = new WeakMap();
-@@ -126,7 +126,7 @@ function evaluateCachedMmdTextureAlphaGeometry(texture, geometry, materialIndex)
+@@ -128,7 +128,7 @@ function evaluateCachedMmdTextureAlphaGeometry(texture, geometry, materialIndex)
      if (materialCache.has(materialIndex)) {
          return materialCache.get(materialIndex);
      }
@@ -933,153 +1036,6 @@ index 20234e3..64c4af8 100644
              material.transparent = transparencyMode === "alphaBlend";
              material.depthWrite = mmdMaterialDepthWrite(transparencyMode);
              const suppressesColor = mmdMaterialSuppressesColorAtAlpha(mmdMaterial.diffuse[3], mmdMaterial.flags);
-diff --git a/dist/three/outline.js b/dist/three/outline.js
-index 5891f9c..e3d0040 100644
---- a/dist/three/outline.js
-+++ b/dist/three/outline.js
-@@ -25,9 +25,8 @@ export function createMmdOutlineMeshes(model, options = {}) {
-         if (!group) {
-             continue;
-         }
--        const geometry = createMmdMaterialProxyGeometry(model.mesh.geometry, group);
-         const outlineMaterial = createMmdOutlineMaterial(materialInfo, materialIndex, options, hasVertexEdgeScale);
--        const outline = new THREE.SkinnedMesh(geometry, outlineMaterial);
-+        const outline = new THREE.SkinnedMesh(model.mesh.geometry, outlineMaterial);
-         outline.name = `${model.mesh.name || "mmd"} outline material ${materialIndex}`;
-         outline.scale.setScalar(options.scale ?? 1);
-         outline.bind(model.mesh.skeleton, model.mesh.bindMatrix);
-@@ -41,9 +40,12 @@ export function createMmdOutlineMeshes(model, options = {}) {
-         outline.userData.mmdOutlineProxy = {
-             sourceMaterialIndex: materialIndex,
-             edgeSize: materialInfo.edgeSize,
--            fallback: !hasEdge && !!options.forceFallback
-+            fallback: !hasEdge && !!options.forceFallback,
-+            start: group.start,
-+            count: group.count
-         };
-         attachMmdOutlineViewportUpdate(outline);
-+        attachMmdMaterialProxyDrawRange(outline, group.start, group.count);
-         meshes.push(outline);
-     }
-     return meshes;
-@@ -171,7 +173,9 @@ function attachMmdPmxOutlineExpansion(material, outlineWidth, hasVertexEdgeScale
-     material.needsUpdate = true;
- }
- function attachMmdOutlineViewportUpdate(outline) {
--    outline.onBeforeRender = (renderer) => {
-+    const previousOnBeforeRender = outline.onBeforeRender;
-+    outline.onBeforeRender = (renderer, scene, camera, geometry, material, group) => {
-+        previousOnBeforeRender.call(outline, renderer, scene, camera, geometry, material, group);
-         syncMmdOutlineViewport(outline.material, renderer);
-     };
- }
-@@ -215,8 +219,7 @@ export function createMmdMaterialRenderOrderMeshes(model, options = {}) {
-         if (!group || !material) {
-             continue;
-         }
--        const geometry = createMmdMaterialProxyGeometry(model.mesh.geometry, group);
--        const mesh = new THREE.SkinnedMesh(geometry, options.shadowOnly ? createShadowOnlyMaterial(material) : material);
-+        const mesh = new THREE.SkinnedMesh(model.mesh.geometry, options.shadowOnly ? createShadowOnlyMaterial(material) : material);
-         mesh.name = `${model.mesh.name || "mmd"} material ${entry.materialIndex}`;
-         mesh.bind(model.mesh.skeleton, model.mesh.bindMatrix);
-         mesh.morphTargetDictionary = model.mesh.morphTargetDictionary;
-@@ -233,7 +236,8 @@ export function createMmdMaterialRenderOrderMeshes(model, options = {}) {
-         if (mesh.castShadow) {
-             mesh.customDepthMaterial = createMmdShadowDepthMaterial(material);
-         }
--        mesh.userData.mmdMaterialRenderProxy = { ...entry };
-+        mesh.userData.mmdMaterialRenderProxy = { ...entry, start: group.start, count: group.count };
-+        attachMmdMaterialProxyDrawRange(mesh, group.start, group.count);
-         meshes.push(mesh);
-     }
-     return meshes;
-@@ -262,25 +266,67 @@ function mmdMaterialRenderOrderEntries(model) {
- function mmdMaterialRenderOrderMap(renderOrder) {
-     return new Map(renderOrder.map((entry) => [entry.materialIndex, entry.renderOrder]));
- }
--function createMmdMaterialProxyGeometry(source, group) {
--    const geometry = new THREE.BufferGeometry();
--    for (const [name, attribute] of Object.entries(source.attributes)) {
--        geometry.setAttribute(name, attribute);
--    }
--    if (source.index) {
--        geometry.setIndex(source.index);
--    }
--    const morphAttributes = geometry.morphAttributes;
--    for (const [name, attributes] of Object.entries(source.morphAttributes)) {
--        morphAttributes[name] = attributes;
--    }
--    geometry.morphTargetsRelative = source.morphTargetsRelative;
--    geometry.boundingBox = source.boundingBox;
--    geometry.boundingSphere = source.boundingSphere;
--    geometry.userData = { ...source.userData };
--    geometry.addGroup(group.start, group.count, 0);
--    geometry.setDrawRange(group.start, group.count);
--    return geometry;
-+/**
-+ * Proxies share the source geometry object instead of owning a per-material
-+ * BufferGeometry: three caches the morph-target DataArrayTexture per geometry
-+ * object and sizes it by the whole position count, so per-proxy geometries
-+ * multiplied morph VRAM by the proxy count (issue #42). Each proxy narrows the
-+ * shared drawRange to its material group only around its own draw, shadow draw
-+ * and raycast, then restores the previous range. The previous range is kept
-+ * rather than a fixed (0, 0) because morph-split outlines share a body mesh
-+ * geometry that renders with its full range.
-+ */
-+function attachMmdMaterialProxyDrawRange(proxy, groupStart, groupCount) {
-+    let renderStart = 0;
-+    let renderCount = 0;
-+    let shadowStart = 0;
-+    let shadowCount = 0;
-+    const previousOnBeforeRender = proxy.onBeforeRender;
-+    const previousOnAfterRender = proxy.onAfterRender;
-+    const previousOnBeforeShadow = proxy.onBeforeShadow;
-+    const previousOnAfterShadow = proxy.onAfterShadow;
-+    proxy.onBeforeRender = (renderer, scene, camera, geometry, material, group) => {
-+        previousOnBeforeRender.call(proxy, renderer, scene, camera, geometry, material, group);
-+        const drawRange = proxy.geometry.drawRange;
-+        renderStart = drawRange.start;
-+        renderCount = drawRange.count;
-+        drawRange.start = groupStart;
-+        drawRange.count = groupCount;
-+    };
-+    proxy.onAfterRender = (renderer, scene, camera, geometry, material, group) => {
-+        const drawRange = proxy.geometry.drawRange;
-+        drawRange.start = renderStart;
-+        drawRange.count = renderCount;
-+        previousOnAfterRender.call(proxy, renderer, scene, camera, geometry, material, group);
-+    };
-+    proxy.onBeforeShadow = (renderer, scene, camera, shadowCamera, geometry, depthMaterial, group) => {
-+        previousOnBeforeShadow.call(proxy, renderer, scene, camera, shadowCamera, geometry, depthMaterial, group);
-+        const drawRange = proxy.geometry.drawRange;
-+        shadowStart = drawRange.start;
-+        shadowCount = drawRange.count;
-+        drawRange.start = groupStart;
-+        drawRange.count = groupCount;
-+    };
-+    proxy.onAfterShadow = (renderer, scene, camera, shadowCamera, geometry, depthMaterial, group) => {
-+        const drawRange = proxy.geometry.drawRange;
-+        drawRange.start = shadowStart;
-+        drawRange.count = shadowCount;
-+        previousOnAfterShadow.call(proxy, renderer, scene, camera, shadowCamera, geometry, depthMaterial, group);
-+    };
-+    proxy.raycast = (raycaster, intersects) => {
-+        const drawRange = proxy.geometry.drawRange;
-+        const previousStart = drawRange.start;
-+        const previousCount = drawRange.count;
-+        drawRange.start = groupStart;
-+        drawRange.count = groupCount;
-+        try {
-+            THREE.SkinnedMesh.prototype.raycast.call(proxy, raycaster, intersects);
-+        }
-+        finally {
-+            drawRange.start = previousStart;
-+            drawRange.count = previousCount;
-+        }
-+    };
- }
- export function syncMmdOutlineMaterialStates(materials, states) {
-     const materialList = Array.isArray(materials) ? materials : [materials];
 diff --git a/dist/three/performance.js b/dist/three/performance.js
 index 21175b4..4816acc 100644
 --- a/dist/three/performance.js
@@ -1257,46 +1213,42 @@ index 0000000..ebd422d
 +    material.colorWrite = !suppress && !material.userData.mmdShadowOnlyRenderProxy;
 +    material.alphaTest = suppress ? 0 : mmdTransparencyModeAlphaTest(mode === "opaque" && blend ? "alphaBlend" : mode);
 +}
-diff --git a/dist/three/textures.d.ts b/dist/three/textures.d.ts
-index b46e737..7b757d8 100644
---- a/dist/three/textures.d.ts
-+++ b/dist/three/textures.d.ts
-@@ -16,6 +16,11 @@ export interface MmdToonTextureMaterial {
-     readonly sharedToonIndex?: number;
- }
+diff --git a/dist/three/texture-alpha.d.ts b/dist/three/texture-alpha.d.ts
+index 9ce5b97..5b9bddd 100644
+--- a/dist/three/texture-alpha.d.ts
++++ b/dist/three/texture-alpha.d.ts
+@@ -1,5 +1,11 @@
+ import type * as THREE from "three";
  export type MmdMaterialTransparencyMode = "opaque" | "alphaTest" | "alphaBlend";
 +export interface LocalPngAlphaTiles {
 +    get(file: File, width: number, height: number): Uint8Array | null | undefined;
 +    set(file: File, width: number, height: number, tile: Uint8Array | null): void;
 +}
 +export type MaterialAlphaTiles = Map<HTMLImageElement, Uint8Array | null>;
++export declare const pngSourceFiles: WeakMap<THREE.Texture, File>;
  export interface MmdTextureAlphaEvaluationOptions {
      readonly alphaThreshold?: number;
      readonly alphaBlendThreshold?: number;
-@@ -26,7 +31,9 @@ export declare function evaluateMmdTextureAlphaRgba(rgbaPixels: ArrayLike<number
- export declare function evaluateMmdBmpTextureAlpha(bytes: ArrayBuffer | ArrayLike<number>, options?: MmdTextureAlphaEvaluationOptions): MmdMaterialTransparencyMode | undefined;
- export declare function injectMmdBmp32BitAlphaHeader(bytes: ArrayBuffer | ArrayLike<number>): Uint8Array | undefined;
+@@ -19,5 +25,7 @@ export declare function evaluateMmdTextureAlphaSamples(alphaSamples: ArrayLike<n
+ export declare function evaluateMmdTextureTransparencySamples(alphaSamples: ArrayLike<number>, options?: MmdTextureAlphaEvaluationOptions): MmdMaterialTransparencyMode;
+ export declare function evaluateMmdTextureAlphaRgba(rgbaPixels: ArrayLike<number>, options?: MmdTextureAlphaEvaluationOptions): MmdMaterialTransparencyMode;
  export declare function evaluateMmdTextureAlphaTexture(texture: THREE.Texture, options?: MmdTextureAlphaEvaluationOptions): MmdMaterialTransparencyMode | undefined;
 -export declare function evaluateMmdTextureAlphaGeometry(texture: THREE.Texture, geometry: THREE.BufferGeometry, materialIndex: number, options?: MmdTextureAlphaEvaluationOptions): MmdMaterialTransparencyMode | undefined;
 +export declare function evaluateMmdTextureAlphaGeometry(texture: THREE.Texture, geometry: THREE.BufferGeometry, materialIndex: number, options?: MmdTextureAlphaEvaluationOptions & {
 +    localPngAlphaTiles?: LocalPngAlphaTiles;
 +}, alphaTiles?: MaterialAlphaTiles): MmdMaterialTransparencyMode | undefined;
- export declare function loadToonTexture(material: Pick<MaterialInfo, "toonTexturePath" | "toonTextureInfo" | "sharedToonIndex">, materialIndex: number, modelUrl: string | undefined, textureResolver: TextureResolver | undefined, textureDiagnostics: TextureLoadDiagnostic[], textureLoader?: ThreeMmdTextureLoader, textureCache?: Map<string, Promise<THREE.Texture | undefined>>, ddsLoader?: ThreeMmdTextureLoader): Promise<THREE.Texture | undefined>;
- export declare function rotateMmdToonTexture(texture: THREE.Texture): THREE.Texture;
- export declare function loadMaterialTextureWithDiagnostics(texturePath: string, textureInfo: MaterialInfo["textureInfo"], textureKind: TextureLoadDiagnostic["textureKind"], materialIndex: number, modelUrl: string | undefined, textureResolver: TextureResolver | undefined, textureDiagnostics: TextureLoadDiagnostic[], textureLoader?: ThreeMmdTextureLoader, textureCache?: Map<string, Promise<THREE.Texture | undefined>>, ddsLoader?: ThreeMmdTextureLoader): Promise<THREE.Texture | undefined>;
-diff --git a/dist/three/textures.js b/dist/three/textures.js
-index 51925a6..5ddb2ae 100644
---- a/dist/three/textures.js
-+++ b/dist/three/textures.js
-@@ -13,6 +13,7 @@ const bundledSharedToonTextureUrls = {
- };
- let defaultToonGradientMap;
- const blobTextureCacheKeys = new WeakMap();
-+const pngSourceFiles = new WeakMap();
- const blobTgaTextureCache = new WeakMap();
- let nextBlobTextureCacheKey = 1;
- function createAlphaStats() {
-@@ -224,16 +225,12 @@ export function evaluateMmdTextureAlphaTexture(texture, options = {}) {
+ export {};
+diff --git a/dist/three/texture-alpha.js b/dist/three/texture-alpha.js
+index 25b12bc..73eace5 100644
+--- a/dist/three/texture-alpha.js
++++ b/dist/three/texture-alpha.js
+@@ -1,3 +1,5 @@
++export const pngSourceFiles = new WeakMap();
++const alphaTileResolution = 512;
+ export function createAlphaStats() {
+     return {
+         minAlpha: 255,
+@@ -103,16 +105,11 @@ export function evaluateMmdTextureAlphaTexture(texture, options = {}) {
      }
      return evaluateMmdTextureAlphaRgba(data, options);
  }
@@ -1306,7 +1258,7 @@ index 51925a6..5ddb2ae 100644
      if (metadataAlphaMode) {
          return metadataAlphaMode;
      }
-     const image = texture.image;
+-    const image = texture.image;
 -    const rgba = readableRgbaTextureData(image);
 -    if (!rgba || !hasAnyReadableAlpha(rgba.data, rgba.width, rgba.height)) {
 -        return undefined;
@@ -1314,51 +1266,124 @@ index 51925a6..5ddb2ae 100644
      const uvAttribute = geometry.getAttribute("uv");
      if (!uvAttribute) {
          return undefined;
-@@ -245,12 +242,42 @@ export function evaluateMmdTextureAlphaGeometry(texture, geometry, materialIndex
+@@ -121,19 +118,68 @@ export function evaluateMmdTextureAlphaGeometry(texture, geometry, materialIndex
+     if (groups.length === 0) {
+         return undefined;
+     }
++    const source = geometryAlphaSource(texture, alphaTiles, options.localPngAlphaTiles);
++    if (!source) {
++        return undefined;
++    }
      const indexArray = geometry.index?.array;
      const stats = createAlphaStats();
-     const resolution = 512;
-+    // The rasterizer samples exactly the pixel centres of this lattice, not a
-+    // filtered image. Cache only those original alpha texels (256 KiB per tile).
-+    const share = alphaTiles && typeof HTMLImageElement !== "undefined" && image instanceof HTMLImageElement && image.complete;
-+    let grid = share ? alphaTiles.get(image) : undefined;
-+    const file = grid === undefined && share && options.localPngAlphaTiles ? pngSourceFiles.get(texture) : undefined;
-+    if (file && share)
-+        grid = options.localPngAlphaTiles?.get(file, image.width, image.height);
-+    let rgba = [], width = 0, height = 0;
-+    if (grid === undefined) {
-+        const pixels = readableRgbaTextureData(image);
-+        if (!pixels)
-+            return undefined;
-+        ({ data: rgba, width, height } = pixels);
-+        const hasAlpha = hasAnyReadableAlpha(rgba, width, height);
-+        if (share) {
-+            grid = hasAlpha ? gatherAlphaTile(rgba, width, height, resolution) : null;
-+            if (file)
-+                options.localPngAlphaTiles?.set(file, width, height, grid);
-+            if (alphaTiles.size >= 8) {
-+                const first = alphaTiles.keys().next();
-+                if (!first.done)
-+                    alphaTiles.delete(first.value);
-+            }
-+            alphaTiles.set(image, grid);
-+        }
-+        if (!hasAlpha)
-+            return undefined;
-+    }
-+    else if (grid === null)
-+        return undefined;
+-    const resolution = 512;
      for (const group of groups) {
          for (let offset = group.start; offset < group.start + group.count; offset += 3) {
              const a = Number(indexArray?.[offset] ?? offset);
              const b = Number(indexArray?.[offset + 1] ?? offset + 1);
              const c = Number(indexArray?.[offset + 2] ?? offset + 2);
 -            recordRasterizedUvTriangleAlpha(stats, rgba.data, rgba.width, rgba.height, uvAttribute.getX(a), uvAttribute.getY(a), uvAttribute.getX(b), uvAttribute.getY(b), uvAttribute.getX(c), uvAttribute.getY(c), resolution);
-+            recordRasterizedUvTriangleAlpha(stats, rgba, width, height, uvAttribute.getX(a), uvAttribute.getY(a), uvAttribute.getX(b), uvAttribute.getY(b), uvAttribute.getX(c), uvAttribute.getY(c), resolution, grid);
++            recordRasterizedUvTriangleAlpha(stats, source, uvAttribute.getX(a), uvAttribute.getY(a), uvAttribute.getX(b), uvAttribute.getY(b), uvAttribute.getX(c), uvAttribute.getY(c), alphaTileResolution);
          }
      }
      return stats.sampleCount > 0 ? evaluateAlphaStats(stats, options) : undefined;
-@@ -694,6 +721,9 @@ async function loadResolvedTextureUncached(resolved, texturePath, textureInfo, t
+ }
++function geometryAlphaSource(texture, tiles, localPngTiles) {
++    const image = texture.image;
++    if (!tiles || typeof HTMLImageElement === "undefined" || !(image instanceof HTMLImageElement) || !image.complete) {
++        const pixels = readableRgbaTextureData(image);
++        return pixels && hasAnyReadableAlpha(pixels.data, pixels.width, pixels.height) ? pixels : undefined;
++    }
++    let tile = tiles.get(image);
++    if (tile !== undefined)
++        return tile;
++    const file = localPngTiles && pngSourceFiles.get(texture);
++    if (file)
++        tile = localPngTiles.get(file, image.width, image.height);
++    if (tile === undefined) {
++        const pixels = readableRgbaTextureData(image);
++        if (!pixels)
++            return undefined;
++        tile = hasAnyReadableAlpha(pixels.data, pixels.width, pixels.height)
++            ? gatherAlphaTile(pixels.data, pixels.width, pixels.height)
++            : null;
++        if (file)
++            localPngTiles.set(file, pixels.width, pixels.height, tile);
++    }
++    if (tiles.size >= 8) {
++        const first = tiles.keys().next();
++        if (!first.done)
++            tiles.delete(first.value);
++    }
++    tiles.set(image, tile);
++    return tile;
++}
++/** Store the original texels nearest the centres of the UV rasterizer's grid. */
++function gatherAlphaTile(rgba, width, height) {
++    const resolution = alphaTileResolution;
++    const tile = new Uint8Array(resolution * resolution);
++    const xOffsets = new Uint32Array(resolution);
++    for (let x = 0; x < resolution; x++) {
++        xOffsets[x] = (Math.round((x + 0.5) / resolution * width) % width) * 4 + 3;
++    }
++    for (let y = 0; y < resolution; y++) {
++        const row = (Math.round((y + 0.5) / resolution * height) % height) * width * 4;
++        for (let x = 0; x < resolution; x++) {
++            tile[y * resolution + x] = rgba[row + xOffsets[x]];
++        }
++    }
++    return tile;
++}
+ function readableRgbaTextureData(image) {
+     const width = Number(image?.width);
+     const height = Number(image?.height);
+@@ -186,7 +232,7 @@ function sampleRgbaAlphaByUv(rgba, width, height, uvX, uvY) {
+     const y = wrap(uvY, height);
+     return rgba[(y * width + x) * 4 + 3] ?? 255;
+ }
+-function recordRasterizedUvTriangleAlpha(stats, rgba, width, height, uvAX, uvAY, uvBX, uvBY, uvCX, uvCY, resolution) {
++function recordRasterizedUvTriangleAlpha(stats, source, uvAX, uvAY, uvBX, uvBY, uvCX, uvCY, resolution) {
+     const minU = Math.min(uvAX, uvBX, uvCX);
+     const maxU = Math.max(uvAX, uvBX, uvCX);
+     const minV = Math.min(uvAY, uvBY, uvCY);
+@@ -197,11 +243,11 @@ function recordRasterizedUvTriangleAlpha(stats, rgba, width, height, uvAX, uvAY,
+     const shiftMaxV = Math.floor(1 - minV);
+     for (let shiftU = shiftMinU; shiftU <= shiftMaxU; shiftU += 1) {
+         for (let shiftV = shiftMinV; shiftV <= shiftMaxV; shiftV += 1) {
+-            recordRasterizedUvTriangleAlphaTile(stats, rgba, width, height, uvAX + shiftU, uvAY + shiftV, uvBX + shiftU, uvBY + shiftV, uvCX + shiftU, uvCY + shiftV, resolution);
++            recordRasterizedUvTriangleAlphaTile(stats, source, uvAX + shiftU, uvAY + shiftV, uvBX + shiftU, uvBY + shiftV, uvCX + shiftU, uvCY + shiftV, resolution);
+         }
+     }
+ }
+-function recordRasterizedUvTriangleAlphaTile(stats, rgba, width, height, uvAX, uvAY, uvBX, uvBY, uvCX, uvCY, resolution) {
++function recordRasterizedUvTriangleAlphaTile(stats, source, uvAX, uvAY, uvBX, uvBY, uvCX, uvCY, resolution) {
+     const ax = uvAX * resolution;
+     const ay = uvAY * resolution;
+     const bx = uvBX * resolution;
+@@ -227,7 +273,10 @@ function recordRasterizedUvTriangleAlphaTile(stats, rgba, width, height, uvAX, u
+             const wB = ((cy - ay) * (px - cx) + (ax - cx) * (py - cy)) / denominator;
+             const wC = 1 - wA - wB;
+             if (wA >= 0 && wB >= 0 && wC >= 0) {
+-                recordAlphaSample(stats, sampleRgbaAlphaByUv(rgba, width, height, px / resolution, py / resolution));
++                const alpha = ArrayBuffer.isView(source)
++                    ? source[y * resolution + x]
++                    : sampleRgbaAlphaByUv(source.data, source.width, source.height, px / resolution, py / resolution);
++                recordAlphaSample(stats, alpha);
+             }
+         }
+     }
+diff --git a/dist/three/texture-loading.js b/dist/three/texture-loading.js
+index 655badb..647d755 100644
+--- a/dist/three/texture-loading.js
++++ b/dist/three/texture-loading.js
+@@ -1,5 +1,5 @@
+ import * as THREE from "three";
+-import { evaluateMmdTextureAlphaRgba } from "./texture-alpha.js";
++import { evaluateMmdTextureAlphaRgba, pngSourceFiles } from "./texture-alpha.js";
+ import { createTextureLoadRequest } from "./texture-bmp.js";
+ import { decodeMmdTgaTexture } from "./texture-tga.js";
+ import { isMmdTgaLikeTexturePath, isMmdDdsTexturePath, normalizeMmdTexturePath, resolveAdjacentTexture } from "./texture-source.js";
+@@ -130,6 +130,9 @@ async function loadResolvedTextureUncached(resolved, texturePath, textureInfo, t
                  configureMmdTexture(texture, textureInfo);
                  if (!textureLoader) {
                      texture.userData.mmdTextureOwnership = "loader";
@@ -1368,99 +1393,14 @@ index 51925a6..5ddb2ae 100644
                  }
                  if (request.alphaMode) {
                      texture.userData.mmdTextureAlphaMode = request.alphaMode;
-@@ -946,7 +976,19 @@ function sampleRgbaAlphaByUv(rgba, width, height, uvX, uvY) {
-     const y = wrap(uvY, height);
-     return rgba[(y * width + x) * 4 + 3] ?? 255;
- }
--function recordRasterizedUvTriangleAlpha(stats, rgba, width, height, uvAX, uvAY, uvBX, uvBY, uvCX, uvCY, resolution) {
-+function gatherAlphaTile(rgba, width, height, resolution) {
-+    const tile = new Uint8Array(resolution * resolution);
-+    const xOffsets = new Uint32Array(resolution);
-+    for (let x = 0; x < resolution; x++)
-+        xOffsets[x] = (Math.round((x + .5) / resolution * width) % width) * 4 + 3;
-+    for (let y = 0; y < resolution; y++) {
-+        const row = (Math.round((y + .5) / resolution * height) % height) * width * 4;
-+        for (let x = 0; x < resolution; x++)
-+            tile[y * resolution + x] = rgba[row + xOffsets[x]];
-+    }
-+    return tile;
-+}
-+function recordRasterizedUvTriangleAlpha(stats, rgba, width, height, uvAX, uvAY, uvBX, uvBY, uvCX, uvCY, resolution, grid) {
-     const minU = Math.min(uvAX, uvBX, uvCX);
-     const maxU = Math.max(uvAX, uvBX, uvCX);
-     const minV = Math.min(uvAY, uvBY, uvCY);
-@@ -957,11 +999,11 @@ function recordRasterizedUvTriangleAlpha(stats, rgba, width, height, uvAX, uvAY,
-     const shiftMaxV = Math.floor(1 - minV);
-     for (let shiftU = shiftMinU; shiftU <= shiftMaxU; shiftU += 1) {
-         for (let shiftV = shiftMinV; shiftV <= shiftMaxV; shiftV += 1) {
--            recordRasterizedUvTriangleAlphaTile(stats, rgba, width, height, uvAX + shiftU, uvAY + shiftV, uvBX + shiftU, uvBY + shiftV, uvCX + shiftU, uvCY + shiftV, resolution);
-+            recordRasterizedUvTriangleAlphaTile(stats, rgba, width, height, uvAX + shiftU, uvAY + shiftV, uvBX + shiftU, uvBY + shiftV, uvCX + shiftU, uvCY + shiftV, resolution, grid);
-         }
-     }
- }
--function recordRasterizedUvTriangleAlphaTile(stats, rgba, width, height, uvAX, uvAY, uvBX, uvBY, uvCX, uvCY, resolution) {
-+function recordRasterizedUvTriangleAlphaTile(stats, rgba, width, height, uvAX, uvAY, uvBX, uvBY, uvCX, uvCY, resolution, grid) {
-     const ax = uvAX * resolution;
-     const ay = uvAY * resolution;
-     const bx = uvBX * resolution;
-@@ -987,7 +1029,7 @@ function recordRasterizedUvTriangleAlphaTile(stats, rgba, width, height, uvAX, u
-             const wB = ((cy - ay) * (px - cx) + (ax - cx) * (py - cy)) / denominator;
-             const wC = 1 - wA - wB;
-             if (wA >= 0 && wB >= 0 && wC >= 0) {
--                recordAlphaSample(stats, sampleRgbaAlphaByUv(rgba, width, height, px / resolution, py / resolution));
-+                recordAlphaSample(stats, grid ? grid[y * resolution + x] : sampleRgbaAlphaByUv(rgba, width, height, px / resolution, py / resolution));
-             }
-         }
-     }
-diff --git a/dist/webgpu/self-shadow-pass.js b/dist/webgpu/self-shadow-pass.js
-index 06cd5ad..32f8c16 100644
---- a/dist/webgpu/self-shadow-pass.js
-+++ b/dist/webgpu/self-shadow-pass.js
-@@ -1,5 +1,6 @@
- import * as THREE from "three/webgpu";
--import { getShadowMaterial, getShadowRenderObjectFunction, positionWorld, uniform, vec3, vec4 } from "three/tsl";
-+import * as tsl from "three/tsl";
-+import { positionWorld, uniform, vec3, vec4 } from "three/tsl";
- import { MMD_SELF_SHADOW_LAYER } from "../three/shadow.js";
- import { createMmdTslShadowVisibilityNode } from "./shadow-visibility.js";
- import { getMmdShadowProjection } from "../three/mmd-shadow-projection.js";
-@@ -30,13 +31,15 @@ export function createMmdTslSelfShadowPass(renderer, light) {
-     projection.retain();
-     const visibilityNode = createMmdTslShadowVisibilityNode(light, renderTarget.texture);
-     const shadowModeUniform = visibilityNode.mmdTslShadowMode;
--    // Own the material so disposing/recreating this pass cannot poison Three's
--    // shared shadow material for the same light.
--    const shadowMaterial = getShadowMaterial(light).clone();
--    shadowMaterial.isShadowPassMaterial = true;
--    const referencePosition = uniform(projection.sampleMatrix).mul(vec4(positionWorld, 1));
--    shadowMaterial.fragmentNode = vec4(referencePosition.z.div(referencePosition.w), 0, 0, 1);
--    const shadowRenderObjectFunction = getShadowRenderObjectFunction(renderer, light.shadow, renderer.shadowMap.type, false);
-+    const getMaterial = Reflect.get(tsl, "getShadowMaterial");
-+    const getRenderObject = Reflect.get(tsl, "getShadowRenderObjectFunction");
-+    const shadowMaterial = getMaterial && getRenderObject ? getMaterial(light).clone() : null;
-+    if (shadowMaterial) {
-+        shadowMaterial.isShadowPassMaterial = true;
-+        const referencePosition = uniform(projection.sampleMatrix).mul(vec4(positionWorld, 1));
-+        shadowMaterial.fragmentNode = vec4(referencePosition.z.div(referencePosition.w), 0, 0, 1);
-+    }
-+    const shadowRenderObjectFunction = shadowMaterial && getRenderObject?.(renderer, light.shadow, renderer.shadowMap.type, false);
-     const referenceRenderObject = (object, scene, camera, geometry, material, group, lightsNode, clippingContext, passId) => {
-         const source = material.userData.mmdReferenceShadowSource ?? material;
-         if (!castsMmdReferenceShadow(source))
-@@ -61,6 +64,7 @@ export function createMmdTslSelfShadowPass(renderer, light) {
-     }
-     function prepareShadowRender(currentRenderer, scene, currentLight) {
-         if (disposed || prepared ||
-+            !shadowMaterial || !shadowRenderObjectFunction ||
-             currentRenderer !== renderer ||
-             currentLight !== light ||
-             currentLight.castShadow !== true) {
-@@ -186,7 +190,7 @@ export function createMmdTslSelfShadowPass(renderer, light) {
-             }
-             disposed = true;
-             renderTarget.dispose();
--            shadowMaterial.dispose();
-+            shadowMaterial?.dispose();
-             projection.release();
-         }
-     };
+diff --git a/dist/three/textures.d.ts b/dist/three/textures.d.ts
+index 1670f0a..d546821 100644
+--- a/dist/three/textures.d.ts
++++ b/dist/three/textures.d.ts
+@@ -1,5 +1,5 @@
+ export { evaluateMmdTextureAlphaSamples, evaluateMmdTextureTransparencySamples, evaluateMmdTextureAlphaRgba, evaluateMmdTextureAlphaTexture, evaluateMmdTextureAlphaGeometry } from "./texture-alpha.js";
+-export type { MmdMaterialTransparencyMode, MmdTextureAlphaEvaluationOptions } from "./texture-alpha.js";
++export type { LocalPngAlphaTiles, MmdMaterialTransparencyMode, MmdTextureAlphaEvaluationOptions } from "./texture-alpha.js";
+ export { evaluateMmdBmpTextureAlpha, injectMmdBmp32BitAlphaHeader } from "./texture-bmp.js";
+ export { decodeMmdTgaTexture } from "./texture-tga.js";
+ export { isMmdBmpLikeTexturePath, isMmdTgaLikeTexturePath, isMmdDdsTexturePath, createTextureResolver, resolveMappedTexture, normalizeMmdTexturePath } from "./texture-source.js";

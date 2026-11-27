@@ -30,7 +30,7 @@ type MmdRuntimePhysicsDiagnostics = {
   debugStepCount: () => number;
 };
 
-// The 0.8.6 backend reads the catch-up limit, not solver iteration or bone-feedback options.
+// The native backend reads the catch-up limit, not solver iteration or bone-feedback options.
 const MAX_SUBSTEPS: Record<MmdPhysicsQuality, number> = { low:3, medium:5, high:8 };
 export type MmdControllerColliderPhysicsBackend = MmdPhysicsBackend & Partial<MmdDirectBufferPhysicsBackend> & {
   debugControllerContactCount: (controllerIndex?: number) => number;

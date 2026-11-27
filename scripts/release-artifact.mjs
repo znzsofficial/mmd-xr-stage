@@ -44,7 +44,10 @@ async function verifyLive(quick){
   const entry=[...paths].find(p=>/^assets\/index-[\w-]+\.js$/.test(p));assert(entry);
   if(!quick){
     paths.add('assets/organ.worker-dQG0D6Ad.js');
-    for(const file of ['mmd_bullet.js','mmd_bullet.wasm'])paths.add(`mmd/${version}/${file}`);
+    for(const bulletVersion of ['0.8.6',version]){
+      paths.add(`mmd/${bulletVersion}/mmd_bullet.js`);
+      paths.add(`mmd/${bulletVersion}/mmd_bullet.wasm`);
+    }
     const js=await readFile(join(dir,entry),'utf8');
     const host=js.match(/stage-host-[\w-]+\.js/)?.[0];assert(host,'Missing optional WebGPU floor');
     paths.add('assets/'+host);

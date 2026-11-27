@@ -34,7 +34,8 @@ function actorFile(hasSkirt: boolean) {
 
 async function mount(hasSkirt=true) {
   const scene=new Scene(), light=new DirectionalLight(), camera=new PerspectiveCamera();
-  const renderer={init:async()=>{},isWebGPURenderer:true,backend:{isWebGPUBackend:true},xr:{enabled:true},compute:vi.fn()};
+  const renderer={init:async()=>{},isWebGPURenderer:true,backend:{isWebGPUBackend:true,device:{limits:{maxUniformBufferBindingSize:65536}}},
+    shadowMap:{type:1},xr:{enabled:true},compute:vi.fn()};
   const origin={current:new Group()}; // This fixture's player stands at the world origin.
   const backend=await createStageActorBackend(renderer,scene,light,origin);
   const parked=new Matrix4().makeTranslation(0,-1000,0), shape=()=>({type:'sphere' as const,size:[.01,.01,.01] as const});

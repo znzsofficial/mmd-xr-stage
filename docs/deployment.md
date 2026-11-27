@@ -23,6 +23,8 @@ pnpm run deploy
 
 旧分块最多六路并行取回。可用 `STAGE_LEGACY_ASSETS` 指向留存的旧构建 `assets/` 目录：只读取清单列出的名字，每个文件仍验原 SHA-256，缺项从固定部署补齐。私有测试目录不是发布依赖。
 
+0.9.0 更换了动画解析 WASM 和 Bullet WASM。旧舞台与布料实验页首次导入 PMX 时，分别从 `assets/` 和 `labs/cloth/assets/` 读取原版 `mmd_anim_wasm_bg-CY5Cf0iI.wasm`；[旧标签页清单](../scripts/retain-legacy-scene.mjs)保留两个 URL。延后开启物理的旧页面仍从 `mmd/0.8.6/` 取配套 JS/WASM。全量上线核对覆盖新旧两套资源。
+
 本机 Git 推送已验证需显式代理：
 
 ```bash

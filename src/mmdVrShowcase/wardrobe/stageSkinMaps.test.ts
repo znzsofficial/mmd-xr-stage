@@ -6,7 +6,8 @@ import { bindSkinMaps } from './skinMaps';
 import { bindSlots } from './slots';
 
 it('keeps shared PMX atlases independent across attached actors, duplicate slots, a late decode and a remount', async () => {
-  const renderer = {init:async()=>{},isWebGPURenderer:true,backend:{isWebGPUBackend:true},xr:{enabled:true}};
+  const renderer = {init:async()=>{},isWebGPURenderer:true,
+    backend:{isWebGPUBackend:true,device:{limits:{maxUniformBufferBindingSize:65536}}},xr:{enabled:true}};
   const adapter = await createActorMaterialAdapter(renderer, new DirectionalLight(), {stageEdits:true});
   const atlas = new Texture(), firstFile = new File([], 'actor.pmx'), otherFile = new File([], 'actor.pmx');
   const skin = new File([], 'skin.png'), pendingFile = new File([], 'skin.png');

@@ -1,9 +1,9 @@
 minimumReleaseAgeExclude:
-  - '@yohawing/three-mmd-loader@0.8.6'
+  - '@yohawing/three-mmd-loader@0.9.0'
   - vite@8.4.0
 overrides:
   'zustand@^4.3.2': 4.5.7
   'zustand@^4.5.2': 4.5.7
 patchedDependencies:
   '@pmndrs/xr@6.6.32': patches/@pmndrs__xr@6.6.32.patch
-  '@yohawing/three-mmd-loader@0.8.6': patches/@yohawing__three-mmd-loader@0.8.6.patch
+  '@yohawing/three-mmd-loader@0.9.0': patches/@yohawing__three-mmd-loader@0.9.0.patch

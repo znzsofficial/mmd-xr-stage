@@ -94,7 +94,7 @@ export async function createActorMaterialAdapter(renderer, light, { balancedMode
   // The facade awaits init() and checks the selected backend after fallback.
   const pipeline = await createMmdTslPipeline(renderer, {
     light,
-    selfShadowEnabled: false, // The dedicated MMD shadow pass is degraded on r187.
+    selfShadowEnabled: false, // The stage owns its lighting and submits both XR eyes itself.
   });
   function setStyle(model,enabled) {
     const a=actors.get(model);if(!a?.styled || a.enabled===enabled)return !!a?.styled;
@@ -171,7 +171,7 @@ export async function createActorMaterialAdapter(renderer, light, { balancedMode
       // r187 adds layer 1 to its left eye. The fork's optional shadow-only
       // geometry uses that same layer and draws an untextured white silhouette
       // in the color pass. This adapter has no dedicated XR shadow pass.
-      if (attached && renderer.xr.enabled && !options?.selfShadowEnabled && !options?.selfShadow) disposeMmdTslShadowCaster(model.mesh);
+      if (attached && renderer.xr.enabled && !(options?.selfShadowEnabled ?? options?.selfShadow)) disposeMmdTslShadowCaster(model.mesh);
       if (attached && (stageEdits || balancedModelColor || slots.size)) {
         const base=new Map(),input=new Map();
         for (const [index, material] of [model.mesh.material].flat().entries()) {

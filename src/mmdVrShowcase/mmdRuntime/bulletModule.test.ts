@@ -1,4 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
+import { dependencies } from '../../../package.json';
 import type { PhysicsSwitchWork } from '../diagnostics/physicsSwitchWork';
 
 const api = vi.hoisted(() => ({loadCustomBulletMmdModule: vi.fn(), createCustomBulletMmdPhysicsBackend: vi.fn()}));
@@ -38,6 +39,8 @@ it('loads only module code in idle time, and a real toggle shares the pending re
   warm(() => false);runIdle();warm(() => true)?.();runIdle();
   warm(() => true);expect(api.loadCustomBulletMmdModule).not.toHaveBeenCalled();runIdle();
   await vi.waitFor(() => expect(api.loadCustomBulletMmdModule).toHaveBeenCalledOnce());
+  const version=dependencies['@yohawing/three-mmd-loader'];
+  expect(api.loadCustomBulletMmdModule).toHaveBeenCalledWith(expect.objectContaining({scriptUrl:`https://stage.test/mmd/${version}/mmd_bullet.js`}));
   expect(api.createCustomBulletMmdPhysicsBackend).not.toHaveBeenCalled();
   const first:PhysicsSwitchWork={}, pending=enable({switchWork:first});ready();await pending;
   const later:PhysicsSwitchWork={};await enable({switchWork:later});

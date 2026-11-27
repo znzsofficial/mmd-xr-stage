@@ -1,8 +1,6 @@
-import { readFileSync } from 'node:fs';
-import { runInNewContext } from 'node:vm';
 import { expect, it, vi } from 'vitest';
 import { DefaultMmdRuntime, MmdAnimRuntime, ThreeMmdLoader, disposeMmdModel, type ThreeMmdModel } from '@yohawing/three-mmd-loader';
-import { createCustomBulletMmdPhysicsBackend, type CustomBulletMmdModule } from '@yohawing/three-mmd-loader/physics';
+import { createCustomBulletMmdPhysicsBackend } from '@yohawing/three-mmd-loader/physics';
 import { Group, Quaternion, Vector3 } from 'three';
 import { poseWristToy } from '../play/wristSocket';
 import { createPoseSolver } from './poseSolver';
@@ -148,10 +146,8 @@ it.each([true,false])('rolls back even if the edit binding throws after installi
 });
 
 it('Bullet consumes the changing single-frame wrist before stepping without resets during the drag', async () => {
-  const dir = new URL('../../../public/mmd/0.8.6/', import.meta.url);
-  const factory = runInNewContext(`${readFileSync(new URL('mmd_bullet.js',dir),'utf8')};MmdBullet`, {console}) as
-    (o: {wasmBinary: Uint8Array}) => Promise<CustomBulletMmdModule>;
-  const backend = createCustomBulletMmdPhysicsBackend(await factory({wasmBinary: readFileSync(new URL('mmd_bullet.wasm',dir))}));
+  const {createNodeBulletModule} = await import(new URL('../../../scripts/node-bullet-stage.mjs',import.meta.url).href);
+  const backend = createCustomBulletMmdPhysicsBackend(await createNodeBulletModule());
   const loader = new ThreeMmdLoader({ runtimeFactory: () => new DefaultMmdRuntime({ physics:'external', physicsBackend:backend }) });
   const f = poseFixture(), m = await loader.loadModel(f.pmx), vmd = await loader.loadAnimation(f.vmd);
   m.setAnimation(vmd); m.update(.4, {physics:true}); m.update(.42, {physics:true});

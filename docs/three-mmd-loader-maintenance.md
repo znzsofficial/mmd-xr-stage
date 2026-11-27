@@ -1,6 +1,6 @@
 # three-mmd-loader 近期维护记录
 
-最后更新：2026-11-25
+最后更新：2026-11-27
 
 文档索引：[docs/README.md](./README.md)
 
@@ -10,17 +10,17 @@
 
 ### 怎么保持同步
 
-**游戏使用 `znzsofficial/three-mmd-loader` 的 `main@3ac1d8e`。** 游戏自己是另一个仓库的 `master`，从[清单](../loader-source.json)锁定它，不在手机上拉取任何分支。
+**当前舞台源码使用 [fork `main@c762507`](https://github.com/znzsofficial/three-mmd-loader/commit/c76250712a07d3f1ded5a0cb39d19af70c8522c4)，基于正式 0.9.0。** 舞台仓库通过[清单](../loader-source.json)锁定完整运行产物；上线状态见[交接页](./HANDOFF.md)。
 
 | 在哪里 | 分支／提交 | 用途 |
 |---|---|---|
-| 原作者远端 `upstream` | `main@9c47b94`（v0.8.6）；`develop@bde8c98`；`release/v0.9.0@347bf20` | 正式基线看 `main` 与已发布 tag；后两者分别是开发线与尚未合并的发布候选。另有文档分支，不参与游戏选版。 |
-| 我们的远端 `fork`、本机 loader 主工作树 | 两边 `main@3ac1d8e` | 唯一游戏来源；包含 0.8.6、舞台扩展、显存修复和材质／UV 形态修复。`fork/develop@ab0fc79` 不是原作者的 `develop`，也不发游戏。 |
+| 原作者远端 `upstream` | `main` / `v0.9.0` = `62ce047`；`develop@35e86bc` | [发布 PR #47](https://github.com/yohawing/three-mmd-loader/pull/47) 已合入；开发线另含文档及测试脚本调整。 |
+| 我们的远端 `fork`、本机 loader 主工作树 | 两边 `main@c762507` | 合并保留原 fork `3ac1d8e` 与官方 `62ce047` 两个父提交。游戏用这条线；上游投稿另开干净分支。 |
 | 本机 loader | `sync/stage-0.8.6@82147af`、`sync/v0.8.6-morph-atlas@9a45a5c` | 集成时留下的历史路标，都不是另一套运行时。 |
-| 本机独立工作树 | `perf/dedupe-render-palettes@1d444f0` | 只准备给上游的 CPU 去重及基准，未推为 fork 分支、未投稿；与已回移的显存修复不是一件事。 |
+| 本机独立工作树 | `perf/dedupe-render-palettes-v0.9@4f1c1c0` | 从官方 `develop` 切出的 CPU 去重及基准，未投稿。旧候选 `1d444f0` 保留供追溯。 |
 | 旧贡献／发布分支 | 本机和 fork 的 `fix/dynamic-with-bone-translation`、`fix/bullet-contact-debug-api`、`feat/bullet-contact-range-query`；fork 上的 `codex/release-*` | 历史分支，日常运行不用选。本轮没有清理、合并或改写分支。 |
 
-- 当前基线以 npm `latest` 的**正式版本**为准。2026-11-25 核对为 `0.8.6`，`upstream/main` 与 `v0.8.6` 同指 `9c47b94`。尚未发版的 `develop` / 发布 PR 不自动进入生产；已经验证的重要单项可以带原提交号回移。
+- 当前基线以 npm `latest` 的**正式版本**为准。此次以完整性校验过的 npm 0.9.0 包提供 parser/runtime、经典及 worker Bullet 的原始 WASM 和生成绑定；mmd-anim 指向 `v0.5.5@3bbd5b0`。
 - [每日检查](../.github/workflows/loader-upstream.yml)和发版前的 `pnpm loader:upstream` 比较 npm 最新版、官方标签、包完整性和远端 `fork/main`。不同就提示更新；检查不部署代码。上游主分支若只前进、未发正式版，会另报提示。已打开的游戏不受影响。
 - [来源清单](../loader-source.json)锁定 fork 提交、正式版、完整 `dist/` 文件树摘要与补丁摘要。`pnpm build` 首先离线验证实际安装包（包括入口与依赖元数据）和 `public/mmd/<version>/` 的 Bullet JS/WASM。JS 和声明只统一换行，WASM 等二进制按原字节计算。新机器只需 `pnpm install --frozen-lockfile`，不依赖本机相邻的 fork 检出。
 - 同步时：在 fork 检出更新官方 tag 和远端引用，合入新版，保留舞台依赖的扩展；用 npm 和锁定的构建依赖、配套原生制品测试。然后在舞台运行 `pnpm loader:export <fork目录>`、`pnpm install`、`pnpm loader:verify`，提交生成的补丁、清单与锁文件。导出器从校验过的官方 tarball 起算，新增/移除/变更的 `dist` 文件都计入；原生二进制、包入口或版本不符会停止。正式版升号时同时更新依赖、`patchedDependencies` 的版本和匹配的 Bullet 路径。实模验收通过后推送 fork 与舞台，才发新游戏版本。
@@ -42,10 +42,9 @@
 
 当前 MMD XR Stage 依赖（下文 NekoVirtOS 记录为拆分前历史）：
 
-- `@yohawing/three-mmd-loader@0.8.6`
-- `mmd-anim WASM 0.5.4`
-- Bullet 运行资产：`public/mmd/0.8.6/mmd_bullet.js`、`public/mmd/0.8.6/mmd_bullet.wasm`；版本化目录保证 ABI 配套的 JS/WASM 同步更新
-- 舞台安装的是官方 `0.8.6` + [从 fork 生成的 pnpm patch](../patches/@yohawing__three-mmd-loader@0.8.6.patch)。[fork/main `3ac1d8e`](https://github.com/znzsofficial/three-mmd-loader/commit/3ac1d8ef93fe85a9bb4463933aef4a5198bd259a) 保留 `82147af` 舞台扩展和上游 `3f3c82a` 显存修复；不发布同名 npm 包。
+- `@yohawing/three-mmd-loader@0.9.0` + [从 fork 构建导出的 pnpm patch](../patches/@yohawing__three-mmd-loader@0.9.0.patch)，共 347 个 `dist` 文件，摘要见 [loader-source.json](../loader-source.json)。
+- `mmd-anim WASM 0.5.5`；Bullet 运行资产 `public/mmd/0.9.0/`，旧目录留给已经打开的标签页。官方 parser 与 Bullet 两种 WASM 均已更新。
+- 使用上游自己的共享代理几何、接触范围查询和 r187 自阴影实现。舞台 XR 继续关闭独立自阴影代理。保留 fork 的刚体中心读取、运行时原位交换、分段计时、矩阵合并、共享骨架 CPU 去重、PNG alpha 采样和显示层材质/UV 形态。fork 单测 842 通过、5 跳过；ABI 16 个符号、Bullet 冒烟、Three r176/r184 类型消费检查通过。r187 舞台实际安装包另经 184 项定向回归及实模、混合布局回放。
 - `pnpm-workspace.yaml` 中的 `patchedDependencies` 负责应用补丁
 - **测试中出现 `THREE_CJS_DEPRECATED` 时先看调用栈**：r187 的 `three.cjs` 会对 `require('three')` 告警。本项目实测调用方为 `meshline@3.3.1/dist/index.cjs` 与 `@react-three/fiber@9.8.2` 的 CJS 构建，来源是 Vitest 在 Node／jsdom 中解析 XR 依赖链。`vite.config.ts` 在测试模式让这条链使用包自带的 `module` 入口；不用改业务代码的 ESM 导入，也不要屏蔽 Node 的警告。生产构建另用 `singleThreeRuntime` 检查只有一份 Three.js。Node 关于 `localStorage` 的实验性提示是另一回事。
 - 还包含重获追踪刚体中心查询与 CCD IK 活跃节点矩阵优化。升级后执行 `ccdSolverParity.test.ts` 并与原求解器对照；补丁 hash 以 `pnpm-lock.yaml` 为准。
@@ -58,7 +57,13 @@
 
 上游仓库提交了 `package-lock.json`，开发与 CI 均用 npm；在 loader 检出目录用 npm 维护依赖和 lockfile，舞台仓库用 pnpm。
 
-## 共享骨架去重的上游候选
+## 上游投稿建议（2026-11-27）
+
+只建议现在投**每帧按骨架身份去重**到 `yohawing:develop`。新版仍会重复更新共用骨架矩阵。干净候选 `perf/dedupe-render-palettes-v0.9` 以 `35e86bc` 为基线；`3ca0713` 只加 42 行基准，`4f1c1c0` 为实现及红绿回归，未推送或开 PR。35 个网格共用一套 512 骨骨架：调用 35 → 1，CPU 渲染同步 498.1 → 42.3 µs/tick；35 套不同骨架仍为 35 次。75 项定向测试通过，正式包与候选用公开 PMX/VMD 对比 5 帧，完整骨架矩阵逐值一致。这不是整帧或头显帧率。
+
+其他候选：材质／描边透明度有独立复现，下一项优先准备；UV 单拆，须排除与 WebGPU 稀疏计算重复；CCD 保留 fork，投稿前需补 0.9.0 的性能基准。刚体中心读取、运行时热切换与诊断涉及公开 API，先留 fork。已合入的 #38/#40，以及官方已覆盖的共享几何、范围接触和 r187 阴影兼容，不重发。英文草稿 `local-review/upstream/render-palettes/PR.md`，逐项理由 `local-review/upstream/candidate-review.md`。
+
+### 原候选与旧基准（2026-11-25）
 
 形态数组纹理去重已经由 fork 在创建材质和描边代理时完成（上游 `3f3c82a`），不是本节的 CPU 候选。舞台仍负责绘制外的 `start/count` 读取；[普通及真实拆分 PMX 的形态分配与验收](./performance/model-memory.md)是升级门槛。
 

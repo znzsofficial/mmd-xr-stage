@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { expect, it } from "vitest";
 import { CcdIkSolver, type CcdIkBone, type CcdIkChain, type MutableQuatTuple, type Vec3Tuple } from "@yohawing/three-mmd-loader/runtime";
 
-// Golden outputs from the published 0.8.6 full-skeleton solver. Exercise the
+// Golden outputs match both published 0.8.6 and 0.9.0 full-skeleton solvers. Exercise the
 // public API: all rotations, iteration counts and goal distances on every tick.
 function motionDigest(permuted: boolean) {
   const solver = new CcdIkSolver();
