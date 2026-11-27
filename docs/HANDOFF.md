@@ -1,18 +1,18 @@
 # 会话交接｜2026-11-27
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [正式 WebGPU 入口](https://mmd-xr-stage.pages.dev/?set=astralCourt&xrBackend=webgpu) · [线上 `3aa231f` 固定版](https://9d9f1ae6.mmd-xr-stage.pages.dev/?set=astralCourt&xrBackend=webgpu) · [发布记录](./release-history.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [正式 WebGPU 海站](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [`d519c8d` 固定版](https://bf94c6d3.mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [发布记录](./release-history.md)
 
-**线上仍是 `3aa231f`；本机候选按玩家要求暂不发布。** 本机主列表恢复只显示大布景，六个片场通过星环遗庭或旧链接进入。新建的海边终点站是第 17 景：沿站台上干堤，拨潮盘提前涨落；堤下潮阶能涉水，两端均可走回。小行星撤下 07 潮汐洞星，旧干台布局在恢复时迁回母星北台，01–06 编号不变。终点站的屏幕／模拟 XR 实走见 `scripts/verify-seaside-walk.cjs`。提丰两份 PMX 的脸色按同灯同姿比较，见[角色画风记录](./scenery/character-toon-references.md)。
+**线上已更新至 `d519c8d`。** 主列表显示 11 个大布景，六个片场通过星环遗庭或旧链接进入。新建的海边终点站是第 17 景：沿站台上干堤，拨潮盘提前涨落；堤下潮阶能涉水，两端均可走回。小行星撤下 07 潮汐洞星，旧干台布局在恢复时迁回母星北台，01–06 编号不变。终点站的屏幕／模拟 XR 实走见 `scripts/verify-seaside-walk.cjs`。提丰两份 PMX 的脸色按同灯同姿比较，见[角色画风记录](./scenery/character-toon-references.md)。
 
 **本机工具链：**Node 26.13.1、pnpm 11.29、Vite 8.4、Vitest 5.1.2；`@types/node` / `@types/react` 分别更新至 26.6.11 / 19.3.3。独立 Babylon 对照实验使用 9.38，不进入游戏。主项目 Rapier 与 `@react-three/rapier` 继续配套 0.19.2，Three r187、loader fork 和 XR 输入补丁保持锁定。
 
-## 本机单角色候选：17 景、13/13 件道具，待确认发布
+## 正式站单角色版：17 景、13/13 件道具
 
 三组剩余适配已通过同一次实模 XR 入场：选演员调整原衣和身形、独立观察，暂停 VMD 用无线按摩棒，再摆姿、恢复原动作、录放支架手法；同页退出，切 WebGL 播放，再回 WebGPU。形态阳性另用有作者开合通道的露出版本验证。入口、证据与边界看[单角色发布清单](./webgpu-xr-status.md#下一版补齐单角色玩法并开放到正式站)。本轮没有连接实体 Quest。
 
-下步是获确认后用最终干净提交的 `stage-release.local` 晋级同一份 `dist`，核对主域和直达入口。旧收据 `8f1006f` 不再适用。默认及屏幕观看仍走 WebGL；多人、导入 GLB、WebGPU 皮肤贴图替换、全环境高级设置和 Quest 同舞段帧时配对单列。
+1080 项舞台测试、31 项工具测试通过。已上传双眼冒烟通过的同一份构建；14 项主域页面与资源比对一致，线上海站 WebGPU 直达已实际进入、提交双眼并退出。默认及屏幕观看仍走 WebGL；多人、导入 GLB、WebGPU 皮肤贴图替换、全环境高级设置和 Quest 同舞段帧时配对单列。
 
-## 本次在本机完成：布景、角色与玩法
+## 本次发布：布景、角色与玩法
 
 - **场内**：WebGPU 右 B → 更多 → 环境，可直接选择日光或暖光，继续看同一个演员。教室保持窗影、书页和木桌面的分层；海站在檐下保留冷色软影，干堤仍在日照中。`local-review/screenshots/room-light/scenery.png` 是两景新旧同机位；`stage-portraits.png` 是从游戏背包放人、用实际 XR 菜单换灯后读回的角色与布景。
 - **角色**：洛茜的金发、披肩与白衣按[同一盏灯的对照](./scenery/character-toon-references.md#终末地参照同一束光照到白球和角色)核验。专图生效的脸和衣料保留其着色；无专图的 PMX 从作者底色保守重照。洛茜透明侧发的亮带仍比官图碎。三模九次同光切回原 MMD 均零像素差。
