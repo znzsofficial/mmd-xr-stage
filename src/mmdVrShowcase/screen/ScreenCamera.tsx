@@ -38,7 +38,7 @@ export function ScreenCamera({actions,onReady,onCloseUpChange,viewport}:{actions
       steering.subVectors(orbit.target,camera.position);const distance=steering.length();
       steering.normalize().lerp(direction,weight).normalize();orbit.target.copy(camera.position).addScaledVector(steering,distance+(range-distance)*weight);
       camera.up.set(0,1,0);
-    },(arc,up)=>{orbit.target.sub(camera.position).applyQuaternion(arc).add(camera.position);camera.up.copy(up);},scene):undefined, travel=wind??screenStreetTravel(scene,scenery);
+    },(arc,up)=>{orbit.target.sub(camera.position).applyQuaternion(arc).add(camera.position);camera.up.copy(up);}):undefined, travel=wind??screenStreetTravel(scene,scenery);
     const gate=new RoomGate();
     const steps={held:heldKeys.current,beforeWalk(eye:Vector3,aim:Vector3,d:Vector3){
       if(!gate.hasExits(scenery))return true;

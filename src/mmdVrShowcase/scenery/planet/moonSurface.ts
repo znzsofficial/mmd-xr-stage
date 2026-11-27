@@ -2,10 +2,9 @@ import {SphereGeometry} from 'three';
 import {reedRelief} from './reedBiosphere';
 import {lanternGround} from './lanternBiosphere';
 import {amberRelief} from './amberStrata';
-import {tideRelief} from './tideLayout';
 
 type Direction={x:number;y:number;z:number};
-type Profile={relief:'basins'|'rifts'|'salt'|'glaze'|'wetland'|'lantern'|'amber'|'mica'|'sulfur'|'tide';radius:number;station?:{up:Direction};jumpHeadings?:readonly Direction[]};
+type Profile={relief:'basins'|'rifts'|'salt'|'glaze'|'wetland'|'lantern'|'amber'|'mica'|'sulfur';radius:number;station?:{up:Direction};jumpHeadings?:readonly Direction[]};
 const pits=Array.from({length:30},(_,i)=>{
   const y=1-(i+.5)/15,s=Math.sqrt(1-y*y),a=i*2.39996+.38;
   return {x:s*Math.sin(a),y,z:s*Math.cos(a),width:.007+.036*((i*13%29)/29)**2};
@@ -50,7 +49,6 @@ function padTerrain(m:Profile,x:number,y:number,z:number){
 // The walking motor and actual meshes sample the same unit-vector relief.
 // Taper the terrain towards the north landing so its wind collar sits flush.
 export function moonRadius(m:Profile,x:number,y:number,z:number){
-  if(m.relief==='tide')return m.radius+tideRelief(x,y,z);
   if(m.relief==='wetland')return m.radius+reedRelief(x,y,z);
   if(m.relief==='lantern')return m.radius+lanternGround(x,y,z);
   if(m.relief==='amber')return m.radius+amberRelief(x,y,z);

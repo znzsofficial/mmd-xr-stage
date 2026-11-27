@@ -3,8 +3,6 @@ import {stationBlocks} from '../scenery/planet/opalTerrain';
 import {moonObstructed} from '../scenery/planet/windAtlas';
 import {altitude,shellRadius,walkWorlds,type World} from './orbitalSurfaces';
 import {fixtureBlocks,fixtureBodyBlocked} from './planetFixtures';
-import {tideSolid} from '../scenery/planet/tideLayout';
-import {tideBodyBlocked} from './tideContact';
 import {eyeLift} from './eyeHeight';
 import type {ReadColumn} from './groundMotor';
 import {STEP} from './solidColumns';
@@ -34,15 +32,15 @@ function canStand(w:World,foot:Vector3,basis:Quaternion,tracked:Vector3,lift:num
   up.set(0,1,0).applyQuaternion(basis);eye.copy(tracked);eye.y+=lift;
   const h=eye.y;eye.applyQuaternion(basis);
   const r=w.id==='home'?.22:.19;
-  if(fixtureBodyBlocked(w.id,foot,up,eye,r,h)||w.id==='tide'&&tideBodyBlocked(foot,up,eye,h))return false;
-  if(w.id==='home'?stationBlocks(foot,r,h):w.id!=='tide'&&moonObstructed(w,foot,r,1.74))return false;
+  if(fixtureBodyBlocked(w.id,foot,up,eye,r,h))return false;
+  if(w.id==='home'?stationBlocks(foot,r,h):moonObstructed(w,foot,r,1.74))return false;
   const n=Math.max(1,Math.ceil(h/.15));
   for(let i=0;i<=n;i++){
     // Taper at the ankle: a level pad can be oblique to radial up.
     const t=h*i/n,radius=i===n?head:Math.min(.15,Math.max(0,.75*t));
     point.copy(foot).add(eye).addScaledVector(up,t-h);
     if(pointGap(point,radius,read)<-.0003)return false;
-    if(w.id==='home'?stationBlocks(point,r,.15):w.id!=='tide'&&moonObstructed(w,point,r,.15))return false;
+    if(w.id==='home'?stationBlocks(point,r,.15):moonObstructed(w,point,r,.15))return false;
   }
   return true;
 }
@@ -150,8 +148,7 @@ export function fitPlanetLift(w:World|null,foot:Vector3,axis:Vector3,trackedEye:
       // height. Test a short cylinder about this sample, including its cap.
       base.copy(point).addScaledVector(axis,-head);
       if(fixtureBlocks(w.id,base,head,2*head,axis))break;
-      if(w.id==='tide'){base.copy(point);base.y-=head;if(tideSolid(base,head,2*head))break;}
-      else if(w.id==='home'?stationBlocks(base,head,2*head):moonObstructed(w,base,head,2*head))break;
+      if(w.id==='home'?stationBlocks(base,head,2*head):moonObstructed(w,base,head,2*head))break;
     }
     gap=next;allowed=candidate;
   }

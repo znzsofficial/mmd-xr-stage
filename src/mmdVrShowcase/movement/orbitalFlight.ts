@@ -2,7 +2,6 @@ import {Vector3} from 'three';
 import {moonObstructed} from '../scenery/planet/windAtlas';
 import {stationBlocks} from '../scenery/planet/opalTerrain';
 import {MOON_JUMP_SPEED} from './moonWalk';
-import {tideBodyBlocked} from './tideContact';
 import {fixtureBodyBlocked} from './planetFixtures';
 import {altitude,createShellSweep} from './orbitalSurfaces';
 import {clearOfSkim,shellContactNormal} from './orbitalContactGeometry';
@@ -58,8 +57,7 @@ export function startJump(w:World,foot:Vector3,up:Vector3,stick:Vector3,speed:nu
 function obstacle(f:Orbit,to:Vector3,up:Vector3,eye:Vector3,read?:ReadColumn){
   const h=Math.max(.25,f.trackedHeight+.115),w=f.owner;
   if(w&&fixtureBodyBlocked(w.id,to,up,eye,.16,f.trackedHeight))return 'wall';
-  if(w?.id==='tide'){if(tideBodyBlocked(to,up,eye,f.trackedHeight))return 'wall';}
-  else if(w&&to.distanceTo(w.centre)-w.radius<3.3&&(w.id==='home'?stationBlocks(to,.16,h):moonObstructed(w,to,.16,h)))return 'wall';
+  if(w&&to.distanceTo(w.centre)-w.radius<3.3&&(w.id==='home'?stationBlocks(to,.16,h):moonObstructed(w,to,.16,h)))return 'wall';
   if(!read||to.y<-.3)return;
   const c=f.column,sole=Math.abs(to.x)<=4&&Math.abs(to.z)<=4;
   if(sole){
@@ -171,12 +169,10 @@ export function stepOrbit(f:Orbit,dt:number,viewUp:Vector3,eyeOffset:Vector3,rea
   let time=Math.max(0,Math.min(.15,dt));
   if(time>0&&f.first){
     f.first=false;
-    // The cut floor continues underneath solid rock. A radial foot on that
-    // floor, or a tracked lean beside a wall, need not have a clear launch
-    // volume. Refuse the impulse on its existing support instead of sending
-    // an already intersecting body sideways in search of a landing.
+    // A tracked lean beside a fixture need not have a clear launch volume.
+    // Refuse the impulse on its existing support rather than sliding sideways.
     const w=f.from;
-    if((fixtureBodyBlocked(w.id,f.foot,viewUp,eyeOffset,.16,trackedHeight)||w.id==='tide'&&tideBodyBlocked(f.foot,viewUp,eyeOffset,trackedHeight))&&Math.abs(altitude(w,f.foot))<.001){
+    if(fixtureBodyBlocked(w.id,f.foot,viewUp,eyeOffset,.16,trackedHeight)&&Math.abs(altitude(w,f.foot))<.001){
       f.landing=w;f.point.copy(f.foot);f.up.subVectors(f.foot,w.centre).normalize();f.velocity.set(0,0,0);return true;
     }
   }

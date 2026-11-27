@@ -8,14 +8,12 @@ import {recordShellSweep} from './sweepWork';
 import {clearingSupport} from '../scenery/planet/lanternClearing';
 
 export {homeWorld,walkWorlds,type World};
-const facets=new Map(allMoons.filter(w=>w.id!=='tide').map(w=>{
+const facets=new Map(allMoons.map(w=>{
   const [cols,rows]=moonSegments(w);
   return [w,facetSampler(cols,rows,(x,y,z)=>moonRadius(w,x,y,z))] as const;
 }));
 export function shellRadius(w:World,x:number,y:number,z:number){
   if(w.id==='home')return homeShellRadius(x,y,z);
-  // The grotto uses its own cut floor mesh, not SphereGeometry meridian cells.
-  if(w.id==='tide')return moonRadius(w,x,y,z);
   // A chord can bridge a depression in the continuous relief. Use the safe
   // outer one so neither the visible rock nor its walking surface is crossed.
   const face=facets.get(w)!(x,y,z);
@@ -27,7 +25,7 @@ function radialAltitude(w:World,x:number,y:number,z:number){
 }
 export function altitude(w:World,p:Vector3){return radialAltitude(w,p.x-w.centre.x,p.y-w.centre.y,p.z-w.centre.z);}
 
-const outerShell=(w:World)=>w.radius+(w.id==='home'||w.id==='tide'?4:1.4);
+const outerShell=(w:World)=>w.radius+(w.id==='home'?4:1.4);
 type EndSample={pass:number;world:World;radius:number;x:number;y:number;z:number;alt:number};
 
 /** Read the CURRENT tracked offset at both ends of the virtual move: a

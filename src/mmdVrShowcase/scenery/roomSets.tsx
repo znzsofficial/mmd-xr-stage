@@ -16,6 +16,7 @@ import {GlassPlanet} from './planet/GlassPlanet';
 import {VelvetStudio} from './velvet/VelvetStudio';
 import {MedievalChamber} from './chamber/MedievalChamber';
 import {ArcadeHall} from './arcade/ArcadeHall';
+import {SeasideTerminus} from './terminus/SeasideTerminus';
 import type {SceneryId} from './catalog';
 import type {RoomLightingOverrides} from '../stage/lighting';
 
@@ -25,6 +26,7 @@ type RoomSetDefinition=RoomLightingOverrides & {view:ComponentType<{shadows:bool
   sky?:'day'|'court'|'river'|'stars';warm?:boolean};
 const day={sky:'day',hemi:.32,hemiSky:'#d4e5ee',hemiGround:'#a79d8d',fog:'#c5dfe6',warmFog:'#e7c8a7'} as const;
 export const roomSets:Record<SceneryId,RoomSetDefinition>={
+  seasideTerminus:{...day,view:SeasideTerminus,sun:[-4.2,4.5,2.6],warm:true,hemiSky:'#d7edf3',hemiGround:'#c0aa8d',hemi:.53,fog:'#cddfe0'},
   arcadeHall:{...day,view:ArcadeHall,sun:[-4,6,3],ambient:.33,hemi:.65},
   glassPlanet:{view:GlassPlanet,sky:'stars',sun:[-5,3.2,3.8],hemiSky:'#e2d8fb',hemiGround:'#b4a0bf',hemi:.54,fog:'#15192f'},
   floor:{view:()=>null}, // StudioPlinth belongs to the shared StageFloor.

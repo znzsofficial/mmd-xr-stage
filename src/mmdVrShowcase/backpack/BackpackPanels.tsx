@@ -4,7 +4,7 @@ import { useBackpack, type BackpackEntry } from "./store";
 import { isSoloFloorSession, stageAssetLimit } from "./sessionAssets";
 import { useMmdVrStore } from "../mmdVrStore";
 import { SCENERY, mainSceneryIds } from "../scenery/catalog";
-import {webgpuRooms,fitsWebgpuRoom} from '../xr/floorBackend';
+import {fitsWebgpuRoom} from '../xr/floorBackend';
 import { HudButton, HudLine, HudSheet } from "../hud/PorcelainControls";
 import { BackpackThumbnail, indexBackpackCovers } from "./BackpackThumbnail";
 import { useXRInputSourceState } from '@react-three/xr';
@@ -17,7 +17,7 @@ export function SceneryPanel({ onClose, onSelected, locked }: { onClose: () => v
   const t = useLanguageStore(s => s.t);
   const current = useMmdVrStore(s => s.prefs.scenery);
   // Keep even the last set in the reading zone when using a seated eye height.
-  const layouts=useBackpack(s=>s.layouts), solo=isSoloFloorSession(), rooms=solo?webgpuRooms:mainSceneryIds;
+  const layouts=useBackpack(s=>s.layouts), solo=isSoloFloorSession(), rooms=mainSceneryIds;
   const cols=3, rows=Math.ceil(rooms.length/cols), height=.48+.23*rows, top=height/2;
   return <group name="hud-scenery">
     <HudSheet size={[2.90,height]} />

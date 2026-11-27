@@ -2,7 +2,6 @@ import {Quaternion,Vector3} from 'three';
 import {moonObstructed,type WalkMoon} from '../scenery/planet/windAtlas';
 import {moonRadius} from '../scenery/planet/moonSurface';
 import {transport,type Traveller} from './planetTravel';
-import {tideBodyBlocked} from './tideContact';
 import {fixtureBodyBlocked} from './planetFixtures';
 
 export const MOON_JUMP_SPEED=1.6; // m/s; equal impulse, different heights and hang times
@@ -35,9 +34,8 @@ function walkStep(m:WalkMoon,s:Traveller,travel:Vector3,speed:number,dt:number,j
         if(to<r-.0003&&to<gap(m,before.copy(from).add(eye).addScaledVector(viewUp,dy),readRadius)-.00015)return false;
       }
     }
-    // Floor is radial support. The arch (and the other moons' trunks and
-    // instruments) is an obstruction, never a taller floor.
-    if(m.id==='tide'?tideBodyBlocked(p,nextUp,nextEye,height):moonObstructed(m,p,.19,1.74))return false;
+    // Floor is radial support. Trunks and instruments obstruct travel.
+    if(moonObstructed(m,p,.19,1.74))return false;
     s.grounded=wanted<=floor+1e-6&&vy<=0;return true;
   }
   const moving=speed!==0&&travel.lengthSq()>0,advanced=candidate(moving);

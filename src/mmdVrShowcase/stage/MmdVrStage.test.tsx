@@ -17,6 +17,9 @@ import * as bullet from '../mmdRuntime/bulletModule';
 import {xrRoomRestoreTiming} from '../diagnostics/roomRestoreTiming';
 import { beginBodyPreview, drainBodySide, patchBodyPreview } from '../bodyState/store';
 import { makeOutletFixture } from '../bodyState/lactation/outletFixture.test-support';
+import type {SavedModel,SavedObject,StageSnapshot} from './stageSnapshot';
+import {planetPlace} from '../scenery/planet/planetLayout';
+import {clearingDeck} from '../scenery/planet/lanternClearing';
 
 const harness = vi.hoisted(() => ({
   three: {} as Record<string, unknown>,
@@ -175,6 +178,39 @@ async function setupBag(files: File[], useMotionCache = false) {
   return { scene, root, load, motion, id, place, exit, store, bag };
 }
 const file = (name: string) => new File([name], name);
+
+it('brings retired 07 placements back to free north-deck marks with the original dance and face motion',async()=>{
+  const actor=file('dancer.pmx'),resident=file('resident.pmx'),gardener=file('gardener.pmx'),dance=file('dance.vmd'),face=file('face.vmd');
+  const legacy:SavedObject['position']=[28.5,-7.9,20],north:SavedObject['position']=[0,0,0];
+  function model(file:File,[positionX,positionY,positionZ]:SavedObject['position']):SavedModel{
+    return {file,transform:{positionX,positionY,positionZ,scale:.83,rotationX:0,rotationY:32,rotationZ:0},visible:true,materialVisible:{},materialOverrides:{}};
+  }
+  const models=[model(actor,legacy),model(resident,north),model(gardener,[clearingDeck.x,clearingDeck.y,clearingDeck.z])];
+  const objects:SavedObject[]=['chair.glb','lamp.glb','plinth.glb'].map((name,i)=>({file:file(name),position:i===2?[2.1,0,0]:legacy,quaternion:[0,.6,0,.8],scale:[.6,.7,.8],visible:i!==2}));
+  const layout:StageSnapshot={scenery:'glassPlanet',models,objects,time:2.5,playing:true,physicsEnabled:false,loop:true,assets:[
+    ...models.map(m=>({kind:'model' as const,modelFile:m.file,companionFiles:[],bodyMotionFile:m.file===actor?dance:null,faceMotionFile:m.file===actor?face:null})),
+    ...objects.map(o=>({kind:'object' as const,objectFile:o.file,companionFiles:[]}))]};
+  const {bag,store,id,motion,exit}=await setupBag([actor,resident,gardener,dance,face,...objects.map(o=>o.file)]);
+  motion.mockResolvedValue(loadedMotion(180));
+  vi.mocked(createMmdVrGltfLoader).mockReturnValue({loader:{loadAsync:async()=>({scene:new THREE.Group()})},url:'blob:prop',revoke:()=>{}} as unknown as ReturnType<typeof createMmdVrGltfLoader>);
+  try{
+    useBackpack.setState({layouts:{glassPlanet:layout}});
+    await act(async()=>store().setPrefs({scenery:'glassPlanet'}));
+    const positions=()=>[actor,objects[0].file,objects[1].file,resident,objects[2].file].map(f=>bag().live[id(f)].position);
+    const marks=positions();expect(marks.slice(3)).toEqual([north,[2.1,0,0]]);
+    for(const [i,[x,y,z]] of marks.entries()){
+      expect(y).toBe(0);expect(planetPlace(x,z)).toBe(true);
+      for(const [u,,v] of marks.slice(i+1))expect(Math.hypot(x-u,z-v)).toBeGreaterThanOrEqual(.95);
+    }
+    expect(bag().live[id(gardener)].position).toEqual([clearingDeck.x,clearingDeck.y,clearingDeck.z]);
+    const dancer=runtimeWith(actor).exportProjectModels().find(m=>m.modelFile===actor)!;
+    expect(dancer.bodyMotionFile).toBe(dance);expect(dancer.faceMotionFile).toBe(face);expect(dancer.transform).toMatchObject({rotationY:32,scale:.83});
+    expect(bag().layouts.glassPlanet).toMatchObject({time:2.5,playing:true,loop:true,objects:objects.map(({visible,quaternion,scale})=>({visible,quaternion,scale}))});
+    expect(layout.models[0].transform.positionY).toBe(-7.9);
+    await act(async()=>store().setPrefs({scenery:'floor'}));await act(async()=>store().setPrefs({scenery:'glassPlanet'}));
+    expect(positions()).toEqual(marks);expect(bag().bindings[id(actor)]).toEqual({body:dance,face});
+  }finally{await exit();}
+});
 
 // loadModel accepts a File or its already-read bytes. Attribute calls to the
 // actual File's backing buffers, including a second read or a second parse of

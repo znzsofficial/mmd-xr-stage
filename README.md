@@ -35,7 +35,7 @@ Select a scene to open it in the screen viewer.
 | **[Pool terrace](https://mmd-xr-stage.pages.dev/?set=pool&view=screen)** | **[Dawn Chapel](https://mmd-xr-stage.pages.dev/?set=chapel&view=screen)** |
 | [![Outdoor swimming lanes beneath coloured pennants.](./docs/screenshots/pool-terrace.webp)](https://mmd-xr-stage.pages.dev/?set=pool&view=screen) | [![The chapel aisle leading to the altar beneath a stained-glass rose window.](./docs/screenshots/dawn-chapel.webp)](https://mmd-xr-stage.pages.dev/?set=chapel&view=screen) |
 
-[Opal field guide: seven wind routes, three stepping-stone moons and the mineral survey](./docs/scenery/opal-planet.md) · [All sets and routes](./docs/scenery/README.md)
+[Opal field guide: six wind routes, three stepping-stone moons and the mineral survey](./docs/scenery/opal-planet.md) · [All sets and routes](./docs/scenery/README.md)
 
 ## Features
 
@@ -72,7 +72,7 @@ Desktop and immersive views share the backpack and stage layouts. Only the activ
 
 ## WebXR requirements
 
-Screen viewing requires WebGL 2. Immersive viewing needs an `immersive-vr` headset and HTTPS or localhost. WebGL is the default. All 16 built-in rooms offer [single-actor WebGPU](https://mmd-xr-stage.pages.dev/?set=astralCourt&xrBackend=webgpu). Switch rooms from the VR menu; each remembers its layout and motion. Named PMX surfaces can use the optional toon style without dedicated detail maps. See [WebGPU XR support and measurements](./docs/webgpu-xr-status.md).
+Screen viewing requires WebGL 2. Immersive viewing needs an `immersive-vr` headset and HTTPS or localhost. WebGL is the default. All 17 built-in rooms offer [single-actor WebGPU](https://mmd-xr-stage.pages.dev/?set=astralCourt&xrBackend=webgpu). Choose a main destination from the menu or enter one of the six smaller sets through the Astral Court portals. Each remembers its layout and motion. Named PMX surfaces can use the optional toon style without dedicated detail maps. See [WebGPU XR support and measurements](./docs/webgpu-xr-status.md).
 
 The app requests hand tracking as an optional session feature. It marks VR entry as active when the renderer receives its first `XRFrame`, rather than when the session request resolves. WebGL 2 projection layers support MSAA via the antialias setting. See the [XR session lifecycle](./docs/xr-session-lifecycle.md) for startup and teardown. Controller collision and haptics target Meta Quest Browser; desktop simulation does not establish headset comfort or frame rate.
 

@@ -4,17 +4,17 @@ import {createShellSweep,shellRadius,walkWorlds,type World} from './orbitalSurfa
 import {recordShellSweep} from './sweepWork';
 
 vi.mock('./sweepWork',()=>({recordShellSweep:vi.fn()}));
-// Tide has no cached SphereGeometry facets. On a miss, every tide radius
-// read here is one true altitude evaluation (including recursive midpoints).
-const reads=vi.hoisted(()=>({tide:0}));
-vi.mock('../scenery/planet/moonSurface',async importOriginal=>{
-  const m=await importOriginal<typeof import('../scenery/planet/moonSurface')>();
-  return {...m,moonRadius:(...args:Parameters<typeof m.moonRadius>)=>{
-    if(args[0].relief==='tide')reads.tide++;return m.moonRadius(...args);
+// Each altitude evaluation reads one actual shell facet, including recursive
+// midpoints. Do not count the extra vertex reads used to construct a new cell.
+const reads=vi.hoisted(()=>({facets:0}));
+vi.mock('../scenery/planet/shellFacets',async importOriginal=>{
+  const m=await importOriginal<typeof import('../scenery/planet/shellFacets')>();
+  return {...m,facetSampler:(...args:Parameters<typeof m.facetSampler>)=>{
+    const facet=m.facetSampler(...args);return (...p:Parameters<typeof facet>)=>{reads.facets++;return facet(...p);};
   }};
 });
 
-const north=new Vector3(0,1,0),sulfur=walkWorlds.find(w=>w.id==='sulfur')!,tide=walkWorlds.find(w=>w.id==='tide')!;
+const north=new Vector3(0,1,0),sulfur=walkWorlds.find(w=>w.id==='sulfur')!,ember=walkWorlds.find(w=>w.id==='ember')!;
 const crown=(w:World)=>w.centre.clone().addScaledVector(north,shellRadius(w,0,1,0));
 
 it('includes the real unclamped tracked head, the offset column and the independent motor sole',()=>{
@@ -32,12 +32,12 @@ it('includes the real unclamped tracked head, the offset column and the independ
 });
 
 it('counts real terrain reads; only the same flight reuses an exactly repeated endpoint',()=>{
-  const a=createShellSweep(),b=createShellSweep(),foot=crown(tide).addScaledVector(north,.26);
+  const a=createShellSweep(),b=createShellSweep(),foot=crown(ember).addScaledVector(north,.26);
   const d=new Vector3(0,-.01,0),eye=new Vector3(0,1.75,0);
   function miss(sweep:typeof a,height=1.75){
-    reads.tide=0;vi.mocked(recordShellSweep).mockClear();
+    reads.facets=0;vi.mocked(recordShellSweep).mockClear();
     expect(sweep(foot,d,north,eye,height)).toBeNull();
-    expect(vi.mocked(recordShellSweep).mock.calls).toEqual([[reads.tide,'tide']]);return reads.tide;
+    expect(vi.mocked(recordShellSweep).mock.calls).toEqual([[reads.facets,'ember']]);return reads.facets;
   }
   miss(a);foot.add(d);const cold=miss(b),warm=miss(a);
   expect(warm).toBeLessThan(cold);

@@ -7,6 +7,7 @@ import { useLanguageStore } from "../../languageStore";
 import { useBackpack, type BackpackEntry } from "./store";
 import { useMmdVrStore } from "../mmdVrStore";
 import { SCENERY, mainSceneryIds, portalRooms } from "../scenery/catalog";
+import {beginMmdVrAssetSession,endMmdVrAssetSession} from './sessionAssets';
 import { BackpackWorldTools, positionWorldTools } from "./BackpackWorldTools";
 import { MmdVrControlBar } from "../hud/MmdVrHud";
 import * as hudValues from "../hud/HudValues";
@@ -56,11 +57,13 @@ beforeEach(() => {
 });
 afterEach(async () => {
   await act(async () => root.unmount());
+  endMmdVrAssetSession();
   useBackpack.setState(useBackpack.getInitialState()); useMmdVrStore.setState(useMmdVrStore.getInitialState());
   vi.restoreAllMocks(); vi.unstubAllGlobals();
 });
 
-it("returns from a portal room and offers only the ten main destinations", async () => {
+it.each(['full','soloFloor'] as const)('returns from a portal room and offers only the main destinations in %s', async scope => {
+  beginMmdVrAssetSession([],scope);
   store().setPrefs({scenery:'velvetStudio'});
   await render();await recall();
   await click(t('returnPortalHall'));expect(store().prefs.scenery).toBe('astralCourt');

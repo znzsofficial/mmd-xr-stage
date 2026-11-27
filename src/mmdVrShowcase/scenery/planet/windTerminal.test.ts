@@ -14,8 +14,6 @@ import {moonShell} from './moonSurface';
 import {PLANET_RADIUS} from './planetLayout';
 import {lanternBotany} from './lanternBotany';
 import {clearingDeck,clearingRadius} from './lanternClearing';
-import {tideCaveRock,tideForeshore,tideTerrain} from './tideStone';
-import {tideDatum} from './tideLayout';
 import {windRibbons} from './windRibbons';
 
 const up=new Vector3(0,1,0);
@@ -39,17 +37,12 @@ function fixture(){
     place(world,`indicator:${m.id}`,model.indicator,port.foot,site.rotation);
     place(world,`read:${m.id}`,new PlaneGeometry(windFace.width,windFace.height),site.face,site.faceRotation,true);
     if(!back)continue;
-    if(m.id==='tide'){
-      const offset=new Vector3(m.centre.x,tideDatum,m.centre.z),{shore,globe}=tideTerrain();
-      for(const g of [shore,globe,tideCaveRock(),tideForeshore()])place(world,'tidal shell and cave',g,offset);
-    }else{
-      place(world,'lunar shell',moonShell(m),m.centre);
-      if(m.id==='lantern'){
-        const {matter,light,veil}=lanternBotany();
-        for(const g of [matter.geometry,light.geometry,veil])place(world,'nursery',g,m.centre);
-        place(world,'clearing',new CylinderGeometry(clearingRadius,clearingRadius-.065,.15,64),new Vector3(clearingDeck.x,clearingDeck.y-.076,clearingDeck.z));
-      }else place(world,'survey station',windProbeModel(m),m.station.base,new Quaternion().setFromUnitVectors(up,m.station.up));
-    }
+    place(world,'lunar shell',moonShell(m),m.centre);
+    if(m.id==='lantern'){
+      const {matter,light,veil}=lanternBotany();
+      for(const g of [matter.geometry,light.geometry,veil])place(world,'nursery',g,m.centre);
+      place(world,'clearing',new CylinderGeometry(clearingRadius,clearingRadius-.065,.15,64),new Vector3(clearingDeck.x,clearingDeck.y-.076,clearingDeck.z));
+    }else place(world,'survey station',windProbeModel(m),m.station.base,new Quaternion().setFromUnitVectors(up,m.station.up));
   }
   return {worlds,dispose(){for(const group of worlds.values())for(const m of group)m.geometry.dispose();opaque.dispose();front.dispose();}};
 }
@@ -107,7 +100,7 @@ it('seats every nozzle azimuth and its lit stripe on the actual triangulated gro
   const errors:string[]=[];let buried=0,floating=0,maxTrimError=0;
   let clippedPrints=0;
   try{for(const site of windTerminals){
-    const {world,lane,back,rotation,port}=site,group=scene.worlds.get(world)!,ground=nearby(group.filter(m=>['opal crust','lunar shell','tidal shell and cave'].includes(m.name)),port.foot),
+    const {world,lane,back,rotation,port}=site,group=scene.worlds.get(world)!,ground=nearby(group.filter(m=>['opal crust','lunar shell'].includes(m.name)),port.foot),
       body=group.find(m=>m.name===`casting:${lane.moon.id}`)!,indicator=group.find(m=>m.name===`indicator:${lane.moon.id}`)!;
     if(!back){old.position.copy(port.foot);old.quaternion.copy(rotation);old.updateMatrixWorld();
       const oldQ=new Quaternion().setFromUnitVectors(up,port.up),eye=port.foot.clone().addScaledVector(port.up,1.62);

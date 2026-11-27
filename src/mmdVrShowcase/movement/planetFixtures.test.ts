@@ -2,7 +2,6 @@ import {Vector3} from 'three';
 import {expect,it} from 'vitest';
 import {surveySites} from '../scenery/planet/opalSurvey';
 import {clearingDeck,clearingRadius,onClearing} from '../scenery/planet/lanternClearing';
-import {onTideDeck,tideDeck} from '../scenery/planet/tideLayout';
 import {PAD_RADIUS,planetPlace} from '../scenery/planet/planetLayout';
 import {windFloor,windTerminals,type WindTerminal} from '../scenery/planet/windTerminalLayout';
 import {planetSight} from '../scenery/planet/planetSightline';
@@ -83,10 +82,9 @@ it.each([false,true])('a backpack ray to the north deck clips the intervening Em
   expect(planetSight(eye.add(new Vector3(1.4,0,0).applyQuaternion(site.rotation)),0,0,0)).toBe(true);
 });
 
-it('retains the three full actor placement areas, including their rims beside the consoles',()=>{
+it('retains both actor placement areas, including their rims beside the consoles',()=>{
   const decks=[['home',0,0,0,PAD_RADIUS,planetPlace],
-    ['lantern',clearingDeck.x,clearingDeck.y,clearingDeck.z,clearingRadius,onClearing],
-    ['tide',tideDeck.x,tideDeck.y,tideDeck.z,tideDeck.w/2,onTideDeck]] as const;
+    ['lantern',clearingDeck.x,clearingDeck.y,clearingDeck.z,clearingRadius,onClearing]] as const;
   const foot=new Vector3(),up=new Vector3(0,1,0),eye=new Vector3(0,1.75,0);
   for(const [world,x,y,z,r,place] of decks)for(let i=0;i<=80;i++)for(let j=0;j<120;j++){
     const a=j*Math.PI/60,d=r*i/80;foot.set(x+d*Math.cos(a),y,z+d*Math.sin(a));

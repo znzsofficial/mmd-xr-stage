@@ -12,7 +12,7 @@
 | 查旧版孕期做到哪里 | [旧生育进程与孕期试样](./release-history.md#旧生育进程与孕期试样)：旧源码、孕日 35 的实测，以及未发布样张的查找入口 |
 | 找道具、手柄震动或互动玩法 | [星图、彩带、水母花火](./gameplay/README.md#随身舞台特效) · [道具接触与手柄震动](./gameplay/README.md#道具接触与手柄震动) · [已上线的四幕](./gameplay/README.md#四幕玩法) · [互动提案](./gameplay/interactive-scene-studies.md) |
 | 选地图、机位或步行路线 | [布景索引](./scenery/README.md) · [深空与风道](./scenery/opal-planet.md) · [校园环线](./scenery/campus-arcade-loop.md) · [喜院到秦淮](./scenery/jiangnan-river-street.md) |
-| 复查北台面板穿模 | [罗盘修复前后实景](./screenshots/north-instruments.webp) · [七条风道与操作](./scenery/opal-planet.md#从罗盘起飞七条往返风道) · [几何与实点证据](./scenery/opal-planet.md#北台仪表验证与维护) · [Quest 3S 短测](./performance/next-quest-export.md#北台仪表斜看与点选) |
+| 复查北台面板穿模 | [罗盘修复前后实景](./screenshots/north-instruments.webp) · [六条风道与操作](./scenery/opal-planet.md#从罗盘起飞六条往返风道) · [几何与实点证据](./scenery/opal-planet.md#北台仪表验证与维护) · [Quest 3S 短测](./performance/next-quest-export.md#北台仪表斜看与点选) |
 | 验收与查卡顿 | [下次 Quest 导出](./performance/next-quest-export.md) · [角色工具本机回归](./performance/actor-tools-regression.md) · [性能优先级](./performance/README.md) · [历次真机报告](./performance/viewing-and-diagnostics.md#已有测量) |
 | 接续 11 月 25 日真机反馈 | [眼高与母星侧倾、布料黑屏、Bullet 与手动裙面的分工](./performance/quest-2026-11-25.md) · [本地、fork 和上游分支速查](./three-mmd-loader-maintenance.md) |
 | 查场景本身的开销 | [泳池计时台、教室窗边与后门](./performance/pool-classroom.md) · [星门、庭院阴影、远月与菌圃](./performance/scenery-render-work.md) · [用固定版本做 Quest 对照](./performance/next-quest-export.md#泳池或教室同机位真机对照) |

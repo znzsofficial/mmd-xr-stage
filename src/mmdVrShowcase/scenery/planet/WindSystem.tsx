@@ -17,7 +17,6 @@ import {twinStation} from './twinStations';
 import {windRibbons} from './windRibbons';
 import {Reedwater,reedGaugeModel} from './Reedwater';
 import {LanternBiosphere} from './lanternGardenScene';
-import {TidalMoon} from './TidalMoon';
 import {AmberIslet} from './AmberIslet';
 import {surfaceGrain} from './surfaceGrain';
 import {createWindFocus,windPlateSight} from './windFocus';
@@ -61,7 +60,7 @@ function Satellite({moon,grain}:{moon:Extract<Moon,{relief:keyof typeof prints}>
 
 const axis=new Vector3(0,1,0);
 const daylight={sun:{value:sunDirection}};
-export function windProbeModel(moon:Exclude<Moon,{id:'lantern'|'tide'}>){
+export function windProbeModel(moon:Exclude<Moon,{id:'lantern'}>){
     if(moon.instrument==='gauge')return reedGaugeModel();
     if(moon.instrument==='prism'||moon.instrument==='kiln')return twinStation(moon.instrument);
     const p=new PaintedParts();
@@ -85,7 +84,7 @@ export function windProbeModel(moon:Exclude<Moon,{id:'lantern'|'tide'}>){
       p.add(ball(0,1.32,.16,.054,.047,.048,10),'#b49671');
     }return p.finish();
 }
-function SurveyProbe({moon}:{moon:Exclude<Moon,{id:'lantern'|'tide'}>}){
+function SurveyProbe({moon}:{moon:Exclude<Moon,{id:'lantern'}>}){
   const s=moon.station,g=useMemo(()=>windProbeModel(moon),[moon]);
   const q=useMemo(()=>new Quaternion().setFromUnitVectors(axis,s.up),[s]);useEffect(()=>()=>g.dispose(),[g]);
   return <mesh name={'planet:survey-'+moon.id} geometry={g} position={s.base} quaternion={q} raycast={noPick}>
@@ -132,7 +131,7 @@ export function WindSystem({grain}:{grain:Texture|null}){
     if(next!==last.current){last.current=next;setActive(next);}});
   return <group name="planet:wind-system" pointerEvents="none">
   {lanes.map(l=><group key={l.moon.id}>
-    {l.moon.id==='tide'?<TidalMoon/>:l.moon.id==='lantern'?<LanternBiosphere/>:<>
+    {l.moon.id==='lantern'?<LanternBiosphere/>:<>
       {l.moon.relief==='wetland'?<Reedwater moon={l.moon} grain={grain}/>:<Satellite moon={l.moon} grain={grain}/>}
       <SurveyProbe moon={l.moon}/></>}
   </group>)}

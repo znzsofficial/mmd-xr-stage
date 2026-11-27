@@ -7,14 +7,12 @@ import {crustRadius,crustSegments,makeCrust} from '../scenery/planet/opalTerrain
 import {facetSampler} from '../scenery/planet/shellFacets';
 import {altitude,createShellSweep,homeWorld,shellRadius,walkWorlds,type World} from './orbitalSurfaces';
 import {jumpVelocity,localWell,pull,startOrbit,stepOrbit} from './orbitalFlight';
-import {tideBodyBlocked} from './tideContact';
-import {caveMouth,tideDatum,tideFloor} from '../scenery/planet/tideLayout';
 
 const moon=(id:string)=>allMoons.find(m=>m.id===id)!;
 const surface=(w:World,n:Vector3)=>w.centre.clone().addScaledVector(n,shellRadius(w,n.x,n.y,n.z));
 const salt=moon('salt'),glaze=moon('glaze');
 
-it.each(walkWorlds.filter(w=>w.id!=='tide'))('$id swept relief encloses the actual SphereGeometry facets, including near both poles and the UV seam',w=>{
+it.each(walkWorlds)('$id swept relief encloses the actual SphereGeometry facets, including near both poles and the UV seam',w=>{
   const geo=w.id==='home'?makeCrust(false):moonShell(w),mat=new MeshBasicMaterial(),mesh=new Mesh(geo,mat),ray=new Raycaster();
   const [cols,rows]=w.id==='home'?crustSegments:moonSegments(w),face=facetSampler(cols,rows,w.id==='home'?crustRadius:(x,y,z)=>moonRadius(w,x,y,z));
   try{for(const n of [new Vector3(-1,.23,.00001),new Vector3(-1,.23,-.00001),new Vector3(.013,1,-.003),new Vector3(-.003,-1,.011),new Vector3(.24,.76,-.61)]){
@@ -101,24 +99,6 @@ it.each(walkWorlds)('$id: ordinary stick jumps remain bounded on this world, eve
     for(;t<6&&!f.landing;t+=dt){stepOrbit(f,dt,up,eye);apex=Math.max(apex,altitude(w,f.foot));}
     expect(f.landing,`${w.id} ${speed}/${drive}: clearance ${altitude(w,f.foot).toFixed(3)} m, speed ${f.velocity.length().toFixed(2)} m/s`).toBe(w);expect(f.changes).toBe(0);expect(apex).toBeLessThan(2.1);
     expect(altitude(w,f.point)).toBeCloseTo(0,5);
-  }
-});
-
-it('refuses a grotto hop from inside the flank; beside the flank a real hop rises, stays clear of the rock and settles',()=>{
-  const w=moon('tide');
-  for(const [z,clear] of [[-2.61,false],[-1.28,true]] as const){
-    const x=clear?2.54:caveMouth(z)+.40;
-    const foot=new Vector3(w.centre.x+x,tideDatum+tideFloor(x,z),w.centre.z+z),up=foot.clone().sub(w.centre).normalize(),eye=up.clone().multiplyScalar(1.75);
-    expect(tideBodyBlocked(foot,up,eye)).toBe(!clear);
-    const stick=new Vector3(0,0,1).projectOnPlane(up).normalize(),f=startOrbit(w,foot,jumpVelocity(w,up,stick,1.2,new Vector3()));
-    let peak=0;
-    for(let i=0;i<180&&!f.landing;i++){
-      stepOrbit(f,1/72,up,eye);peak=Math.max(peak,altitude(w,f.foot));
-      if(clear)expect(tideBodyBlocked(f.foot,up,eye)).toBe(false);
-    }
-    expect(f.landing).toBe(w);expect(altitude(w,f.point)).toBeCloseTo(0,5);
-    if(clear){expect(peak).toBeGreaterThan(.22);expect(f.point.distanceTo(foot)).toBeGreaterThan(.55);}
-    else {expect(f.foot.equals(foot)).toBe(true);expect(f.point.equals(foot)).toBe(true);expect(f.velocity.lengthSq()).toBe(0);}
   }
 });
 

@@ -2,6 +2,7 @@ import type { ZhMessages } from "./zh";
 
 /** English UI strings — must cover every key in zh. */
 export const en: Record<keyof ZhMessages, string> = {
+  hudSeasideTerminus:'Seaside terminus',shorePlatform:'Platform · station sign',shoreWaterline:'Lower tide steps',shoreReturn:'Beacon · look back',shoreSounder:'Quay · tide dial',
   actorPelvic:'Pelvic attachment',
   screenInspectStand:'Look at stand',
   screenCloseUp:'Close-up',screenFrameFace:'Frame face',screenReturnView:'Restore view',
@@ -17,12 +18,11 @@ export const en: Record<keyof ZhMessages, string> = {
   reedWind:'Launch collar · Reedwater',reedReturn:'Reedwater · homeward view',reedGlobe:'Reedwater · lagoon globe',reedShore:'Reedwater · lily gauge',reedGrove:'Reedwater · meadow canopy',
   lanternWind:'Launch collar · Lantern',lanternReturn:'Lantern · homeward view',lanternGills:'Lantern · beneath the mushroom caps',lanternNursery:'Lantern · seedfall nursery',
   lanternGlobe:'Lantern · canopy globe',lanternClearingView:'Lantern · clearing portrait',
-  tideWind:'Launch collar · Tidal Grotto',tideReturn:'Tidal Grotto · homeward view',tideShellSteps:'Tidal Grotto · shell steps',tideStage:'Tidal Grotto · chamber portrait',tideMoonrise:'Tidal Grotto · Reedwater reflected',
   planetCenterBlocked:'The centre of the nearest stage is out of sight.',
   lanternAmberLeap:'Lantern · leap to Amber',amberLanternLeap:'Amber · leap back to Lantern',
   amberFossil:'Amber · fern inclusion',
   opalSurveyDial:'Survey · Compass',opalSurveyAqua:'Survey · Aqua seam',opalSurveyCoral:'Survey · Coral seam',
-  opalDepartureChart:'North deck · Seven wind routes',
+  opalDepartureChart:'North deck · Six wind routes',
   glazeMicaLeap:'Obsidian · leap to Mica',micaSulfurLeap:'Mica · leap to Sulfur',sulfurMicaLeap:'Sulfur · leap to Mica',micaGlazeLeap:'Mica · leap back to Obsidian',
   tourSurvey:'Compass and mineral survey',tourDepart:'Outbound wind collars',tourReturn:'Homeward wind collars',tourStrait:'Gravity narrows and moonlets',tourPortrait:'Lookouts and close views',
   planetWindHint:'Select a numbered plate to see its route · G at a collar · Space at a jump mark',

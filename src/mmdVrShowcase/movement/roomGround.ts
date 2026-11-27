@@ -17,6 +17,7 @@ import {chamberEntry,chamberGround} from '../scenery/chamber/chamberLayout';
 import {entry as arcadeEntry} from '../scenery/arcade/arcadeLayout';
 import {baseGround} from '../scenery/arcade/arcadeTravel';
 import {streetsIn} from '../scenery/routes/streets';
+import {shoreGround} from '../scenery/terminus/shoreLayout';
 
 const origin={x:0,z:0},clinicEntry={x:0,z:2.8};
 export function roomEntry(room:SceneryId){
@@ -38,6 +39,7 @@ export function roomGround(room:SceneryId,x:number,z:number){
     if (ground !== null) return ground;
   }
   switch(room){
+    case 'seasideTerminus':return shoreGround(x,z);
     case 'arcadeHall':return baseGround(x,z);
     case 'velvetStudio':return velvetGround(x,z);
     case 'medievalChamber':return chamberGround(x,z);

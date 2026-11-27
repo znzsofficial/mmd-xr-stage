@@ -13,7 +13,6 @@ import {departureAt,rideStep,startRide} from '../scenery/planet/windAtlas';
 import {moonWalk} from './moonWalk';
 import {alignPlanetStance,carryLocalHop,fitPlanetLift,followFootprint} from './planetStance';
 import {interruptPlanetEdges,watchPlanetEdges} from './planetInputEdges';
-import {tideWalkFactor} from '../scenery/planet/tideSession';
 import {startTwinLeap,stepTwinLeap} from './twinLeap';
 import {startJump,startOrbit,stepOrbit} from './orbitalFlight';
 import {altitude,homeWorld,shellRadius} from './orbitalSurfaces';
@@ -167,8 +166,7 @@ export default function PlanetMotor({originRef,dragging}:Props){
       }
     }
     else if(mode.world.id!=='home'){
-      const wade=mode.world.id==='tide'&&s.grounded&&s.travel.lengthSq()>0?tideWalkFactor(scene,s.foot):1;
-      moonWalk(mode.world,s,s.travel,speed*wade,dt,false,shellRadius,s.worldEye.copy(s.localEye).applyQuaternion(s.display),s.viewUp,p.y+lift);
+      moonWalk(mode.world,s,s.travel,speed,dt,false,shellRadius,s.worldEye.copy(s.localEye).applyQuaternion(s.display),s.viewUp,p.y+lift);
     }
     else if(ready){
       if(s.active!==ready){ready.seed(s);s.active=ready;s.parked=null;} // no step or origin recompute from a stale spawn this frame

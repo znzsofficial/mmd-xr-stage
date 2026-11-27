@@ -35,7 +35,7 @@ export function engraveNorthDial(c:CanvasRenderingContext2D,size:number,rose:Can
   annulus(513,119,'#354d54');annulus(511,10,'#857861');annulus(495,69,'#344b50');
   circle(501,'#202f34',2.6);circle(495,'#c3ac7d',2);circle(424,'#ac9473',1.6);circle(394,'#c5b086',2);
   // 72 divisions rather than a false degree readout. Longer cuts mark each
-  // 30°; only the seven enamel pointers have a route number and destination ink.
+  // 30°; only the enamel pointers have a route number and destination ink.
   for(let i=0;i<72;i++){const a=i*tau/72;strip(a,i%6?482:472,492,i%6?1.85:3.2,i%6?'#91a6a4':'#ddc89e');}
   for(let i=0;i<32;i++){
     const a=(i+.5)*tau/32;c.save();c.rotate(a);c.translate(0,-502);disk(3.8,'#283a40');disk(2.6,'#a38c6d');c.rotate(.8+2.4*i);c.fillStyle='#586360';c.fillRect(-1.8,-.55,3.6,1.1);c.restore();

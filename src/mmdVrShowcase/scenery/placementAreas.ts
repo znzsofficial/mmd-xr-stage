@@ -8,13 +8,13 @@ import { retreatPlace, retreatVisible, type Retreat } from './retreat/retreatLay
 import { PAD_RADIUS,planetPlace } from './planet/planetLayout';
 import { planetSight } from './planet/planetSightline';
 import { clearingDeck,onClearing } from './planet/lanternClearing';
-import { tideDeck,onTideDeck } from './planet/tideLayout';
 import {portalPlacementSight} from './portalLayout';
 import { velvetPlace, velvetSight } from './velvet/velvetLayout';
 import { chamberPlace, chamberSight } from './chamber/chamberLayout';
 import { arcadePlace, arcadeSight, pickDecks } from './arcade/arcadePlacement';
 import { streetsIn } from './routes/streets';
 import type { PickDeck, RoutePoint as Point } from './routes/types';
+import {platform,quay,shorePlace,shoreSight} from './terminus/shoreLayout';
 
 type Sight = (from: Point, x: number, y: number, z: number) => boolean;
 type PlacementRule = {
@@ -31,6 +31,7 @@ const retreat = (room: Retreat) => flat((x,z) => retreatPlace(room,x,z), (from,x
 
 // One entry per set, independent of render components and the player's ground motor.
 const rules: Record<SceneryId, PlacementRule> = {
+  seasideTerminus:{decks:[platform,quay],visible:shoreSight,resolve:(x,z,y=0)=>y===0&&shorePlace(x,z)?0:null},
   floor: flat(plinthPlace),
   liveHouse: flat(liveHousePlace),
   classroom: flat(classroomPlace),
@@ -42,8 +43,8 @@ const rules: Record<SceneryId, PlacementRule> = {
   weddingCourt: flat((x,z) => weddingClear(x,z,true), (from,x,y,z) => weddingVisible(from,x,z,y)),
   lanternSuite: retreat('lanternSuite'),
   moonSpa: retreat('moonSpa'),
-  glassPlanet: {decks:[ground(2*PAD_RADIUS),clearingDeck,tideDeck],visible:planetSight,resolve:(x,z,y=0)=>
-    y===tideDeck.y&&onTideDeck(x,z)?tideDeck.y:y===clearingDeck.y&&onClearing(x,z)?clearingDeck.y:y===0&&planetPlace(x,z)?0:null},
+  glassPlanet: {decks:[ground(2*PAD_RADIUS),clearingDeck],visible:planetSight,resolve:(x,z,y=0)=>
+    y===clearingDeck.y&&onClearing(x,z)?clearingDeck.y:y===0&&planetPlace(x,z)?0:null},
   velvetStudio: flat(velvetPlace, velvetSight),
   medievalChamber: flat(chamberPlace, chamberSight),
   qinhuai: {

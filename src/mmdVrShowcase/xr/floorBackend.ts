@@ -1,7 +1,6 @@
-import {isSceneryId,sceneryIds,type SceneryId} from '../scenery/catalog';
+import {isSceneryId,type SceneryId} from '../scenery/catalog';
 import type { StageSnapshot } from '../stage/stageSnapshot';
 
-export const webgpuRooms:readonly SceneryId[]=sceneryIds;
 export const supportsWebgpuRoom=isSceneryId;
 export const fitsWebgpuRoom=(layout:StageSnapshot|null|undefined)=>!layout || (layout.assets.length<=1 && layout.assets.every(slot=>slot.kind==='model') && layout.models.length<=1 && !layout.objects.length);
 

@@ -17,23 +17,23 @@ import {launchViews,returnViews} from './planet/windAtlas';
 import {amberPortrait,steppingViews,straitPortrait,twinSurveys} from './planet/twinSurvey';
 import {reedShots} from './planet/reedBiosphere';
 import {lanternShots} from './planet/lanternShots';
-import {tideShots} from './planet/tideShots';
 import {opalSurveyShots} from './planet/opalSurvey';
+import {shoreView} from './terminus/shoreLayout';
 
 type Point=readonly [number,number,number];
 type Shot={key:TranslationKey;eye:Point;aim:Point;up?:Point;fov?:number;link?:RoomLink;preloadLawn?:boolean;overview?:boolean};
 type RoomView={entry:readonly [Point,Point];shots?:readonly Shot[]};
-// Frame all seven collars, still within their chart-selection reach.
+// Frame the departure collars, still within their chart-selection reach.
 const departureChart={key:'opalDepartureChart',eye:[.55,8.85,4.5],aim:[.16,-.12,.55],fov:63} as const;
 export const roomViews:Record<SceneryId,RoomView>={
+  seasideTerminus:shoreView,
   ...RETREAT_VIEWS,
   arcadeHall:arcadeView,
   velvetStudio:velvetView,medievalChamber:chamberView,
   glassPlanet:{entry:[[0,2.18,3.45],[.12,.63,-3.85]],shots:[{key:'planetLimb',eye:[10.6,2.1,11.7],aim:[-.7,-2.2,-2.6]},{key:'planetRing',eye:[-.2,1.62,1.85],aim:[-3.6,3.02,-9.4]},
-    {key:'planetTransit',...transitPortrait},{key:'planetSouth',...southPortrait},...launchViews.filter(v=>v.key!=='tideWind'),...returnViews.filter(v=>v.key!=='tideReturn'),
+    {key:'planetTransit',...transitPortrait},{key:'planetSouth',...southPortrait},...launchViews,...returnViews,
     {key:'planetPulsar',eye:[.55,1.65,1.88],aim:[4.50,2.73,-12.78]},
-    straitPortrait,...twinSurveys.flatMap(s=>[s.portrait,s.leapView]),...reedShots,...opalSurveyShots,...steppingViews,...lanternShots,amberPortrait,
-     ...launchViews.filter(v=>v.key==='tideWind'),...returnViews.filter(v=>v.key==='tideReturn'),...tideShots,departureChart]},
+    straitPortrait,...twinSurveys.flatMap(s=>[s.portrait,s.leapView]),...reedShots,...opalSurveyShots,...steppingViews,...lanternShots,amberPortrait,departureChart]},
   floor:{entry:[[1.4,1.65,4],[0,.95,-.4]]}, liveHouse:{entry:[[.8,1.7,4.4],[0,1.05,-1.3]]},
   pool:{entry:[[2.1,1.7,2.8],[0,.85,-3.7]],shots:[LIDO_ROUTE_SHOTS.clock,LIDO_ROUTE_SHOTS.return]},
   classroom:{entry:[[.15,1.58,3.95],[0,1.05,-1.4]],shots:[

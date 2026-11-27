@@ -4,7 +4,6 @@ import {PLANET_RADIUS} from './planetLayout';
 import {moonRadius} from './moonSurface';
 import {reedCentre,reedRadius,reedGauge,reedTrunkBlocks} from './reedBiosphere';
 import {lanternCentre,lanternRadius,lanternStation,lanternTrunkBlocks} from './lanternBiosphere';
-import {tideCentre,tideRadius,tideStation,tideSolid} from './tideLayout';
 
 export const sunDirection=new Vector3(-5,3.2,3.8).normalize();
 const homeCentre=new Vector3(0,-PLANET_RADIUS,0),north=new Vector3(0,1,0);
@@ -34,19 +33,16 @@ const destinations=[
     stationUp:reedGauge,duration:9.0,launchKey:'reedWind',returnKey:'reedReturn',sign:'05 · 苇湾星',caption:'REEDWATER   /   LAGOONS'},
   {id:'lantern',relief:'lantern',instrument:'nursery',centre:lanternCentre,radius:lanternRadius,jumpHeadings:[toAmber],surfaceGravity:2.35,color:'#ffa996',port:new Vector3(-.397,.91,.12).normalize(),
     stationUp:lanternStation,duration:10.5,launchKey:'lanternWind',returnKey:'lanternReturn',sign:'06 · 伞灯星',caption:'LANTERN   /   SPORE GROVES'},
-  {id:'tide',relief:'tide',instrument:null,centre:tideCentre,radius:tideRadius,surfaceGravity:2.45,color:'#86dccb',port:new Vector3(.45,.875,.18).normalize(),
-    stationUp:tideStation,duration:10.5,launchKey:'tideWind',returnKey:'tideReturn',sign:'07 · 潮汐洞星',caption:'TIDAL GROTTO   /   SHELL STEPS'},
 ] as const;
 export const moons=destinations.map(({stationUp:up,...m})=>({
   ...m,station:{up,base:up.clone().multiplyScalar(moonRadius(m,up.x,up.y,up.z)).add(m.centre),
-    r:!m.instrument?0:m.instrument==='nursery'?.46:.52,h:!m.instrument?0:m.instrument==='nursery'?.90:1.40},
+    r:m.instrument==='nursery'?.46:.52,h:m.instrument==='nursery'?.90:1.40},
 }));
 export type Moon=typeof moons[number];
 export type SteppingMoon=typeof steppingMoons[number];
 export type WalkMoon=Moon|SteppingMoon;
 export const allMoons:readonly WalkMoon[]=[...moons,...steppingMoons];
 export function moonObstructed(m:WalkMoon,p:Vector3,r:number,height:number){
-  if(m.id==='tide')return tideSolid(p,r,height); // the arrival landmark is a sight target, not a survey probe
   if(!('station' in m))return false;
   if(m.id==='reed'&&reedTrunkBlocks(p,r,height))return true;
   if(m.id==='lantern'&&lanternTrunkBlocks(p,r,height))return true;
@@ -57,8 +53,6 @@ export interface WindPort { foot:Vector3; up:Vector3 }
 export const lanes=moons.map(m=>({moon:m,
   home:{up:m.port,foot:m.port.clone().multiplyScalar(crustRadius(m.port.x,m.port.y,m.port.z)).add(homeCentre)},
   away:{up:north,foot:m.centre.clone().addScaledVector(north,moonRadius(m,0,1,0))},
-  // The grotto is below the mother landing. Approach it from above the open dock.
-  approach:m.id==='tide'?14:7,
   duration:m.duration,
 }));
 export type WindLane=typeof lanes[number];
@@ -71,7 +65,7 @@ export function departureAt(foot:Vector3,world:WalkMoon|null){
 export function windPoint(l:WindLane,t:number,out:Vector3){
   const v=1-t,a=3*v*v*t,b=3*v*t*t;
   return out.copy(l.home.foot).multiplyScalar(v*v*v+a).addScaledVector(l.home.up,9*a)
-    .addScaledVector(l.away.foot,t*t*t+b).addScaledVector(l.away.up,l.approach*b);
+    .addScaledVector(l.away.foot,t*t*t+b).addScaledVector(l.away.up,7*b);
 }
 export function startRide(lane:WindLane,returning:boolean,actual:Vector3,startUp=(returning?lane.away:lane.home).up){
   return {lane,returning,startUp:startUp.clone(),time:0,offset:actual.clone().sub((returning?lane.away:lane.home).foot)};

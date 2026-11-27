@@ -1,7 +1,5 @@
-/** Stage metres above the north landing. Low and high stands give the visitor
- * time to walk both routes; the dial changes the same tide, never the floor. */
+/** Water height in metres relative to the dry platform. */
 export const ebbLevel=-.68,floodLevel=-.06;
-export const tideGauge={x:1.42,z:-1.02,top:.63,r:.16} as const;
 const stand=25,run=20,half=stand+run,period=2*half;
 const smooth=(t:number)=>t*t*(3-2*t);
 export function createTideClock(){

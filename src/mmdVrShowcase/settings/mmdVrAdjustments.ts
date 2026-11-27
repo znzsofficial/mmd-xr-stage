@@ -13,7 +13,7 @@ export const MMD_VR_MODEL_SCALE_MIN = 0.01;
 export const MMD_VR_MODEL_SCALE_MAX = 10;
 export const MMD_VR_VIEW_DISTANCE_MIN = 10;
 export const MMD_VR_VIEW_DISTANCE_MAX = 100;
-export const minSceneViewDistance = (room: SceneryId) => room === 'glassPlanet' ? 70 : MMD_VR_VIEW_DISTANCE_MIN;
+export const minSceneViewDistance = (room: SceneryId) => room === 'glassPlanet' ? 70 : room==='seasideTerminus' ? 52 : MMD_VR_VIEW_DISTANCE_MIN;
 
 export function normalizeMmdVrModelScale(value: unknown): number {
   const n = typeof value === "number" && Number.isFinite(value) ? value : 1;

@@ -25,7 +25,7 @@
 
 ## 按改动找入口
 
-想新增会飞、会落或会浮起的道具，先看[重力系统与扩展边界](./architecture/gravity.md)：普通房间和 11 个可步行天体如何取样，及哪些运动仍由玩家马达、演员 Bullet 或屏幕相机负责。
+想新增会飞、会落或会浮起的道具，先看[重力系统与扩展边界](./architecture/gravity.md)：普通房间和 10 个可步行天体如何取样，及哪些运动仍由玩家马达、演员 Bullet 或屏幕相机负责。
 
 扩展演员显示层、房间编辑命令或 XR 资产／恢复页，先看[已拆出的三个入口](./architecture/maintenance.md#已拆出的三个入口)，其中列出各自的调用时机与实际验收路径。
 
@@ -61,7 +61,7 @@
 | 增加能用射线点击的场内机关 | [`useSceneAction`](../src/mmdVrShowcase/scenery/input/useSceneAction.ts) 管鼠标点选、XR 按下归属、松开复验及输入中断。喜房帘绳和灯台共用它；遮挡、动画、改变哪盏灯及是否跨房保留仍归各自布景。[两种拟议的接入例子](./gameplay/interactive-scene-studies.md) |
 | 星球的测站、风口、到站镜头 | [`windAtlas.ts`](../src/mmdVrShowcase/scenery/planet/windAtlas.ts) 每个目的地持有自己的测站、设备类型与机位键，屏幕到站、阴影和碰撞均引用同一测站；[`moonSurface.ts`](../src/mmdVrShowcase/scenery/planet/moonSurface.ts) 提供径向地形和对应网格，无需挂载 React 组件即可检查脚底与壳面。 |
 | 母星航向盘与仪表底座 | [航向刻度](../src/mmdVrShowcase/scenery/planet/departureDial.ts)按每条风道的真实出发点生成。航线牌用[固定安装坐标与分段实体盒](../src/mmdVrShowcase/scenery/planet/windTerminalLayout.ts)，喷嘴经[实际壳面三角形](../src/mmdVrShowcase/scenery/planet/windCollarBed.ts)贴地；采谱读头的[背板和支架](../src/mmdVrShowcase/scenery/planet/surveyHardware.ts)也供碰撞与视线复用。 |
-| 潮洞的阶面、洞顶和水线 | [`tideLayout.ts`](../src/mmdVrShowcase/scenery/planet/tideLayout.ts) 是海蚀洞的实体边界和地面三角网；演员只放在恒定高度的干台。[潮水](../src/mmdVrShowcase/scenery/planet/TidalMoon.tsx)和[涉水减速](../src/mmdVrShowcase/scenery/planet/tideSession.ts)读取本景同一条潮时钟；月影采样苇湾星实际方位与半径，不另渲染反射相机。 |
+| 恢复旧星系摆位 | 屏幕和 XR 共用的房间入口在加载演员前调用 [`restoreNorthDeck.ts`](../src/mmdVrShowcase/scenery/planet/restoreNorthDeck.ts)。旧 07 干台上的角色和物件避开北台已有落点，继续使用原布局的动作绑定和播放进度。 |
 | 创建角色运行时、连接手追／手柄碰撞或 GPU 预热 | [`stage/createRoomRuntime.ts`](../src/mmdVrShowcase/stage/createRoomRuntime.ts) 组装依赖；MMD/Bullet 实现在 [`mmdRuntime/`](../src/mmdVrShowcase/mmdRuntime/)。句柄在房间的 layout effect 提交，加载、换物理与逐帧更新归房间。 |
 | XR 会话创建、绑定和首帧 | [`src/xr/`](../src/xr/) 与[会话生命周期](./xr-session-lifecycle.md)。普通屏幕不申请 XR 会话。 |
 | 玩家行走、跳跃、碰头或穿模飞行 | [`movement/`](../src/mmdVrShowcase/movement/)：`roomGround.ts` 管玩家通行范围和入口，`solidColumns.ts` 查附近实际几何，`groundMotor.ts` 管普通模式运动，`usePlayerMovement.ts` 接 XR 姿态、输入和切景。它们不借用角色 Bullet 世界，也不改变背包放置规则。[操作](./gameplay/vr-controls.md#普通与自由移动) |

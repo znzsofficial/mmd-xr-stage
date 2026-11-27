@@ -1,5 +1,6 @@
 /** Chinese (zh) UI strings — source of truth for TranslationKey keys. */
 export const zh = {
+  hudSeasideTerminus:'海边终点站',shorePlatform:'站台 · 搪瓷站牌',shoreWaterline:'潮阶 · 岸边',shoreReturn:'堤灯 · 回望站台',shoreSounder:'海堤 · 拨潮盘',
   actorPelvic:'骨盆附件',
   screenInspectStand:'近看支架',
   screenCloseUp:'近看角色',screenFrameFace:'近看表情',screenReturnView:'返回原机位',
@@ -15,12 +16,11 @@ export const zh = {
   reedWind:'起飞风道 · 苇湾星',reedReturn:'苇湾星 · 回望母星',reedGlobe:'苇湾星 · 环湖全景',reedShore:'苇湾星 · 荷塘水尺',reedGrove:'苇湾星 · 草坡看林冠',
   lanternWind:'起飞风道 · 伞灯星',lanternReturn:'伞灯星 · 回望母星',lanternGills:'伞灯星 · 林下看菌褶',lanternNursery:'伞灯星 · 苗圃看落种',
   lanternGlobe:'伞灯星 · 伞林全景',lanternClearingView:'伞灯星 · 菌圃合影',
-  tideWind:'起飞风道 · 潮汐洞星',tideReturn:'潮汐洞星 · 回望母星',tideShellSteps:'潮汐洞星 · 洞口贝阶',tideStage:'潮汐洞星 · 内室合影',tideMoonrise:'潮汐洞星 · 苇湾与倒影',
   planetCenterBlocked:'从这里看不到最近的摆放台中心。',
   lanternAmberLeap:'伞灯星 · 跃向琥珀屿',amberLanternLeap:'琥珀屿 · 跃回伞灯星',
   amberFossil:'琥珀屿 · 蕨叶化石',
   opalSurveyDial:'采谱 · 北台罗盘',opalSurveyAqua:'采谱 · 青晶矿簇',opalSurveyCoral:'采谱 · 珊瑚矿簇',
-  opalDepartureChart:'北台 · 七线航向盘',
+  opalDepartureChart:'北台 · 六线航向盘',
   glazeMicaLeap:'玄釉星 · 跃向云母屿',micaSulfurLeap:'云母屿 · 跃向硫珠屿',sulfurMicaLeap:'硫珠屿 · 跃回云母屿',micaGlazeLeap:'云母屿 · 跃回玄釉星',
   tourSurvey:'母星 · 沿白脊采谱',tourDepart:'从母星起飞',tourReturn:'从卫星返航',tourStrait:'引力海峡与跳岛',tourPortrait:'观景与近看',
   planetWindHint:'点编号牌看航线 · 风环内按 G 起降 · 足印上按空格跨星',

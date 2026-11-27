@@ -7,6 +7,7 @@ import { getMmdVrSessionAssets } from '../backpack/sessionAssets';
 import { useMmdVrStore } from '../mmdVrStore';
 import { MmdVrStageRoom } from './StageRoom';
 import type { RoomActorBackend } from './createRoomRuntime';
+import {restoreNorthDeck} from '../scenery/planet/restoreNorthDeck';
 
 const hosts=new WeakMap<object,number>();
 let nextHost=0;
@@ -40,7 +41,8 @@ export function MmdVrStageContent({backend}:{backend?:RoomActorBackend} = {}) {
 
   const initial = useRef({ scenery, saved: useMmdVrStore.getState().resumeStage, slots: getMmdVrSessionAssets() });
   const entry = initial.current.scenery === scenery ? initial.current : null;
-  const saved = useBackpack.getState().layouts[scenery] ?? entry?.saved ?? null;
+  const layout = useBackpack.getState().layouts[scenery] ?? entry?.saved ?? null;
+  const saved = useMemo(() => scenery === 'glassPlanet' && layout ? restoreNorthDeck(layout) : layout, [scenery,layout]);
   const slots = saved?.assets ?? entry?.slots ?? [];
   // Renderer or scene replacement retires *all* room-owned objects and load
   // tasks. A camera change (including XR eye cameras) does not retire a room.

@@ -42,7 +42,7 @@ async function main() {
   if(json)assert.equal(sites.length, 2);
   const {chromium} = require(process.env.PLAYWRIGHT_CORE || path.join(process.env.XR_SMOKE_DIR || path.join(temp,'xr-browser-smoke'),'node_modules/playwright-core'));
   const folder = await fs.mkdtemp(path.join(temp,'game-floor-files-'));
-  const report = {entry:classroom?'/?xrBackend=webgpu&set=classroom':process.env.FLOOR_DEEPLINK?'/?xrBackend=webgpu&set=floor':'/?xrBackend=webgpu', simulated:'Quest controller input and projection display'};
+  const report = {entry:classroom?'/?xrBackend=webgpu&set=classroom':'/?xrBackend=webgpu&set=floor', simulated:'Quest controller input and projection display'};
   const errors = [], consoles = [];
   let server, browser, page, step = 'prepare', localProfile = false;
   try {
@@ -62,7 +62,7 @@ async function main() {
     await page.addInitScript({content:`(${stereo})(); (${extend})(); labFixture.controllerProfile='meta-quest-touch-plus'; labFixture.hostStatus=()=>({phase:'idle'});`});
     await page.goto(href.href);
     const selector=page.locator('.stage-first-room select');
-    if(classroom)assert.equal(await selector.inputValue(),'classroom');else if(process.env.FLOOR_DEEPLINK)assert.equal(await selector.inputValue(),'floor');else await selector.selectOption('floor');
+    assert.equal(await selector.inputValue(),classroom?'classroom':'floor');
     await page.locator('.stage-drop-zone input[webkitdirectory]').setInputFiles(folder);
     await page.locator('.stage-report-stats').waitFor();
     const ids = await page.evaluate(probes.observeStage,{modelPath:`${path.basename(folder)}/${second}`,motionName:`${path.basename(folder)}/${motion}`});
@@ -146,8 +146,8 @@ async function main() {
       await bButton();await click('hudScenery');await click('hudPool');
       await until('pool owns the empty destination',s=>s.room==='pool'&&s.ready&&!s.live&&!s.actor?.evaluations);
       assert(await page.evaluate(()=>!!gameTargets.find({name:'pool-water'})));
-      if(!await page.evaluate(()=>!!gameTargets.find({key:'hudScenery'})))await bButton();await click('hudScenery');await click('hudSimpleStage');
-      await until('plinth is empty',s=>s.room==='floor'&&s.ready&&s.floor?.assets===0&&!s.live&&!s.actor?.evaluations);
+      if(!await page.evaluate(()=>!!gameTargets.find({key:'hudScenery'})))await bButton();await click('hudScenery');await click('hudSeasideTerminus');
+      await until('station is empty',s=>s.room==='seasideTerminus'&&s.ready&&!s.live&&!s.actor?.evaluations);
       assert(!await page.evaluate(()=>!!gameTargets.find({name:'scenery:classroom'})));
       if(!await page.evaluate(()=>!!gameTargets.find({key:'hudScenery'})))await bButton();await click('hudScenery');await click('hudClassroom');
       const restored=await until('restored classroom actor',(s,t)=>s.room==='classroom'&&s.ready&&s.modelCount===1&&s.visible&&s.hasBinding&&!s.playing&&s.time===t&&s.actor?.evaluations>0,held.time,60000);

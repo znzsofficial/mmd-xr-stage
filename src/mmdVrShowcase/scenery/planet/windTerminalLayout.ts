@@ -27,10 +27,10 @@ export function windFloor(lane:WindLane,back:boolean,point:Vector3,facet?:(x:num
 
 // Keep the home boards on the far rim as seen from the compass; the collar
 // and the read face are in one sightline. At the return end, leave the walk
-// to the instrument, clearing, or cave open. Reed skirts the meridian nails.
+// to the instrument or clearing open. Reed skirts the meridian nails.
 const returnFront:Record<WindLane['moon']['id'],readonly [number,number]>={
   ember:[.51,-.36],frost:[-.48,-.36],salt:[.41,.49],glaze:[.707,.707],
-  reed:[.90,.40],lantern:[-.65,.76],tide:[1,0],
+  reed:[.90,.40],lantern:[-.65,.76],
 };
 function terminal(lane:WindLane,back:boolean){
   const port=back?lane.away:lane.home,up=port.up,[x,z]=returnFront[lane.moon.id];

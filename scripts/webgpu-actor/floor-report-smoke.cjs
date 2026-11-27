@@ -17,8 +17,8 @@ async function main(){
       }):gl(mode,init).then(s=>(window.glSession=s));
     })();`});
     const hostRequests=[];page.on('request',r=>{if(/\/stage-host-[\w-]+\.js/.test(r.url()))hostRequests.push(r.url());});
-    await page.goto(server.resolvedUrls.local[0]);
-    const room=process.argv[3]??'floor';await page.locator('.stage-first-room select').selectOption(room);
+    const room=process.argv[3]??'floor';await page.goto(server.resolvedUrls.local[0]+'?set='+encodeURIComponent(room));
+    assert.equal(await page.locator('.stage-first-room select').inputValue(),room);
     assert.equal(await page.locator('[data-floor-renderer]').inputValue(),'webgl');
     assert.equal(await page.locator('.stage-btn-primary').getAttribute('data-xr-backend'),'webgl');assert.equal(hostRequests.length,0);
     const {makeSwatch}=await import('../../experiments/gpu-cloth/swatch.js'),file=makeSwatch();

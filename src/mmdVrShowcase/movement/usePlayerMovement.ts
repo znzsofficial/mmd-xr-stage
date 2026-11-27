@@ -18,6 +18,7 @@ import {newStick,readStick,stickAxis as axis} from './controllerInput';
 import {eyeLift,headMargin} from './eyeHeight';
 import {arcadePassage} from '../scenery/arcade/arcadeTravel';
 import {observeStance,stanceProbe} from './stanceDiagnostics';
+import {shoreWalkingPace} from '../scenery/terminus/stationTide';
 
 export function usePlayerMovement(originRef:RefObject<Group|null>,dragging:boolean,{jumpOnPrimary=true}={}){
   const left=useXRInputSourceState('controller','left'),right=useXRInputSourceState('controller','right');
@@ -114,7 +115,8 @@ export function usePlayerMovement(originRef:RefObject<Group|null>,dragging:boole
           const dest=arcadePassage(s.body,(px,py,pz)=>s.motor.fits(sample,px,pz,py,h));
           if(dest)Object.assign(s.body,groundedBody(dest.x,dest.y,dest.z));
         }
-        s.motor.advance(s.body,sample,dx,dz,dt,h,jump);x=s.body.x;z=s.body.z;
+        const pace=room==='seasideTerminus'?shoreWalkingPace(scene,s.body.y):1;
+        s.motor.advance(s.body,sample,dx*pace,dz*pace,dt,h,jump);x=s.body.x;z=s.body.z;
         if(room==='classroom'&&!s.release&&nearCampusDoor(x,z))s.release=hintLawnPrints();
         // Keep sampling the seam across a small step down (or a jump through
         // the open doorway). Brief loss of ground contact must not erase it.

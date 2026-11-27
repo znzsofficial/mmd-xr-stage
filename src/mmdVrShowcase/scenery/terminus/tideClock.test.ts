@@ -1,7 +1,7 @@
 import {expect,it} from 'vitest';
 import {createTideClock,ebbLevel,floodLevel} from './tideClock';
 
-it('uncovers the shell treads, floods them and holds each stand long enough to walk to the stage',()=>{
+it('holds both water levels and returns to ebb over a full cycle',()=>{
   const clock=createTideClock(),go=(s:number)=>{for(let i=0;i<s*60;i++)clock.step(1/60);return clock.level;};
   expect(go(24)).toBe(ebbLevel);expect(go(11)).toBeGreaterThan(ebbLevel);expect(go(11)).toBeCloseTo(floodLevel,6);
   expect(go(23)).toBeCloseTo(floodLevel,9);expect(go(21)).toBeCloseTo(ebbLevel,6);expect(clock.step(180)).toBeCloseTo(ebbLevel,6);

@@ -508,6 +508,100 @@ return roomMain();})();
 return {vertexNode,fragmentNode};
 }
 
+export function harbourHorizon(read){
+const rr_skyDir=varyingProperty('vec3','scene_skyDir');
+const rr_builtin_position=positionGeometry;
+const rr_builtin_viewMatrix=cameraViewMatrix;
+const rr_builtin_projectionMatrix=cameraProjectionMatrix;
+
+const vertexNode=(()=>{const roomMain = /*@__PURE__*/ Fn( () => {
+
+	const rrResult = property( 'vec4' );
+	rr_skyDir.assign( rr_builtin_position );
+	const clip = rr_builtin_projectionMatrix.mul( vec4( mat3( rr_builtin_viewMatrix ).mul( rr_builtin_position ), 1. ) ).toVar();
+	rrResult.assign( vec4( clip.xy, 0., clip.w ) );
+
+	return rrResult;
+
+} );
+return roomMain();})();
+const fragmentNode=(()=>{const roomMain = /*@__PURE__*/ Fn( () => {
+
+	const rrResult = property( 'vec4' );
+	const h = normalize( rr_skyDir ).y.toVar();
+
+	If( h.greaterThan( float(-.002) ), () => {
+
+		Discard();
+
+	} );
+
+	const c = mix( vec3( .35, .51, .55 ), vec3( .52, .63, .64 ), smoothstep( - .012, - .002, h ) ).toVar();
+	rrResult.assign( vec4( c, 1. ) );
+
+	return rrResult;
+
+} );
+return roomMain();})();
+return {vertexNode,fragmentNode};
+}
+
+export function harbourWater(read){
+const rr_harbourP=varyingProperty('vec3','scene_harbourP');
+const rr_builtin_position=positionGeometry;
+const rr_builtin_viewMatrix=cameraViewMatrix;
+const rr_builtin_modelMatrix=modelWorldMatrix;
+const rr_builtin_projectionMatrix=cameraProjectionMatrix;
+const rr_phase=read('phase','float');
+const rr_builtin_cameraPosition=varying(transpose(mat3(cameraViewMatrix)).mul(cameraViewMatrix.element(3).xyz.negate()));
+
+const vertexNode=(()=>{const roomMain = /*@__PURE__*/ Fn( () => {
+
+	const rrResult = property( 'vec4' );
+	const w = rr_builtin_modelMatrix.mul( vec4( rr_builtin_position, 1. ) ).toVar();
+	rr_harbourP.assign( w.xyz );
+	rrResult.assign( rr_builtin_projectionMatrix.mul( rr_builtin_viewMatrix ).mul( w ) );
+
+	return rrResult;
+
+} );
+return roomMain();})();
+const fragmentNode=(()=>{const swell = /*@__PURE__*/ Fn( ( [ p ] ) => {
+
+	return sin( p.y.mul( 3.2 ).add( p.x.mul( .8 ) ).add( mul( .72, sin( p.x.mul( 1.17 ).add( rr_phase.mul( .4 ) ) ) ) ).add( rr_phase ) ).add( mul( .48, sin( p.x.mul( 2.6 ).sub( p.y.mul( 5.5 ) ).add( mul( 1.2, sin( p.y.mul( .75 ) ) ) ).sub( rr_phase.mul( 1.3 ) ) ) ) );
+
+} );
+
+const roomMain = /*@__PURE__*/ Fn( () => {
+
+	const rrResult = property( 'vec4' );
+	const p = rr_harbourP.xz.toVar();
+	const v = rr_builtin_cameraPosition.sub( rr_harbourP ).toVar();
+	const dist = length( v ).toVar();
+	v.assign( normalize( v ) );
+	const nearby = sub( 1., smoothstep( 12., 38., dist ) ).toVar();
+	const s = swell( p ).toVar();
+	const wind = sin( p.y.mul( 15.3 ).add( p.x.mul( 2.9 ) ).add( mul( 2.1, s ) ).add( rr_phase.mul( 1.8 ) ) ).toVar();
+	const slope = clamp( s.mul( .52 ).add( wind.mul( .18 ).mul( nearby ) ), - 1., 1. ).toVar();
+	const fres = pow( sub( 1., abs( v.y ) ), 4. ).toVar();
+	const c = mix( vec3( .025, .161, .184 ), vec3( .17, .39, .38 ), slope.mul( .34 ).add( .48 ) ).toVar();
+	const wide = p.mul( vec2( .29, .36 ) ).toVar();
+	const fetchWave = sin( wide.x.add( mul( 1.1, sin( wide.y.add( mul( .065, rr_phase ) ) ) ) ) ).mul( .48 ).add( .52 ).toVar();
+	c.assign( mix( c, vec3( .42, .58, .61 ), add( .48, mul( .20, fetchWave ) ).mul( fres ) ) );
+	const glitter = smoothstep( .68, 1., slope ).mul( smoothstep( .26, 1., wind ) ).mul( nearby ).toVar();
+	c.addAssign( vec3( .36, .29, .18 ).mul( glitter ).mul( add( .12, mul( .88, fetchWave ) ) ) );
+	const wake = sin( p.y.mul( 7.4 ).add( p.x.mul( 1.6 ) ).add( mul( .95, s ) ).sub( rr_phase.mul( .69 ) ) ).toVar();
+	c.addAssign( vec3( .11, .17, .15 ).mul( smoothstep( .84, 1., wake ) ).mul( smoothstep( .42, 1.25, s ) ).mul( nearby ) );
+	c.assign( mix( c, vec3( .35, .51, .55 ), smoothstep( 27., 46., dist ) ) );
+	rrResult.assign( vec4( c, 1. ) );
+
+	return rrResult;
+
+} );
+return roomMain();})();
+return {vertexNode,fragmentNode};
+}
+
 export function hills(read){
 const rr_haze=attribute('haze','float');
 const rr_h=varyingProperty('float','scene_h');
@@ -1289,6 +1383,44 @@ return roomMain();})();
 return {vertexNode,fragmentNode};
 }
 
+export function quaySalt(read){
+const rr_harbourP=varyingProperty('vec3','scene_harbourP');
+const rr_builtin_position=positionGeometry;
+const rr_builtin_viewMatrix=cameraViewMatrix;
+const rr_builtin_modelMatrix=modelWorldMatrix;
+const rr_builtin_projectionMatrix=cameraProjectionMatrix;
+const rr_waterline=read('waterline','float');
+
+const vertexNode=(()=>{const roomMain = /*@__PURE__*/ Fn( () => {
+
+	const rrResult = property( 'vec4' );
+	const w = rr_builtin_modelMatrix.mul( vec4( rr_builtin_position, 1. ) ).toVar();
+	rr_harbourP.assign( w.xyz );
+	rrResult.assign( rr_builtin_projectionMatrix.mul( rr_builtin_viewMatrix ).mul( w ) );
+
+	return rrResult;
+
+} );
+return roomMain();})();
+const fragmentNode=(()=>{const roomMain = /*@__PURE__*/ Fn( () => {
+
+	const rrResult = property( 'vec4' );
+	const row = floor( rr_harbourP.y.mul( 6. ) ).toVar();
+	const p = vec2( rr_harbourP.x.mul( 1.16 ).add( row.mul( .49 ) ), rr_harbourP.y.mul( 6. ) ).toVar();
+	const edge = abs( fract( p ).sub( .5 ) ).toVar();
+	const seam = smoothstep( .458, .50, max( edge.x, edge.y ) ).toVar();
+	const chip = fract( sin( dot( floor( p ), vec2( 13.1, 74.9 ) ) ).mul( 715.133 ) ).toVar();
+	const wet = sub( 1., smoothstep( rr_waterline.add( .03 ), rr_waterline.add( .18 ), rr_harbourP.y.add( mul( .035, sin( p.x.mul( 4. ) ) ) ) ) ).toVar();
+	const c = mix( vec3( .36, .37, .31 ), vec3( .11, .20, .16 ), wet ).mul( add( .88, mul( .19, chip ) ) ).mul( sub( 1., seam.mul( .23 ) ) ).toVar();
+	rrResult.assign( vec4( c, 1. ) );
+
+	return rrResult;
+
+} );
+return roomMain();})();
+return {vertexNode,fragmentNode};
+}
+
 export function reed(read){
 const rr_bed=attribute('bed','float');
 const rr_canopy=attribute('canopy','float');
@@ -1761,89 +1893,6 @@ const fragmentNode=(()=>{const roomMain = /*@__PURE__*/ Fn( () => {
 
 	const rrResult = property( 'vec4' );
 	rrResult.assign( vec4( rr_ink, 1. ) );
-
-	return rrResult;
-
-} );
-return roomMain();})();
-return {vertexNode,fragmentNode};
-}
-
-export function tide(read){
-const rr_bed=attribute('bed','float');
-const rr_world=varyingProperty('vec3','scene_world');
-const rr_eye=varyingProperty('vec3','scene_eye');
-const rr_bottom=varyingProperty('float','scene_bottom');
-const rr_builtin_position=positionGeometry;
-const rr_builtin_cameraPosition=varying(transpose(mat3(cameraViewMatrix)).mul(cameraViewMatrix.element(3).xyz.negate()));
-const rr_builtin_viewMatrix=cameraViewMatrix;
-const rr_builtin_modelMatrix=modelWorldMatrix;
-const rr_builtin_projectionMatrix=cameraProjectionMatrix;
-const rr_moon=read('moon','vec3');
-const rr_sun=read('sun','vec3');
-const rr_radius=read('radius','float');
-const rr_water=read('water','float');
-const rr_clock=read('clock','float');
-const rr_reedPrint=read('reedPrint','sampler2D');
-const rr_builtin_uv=uv();
-
-const vertexNode=(()=>{const roomMain = /*@__PURE__*/ Fn( () => {
-
-	const rrResult = property( 'vec4' );
-	const wp = rr_builtin_modelMatrix.mul( vec4( rr_builtin_position, 1. ) ).toVar();
-	rr_world.assign( wp.xyz );
-	rr_bottom.assign( rr_bed );
-	rr_eye.assign( rr_builtin_cameraPosition.sub( rr_world ) );
-	rrResult.assign( rr_builtin_projectionMatrix.mul( rr_builtin_viewMatrix ).mul( wp ) );
-
-	return rrResult;
-
-} );
-return roomMain();})();
-const fragmentNode=(()=>{const roomMain = /*@__PURE__*/ Fn( () => {
-
-	const rrResult = property( 'vec4' );
-	const depth = rr_water.sub( rr_bottom ).toVar();
-
-	If( depth.lessThanEqual( .004 ), () => {
-
-		Discard();
-
-	} );
-
-	const p = rr_world.xz.toVar();
-	const a = dot( p, vec2( 3.7, 1.4 ) ).add( mul( .31, sin( mul( 1.1, p.y ) ) ) ).sub( rr_clock.mul( .89 ) ).toVar();
-	const b = dot( p, vec2( - 2.4, 7.6 ) ).add( mul( .52, sin( mul( .92, p.x ) ) ) ).add( rr_clock.mul( 1.14 ) ).toVar();
-	const fold = cos( a ).mul( add( .73, mul( .27, cos( mul( .47, b ) ) ) ) ).toVar();
-	const grain = sin( b ).mul( sub( 1., smoothstep( .1, 1.6, fwidth( b ) ) ) ).toVar();
-	const N = normalize( vec3( mul( .010, fold ).add( mul( .002, grain ) ), 1., mul( .010, grain ).add( mul( .004, fold ) ) ) ).toVar();
-	const V = normalize( rr_eye ).toVar(), D = reflect( V.negate(), N ).toVar(), rel = rr_moon.sub( rr_world ).toVar();
-	const farT = dot( D, rel ).toVar();
-	const offset = farT.mul( D ).sub( rel ).toVar();
-	const disc = rr_radius.mul( rr_radius ).sub( dot( offset, offset ) ).toVar();
-	const aa = max( .16, fwidth( disc ) ).toVar();
-	const rim = clamp( sub( 1., abs( dot( N, V ) ) ), 0., 1. ).toVar();
-	const fres = add( .13, mul( .83, rim ).mul( rim ) ).toVar();
-	const base = mix( vec3( .12, .47, .57 ), vec3( .012, .14, .35 ), smoothstep( 0., .57, depth ) ).toVar();
-	const sky = mix( vec3( .021, .073, .16 ), vec3( .09, .20, .31 ), max( D.y, 0. ) ).toVar();
-
-	If( farT.greaterThan( 0. ).and( disc.greaterThan( 0. ) ), () => {
-
-		const n = normalize( offset.sub( sqrt( disc ).mul( D ) ) ).toVar();
-		const rr_builtin_uv = vec2( fract( atan( n.z, n.x.negate() ).div( 6.2831853 ) ), add( .5, asin( clamp( n.y, - 1., 1. ) ).div( 3.14159265 ) ) ).toVar();
-		const printInk = rr_reedPrint.sample( rr_builtin_uv ).rgb.toVar();
-		const orb = printInk.mul( add( .48, mul( 1.35, max( 0., dot( n, rr_sun ) ) ) ) ).add( vec3( .058, .125, .11 ).mul( pow( sub( 1., max( 0., dot( n, D.negate() ) ) ), 2. ) ) ).toVar();
-		sky.assign( mix( sky, orb, smoothstep( 0., aa, disc ) ) );
-
-	} );
-
-	const col = mix( base, sky, fres ).toVar();
-	const shoal = sub( 1., smoothstep( .025, .18, depth ) ).mul( sub( 1., fres ) ).toVar();
-	const lace = sin( mul( .91, a ).add( mul( .47, cos( mul( .52, b ) ) ) ) ).add( mul( .76, cos( mul( .66, b ).add( mul( .64, sin( mul( .55, a ) ) ) ) ) ) ).toVar();
-	const caustic = sub( 1., smoothstep( .05, add( .21, fwidth( lace ) ), abs( lace ) ) ).mul( exp( float(-3.6).mul( depth ) ) ).mul( sub( 1., fres ) ).toVar();
-	col.addAssign( vec3( .08, .12, .11 ).mul( shoal ).add( vec3( .049, .090, .093 ).mul( caustic ) ) );
-	col.addAssign( vec3( .35, .39, .42 ).mul( pow( max( 0., dot( N, normalize( rr_sun.add( V ) ) ) ), 107. ) ) );
-	rrResult.assign( vec4( col, mix( .46, .95, max( fres, smoothstep( .02, .36, depth ) ) ) ) );
 
 	return rrResult;
 

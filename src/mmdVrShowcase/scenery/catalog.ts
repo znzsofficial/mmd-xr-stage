@@ -1,4 +1,5 @@
 export const SCENERY = {
+  seasideTerminus: { label: 'hudSeasideTerminus', daylight:true },
   floor: { label: "hudSimpleStage", daylight: false },
   liveHouse: { label: "hudLiveHouse", daylight: false },
   classroom: { label: "hudClassroom", daylight: true },
@@ -29,7 +30,7 @@ export const hasSceneryPeople=(room:SceneryId)=>room==='clinic';
 
 /** A manual room jump must not strand the viewer on a distant terrace.
  * Walked crossings own their translation instead and bypass this policy. */
-const entranceRooms:ReadonlySet<SceneryId>=new Set(['clinic','qinhuai','weddingCourt','lanternSuite','moonSpa','glassPlanet','velvetStudio','medievalChamber','arcadeHall']);
+const entranceRooms:ReadonlySet<SceneryId>=new Set(['clinic','qinhuai','weddingCourt','lanternSuite','moonSpa','glassPlanet','velvetStudio','medievalChamber','arcadeHall','seasideTerminus']);
 export function resetViewOnMenuSwitch(from: SceneryId, to: SceneryId) {
   return from !== to && (from === 'astralCourt' || from === 'chapel' || entranceRooms.has(from) || entranceRooms.has(to));
 }
