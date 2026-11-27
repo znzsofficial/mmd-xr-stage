@@ -78,7 +78,7 @@ The app requests hand tracking as an optional session feature. It marks VR entry
 
 ## Run locally
 
-Use Node.js **26.12.1** and pnpm **11.20.0**.
+Use Node.js **26.13.1** and pnpm **11.29.0**.
 
 ```sh
 pnpm install --frozen-lockfile

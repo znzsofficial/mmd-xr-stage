@@ -1,5 +1,6 @@
 minimumReleaseAgeExclude:
   - '@yohawing/three-mmd-loader@0.8.6'
+  - vite@8.4.0
 overrides:
   'zustand@^4.3.2': 4.5.7
   'zustand@^4.5.2': 4.5.7

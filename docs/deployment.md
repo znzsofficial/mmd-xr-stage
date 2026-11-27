@@ -1,6 +1,6 @@
 # 部署与 wrangler 版本注意事项
 
-最后更新：2026-11-25
+最后更新：2026-11-27
 
 ## 当前部署路径
 
@@ -15,7 +15,7 @@ pnpm run deploy
 - 本仓库（mmd-xr-stage）：`mmd-xr-stage.pages.dev`
 - 主仓库（neko-virt-os）：`neko-virt-os.pages.dev` / `os.nekolaska.vip`
 
-`release:prepare` 一次执行远端 loader 对齐、`check`（含一次构建）和旧标签页桥校验；成功后在上传目录之外的 `stage-release.local` 留下 Git 提交与完整文件树 SHA-256。重新准备会先作废旧收据。`pnpm run deploy` 只晋级：核对当前提交、工作树和 `dist` 全部文件名／内容，使用固定 `wrangler@4.128.0` 上传同一目录，再核对主域入口及关键资源。没有收据、改过源码或制品拒绝上传；上线后如遇传播或网络故障可单独重试 `pnpm run release:live`，不必重新部署。收据覆盖自动检查；镜片观感不是收据的一部分。Git 默认分支是 **master**，Pages 生产分支是 **main**。
+`release:prepare` 一次执行远端 loader 对齐、`check`（含一次构建）和旧标签页桥校验；成功后在上传目录之外的 `stage-release.local` 留下 Git 提交与完整文件树 SHA-256。重新准备会先作废旧收据。`pnpm run deploy` 只晋级：核对当前提交、工作树和 `dist` 全部文件名／内容，使用固定 `wrangler@4.168.0` 上传到已有 Pages 项目，再核对主域入口及关键资源。没有收据、改过源码或制品拒绝上传；上线后如遇传播或网络故障可单独重试 `pnpm run release:live`，不必重新部署。收据覆盖自动检查；镜片观感不是收据的一部分。Git 默认分支是 **master**，Pages 生产分支是 **main**。
 
 所有现有场景均可在准备页选择「WebGPU · 单角色」，或用 `/?set=<布景 ID>&xrBackend=webgpu`。默认 WebGL；构建校验准备页静态图不含该后端。`node scripts/webgpu-actor/rooms-smoke.cjs dist` 用单浏览器检查正式构建全部布景的上下场、着色器和双眼画面；`game-floor-smoke.cjs <pmx> <vmd> --classroom` 复核角色与动作跨景恢复。独立资格预览仍写 `dist-qualification/`，不要用它覆盖生产 `dist/`。
 

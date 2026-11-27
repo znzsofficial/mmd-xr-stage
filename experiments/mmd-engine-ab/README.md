@@ -1,10 +1,10 @@
 # 单角色引擎 A/B：现有舞台运行时 vs Babylon MMD
 
-这是单独的本机实验，不是上线的替代渲染器。当前组调用项目的 `createMmdRuntimeHandle`；候选组用 Babylon.js 9.15.0、`babylon-mmd` 1.3.0、单线程发行版 WASM、立即求值及其集成 Bullet。两组都做实际 WebGL 绘制，页面结束时保留同一动作时刻的并排画面。
+这是单独的本机实验，不是上线的替代渲染器。当前组调用项目的 `createMmdRuntimeHandle`；候选组用 Babylon.js 9.38.0、`babylon-mmd` 1.3.0、单线程发行版 WASM、立即求值及其集成 Bullet。两组都做实际 WebGL 绘制，页面结束时保留同一动作时刻的并排画面。原有计时属于当时的 9.15.0。
 
 ## 在项目根目录复跑
 
-先按主项目要求安装依赖（Node 26.12.1、pnpm）。实验自身使用单独的 npm 锁文件：
+先按主项目 `.node-version` 安装 Node 26 和项目指定的 pnpm。实验自身使用单独的 npm 锁文件：
 
 ```sh
 npm --prefix experiments/mmd-engine-ab ci --ignore-scripts
