@@ -1,16 +1,16 @@
 # 会话交接｜2026-11-27
 
-[正式舞台](https://mmd-xr-stage.pages.dev) · [正式 WebGPU 海站](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [`d519c8d` 固定版](https://bf94c6d3.mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [发布记录](./release-history.md)
+[正式舞台](https://mmd-xr-stage.pages.dev) · [正式 WebGPU 海站](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [`c8758cf` 固定版](https://0ae4a810.mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [发布记录](./release-history.md)
 
-**线上已更新至 `d519c8d`。** 主列表显示 11 个大布景，六个片场通过星环遗庭或旧链接进入。新建的海边终点站是第 17 景：沿站台上干堤，拨潮盘提前涨落；堤下潮阶能涉水，两端均可走回。小行星撤下 07 潮汐洞星，旧干台布局在恢复时迁回母星北台，01–06 编号不变。终点站的屏幕／模拟 XR 实走见 `scripts/verify-seaside-walk.cjs`。提丰两份 PMX 的脸色按同灯同姿比较，见[角色画风记录](./scenery/character-toon-references.md)。
+**线上已更新至 `c8758cf`。** 17 个布景、13 件道具；主列表显示 11 个大布景，六个片场通过星环遗庭或旧链接进入。WebGPU 与 WebGL 共用最多 3 人＋3 物的布局。构建通过 1090 项舞台和 31 项工具测试，上线后核对 17 项主域资源并实际进入、退出海站模拟 XR。
 
 **本机工具链：**Node 26.13.1、pnpm 11.29、Vite 8.4、Vitest 5.1.2；`@types/node` / `@types/react` 分别更新至 26.6.11 / 19.3.3。独立 Babylon 对照实验使用 9.38，不进入游戏。主项目 Rapier 与 `@react-three/rapier` 继续配套 0.19.2，Three r187、loader fork 和 XR 输入补丁保持锁定。
 
-**本机混合布局版：**WebGL 的原背包先实测内嵌 GLB、外置 BIN／PNG 的 glTF，随后同一标签页实走 3 名演员＋3 件物件 WebGL → WebGPU → WebGL。单件收回、单人材质归属及原舞段恢复均有画面对照。玩家导入方法见[放一件 GLB 或 glTF](./gameplay/asset-workflow.md#放一件-glb-或-gltf)，证据见[混合布局实测](./webgpu-xr-status.md#混合布局候选材质与环境的画面对照)。
+**混合布局实测：**WebGL 的原背包先实测内嵌 GLB、外置 BIN／PNG 的 glTF，随后同一标签页实走 3 名演员＋3 件物件 WebGL → WebGPU → WebGL。单件收回、单人材质归属及原舞段恢复均有画面对照。玩家导入方法见[放一件 GLB 或 glTF](./gameplay/asset-workflow.md#放一件-glb-或-gltf)，证据见[混合布局实测](./webgpu-xr-status.md#混合布局材质与环境的画面对照)。
 
 **Loader 版本阻塞已解除。** 上游 `v0.9.0@62ce047` 已合入自有 fork 的 `main@c762507`，舞台按官方 tarball 重新导出补丁。实装 347 文件及 Bullet 配对一致；穿衣实模在 WebGPU 验衣柜、停机复原、摆姿录放，3 人 3 物两端往返复验通过。旧标签页的 0.8.6 物理文件及解析 WASM 仍保留。舞台发布收据绑定 `c8758cf`；共享骨架去重已独立提交 [PR #48](https://github.com/yohawing/three-mmd-loader/pull/48)，见[投稿与分支记录](./three-mmd-loader-upstream.md)。
 
-## 正式站单角色版：17 景、13/13 件道具
+## 上一版 `d519c8d` 的验证记录
 
 本轮已结项。入口、玩法与后端选择见[当前正式版](./webgpu-xr-status.md#当前正式版)。同一穿衣演员已串测衣柜、观察、身体设置、道具、摆姿、支架录放和跨后端续场。Quest 实机手感与持续帧率标为未测，不安排玩家补测。
 

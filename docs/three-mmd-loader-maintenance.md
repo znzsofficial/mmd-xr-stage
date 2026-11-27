@@ -6,8 +6,7 @@
 
 | 截至 2026-11-27 | 使用的版本 | 去哪里核对 |
 |---|---|---|
-| 本项目正式站 | 舞台 `d519c8d`；loader 0.8.6 + fork `3ac1d8e` | [发布记录](./release-history.md)；更新 fork 不会更新已部署的网站 |
-| 本项目已验候选 | 舞台 `c8758cf`；loader 0.9.0 + fork `c762507`，Three r187 | [源码锁定清单](../loader-source.json)：347 个 `dist/` 文件，包含入口、声明、生成绑定与 WASM 的核验信息；[当前上线状态](./HANDOFF.md) |
+| 本项目正式站 | 舞台 `c8758cf`；loader 0.9.0 + fork `c762507`，Three r187 | [固定部署](https://0ae4a810.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md) · [源码锁定清单](../loader-source.json)：347 个 loader `dist/` 文件 |
 | 我们的 fork | [`main@c762507`](https://github.com/znzsofficial/three-mmd-loader/commit/c76250712a07d3f1ded5a0cb39d19af70c8522c4) | 合入官方发布提交并保留舞台扩展；使用 npm 和 `package-lock.json` |
 | 官方 | [`v0.9.0@62ce047`](https://github.com/yohawing/three-mmd-loader/releases/tag/v0.9.0)，mmd-anim 0.5.5 | 开发依赖锁定 Three r184；0.9.0 已包含 r187 的 TSL 自阴影兼容修复 |
 

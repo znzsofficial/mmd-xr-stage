@@ -12,6 +12,7 @@
 
 | 功能提交 | 已发布内容与验证范围 |
 |---|---|
+| `c8758cf` | [正式 WebGPU 舞台](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [固定部署](https://0ae4a810.mmd-xr-stage.pages.dev)。WebGL／WebGPU 均支持 3 名 PMX 演员＋3 件 GLB/glTF 物件，按原布局和舞段续场；WebGPU 接入换肤、材质、环境与摆姿裙片修正。loader 0.9.0（fork `c762507`）。1090 项舞台＋31 项工具测试通过，401 文件制品 SHA-256 `44cf72799a9ca7751d34aa8ee0a5c1dfc576cc07972868238b20d2ddae8477bd`。主域 17 项内容一致；线上海站在桌面模拟 XR 实际进退场并提交双眼。 |
 | `d519c8d` | [正式 WebGPU 海站](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [固定部署](https://bf94c6d3.mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu)。17 景、13/13 件背包道具。四幕、泌乳、手持／支架插入、衣柜与身体工具、手动摆姿和支架手法可用。同一穿衣 PMX 实际输入联测、双眼对照、WebGL 回退和 WebGPU 续场；1080 项舞台＋31 项工具通过。393 文件 SHA-256 `ec1159aec841d4f85ac1862288cad6126cad518212d1762b86667845b21e6823`；主域 14 项内容一致，线上 WebGPU 海站实进实退。本轮无 Quest 实戴。 |
 | `3aa231f` | [正式 WebGPU 全布景](https://mmd-xr-stage.pages.dev/?set=astralCourt&xrBackend=webgpu) · [固定部署](https://9d9f1ae6.mmd-xr-stage.pages.dev/?set=astralCourt&xrBackend=webgpu)。16 景均以桌面原生 GPU 和模拟 XR 实测最终双眼颜色与编译；洛茜实走教室→泳池→地台→教室并续播。普通 PMX 无专用图也可按明确材质名切换；珠霜舒芙蕾定格切回原色无残差。1078 项舞台、31 项工具测试通过，主域 18 项资源核对。 |
 | `65597d3` | [正式窗边教室](https://mmd-xr-stage.pages.dev/?set=classroom&xrBackend=webgpu) · [固定部署](https://bbc4610a.mmd-xr-stage.pages.dev/?set=classroom&xrBackend=webgpu)。单角色 WebGPU 支持教室／地台场内往返。桌面硬件 GPU＋模拟手柄完成洛茜放置、播停、换景原位恢复与续播；生产产物验证教室二次入场及 WebGL 续场。1076 项舞台、31 项工具测试通过，主域 18 项资源核对。教室 Quest 持续帧时未测。 |
