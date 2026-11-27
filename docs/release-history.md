@@ -12,6 +12,7 @@
 
 | 功能提交 | 已发布内容与验证范围 |
 |---|---|
+| `6e16d9e` | [海站与站前公园](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&view=screen) · [固定部署](https://a8c0dbf8.mmd-xr-stage.pages.dev)。站台步行至喷泉、树荫和商店街；屏幕与模拟 XR 用实际射线放置，摇杆往返。实模外置丝袜的撕扯、换姿、换新和脱下均有像素对照；WebGPU XR 仿卡拉彼丘与仿终末地可按演员切换并恢复。1123＋32 项测试；424 文件 SHA-256 `5725181b68c53f60d2cbd6b97c7a3d6e1e907d41b7e6f6bf5121b19e0f600a83`，29 项主域资源一致。未测 Quest 真机。 |
 | `b124f61` | [正式舞台](https://mmd-xr-stage.pages.dev) · [固定部署](https://703e0c9c.mmd-xr-stage.pages.dev)。半透明搭档、三种新快速体位、面板阴道长度预览、自动往复主面板体外释放。成品屏幕 WebGL、桌面 GPU 模拟 XR 双眼与控制器用实模走通；穿衣和露出条件分别验证。1107 项舞台＋31 项工具测试通过；407 文件制品 SHA-256 `86f9d05cf40e06fdaa462212113524900b143b331ad190ca0e7a7a19a4d74e99`。主域 17 项页面与资源一致，未测 Quest 实戴。 |
 | `c8758cf` | [正式 WebGPU 舞台](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [固定部署](https://0ae4a810.mmd-xr-stage.pages.dev)。WebGL／WebGPU 均支持 3 名 PMX 演员＋3 件 GLB/glTF 物件，按原布局和舞段续场；WebGPU 接入换肤、材质、环境与摆姿裙片修正。loader 0.9.0（fork `c762507`）。1090 项舞台＋31 项工具测试通过，401 文件制品 SHA-256 `44cf72799a9ca7751d34aa8ee0a5c1dfc576cc07972868238b20d2ddae8477bd`。主域 17 项内容一致；线上海站在桌面模拟 XR 实际进退场并提交双眼。 |
 | `d519c8d` | [正式 WebGPU 海站](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [固定部署](https://bf94c6d3.mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu)。17 景、13/13 件背包道具。四幕、泌乳、手持／支架插入、衣柜与身体工具、手动摆姿和支架手法可用。同一穿衣 PMX 实际输入联测、双眼对照、WebGL 回退和 WebGPU 续场；1080 项舞台＋31 项工具通过。393 文件 SHA-256 `ec1159aec841d4f85ac1862288cad6126cad518212d1762b86667845b21e6823`；主域 14 项内容一致，线上 WebGPU 海站实进实退。本轮无 Quest 实戴。 |
