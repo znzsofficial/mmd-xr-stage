@@ -66,7 +66,7 @@ export const zh = {
   toyDildo:'硅胶假阳具',allSets:'所有布景',guideDildoVr:'手持时按侧握释放。角色的「身体观察」可直接看外阴、阴道或子宫。',guideDildoScreen:'点角色 → 互动 → 插入，先把支架放在入口外。可保持穿衣继续，推进后在旁边选释放目标。',guideDildoEnd:'点「停止」停在原位。「拿法与支架设置」可改用自动支架，VR 中也可换到手柄。',
   toyWand:'无线按摩棒',guideWandVr:'侧握切低档、高档、关。持棒手随棒头振动，低档轻缓，高档更密；初触加重一拍。',guideWandScreen:'递给手腕后用动作或握姿接触；低／高档可压软头、叠加表情。',guideWandEnd:'开启角色物理，棒头或握柄都能托动活动衣摆，停机也有效。',
   wandMotor:'棒头档位',wandLow:'低速',wandHigh:'高速',
-  toyRemoteEgg:'遥控跳蛋',guideEggVr:'拿遥控器，选成年角色并佩戴，即从低档常振开始。面板可直接点选节律；收起面板后，侧握依次切换常振、渐强、间歇和停机。',guideEggScreen:'点选低档常振、渐强或间歇；再点当前档不会从头开始。看佩戴者身上的外壳和适配表情，需要碰动裙片时再开角色物理。',guideEggEnd:'停机保留佩戴位置，点任一档即可重新启动。要换人，可在另一人面板直接转戴。',
+  toyRemoteEgg:'遥控跳蛋',guideEggVr:'拿遥控器，选成年角色并佩戴，即从低档常振开始。面板可选腰前衣面或胸前；收起面板后，侧握切换节律和停机。',guideEggScreen:'选腰前衣面或胸前，再选常振、渐强或间歇。贴住的位置随节律起伏，动作暂停也能看。',guideEggEnd:'停机保留佩戴位置，点任一档即可重新启动。要换人，可在另一人面板直接转戴。',
   eggWear:'佩戴跳蛋并启动',eggTransfer:'转戴到此人并启动',eggControls:'跳蛋控制',eggStop:'停机',eggRemove:'摘下',eggFit:'佩戴微调',eggCloth:'腰前衣面',eggChest:'胸前',eggReset:'复位位置',eggMode:'振动节律',eggOff:'关闭',eggSteady:'低档常振',eggRamp:'渐强',eggPulse:'间歇',
   eggX:'横向',eggY:'高度',eggZ:'前后',
   wandResponse:'接触反馈',wandEnabled:'启用接触反馈',wandDisabled:'接触反馈已关',wandMorph:'接触表情',wandNone:'无表情',wandStrength:'表情强度',wandNoMorph:'此模型没有可用的顶点表情',

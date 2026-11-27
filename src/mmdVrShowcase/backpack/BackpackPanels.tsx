@@ -8,7 +8,7 @@ import {fitsWebgpuRoom} from '../xr/floorBackend';
 import { HudButton, HudLine, HudSheet } from "../hud/PorcelainControls";
 import { BackpackThumbnail, indexBackpackCovers } from "./BackpackThumbnail";
 import { useXRInputSourceState } from '@react-three/xr';
-import { shelfToys, toyLabel, TOYS, type Hand, type Toy } from '../play/propCatalog';
+import { sessionToys, toyLabel, TOYS, type Hand, type Toy } from '../play/propCatalog';
 import { useStagePlay } from '../play/stagePlay';
 import { clearCard, useLunarCard } from '../play/lunarCard';
 import { resetEncore } from '../play/encore/encoreRound';
@@ -66,7 +66,7 @@ export function BackpackPanel({ onClose, locked }: { onClose: () => void; locked
     <HudLine position={[-0.49, 0.69, 0]} text={t("hudBackpack")} role="title" width={1.05} />
     <HudButton position={[0.67, 0.69, 0]} size={[0.66, 0.14]} variant="quiet" label={t("hudBack")} onPress={onClose} />
     {(Object.keys(pagesByKind) as (keyof typeof pagesByKind)[]).map((k, i) => <HudButton key={k} position={[(i - 1.5) * 0.52, 0.45, 0]} size={[0.49, 0.16]}
-      label={t(pagesByKind[k])} active={k === kind} variant="tab" disabled={isSoloFloorSession() && (k === 'object' || k === 'toy')} onPress={() => { setKind(k); setIndex(0); }} />)}
+      label={t(pagesByKind[k])} active={k === kind} variant="tab" disabled={isSoloFloorSession() && k === 'object'} onPress={() => { setKind(k); setIndex(0); }} />)}
     {kind==='toy'?<ToyShelf locked={locked} onClose={onClose}/>:<>
     <HudLine position={[0, 0.26, 0]} text={hint} width={2.04} role={full && kind !== "motion" ? "warning" : "muted"} />
     {!list.length && <HudLine position={[0, -0.15, 0]} text={t("hudBagEmpty")} width={2.02} center />}
@@ -97,18 +97,20 @@ function ToyShelf({locked,onClose}:{locked:boolean;onClose:()=>void}) {
   const characterHasToy=useStagePlay(s=>!!(s.character||s.stand));
   const connected=(h:Hand)=>!!(h==='left'?left:right)?.inputSource.gripSpace;
   const [help,setHelp]=useState<Toy|null>(null);
-  const [page,setPage]=useState(0), pages=Math.ceil(shelfToys.length/ROWS);
+  const toys=sessionToys(), solo=isSoloFloorSession();
+  const layouts=useBackpack(s=>s.layouts);
+  const [page,setPage]=useState(0), pages=Math.ceil(toys.length/ROWS);
   if(help){const item=TOYS[help],{vr,end}=item.guide;return <group key="guide" name={`play:guide:${help}`}>
     <HudLine position={[0,.22,0]} text={t(toyLabel(help,room))+' · '+t('toyGuide')} width={2.03} role="title"/>
     <HudLine position={[0,.08,0]} text={t('toyShelfHome')+t(item.homeLabel)} width={2.03} role="muted"/>
     {(help==='remoteEgg'?['toyGuideEquip',vr,end] as const:['toyGuideEquip','toyGuideGive',vr,end] as const).map((key,i)=><HudLine key={key} position={[0,-.06-i*.128,0]} text={t(key)} width={2.03}/>)}
     <HudLine position={[0,-.59,0]} text={`B → ${t('hudBackpack')} → ${t('hudToys')} → ${t('toyStow')}`} width={2.03}/>
     <HudButton position={[-.49,-.755,0]} size={[.89,.16]} label={t('toyCloseGuide')} onPress={()=>setHelp(null)}/>
-    {item.home&&room!==item.home&&<HudButton position={[.49,-.755,0]} size={[.89,.16]} label={t(item.visit)} variant="quiet" disabled={locked} onPress={()=>{setHelp(null);useMmdVrStore.getState().setPrefs({scenery:item.home});}}/>}
+    {item.home&&room!==item.home&&<HudButton position={[.49,-.755,0]} size={[.89,.16]} label={t(item.visit)} variant="quiet" disabled={locked||(solo&&!fitsWebgpuRoom(layouts[item.home]))} onPress={()=>{setHelp(null);useMmdVrStore.getState().setPrefs({scenery:item.home});}}/>}
   </group>}
   return <group name="play:shelf">
     <HudLine position={[0,.24,0]} text={t(left||right?'toyShelfRule':'toyNeedController')} width={2.04} role="muted" />
-    {shelfToys.slice(page*ROWS,(page+1)*ROWS).map((toy,i)=>{const {home,homeLabel}=TOYS[toy];
+    {toys.slice(page*ROWS,(page+1)*ROWS).map((toy,i)=>{const {home,homeLabel}=TOYS[toy];
       return <group name={`play:shelf:${toy}`} key={toy} position-y={.05-i*.205}>
         <HudLine position={[-.63,.041,0]} width={.84} text={t(toyLabel(toy,room))} />
         <HudLine position={[-.63,-.044,0]} width={.84} text={t('toyShelfHome')+t(homeLabel)+(toy==='post'&&room===home?` · ${n}/3`:'')} role="muted" />

@@ -16,10 +16,10 @@ export function placeWorld(node:Object3D,world:Matrix4){
   node.matrix.decompose(node.position,node.quaternion,node.scale);node.matrixWorldNeedsUpdate=true;node.updateWorldMatrix(false,false);
 }
 
-export function createPortDrawing(host:Object3D,assetId:string){
+export function createPortDrawing(host:Object3D,assetId:string,clipPartial=true){
   const group=new Group();group.name=`pelvic:adapter:${assetId}`;group.visible=false;host.add(group);
   const finish=createVulvaRoughness();
-  const cover=createTissueCover(),shellMaterial=createTissueMaterial(finish,cover);
+  const cover=createTissueCover(clipPartial),shellMaterial=createTissueMaterial(finish,clipPartial?cover:undefined);
   const seed={radiusM:.02},seal=pelvicSeal(seed,closed,true)!,shell=createSealShell();
   const molded=new Mesh(shell.geom,shellMaterial);molded.name='pelvic:seal';group.add(molded);
   const mark=new Mesh(new TorusGeometry(1,.055,8,40),new MeshStandardMaterial({color:'#6dc6bd',roughness:.64,wireframe:false}));

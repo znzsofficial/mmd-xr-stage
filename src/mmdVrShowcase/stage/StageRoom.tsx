@@ -49,7 +49,7 @@ import { PlayPiece } from '../play/HeldPlay';
 import { useScreenWristCue } from '../play/screenWristCue';
 import {useHudWorldInput} from '../hud/hudWorldInput';
 import { RemoteWearable } from '../play/remote/RemoteWearable';
-import {presentRemoteWearable} from '../play/remote/wearableCollider';
+import {presentRemoteWearable,wearableIn} from '../play/remote/wearableCollider';
 import {mountPoseRoom,usePoseSession} from '../pose/poseSession';
 import {PoseHandles} from '../pose/PoseHandles';
 import {PelvicRig,type PelvicRigHandle} from '../pelvic/PelvicRig';
@@ -562,6 +562,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles,
     // A final callback can arrive between retirement and unsubscription. Do
     // not take page-wide commands, publish clocks, or sample the next room.
     if(isRoomStale())return;
+    wearableIn(scene)?.restore();
     propDisplay.restore();
     applyLighting();
 
@@ -674,13 +675,18 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles,
     const posedCarrier=poseCharacterProp(rt);
     wristCue.driver.current?.advance(delta,posedCarrier);
     presentRemoteWearable(scene);
-    pelvic.current?.advance(delta,frame,pelvicBlocked);
-    if(!isRoomStale()&&!store.physicsBusy&&!store.physicsFatal&&!store.assetLoad.running)
+    if(!backend)pelvic.current?.advance(delta,frame,pelvicBlocked);
+    // Both holders share the calibrated solver. The optional soft-tip/face
+    // path also queries CPU triangles which the sparse renderer replaced.
+    const gpuRod=backend&&(owners.stand||owners.held?.toy==='dildo'||owners.character?.toy==='dildo');
+    if(!gpuRod&&!isRoomStale()&&!store.physicsBusy&&!store.physicsFatal&&!store.assetLoad.running)
       propDisplay.present(rt,scene,wristGroup.current,pelvic.current,frame,clock);
     // Mail from an actor-style decode can arrive even while VMD and physics
     // are both paused. Commit on this tracked draw, after all displayed pose
     // layers, without re-evaluating VMD or dispatching idle GPU pose work.
-    backend?.prepareRender(evaluate);
+    const eggMorphChanged=propDisplay.eggMorphChanged();
+    backend?.prepareRender(evaluate||eggMorphChanged);
+    if(backend)pelvic.current?.advance(delta,frame,pelvicBlocked);
     milkRoom.current?.advance(delta,frame);
     if(store.presentation!=='xr')return;
     hapticContactPollRef.current += delta;
@@ -727,8 +733,8 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles,
     <>
       {characterToy && <group ref={wristGroup} name="play:character" pointerEvents="none" visible={false}><PlayPiece toy={characterToy}/></group>}
       {wristCue.art}
-      <RemoteWearable getRoot={runtime.getModelRoot} isRoomStale={isRoomStale}/>
-      <PelvicRig ref={pelvic} getRoot={runtime.getModelRoot} getSurface={runtime.getModelSurface}/>
+      <RemoteWearable getSurface={runtime.getModelSurface} getEggSurface={backend?.getEggSurface} isRoomStale={isRoomStale}/>
+      <PelvicRig ref={pelvic} getRoot={runtime.getModelRoot} getSurface={runtime.getModelSurface} getGarmentPose={backend?.getGarmentPose}/>
       <PelvicObserver rig={pelvic}/>
       <PoseHandles/>
       <StageEnvironment scenery={scenery} prefs={mmdPrefs} profile={profile} lighting={lightCfg}

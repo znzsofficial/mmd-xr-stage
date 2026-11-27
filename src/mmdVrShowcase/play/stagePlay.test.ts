@@ -8,12 +8,27 @@ import { useWandMotor } from './wandMotor';
 import { advanceFerry, GATE_X, GATE_Y } from './ferry/voyage';
 import { BADGE_X, BADGE_Y, useEncorePrint } from './encore/encoreRound';
 import { useKiteStore } from './kite/kiteStore';
+import { beginMmdVrAssetSession, endMmdVrAssetSession } from '../backpack/sessionAssets';
 
 vi.mock('@react-three/fiber',()=>{throw Error('Prop metadata/ownership loaded a scene renderer');});
 const get=useStagePlay.getState, forward=new Vector3(0,0,-1);
 beforeEach(()=>get().reset());
 
 describe('shared prop catalog and ownership',()=>{
+  it('shares the solo entertainment shelf and wrists without displacing a stand on a rejected contact tool',()=>{
+    beginMmdVrAssetSession([], 'soloFloor');
+    try {
+      get().mountStand('actor');
+      get().equip('wand','right');
+      expect(get().stand?.assetId).toBe('actor');expect(get().held).toBeNull();
+      get().equip('remoteEgg','right');expect(get().held?.toy).toBe('remoteEgg');expect(get().stand).toBeNull();
+      for(const toy of ['post','kite','encore','bubbles','saber','dildo','feather','lotusFan','constellation','ribbonPen','lanternPod'] as const){
+        get().equip(toy,'left');expect(get().held).toEqual({toy,hand:'left'});expect(get().stand).toBeNull();
+        get().give('actor','right');expect(get().character).toMatchObject({toy,assetId:'actor',hand:'right'});
+        get().stow();expect(get().held).toBeNull();expect(get().character).toBeNull();
+      }
+    } finally {endMmdVrAssetSession();get().reset();}
+  });
   it('can assign each wrist prop to either wrist without also holding a second copy',()=>{
     expect(shelfToys).toEqual(expect.arrayContaining(['bubbles','post','saber','kite','encore','dildo','wand','feather']));
     for(const toy of shelfToys.filter(t=>t!=='remoteEgg')){

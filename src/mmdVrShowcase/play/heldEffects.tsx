@@ -1,5 +1,6 @@
-import { useImperativeHandle, useMemo, useRef } from 'react';
-import { DynamicDrawUsage, InstancedMesh, Mesh, Object3D, Vector3 } from 'three';
+import { useEffect, useImperativeHandle, useMemo, useRef } from 'react';
+import { DynamicDrawUsage, InstancedBufferAttribute, InstancedBufferGeometry, InstancedMesh, Mesh, Object3D, SphereGeometry, Vector3 } from 'three';
+import {RoomShader} from '../scenery/daylightMaterials';
 import { markAt, POST_MARKS, POST_Z, stamp, useLunarCard } from './lunarCard';
 import type { FrameEffectProps, GripFrame } from './propView';
 import {semenColor} from './semenAppearance';
@@ -50,10 +51,16 @@ export function LiquidSpray({ref}:FrameEffectProps){
   </instancedMesh>;
 }
 export function BubbleStream({ref}:FrameEffectProps) {
-  const mesh=useRef<InstancedMesh>(null);
-  const s=useMemo(()=>({dot:new Object3D(), age:new Float32Array(CAP).fill(-1),paths:new Float32Array(CAP*6),next:0,cooldown:0}),[]);
+  const s=useMemo(()=>{
+    const sphere=new SphereGeometry(1,14,10), geometry=new InstancedBufferGeometry();
+    const bubbles=new InstancedBufferAttribute(new Float32Array(CAP*4),4).setUsage(DynamicDrawUsage);
+    geometry.setIndex(sphere.index);geometry.setAttribute('position',sphere.attributes.position);
+    geometry.setAttribute('normal',sphere.attributes.normal);geometry.setAttribute('bubble',bubbles);
+    geometry.instanceCount=0;
+    return {geometry,bubbles,age:new Float32Array(CAP).fill(-1),paths:new Float32Array(CAP*6),next:0,cooldown:0};
+  },[]);
+  useEffect(()=>()=>s.geometry.dispose(),[s]);
   useImperativeHandle(ref,()=>({at,dir,action,dt}:GripFrame)=>{
-    const batch=mesh.current!;
     s.cooldown=Math.max(0,s.cooldown-dt);
     if(action!=='off'&&(action==='start'||s.cooldown<=0)){
       const i=s.next++%CAP,k=i*6;s.age[i]=0;s.cooldown=.13;
@@ -65,16 +72,16 @@ export function BubbleStream({ref}:FrameEffectProps) {
       if(s.age[i]<0)continue;const t=s.age[i]+=dt;
       if(t>2.9){s.age[i]=-1;continue;}
       const k=i*6,travel=t/(1+.24*t);
-      s.dot.position.set(s.paths[k]+s.paths[k+3]*travel+.063*t*Math.sin(i*2.1+t*2.2),s.paths[k+1]+s.paths[k+4]*travel+.15*t*t,s.paths[k+2]+s.paths[k+5]*travel+.047*t*Math.cos(i+t));
       const radius=(.042+.009*(i%4))*(.6+Math.min(1,t*5)) * Math.min(1,(2.9-t)*6);
-      s.dot.scale.setScalar(radius);s.dot.updateMatrix();batch.setMatrixAt(count++,s.dot.matrix);
+      s.bubbles.setXYZW(count++,s.paths[k]+s.paths[k+3]*travel+.063*t*Math.sin(i*2.1+t*2.2),
+        s.paths[k+1]+s.paths[k+4]*travel+.15*t*t,s.paths[k+2]+s.paths[k+5]*travel+.047*t*Math.cos(i+t),radius);
     }
-    if(count||batch.count){batch.count=count;batch.instanceMatrix.needsUpdate=true;}
+    s.geometry.instanceCount=count;if(count)s.bubbles.needsUpdate=true;
   },[s]);
-  return <instancedMesh name="play:bubbles" ref={mesh} args={[undefined,undefined,CAP]} count={0} frustumCulled={false} onUpdate={m=>m.instanceMatrix.setUsage(DynamicDrawUsage)}>
-    <sphereGeometry args={[1,14,10]}/><shaderMaterial transparent depthWrite={false}
-      vertexShader={`varying vec3 vN,vEye;void main(){vec4 p=modelViewMatrix*instanceMatrix*vec4(position,1.);vN=normalMatrix*mat3(instanceMatrix)*normal;vEye=-p.xyz;gl_Position=projectionMatrix*p;}`}
+  return <mesh name="play:bubbles" geometry={s.geometry} frustumCulled={false}>
+    <RoomShader effect="bubbleFilm" transparent depthWrite={false}
+      vertexShader={`attribute vec4 bubble;varying vec3 vN,vEye;void main(){vec4 p=modelViewMatrix*vec4(bubble.xyz+position*bubble.w,1.);vN=normalMatrix*normal;vEye=-p.xyz;gl_Position=projectionMatrix*p;}`}
       fragmentShader={`varying vec3 vN,vEye;void main(){vec3 n=normalize(vN);float rim=pow(1.-abs(dot(normalize(vEye),n)),1.2);float glint=smoothstep(.86,.98,dot(n,normalize(vec3(-.46,.57,.68))));vec3 hue=mix(vec3(.4,.96,.88),vec3(.99,.54,.83),.5+.5*sin(n.y*7.+n.x*3.));gl_FragColor=vec4(mix(hue,vec3(1.),glint),.11+.72*rim+.17*glint);
       #include <colorspace_fragment>
-      }`}/></instancedMesh>;
+      }`}/></mesh>;
 }

@@ -2,6 +2,8 @@ import type { TextureResolver, ThreeMmdLoader, ThreeMmdModel } from '@yohawing/t
 import type { MmdPhysicsBackend, MmdPhysicsStepContext } from '@yohawing/three-mmd-loader/physics';
 import type { DirectionalLight } from 'three';
 import type { SampleMilkOutlet } from '../bodyState/lactation/outlets';
+import type { GarmentPose } from '../pelvic/garment';
+import type { EggSurfaceBackend } from '../play/remote/eggSurface';
 
 /** A renderer attachment to the room's model. It never loads a PMX, binds a
  * clip, advances a clock or owns a Bullet world. */
@@ -51,6 +53,8 @@ export interface RoomActorBackend {
   readonly loadOptions: Parameters<ThreeMmdLoader['loadModel']>[1];
   readonly styles?: RoomActorStyles;
   prepareMilkOutlets?(model:ThreeMmdModel,stale:()=>boolean,bytes?:Uint8Array):Promise<SampleMilkOutlet>;
+  getGarmentPose:(runtimeId:string)=>GarmentPose|null;
+  getEggSurface?:(runtimeId:string)=>EggSurfaceBackend|undefined;
   attach(model: ThreeMmdModel,source:{file:File;resolver:TextureResolver;companionFiles:readonly File[];pmxBytes?:Uint8Array}): RoomActorBinding;
   setLight(light: DirectionalLight | null): void;
   beginFrame(frame: XRFrame | null, space: XRReferenceSpace | null, reseed: boolean): void;

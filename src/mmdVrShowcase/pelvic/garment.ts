@@ -1,4 +1,4 @@
-import { Box3, Triangle, Vector3, type Material, type Mesh, type Object3D, type SkinnedMesh } from 'three';
+import { Box3, Triangle, Vector3, type BufferGeometry, type Material, type Mesh, type Object3D, type SkinnedMesh } from 'three';
 import { createWandPose } from '../play/wandPose';
 import type { WandModel } from '../play/wandSurface';
 import { materialSlotKeys, sourceMaterialSlot } from '../mmdRuntime/materialSlotKey';
@@ -20,21 +20,25 @@ type Body={mesh:Mesh;source:SkinnedMesh|null;bones:Set<number>;shown:boolean};
 type Layer={body:Body;mesh:Mesh;owner:Object3D;material:Material;key:string;start:number;end:number;pose:ReturnType<typeof createWandPose>|null;oversize:boolean;invalid:boolean;shown:boolean};
 type Chunk={layer:Layer;start:number;end:number;rest:Box3;bones:number[];linear:boolean};
 export type Obstruction='garment'|'unverified'|undefined;
+/** An unsplit sparse renderer supplies its original positions. No CPU reader
+ * may infer the displayed positions from a GPU-only storage attribute. */
+export type GarmentPose={position:BufferGeometry['attributes'][string];sampleable:()=>boolean};
 const chunksPerSample=128,trianglesPerSample=1400,maxPoseValues=131072;
 
 /** Preindex topology ONCE in bounded slices. Cull only ordinary linear blends
  * by the union of transformed rest boxes (all weights are convex). SDEF, QDEF
  * and active morph positions are tested in the actual displayed pose. A scan
  * of immutable PMX topology may span samples, but never different poses. */
-export function createGarmentGuard(root:Object3D,surface?:WandModel|null){
+export function createGarmentGuard(root:Object3D,surface?:WandModel|null,pose?:GarmentPose|null){
   const keys=()=>surface?garmentKeys(surface.mesh):undefined;
-  let registered=keys(),guard=indexGarmentGuard(root,surface,registered);
+  let registered=keys(),guard=indexGarmentGuard(root,surface,registered,pose);
   const probe=Object.assign((frame:PelvicFrame,withPrint=false):Obstruction=>{
-    if(registered!==keys()){registered=keys();guard=indexGarmentGuard(root,surface,registered);probe.garmentNames=guard.garmentNames;}
+    if(pose===null||pose&&!pose.sampleable())return 'unverified';
+    if(registered!==keys()){registered=keys();guard=indexGarmentGuard(root,surface,registered,pose);probe.garmentNames=guard.garmentNames;}
     return guard(frame,withPrint);
   },{blockerName:()=>guard.blockerName(),print:()=>guard.print(),printReady:()=>guard.printReady(),garmentNames:guard.garmentNames});return probe;
 }
-function indexGarmentGuard(root:Object3D,surface?:WandModel|null,registered?:ReadonlySet<string>){
+function indexGarmentGuard(root:Object3D,surface?:WandModel|null,registered?:ReadonlySet<string>,base?:GarmentPose|null){
   const layers:Layer[]=[], chunks:Chunk[]=[],bodies:Body[]=[];
   function add(mesh:Mesh,source:SkinnedMesh|null,proxies:readonly SkinnedMesh[]=[]){
     const g=mesh.geometry,pos=g?.attributes.position;if(!pos)return;
@@ -42,10 +46,10 @@ function indexGarmentGuard(root:Object3D,surface?:WandModel|null,registered?:Rea
     let pose:ReturnType<typeof createWandPose>|null=null,body:Body|undefined;
     const sourceMaterials=source?[source.material].flat():[mesh.material].flat(),keys=materialSlotKeys(sourceMaterials);
     const range=(owner:Object3D,m:Material|undefined,start:number,end:number,localIndex=0)=>{
-      if(!m||end<=start)return;
+      if(!m||end<=start||m.userData.mmdTslOutlineMaterial)return;
       const i=sourceMaterialSlot(owner,sourceMaterials,m,localIndex),author=sourceMaterials[i]??m;
       const key=keys[i];if(!registered?.has(key)&&!garment(m)&&(author===m||!garment(author)))return;
-      if(source&&!oversize)pose??=createWandPose(mesh as SkinnedMesh,source);
+      if(source&&!oversize)pose??=createWandPose(mesh as SkinnedMesh,source,undefined,base?.position);
       if(!body)bodies.push(body={mesh,source,bones:new Set(),shown:false});
       layers.push({body,mesh,owner,material:m,key,start,end:Math.min(total,end),pose,oversize,invalid:false,shown:false});
     };
@@ -65,7 +69,8 @@ function indexGarmentGuard(root:Object3D,surface?:WandModel|null,registered?:Rea
   function sides(p:Vector3){const x=p.x-center.x,y=p.y-center.y,z=p.z-center.z;
     if(!Number.isFinite(x+y+z))return 0;
     return (x < -extent.x?1:x>extent.x?2:0)|(y < -extent.y?4:y>extent.y?8:0)|(z < -extent.z?16:z>extent.z?32:0);}
-  function* build(){for(const layer of layers){if(layer.oversize)continue;const {mesh,start,end}=layer,g=mesh.geometry,{position,skinIndex,skinWeight,matricesSdefEnabled:sdef,matricesQdefEnabled:qdef}=g.attributes;
+  function* build(){for(const layer of layers){if(layer.oversize)continue;const {mesh,start,end}=layer,g=mesh.geometry,{skinIndex,skinWeight,matricesSdefEnabled:sdef,matricesQdefEnabled:qdef}=g.attributes;
+    const position=base?.position??g.attributes.position;
     for(let lo=start;lo<end;lo+=96){const hi=Math.min(lo+96,end),rest=new Box3(),bones=new Set<number>();let linear=true;
        for(let j=lo;j<hi;j++){const i=g.index?.getX(j)??j;rest.expandByPoint(p.fromBufferAttribute(position,i));
          if(!Number.isFinite(p.x+p.y+p.z))layer.invalid=true;

@@ -30,6 +30,8 @@ import {classroomMaterials} from './classroomMaterials.jsx';
 import {trackedContacts} from './stage-tracked-contacts.js';
 import {usePlayerMovement} from '../../src/mmdVrShowcase/movement/usePlayerMovement';
 import {releaseMilk,useMilkInteraction} from '../../src/mmdVrShowcase/bodyState/lactation/interaction';
+import {interruptPelvic,usePelvic} from '../../src/mmdVrShowcase/pelvic/store';
+import {stopRemoteEgg} from '../../src/mmdVrShowcase/play/remote/remoteMotor';
 
 // Input bindings for the old internal regression page only.
 function StageRay(){
@@ -115,6 +117,8 @@ function startFloor({resume,onStatus,fixture}) {
       // A frame with no viewer pose never reaches the Fiber room. Even a
       // one-frame loss must retire the captured trigger before recovery.
       releaseMilk(useMilkInteraction.getState().hold);
+      if(cancelDraft!==false)stopRemoteEgg(); // A slow, still-tracked shader compilation is not tracking loss.
+      const stand=usePelvic.getState().active;if(stand)interruptPelvic(stand.token);
       // A release after tracking or focus returns must not place a held draft.
       const bag=useBackpack.getState();if(cancelDraft&&bag.draft)bag.cancelPlace();
     }

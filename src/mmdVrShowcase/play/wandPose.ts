@@ -9,8 +9,8 @@ const v = () => new Vector3();
 
 /** Query the same displayed position as the PMX vertex shader, including the
  * loader's split influence map and SDEF/QDEF. Never use bind-pose raycasts. */
-export function createWandPose(mesh:SkinnedMesh,source:SkinnedMesh,attrs:PositionMorphs=mesh.geometry.morphAttributes.position??[]){
-  const g=mesh.geometry,{position,skinWeight:w,skinIndex:ix,matricesSdefEnabled:sdef,matricesQdefEnabled:qdef}=g.attributes;
+export function createWandPose(mesh:SkinnedMesh,source:SkinnedMesh,attrs:PositionMorphs=mesh.geometry.morphAttributes.position??[],position=mesh.geometry.attributes.position){
+  const g=mesh.geometry,{skinWeight:w,skinIndex:ix,matricesSdefEnabled:sdef,matricesQdefEnabled:qdef}=g.attributes;
   const remap=mesh.userData.mmdMorphSplitBody?.morphTargetIndices;
   const active:{attr:PositionDeltas;weight:number}[]=[], weights=attrs.map(attr=>attr&&({attr,weight:0}));
   const palette:PaletteEntry[]=[], outer=new Matrix4(),toRig=new Matrix4(),rigToWorld=new Matrix4(),invBind=mesh.bindMatrix.clone().invert(),p=v(), temp=v(), base=v(), t=v();

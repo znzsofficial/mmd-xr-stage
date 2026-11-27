@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type {Vector3} from 'three';
 import type { SceneryId } from '../scenery/catalog';
-import { TOYS, shelfToys, type Hand, type Toy } from './propCatalog';
+import { TOYS, sessionToys, shelfToys, type Hand, type Toy } from './propCatalog';
 
 export type { Hand, Toy, StoryRoom } from './propCatalog';
 export { isStoryRoom } from './propCatalog';
@@ -40,6 +40,7 @@ export const useStagePlay = create<Play>((set,get)=>{
   return {
     held:null, character:null, stand:null,
     equip:(toy,hand)=>{
+      if(!sessionToys().includes(toy))return;
       if(ownerOf(get())?.toy!==toy)release();
       TOYS[toy].onEquip?.();
       set({held:{toy,hand},character:null,stand:null});

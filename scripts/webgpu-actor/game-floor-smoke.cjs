@@ -1,5 +1,8 @@
 // node scripts/webgpu-actor/game-floor-smoke.cjs <local-clothed.pmx> <body.vmd> <two-site-hand-plan.json | --actor-style>
 // node scripts/webgpu-actor/game-floor-smoke.cjs <local.pmx> <--milk-covered | --milk-exposed>
+// node scripts/webgpu-actor/game-floor-smoke.cjs <local.pmx> <--stand-covered | --stand-exposed>
+// node scripts/webgpu-actor/game-floor-smoke.cjs <local.pmx> --lunar-post
+// node scripts/webgpu-actor/game-floor-smoke.cjs <small-actor-with-wrists.pmx> --story-props
 // Product /?xrBackend=webgpu only. Two library identities, one live actor,
 // one hardware renderer at a time. No injected menu, store actions or shortcut.
 const assert = require('node:assert/strict');
@@ -37,10 +40,16 @@ async function makeImport(folder, pmx, vmd) {
 
 async function main() {
   const milk=['--milk-covered','--milk-exposed'].includes(process.argv[3]);
-  const [pmx,vmd,plan]=(milk?[process.argv[2],null,process.argv[3]]:process.argv.slice(2,5)).map(v=>!v||v.startsWith('--')?v:path.resolve(v));
-  assert(pmx && (vmd||milk) && plan, 'Expected a PMX and a smoke take');
-  const basic=plan==='--basic-style',styleOnly=basic||plan==='--actor-style',classroom=plan==='--classroom',portrait=plan==='--room-light', json = !milk && !styleOnly && !classroom && !portrait && JSON.parse(await fs.readFile(plan, 'utf8'));
-  const entryRoom=portrait?process.argv[5]:classroom?'classroom':'floor';
+  const post=process.argv[3]==='--lunar-post';
+  const stories=process.argv[3]==='--story-props';
+  const stand=['--stand-covered','--stand-exposed'].includes(process.argv[3]);
+  const handheld=process.argv[3]==='--handheld';
+  const remote=process.argv[3]==='--remote-egg';
+  const withoutMotion=milk||post||stories||stand||handheld||remote;
+  const [pmx,vmd,plan]=(withoutMotion?[process.argv[2],null,process.argv[3]]:process.argv.slice(2,5)).map(v=>!v||v.startsWith('--')?v:path.resolve(v));
+  assert(pmx && (vmd||withoutMotion) && plan, 'Expected a PMX and a smoke take');
+  const basic=plan==='--basic-style',styleOnly=basic||plan==='--actor-style',classroom=plan==='--classroom',portrait=plan==='--room-light', json = !withoutMotion && !styleOnly && !classroom && !portrait && JSON.parse(await fs.readFile(plan, 'utf8'));
+  const entryRoom=stories?'pool':post?'astralCourt':portrait?process.argv[5]:classroom?'classroom':'floor';
   if(portrait)assert(['classroom','seasideTerminus'].includes(entryRoom),'Expected a lit portrait room');
   const sites = json && (json.plan ?? json).sites.map(({start,end,spot,radial,marks,mat}) => ({start,end,spot,radial,marks,mat}));
   if(json)assert.equal(sites.length, 2);
@@ -63,7 +72,7 @@ async function main() {
     page.on('console', m => {if (m.type()==='error') consoles.push(m.text().slice(0,350));});
     const href = new URL(report.entry,server.resolvedUrls.local[0]);
     page.on('response', r => {if(r.ok() && r.url()===new URL('/xr-input/1.0.20/meta-quest-touch-plus/profile.json',href).href)localProfile=true;});
-    await page.addInitScript({content:`(${stereo})(${portrait||milk?640:240}); (${extend})(); labFixture.controllerProfile='meta-quest-touch-plus'; labFixture.hostStatus=()=>({phase:'idle'});`});
+    await page.addInitScript({content:`(${stereo})(${portrait||withoutMotion?640:240}); (${extend})(); labFixture.controllerProfile='meta-quest-touch-plus'; labFixture.hostStatus=()=>({phase:'idle'});`});
     await page.goto(href.href);
     const selector=page.locator('.stage-first-room select');
     assert.equal(await selector.inputValue(),entryRoom);
@@ -111,7 +120,7 @@ async function main() {
       if(!retiring)await frames();
     }
     async function click(key, opts={}) {
-      await aim(await target({key}));step='ray clicks '+key;await trigger(true);await trigger(false,opts.retiring);
+      await aim(await target({key,toy:opts.toy}));step='ray clicks '+key;await trigger(true);await trigger(false,opts.retiring);
     }
     async function idleRay() {await aim(null);}
     async function pickMounted(id) {
@@ -139,6 +148,30 @@ async function main() {
     // Dismiss the one-time intro so the first B press has to actually work.
     if(await page.evaluate(()=>!!gameTargets.find({key:'hudBack'})))await click('hudBack');
     await target({name:'watch:quiet'});await idleRay();
+    if(post||stories){
+      const play=stories?require('./game-floor-stories.cjs'):require('./game-floor-post.cjs');
+      const result=await play({page,click,until,bButton,frames,target,aim,trigger,pickMounted,ids,placeFromBag,actorName:second});
+      assert.deepEqual(errors,[]);assert.deepEqual(consoles.filter(x=>/shader|validation|wgsl|nodebuilder|pipeline/i.test(x)),[]);
+      console.log(JSON.stringify(result,null,2));return;
+    }
+    if(handheld){
+      await placeFromBag(second,landing,0);
+      const result=await require('./game-floor-handheld.cjs')({page,ids,click,until,bButton,frames,target,pickMounted,aim,trigger});
+      assert.deepEqual(errors,[]);assert.deepEqual(consoles.filter(x=>/shader|validation|wgsl|nodebuilder|pipeline/i.test(x)),[]);
+      console.log(JSON.stringify(result,null,2));return;
+    }
+    if(remote){
+      await placeFromBag(second,landing,0);
+      const result=await require('./game-floor-egg.cjs')({page,ids,click,until,bButton,frames,target,pickMounted});
+      assert.deepEqual(errors,[]);assert.deepEqual(consoles.filter(x=>/shader|validation|wgsl|nodebuilder|pipeline/i.test(x)),[]);
+      console.log(JSON.stringify(result));return;
+    }
+    if(stand){
+      await placeFromBag(second,landing,0);
+      const result=await require('./game-floor-stand.cjs')({page,ids,click,until,bButton,frames,target,pickMounted,aim,trigger,exposed:plan==='--stand-exposed'});
+      assert.deepEqual(errors,[]);assert.deepEqual(consoles.filter(x=>/shader|validation|wgsl|nodebuilder|pipeline/i.test(x)),[]);
+      console.log(JSON.stringify(result,null,2));return;
+    }
     if(milk){
       await placeFromBag(second,landing,0);
       const result=await require('./game-floor-milk.cjs')({page,ids,click,until,bButton,frames,target,pickMounted,aim,trigger,exposed:plan==='--milk-exposed'});

@@ -2,7 +2,8 @@ import {useState} from 'react';
 import {useLanguageStore} from '../../languageStore';
 import type {BackpackLive} from '../backpack/store';
 import {useRemoteEgg,bindRemoteEgg,selectEggPattern,stopRemoteEgg,removeRemoteEgg,onEggWearer,adjustRemoteEgg,resetEggOffset} from '../play/remoteEgg';
-import {eggPatterns,eggAxes,eggAxesIndices} from '../play/propControlLabels';
+import {eggPatterns,eggAxes,eggAxesIndices,eggSites} from '../play/propControlLabels';
+import {selectEggSite} from '../play/remoteEgg';
 import {useStagePlay} from '../play/stagePlay';
 import {cycleWand,useWandMotor} from '../play/wandMotor';
 import {defaultWandResponse,useWandResponse,setWandResponse,setWandResponseEnabled} from '../play/wandResponse';
@@ -25,6 +26,7 @@ export function EggControls({id,locked}:{id:string;locked:boolean}){
     <HudButton position={[-.31,-.03,0]} size={[.58,.14]} danger label={t('eggStop')} disabled={locked||!s.mode} onPress={act(stopRemoteEgg)}/>
     <HudButton position={[.31,-.03,0]} size={[.58,.14]} label={t('eggRemove')} disabled={locked} onPress={()=>removeRemoteEgg(id)}/>
     <HudButton position={[0,-.25,0]} size={[1.20,.14]} variant="quiet" label={t('eggFit')} disabled={locked} onPress={()=>setFit(true)}/>
+    {eggSites.map(([site,key],i)=><HudButton key={site} position={[(i-.5)*.62,-.46,0]} size={[.58,.14]} label={t(key)} active={s.site===site} disabled={locked} onPress={act(()=>selectEggSite(site))}/>)}
   </>;
 }
 

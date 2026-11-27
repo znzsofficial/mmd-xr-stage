@@ -97,7 +97,7 @@ module.exports=async function({page,ids,click,until,bButton,frames,target,pickMo
     return result;
   };
   // Disabled first-sheet routes must not be able to enter another tool.
-  for(const key of ['actorInsert','actorPose','actorWardrobe','actorBodyState','actorObservation']){
+  for(const key of ['actorPose','actorWardrobe','actorBodyState','actorObservation']){
     await click(key);assert(await page.evaluate(()=>!!gameTargets.find({key:'actorMilk'})));
   }
   await click('actorMilk');await press('开启泌乳');await wait(()=>milkTake.read().art);

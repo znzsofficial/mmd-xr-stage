@@ -2,7 +2,6 @@ import type { RefObject } from 'react';
 import type { Group } from 'three';
 import { BackpackPlacement } from '../backpack/BackpackPlacement';
 import { BackpackWorldTools } from '../backpack/BackpackWorldTools';
-import { isSoloFloorSession } from '../backpack/sessionAssets';
 import { StagePlay } from '../play/HeldPlay';
 import type { RoomActorBackend } from '../stage/createRoomRuntime';
 import { MmdVrStageContent } from '../stage/MmdVrStage';
@@ -17,6 +16,6 @@ export function MmdVrGameRoom({onExit,busy,backend,originRef}: {
     <MmdVrStageContent backend={backend}/>
     <BackpackPlacement/>
     <BackpackWorldTools styles={backend?.styles}/>
-    {!isSoloFloorSession() && <StagePlay/>}
+    <StagePlay/>
   </>;
 }

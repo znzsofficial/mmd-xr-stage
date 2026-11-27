@@ -22,7 +22,7 @@ export function createVulvaRoughness(){
   texture.generateMipmaps=true;texture.needsUpdate=true;return texture;
 }
 
-export function createTissueCover(){
+export function createTissueCover(clipPartial=true){
   const bytes=new Uint8Array(printW*printH),tex=new DataTexture(bytes,printW,printH,RedFormat);
   tex.name='pelvic:garment-coverage';tex.minFilter=tex.magFilter=NearestFilter;tex.needsUpdate=true;
   const field={value:tex},scale={value:0};let last:GarmentPrint|null=null,version=-1;
@@ -32,8 +32,12 @@ export function createTissueCover(){
     const col=(x:number)=>Math.min(printW-1,Math.max(0,Math.floor((.5+x/(2*r*halfX))*printW)));
     const row=(y:number)=>Math.min(printH-1,Math.max(0,Math.floor((.5+y/(2*r*halfY))*printH)));
     const hiX=col(bounds.max.x),hiY=row(bounds.max.y),loX=col(bounds.min.x);
-    for(let y=row(bounds.min.y);y<=hiY;y++)for(let x=loX;x<=hiX;x++)if(!sample.pixels[y*printW+x])return true;
-    return false;
+    for(let y=row(bounds.min.y);y<=hiY;y++)for(let x=loX;x<=hiX;x++){
+      const covered=sample.pixels[y*printW+x]!==0;
+      if(clipPartial&&!covered)return true; // fragment shader clips the remaining covered cells
+      if(!clipPartial&&covered)return false; // no such shader: reject the whole shell
+    }
+    return !clipPartial;
   }};
 }
 

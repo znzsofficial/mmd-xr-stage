@@ -3,12 +3,13 @@ import { create } from 'zustand';
 export type RemoteMode = 0 | 1 | 2 | 3;
 export type EggOffset = readonly [number, number, number];
 const zero:EggOffset = [0, 0, 0];
-export const useRemoteEgg = create<{assetId:string|null; mode:RemoteMode; offset:EggOffset}>(()=>({assetId:null,mode:0,offset:zero}));
+export type EggSite='cloth'|'chest';
+export const useRemoteEgg = create<{assetId:string|null; mode:RemoteMode; offset:EggOffset;site:EggSite}>(()=>({assetId:null,mode:0,offset:zero,site:'cloth'}));
 
 // A rebind / coarse reset and back between two display frames is still a
 // teleport. Small calibration commands instead move along a bounded path.
 let placementEpoch=0;
-useRemoteEgg.subscribe((s,p)=>{if(s.assetId!==p.assetId||(s.offset!==p.offset&&
+useRemoteEgg.subscribe((s,p)=>{if(s.assetId!==p.assetId||s.site!==p.site||(s.offset!==p.offset&&
   Math.hypot(s.offset[0]-p.offset[0],s.offset[1]-p.offset[1],s.offset[2]-p.offset[2])>5))placementEpoch++;});
 export const eggPlacementEpoch=()=>placementEpoch;
 
@@ -17,10 +18,13 @@ export const eggPlacementEpoch=()=>placementEpoch;
 let modeStartedMs = 0;
 export function startEggBinding(assetId:string) {
   if(useRemoteEgg.getState().assetId===assetId)return;
-  modeStartedMs=performance.now();useRemoteEgg.setState({assetId, mode:1, offset:zero});
+  modeStartedMs=performance.now();useRemoteEgg.setState({assetId, mode:1, offset:zero,site:'cloth'});
 }
 export function clearRemoteEgg() {
-  if(useRemoteEgg.getState().assetId!==null) useRemoteEgg.setState({assetId:null,mode:0,offset:zero});
+  if(useRemoteEgg.getState().assetId!==null) useRemoteEgg.setState({assetId:null,mode:0,offset:zero,site:'cloth'});
+}
+export function selectEggSite(site:EggSite){
+  const state=useRemoteEgg.getState();if(state.assetId&&state.site!==site)useRemoteEgg.setState({site,offset:zero});
 }
 export function selectEggPattern(mode:Exclude<RemoteMode,0>) {
   const s=useRemoteEgg.getState();

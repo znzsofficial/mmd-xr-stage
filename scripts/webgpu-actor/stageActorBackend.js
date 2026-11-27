@@ -6,6 +6,7 @@ import { prepareRoomCloth, roomCloth } from './roomCloth.js';
 import { inspectActorStyle } from './actorStyleSlots.js';
 import { createActorStyle } from './actorStyle.js';
 import { prepareFloorMilk } from './actorMilk.js';
+import {makeEggSurface} from './eggSurface.js';
 
 const empty = () => ({mode:'none', cloth:'none', nodes:0, clothSteps:0, fullBodies:0, keptBodies:0,
   bulletSteps:0, bulletSimulatedSteps:0, updatedBones:0, evaluations:0, poseSeconds:0, physicsDelta:0});
@@ -24,6 +25,8 @@ export async function createStageActorBackend(renderer, scene, light, origin, gr
   const status = () => ({...(actor?.log ?? empty()), enabled, style:actor?.style.snapshot ?? null, palms:actor ? [...palms.kinds] : ['missing','missing']});
   return {
     loadOptions:adapter.loadOptions,
+    getGarmentPose:id=>actor?.model.root.userData.mmdModelId===id?actor.garment:null,
+    getEggSurface:id=>actor?.model.root.userData.mmdModelId===id?actor.egg():undefined,
     prepareMilkOutlets:(model,stale,bytes)=>prepareFloorMilk(model,stale,bytes,()=>actor?.model===model&&actor.cloth?.active),
     styles:{subscribe(f) { listeners.add(f); return () => { listeners.delete(f); }; },
       read:(id,file) => styleFor(id,file)?.snapshot ?? null,
@@ -45,11 +48,12 @@ export async function createStageActorBackend(renderer, scene, light, origin, gr
       if (actor) throw Error('This floor supports one mounted actor at a time');
       const log = empty();
       const g = model.mesh.geometry;
+      const basePosition=g.attributes.position,baseUv=g.attributes.uv;
       // liveBounds reads GEOMETRY bounds, whereas the TSL facade caches the
       // skinned MESH box. Compute both on real positions, not sparse output.
       if (!g.boundingBox) g.computeBoundingBox();
       if (!g.boundingSphere) g.computeBoundingSphere();
-      let rig, cloth;
+      let rig, cloth, egg;
       try {
         const fitted = prepareRoomCloth(model.mesh);
         if (!fitted.handSamples.faces.length) throw Error('No drawn cloth panel supports this rig');
@@ -103,12 +107,16 @@ export async function createStageActorBackend(renderer, scene, light, origin, gr
         dispose() {
           if (retired) return;
           retired = true; ready = cut = false;
-          try { cloth?.dispose(); } finally {
+           try { egg?.dispose();cloth?.dispose(); } finally {
             try { adapter.detach(model); } finally { style.dispose(); actor = undefined; notify(); }
           }
         },
       };
-      actor = {log,binding,cloth,model,file:source?.file,style};
+      // The native palette still drives the original skin. While a GPU-only
+      // morph or cloth offset is in use we cannot clear an exterior surface.
+      const offsets=model.mesh.userData.mmdMorphs.flatMap((m,i)=>['vertex','uv','material','unknown'].includes(m.type)?[i]:[]);
+      const garment={position:basePosition,sampleable:()=>!retired&&!cloth?.active&&offsets.every(i=>model.mesh.morphTargetInfluences[i]===0)};
+      actor = {log,binding,cloth,model,file:source?.file,style,garment,egg:()=>egg??=makeEggSurface(model.mesh,basePosition,baseUv,source?.pmxBytes,rig,()=>cloth?.active)};
       notify();
       return binding;
     },

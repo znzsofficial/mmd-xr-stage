@@ -8,7 +8,7 @@ import type { WandModel } from '../play/wandSurface';
 import type { ActorContactFrame } from '../play/actorResponse';
 import {faceMorphNames} from '../play/faceMorphs';
 import { createPortDrawing, createStandDrawing, placeWorld } from './drawing';
-import { createGarmentGuard } from './garment';
+import { createGarmentGuard, type GarmentPose } from './garment';
 import { createPelvicSolver, pelvicRailMatrix, registerPelvicSocket, samplePelvicFrame,
   type PelvicCalibration, type PelvicContact, type PelvicFrame } from './geometry';
 import { createPelvicInput, isMountedVisible, mountPelvicInput, samplePelvicNozzle } from './input';
@@ -18,7 +18,8 @@ import {visibleRim} from './vulvaForm';
 import { advancePelvic, canDrawAdapter, clearPelvicSupport, consumePelvicDose, discardPelvicDoses, endPelvic, interruptPelvic,
   presentRailTechnique, publishParkedSample, publishPelvicSample, publishPelvicSupport, rememberRimEntry, usePelvic, PELVIC_LIMITS, type PelvicSample, type PelvicSupport } from './store';
 
-export type PelvicRigProps={getRoot:(runtimeId:string)=>Object3D|null;getSurface?:(runtimeId:string)=>WandModel|null};
+export type PelvicRigProps={getRoot:(runtimeId:string)=>Object3D|null;getSurface?:(runtimeId:string)=>WandModel|null;
+  getGarmentPose?:(runtimeId:string)=>GarmentPose|null};
 type Options=PelvicRigProps & {scene:Scene;host:Group;standPiece:()=>Group|null;standSpray:() => ((f:GripFrame)=>void)|null;tracked?:(frame:XRFrame)=>boolean};
 type Binding=ReturnType<typeof bind>;
 type Aperture={assetId:string;runtimeId:string;amount:number};
@@ -41,7 +42,7 @@ function bind(o:Options,id:string,live:BackpackLive,root:Object3D,c:PelvicCalibr
   const support:PelvicSupport={runtimeId,kind:socket?.kind??'missing',anchorName:socket?.anchor.name??'',manualSeed:manualSeed(root,live),
     responseMorphs:surface?.root===root?faceMorphNames(surface.mesh):undefined};
   const responseFrame:ActorContactFrame={root,runtimeId,assetId:id,token:-1,motion:'outside',depthM:0,dt:0};
-  return {root,runtimeId,c,socket,support,responseFrame,frame:null as PelvicFrame|null,guard:null as ReturnType<typeof createGarmentGuard>|null,showShell:false,port:createPortDrawing(o.host,id)};
+  return {root,runtimeId,c,socket,support,responseFrame,frame:null as PelvicFrame|null,guard:null as ReturnType<typeof createGarmentGuard>|null,showShell:false,port:createPortDrawing(o.host,id,!o.getGarmentPose)};
 }
 function observations(){
   const axis=new Vector3(),tailToTip=new Vector3(),inward=new Vector3(0,0,-1);
@@ -128,12 +129,16 @@ export function mountPelvicRig(o:Options):PelvicRigHandle&{dispose:()=>void}{
           b.port.group.visible=false;if(usePelvic.getState().support[id]!==b.support)publishPelvicSupport(id,b.support);continue;
         }
         b.frame=samplePelvicFrame(b.socket,b.c,b.frame??undefined);
-        const obstruction=b.frame?(b.guard??=createGarmentGuard(root,o.getSurface?.(live.runtimeId)))(b.frame,profile.showAdapter):undefined,kind=b.frame?b.socket!.kind:'missing';
+        const obstruction=b.frame?(b.guard??=createGarmentGuard(root,o.getSurface?.(live.runtimeId),o.getGarmentPose?.(live.runtimeId)))(b.frame,profile.showAdapter):undefined,kind=b.frame?b.socket!.kind:'missing';
         const garmentNames=b.guard?.garmentNames,blockerName=obstruction==='garment'?b.guard?.blockerName():undefined;
         if(b.support.obstruction!==obstruction||b.support.kind!==kind||b.support.garmentNames!==garmentNames||b.support.blockerName!==blockerName)
           b.support={...b.support,kind,obstruction,garmentNames,blockerName};
         if(usePelvic.getState().support[id]!==b.support)publishPelvicSupport(id,b.support);
-        b.showShell=!!(b.frame&&b.guard?.printReady()&&canDrawAdapter(profile,b.support));
+        // WebGL clips a partial garment print in onBeforeCompile. On the
+        // sparse WebGPU surface, require explicit exposure. The drawing then
+        // vetoes the whole shell if its bounds overlap any printed coverage.
+        const shellClear=!o.getGarmentPose||(profile.clothingClear&&!profile.clothed&&!obstruction);
+        b.showShell=!!(shellClear&&b.frame&&b.guard?.printReady()&&canDrawAdapter(profile,b.support));
         if(!b.frame)b.port.group.visible=false;
         else if(!a?.running||a.assetId!==id)b.port.draw(b.frame,b.showShell,bag.selected===id,undefined,visibleRim(profile),b.guard?.print());
         else b.port.group.visible=false; // a running piece draws only after its pose is known (including a verified hold)
@@ -147,11 +152,12 @@ export function mountPelvicRig(o:Options):PelvicRigHandle&{dispose:()=>void}{
       // Starting requires a clothing choice. The current skin/garment check
       // controls stage art only; admission still comes from this actor's solver.
       const exposed=profile.clothingClear&&!b.support.obstruction;
+      if(o.getGarmentPose&&a.running&&!profile.clothed&&!exposed){interrupt();return;}
       if(a.awaitingWorld){hideStand();return;}
       const piece=manual?queued?.root:o.standPiece();
       // React can commit the single stand mesh one render after an ownership
       // change. Never start/advance the motor until its actual piece is live.
-      if(!piece||!manual&&(!piece.parent||!isMountedVisible(piece.parent,o.scene)||!hold.shown(piece))){
+      if(!piece||!hold.shown(piece)||!manual&&(!piece.parent||!isMountedVisible(piece.parent,o.scene))){
         if(!a.running||manual||standKey||a.take)interrupt();else discardPelvicDoses(a.token);return;
       }
       if(manual){hideStand();if(!a.running||!queued)return;

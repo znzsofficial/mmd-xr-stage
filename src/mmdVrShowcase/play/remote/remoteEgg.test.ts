@@ -24,17 +24,17 @@ it('requires a live visible character and an independently held transmitter, nev
   play().give(id(a),'right'); expect(play().character).toBeNull();
   expect(bindRemoteEgg(id(a))).toBe(true);expect(egg().mode).toBe(1);
   cycleRemoteEgg();adjustRemoteEgg(0,2);adjustRemoteEgg(1,-3);adjustRemoteEgg(2,1);
-  expect(egg()).toEqual({assetId:id(a),mode:2,offset:[2,-3,1]});
+  expect(egg()).toEqual({assetId:id(a),mode:2,offset:[2,-3,1],site:'cloth'});
   now=1800;const originalPower=eggPowerAt(now);
   play().equip('remoteEgg','right');expect(play().held?.hand).toBe('right');
   expect(bindRemoteEgg(id(a))).toBe(true);expect(egg().mode).toBe(2);expect(egg().offset).toEqual([2,-3,1]);expect(eggPowerAt(now)).toBe(originalPower);
   bag().select(id(a));expect(bindRemoteEgg(id(b))).toBe(false); // obsolete binding action against an unselected actor
   bag().select(id(b));expect(egg().assetId).toBe(id(a));
   handleGripStart('remoteEgg','pool',new Vector3(),new Vector3());expect(egg().mode).toBe(3);
-  expect(bindRemoteEgg(id(b))).toBe(true);expect(egg()).toEqual({assetId:id(b),mode:1,offset:[0,0,0]});
+  expect(bindRemoteEgg(id(b))).toBe(true);expect(egg()).toEqual({assetId:id(b),mode:1,offset:[0,0,0],site:'cloth'});
   for(const i of [2,3,0,1]){cycleRemoteEgg();expect(egg().mode).toBe(i);}
   adjustRemoteEgg(1,Infinity);expect(egg().offset[1]).toBe(0);adjustRemoteEgg(2,-10000);expect(egg().offset[2]).toBe(-50);
-  stopRemoteEgg();expect(bindRemoteEgg(id(b))).toBe(true);expect(egg()).toEqual({assetId:id(b),mode:0,offset:[0,0,-50]});
+  stopRemoteEgg();expect(bindRemoteEgg(id(b))).toBe(true);expect(egg()).toEqual({assetId:id(b),mode:0,offset:[0,0,-50],site:'cloth'});
   removeRemoteEgg(id(a));expect(egg().assetId).toBe(id(b));
   resetEggOffset();expect(egg().offset).toEqual([0,0,0]);
   removeRemoteEgg(id(b));expect(egg().assetId).toBeNull();expect(play().held).toEqual({toy:'remoteEgg',hand:'right'});
@@ -53,7 +53,7 @@ it.each(['invisible','removed','put away','replaced','unlisted','new toy','exit'
   if(reason==='new toy')play().equip('saber','left');
   if(reason==='exit')play().reset();
   if(reason==='room retired')bag().publishLive({});
-  expect(egg()).toEqual({assetId:null,mode:0,offset:[0,0,0]});expect(play().held?.toy).not.toBe('remoteEgg');
+  expect(egg()).toEqual({assetId:null,mode:0,offset:[0,0,0],site:'cloth'});expect(play().held?.toy).not.toBe('remoteEgg');
   cycleRemoteEgg();adjustRemoteEgg(2,2);bag().publishLive(original);expect(egg().assetId).toBeNull();
 });
 

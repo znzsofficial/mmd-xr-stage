@@ -59,5 +59,5 @@ export function createRoomPropDisplay(){
     wand.advance(scene,stand?rig?.getStandRoot()??null:wrist,toy,held?.hand??null,frame,clock.oldTime,
       stage.prefs.physicsHapticLevel,stage.models,runtime.getModelSurface);
   }
-  return {restore,subscribe,present};
+  return {restore,subscribe,present,eggMorphChanged:egg.consumeChange};
 }

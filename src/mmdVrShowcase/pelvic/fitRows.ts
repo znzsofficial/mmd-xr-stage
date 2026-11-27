@@ -5,9 +5,9 @@ import {patchPelvic,setPelvicAdapter,PELVIC_LIMITS as lim,type PelvicProfile,typ
 
 export type Fit='position'|'angle'|'size'|'model'|'morph';
 type FitOptions={assetId:string;runtimeId:string;source:'screen'|'xr';l:Localize;profile:PelvicProfile;support?:PelvicSupport;fit:Fit;setFit:(s:Fit)=>void;
-  morph:string|null;names:readonly string[];page:number;setPage:(n:number)=>void;clothes:()=>void;clear:()=>void};
+  morph:string|null;names:readonly string[];page:number;setPage:(n:number)=>void;clothes:()=>void;clear:()=>void;soloFloor?:boolean};
 
-export function fitRows({assetId,runtimeId,source,l,profile,support,fit,setFit,morph,names,page,setPage,clothes,clear}:FitOptions):Row[]{
+export function fitRows({assetId,runtimeId,source,l,profile,support,fit,setFit,morph,names,page,setPage,clothes,clear,soloFloor}:FitOptions):Row[]{
   const c=profile.calibration,rows:Row[]=[],patch=(calibration:Partial<PelvicCalibration>)=>patchPelvic(assetId,{calibration});
   if(fit==='morph'){
     const none=l('不用形态键','None'),label=l('入口开合形态','Opening morph'),pick=(name:string|null)=>setApertureMorph(assetId,name);
@@ -37,9 +37,13 @@ export function fitRows({assetId,runtimeId,source,l,profile,support,fit,setFit,m
     rows.push(buttons(profile.showAdapter?key(l('关闭外阴附件','Turn off vulva attachment'),()=>setPelvicAdapter(assetId,runtimeId,false)):
       key(l('将外阴附件装到裸肤上','Fit vulva attachment to skin'),()=>setPelvicAdapter(assetId,runtimeId,true),{disabled:!ready})));
     if(!profile.clothingClear&&ready&&!support.obstruction)rows.push(buttons(key(l('确认入口露出','Confirm exposure'),()=>patchPelvic(assetId,{clothingClear:true}))));
-    if(support?.obstruction)rows.push(buttons(key(l('调整服装','Clothing'),clothes)));
+    if(soloFloor){
+      if(profile.showAdapter&&(!profile.clothingClear||support?.obstruction))rows.push(note(l('附件已安装 · 等待确认露出','Attachment fitted · exposure unconfirmed')));
+    }else{
+      if(support?.obstruction)rows.push(buttons(key(l('调整服装','Clothing'),clothes)));
+      rows.push(buttons(key(l('选择开合形态','Choose opening morph'),()=>{setPage(Math.max(0,Math.floor(names.indexOf(morph??'')/3)));setFit('morph');})));
+    }
     rows.push(
-      buttons(key(l('选择开合形态','Choose opening morph'),()=>{setPage(Math.max(0,Math.floor(names.indexOf(morph??'')/3)));setFit('morph');})),
       buttons(key(c.manual?l('改用骨骼定位','Use bone position'):l('手动指定起点','Set origin manually'),()=>{if(c.manual)patch({manual:null});else if(support?.manualSeed){patch({manual:support.manualSeed});setFit('position');}},{disabled:!c.manual&&!support?.manualSeed})),
       buttons(key(l('还原入口设置','Reset opening fit'),()=>patch({...defaultPelvicCalibration,manual:c.manual}))),
       buttons(key(l('删除此角色的附件设置','Delete attachment settings'),clear,{danger:true})));

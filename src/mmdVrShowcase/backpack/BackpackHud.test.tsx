@@ -89,6 +89,17 @@ it('shows where to take a toy, keeps it on the player for unsupported wrists and
   await click(t('toyStow'));expect(useStagePlay.getState().character).toBeNull();
 });
 
+it('offers the supported shelf on the solo floor without imported GLB placement or contact motors',async()=>{
+  beginMmdVrAssetSession([], 'soloFloor');await render();await recall();await click(t('hudBackpack'));
+  await click(t('hudObjects'));expect(labels()).not.toContain('Lamp.glb');
+  await click(t('hudToys'));
+  const expected=shelfToys.filter(toy=>toy!=='wand');
+  const rows=()=>[...host.querySelectorAll('[name^="play:shelf:"]')].map(row=>row.getAttribute('name')!.slice('play:shelf:'.length));
+  for(let first=0;first<expected.length;first+=3){
+    if(first)await click(t('loadNext'));expect(rows()).toEqual(expected.slice(first,first+3));
+  }
+});
+
 it('browses every guide in the chapel, returns to its page and travels without equipping',async()=>{
   useStagePlay.getState().reset();store().setPrefs({scenery:'chapel'});await render();await recall();await click(t('hudBackpack'));await click(t('hudToys'));
   const row=(toy:string)=>host.querySelector(`[name="play:shelf:${toy}"]`);

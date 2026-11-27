@@ -6,7 +6,7 @@ import { useMmdVrStore } from '../mmdVrStore';
 import { giveScreenToy, useStagePlay } from '../play/stagePlay';
 import { siliconeOutlet } from '../play/siliconeProfile';
 import { createPelvicSolver, pelvicRailMatrix } from './geometry';
-import {prepareFirstStand} from './firstStand';
+import {prepareFirstTool} from './firstTool';
 import {
   advancePelvic, assignPelvic, cancelStrokeDose, clearPelvicFluid, clearPelvicSupport, consumePelvicDose, disablePelvic, drainPelvic,
   enablePelvic, endPelvic, interruptPelvic, nudgePelvic, patchPelvic, PELVIC_LIMITS, publishPelvicSample,
@@ -67,7 +67,7 @@ it('waits for the target controls to close for a real tracked hand; B and tracki
 });
 
 it('cancels first placement if selection leaves and returns before the room publishes its fit',()=>{
-  setup();usePelvic.setState({support:{}});prepareFirstStand('a','1','screen');
+  setup();usePelvic.setState({support:{}});prepareFirstTool('a','1','screen');
   bag().select('b');bag().select('a');publishPelvicSupport('a',support('1'));
   expect(get().active).toBeNull();expect(play().stand).toBeNull();expect(get().byAsset.a).toBeDefined();
 });

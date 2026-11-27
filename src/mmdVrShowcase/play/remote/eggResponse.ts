@@ -8,15 +8,17 @@ import { wearableIn } from './wearableCollider';
 
 export function createEggResponse(){
   const layer=createVertexMorphLayer();
+  let painted=false,changed=false;
+  function restore(){if(painted){changed=true;painted=false;}layer.restore();}
   function present(scene:Scene,getModel:(runtimeId:string)=>WandModel|null){
     const {assetId,mode}=useRemoteEgg.getState(),receiver=wearableIn(scene);
     const amount=receiver?.expression??0;
-    if(!assetId||!mode||!receiver||amount<=0){layer.restore();return;}
+    if(!assetId||!mode||!receiver||amount<=0){restore();return;}
     const live=useBackpack.getState().live[assetId],model=live?.visible?getModel(live.runtimeId):null;
-    if(!model||model.root!==receiver.wearer){layer.restore();return;}
+    if(!model||model.root!==receiver.wearer){restore();return;}
     // The gentle/resting face from the same vetted palette as contact gestures.
     // No fabricated contact, VMD track, or guess from a non-facial vertex name.
-    layer.apply(actorFacePalette(model.mesh)[2]??null,model,amount);
+    const name=actorFacePalette(model.mesh)[2];if(name){layer.apply(name,model,amount);painted=changed=true;}
   }
-  return {present,restore:layer.restore};
+  return {present,restore,consumeChange(){const value=changed;changed=false;return value;}};
 }

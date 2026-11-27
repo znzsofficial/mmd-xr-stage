@@ -1,4 +1,5 @@
 import { REVISION, Vector3 } from 'three/webgpu';
+import {underlyingPosition,setUnderlyingPosition} from './eggSurface.js';
 import { Fn, If, attribute, attributeArray, instanceIndex, positionLocal, storage, uint, uniform, vec3, vec4 } from 'three/tsl';
 
 // r187 has no public native handle accessor. The compute pass has already
@@ -63,10 +64,11 @@ export function createClothSurface(renderer, mesh, rig) {
     const material=materials[group.materialIndex??0];if(originals.has(material))continue;
     let used=false;for(let j=group.start;j<group.start+group.count;j++)if(affected[g.index?g.index.getX(j):j]){used=true;break;}
     if(!used)continue;
-    if (!material.isNodeMaterial || (material.positionNode !== positionLocal && material.positionNode !== null)) {
+    const base=underlyingPosition(material);
+    if (!material.isNodeMaterial || (base !== positionLocal && base !== null)) {
       throw Error('Expected the original attached MMD TSL position node');
     }
-    originals.set(material, material.positionNode);
+    originals.set(material, base);
   }
   if (!originals.size) throw Error('No drawn PMX group is weighted to this skirt rig');
 
@@ -104,9 +106,7 @@ export function createClothSurface(renderer, mesh, rig) {
     if (disposed) return;
     disposed = true;
     for (const [material, original] of originals) {
-      if (material.positionNode !== position) continue;
-      material.positionNode = original;
-      material.needsUpdate = true;
+      if (underlyingPosition(material) === position)setUnderlyingPosition(material,original);
     }
     originals.clear();
     probe.dispose();
@@ -118,8 +118,7 @@ export function createClothSurface(renderer, mesh, rig) {
     const result = { points: borrowNativeBuffer(renderer, points.value), goals: borrowNativeBuffer(renderer, goals.value),
       setEnabled(on) { strength.value = on ? 1 : 0; }, displace, reset, dispose };
     for (const material of originals.keys()) {
-      material.positionNode = position;
-      material.needsUpdate = true;
+      setUnderlyingPosition(material,position);
     }
     return result;
   } catch (error) {

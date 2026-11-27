@@ -2,12 +2,13 @@ import {useBackpack} from '../backpack/store';
 import {useHudWorldInput} from '../hud/hudWorldInput';
 import {useMmdVrStore} from '../mmdVrStore';
 import {useStagePlay} from '../play/stagePlay';
-import {assignPelvic,enablePelvic,usePelvic} from './store';
+import {assignPelvic,enablePelvic,usePelvic,type PelvicMode} from './store';
+import type {Hand} from '../play/propCatalog';
 
-/** The first click both opts in and asks for a stationary stand. The room can
+/** The first click both opts in and asks for the chosen tool. The room can
  * only report its fitted opening on a subsequent frame. The sheet owns this
  * one-shot request; cancelling never undoes the player's opt-in. */
-export function prepareFirstStand(assetId:string,runtimeId:string,source:'screen'|'xr',mode:'standManual'|'standAuto'='standManual'){
+export function prepareFirstTool(assetId:string,runtimeId:string,source:'screen'|'xr',mode:PelvicMode='standManual',hand?:Hand){
   const stage=useMmdVrStore.getState(),play=useStagePlay.getState();
   const valid=()=>{
     const s=useMmdVrStore.getState(),b=useBackpack.getState(),p=useStagePlay.getState();
@@ -24,7 +25,7 @@ export function prepareFirstStand(assetId:string,runtimeId:string,source:'screen
     const s=usePelvic.getState();
     if(!valid()||s.byAsset[assetId]!==profile||s.active!==active){cancel();return;}
     const support=s.support[assetId];if(!support||support.runtimeId!==runtimeId)return;
-    cancel();if(support.kind!=='missing')assignPelvic(assetId,mode,source);
+    cancel();if(support.kind!=='missing')assignPelvic(assetId,mode,source,hand);
   }
   off.push(useBackpack.subscribe(check),useStagePlay.subscribe(check),useMmdVrStore.subscribe(check),
     useHudWorldInput.subscribe(check),usePelvic.subscribe(check));

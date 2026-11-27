@@ -1,11 +1,24 @@
 import {expect,it} from 'vitest';
-import {Color,Group,Matrix4,Mesh,NoColorSpace,type BufferAttribute,type DataTexture,type MeshStandardMaterial} from 'three';
+import {Color,Group,Matrix4,Mesh,NoColorSpace,Vector3,type BufferAttribute,type DataTexture,type MeshStandardMaterial} from 'three';
 import {createPortDrawing} from './drawing';
 import {createPelvicSolver,pelvicRailMatrix} from './geometry';
 import {observedCut} from './atlas/exteriorStudy';
 import {setAtlasView,useAtlasSettings} from './atlas/view';
 import {createSealShell} from './vulvaMesh';
 import {foldStyles,formColors,vulvaHalves} from './vulvaForm';
+import {createGarmentPrint} from './garmentPrint';
+
+it('without fragment clipping hides the entire attachment on even partial overlap, and restores a cleared print',()=>{
+  const port=createPortDrawing(new Group(),'clear-only',false),mesh=port.group.getObjectByName('pelvic:seal') as Mesh;
+  const f={world:new Matrix4(),inverse:new Matrix4(),radiusM:.024,lengthM:.092,scale:1};
+  const ink=createGarmentPrint(),draw=()=>port.draw(f,true,false,undefined,'off',ink.value);
+  try{
+    draw();expect(mesh.visible).toBe(true);
+    ink.triangle(new Vector3(0,0,0),new Vector3(.016,.009,.015),new Vector3(.014,-.009,.012),f.radiusM);ink.commit();
+    expect(ink.value.covered).toBeGreaterThan(0);draw();expect(mesh.visible).toBe(false);
+    ink.reset();ink.commit();draw();expect(mesh.visible).toBe(true);
+  }finally{port.dispose();}
+});
 
 it('places two tapered wet arcs, a shaded root and matte pads on the drawn attachment, not in a lit colour overlay',()=>{
   const port=createPortDrawing(new Group(),'finish'),part=port.group.getObjectByName('pelvic:seal') as Mesh;

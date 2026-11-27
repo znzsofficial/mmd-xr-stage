@@ -1,7 +1,8 @@
 import {useLanguageStore} from '../../languageStore';
 import type {BackpackLive} from '../backpack/store';
 import {useRemoteEgg,bindRemoteEgg,adjustRemoteEgg,selectEggPattern,stopRemoteEgg,removeRemoteEgg,onEggWearer,resetEggOffset} from '../play/remoteEgg';
-import {eggPatterns,eggAxes,eggAxesIndices} from '../play/propControlLabels';
+import {eggPatterns,eggAxes,eggAxesIndices,eggSites} from '../play/propControlLabels';
+import {selectEggSite} from '../play/remoteEgg';
 import {useStagePlay} from '../play/stagePlay';
 import {cycleWand,useWandMotor} from '../play/wandMotor';
 import {defaultWandResponse,useWandResponse,setWandResponse,setWandResponseEnabled} from '../play/wandResponse';
@@ -16,6 +17,7 @@ export function EggFields({id,locked}:{id:string;locked:boolean}){
   return <>
     <div className="screen-egg-patterns" role="group" aria-label={t('eggMode')}>{eggPatterns.map(([mode,label])=><button key={mode} aria-pressed={s.mode===mode} disabled={locked} onClick={act(()=>selectEggPattern(mode))}>{t(label)}</button>)}</div>
     <div className="screen-buttons"><button data-stop="true" disabled={locked||!s.mode} onClick={act(stopRemoteEgg)}>{t('eggStop')}</button><button disabled={locked} onClick={()=>removeRemoteEgg(id)}>{t('eggRemove')}</button></div>
+    <div className="screen-buttons">{eggSites.map(([site,key])=><button key={site} aria-pressed={s.site===site} disabled={locked} onClick={act(()=>selectEggSite(site))}>{t(key)}</button>)}</div>
     <details><summary>{t('eggFit')}</summary>{eggAxesIndices.map(i=><div className="screen-egg-axis" key={i}>
       <span>{t(eggAxes[i])} <output>{s.offset[i]} cm</output></span>{([-1,1] as const).map(k=><button key={k} aria-label={`${t(eggAxes[i])} ${k<0?'−1':'+1'} cm`} disabled={locked} onClick={act(()=>adjustRemoteEgg(i,k))}>{k<0?'−1':'+1'}</button>)}
     </div>)}<button disabled={locked} onClick={act(resetEggOffset)}>{t('eggReset')}</button></details>

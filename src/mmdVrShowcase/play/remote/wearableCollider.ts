@@ -1,6 +1,8 @@
 import { Group, Matrix4, type Object3D, type Scene } from 'three';
 import { poseEggReceiver } from './eggSocket';
 import { eggElapsedAt, eggEnvelope, eggPlacementEpoch, useRemoteEgg } from './remoteMotor';
+import {createEggSurface,type EggSurfaceBackend} from './eggSurface';
+import type {WandModel} from '../wandSurface';
 
 // One soft capsule inside the silicone shell. Decorative loop and transmitter
 // have no proxy. Metres in the receiver's local (-31…+29 mm) profile.
@@ -13,8 +15,9 @@ const center=new Matrix4().makeTranslation(0,-.001,0);
 export function createWearableCollider(){
   const socket=new Group(), flex=new Matrix4();
   let wearer:Object3D|null=null,epoch=-1,xr=false,previousMs=0,expression=0;
+  let mesh:WandModel['mesh']|undefined,surface:ReturnType<typeof createEggSurface>|undefined,wave=0;
   const offset:[number,number,number]=[0,0,0];
-  function begin(root:Object3D|null,nowMs:number,inXR:boolean){
+  function begin(root:Object3D|null,nowMs:number,inXR:boolean,model?:WandModel|null,gpu?:EggSurfaceBackend){
     const {offset:target,assetId,mode}=useRemoteEgg.getState();if(!assetId)root=null;
     const snap=wearer!==root||epoch!==eggPlacementEpoch();
     const dx=target[0]-offset[0],dy=target[1]-offset[1],dz=target[2]-offset[2];
@@ -23,6 +26,7 @@ export function createWearableCollider(){
     const k=snap||length<=travel?1:travel/length;
     offset[0]+=k*dx;offset[1]+=k*dy;offset[2]+=k*dz;previousMs=nowMs;
     wearer=root;epoch=eggPlacementEpoch();xr=inXR;
+    if(mesh!==model?.mesh){surface?.restore();mesh=model?.mesh;surface=model?createEggSurface(model,gpu):undefined;}
     const ms=eggElapsedAt(nowMs), power=eggEnvelope(mode,ms), beat=ms*(2*Math.PI/740);
     if(!power){silence();return;}
     // The fast carrier still agitates ordinary cloth. A slower roll makes the
@@ -31,20 +35,23 @@ export function createWearableCollider(){
     flex.makeRotationZ(power*(.042*Math.sin(ms*.047)+.19*Math.cos(beat)))
       .setPosition(power*(.0016*Math.cos(ms*.047)+.0035*Math.sin(beat)),0,0);
     expression=power*(.16+.62*(.5+.5*Math.cos(beat)));
+    wave=power*(.82*Math.cos(beat)+.18*Math.sin(ms*.047));
   }
-  function silence(){flex.identity();expression=0;}
+  function silence(){flex.identity();expression=wave=0;surface?.restore();}
   function pose(group:Object3D,physics:boolean){
     if(!wearer?.visible||epoch!==eggPlacementEpoch()){group.visible=false;return false;}
     const visual=wearer.userData.mmdVisualScale;
     const ratio=physics&&typeof visual==='number'&&visual>0?visual/wearer.scale.x:1;
-    poseEggReceiver(group,wearer,offset,ratio);
+    if(surface){
+      if(!surface.pose(group,useRemoteEgg.getState().site,offset,ratio,wave)){group.visible=false;return false;}
+    }else poseEggReceiver(group,wearer,offset,ratio);
     group.updateMatrix();group.matrix.multiply(flex);
     return true;
   }
   return {begin,get wearer(){return wearer;},get epoch(){return epoch;},get xr(){return xr;},
-    get expression(){return epoch===eggPlacementEpoch()&&wearer?.visible?expression:0;},
-    silence,
-    present(group:Object3D){group.matrixAutoUpdate=false;if(pose(group,false))group.matrixWorldNeedsUpdate=true;},
+    get expression(){return epoch===eggPlacementEpoch()&&wearer?.visible&&(!surface||surface.touching)?expression:0;},
+    silence,restore:()=>surface?.restore(),
+    present(group:Object3D){group.matrixAutoUpdate=false;if(pose(group,false)){surface?.apply(wave);group.matrixWorldNeedsUpdate=true;}},
     write(out:Matrix4){if(!pose(socket,true))return false;out.multiplyMatrices(socket.matrix,center);return true;}};
 }
 export type WearableCollider=ReturnType<typeof createWearableCollider>;
@@ -55,8 +62,8 @@ export function presentRemoteWearable(scene:Scene){const m=mounted.get(scene);if
 export function mountWearableCollider(scene:Scene,source:WearableCollider,view:Object3D){
   const entry={source,view};mounted.set(scene,entry);
   const off=useRemoteEgg.subscribe((s,p)=>{
-    if(s.assetId!==p.assetId){source.silence();view.visible=false;}
+    if(s.assetId!==p.assetId||s.site!==p.site){source.silence();view.visible=false;}
     else if(s.mode!==p.mode){source.silence();source.present(view);}
   });
-  return ()=>{off();view.visible=false;if(mounted.get(scene)===entry)mounted.delete(scene);};
+  return ()=>{off();source.silence();view.visible=false;if(mounted.get(scene)===entry)mounted.delete(scene);};
 }

@@ -1,10 +1,10 @@
 import { useFrame, useThree } from '@react-three/fiber';
-import { useLayoutEffect, useMemo, useRef } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Group, Matrix4, Vector3 } from 'three';
 import { useBackpack } from '../backpack/store';
 import { useHudWorldInput } from '../hud/hudWorldInput';
 import { useMmdVrStore } from '../mmdVrStore';
-import { TOYS, type Toy, type Hand } from './propCatalog';
+import { sessionToys, TOYS, type Toy, type Hand } from './propCatalog';
 import { canUseGrip, gripLatch, handleGripStart, useStagePlay } from './stagePlay';
 import type { GripFrame } from './propView';
 import * as views from './propViews';
@@ -41,7 +41,9 @@ function InHand({toy,hand}:{toy:Toy;hand:Hand}) {
     if(s.source!==(source??null)){s.latch(false,false);s.source=source??null;}
     prop.userData.propSource=s.source;
     const bag=useBackpack.getState(),stage=useMmdVrStore.getState();
-    f.usable=prop.visible&&canUseGrip(useStagePlay.getState(),toy,hand,stage.prefs.scenery)&&!useHudWorldInput.getState().blocked&&!bag.busy&&!bag.draft&&!bag.selected&&!stage.assetLoad.running&&!stage.physicsBusy&&!stage.physicsFatal;
+    // The external XR clock resumes at zero delta after losing the viewer pose.
+    // Re-arm on release, even when the missing frames never reached Fiber.
+    f.usable=prop.visible&&delta>0&&canUseGrip(useStagePlay.getState(),toy,hand,stage.prefs.scenery)&&!useHudWorldInput.getState().blocked&&!bag.busy&&!bag.draft&&!bag.selected&&!stage.assetLoad.running&&!stage.physicsBusy&&!stage.physicsFatal;
     f.gamepad=f.usable?source?.gamepad??null:null;
     prop.userData.propUsable=f.usable; prop.userData.gamepad=f.gamepad; prop.userData.propFrame=prop.visible?frame:null;
     f.action=s.latch(f.usable,!!source?.gamepad?.buttons[1]?.pressed);
@@ -61,6 +63,7 @@ function InHand({toy,hand}:{toy:Toy;hand:Hand}) {
     {HeldEffect&&<HeldEffect ref={effect}/>}</group>;
 }
 
-export function StagePlay(){const held=useStagePlay(s=>s.held);
-  return <>{held&&<InHand key={`${held.hand}:${held.toy}`} {...held}/>}<StoryStations/></>;
+export function StagePlay(){
+  const [toys]=useState(sessionToys), held=useStagePlay(s=>s.held);
+  return <>{held&&toys.includes(held.toy)&&<InHand key={`${held.hand}:${held.toy}`} {...held}/>}<StoryStations/></>;
 }

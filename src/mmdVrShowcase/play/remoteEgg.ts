@@ -2,7 +2,7 @@ import { useBackpack } from '../backpack/store';
 import { useStagePlay } from './stagePlay';
 import { clearRemoteEgg, startEggBinding, useRemoteEgg } from './remote/remoteMotor';
 
-export { useRemoteEgg, selectEggPattern, cycleRemoteEgg, stopRemoteEgg, adjustRemoteEgg, resetEggOffset, type RemoteMode, type EggOffset } from './remote/remoteMotor';
+export { useRemoteEgg, selectEggPattern, selectEggSite, cycleRemoteEgg, stopRemoteEgg, adjustRemoteEgg, resetEggOffset, type RemoteMode, type EggOffset } from './remote/remoteMotor';
 
 /** Asset identity is explicit. Selecting someone else never transfers the wearable. */
 export function bindRemoteEgg(assetId:string,equipOnScreen=false):boolean {

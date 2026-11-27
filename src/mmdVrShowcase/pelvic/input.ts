@@ -2,15 +2,21 @@ import { Vector3, type Object3D, type Scene } from 'three';
 import type { GripFrame } from '../play/propView';
 import type { Hand } from '../play/propCatalog';
 import { siliconeOutlet } from '../play/siliconeProfile';
+import {isSoloFloorSession} from '../backpack/sessionAssets';
 
 type Spray = (f:GripFrame)=>void;
 type Queued = {token:number; root:Object3D; frame:XRFrame; f:GripFrame; source:XRInputSource; epoch:number; spray:Spray|null};
 const feeds = new WeakMap<Scene, ReturnType<typeof createPelvicInput>>();
+const idleSpray:GripFrame={at:new Vector3(),dir:new Vector3(),dt:0,usable:false,action:'off'};
 
 /** Only InHand produces this event. Do not search the scene by mesh name:
  * a prop from the retiring hand/room can still be attached in this commit. */
 export function queuePelvicGrip(scene:Scene,root:Object3D,frame:XRFrame|undefined,f:GripFrame,spray:Spray|null){
-  return feeds.get(scene)?.enqueue(root,frame,f,spray) ?? false;
+  if(feeds.get(scene)?.enqueue(root,frame,f,spray))return true;
+  // In the solo room an unassigned shelf piece has no calibrated recipient
+  // or verified exterior. Never fall through to an unconditional grip plume.
+  if(isSoloFloorSession()){idleSpray.dt=f.dt;spray?.(idleSpray);return true;}
+  return false;
 }
 
 export function isMountedVisible(root:Object3D,scene:Scene){

@@ -1,4 +1,4 @@
-import { useFrame, useThree } from '@react-three/fiber';
+import { useFrame } from '@react-three/fiber';
 import { useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef } from 'react';
 import { Color, type MeshBasicMaterial } from 'three';
 import { useMmdVrStore } from '../../mmdVrStore';
@@ -14,7 +14,7 @@ const tints=['#705c67','#8ff5d8','#ffc26e','#ceaaff'].map(c=>new Color(c));
 // on the receiver. Number and cadence both work without discriminating colours.
 function LitIndicator({receiver=false}:{receiver?:boolean}) {
   const mode=useRemoteEgg(s=>s.mode), mat=useRef<MeshBasicMaterial>(null);
-  useFrame(({clock})=>{if(mat.current)mat.current.color.copy(tints[mode]).multiplyScalar(.26+1.04*eggPowerAt(clock.oldTime));});
+  useFrame(()=>{if(mat.current)mat.current.color.copy(tints[mode]).multiplyScalar(.26+1.04*eggPowerAt(performance.now()));});
   return <group name="egg:indicator">
     {receiver?<mesh rotation-x={Math.PI/2} position-y={-.019} scale={[1,.88,1]}><torusGeometry args={[.0181,.0014,6,32]}/>
       <meshBasicMaterial ref={mat} toneMapped={false}/></mesh>:
@@ -46,8 +46,8 @@ export function EggReceiver() {
 }
 
 export function EggHandFeedback({ref}:FrameEffectProps) {
-  const driver=useMemo(createEggFeedback,[]),clock=useThree(s=>s.clock);
+  const driver=useMemo(createEggFeedback,[]);
   useLayoutEffect(()=>driver.connect(),[driver]);
-  useImperativeHandle(ref,()=>frame=>driver.update(frame,useMmdVrStore.getState().prefs.physicsHapticLevel,clock.oldTime),[driver,clock]);
+  useImperativeHandle(ref,()=>frame=>driver.update(frame,useMmdVrStore.getState().prefs.physicsHapticLevel,performance.now()),[driver]);
   return null;
 }
