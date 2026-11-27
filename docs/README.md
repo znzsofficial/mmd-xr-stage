@@ -18,7 +18,7 @@
 | 接续 11 月 25 日真机反馈 | [眼高与母星侧倾、布料黑屏、Bullet 与手动裙面的分工](./performance/quest-2026-11-25.md) · [loader 历史排障](./three-mmd-loader-history.md) |
 | 查场景本身的开销 | [泳池计时台、教室窗边与后门](./performance/pool-classroom.md) · [星门、庭院阴影、远月与菌圃](./performance/scenery-render-work.md) · [用固定版本做 Quest 对照](./performance/next-quest-export.md#泳池或教室同机位真机对照) |
 | 改代码或加布景 | [源码目录](./architecture.md#源码目录) · [舞台架构](./architecture.md) · [要不要重构](./architecture/maintenance.md) · [重力场、马达与新道具](./architecture/gravity.md) · [新布景与连接](./scenery/adding-a-set.md) · [美术样板](./scenery/art-direction.md) · [引擎取舍](./three-tooling.md) |
-| 查 loader 版本、特性归属与上游 PR | [舞台、fork 和官方使用的版本](./three-mmd-loader-maintenance.md#仓库与依赖) · [上游贡献与分支](./three-mmd-loader-upstream.md) |
+| 查 loader 版本、补丁归属与审阅进展 | [舞台、fork 和官方使用的版本](./three-mmd-loader-maintenance.md#仓库与依赖) · [上游 PR #48、#49 与分支清理记录](./three-mmd-loader-upstream.md) |
 
 ## 工程维护
 

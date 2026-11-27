@@ -2,6 +2,8 @@
 
 [舞台使用的版本](./three-mmd-loader-maintenance.md) · [历史排障](./three-mmd-loader-history.md)
 
+**2026-11-27 收尾核对：**#48、#49 均为开放的正式 PR；两者的 Node.js 22 和 24 检查都已通过，尚无审阅意见。两项修复在舞台 fork 中已可用。后续审阅状态以各 PR 页面为准。
+
 ## 已提交：共享骨架 CPU 去重
 
 2026-11-27 已提交 [yohawing/three-mmd-loader#48](https://github.com/yohawing/three-mmd-loader/pull/48)。目标为官方 `develop`；来源为 `znzsofficial:perf/dedupe-render-palettes-v0.9`。基线 `35e86bc` 已含正式 0.9.0，两个提交分别是可独立运行的基准 `3ca0713`、实现和回归 `4f1c1c0`。PR 只改 CPU 渲染同步；公开接口、原生二进制和依赖锁不变。
