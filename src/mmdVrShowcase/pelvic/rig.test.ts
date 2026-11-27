@@ -325,6 +325,15 @@ it.each(['standManual','standAuto'] as const)('changes the drawn %s partner at t
   expect(useBackpack.getState().live).toBe(bag.live);expect(useBackpack.getState().entries).toBe(bag.entries);
   driver.dispose();expect(scene.getObjectByName('pelvic:partner')).toBeUndefined();expect(driver.getStandRoot()).toBeNull();expect(st().active).toBeNull();
   expect(st().byAsset.a.standAppearance).toBe('partner');
+  useMmdVrStore.setState({presentation:'xr'});useBackpack.setState({live:{a:{...bag.live.a,runtimeId:'re-entry'}}});
+  const room=new Scene(),host=new Group(),actor=new Group(),ordinary=actualPiece();room.add(host,actor);host.add(ordinary);
+  const next=mountPelvicRig({scene:room,host,standPiece:()=>ordinary,getRoot:id=>id==='re-entry'?actor:null,standSpray:()=>null});cleanup.push(next.dispose);
+  const frame={session:Object.assign(new EventTarget(),{visibilityState:'visible'})} as unknown as XRFrame;
+  const step=()=>next.advance(1/90,frame);step();expect(room.getObjectByName('pelvic:partner')).toBeUndefined();
+  expect(assignPelvic('a',mode,'xr')).toBe(true);step();const restored=room.getObjectByName('pelvic:partner')!;
+  expect(restored.visible).toBe(true);expect(restored).not.toBe(body);expect(ordinary.visible).toBe(false);
+  expect(st().parkedSample?.outletInside).toBe(false);expect(st().sample).toBeNull();
+  useStagePlay.getState().stow();step();expect(restored.parent).toBeNull();
 });
 
 it.each(['stop/restart','tracking','actor','room','off/on','swap'] as const)('restores the actual clothed stand actor on %s without forwarding the last admitted frame',cause=>{
