@@ -1,12 +1,11 @@
-import { Box3, Matrix4, Triangle, Vector3, type BufferAttribute, type InterleavedBufferAttribute, type Material, type Object3D, type SkinnedMesh } from 'three';
+import { Box3, Matrix4, Triangle, Vector3, type Material, type Object3D, type SkinnedMesh } from 'three';
 import {modelDrawRange} from '../mmdRuntime/modelDrawRange';
 import type {ContactCap} from './wandHead';
-import {createWandPose} from './wandPose';
+import {createWandPose,type PositionDeltas as Attr} from './wandPose';
 import {visibleTexel} from './wandOpacity';
 
 export type WandModel={root:Object3D;mesh:SkinnedMesh;renderOrderMeshes:readonly SkinnedMesh[]};
 export type WandHit={depth:number;axis:Vector3};
-type Attr=BufferAttribute|InterleavedBufferAttribute;
 type Cell={faces:number[];bones:number[];center:Vector3;radius:number;swing:number;qdef:boolean};
 type Layer={mesh:SkinnedMesh;pose:ReturnType<typeof createWandPose>;cells:Cell[];owner:Object3D;material:Material};
 const v=()=>new Vector3();

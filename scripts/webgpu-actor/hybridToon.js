@@ -29,12 +29,18 @@ export function parseHybridSlots(selection, endfield = false) {
   return slots;
 }
 
-export function hybridToonColor(base, material, kind, paint) {
-  const p = profiles[kind], u = material.userData.mmdTslMaterialUniforms;
-  // pipeline.prepareRender updates these Vector3s in place, including setting
-  // lightColor to zero for a hidden key. Bring L into the same eye space as N,V.
-  const light = uniform(u.lightColor);
-  const L = cameraViewMatrix.mul(vec4(uniform(u.lightDirection), 0)).xyz;
+// The fork supplies linear RGB * intensity; a hidden key is RGB zero. For a
+// toon band, cap the peak at one without changing hue. Direct reflections can
+// use the uncapped radiance. The endpoints at white match the old white grade.
+export function actorKeyLight(material) {
+  const u = material.userData.mmdTslMaterialUniforms;
+  const rgb = uniform(u.lightColor), world = uniform(u.lightDirection);
+  const peak = rgb.r.max(rgb.g).max(rgb.b);
+  return { rgb, band:rgb.div(peak.max(1)), world, view:cameraViewMatrix.mul(vec4(world,0)).xyz };
+}
+
+export function hybridToonColor(base, incident, kind, paint) {
+  const p = profiles[kind], {view:L,rgb:light,band:key} = incident;
   const V = positionViewDirection, N = normalView;
   const half = L.add(V), H = half.div(half.length().max(1e-5));
   const signedNL = N.dot(L), nl = signedNL.clamp(), nv = N.dot(V).clamp();
@@ -66,7 +72,6 @@ export function hybridToonColor(base, material, kind, paint) {
     reflection = reflection.add(F.mul(ribbon).mul(.85));
   }
 
-  const key = max(light.r, max(light.g, light.b)).clamp();
   const form = mix(smoothstep(-.20, .65, signedNL), nl, .3).mul(key);
   const rgb = base.mul(mix(p.fill, p.lit, form)).add(light.mul(reflection));
   // Hue-preserving linear shoulder: identity below .62; even a head-on metal

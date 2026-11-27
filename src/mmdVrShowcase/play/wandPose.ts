@@ -1,15 +1,18 @@
 import { Matrix4, Quaternion, Vector3, type BufferAttribute, type InterleavedBufferAttribute, type SkinnedMesh } from 'three';
 
 type Attribute = BufferAttribute | InterleavedBufferAttribute;
+/** Sparse TSL actors keep their authored deltas off the rendered geometry. */
+export type PositionDeltas = Pick<Attribute,'count'|'getX'|'getY'|'getZ'> & {vertices?:Uint32Array};
+export type PositionMorphs = readonly (PositionDeltas | undefined)[];
 type PaletteEntry = {frame:number; matrix:Matrix4; world:Matrix4; rotation:Quaternion; dual:Quaternion; scale:number};
 const v = () => new Vector3();
 
 /** Query the same displayed position as the PMX vertex shader, including the
  * loader's split influence map and SDEF/QDEF. Never use bind-pose raycasts. */
-export function createWandPose(mesh:SkinnedMesh,source:SkinnedMesh){
+export function createWandPose(mesh:SkinnedMesh,source:SkinnedMesh,attrs:PositionMorphs=mesh.geometry.morphAttributes.position??[]){
   const g=mesh.geometry,{position,skinWeight:w,skinIndex:ix,matricesSdefEnabled:sdef,matricesQdefEnabled:qdef}=g.attributes;
-  const attrs=g.morphAttributes.position??[], remap=mesh.userData.mmdMorphSplitBody?.morphTargetIndices;
-  const active:{attr:Attribute;weight:number}[]=[], weights=attrs.map(attr=>({attr,weight:0}));
+  const remap=mesh.userData.mmdMorphSplitBody?.morphTargetIndices;
+  const active:{attr:PositionDeltas;weight:number}[]=[], weights=attrs.map(attr=>attr&&({attr,weight:0}));
   const palette:PaletteEntry[]=[], outer=new Matrix4(),toRig=new Matrix4(),rigToWorld=new Matrix4(),invBind=mesh.bindMatrix.clone().invert(),p=v(), temp=v(), base=v(), t=v();
   const q=new Quaternion(), dual=new Quaternion(), posQ=new Quaternion();
   const stamps=new Uint32Array(position.count), points=new Float32Array(position.count*3);
@@ -31,13 +34,13 @@ export function createWandPose(mesh:SkinnedMesh,source:SkinnedMesh){
     skin=!!(w&&ix&&mesh.skeleton?.bones.length);
     for(let i=0;i<attrs.length;i++){
       const f=source.morphTargetInfluences?.[remap?.[i]??i]??0;
-      if(f&&Number.isFinite(f)){weights[i].weight=f;active.push(weights[i]);}
+      const slot=weights[i];if(slot&&f&&Number.isFinite(f)){slot.weight=f;active.push(slot);}
     }
   }
   function vertex(i:number,out:Vector3){
     if(stamps[i]===epoch)return out.fromArray(points,i*3);
     p.fromBufferAttribute(position,i);base.copy(p);
-    for(const {attr,weight} of active){temp.fromBufferAttribute(attr,i);if(!g.morphTargetsRelative)temp.sub(base);p.addScaledVector(temp,weight);}
+    for(const {attr,weight} of active){temp.set(attr.getX(i),attr.getY(i),attr.getZ(i));if(!g.morphTargetsRelative)temp.sub(base);p.addScaledVector(temp,weight);}
     if(!skin)out.copy(p).applyMatrix4(mesh.matrixWorld);
     else if(qdef?.getX(i)>=.5){
       let highest=0;for(let j=1;j<4;j++)if(w.getComponent(i,j)>w.getComponent(i,highest))highest=j;

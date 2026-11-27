@@ -10,9 +10,10 @@ const names = {
   metal: /^(?:metal|metallic|(?:发饰|髮飾)?(?:金属|金屬))$/,
 };
 const roles = Object.keys(names);
+const sleeve = /^(?:(?:left|right|outer)sleeve|[左右外]袖)\d*$/;
 const detail = /eye|iris|pupil|lash|brow|shadow|highlight|mouth|tooth|teeth|tongue|blush|expression|decal|瞳|眼|眉|睫|目|口|嘴|唇|歯|牙|舌|表情|影/u;
 const word = v => v.normalize('NFKC').trim().toLowerCase().replace(/^mat(?:erial)?[ _.:-]+|[\s_.:#-]/g,'');
-const roleOf = v => roles.find(role => names[role].test(v));
+const roleOf = v => sleeve.test(v) ? 'cloth' : roles.find(role => names[role].test(v));
 const numberedFace = v => /\d+$/.test(v) && names.face.test(v.replace(/\d+$/, ''));
 
 function authoredRole(meta) {
@@ -33,6 +34,9 @@ function authoredRole(meta) {
   }
   if (numberedFace(translated)) return;
   const other = roleOf(translated);
+  // A generic sleeve translation cannot promote a trim, extra pass or
+  // unidentified part. Accept a lone sleeve label or a corroborating role.
+  if ((sleeve.test(primary) && translated && !other) || (sleeve.test(translated) && primary && !role)) return;
   if (!role || !other || role === other) return role ?? other;
 }
 

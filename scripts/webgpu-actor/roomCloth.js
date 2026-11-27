@@ -38,6 +38,7 @@ export function roomCloth(renderer, model, rig, log) {
     active = false; interrupted = true;
   }
   return {
+    get active() { return active; },
     // Split readiness from submission: the stage must choose its Bullet
     // topology *before* the model evaluates the pose used by the solver.
     ready(enabled) {

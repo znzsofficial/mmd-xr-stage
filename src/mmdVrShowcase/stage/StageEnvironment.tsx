@@ -79,7 +79,9 @@ export function StageEnvironment({scenery, lighting, prefs, profile, sunRef}: Pr
   const shadowSize = profile.shadows ? profile.shadowMapSize : 256;
   const rim = lighting.rimIntensity > 0 ? lighting.rimIntensity : .28;
   const lamps = hasStageLamps(scenery);
-  const useBakedDay=!!useContext(DaylightMaterials) && scenery==='classroom';
+  // The opt-in GPU stage does not enable renderer shadow maps. Both daylight
+  // sets need their baked shading even if the WebGL preference requests shadows.
+  const useBakedDay=!!useContext(DaylightMaterials) && (scenery==='classroom'||scenery==='seasideTerminus');
   return <>
     <color attach="background" args={['#171a1d']}/>
     {prefs.stageFogEnabled && scenery!=='glassPlanet' && <fog attach="fog" args={[lighting.fogColor, Math.min(10, viewDistance*.45), viewDistance]}/>}

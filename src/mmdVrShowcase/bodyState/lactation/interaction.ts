@@ -2,7 +2,7 @@ import {create} from 'zustand';
 
 export type Side='left'|'right';
 export type MilkMode=Side|'both';
-export type OutletState='ready'|'confirm'|'blocked'|'missing';
+export type OutletState='ready'|'confirm'|'blocked'|'missing'|'unverified';
 export type MilkPanel={assetId:string;runtimeId:string};
 type Reading={panel:MilkPanel;room:object;left:OutletState;right:OutletState};
 type Hold={panel:MilkPanel;mode:MilkMode;source?:XRInputSource;valid:(frame?:XRFrame)=>boolean;debited:boolean};

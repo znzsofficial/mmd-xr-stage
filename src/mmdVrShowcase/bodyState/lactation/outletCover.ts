@@ -1,8 +1,7 @@
-import { Box3, Ray, Triangle, Vector3, type BufferAttribute, type InterleavedBufferAttribute, type SkinnedMesh } from 'three';
-import type { createWandPose } from '../../play/wandPose';
+import { Box3, Ray, Triangle, Vector3, type SkinnedMesh } from 'three';
+import type { createWandPose, PositionDeltas as Attr, PositionMorphs } from '../../play/wandPose';
 import type { Binding, Draw } from './outletFit';
 
-type Attr=BufferAttribute|InterleavedBufferAttribute;
 export type ClearOutlet=(binding:Binding,point:Vector3,axis:Vector3,scale:number,work:{faces:number})=>boolean;
 type Node={box:Box3;center:Vector3;half:Vector3;joints:number[];travel:Map<Attr,number>;faces?:number[];children?:Node[]};
 const v=()=>new Vector3();
@@ -18,15 +17,16 @@ export function shown({owner,material}:Draw){
 /** All drawn materials (including the skin itself), both windings. No garment
  * name or rest-pose neighbourhood decides which meshes can move over the tip.
  * The convex LBS bound is valid ONLY for linear weights and relative morphs. */
-export function* makeCover(mesh:SkinnedMesh,draws:Draw[],pose:ReturnType<typeof createWandPose>):Generator<void,ClearOutlet|null>{
+export function* makeCover(mesh:SkinnedMesh,draws:Draw[],pose:ReturnType<typeof createWandPose>,attrs:PositionMorphs=mesh.geometry.morphAttributes.position??[]):Generator<void,ClearOutlet|null>{
   const g=mesh.geometry,{position:p,skinIndex:ix,skinWeight:w}=g.attributes,index=g.index;
   if(!ix||!w||!mesh.skeleton?.bones.length||g.attributes.matricesSdefEnabled||g.attributes.matricesQdefEnabled)return null;
-  const layers:{draw:Draw;tree:Node}[]=[],pt=v(),attrs=g.morphAttributes.position??[];
+  const layers:{draw:Draw;tree:Node}[]=[],pt=v();
   const travelAt:(Array<{attr:Attr;d:number}>|undefined)[]=[],seen=new Set<Attr>();let nonzero=0;
-  if(attrs.length*p.count>32_000_000)return null;
-  for(const a of attrs){if(seen.has(a))continue;seen.add(a);
+  for(const a of attrs){if(!a||seen.has(a))continue;seen.add(a);
+    const entries=a.vertices?.length??a.count;
     if(a.count!==p.count)return null;
-    for(let i=0;i<a.count;i++){if((i&4095)===4095)yield;const sq=pt.fromBufferAttribute(a,i).lengthSq();if(!Number.isFinite(sq))return null;
+    for(let k=0;k<entries;k++){if((k&4095)===4095)yield;const i=a.vertices?.[k]??k;
+      const sq=pt.set(a.getX(i),a.getY(i),a.getZ(i)).lengthSq();if(!Number.isFinite(sq))return null;
       if(sq){if(++nonzero>1_200_000)return null;(travelAt[i]??=[]).push({attr:a,d:Math.sqrt(sq)});}}
   }
   const sourceBox=new Box3();for(let i=0;i<p.count;i++){if((i&4095)===4095)yield;sourceBox.expandByPoint(pt.fromBufferAttribute(p,i));}

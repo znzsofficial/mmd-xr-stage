@@ -38,6 +38,23 @@ it('ordinary body material requires explicit confirmation, compatible skin weigh
   skin.name='Body';model.mesh.morphTargetDictionary={'胸':0};expect(createMilkOutlets(model)('right',p,n,true)).toBe(false);
 });
 
+it('samples sparse authored deltas after the GPU replaces the color slots and morph attributes',async()=>{
+  const {model,cloth}=makeOutletFixture(),{mesh}=model;
+  const dense=mesh.geometry.morphAttributes.position![0];
+  const vertices=Uint32Array.from(Array.from({length:dense.count},(_,i)=>i).filter(i=>dense.getZ(i)!==0));
+  const sparse={count:dense.count,vertices,getX:(i:number)=>dense.getX(i),getY:(i:number)=>dense.getY(i),getZ:(i:number)=>dense.getZ(i)};
+  // The display has a different storage layout. Its source dictionary/weights
+  // and authored skin vertex indices still belong to this actor.
+  mesh.geometry.morphAttributes.position=[];
+  const sample=await prepareMilkOutlets(model,()=>false,[sparse]);
+  const cover=cloth.clone();cover.visible=true;mesh.material=[mesh.material[0],cover];
+  const position=new Vector3(),normal=new Vector3();mesh.morphTargetInfluences![0]=.75;
+  expect(sample('left',position,normal,true)).toBe(false);
+  expect(sample('right',position,normal,true)).toBe(true);expect(position.z).toBeCloseTo(.12+.75*.014);
+  cover.visible=false;expect(sample('left',position,normal,true)).toBe(true);
+  expect(position.x).toBeCloseTo(.1);
+});
+
 it('malformed optional input cannot break model preparation or repeatedly throw in the room frame',async()=>{
   const {model}=makeOutletFixture(),p=new Vector3(),n=new Vector3(),sample=createMilkOutlets(model);
   const bones=model.mesh.skeleton.bones;model.mesh.skeleton.bones=[];

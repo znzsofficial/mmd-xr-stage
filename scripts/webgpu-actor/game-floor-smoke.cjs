@@ -1,4 +1,5 @@
 // node scripts/webgpu-actor/game-floor-smoke.cjs <local-clothed.pmx> <body.vmd> <two-site-hand-plan.json | --actor-style>
+// node scripts/webgpu-actor/game-floor-smoke.cjs <local.pmx> <--milk-covered | --milk-exposed>
 // Product /?xrBackend=webgpu only. Two library identities, one live actor,
 // one hardware renderer at a time. No injected menu, store actions or shortcut.
 const assert = require('node:assert/strict');
@@ -31,18 +32,21 @@ async function makeImport(folder, pmx, vmd) {
     return stat.isDirectory() || stat.isFile() && /\.(png|tga|bmp|jpe?g|gif|webp|dds|spa|sph)$/i.test(file);
   }});
   await Promise.all([fs.writeFile(path.join(folder,first), new Uint8Array(await makeSwatch().arrayBuffer())),
-    fs.copyFile(pmx,path.join(folder,second)), fs.copyFile(vmd,path.join(folder,motion))]);
+    fs.copyFile(pmx,path.join(folder,second)), vmd&&fs.copyFile(vmd,path.join(folder,motion))]);
 }
 
 async function main() {
-  const [pmx, vmd, plan] = process.argv.slice(2).map(v => ['--actor-style','--basic-style','--classroom'].includes(v)?v:path.resolve(v));
-  assert(pmx && vmd && plan, 'Expected a clothed PMX, body VMD and a matching textured-triangle hand plan');
-  const basic=plan==='--basic-style',styleOnly=basic||plan==='--actor-style',classroom=plan==='--classroom', json = !styleOnly && !classroom && JSON.parse(await fs.readFile(plan, 'utf8'));
+  const milk=['--milk-covered','--milk-exposed'].includes(process.argv[3]);
+  const [pmx,vmd,plan]=(milk?[process.argv[2],null,process.argv[3]]:process.argv.slice(2,5)).map(v=>!v||v.startsWith('--')?v:path.resolve(v));
+  assert(pmx && (vmd||milk) && plan, 'Expected a PMX and a smoke take');
+  const basic=plan==='--basic-style',styleOnly=basic||plan==='--actor-style',classroom=plan==='--classroom',portrait=plan==='--room-light', json = !milk && !styleOnly && !classroom && !portrait && JSON.parse(await fs.readFile(plan, 'utf8'));
+  const entryRoom=portrait?process.argv[5]:classroom?'classroom':'floor';
+  if(portrait)assert(['classroom','seasideTerminus'].includes(entryRoom),'Expected a lit portrait room');
   const sites = json && (json.plan ?? json).sites.map(({start,end,spot,radial,marks,mat}) => ({start,end,spot,radial,marks,mat}));
   if(json)assert.equal(sites.length, 2);
   const {chromium} = require(process.env.PLAYWRIGHT_CORE || path.join(process.env.XR_SMOKE_DIR || path.join(temp,'xr-browser-smoke'),'node_modules/playwright-core'));
   const folder = await fs.mkdtemp(path.join(temp,'game-floor-files-'));
-  const report = {entry:classroom?'/?xrBackend=webgpu&set=classroom':'/?xrBackend=webgpu&set=floor', simulated:'Quest controller input and projection display'};
+  const report = {entry:`/?xrBackend=webgpu&set=${entryRoom}`, simulated:'Quest controller input and projection display'};
   const errors = [], consoles = [];
   let server, browser, page, step = 'prepare', localProfile = false;
   try {
@@ -59,14 +63,14 @@ async function main() {
     page.on('console', m => {if (m.type()==='error') consoles.push(m.text().slice(0,350));});
     const href = new URL(report.entry,server.resolvedUrls.local[0]);
     page.on('response', r => {if(r.ok() && r.url()===new URL('/xr-input/1.0.20/meta-quest-touch-plus/profile.json',href).href)localProfile=true;});
-    await page.addInitScript({content:`(${stereo})(); (${extend})(); labFixture.controllerProfile='meta-quest-touch-plus'; labFixture.hostStatus=()=>({phase:'idle'});`});
+    await page.addInitScript({content:`(${stereo})(${portrait||milk?640:240}); (${extend})(); labFixture.controllerProfile='meta-quest-touch-plus'; labFixture.hostStatus=()=>({phase:'idle'});`});
     await page.goto(href.href);
     const selector=page.locator('.stage-first-room select');
-    assert.equal(await selector.inputValue(),classroom?'classroom':'floor');
+    assert.equal(await selector.inputValue(),entryRoom);
     await page.locator('.stage-drop-zone input[webkitdirectory]').setInputFiles(folder);
     await page.locator('.stage-report-stats').waitFor();
-    const ids = await page.evaluate(probes.observeStage,{modelPath:`${path.basename(folder)}/${second}`,motionName:`${path.basename(folder)}/${motion}`});
-    assert.equal(ids.index,1); assert(ids.motion);
+    const ids = await page.evaluate(probes.observeStage,{modelPath:`${path.basename(folder)}/${second}`,motionName:vmd&&`${path.basename(folder)}/${motion}`});
+    assert.equal(ids.index,1); if(vmd)assert(ids.motion);
     await page.evaluate(async () => {window.gameTargets=await import('/scripts/webgpu-actor/game-floor-targets.js');});
 
     const read = () => page.evaluate(() => stageProbe.read());
@@ -127,14 +131,26 @@ async function main() {
       await trigger(false);assert.equal((await read()).placeCommands,before+1);
     }
 
-    const empty=await read();assert(empty.filesIntact && !empty.floor && !empty.live && !empty.hasBinding && empty.room===(classroom?'classroom':'floor'));
+    const empty=await read();assert(empty.filesIntact && !empty.floor && !empty.live && !empty.hasBinding && empty.room===entryRoom);
     step='original VR launch';await page.locator('.stage-launch-row button.stage-btn-primary[data-xr-backend="webgpu"]').click();
-    await until('real room active',(s,isClass)=>s.phase==='active' && s.ready && (isClass?s.room==='classroom':s.floor?.assets===0) && !!labSession.first && !!document.querySelector('[data-xr-host="webgpu"][data-phase="active"]'),classroom);
+    await until('real room active',(s,room)=>s.phase==='active' && s.ready && s.room===room && (room!=='floor'||s.floor?.assets===0) && !!labSession.first && !!document.querySelector('[data-xr-host="webgpu"][data-phase="active"]'),entryRoom);
     assert.deepEqual(await page.evaluate(()=>labSession.stats.slices),{left:0,right:1});
 
     // Dismiss the one-time intro so the first B press has to actually work.
     if(await page.evaluate(()=>!!gameTargets.find({key:'hudBack'})))await click('hudBack');
     await target({name:'watch:quiet'});await idleRay();
+    if(milk){
+      await placeFromBag(second,landing,0);
+      const result=await require('./game-floor-milk.cjs')({page,ids,click,until,bButton,frames,target,pickMounted,aim,trigger,exposed:plan==='--milk-exposed'});
+      assert.deepEqual(errors,[]);assert.deepEqual(consoles.filter(x=>/shader|validation|wgsl|nodebuilder|pipeline/i.test(x)),[]);
+      console.log(JSON.stringify(result,null,2));return;
+    }
+    if(portrait){
+      await placeFromBag(second,landing,0);
+      const result=await require('./room-light-take.cjs')({page,ids,click,until,bButton,frames,target,pickMounted,idleRay,room:entryRoom});
+      assert.deepEqual(errors,[]);assert.deepEqual(consoles.filter(x=>/shader|validation|wgsl|nodebuilder|pipeline/i.test(x)),[]);
+      console.log(JSON.stringify(result));return;
+    }
     report.emptyEyes=await page.evaluate(probes.inspectEyes,'empty');
     const base=report.emptyEyes;assert(base.different>100 && base.controls.every(n=>n===0) && base.matched.every((n,i)=>n<base.crossed[i]*.4),'Wrong final XR eye assignment');
 

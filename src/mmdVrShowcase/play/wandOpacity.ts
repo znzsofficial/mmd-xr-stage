@@ -28,10 +28,10 @@ function alpha(tex:Texture,u:number,v:number){
   }return tile.data[((y-sy)*tile.w+x-sx)*4+3]/255;
 }
 
-export function visibleTexel(material:Material,geometry:BufferGeometry,face:number,tri:Triangle,p:Vector3){
-  const tex=(material as Material&{map?:Texture}).map;
+export function visibleTexel(material:Material,geometry:BufferGeometry,face:number,tri:Triangle,p:Vector3,attr=geometry.attributes.uv){
+  const tex=(material as Material&{map?:Texture}).map??material.userData.mmdTslSourceDiffuseTexture;
   if(!tex||(!material.transparent&&!material.alphaTest))return true;
-  const attr=geometry.attributes.uv,index=geometry.index;if(!attr||!tri.getBarycoord(p,bary))return false;
+  const index=geometry.index;if(!attr||!tri.getBarycoord(p,bary))return false;
   const a=index?.getX(face)??face,b=index?.getX(face+1)??face+1,c=index?.getX(face+2)??face+2;
   const opacity=material.opacity*alpha(tex,bary.x*attr.getX(a)+bary.y*attr.getX(b)+bary.z*attr.getX(c),bary.x*attr.getY(a)+bary.y*attr.getY(b)+bary.z*attr.getY(c));
   return opacity>0 && opacity>=material.alphaTest;

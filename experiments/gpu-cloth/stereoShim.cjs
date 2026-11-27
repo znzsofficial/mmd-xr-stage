@@ -1,9 +1,9 @@
 // Only the display is simulated. The lab still uses real WebGPU render passes,
 // depth attachments, readback, shaders and its normal requestSession button.
-module.exports = function stereoShim(){
+module.exports = function stereoShim(eyeSize=240){
   let active;
   const cfg=window.labFixture={reject:false,colorOnly:false,tracking:true,headX:0};
-  const eyeSize=240,rgbaPitch=1024,id=[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
+  const rgbaPitch=Math.ceil(eyeSize*4/256)*256,id=[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
   Object.defineProperty(navigator,'xr',{configurable:true,value:{async isSessionSupported(){return true;},async requestSession(mode,options){
     if(mode!=='immersive-vr'||!options.requiredFeatures.includes('webgpu')||!options.optionalFeatures?.includes('hand-tracking'))throw Error('wrong session');
     if(cfg.reject)throw new DOMException('user rejected','NotAllowedError');
@@ -36,6 +36,6 @@ module.exports = function stereoShim(){
         }finally{b.destroy();}};
       return {tex,depth,textureWidth:eyeSize,textureHeight:eyeSize,textureArrayLength:2};
     }
-    getViewSubImage(l,v){if(v.i===1&&cfg.failRight)throw new DOMException('right image unavailable','InvalidStateError');return {colorTexture:l.tex,depthStencilTexture:l.depth,getViewDescriptor:()=>({dimension:'2d',baseArrayLayer:1-v.i,arrayLayerCount:1}),viewport:{x:4,y:5,width:232,height:230}};}
+    getViewSubImage(l,v){if(v.i===1&&cfg.failRight)throw new DOMException('right image unavailable','InvalidStateError');return {colorTexture:l.tex,depthStencilTexture:l.depth,getViewDescriptor:()=>({dimension:'2d',baseArrayLayer:1-v.i,arrayLayerCount:1}),viewport:{x:4,y:5,width:eyeSize-8,height:eyeSize-10}};}
   };
 };

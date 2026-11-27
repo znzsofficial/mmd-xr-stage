@@ -14,6 +14,7 @@ import { canGiveTo, useStagePlay } from '../play/stagePlay';
 import {EggControls,WandControls} from '../hud/ContactPropControls';
 import {useBodyState} from '../bodyState/store';
 import {actorActions,ActorActivities,type ActivityEntry} from '../interaction/ActorActivities';
+import {MilkHudControls} from '../interaction/MilkInteraction';
 import {PoseHudControls} from '../pose/PoseHudControls';
 import {bindRemoteEgg,useRemoteEgg} from '../play/remoteEgg';
 import type {RoomActorStyles} from '../mmdRuntime/roomActorBackend';
@@ -68,12 +69,14 @@ function SelectedTools({ entry, instance, blocked, preview, styles }: { entry: B
     if (!group.current || (last.current && last.current.every((n, i) => n === pos[i]))) return;
     positionWorldTools(gl.xr.isPresenting ? gl.xr.getCamera() : camera, group.current, pos); last.current = [...pos];
   });
-  const locked = busy || physicsBusy, advancedActorLocked = locked || !instance.visible || isSoloFloorSession();
+  const locked = busy || physicsBusy, actorLocked = locked || !instance.visible;
+  const solo = isSoloFloorSession(), advancedActorLocked = actorLocked || solo;
   const scale = transform?.scale ?? 1, rotation = transform?.rotationY ?? 0;
   if(blocked && !(page==='body'&&preview))return null;
   if(page==='pose'||page==='wardrobe'||page==='insert'||page==='milk'||page==='body'||page==='observe'){
     return <group ref={group} name="backpack-world-tools" scale={.86} pointerEventsOrder={1} pointerEventsType={{deny:['touch','grab']}}>
-      {page==='pose'?<PoseHudControls assetId={entry.id} runtimeId={instance.runtimeId} onBack={()=>setPage('tools')}/>:
+      {page==='milk'&&solo?<MilkHudControls assetId={entry.id} runtimeId={instance.runtimeId} onBack={()=>setPage('tools')}/>:
+        page==='pose'?<PoseHudControls assetId={entry.id} runtimeId={instance.runtimeId} onBack={()=>setPage('tools')}/>:
         <ActorActivities hud entry={page} assetId={entry.id} runtimeId={instance.runtimeId} onBack={()=>setPage('tools')} suspended={blocked||peek} onPeek={()=>setPeek(true)}/>}
       {preview&&peek&&!blocked&&<HudButton position={[0,-.32,0]} size={[.78,.15]} variant="primary" label={t('bodyResume')} onPress={()=>setPeek(false)}/>}</group>;
   }
@@ -88,7 +91,7 @@ function SelectedTools({ entry, instance, blocked, preview, styles }: { entry: B
       if (page !== 'tools' && entry.kind==='model') setPage('tools'); else useBackpack.getState().select(null);
     }} disabled={busy} />
     {page==='wand'?<WandControls live={instance} locked={locked||!instance.visible}/>:eggPage?<EggControls id={entry.id} locked={locked||!instance.visible}/>:page==='motions' ? <MotionPicker id={entry.id} locked={locked} /> : page==='prop' ? <CharacterPropTools id={entry.id} instance={instance} locked={locked}/> : page==='tools'?<>
-      {actorActions.map(([id,key],i)=><HudButton key={id} position={[(i-.5)*.63,.115,0]} size={[.60,.16]} label={t(key)} variant={i===0?'primary':'button'} disabled={advancedActorLocked} onPress={()=>setPage(id)}/>)}
+      {actorActions.map(([id,key],i)=><HudButton key={id} position={[(i-.5)*.63,.115,0]} size={[.60,.16]} label={t(key)} variant={(solo?id==='milk':i===0)?'primary':'button'} disabled={id==='milk'?actorLocked:advancedActorLocked} onPress={()=>setPage(id)}/>)}
       {([['wardrobe','actorWardrobe'],['pose','actorPose'],['observe','actorObservation']] as const).map(([id,key],i)=><HudButton key={id} position={[(i-1)*.418,-.105,0]} size={[.39,.16]} label={t(key)} disabled={advancedActorLocked} onPress={()=>setPage(id)}/>)}
       {([['body','actorBodyState'],['motions','hudChangeMotion'],['arrange','watchArrange']] as const).map(([id,key],i)=><HudButton key={id} position={[(i-1)*.418,-.325,0]} size={[.39,.15]} variant="quiet" label={t(key)} disabled={locked||(id==='body'&&advancedActorLocked)} onPress={()=>setPage(id)}/>)}
       {(holding||carries)&&<HudButton position={[wandOut ? -.315 : 0,-.55,0]} size={[wandOut ? .59 : 1.22,.14]} label={t(held==='remoteEgg'?(wearer===entry.id?'eggControls':wearer?'eggTransfer':'eggWear'):carries?'propGrip':'propGive')} disabled={locked||(!instance.visible&&held==='remoteEgg')} onPress={()=>{if(held==='remoteEgg'&&wearer!==entry.id)bindRemoteEgg(entry.id);setPage('prop');}}/>}

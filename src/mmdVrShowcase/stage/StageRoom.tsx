@@ -677,11 +677,11 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles,
     pelvic.current?.advance(delta,frame,pelvicBlocked);
     if(!isRoomStale()&&!store.physicsBusy&&!store.physicsFatal&&!store.assetLoad.running)
       propDisplay.present(rt,scene,wristGroup.current,pelvic.current,frame,clock);
-    milkRoom.current?.advance(delta,frame);
     // Mail from an actor-style decode can arrive even while VMD and physics
     // are both paused. Commit on this tracked draw, after all displayed pose
     // layers, without re-evaluating VMD or dispatching idle GPU pose work.
     backend?.prepareRender(evaluate);
+    milkRoom.current?.advance(delta,frame);
     if(store.presentation!=='xr')return;
     hapticContactPollRef.current += delta;
     if (hapticContactPollRef.current >= MMD_VR_HAPTIC_POLL_INTERVAL) {

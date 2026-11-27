@@ -17,9 +17,9 @@ export function classroomProps() {
   const wall = (p: V,s: V,c: string) => add(shell,p,s,c);
   const cyl = (p: V,s: V,c: string,ry=0,rz=0,rx=0) => add(round,p,s,c,ry,rz,rx);
   const slab = (p: V,s: V,c: string,ry=0) => add(slabs,p,s,c,ry);
-  const plaster='#eee6ce', sage='#adc2ac', dark='#56675f', molding='#a6926e', wood='#bb9065', ply='#b18360';
+  const plaster='#eeefe9', sage='#adc2ac', dark='#56675f', molding='#a6926e', wood='#bb9065', ply='#b18360';
 
-  wall([0,h+.08,0],[w+.24,.16,d+.24],'#f1e9d5');
+  wall([0,h+.08,0],[w+.24,.16,d+.24],'#f2f1e9');
   for (const s of [-1,1]) {
     const spans=s===-1?[[-X-.16,X+.16]]:[[-X-.16,CAMPUS_DOOR-.93],[CAMPUS_DOOR+.93,X+.16]];
     for(const [a,b] of spans){const x=(a+b)/2;wall([x,h/2,s*(Z+.08)],[b-a,h,.16],plaster);
@@ -61,6 +61,12 @@ export function classroomProps() {
   box([-.70,1.97,-Z+.08],[5.96,1.55,.12], '#796448');
   box([-.70,1.97,-Z+.145],[5.88,1.47,.038],'#b89468');
   box([CHALK_TRAY.x,1.17,CHALK_TRAY.z],[CHALK_TRAY.w,.067,CHALK_TRAY.d],wood);
+  // White enamel chalk tin at the standing portrait, lit like the tray.
+  const tinZ=CHALK_TRAY.z+.044;
+  cyl([-.53,1.279,tinZ],[.14,.15,.14],'#edeee9');
+  cyl([-.53,1.351,tinZ],[.146,.014,.146],'#758d87');
+  cyl([-.549,1.368,tinZ],[.023,.070,.023],'#fff5d8',0,-.15);
+  cyl([-.505,1.367,tinZ+.018],[.023,.064,.023],'#dcbda1',0,.12);
   for(let i=0;i<4;i++) cyl([-2.95+i*.18,1.213,-Z+.23],[.018,.113,.018],i%2?'#e7cb8b':'#f6efd9',0,Math.PI/2);
   slab([.70,1.228,-Z+.21],[.19,.047,.078],'#59675b');box([.70,1.256,-Z+.21],[.185,.019,.071],'#bc7955');
   box([3.76,1.95,-Z+.078],[2.18,1.32,.12],'#8e7456');box([3.76,1.95,-Z+.148],[2.07,1.21,.045],'#c8ab7e');
@@ -89,7 +95,7 @@ export function classroomProps() {
       const c=Math.cos(a),s=Math.sin(a);
       for (const side of [-1,1]) {
         const ox=x+side*.080*c, oz=z-side*.080*s;
-        slab([ox,y+.012,oz],[.159,.021,.211],'#efe4bd',a);
+        slab([ox,y+.012,oz],[.159,.021,.211],'#f0eee5',a);
         for(let line=0;line<4;line++) {
           const dz=-.04+line*.022;box([ox+dz*s,y+.024,oz+dz*c],[.109,.003,.004],'#969c8b',a);
         }

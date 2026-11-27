@@ -1,6 +1,7 @@
-import { cameraViewMatrix, float, max, mix, normalView, objectPosition, objectWorldMatrix, positionViewDirection,
-  positionWorld, smoothstep, uniform, vec3, vec4 } from 'three/tsl';
-import { hybridToonColor } from './hybridToon.js';
+import { float, mix, normalView, objectPosition, objectWorldMatrix, positionViewDirection,
+  positionWorld, smoothstep, vec3, vec4 } from 'three/tsl';
+import { actorKeyLight, hybridToonColor } from './hybridToon.js';
+import { mmdStylePigment } from './mmdStylePigment.js';
 import { endfieldCloth } from './endfieldCloth.js';
 import { mappedFace } from './endfieldFace.js';
 import { skinBandDelta, surfaceRadii } from './skinDiffusion.js';
@@ -40,21 +41,22 @@ function skinBase(paint,base,diffuse,key,diffusion,eyeSpan) {
   return mix(ink,base,.09).clamp();
 }
 
-export function endfieldColor(base, material, role, mesh, maps, index, paint) {
-  const u = material.userData.mmdTslMaterialUniforms;
-  const light = uniform(u.lightColor), worldL = uniform(u.lightDirection);
-  const L = cameraViewMatrix.mul(vec4(worldL, 0)).xyz, nl = normalView.dot(L);
-  const key = max(light.r, max(light.g, light.b)).clamp();
+export function endfieldColor(base, mmd, material, role, mesh, maps, index) {
+  const incident = actorKeyLight(material), {rgb:light,band:key,world:worldL,view:L} = incident;
+  const {paint,resolve} = mmdStylePigment(material), nl = normalView.dot(L);
   const diffusion=maps?.skinDiffusion ?? 1;
   if (role === 'face') {
-    const field=maps?.face?.get(index);
+    const landmarks=skinLandmarks(mesh), field=landmarks.head && maps?.face?.get(index);
     const visibleKey=field && maps.faceKeyVisibility ? key.mul(maps.faceKeyVisibility) : key;
-    return cheekLighting(skinLandmarks(mesh),worldL,nl,paint,base,visibleKey,field,diffusion);
+    const color=cheekLighting(landmarks,worldL,nl,paint,base,visibleKey,field,diffusion);
+    // A validated SDF actually sampled in head space defines the response.
+    // Only procedural substitutes need the PMX diffuse-share fallback.
+    return field ? color : resolve(color,mmd);
   }
   if (role === 'skin') {
     const eyeSpan=diffusion !== 0 && skinLandmarks(mesh).eyeSpan;
     const pigment=skinBase(paint,base,nl,key,diffusion,eyeSpan);
-    return maps?.thinSkin ? pigment.add(skinTransmission(paint,L,light)).clamp() : pigment;
+    return resolve(maps?.thinSkin ? pigment.add(skinTransmission(paint,L,light)).clamp() : pigment,mmd);
   }
   if (role === 'hair') {
     const form = smoothstep(-.34,.53,nl).mul(key);
@@ -62,10 +64,10 @@ export function endfieldColor(base, material, role, mesh, maps, index, paint) {
     const strand = smoothstep(.10,.43,paint.dot(vec3(.28,.58,.14)));
     const glint = smoothstep(.69,.95,nh).mul(strand).mul(form);
     const body = paint.pow(.83).mul(mix(vec3(.64,.53,.58), vec3(1.42,1.31,1.16), form));
-    return mix(body,base,.12).add(paint.mul(vec3(.42,.36,.26)).mul(glint)).clamp();
+    return resolve(mix(body,base,.12).add(paint.mul(vec3(.42,.36,.26)).mul(glint)).clamp(),mmd);
   }
   if (role === 'cloth' && maps?.cloth?.has(index)) return endfieldCloth(paint,base,maps.cloth.get(index),L,light,key);
   // Feed painted fabric into the existing directional BRDF. Re-light most of
   // its albedo so the old toon shadow doesn't double up with the fabric band.
-  return hybridToonColor(mix(base, paint.pow(.90).mul(1.22), .78), material, role, paint);
+  return resolve(hybridToonColor(mix(base, paint.pow(.90).mul(1.22), .78), incident, role, paint),mmd);
 }

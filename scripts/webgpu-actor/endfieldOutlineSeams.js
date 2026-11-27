@@ -1,29 +1,19 @@
-import { parsePmxSectionInventory } from '@yohawing/three-mmd-loader/parser';
+import { positionMorphs } from './positionMorphs.js';
 import { Vector3 } from 'three/webgpu';
 
 // The sparse TSL path deliberately omits dense morphs. Read just the exact
 // position-morph memberships/deltas from the SAME source PMX, using the
 // loader's validated section inventory. No second model or dense morph atlas.
 function sparseSignatures(bytes, n) {
-  const data = ArrayBuffer.isView(bytes) ? new Uint8Array(bytes.buffer,bytes.byteOffset,bytes.byteLength) : new Uint8Array(bytes);
-  const {counts,header,sections} = parsePmxSectionInventory(data);
-  if (counts.vertices !== n) return null;
-  const section = sections.find(s=>s.name==='morphs'), d = new DataView(data.buffer,data.byteOffset,data.byteLength);
-  const ix = header.indexSizes, stride = [ix.morph+4,ix.vertex+12,ix.bone+28,...Array(5).fill(ix.vertex+16),ix.material+113,ix.morph+4,ix.rigidBody+25];
-  const signatures = new Map(); let pos = section.offset;
-  for (let m=0; m<counts.morphs; m++) {
-    for (let name=0; name<2; name++) pos += 4 + d.getInt32(pos,true);
-    const type = d.getUint8(pos+1), count = d.getInt32(pos+2,true); pos+=6;
-    if (type === 1) for (let i=0; i<count; i++) {
-      const p = pos+i*stride[type], k=p+ix.vertex;
-      const v=ix.vertex===4 ? d.getUint32(p,true) : ix.vertex===2 ? d.getUint16(p,true) : d.getUint8(p);
-      const x=d.getFloat32(k,true),y=d.getFloat32(k+4,true),z=d.getFloat32(k+8,true);
+  const signatures = new Map();
+  for(const morph of positionMorphs(bytes,n)) {
+    for(let i=0;i<morph.count;i++) {
+      const v=morph.vertex(i), x=morph.component(i,0), y=morph.component(i,1), z=morph.component(i,2);
       if (v>=n || ![x,y,z].every(Number.isFinite)) return null;
-      if (x || y || z) signatures.set(v,(signatures.get(v) ?? '')+`${m}:${x},${y},${z};`);
+      if (x || y || z) signatures.set(v,(signatures.get(v) ?? '')+`${morph.index}:${x},${y},${z};`);
     }
-    pos+=stride[type]*count;
   }
-  return pos===section.offset+section.byteLength ? signatures : null;
+  return signatures;
 }
 
 function morphMatch(mesh, bytes) {

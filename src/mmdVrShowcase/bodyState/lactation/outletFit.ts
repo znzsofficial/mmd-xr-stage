@@ -1,6 +1,7 @@
 import { Box3, Ray, Triangle, Vector3, type Material, type Object3D, type SkinnedMesh } from 'three';
 import { modelDrawRange } from '../../mmdRuntime/modelDrawRange';
 import type { WandModel } from '../../play/wandSurface';
+import type { PositionMorphs } from '../../play/wandPose';
 
 export type Side='left'|'right';
 export type Draw={owner:Object3D;material:Material;start:number;end:number};
@@ -11,7 +12,7 @@ const newPatch=():Patch=>({vertices:new Set(),center:v(),axis:v(),box:new Box3()
 const anatomical=/(?:nipple|areola|乳頭|乳头|乳首|乳暈|乳晕)/i;
 const covering=/(?:cover|cloth|costume|fabric|dress|suit|shirt|armor|armour|bra(?:ssiere)?\b|bikini|past(?:y|ie)|sticker|tape|shield|pierc|hide|off\b|衣|服|罩|貼|贴|隠|隱|饰|飾|ブラ|隠し|ニプレス)/i;
 const splitName=(s:string)=>s.normalize('NFKC').replace(/([a-z])([A-Z])/g,'$1 $2').replace(/[_\-.]/g,' ');
-const isMarker=(s:string)=>anatomical.test(s)&&!covering.test(splitName(s));
+export const isOutletMarker=(s:string)=>anatomical.test(s)&&!covering.test(splitName(s));
 function evidence(m:Material){
   const names=[m.name,m.userData.mmdMaterial?.name,m.userData.mmdMaterial?.englishName].filter((s):s is string=>typeof s==='string').map(splitName);
   if(names.some(s=>covering.test(s)))return null;
@@ -23,14 +24,19 @@ function evidence(m:Material){
  * rather than dropping unseen groups from the subsequent coverage proof. */
 export function materialDraws({mesh,renderOrderMeshes}:WandModel):Draw[]|null{
   const g=mesh.geometry,total=g.index?.count??g.attributes.position?.count??0,draws:Draw[]=[];
-  function add(owner:Object3D,material:Material,start:number,end:number){if(material&&start<end)draws.push({owner,material,start,end});}
+  // TSL replaces each authored color slot on attach, then appends outlines.
+  // Keep the original index range but consult the current color material.
+  function add(owner:SkinnedMesh,slot:number,start:number,end:number){
+    const material=()=>Array.isArray(owner.material)?owner.material[slot]:owner.material;
+    if(material()&&start<end)draws.push({owner,get material(){return material();},start,end});
+  }
   const {start,count}=modelDrawRange(mesh);
   if(count===0){for(const proxy of renderOrderMeshes){
     if(Array.isArray(proxy.material)||proxy.geometry.attributes.position!==g.attributes.position||proxy.geometry.index!==g.index)return null;
-    const r=modelDrawRange(proxy);add(proxy,proxy.material,r.start,Math.min(total,r.start+r.count));
+    const r=modelDrawRange(proxy);add(proxy,0,r.start,Math.min(total,r.start+r.count));
   }}else{
-    if(Array.isArray(mesh.material))for(const group of g.groups)add(mesh,mesh.material[group.materialIndex??0],Math.max(start,group.start),Math.min(start+count,group.start+group.count,total));
-    else add(mesh,mesh.material,start,Math.min(total,start+count));
+    if(Array.isArray(mesh.material))for(const group of g.groups)add(mesh,group.materialIndex??0,Math.max(start,group.start),Math.min(start+count,group.start+group.count,total));
+    else add(mesh,0,start,Math.min(total,start+count));
   }
   return draws.every(d=>Number.isInteger(d.start)&&Number.isInteger(d.end)&&d.start>=0&&d.start%3===0&&d.end%3===0)?draws:null;
 }
@@ -49,22 +55,23 @@ function chestWeight(mesh:SkinnedMesh,i:number,side:Side){
 /** Bind a barycentric point on the rendered triangles inside the narrowest
  * bilateral, localized, anatomically named vertex morph. Never a bone end,
  * body-wide morph, projected HUD point, model filename or guessed height. */
-export function* fitOutlets(mesh:SkinnedMesh,draws:Draw[],source=mesh){
+export function* fitOutlets(mesh:SkinnedMesh,draws:Draw[],source=mesh,attrs:PositionMorphs=mesh.geometry.morphAttributes.position??[]){
   const g=mesh.geometry,{position:p,normal:n}=g.attributes;
   if(!p||!n||!g.morphTargetsRelative)return null;
-  const attrs=g.morphAttributes.position??[],metadata=source.userData.mmdMorphs,remap=mesh.userData.mmdMorphSplitBody?.morphTargetIndices,markers=new Set<number>();
+  const metadata=source.userData.mmdMorphs,remap=mesh.userData.mmdMorphSplitBody?.morphTargetIndices,markers=new Set<number>();
   if(!attrs?.length)return null;
   for(const [name,i] of Object.entries(mesh.morphTargetDictionary??{})){
-    const m=metadata?.[remap?.[i]??i];if((isMarker(name)||isMarker(m?.englishName??''))&&(!m||m.type==='vertex')&&attrs?.[i])markers.add(i);
+    const m=metadata?.[remap?.[i]??i];if((isOutletMarker(name)||isOutletMarker(m?.englishName??''))&&(!m||m.type==='vertex')&&attrs[i])markers.add(i);
   }
   if(!markers.size||markers.size>24)return null;
   const pt=v(),nm=v();let best:{left:Patch;right:Patch;span:number;size:number}|null=null;
   for(const i of markers){
-    const a=attrs[i],patches={left:newPatch(),right:newPatch()};if(a.count!==p.count)continue;
+    const a=attrs[i],patches={left:newPatch(),right:newPatch()};if(a?.count!==p.count)continue;
     let invalid=false;
-    for(let j=0;j<a.count;j++){
-      if((j&2047)===2047)yield;
-      const length=nm.fromBufferAttribute(a,j).lengthSq();if(!Number.isFinite(length)){invalid=true;break;}if(length<=1e-16)continue;
+    for(let k=0;k<(a.vertices?.length??a.count);k++){
+      if((k&2047)===2047)yield;
+      const j=a.vertices?.[k]??k;
+      const length=nm.set(a.getX(j),a.getY(j),a.getZ(j)).lengthSq();if(!Number.isFinite(length)){invalid=true;break;}if(length<=1e-16)continue;
       pt.fromBufferAttribute(p,j);const s=pt.x>0?patches.left:patches.right;
       if(s.vertices.size>=4096){invalid=true;break;}
       s.vertices.add(j);s.center.add(pt);s.box.expandByPoint(pt);s.axis.add(nm.fromBufferAttribute(n,j));

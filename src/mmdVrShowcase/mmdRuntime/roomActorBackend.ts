@@ -1,6 +1,7 @@
 import type { TextureResolver, ThreeMmdLoader, ThreeMmdModel } from '@yohawing/three-mmd-loader';
 import type { MmdPhysicsBackend, MmdPhysicsStepContext } from '@yohawing/three-mmd-loader/physics';
 import type { DirectionalLight } from 'three';
+import type { SampleMilkOutlet } from '../bodyState/lactation/outlets';
 
 /** A renderer attachment to the room's model. It never loads a PMX, binds a
  * clip, advances a clock or owns a Bullet world. */
@@ -49,6 +50,7 @@ export interface RoomActorStyles {
 export interface RoomActorBackend {
   readonly loadOptions: Parameters<ThreeMmdLoader['loadModel']>[1];
   readonly styles?: RoomActorStyles;
+  prepareMilkOutlets?(model:ThreeMmdModel,stale:()=>boolean,bytes?:Uint8Array):Promise<SampleMilkOutlet>;
   attach(model: ThreeMmdModel,source:{file:File;resolver:TextureResolver;companionFiles:readonly File[];pmxBytes?:Uint8Array}): RoomActorBinding;
   setLight(light: DirectionalLight | null): void;
   beginFrame(frame: XRFrame | null, space: XRReferenceSpace | null, reseed: boolean): void;

@@ -93,7 +93,7 @@ export function mountRoomMilk(scene:Scene, gl:WebGLRenderer, runtime:Runtime, is
     if(!root||e.assetId!==assetId||e.runtimeId!==runtimeId)return false;
     const b=useBackpack.getState(),live=b.live[e.assetId];
     if(blocked()||pending(e.runtimeId)||performance.now()-lastFrame>betweenFramesMaxAge*1000||b.selected!==assetId||!live?.visible||live.runtimeId!==runtimeId||
-      !b.entries.some(entry=>entry.id===assetId&&entry.kind==='model')||visibleRoot(e.runtimeId)!==root||gl.getContext?.().isContextLost()||
+       !b.entries.some(entry=>entry.id===assetId&&entry.kind==='model')||visibleRoot(e.runtimeId)!==root||gl.getContext?.()?.isContextLost?.()||
       (useMmdVrStore.getState().presentation==='xr'&&(!session||session===ended||gl.xr.getSession()!==session||session.visibilityState!=='visible'))){interrupt();return false;}
     return drops.emit(e.side,e.amount);
   });

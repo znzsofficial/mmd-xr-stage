@@ -15,6 +15,8 @@ export const bench={x:1.97,z:-3.62,w:.66,d:2.72,bottom:0,top:.87};
 export const sign={x:-2.0,z:-8.85,w:2.15,d:.16,bottom:0,top:2.32};
 export const gauge={x:6.8,z:-13.45,w:.42,d:.3,bottom:0,top:1.22};
 export const lantern={x:15.9,z:-11.78,w:1.02,d:1.02,bottom:0,top:4.6};
+export const SHORE_SUN: [number,number,number]=[-4.2,4.5,2.6];
+export const canopyEaves={x:-.285,y:3.035,z:-1.23,w:6.78,d:11.73};
 export const posts=[2.68,-3.25].flatMap(x=>[-5.75,-1.25,3.25].map(z=>({x,z,w:.14,d:.15,bottom:0,top:2.93})));
 const shelter={x:-.3,z:-1.0,w:6.5,d:11.4,bottom:2.88,top:3.55};
 const furniture=[booth,bench,sign,gauge,lantern,...posts];

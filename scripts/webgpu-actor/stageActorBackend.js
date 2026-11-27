@@ -5,6 +5,7 @@ import { createActorMaterialAdapter } from './materialAdapter.js';
 import { prepareRoomCloth, roomCloth } from './roomCloth.js';
 import { inspectActorStyle } from './actorStyleSlots.js';
 import { createActorStyle } from './actorStyle.js';
+import { prepareFloorMilk } from './actorMilk.js';
 
 const empty = () => ({mode:'none', cloth:'none', nodes:0, clothSteps:0, fullBodies:0, keptBodies:0,
   bulletSteps:0, bulletSimulatedSteps:0, updatedBones:0, evaluations:0, poseSeconds:0, physicsDelta:0});
@@ -23,6 +24,7 @@ export async function createStageActorBackend(renderer, scene, light, origin, gr
   const status = () => ({...(actor?.log ?? empty()), enabled, style:actor?.style.snapshot ?? null, palms:actor ? [...palms.kinds] : ['missing','missing']});
   return {
     loadOptions:adapter.loadOptions,
+    prepareMilkOutlets:(model,stale,bytes)=>prepareFloorMilk(model,stale,bytes,()=>actor?.model===model&&actor.cloth?.active),
     styles:{subscribe(f) { listeners.add(f); return () => { listeners.delete(f); }; },
       read:(id,file) => styleFor(id,file)?.snapshot ?? null,
       choose:(id,file,enabled) => styleFor(id,file)?.choose(enabled)},

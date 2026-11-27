@@ -13,7 +13,7 @@ import {PlatformFinish,StationClock,TicketOfficePrint} from './platformFinish';
 import {Headlands} from './coastline';
 
 function stationPrint(){return paintedSurface(1024,380,c=>{
-  c.fillStyle='#ede7d0';c.fillRect(0,0,1024,380);c.fillStyle='#235653';c.fillRect(10,10,1004,5);c.fillRect(10,365,1004,5);
+  c.fillStyle='#eeefe9';c.fillRect(0,0,1024,380);c.fillStyle='#235653';c.fillRect(10,10,1004,5);c.fillRect(10,365,1004,5);
   c.fillStyle='#356459';c.fillRect(0,248,1024,112);c.fillStyle='#efe9d5';c.font='500 39px system-ui';c.fillText('←　海 岬',68,320);c.textAlign='right';c.fillText('终 点　•',958,320);
   c.textAlign='center';c.fillStyle='#253f3c';c.font='bold 105px SimSun,serif';c.fillText('海 边 终 点 站',512,151);c.font='500 35px system-ui';c.fillText('S E A S I D E   T E R M I N U S',512,216);
   for(const x of [23,1001])for(const y of [26,353]){c.fillStyle='#9c9c88';c.beginPath();c.arc(x,y,5,0,7);c.fill();}
@@ -27,7 +27,7 @@ function dialPrint(){return paintedSurface(384,268,c=>{c.fillStyle='#eae0c3';c.f
   c.fillStyle='#374e45';c.font='bold 23px system-ui';c.fillText('LOW',28,159);c.fillText('HIGH',286,159);c.textAlign='center';c.font='bold 30px system-ui';c.fillText('拨潮  /  TIDE',192,224);
 });}
 function Signage(){const board=useMemo(stationPrint,[]),print=useMemo(timetable,[]);useEffect(()=>()=>{board.dispose();print.dispose();},[board,print]);return <>
-  {[-1,1].map(s=><mesh key={s} position={[sign.x,1.85,sign.z+s*.06]} rotation-y={s<0?Math.PI:0} raycast={noPick}><planeGeometry args={[2.09,.774]}/><meshStandardMaterial map={board} roughness={.53}/></mesh>)}
+  {[-1,1].map(s=><mesh key={s} position={[sign.x,1.85,sign.z+s*.06]} rotation-y={s<0?Math.PI:0} raycast={noPick}><planeGeometry args={[2.09,.774]}/><meshStandardMaterial map={board} roughness={.38}/></mesh>)}
   <mesh position={[1.84,1.39,-.919]} rotation-y={Math.PI} raycast={noPick}><planeGeometry args={[.77,.96]}/><meshStandardMaterial map={print} roughness={.75}/></mesh></>;}
 function Sounder({clock}:{clock:ReturnType<typeof createTideClock>}){
   const print=useMemo(dialPrint,[]),needle=useRef<Group>(null),tmp=useMemo(()=>({ray:new Ray(),box:new Box3(),a:new Vector3(),b:new Vector3()}),[]);
@@ -40,8 +40,8 @@ function Sounder({clock}:{clock:ReturnType<typeof createTideClock>}){
 }
 export function SeasideTerminus({shadows}:{shadows:boolean}){const p=useMemo(stationParts,[]),clock=useMemo(createTideClock,[]);
   return <group name="scenery:seaside-terminus"><group pointerEvents="none">
-    <Batch name="terminus:masonry-and-canopy" parts={p.solids} casts={shadows}/><Batch name="terminus:track-and-joinery" parts={p.trim} casts={shadows}/>
-    <Batch name="terminus:tubular-iron" parts={p.tubes} round/><Batch name="terminus:lamp-glass" parts={p.glow} lit/>
+    <Batch name="terminus:enamelled-ironwork" parts={p.enamel} roughness={.39} casts={shadows}/><Batch name="terminus:track-and-joinery" parts={p.trim} casts={shadows}/>
+    <Batch name="terminus:tubular-iron" parts={p.tubes} round roughness={.39}/><Batch name="terminus:lamp-glass" parts={p.glow} lit/>
     <Batch name="terminus:breakwater-and-headland" parts={p.land} foliage/><Batch name="terminus:windbreak" parts={p.pines} foliage/>
-    <PlatformFinish/><StationClock/><TicketOfficePrint/><Headlands/><Signage/><HarbourWater clock={clock}/></group><Sounder clock={clock}/></group>;
+    <PlatformFinish shadows={shadows}/><StationClock/><TicketOfficePrint/><Headlands/><Signage/><HarbourWater clock={clock}/></group><Sounder clock={clock}/></group>;
 }

@@ -3,6 +3,9 @@ import type { MmdVrLightPreset } from '../settings/preferences';
 export type RoomLightingOverrides = {
   sun?: [number,number,number]; ambient?: number; hemi?: number;
   hemiSky?: string; hemiGround?: string; fog?: string; warmFog?: string;
+  // The ordinary stage preset follows this location's daylight. Deliberately
+  // selected looks (warm, rim, soft, etc.) keep their own key and ambient.
+  stageLight?: Pick<StageLighting, 'sun' | 'sunColor' | 'ambientColor'>;
 };
 
 export type StageLighting = {
@@ -56,7 +59,7 @@ const presets: Record<MmdVrLightPreset, StageLighting> = {
 export function resolveStageLighting(preset: MmdVrLightPreset, room: RoomLightingOverrides): StageLighting {
   const base = presets[preset];
   return {
-    ...base, sunPos: room.sun ?? base.sunPos,
+    ...base, ...(preset === 'stage' ? room.stageLight : undefined), sunPos: room.sun ?? base.sunPos,
     ambient: base.ambient + (room.ambient ?? 0), hemi: base.hemi + (room.hemi ?? 0),
     hemiSky: room.hemiSky ?? base.hemiSky, hemiGround: room.hemiGround ?? base.hemiGround,
     fogColor: (preset === 'warm' ? room.warmFog : undefined) ?? room.fog ?? base.fogColor,

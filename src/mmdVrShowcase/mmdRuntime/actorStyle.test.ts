@@ -20,6 +20,23 @@ it('styles named draws even on a shared atlas or without a texture; only matchin
   expect(inputs.map((s:{i:number})=>s.i)).toEqual([0,2]);
 });
 
+it('styles labelled sleeve panels without taking trims or other passes on the same atlas',()=>{
+  const labels = [
+    ['左袖', ''], ['右袖２', ''], ['外袖', 'Outer sleeve'], ['', 'Left Sleeve 2'],
+    ['袖飄帶', ''], ['右袖2+', ''], ['袖飾', ''], ['未知', ''],
+    ['右袖', 'Eye'], ['眉睫', 'Left sleeve'], ['左袖', 'Metal'], ['未知', 'Left sleeve.001'],
+    ['右袖2+', 'Right sleeve'], ['左袖', 'Sleeve trim'], ['まつげ', 'Outer sleeve'],
+  ];
+  const material = labels.map(([name,englishName], materialIndex) => ({
+    userData:{mmdMaterial:{name,englishName,materialIndex,faceCount:3,
+      texturePath:materialIndex === 3 ? 'shared.png' : 'set_cloth_01_D.png'}},
+    map:{image:{width:2,height:2}},
+  }));
+  const plan = inspectActorStyle({mesh:{material}});
+  expect(plan.hybridSlots).toEqual({face:[],skin:[],hair:[],cloth:[0,1,2,3],leather:[],metal:[]});
+  expect(plan.inputs.map((s:{i:number}) => s.i)).toEqual([0,1,2]);
+});
+
 it('lets a Blender-numbered translation corroborate a primary role, not create or override one',()=>{
   const labels=[['面','Face.001'],['顔','ＦＡＣＥ．００２'],['面','Face2'],['面','face_01'],
     ['Face.001','Face'],['表情','face.001'],['睫','Face.001'],['','Face.001'],['面','Eye.001'],

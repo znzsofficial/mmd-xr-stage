@@ -29,6 +29,7 @@ import {supportsWebgpuRoom,fitsWebgpuRoom} from '../../src/mmdVrShowcase/xr/floo
 import {classroomMaterials} from './classroomMaterials.jsx';
 import {trackedContacts} from './stage-tracked-contacts.js';
 import {usePlayerMovement} from '../../src/mmdVrShowcase/movement/usePlayerMovement';
+import {releaseMilk,useMilkInteraction} from '../../src/mmdVrShowcase/bodyState/lactation/interaction';
 
 // Input bindings for the old internal regression page only.
 function StageRay(){
@@ -111,6 +112,9 @@ function startFloor({resume,onStatus,fixture}) {
     prevTime=undefined;fixture?.controls.reset();
     if(committed){
       clearContacts();
+      // A frame with no viewer pose never reaches the Fiber room. Even a
+      // one-frame loss must retire the captured trigger before recovery.
+      releaseMilk(useMilkInteraction.getState().hold);
       // A release after tracking or focus returns must not place a held draft.
       const bag=useBackpack.getState();if(cancelDraft&&bag.draft)bag.cancelPlace();
     }

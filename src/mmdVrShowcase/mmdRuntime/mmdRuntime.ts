@@ -601,7 +601,9 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       }
       assertCurrent();
       bindPose = captureBindPose(model.mesh);
-      milkOutlet = await prepareMilkOutlets(model,stale);
+      milkOutlet = actorBackend?.prepareMilkOutlets
+        ? await actorBackend.prepareMilkOutlets(model,stale,source instanceof Uint8Array?source:undefined)
+        : await prepareMilkOutlets(model,stale);
       assertCurrent();
       configureActorPalms(model.mesh,palmsRequested());
       // Use the authored slot names. The renderer can append outline groups

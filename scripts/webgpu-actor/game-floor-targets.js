@@ -5,9 +5,8 @@ import { useLanguageStore } from '../../src/languageStore';
 import { useBackpack } from '../../src/mmdVrShowcase/backpack/store';
 import { useMmdVrStore } from '../../src/mmdVrShowcase/mmdVrStore';
 
-function room() {
-  return [..._roots.values()].map(r => r.store.getState()).find(s => s.gl.xr.isPresenting)?.scene;
-}
+export function floorState() {return [..._roots.values()].map(r=>r.store.getState()).find(s=>s.gl.xr.isPresenting);}
+function room() {return floorState()?.scene;}
 
 export function find({key, name, row}) {
   const scene = room();

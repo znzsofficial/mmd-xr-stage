@@ -6,6 +6,7 @@ import { expect, it, vi } from "vitest";
 import { MmdVrControlBar } from "./MmdVrHud";
 import { useMmdVrStore } from "../mmdVrStore";
 import { useLanguageStore, type TranslationKey } from "../../languageStore";
+import {beginMmdVrAssetSession,endMmdVrAssetSession} from '../backpack/sessionAssets';
 
 const harness = vi.hoisted(() => ({ camera: {} as unknown, buttonEvent: null as null | ((state: string) => void) }));
 vi.mock("@react-three/fiber", () => ({ useThree: (selector: (s: {camera: unknown}) => unknown) => selector(harness), useFrame: vi.fn() }));
@@ -80,8 +81,13 @@ it("opens on personal adjustments, keeps physics details contextual, and retains
     await act(async()=>harness.buttonEvent?.('pressed'));
     await click(t("settingsVrDesktopExit"));
     expect(exit).toHaveBeenCalledOnce();
+    beginMmdVrAssetSession([],'soloFloor');
+    await act(async()=>harness.buttonEvent?.('pressed'));await click(t('hudMore'));await click(t('settingsEnvironment'));
+    await click(t('settingsMmdVrLightWarm'));expect(useMmdVrStore.getState().prefs.lightPreset).toBe('warm');
+    expect(buttons(t('settingsVisualDetails'))).toHaveLength(0);
   } finally {
     await act(async () => root.unmount());
+    endMmdVrAssetSession();
     useMmdVrStore.setState(state);
     vi.restoreAllMocks(); vi.unstubAllGlobals();
   }
