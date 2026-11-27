@@ -5,6 +5,16 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from 'node:path';
 
 const files = [
+  // Vite 8.4 renames shared chunks even when the package source is unchanged.
+  ['9d9f1ae6','three.module-DVJnBgdk.js','b476d87290924fc73209689ed51577abe9a985e383f27a4ac3f6bd632193a5c8'],
+  ['9d9f1ae6','three.core-B3xvqeNo.js','2ab09df1ace934298a5055887c017d6886e7bab66c68447949a8735f366cc847'],
+  ['9d9f1ae6','rolldown-runtime-XKyaHtl9.js','548d1dbf321e7d2ae804fcc158b588706a7c52f8ca175de1490c6ccb4dbe55b7'],
+  ['9d9f1ae6','rapier-CwNYr1JD.js','eea169a9c9c284b6b7a0b4a23919bb317376a6086e41aa6bf0b15ad11089abe9'],
+  ['9d9f1ae6','__vite-browser-external-BDfy7Drd.js','f8360f8f5b027ea8953018edeabf06c5861dda3c7f731de7f910438f123c0f38'],
+  ['9d9f1ae6','zip.js-34dIW77Z.js','07065819d2130f869df7a2c12e77f779a119ba923fa115bfceb5bf9200a41cfd'],
+  ['9d9f1ae6','tide-shore-C5THrAc8.webp','e73af3f8750d978fda88878a9139490d79112bbd450b2da88407b04ecf47b22b'],
+  ['9d9f1ae6','actorStyleMaps.worker-CJwGCxEY.js','fa9fb6b2ec07fdbb38865aefb831aa65dfa3a0fa571cb237a60212ea2cfcf76e'],
+  ['9d9f1ae6','emulate-BdVHLD1Y.js','c75bb44952e737011a3130a060b65ed9592f691f293ac2a8092a53c6dd211349'],
   ['9d9f1ae6','index-CEAMGVUF.js','e5fdf7a3f9285ed829a038976fdb70a68585b5e5a7400282541de13899ed179b'],
   ['9d9f1ae6','PlanetPhysics-BczjKKu7.js','e913296733ef40cf4cfd46a73589897c5b12b37d8fa8a1bdefbdf70555947de1'],
   ['9d9f1ae6','stage-host-DOJx1dfs.js','88273f9a1e58ba75c94209e0da29e11a37f3651360ada968d235883a0ecbdd26'],

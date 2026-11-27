@@ -7,6 +7,9 @@ vi.mock('@yohawing/three-mmd-loader/webgpu',()=>({createMmdTslPipeline:async()=>
 vi.mock('../../../scripts/webgpu-actor/endfieldOutline.js',()=>({prepareOutline:f.bake,installOutline:vi.fn()}));
 vi.mock('../../../scripts/webgpu-actor/faceKeyShadow.js',()=>({createFaceKeyShadow:()=>({setEnabled:f.enable,prepare:f.draw,dispose:f.dispose,visibility:1})}));
 vi.mock('../../../scripts/webgpu-actor/endfieldToon.js',()=>({endfieldColor:()=>({name:'styled'})}));
+// Isolate optional-caster lifetime from shader graph construction. The real
+// pigment graphs are exercised on WebGPU in stylePigment.proof.js.
+vi.mock('../../../scripts/webgpu-actor/mmdStylePigment.js',()=>({mmdStylePigment:()=>({paint:1,resolve:(node:unknown)=>node})}));
 
 function actor(){return {mesh:{material:[{colorNode:{name:'original'},userData:{mmdTslMaterialUniforms:{}}},{userData:{}}]}};}
 it('keeps drawing the same actor when its optional face projection fails, and still reports a real pipeline error',async()=>{
