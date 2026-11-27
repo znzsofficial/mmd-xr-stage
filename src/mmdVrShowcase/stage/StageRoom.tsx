@@ -676,11 +676,8 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles,
     wristCue.driver.current?.advance(delta,posedCarrier);
     presentRemoteWearable(scene);
     pelvic.current?.advance(delta,frame,pelvicBlocked);
-    // Both renderers need this frame's measured opening and response. Only
-    // the rod's separate soft-tip query needs the original CPU triangles.
-    const skipSoftHead=!!backend&&!!(owners.stand||owners.held?.toy==='dildo'||owners.character?.toy==='dildo');
     if(!isRoomStale()&&!store.physicsBusy&&!store.physicsFatal&&!store.assetLoad.running)
-      propDisplay.present(rt,scene,wristGroup.current,pelvic.current,frame,clock,skipSoftHead);
+      propDisplay.present(rt,scene,wristGroup.current,pelvic.current,frame,clock);
     // Mail from an actor-style decode can arrive even while VMD and physics
     // are both paused. Commit on this tracked draw, after all displayed pose
     // layers, without re-evaluating VMD or dispatching idle GPU pose work.

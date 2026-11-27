@@ -78,13 +78,14 @@ export function createStageActors(scene: THREE.Scene, runtime: MmdRuntimeHandle,
   }
 
   async function loadObject(slot: MmdVrObjectSlot, x: number, stale: () => boolean, saved?: SavedObject, place?: Extract<BackpackCommand, {type:"place"}>, y=0) {
-    const { loader, url, revoke } = createMmdVrGltfLoader(slot.objectFile, slot.companionFiles);
+    const request = createMmdVrGltfLoader(slot.objectFile, slot.companionFiles);
     let ownsBitmaps = !THREE.Cache.enabled;
     let group: THREE.Group | undefined;
     try {
-      group = (await loader.loadAsync(url)).scene;
+      group = (await request.loader.loadAsync(request.url)).scene;
       ownsBitmaps &&= !THREE.Cache.enabled;
       if (stale()) throw abort();
+      if (request.resourceError) throw request.resourceError;
       prepareStageObject(group);
       group.userData.stagePropSolid = true;
       const defaultPosition: [number, number, number] = [x, y, place?.z ?? -2.2];
@@ -101,7 +102,7 @@ export function createStageActors(scene: THREE.Scene, runtime: MmdRuntimeHandle,
       if (group) disposeStageObject(group, ownsBitmaps);
       throw error;
     } finally {
-      revoke();
+      request.revoke();
     }
   }
 

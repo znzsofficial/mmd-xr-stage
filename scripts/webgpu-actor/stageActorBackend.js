@@ -9,6 +9,8 @@ import { drawRevision, presentDraws, restoreDraws } from '../../src/mmdVrShowcas
 import { prepareFloorMilk } from './actorMilk.js';
 import {makeEggSurface} from './eggSurface.js';
 import {bindAuthoredSurface} from './authoredSurface.js';
+import {authoredSurface} from '../../src/mmdVrShowcase/play/authoredSurface';
+import {createFloorPoseSkirt} from './poseSkirtDisplay.js';
 
 const empty = () => ({mode:'none', cloth:'none', nodes:0, clothSteps:0, fullBodies:0, keptBodies:0,
   bulletSteps:0, bulletSimulatedSteps:0, updatedBones:0, evaluations:0, poseSeconds:0, physicsDelta:0});
@@ -19,35 +21,66 @@ export async function createStageActorBackend(renderer, scene, light, origin, gr
   // The landmark sun can unmount when StageRoom mounts its own. The facade
   // takes one stable light reference; mirror the live room's world direction.
   const sun = new DirectionalLight(), palms = xrPalms();
-  const adapter = await createActorMaterialAdapter(renderer,sun,grade);
-  let actor, sourceLight = light, disposed = false, tracked = false, serial = 0, prepared = -1;
+  const adapter = await createActorMaterialAdapter(renderer,sun,{...grade,stageEdits:true});
+  // Models get their runtime IDs after attachment. Key the attachment by the
+  // loaded model itself, including during restore and disposal of stale loads.
+  const actors = new Map();
+  let sourceLight = light, disposed = false, tracked = false, serial = 0, prepared = -1;
   let enabled = true, worldPalms = null, seedFrame = false, displayDirty = false;
   const listeners = new Set(), notify = () => { for (const f of listeners) f(); };
-  const styleFor = (id,file) => actor?.file === file && actor?.model.root.userData.mmdModelId === id ? actor?.style : undefined;
-  const status = () => ({...(actor?.log ?? empty()), enabled, style:actor?.style.snapshot ?? null, palms:actor ? [...palms.kinds] : ['missing','missing']});
+  function actorFor(id) {
+    if(!id)return;
+    for(const actor of actors.values())if(actor.model.root.userData.mmdModelId===id)return actor;
+  }
+  function styleFor(id,file) {
+    const actor=actorFor(id);return actor?.file===file ? actor?.style : undefined;
+  }
+  function status() {
+    const list=[...actors.values()],single=list.length===1?list[0]:null;
+    const log=single?{...single.log}:empty();
+    if(list.length>1){
+      const counters=['nodes','clothSteps','fullBodies','keptBodies','bulletSteps','bulletSimulatedSteps','updatedBones','evaluations'];
+      for(const {log:actorLog} of list){for(const key of counters)log[key]+=actorLog[key];}
+      log.mode=list.every(actor=>actor.log.mode===list[0].log.mode)?list[0].log.mode:'mixed';
+      log.cloth=list.every(actor=>actor.log.cloth===list[0].log.cloth)?list[0].log.cloth:'mixed';
+    }
+    return {...log,enabled,style:single?.style.snapshot??null,palms:list.length?[...palms.kinds]:['missing','missing'],
+      actors:list.map(({model,log,style})=>({id:model.root.userData.mmdModelId,visible:model.root.visible,mode:log.mode,style:style.snapshot.mode}))};
+  }
+  function presentWardrobes(){for(const {model} of actors.values())presentDraws(model.mesh);}
+  function afterMaterialSync(){
+    for(const {skirt} of actors.values())skirt.submit();
+    presentWardrobes();
+  }
   return {
     loadOptions:adapter.loadOptions,
-    getGarmentPose:id=>actor?.model.root.userData.mmdModelId===id?actor.garment:null,
-    getEggSurface:id=>actor?.model.root.userData.mmdModelId===id?actor.egg():undefined,
-    prepareMilkOutlets:(model,stale,bytes)=>prepareFloorMilk(model,stale,bytes,()=>actor?.model===model&&actor.cloth?.active),
+    getGarmentPose:id=>actorFor(id)?.garment??null,
+    getEggSurface:id=>actorFor(id)?.egg(),
+    prepareMilkOutlets:(model,stale,bytes)=>prepareFloorMilk(model,stale,bytes,()=>{
+      const actor=actors.get(model);return actor?.cloth?.active||actor?.skirt.active;
+    }),
     styles:{subscribe(f) { listeners.add(f); return () => { listeners.delete(f); }; },
       read:(id,file) => styleFor(id,file)?.snapshot ?? null,
       choose:(id,file,enabled) => styleFor(id,file)?.choose(enabled)},
     get status() { return status(); }, getStatus:status,
     setLight(value) { sourceLight = value; displayDirty = true; },
-    setClothEnabled(value) { enabled = !!value; if (!enabled) actor?.binding.interrupt(); },
+    setClothEnabled(value) { enabled = !!value; if (!enabled) for(const actor of actors.values())actor.binding.interrupt(); },
     beginFrame(frame,space,reseed) {
       if (disposed) return;
       ++serial;
       seedFrame = reseed;
       tracked = !!(origin.current && space && frame?.session.visibilityState === 'visible' && frame.getViewerPose(space)?.views.length);
-      if (!tracked || reseed) { palms.reset(); actor?.cloth?.interrupt(); }
-      if (!tracked) actor?.binding.interrupt();
+      if (!tracked || reseed) {
+        palms.reset();
+        for(const actor of actors.values()){
+          if(tracked)actor.cloth?.interrupt();else actor.binding.interrupt();
+        }
+      }
       worldPalms = tracked ? palms.read(frame,space,origin.current.matrixWorld) : null;
     },
     attach(model,source) {
       if (disposed) throw new DOMException('Room retired','AbortError');
-      if (actor) throw Error('This floor supports one mounted actor at a time');
+      if (actors.has(model)) throw Error('Model already attached');
       const log = empty();
       const g = model.mesh.geometry;
       const basePosition=g.attributes.position,baseUv=g.attributes.uv;
@@ -70,9 +103,11 @@ export async function createStageActorBackend(renderer, scene, light, origin, gr
 
       const style = createActorStyle(model,source,plan,adapter,notify);
       const surface=bindAuthoredSurface(model.mesh,basePosition,baseUv,source?.pmxBytes,rig,()=>cloth?.active);
+      const skirt=createFloorPoseSkirt(renderer,model.mesh,surface);
       const filter = rig && skirtPhysicsFilter(rig);
       let ready = false, cut = false, stepped = false, lastPose = -1, retired = false, interrupted = true;
       const binding = {
+        fitEditedSkirt:skirt.fit,
         beforePose(allow) {
           stepped = cut = false;
           ready = !!(allow && tracked && enabled && cloth?.ready(true));
@@ -110,8 +145,10 @@ export async function createStageActorBackend(renderer, scene, light, origin, gr
         dispose() {
           if (retired) return;
           retired = true; ready = cut = false;
-           try { egg?.dispose();cloth?.dispose(); } finally {
-            try { adapter.detach(model); } finally { style.dispose(); actor = undefined; notify(); }
+          actors.delete(model);
+          authoredSurface.delete(model.mesh);
+          try { egg?.dispose();skirt.dispose();cloth?.dispose(); } finally {
+            try { adapter.detach(model); } finally { style.dispose(); notify(); }
           }
         },
       };
@@ -119,18 +156,22 @@ export async function createStageActorBackend(renderer, scene, light, origin, gr
       // garment. A GPU cloth offset or unverified moving cutout is not.
       const offsets=model.mesh.userData.mmdMorphs.flatMap((m,i)=>['uv','material','unknown'].includes(m.type)?[i]:[]);
       const garment={position:basePosition,get morphs(){return surface.morphs;},
-        sampleable:()=>!retired&&!cloth?.active&&surface.sampleable([])&&offsets.every(i=>model.mesh.morphTargetInfluences[i]===0)};
-      actor = {log,binding,cloth,model,file:source?.file,style,garment,egg:()=>egg??=makeEggSurface(model.mesh,basePosition,baseUv,source?.pmxBytes,rig,()=>cloth?.active)};
+        sampleable:()=>!retired&&!cloth?.active&&!skirt.active&&surface.sampleable([])&&offsets.every(i=>model.mesh.morphTargetInfluences[i]===0)};
+      actors.set(model,{log,binding,cloth,skirt,model,file:source?.file,style,garment,egg:()=>egg??=makeEggSurface(model.mesh,basePosition,baseUv,source?.pmxBytes,rig,()=>cloth?.active)});
       notify();
       return binding;
     },
     prepareRender(poseUpdated=true) {
-      if (!actor || !tracked || disposed || serial === prepared) return;
+      if (!actors.size || !tracked || disposed || serial === prepared) return;
       prepared = serial;
-      const styleChanged = actor.model.root.parent && actor.model.root.visible && actor.style.frame();
-      const mesh=actor.model.mesh, revision=drawRevision(mesh);
-      if (!poseUpdated && !styleChanged && !displayDirty && actor.drawRevision===revision) return;
-      actor.drawRevision=revision;
+      let changed=poseUpdated||displayDirty;
+      for(const actor of actors.values()){
+        const {model,style}=actor, revision=drawRevision(model.mesh);
+        if(actor.skirt.dirty)changed=true;
+        if(model.root.parent && model.root.visible && style.frame())changed=true;
+        if(actor.drawRevision!==revision){actor.drawRevision=revision;changed=true;}
+      }
+      if(!changed)return;
       displayDirty = false;
       sun.visible = !!sourceLight?.visible;
       if (sourceLight) {
@@ -139,13 +180,14 @@ export async function createStageActorBackend(renderer, scene, light, origin, gr
       }
       // The loader rewrites surface + outline flags during prepareRender.
       // Reapply the wardrobe before the style's face shadow and both eye draws.
-      restoreDraws(mesh);
-      try {adapter.prepare(scene,()=>presentDraws(mesh));} finally {presentDraws(mesh);}
+      for(const {model} of actors.values())restoreDraws(model.mesh);
+      try {adapter.prepare(scene,afterMaterialSync);} finally {presentWardrobes();}
     },
     dispose() {
       if (disposed) return;
       disposed = true; tracked = false; worldPalms = null; palms.reset();
-      actor?.binding.dispose(); listeners.clear(); adapter.dispose(); sun.dispose();
+      for(const actor of actors.values())actor.binding.dispose();
+      listeners.clear(); adapter.dispose(); sun.dispose();
     },
   };
 }

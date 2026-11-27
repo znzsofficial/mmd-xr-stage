@@ -4,14 +4,22 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs/promises');
 const path=require('node:path');
 
-module.exports=async function({page,ids,click,until,bButton,frames,target,pickMounted,idleRay,room}){
+module.exports=async function({page,ids,click,until,bButton,frames,target,pickMounted,idleRay,aim,trigger,room}){
   const actor=await until('portrait actor ready',s=>s.ready&&s.selected&&s.actor?.evaluations>1);
   const quiet=async()=>{await target({name:'watch:quiet'});await idleRay();await frames(3);};
   if(actor.physics){
     await bButton();await click('hudMore');await click('settingsCharacter');await click('settingsMmdVrPhysicsOn');
     await until('unmoving portrait surface',s=>s.ready&&!s.physics&&s.actor.mode==='none');await click('hudBack');await quiet();
   }else{await click('hudDone');await quiet();}
-  async function lighting(key){await bButton();await click('hudMore');await click('settingsEnvironment');await click(key);await click('hudBack');await quiet();}
+  async function lighting(preset){
+    await bButton();await click('hudMore');await click('settingsEnvironment');
+    for(let i=0;i<6;i++){
+      const current=await page.evaluate(async()=>(await import('/src/mmdVrShowcase/mmdVrStore.ts')).useMmdVrStore.getState().prefs.lightPreset);
+      if(current===preset){await click('hudBack');await quiet();return;}
+      await aim(await target({setting:'settingsLighting'}));await trigger(true);await trigger(false);
+    }
+    throw Error('Missing shared light preset '+preset);
+  }
   async function style(choice){await pickMounted(ids.model);await click(choice==='mmd'?'actorStyleMmd':'actorStyleEndfield');
     await until('material graph committed',(s,choice)=>s.actor?.style?.mode===choice,choice,45000);
     await click('hudDone');await quiet();}
@@ -21,8 +29,8 @@ module.exports=async function({page,ids,click,until,bButton,frames,target,pickMo
     cfg.take={eyeY:1.31,eyeZ:-.97,inputs(){this.time=performance.now();},afterDraw(s){if(--remaining>0)return;
       cfg.take=null;clearTimeout(timer);s.copyEyes().then(p=>{(cfg.portraits??={})[name]=p;resolve();},reject);}};
   }),name);await frames(3);}
-  await lighting('settingsMmdVrLightDaylight');await capture('mmd');await style('endfield');await capture('day');
-  await lighting('settingsMmdVrLightWarm');await capture('warm');await lighting('settingsMmdVrLightDaylight');await capture('dayAgain');
+  await lighting('daylight');await capture('mmd');await style('endfield');await capture('day');
+  await lighting('warm');await capture('warm');await lighting('daylight');await capture('dayAgain');
   await style('mmd');await capture('restored');
   const result=await page.evaluate(()=>{
     const pairs=labFixture.portraits, metrics=[];

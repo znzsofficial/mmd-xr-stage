@@ -1,4 +1,6 @@
 import {BufferAttribute,type SkinnedMesh} from 'three';
+import {authoredSurface} from '../play/authoredSurface';
+import type {PositionDeltas} from '../play/wandPose';
 
 /** Classify a channel only when it first has weight. Normal-only, material,
  * face and lip channels cannot invalidate an unchanged leg/cloth position.
@@ -11,11 +13,13 @@ export function clothMorphGuard(source:SkinnedMesh,relevant:Map<SkinnedMesh,Set<
     // reference for an absolute target instead of comparing against a shown hem.
     const rest=!relative&&g.morphAttributes.position?.length?Float64Array.from(points,i=>position.getX(i)):null;
     const restY=rest&&Float64Array.from(points,i=>position.getY(i)),restZ=rest&&Float64Array.from(points,i=>position.getZ(i));
-    return {mesh,g,points,position,relative,rest,restY,restZ,cache:new Map<number,{attr:BufferAttribute;version:number;touches:boolean}>()};
+    const sparse=authoredSurface.get(mesh);
+    return {mesh,g,points,position,relative,rest,restY,restZ,sparse,cache:new Map<number,{attr:PositionDeltas;version:number;touches:boolean}>()};
   });
   function blocked(){let work=0;
-    for(const {mesh,g,points,position,relative,rest,restY,restZ,cache} of layers){
-      const targets=g.morphAttributes.position,local=mesh.morphTargetInfluences;
+    for(const {mesh,g,points,position,relative,rest,restY,restZ,cache,sparse} of layers){
+      if(sparse&&!sparse.sampleable([]))return true;
+      const targets=sparse?.morphs??g.morphAttributes.position,local=mesh.morphTargetInfluences;
       if(!targets?.length){base.set(mesh,1);continue;}
       if(relative!==g.morphTargetsRelative||targets.length>512||!local||local.length<targets.length)return true;
       const split=mesh!==source,remap=mesh.userData.mmdMorphSplitBody?.morphTargetIndices,global=source.morphTargetInfluences;
@@ -26,14 +30,16 @@ export function clothMorphGuard(source:SkinnedMesh,relevant:Map<SkinnedMesh,Set<
         if(!Number.isFinite(w)||split&&(!Number.isInteger(k)||k<0||(global&&k>=global.length)))return true;
         sum+=w;
         if(!w&&(!split||!global?.[k]))continue;
-        const attr=targets[j];if(!(attr instanceof BufferAttribute)||attr.itemSize!==3||attr.count!==position.count)return true;
+        const attr=targets[j];if(sparse&&!attr)continue; // PMX bone, UV and material channels have no position rows
+        if(!attr||attr.count!==position.count||!sparse&&(!(attr instanceof BufferAttribute)||attr.itemSize!==3))return true;
+        const version=attr instanceof BufferAttribute?attr.version:0;
         let record=cache.get(j);
-        if(record?.attr!==attr||record.version!==attr.version){
+        if(record?.attr!==attr||record.version!==version){
           if((work+=points.length)>120_000)return true;
           let touches=false;
           for(let n=0;n<points.length;n++){const i=points[n],x=attr.getX(i),y=attr.getY(i),z=attr.getZ(i);
             if(!Number.isFinite(x+y+z)|| (relative ? x!==0||y!==0||z!==0 : !rest||x!==rest[n]||y!==restY![n]||z!==restZ![n])){touches=true;break;}}
-          record={attr,version:attr.version,touches};cache.set(j,record);
+          record={attr,version,touches};cache.set(j,record);
         }
         if(record.touches)return true;
       }

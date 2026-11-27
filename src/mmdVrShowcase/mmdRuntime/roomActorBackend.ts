@@ -4,10 +4,12 @@ import type { DirectionalLight } from 'three';
 import type { SampleMilkOutlet } from '../bodyState/lactation/outlets';
 import type { GarmentPose } from '../pelvic/garment';
 import type { EggSurfaceBackend } from '../play/remote/eggSurface';
+import type { fitPoseSkirt } from './poseSkirtClearance';
 
 /** A renderer attachment to the room's model. It never loads a PMX, binds a
  * clip, advances a clock or owns a Bullet world. */
 export interface RoomActorBinding {
+  fitEditedSkirt?(): ReturnType<typeof fitPoseSkirt>;
   beforePose(allowCloth: boolean): void;
   stepPhysics(context: MmdPhysicsStepContext, step: MmdPhysicsBackend['step']): ReturnType<MmdPhysicsBackend['step']>;
   afterPose(seconds: number, delta: number, reseed: boolean): void;
@@ -18,7 +20,8 @@ export interface RoomActorBinding {
 }
 
 export interface RoomActorStatus {
-  mode: 'gpu' | 'bullet' | 'none';
+  mode: 'gpu' | 'bullet' | 'none' | 'mixed';
+  actors: readonly {id:string;visible:boolean;mode:'gpu'|'bullet'|'none';style:ActorStyleState['mode']}[];
   nodes: number;
   clothSteps: number;
   /** Model rigid bodies before/after selection, before any XR/prop slots. */

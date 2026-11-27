@@ -1,5 +1,7 @@
-import { createMmdTslPipeline, disposeMmdTslShadowCaster } from '@yohawing/three-mmd-loader/webgpu';
-import { max, sRGBTransferEOTF, sRGBTransferOETF } from 'three/tsl';
+import { createMmdTslBaseColorNode, createMmdTslPipeline, disposeMmdTslShadowCaster } from '@yohawing/three-mmd-loader/webgpu';
+import { Color } from 'three';
+import { materialEmissive, materialOpacity, max, sRGBTransferEOTF, sRGBTransferOETF, uniform, uniformTexture, uv } from 'three/tsl';
+import { invalidateDraws } from '../../src/mmdVrShowcase/wardrobe/draws';
 import { actorKeyLight, hybridToonColor, parseHybridSlots } from './hybridToon.js';
 import { endfieldColor } from './endfieldToon.js';
 import { mmdStylePigment } from './mmdStylePigment.js';
@@ -11,13 +13,56 @@ import { prepareOutline, installOutline } from './endfieldOutline.js';
 // EOTF(clamp(toon/sphere/specular composite, 0, 1)). Its public output cannot
 // recover detail already clipped by that clamp. Grade the surviving RGB in the
 // same gamma space as mmdMaterialEnhance.ts, before framebuffer blending.
-function balancedToonColor(linear, ambientIntensity) {
-  const ambient = Math.min(3, Math.max(0, ambientIntensity));
-  const rgb = sRGBTransferOETF(linear).mul(0.76 + 0.34 * ambient);
+function balancedToonColor(linear, gain) {
+  const rgb = sRGBTransferOETF(linear).mul(gain);
   // Floor peak at the knee: the scale is exactly one below it (also at black).
   const peak = max(0.82, max(rgb.r, max(rgb.g, rgb.b)));
   const shoulder = peak.sub(0.82).mul(0.18).div(peak.sub(0.64)).add(0.82);
   return sRGBTransferEOTF(rgb.mul(shoulder.div(peak)));
+}
+
+// The room's ordinary TSL pass has dedicated self-shadow off. Reuse the
+// fork's composite and live PMX uniforms. All consumers of THIS slot (MMD
+// RGB, alpha, styled pigment and the face caster) borrow one replaceable
+// sampler; other slots can safely start with the very same atlas Texture.
+function editableStageColor(mesh, material, balanced, ambientIntensity) {
+  const refs = material.userData.mmdTslTextureReferences;
+  const diffuse = refs.diffuseMap && uniformTexture(refs.diffuseMap);
+  let original = material.colorNode;
+  if (diffuse) {
+    material.map = refs.diffuseMap;
+    original = createMmdTslBaseColorNode({ ...refs, diffuseMap: diffuse,
+      uniforms: material.userData.mmdTslMaterialUniforms,
+      sphereMode: material.userData.mmdMaterial.sphereMode, gammaSpaceComposite: true });
+    material.opacityNode = materialOpacity.mul(diffuse.sample(uv()).a);
+  }
+  const enabled = uniform(!!balanced, 'bool');
+  const ambient = uniform(Math.min(3, Math.max(0, ambientIntensity)));
+  const balancedColor = balancedToonColor(original, ambient.mul(.34).add(.76));
+  const brightColor = sRGBTransferEOTF(sRGBTransferOETF(original).mul(ambient.mul(.77).add(.72)));
+  material.colorNode = enabled.select(balancedColor, brightColor);
+  const emission = uniform(new Color(0));
+  material.emissiveNode = materialEmissive.add(emission);
+  let previousIntensity = 0, previousTint = '#ffffff';
+  material.userData.stageMaterial = {
+    diffuse,
+    setDiffuse(map) {
+      if (!diffuse || diffuse.value === map) return;
+      diffuse.value = map;
+      invalidateDraws(mesh); // redraw the optional face projection on a held pose
+    },
+    sync(override, lighting) {
+      enabled.value = lighting.balancedModelColor !== false;
+      ambient.value = Math.min(3, Math.max(0, lighting.ambientIntensity ?? .55));
+      const strength = Math.max(0, override.emission), tint = override.emissionColor || '#ffffff';
+      if (strength !== previousIntensity || tint !== previousTint) {
+        emission.value.set(tint).multiplyScalar(strength * (.5 + strength));
+        previousIntensity = strength;
+        previousTint = tint;
+      }
+    },
+  };
+  return original;
 }
 
 /**
@@ -36,7 +81,7 @@ function balancedToonColor(linear, ambientIntensity) {
  * Detach releases TSL compute/shadow helpers; it does not undo material and
  * outline replacement. Discard a failed/retired model rather than reattaching it.
  */
-export async function createActorMaterialAdapter(renderer, light, { balancedModelColor = false, ambientIntensity = 0.55, hybridSlots, endfield = false } = {}) {
+export async function createActorMaterialAdapter(renderer, light, { balancedModelColor = false, ambientIntensity = 0.55, hybridSlots, endfield = false, stageEdits = false } = {}) {
   const defaultSlots = parseHybridSlots(hybridSlots, endfield);
   const actors = new Map();
   function shadowFailure(a,error) {
@@ -127,14 +172,15 @@ export async function createActorMaterialAdapter(renderer, light, { balancedMode
       // geometry uses that same layer and draws an untextured white silhouette
       // in the color pass. This adapter has no dedicated XR shadow pass.
       if (attached && renderer.xr.enabled && !options?.selfShadowEnabled && !options?.selfShadow) disposeMmdTslShadowCaster(model.mesh);
-      if (attached && (balancedModelColor || slots.size)) {
+      if (attached && (stageEdits || balancedModelColor || slots.size)) {
         const base=new Map(),input=new Map();
         for (const [index, material] of [model.mesh.material].flat().entries()) {
           // Only fork toon surfaces have these uniforms. Appended edges use a
           // different material; opacityNode, alpha test and depth stay loader-owned.
           if (!material.userData.mmdTslMaterialUniforms) continue;
-          const original=material.colorNode;
-          if (balancedModelColor) material.colorNode = balancedToonColor(material.colorNode, ambientIntensity);
+          let original = material.colorNode;
+          if (stageEdits) original = editableStageColor(model.mesh, material, balancedModelColor, ambientIntensity);
+          else if (balancedModelColor) material.colorNode = balancedToonColor(original, .76 + .34 * Math.min(3, Math.max(0, ambientIntensity)));
           if (!canStyle && slots.has(index)) {
             const pigment=mmdStylePigment(material), mmd=material.colorNode;
             material.colorNode=pigment.resolve(hybridToonColor(mmd,actorKeyLight(material),slots.get(index),pigment.paint),mmd);

@@ -38,6 +38,7 @@ export function createGltfResourceMapper(
 export type MmdVrGltfLoaderHandle = {
   loader: GLTFLoader;
   url: string;
+  readonly resourceError: Error | null;
   revoke: () => void;
 };
 
@@ -61,23 +62,31 @@ export function createMmdVrGltfLoader(file: File, companions: readonly File[]): 
 
   const url = makeUrl(file);
   let resolve: ReturnType<typeof createCompanionIndex> | undefined;
+  let resourceError: Error | null = null;
 
   const loader = new GLTFLoader(new LoadingManager());
   loader.setResourcePath("./");
-  if (companions.length) {
-    loader.manager.setURLModifier((requested) => {
-      if (/^(blob:|data:|https?:)/i.test(requested)) return requested;
-      // A self-contained GLB never needs a second index of the backpack.
-      resolve ??= createCompanionIndex([file, ...companions]);
-      let reference = normalizeGltfResourcePath(requested);
-      try { reference = decodeURIComponent(reference); } catch { /* Retain literal malformed escapes. */ }
-      const { matches } = resolve(file, reference);
-      return matches.length === 1 ? makeUrl(matches[0]) : requested;
-    });
-  }
+  loader.manager.setURLModifier((requested) => {
+    if (/^(blob:|data:|https?:|\/\/)/i.test(requested)) return requested;
+    // A self-contained GLB never needs a second index of the backpack.
+    resolve ??= createCompanionIndex([file, ...companions]);
+    let reference = normalizeGltfResourcePath(requested);
+    try { reference = decodeURIComponent(reference); } catch { /* Retain literal malformed escapes. */ }
+    const { matches } = resolve(file, reference);
+    if (matches.length === 1) return makeUrl(matches[0]);
+    // GLTFLoader tolerates a rejected image and returns a plain material. Do
+    // not report that as a successful placement or fetch a local name by HTTP.
+    resourceError ??= new Error(`${matches.length ? 'Ambiguous' : 'Missing'} glTF resource: ${reference}`);
+    throw resourceError;
+  });
+  loader.manager.onError = requested => {
+    const source = [...urlsByFile].find(([, url]) => url === requested)?.[0];
+    resourceError ??= new Error(`Failed to load glTF resource: ${source?.name ?? (/^(?:blob|data):/i.test(requested) ? file.name : requested)}`);
+  };
   return {
     loader,
     url,
+    get resourceError() { return resourceError; },
     revoke: () => {
       loader.manager.setURLModifier(); // detach resolver and do not mint URLs for late requests
       for (const url of urlsByFile.values()) URL.revokeObjectURL(url);

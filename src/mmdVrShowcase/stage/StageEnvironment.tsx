@@ -83,9 +83,6 @@ export function StageEnvironment({scenery, lighting, prefs, profile, sunRef}: Pr
   const shadowSize = profile.shadows ? profile.shadowMapSize : 256;
   const rim = lighting.rimIntensity > 0 ? lighting.rimIntensity : .28;
   const lamps = hasStageLamps(scenery);
-  // The opt-in GPU stage does not enable renderer shadow maps. Both daylight
-  // sets need their baked shading even if the WebGL preference requests shadows.
-  const useBakedDay=!!useContext(DaylightMaterials) && (scenery==='classroom'||scenery==='seasideTerminus');
   const harbourLight=useMemo(()=>({lighting,skyEnabled:prefs.stageSkyEnabled}),[lighting,prefs.stageSkyEnabled]);
   // Keep the outer cliffs distinct while admitting sea air along their feet.
   const fogFar=harbour?Math.max(65,viewDistance):viewDistance;
@@ -102,7 +99,7 @@ export function StageEnvironment({scenery, lighting, prefs, profile, sunRef}: Pr
     {lamps && prefs.stageRimLightEnabled && <pointLight color={lighting.rimColor} intensity={rim} distance={8} decay={2} position={lighting.rimPosition}/>}
     <group name="player:room-solids">
       {scenery==='floor' && <StudioPlinth segments={profile.floorSegments} shadows={profile.shadows} color={lighting.floorColor}/>}
-      <RoomSet id={scenery} shadows={profile.shadows && !useBakedDay} concert={lightPreset==='contrast'}/>
+      <RoomSet id={scenery} shadows={profile.shadows} concert={lightPreset==='contrast'}/>
       <StreetScenery room={scenery}/>
     </group>
     {lamps && prefs.stageLightPoolEnabled && <LightPool color={lighting.poolColor} opacity={Math.min(.14, rim*.08)}/>}

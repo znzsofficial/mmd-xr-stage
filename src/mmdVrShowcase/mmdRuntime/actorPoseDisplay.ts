@@ -5,11 +5,13 @@ import type { WardrobeModel } from '../wardrobe/model';
 import { fitChestCompression } from './chestCompression';
 import { beginFingertipFit } from './fingertipIndent';
 import type { RuntimeEntry } from './mmdRuntimeEntry';
+import type { RoomActorBinding } from './roomActorBackend';
 import type { PhysicsPoseDisplay } from './physicsPoseDisplay';
 import { fitPoseSkirt } from './poseSkirtClearance';
 import { FINGERTIP_MASK, TrackedPressure } from './trackedPressure';
 
 export type ActorDisplayEntry = RuntimeEntry & {
+  actorBinding?: RoomActorBinding;
   editor?: PoseSolver;
   poseSkirt?: ReturnType<typeof fitPoseSkirt>;
   skirtRefitPending?:boolean;
@@ -74,7 +76,8 @@ export type RecordSkirtWork = (phase:'fit'|'display', ms:number)=>void;
 export function seedEditedSkirt(entry: ActorDisplayEntry, record?:RecordSkirtWork) {
   const start=record?performance.now():0;
   entry.skirtRefitPending=false;
-  if (entry.poseSkirt === undefined) entry.poseSkirt = fitPoseSkirt(entry.model.mesh);
+  if (entry.poseSkirt === undefined) entry.poseSkirt = entry.actorBinding?.fitEditedSkirt
+    ? entry.actorBinding.fitEditedSkirt() : fitPoseSkirt(entry.model.mesh);
   entry.poseSkirt?.seed();
   entry.poseSkirt?.present();
   if(record)record('fit',performance.now()-start);

@@ -8,10 +8,14 @@ import { useMmdVrStore } from '../../src/mmdVrShowcase/mmdVrStore';
 export function floorState() {return [..._roots.values()].map(r=>r.store.getState()).find(s=>s.gl.xr.isPresenting);}
 function room() {return floorState()?.scene;}
 
-export function find({key, name, row, toy}) {
+export function find({key, name, row, toy, setting}) {
   const scene = room();
   const root = toy ? scene?.getObjectByName(`play:shelf:${toy}`) : row ? scene?.getObjectByName('hud-backpack')?.getObjectByName(`hud-label:${row}`)?.parent : scene;
-  const mesh = root?.getObjectByName(key ? `hud:${useLanguageStore.getState().t(key)}` : name);
+  let mesh;
+  if(setting){
+    const label=`hud:${useLanguageStore.getState().t(setting)} · `;
+    root?.traverse(o=>{if(o.name.startsWith(label))mesh=o;});
+  }else mesh = root?.getObjectByName(key ? `hud:${useLanguageStore.getState().t(key)}` : name);
   if (!mesh) return null;
   for (let p = mesh; p; p = p.parent) if (!p.visible) return null;
   return mesh.getWorldPosition(mesh.position.clone()).toArray();

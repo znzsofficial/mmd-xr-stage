@@ -28,6 +28,7 @@ export function bindAuthoredSurface(mesh,position,uv,bytes,rig,clothActive){
   }
   const active=i=>!!mesh.morphTargetInfluences?.[i];
   const source={position,uv,get morphs(){return readMorphs();},get morphIndices(){readMorphs();return drawable;},sampleable(ids,material){
+    if(source.poseSkirtSampleable&&!source.poseSkirtSampleable(ids))return false;
     if(unknown&&meta.some((m,i)=>m.type==='vertex'&&active(i)))return false;
     if(material&&(material.transparent||material.alphaTest)&&uvIndices.some(active))return false;
     if(!rig||!clothActive())return true;

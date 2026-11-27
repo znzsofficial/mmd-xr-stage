@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useLanguageStore } from "../../languageStore";
 import { useBackpack, type BackpackEntry } from "./store";
-import { isSoloFloorSession, stageAssetLimit } from "./sessionAssets";
+import { isWebgpuStageSession, stageAssetLimit } from "./sessionAssets";
 import { useMmdVrStore } from "../mmdVrStore";
 import { SCENERY, mainSceneryIds } from "../scenery/catalog";
 import {fitsWebgpuRoom} from '../xr/floorBackend';
@@ -17,14 +17,14 @@ export function SceneryPanel({ onClose, onSelected, locked }: { onClose: () => v
   const t = useLanguageStore(s => s.t);
   const current = useMmdVrStore(s => s.prefs.scenery);
   // Keep even the last set in the reading zone when using a seated eye height.
-  const layouts=useBackpack(s=>s.layouts), solo=isSoloFloorSession(), rooms=mainSceneryIds;
+  const layouts=useBackpack(s=>s.layouts), webgpu=isWebgpuStageSession(), rooms=mainSceneryIds;
   const cols=3, rows=Math.ceil(rooms.length/cols), height=.48+.23*rows, top=height/2;
   return <group name="hud-scenery">
     <HudSheet size={[2.90,height]} />
     <HudLine position={[-.91,top-.19,0]} text={t("hudScenery")} width={0.86} role="title" />
     <HudButton position={[1.02,top-.19,0]} label={t("hudBack")} size={[0.65,0.14]} onPress={onClose} variant="quiet" />
     {rooms.map((id, i) => <HudButton key={id} position={[(i % cols - 1) * .94,top-.47-Math.floor(i/cols)*.23,0]}
-      label={t(SCENERY[id].label)} active={id === current} disabled={locked || (solo && !fitsWebgpuRoom(layouts[id]))} size={[0.86, 0.17]} onPress={() => {
+      label={t(SCENERY[id].label)} active={id === current} disabled={locked || (webgpu && !fitsWebgpuRoom(layouts[id]))} size={[0.86, 0.17]} onPress={() => {
         if (useMmdVrStore.getState().prefs.scenery !== id) useMmdVrStore.getState().setPrefs({ scenery: id });
         onSelected();
       }} />)}
@@ -66,7 +66,7 @@ export function BackpackPanel({ onClose, locked }: { onClose: () => void; locked
     <HudLine position={[-0.49, 0.69, 0]} text={t("hudBackpack")} role="title" width={1.05} />
     <HudButton position={[0.67, 0.69, 0]} size={[0.66, 0.14]} variant="quiet" label={t("hudBack")} onPress={onClose} />
     {(Object.keys(pagesByKind) as (keyof typeof pagesByKind)[]).map((k, i) => <HudButton key={k} position={[(i - 1.5) * 0.52, 0.45, 0]} size={[0.49, 0.16]}
-      label={t(pagesByKind[k])} active={k === kind} variant="tab" disabled={isSoloFloorSession() && k === 'object'} onPress={() => { setKind(k); setIndex(0); }} />)}
+      label={t(pagesByKind[k])} active={k === kind} variant="tab" onPress={() => { setKind(k); setIndex(0); }} />)}
     {kind==='toy'?<ToyShelf locked={locked} onClose={onClose}/>:<>
     <HudLine position={[0, 0.26, 0]} text={hint} width={2.04} role={full && kind !== "motion" ? "warning" : "muted"} />
     {!list.length && <HudLine position={[0, -0.15, 0]} text={t("hudBagEmpty")} width={2.02} center />}
@@ -97,7 +97,7 @@ function ToyShelf({locked,onClose}:{locked:boolean;onClose:()=>void}) {
   const characterHasToy=useStagePlay(s=>!!(s.character||s.stand));
   const connected=(h:Hand)=>!!(h==='left'?left:right)?.inputSource.gripSpace;
   const [help,setHelp]=useState<Toy|null>(null);
-  const toys=sessionToys(), solo=isSoloFloorSession();
+  const toys=sessionToys(), webgpu=isWebgpuStageSession();
   const layouts=useBackpack(s=>s.layouts);
   const [page,setPage]=useState(0), pages=Math.ceil(toys.length/ROWS);
   if(help){const item=TOYS[help],{vr,end}=item.guide;return <group key="guide" name={`play:guide:${help}`}>
@@ -106,7 +106,7 @@ function ToyShelf({locked,onClose}:{locked:boolean;onClose:()=>void}) {
     {(help==='remoteEgg'?['toyGuideEquip',vr,end] as const:['toyGuideEquip','toyGuideGive',vr,end] as const).map((key,i)=><HudLine key={key} position={[0,-.06-i*.128,0]} text={t(key)} width={2.03}/>)}
     <HudLine position={[0,-.59,0]} text={`B → ${t('hudBackpack')} → ${t('hudToys')} → ${t('toyStow')}`} width={2.03}/>
     <HudButton position={[-.49,-.755,0]} size={[.89,.16]} label={t('toyCloseGuide')} onPress={()=>setHelp(null)}/>
-    {item.home&&room!==item.home&&<HudButton position={[.49,-.755,0]} size={[.89,.16]} label={t(item.visit)} variant="quiet" disabled={locked||(solo&&!fitsWebgpuRoom(layouts[item.home]))} onPress={()=>{setHelp(null);useMmdVrStore.getState().setPrefs({scenery:item.home});}}/>}
+    {item.home&&room!==item.home&&<HudButton position={[.49,-.755,0]} size={[.89,.16]} label={t(item.visit)} variant="quiet" disabled={locked||(webgpu&&!fitsWebgpuRoom(layouts[item.home]))} onPress={()=>{setHelp(null);useMmdVrStore.getState().setPrefs({scenery:item.home});}}/>}
   </group>}
   return <group name="play:shelf">
     <HudLine position={[0,.24,0]} text={t(left||right?'toyShelfRule':'toyNeedController')} width={2.04} role="muted" />

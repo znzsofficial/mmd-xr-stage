@@ -172,10 +172,14 @@ it('runs in empty air with surface response disabled; high beats follow flex cyc
   }finally{room.reset();stopWand();unmount();geo.dispose();useWandResponse.setState(before);}
 });
 
-it('uses the silicone crown dimensions on the posed visible skin at either owner, independent of wand motor and expression',()=>{
+it.each([false,true])('uses the silicone crown on the posed visible skin at either owner (sparse output: %s)',sparse=>{
   const {model,mesh,bone,root,m}=rig(),scene=new Scene(),holder=new Group(),part=new Group(),geom=makeSilicone();
   const room=createRoomWand(),unmount=mountWandHead(createSiliconeHead(part,geom)),before=useWandResponse.getState();
   const p=geom.attributes.position,n=geom.attributes.normal,raw=p.array.slice(),norm=n.array.slice();
+  let sampleable=true;
+  if(sparse){const g=mesh.geometry,position=g.attributes.position;
+    authoredSurface.set(mesh,{position,uv:g.attributes.uv,morphs:[],sampleable:()=>sampleable});
+    g.setAttribute('position',new Float32BufferAttribute(new Float32Array(position.count*3).fill(100),3));}
   const session=Object.assign(new EventTarget(),{visibilityState:'visible'}) as unknown as XRSession;
   const pulse=vi.fn(()=>true);Object.assign(holder.userData,{heldToy:'dildo',propSource:{handedness:'left'},propUsable:true,gamepad:{hapticActuators:[{pulse}]}});
   holder.add(part);part.position.set(...siliconeMount);part.rotation.x=siliconeTilt;holder.scale.setScalar(1.45);holder.rotation.x=.25;
@@ -199,6 +203,7 @@ it('uses the silicone crown dimensions on the posed visible skin at either owner
     step(true,false);expect(p.array).toEqual(raw);expect(n.array).toEqual(norm);
     holder.userData.propUsable=false;step(true);expect(p.array).toEqual(raw);
     step(false);expect(p.array).not.toEqual(raw);expect(pulse).toHaveBeenCalledTimes(1);
+    if(sparse){sampleable=false;step(false);expect(p.array).toEqual(raw);sampleable=true;}
     m.visible=false;step(false);expect(p.array).toEqual(raw);m.visible=true;
     step(false);bone.position.z+=.3;root.updateMatrixWorld(true);step(false);expect(p.array).toEqual(raw);expect(n.array).toEqual(norm);
   }finally{room.reset();unmount();geom.dispose();useWandResponse.setState(before);}

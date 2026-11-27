@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createGltfResourceMapper, createMmdVrGltfLoader, normalizeGltfResourcePath } from "./mmdVrGltf";
-import { withAssetPath } from "../../../mmdImport/assetPaths";
+import { bindCompanion, withAssetPath } from "../../../mmdImport/assetPaths";
 
 describe("normalizeGltfResourcePath", () => {
   it("strips leading ./", () => {
@@ -55,6 +55,21 @@ describe("createGltfResourceMapper", () => {
       expect(first.loader.manager.resolveURL(requested)).toMatch(/^blob:/);
       expect(first.loader.manager.resolveURL(requested)).not.toBe(second.loader.manager.resolveURL(requested));
     } finally { first.revoke(); second.revoke(); }
+  });
+  it('uses the explicitly repaired File for this object only, even with identical companion names', async () => {
+    const model = (dir: string) => withAssetPath(new File(['{}'], 'scene.gltf'), `${dir}/scene.gltf`);
+    const source = (dir: string) => withAssetPath(new File([dir], 'tile map.png'), `${dir}/tile map.png`);
+    const first = model('a'), second = model('b'), a = source('first'), b = source('second');
+    const files = [first, second, a, b], reference = 'textures/tile map.png';
+    bindCompanion(first, reference, b);
+    const one = createMmdVrGltfLoader(first, files), two = createMmdVrGltfLoader(second, files);
+    try {
+      const uri = './textures/tile%20map.png?v=2';
+      expect(await (await fetch(one.loader.manager.resolveURL(uri))).text()).toBe('second');
+      expect(() => two.loader.manager.resolveURL(uri)).toThrow('Ambiguous glTF resource: textures/tile map.png');
+      expect(one.resourceError).toBeNull();
+      expect(two.resourceError?.message).toContain(reference);
+    } finally { one.revoke(); two.revoke(); }
   });
   const files = [
     { path: "scene/model.gltf", url: "blob:primary" },

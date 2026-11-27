@@ -62,7 +62,7 @@ afterEach(async () => {
   vi.restoreAllMocks(); vi.unstubAllGlobals();
 });
 
-it.each(['full','soloFloor'] as const)('returns from a portal room and offers only the main destinations in %s', async scope => {
+it.each(['webgl','webgpu'] as const)('returns from a portal room and offers only the main destinations in %s', async scope => {
   beginMmdVrAssetSession([],scope);
   store().setPrefs({scenery:'velvetStudio'});
   await render();await recall();
@@ -89,9 +89,9 @@ it('shows where to take a toy, keeps it on the player for unsupported wrists and
   await click(t('toyStow'));expect(useStagePlay.getState().character).toBeNull();
 });
 
-it('offers the complete prop shelf on the solo floor without imported GLB placement',async()=>{
-  beginMmdVrAssetSession([], 'soloFloor');await render();await recall();await click(t('hudBackpack'));
-  await click(t('hudObjects'));expect(labels()).not.toContain('Lamp.glb');
+it('offers the complete prop shelf and the imported object tab on WebGPU',async()=>{
+  beginMmdVrAssetSession([], 'webgpu');await render();await recall();await click(t('hudBackpack'));
+  await click(t('hudObjects'));expect(labels()).toContain('Lamp.glb');
   await click(t('hudToys'));
   const expected=shelfToys;
   const rows=()=>[...host.querySelectorAll('[name^="play:shelf:"]')].map(row=>row.getAttribute('name')!.slice('play:shelf:'.length));
@@ -189,13 +189,13 @@ it('sets both chance endpoints in XR without mounting a prop, and opens the matc
   expect(useBodyState.getState().draft).toBeNull();
 });
 
-it.each(['full','soloFloor'] as const)('hands off the metre readout when starting hand control dismisses the %s actor sheet',async scope=>{
+it.each(['webgl','webgpu'] as const)('hands off the metre readout when starting hand control dismisses the %s actor sheet',async scope=>{
   beginMmdVrAssetSession([],scope);
   useBackpack.setState({selected:'a0',live:{a0:instance('actor0')}});
   useMmdVrStore.setState({overlayOpen:true,presentation:'xr'});vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValue(null);
   enablePelvic('a0',true);patchPelvic('a0',{clothed:true});publishPelvicSupport('a0',{runtimeId:'actor0',kind:'bones',anchorName:'hips'});
   await act(()=>root.render(<><BackpackWorldTools/><PelvicObserver rig={{current:null}}/></>));
-  await click(t('actorInsert'));if(scope==='full')await click('更多操作');await click('交给左手');
+  await click(t('actorInsert'));if(scope==='webgl')await click('更多操作');await click('交给左手');
   expect(mesh('hud-label:实际到达')).toBeDefined();expect(mesh('hud-label:目标深度')).toBeUndefined();
   await click('开始手持并收起面板');const active=usePelvic.getState().active!;
   expect(active).toMatchObject({mode:'xrManual',running:true});expect(bag().selected).toBeNull();
@@ -205,7 +205,7 @@ it.each(['full','soloFloor'] as const)('hands off the metre readout when startin
 });
 
 it('keeps the same solo stand through a wardrobe visit and retires it on leaving Insertion',async()=>{
-  beginMmdVrAssetSession([], 'soloFloor');
+  beginMmdVrAssetSession([], 'webgpu');
   useBackpack.setState({selected:'a0',live:{a0:instance('actor0')}});
   useMmdVrStore.setState({overlayOpen:true,presentation:'xr'});
   vi.spyOn(document,'hidden','get').mockReturnValue(false);
@@ -262,6 +262,18 @@ it("uses the same draft and scene locks from advanced controls, and never allows
   await act(async () => useBackpack.setState({ busy: false }));
   await click(t("hudPool")); expect(store().prefs.scenery).toBe("pool");
   expect(button(t("hudBackpack"))).toBeDefined();
+});
+
+it('opens the new actor after recalling B from another actor’s material detail', async () => {
+  const a=transform('first'), b=transform('second');
+  const cloth={name:'cloth',opacity:1,emission:0,visible:true,roughness:.55,metallic:0};
+  useBackpack.setState({selected:'a0',live:{a0:instance(a.id),a1:instance(b.id)}});
+  useMmdVrStore.setState({models:[a,b],modelCount:2,objects:[],materialModels:{first:[cloth],second:[{...cloth}]}});
+  await render();await click(t('watchArrange'));await click(t('watchDetails'));await click(t('settingsMmdVrMaterials'));await click('cloth');
+  await recall();await click(t('hudBack'));await act(async()=>bag().select('a1'));
+  await click(t('watchArrange'));await click(t('watchDetails'));expect(store().materialPanelModelId).toBeNull();
+  await click(t('settingsMmdVrMaterials'));expect(store().materialPanelModelId).toBe('second');
+  await click(t('settingsMmdVrHideModel'));expect(store().materialModels.first[0].visible).toBe(true);expect(store().materialModels.second[0].visible).toBe(false);
 });
 
 it("keeps the advanced rows tied to the displayed PMX or GLB, including after paging", async () => {

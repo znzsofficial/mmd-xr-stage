@@ -53,22 +53,18 @@ function normalizeSlots(slots: readonly MmdVrAssetSlot[]): MmdVrAssetSlot[] {
 /** Entry owns the initial slots for one screen or XR viewing session. React
  * remounts read the same slots; closing or failing the entry releases them. */
 let sessionAssets: readonly MmdVrAssetSlot[] = [];
-type StageScope = 'full' | 'soloFloor';
-let scope: StageScope = 'full';
+type StageRenderer = 'webgl' | 'webgpu';
+let renderer: StageRenderer = 'webgl';
 
 /** Immutable while a room is mounted. Limits apply to instances, never to the file library. */
-export const isSoloFloorSession = () => scope === 'soloFloor';
+export const isWebgpuStageSession = () => renderer === 'webgpu';
 export function stageAssetLimit(kind: 'model' | 'object') {
-  if (isSoloFloorSession()) return kind === 'model' ? 1 : 0;
   return kind === 'model' ? MMD_VR_MAX_MODELS : MMD_VR_MAX_OBJECTS;
 }
 
-export function beginMmdVrAssetSession(slots: readonly MmdVrAssetSlot[], nextScope: StageScope = 'full') {
-  if (nextScope === 'soloFloor' && (slots.length > 1 || slots.some(slot => slot.kind !== 'model'))) {
-    throw new Error('This floor supports one character and no imported objects.');
-  }
+export function beginMmdVrAssetSession(slots: readonly MmdVrAssetSlot[], nextRenderer: StageRenderer = 'webgl') {
   sessionAssets = normalizeSlots(slots);
-  scope = nextScope;
+  renderer = nextRenderer;
 }
 
 export function getMmdVrSessionAssets(): readonly MmdVrAssetSlot[] {
@@ -77,5 +73,5 @@ export function getMmdVrSessionAssets(): readonly MmdVrAssetSlot[] {
 
 export function endMmdVrAssetSession() {
   sessionAssets = [];
-  scope = 'full';
+  renderer = 'webgl';
 }

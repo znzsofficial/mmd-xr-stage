@@ -14,6 +14,8 @@ import {MmdVrStageContent} from '../../src/mmdVrShowcase/stage/MmdVrStage';
 import {StageEnvironment} from '../../src/mmdVrShowcase/stage/StageEnvironment';
 import {resolveStageLighting} from '../../src/mmdVrShowcase/stage/lighting';
 import {getMmdVrRenderProfile} from '../../src/mmdVrShowcase/settings/mmdVrQuality';
+import {minSceneViewDistance} from '../../src/mmdVrShowcase/settings/mmdVrAdjustments';
+import {describeRenderRequest} from '../../src/mmdVrShowcase/diagnostics/renderDiagnostics';
 import {useMmdVrStore} from '../../src/mmdVrShowcase/mmdVrStore';
 import {prepareBackpackEntry,useBackpack} from '../../src/mmdVrShowcase/backpack/store';
 import {beginMmdVrAssetSession} from '../../src/mmdVrShowcase/backpack/sessionAssets';
@@ -22,7 +24,7 @@ import {gameHudRay} from './gameHudRay.js';
 import {createStageActorBackend} from './stageActorBackend.js';
 import {stageControls} from './stage-controls.js';
 import {recordFloorPerformance} from './floorPerformance.js';
-import {takeFloorRenderer,returnFloorRenderer} from './floorRenderer.js';
+import {takeFloorRenderer,returnFloorRenderer,bindFloorSession,requestFloorDisplay} from './floorRenderer.js';
 import {DaylightMaterials} from '../../src/mmdVrShowcase/scenery/daylightMaterials';
 import {roomSets} from '../../src/mmdVrShowcase/scenery/roomSets';
 import {supportsWebgpuRoom,fitsWebgpuRoom} from '../../src/mmdVrShowcase/xr/floorBackend';
@@ -47,6 +49,12 @@ function FloorPlayer({origin,contacts}){
   },-1);
   return <XROrigin ref={origin}/>;
 }
+
+function FloorShadows({renderer}){
+  const prefs=useMmdVrStore(s=>s.prefs),enabled=getMmdVrRenderProfile(prefs).shadows;
+  React.useLayoutEffect(()=>{renderer.shadowMap.enabled=enabled;},[renderer,enabled]);
+  return null;
+}
 export function startStageHost(selection,onStatus) {
   return startFloor({resume:true,onStatus,fixture:{controls:stageControls(selection),contacts:trackedContacts()}});
 }
@@ -61,8 +69,8 @@ function startFloor({resume,onStatus,fixture}) {
   const entryState=useMmdVrStore.getState(),entryRoom=fixture?'floor':resume?entryState.savedStage?.scenery:entryState.prefs.scenery;
   let closing=false,committed=false,session,ended=false,ending,renderer,root,store,xrStore,backend,undo,unbindHands,epoch;
   let timer,backendTask,resolveStop,resolveEarly,prevTime,elapsed=0,pageRetired=false,lost=false;
-  const profile=getMmdVrRenderProfile(useMmdVrStore.getState().prefs);
-  const recording=fixture?null:recordFloorPerformance(performance.now(),profile.targetFrameRateHz ? `${profile.targetFrameRateHz} Hz` : String(profile.frameRate));
+  const profile=getMmdVrRenderProfile(entryState.prefs),requested=describeRenderRequest(entryState.prefs);
+  const recording=fixture?null:recordFloorPerformance(performance.now(),requested);
   const stopped=new Promise(r=>resolveStop=r);
   const earlyExit=new Promise(r=>resolveEarly=r);
   const publish=phase=>{if(log.phase!==phase){log.phase=phase;onStatus?.();}};
@@ -72,7 +80,7 @@ function startFloor({resume,onStatus,fixture}) {
     if(!supportsWebgpuRoom(entryRoom) || (!fixture && state.prefs.scenery!==entryState.prefs.scenery))throw Error('Room selection changed before entry');
     if(!resume)return null;
     const layout=useBackpack.getState().layouts[entryRoom], saved=state.savedStage?.scenery===entryRoom?state.savedStage:null;
-    if(!fitsWebgpuRoom(layout??saved))throw Error('请在 WebGL 中把该布景整理为一位角色、无导入物件后再继续。');
+    if(!fitsWebgpuRoom(layout??saved))throw Error('保存的布局超过舞台的角色或物件上限。');
     return layout??saved;
   }
   // A cancelled permission prompt can still resolve after the next click.
@@ -149,20 +157,25 @@ function startFloor({resume,onStatus,fixture}) {
       window.addEventListener('error',onError);
       publish('init');if(closing)return;
       timer=setTimeout(()=>stop(Error('No first tracked draw within 15 s')),15000);
-      renderer=takeFloorRenderer();
+      renderer=await takeFloorRenderer(!fixture && requested.antialias);
+      if(closing)return;
       renderer.xr.enabled=true;renderer.xr.setReferenceSpaceType('local-floor');
       renderer.onDeviceLost=info=>{lost=true;stop(`device lost: ${info.message}`);};
       renderer.onError=info=>stop(`${info.type}: ${info.message}`);
       await renderer.init();if(closing)return;
       if(!renderer.backend.isWebGPUBackend)throw Error('WebGPU adapter unavailable');
       undo=bindR187ProjectionOutput(renderer);
-      const scene=new T.Scene(),camera=new T.PerspectiveCamera(60,1,.05,40),sun=React.createRef();
       const prefs=useMmdVrStore.getState().prefs;
+      const scene=new T.Scene(),camera=new T.PerspectiveCamera(60,1,.05,Math.max(minSceneViewDistance(entryRoom),prefs.viewDistance)),sun=React.createRef();
       const lighting=resolveStageLighting(prefs.lightPreset,roomSets[entryRoom]);
       extend(THREE); // Same JSX constructors as the product Canvas; no registry edits on preload.
       root=createRoot(renderer.domElement);
       await root.configure({gl:renderer,scene,camera,frameloop:'never',dpr:1,size:{width:320,height:320,top:0,left:0}});
       if(closing)return;
+      renderer.shadowMap.enabled=profile.shadows;
+      renderer.shadowMap.type=T.PCFShadowMap;
+      renderer.toneMapping=prefs.softHighlights?T.NeutralToneMapping:T.LinearToneMapping;
+      renderer.toneMappingExposure=prefs.exposure;
       store=root.render(<DaylightMaterials.Provider value={classroomMaterials}><StageEnvironment scenery={entryRoom} prefs={prefs} profile={profile} lighting={lighting} sunRef={sun}/></DaylightMaterials.Provider>);
       // R3F's default sessionstart handler targets WebGL's xr.setAnimationLoop.
       // With an external r187 renderer, XRManager itself owns setSession + RAF.
@@ -183,24 +196,20 @@ function startFloor({resume,onStatus,fixture}) {
           if(committed)fixture?.controls.sample(session.inputSources);
           advance(elapsed,false,store.getState(),frame);
           if(closing)return;
-          recording?.draw(time,frame,views,renderer,backend);
+          recording?.draw(time,frame,views,renderer,committed?backend:null,entryRoom);
           if(++log.frames===1){
             // No actor, shader compile for PMX, or physics startup on the
             // critical path to the first pair of environment images.
             clearTimeout(timer);
             // Mirror the product's rate policy after the first tracked draw.
-            const rates=session.supportedFrameRates;
-            if(!fixture && rates?.length && session.updateTargetFrameRate){
-              const policy=profile.frameRate,rate=typeof policy==='function'?policy(rates):policy && rates[Math.ceil((rates.length-1)*(policy==='high'?1:policy==='mid'?.5:0))];
-              if(rate && rate!==session.frameRate){try{void session.updateTargetFrameRate(rate).catch(()=>{});}catch{/* optional device hint */}}
-            }
+            if(!fixture)requestFloorDisplay(session,profile,requested);
             timer=setTimeout(()=>stop(Error('Stage did not become ready after the first draw')),15000);
             const grade=fixture?undefined:{balancedModelColor:prefs.balancedModelColor,ambientIntensity:lighting.ambient};
             backendTask=createStageActorBackend(renderer,scene,sun.current,origin,grade).then(b=>{
               backend=b;if(closing)return;
               const saved=readLayout();
               const state=useMmdVrStore.getState();
-              beginMmdVrAssetSession(saved?.assets??[],'soloFloor');
+               beginMmdVrAssetSession(saved?.assets??[],'webgpu');
               prepareBackpackEntry(resume);
               if(state.prefs.scenery!==entryRoom)state.setPrefs({scenery:entryRoom});
               state.openOverlay('xr');epoch=useMmdVrStore.getState().entryEpoch;committed=true;
@@ -209,7 +218,7 @@ function startFloor({resume,onStatus,fixture}) {
               // XR's sessionstart happened before this subtree mounted. Its
               // pointer portal and Three's eye update both use camera.parent.
               store.setState({camera:renderer.xr.getCamera()});
-              root.render(<DaylightMaterials.Provider value={classroomMaterials}><XR store={xrStore}>{fixture?<><FloorPlayer origin={origin} contacts={fixture.contacts}/><MmdVrStageContent backend={b}/><BackpackPlacement/></>:
+               root.render(<DaylightMaterials.Provider value={classroomMaterials}><FloorShadows renderer={renderer}/><XR store={xrStore}>{fixture?<><FloorPlayer origin={origin} contacts={fixture.contacts}/><MmdVrStageContent backend={b}/><BackpackPlacement/></>:
                 <MmdVrGameRoom originRef={origin} backend={b} onExit={stop} busy={false}/>}</XR></DaylightMaterials.Provider>);
             }).catch(stop);
           }
@@ -218,7 +227,7 @@ function startFloor({resume,onStatus,fixture}) {
       });
       if(closing)return;
       publish('bind');if(closing)return;
-      await renderer.xr.setSession(session);
+      await bindFloorSession(renderer.xr,session,fixture?null:requested.framebufferScale);
       if(!closing&&!log.frames)publish('waiting');
       await stopped;
     }catch(e){stop(e);}
@@ -231,6 +240,7 @@ function startFloor({resume,onStatus,fixture}) {
       unbindHands?.();
       await release(()=>xrStore?.destroy());
       await release(()=>backend?.dispose());await release(()=>undo?.());
+      recording?.dispose();
       if(renderer)await release(()=>returnFloorRenderer(renderer,committed&&!lost&&!pageRetired&&!log.error));
       session?.removeEventListener('end',endedSession);session?.removeEventListener('visibilitychange',interrupt);
       window.removeEventListener('error',onError);window.removeEventListener('pagehide',pageHide);

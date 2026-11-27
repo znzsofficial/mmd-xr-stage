@@ -140,3 +140,23 @@ it('draws the original cloth group with its complete Bullet world when no author
     expect(gpu.surface).not.toHaveBeenCalled(); expect(gpu.driver).not.toHaveBeenCalled();
   }finally{close();}
 });
+
+it('keeps each actor’s material, surface and Bullet binding through removal of a neighbour',async()=>{
+  const {runtime,backend,id,tick,close}=await mount(false);
+  try {
+    const otherFile=actorFile(false),thirdFile=actorFile(false); // All three PMX have the same filename.
+    const other=(await runtime.addModel(otherFile,[],{physics:true})).modelId;
+    const third=(await runtime.addModel(thirdFile,[],{physics:true})).modelId;
+    const surface=backend.getGarmentPose(other), mesh=runtime.getModelSurface(other)!.mesh;
+    expect(surface.position).not.toBe(backend.getGarmentPose(id).position);
+    expect(backend.styles.read(other,otherFile)).toBeTruthy();
+    expect(backend.styles.read(other,thirdFile)).toBeNull();
+    runtime.setModelVisible(third,false);
+    expect(tick().actors).toEqual([expect.objectContaining({id,visible:true}),expect.objectContaining({id:other,visible:true}),expect.objectContaining({id:third,visible:false})]);
+    runtime.removeModel(id);tick();
+    expect(backend.getGarmentPose(id)).toBeNull();expect(backend.getGarmentPose(other)).toBe(surface);
+    expect(runtime.getModelSurface(other)!.mesh).toBe(mesh);
+    expect(runtime.getRigidBodyCount()).toBeGreaterThan(0);
+    expect(backend.status.actors).toHaveLength(2);
+  }finally{close();}
+});

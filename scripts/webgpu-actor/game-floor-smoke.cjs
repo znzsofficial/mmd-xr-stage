@@ -2,8 +2,9 @@
 // node scripts/webgpu-actor/game-floor-smoke.cjs <local.pmx> <--milk-covered | --milk-exposed>
 // node scripts/webgpu-actor/game-floor-smoke.cjs <local.pmx> <--stand-covered | --stand-exposed>
 // node scripts/webgpu-actor/game-floor-smoke.cjs <local.pmx> --lunar-post
+// node scripts/webgpu-actor/game-floor-smoke.cjs <local-clothed.pmx> --environment [--shadow-sources]
 // node scripts/webgpu-actor/game-floor-smoke.cjs <small-actor-with-wrists.pmx> --story-props
-// node scripts/webgpu-actor/game-floor-smoke.cjs <clothed.pmx> <body.vmd> --single-actor [tools wand pose]
+// node scripts/webgpu-actor/game-floor-smoke.cjs <clothed.pmx> <body.vmd> --single-actor [tools wand pose materials contact clearance]
 // Product /?xrBackend=webgpu only. Two library identities, one live actor,
 // one hardware renderer at a time. No injected menu, store actions or shortcut.
 const assert = require('node:assert/strict');
@@ -46,7 +47,8 @@ async function main() {
   const stand=['--stand-covered','--stand-exposed'].includes(process.argv[3]);
   const handheld=process.argv[3]==='--handheld';
   const remote=process.argv[3]==='--remote-egg';
-  const withoutMotion=milk||post||stories||stand||handheld||remote;
+  const environment=process.argv[3]==='--environment';
+  const withoutMotion=milk||post||stories||stand||handheld||remote||environment;
   const [pmx,vmd,plan]=(withoutMotion?[process.argv[2],null,process.argv[3]]:process.argv.slice(2,5)).map(v=>!v||v.startsWith('--')?v:path.resolve(v));
   assert(pmx && (vmd||withoutMotion) && plan, 'Expected a PMX and a smoke take');
   const singleActor=plan==='--single-actor';
@@ -62,6 +64,12 @@ async function main() {
   let server, browser, page, step = 'prepare', localProfile = false;
   try {
     await makeImport(folder,pmx,vmd);
+    const shadowSources=environment&&process.argv.includes('--shadow-sources');
+    if(shadowSources)await (await import('./layout-signs.mjs')).writeSigns(folder);
+    if(singleActor && process.argv.slice(5).includes('materials')) {
+      // A distinguishable opaque cyan pixel, imported with the real PMX just like a skin file.
+      await fs.writeFile(path.join(folder,'000-wardrobe-take.png'), Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGOQvPXhPwAF1gLjP4cP0gAAAABJRU5ErkJggg==','base64'));
+    }
     const {createServer} = await import('vite');
     server = await createServer({root, logLevel:'error', cacheDir:path.join(temp,'vite-game-floor-smoke'),
       optimizeDeps:{include:['three/webgpu','three/tsl','@yohawing/three-mmd-loader/webgpu']},
@@ -74,7 +82,7 @@ async function main() {
     page.on('console', m => {if (m.type()==='error') consoles.push(m.text().slice(0,350));});
     const href = new URL(report.entry,server.resolvedUrls.local[0]);
     page.on('response', r => {if(r.ok() && r.url()===new URL('/xr-input/1.0.20/meta-quest-touch-plus/profile.json',href).href)localProfile=true;});
-    await page.addInitScript({content:`(${stereo})(${portrait||withoutMotion||singleActor?640:240}); (${extend})(); labFixture.controllerProfile='meta-quest-touch-plus'; labFixture.hostStatus=()=>({phase:'idle'});`});
+    await page.addInitScript({content:`(${stereo})(${portrait||withoutMotion||singleActor?640:240}); (${extend})(); labFixture.controllerProfile='meta-quest-touch-plus'; labFixture.hostStatus=()=>({phase:'idle'}); ${environment?`(${require('./environment-take.cjs').display})();`:''}`});
     await page.goto(href.href);
     const selector=page.locator('.stage-first-room select');
     assert.equal(await selector.inputValue(),entryRoom);
@@ -150,6 +158,12 @@ async function main() {
     // Dismiss the one-time intro so the first B press has to actually work.
     if(await page.evaluate(()=>!!gameTargets.find({key:'hudBack'})))await click('hudBack');
     await target({name:'watch:quiet'});await idleRay();
+    if(environment){
+      await placeFromBag(second,landing,0);
+      const result=await require('./environment-take.cjs').run({page,bButton,click,aim,trigger,target,until,frames,idleRay,shadowSources});
+      assert.deepEqual(errors,[]);assert.deepEqual(consoles.filter(x=>/shader|validation|wgsl|nodebuilder|pipeline/i.test(x)),[]);
+      console.log(JSON.stringify(result));return;
+    }
     if(post||stories){
       const play=stories?require('./game-floor-stories.cjs'):require('./game-floor-post.cjs');
       const result=await play({page,click,until,bButton,frames,target,aim,trigger,pickMounted,ids,placeFromBag,actorName:second});
@@ -182,7 +196,7 @@ async function main() {
     }
     if(portrait){
       await placeFromBag(second,landing,0);
-      const result=await require('./room-light-take.cjs')({page,ids,click,until,bButton,frames,target,pickMounted,idleRay,room:entryRoom});
+      const result=await require('./room-light-take.cjs')({page,ids,click,until,bButton,frames,target,pickMounted,idleRay,aim,trigger,room:entryRoom});
       assert.deepEqual(errors,[]);assert.deepEqual(consoles.filter(x=>/shader|validation|wgsl|nodebuilder|pipeline/i.test(x)),[]);
       console.log(JSON.stringify(result));return;
     }
@@ -190,8 +204,9 @@ async function main() {
       await placeFromBag(second,landing,0);
       const actor=await until('selected clothed actor in the game room',s=>s.ready&&s.live===1&&s.selected&&s.actor?.evaluations>0,null,120000);
       const ctx={page,ids,click,until,bButton,frames,target,pickMounted,aim,trigger,idleRay};
-      const takes={tools:'./game-floor-actor-tools.cjs',wand:'./game-floor-wand.cjs',pose:'./game-floor-pose-take.cjs'};
-      const phases=process.argv.length>5?process.argv.slice(5):Object.keys(takes);
+      const takes={tools:'./game-floor-actor-tools.cjs',wand:'./game-floor-wand.cjs',pose:'./game-floor-pose-take.cjs',materials:'./game-floor-materials.cjs',
+        contact:'./game-floor-contact.cjs',clearance:'./game-floor-clearance.cjs'};
+      const phases=process.argv.length>5?process.argv.slice(5):['tools','wand','pose'];
       for(const phase of phases){
         assert(Object.hasOwn(takes,phase),`Unknown actor take: ${phase}`);
         const result=await require(takes[phase])(ctx);

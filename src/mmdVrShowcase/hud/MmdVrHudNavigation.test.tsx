@@ -81,10 +81,14 @@ it("opens on personal adjustments, keeps physics details contextual, and retains
     await act(async()=>harness.buttonEvent?.('pressed'));
     await click(t("settingsVrDesktopExit"));
     expect(exit).toHaveBeenCalledOnce();
-    beginMmdVrAssetSession([],'soloFloor');
+    beginMmdVrAssetSession([],'webgpu');
     await act(async()=>harness.buttonEvent?.('pressed'));await click(t('hudMore'));await click(t('settingsEnvironment'));
-    await click(t('settingsMmdVrLightWarm'));expect(useMmdVrStore.getState().prefs.lightPreset).toBe('warm');
-    expect(buttons(t('settingsVisualDetails'))).toHaveLength(0);
+    await click(`${t('settingsLighting')} · ${t('settingsMmdVrLightContrast')}`);
+    expect(useMmdVrStore.getState().prefs.lightPreset).toBe('soft');
+    await click(t('settingsVisualDetails'));await click(toggle('settingsFog',true));
+    expect(useMmdVrStore.getState().prefs.stageFogEnabled).toBe(false);
+    await click(t('settingsBackEnvironment'));await click(t('settingsCharacter'));
+    await click(t('modelColorBalanced'));expect(useMmdVrStore.getState().prefs.balancedModelColor).toBe(false);
   } finally {
     await act(async () => root.unmount());
     endMmdVrAssetSession();

@@ -106,3 +106,16 @@ it.each([false,true])('keeps a neighbour usable and only closes owned bitmap sou
     actors.disposeObjects(); expect(second.close).toHaveBeenCalledTimes(cached?0:1);
   } finally { THREE.Cache.clear(); THREE.Cache.enabled=previous; }
 });
+
+it('rejects a prop with a missing texture instead of mounting a white substitute', async () => {
+  vi.stubGlobal('self', globalThis); vi.stubGlobal('ProgressEvent', Event);
+  vi.stubGlobal('createImageBitmap', vi.fn());
+  const { actors, scene } = room();
+  const json = { asset:{version:'2.0'}, scenes:[{nodes:[0]}], nodes:[{mesh:0}], meshes:[{primitives:[{attributes:{POSITION:0},material:0}]}],
+    accessors:[{componentType:5126,type:'VEC3',count:3,min:[0,0,0],max:[0,0,0]}],
+    materials:[{pbrMetallicRoughness:{baseColorTexture:{index:0}}}], textures:[{source:0}], images:[{uri:'missing.png'}] };
+  const slot = { kind:'object' as const, objectFile:new File([JSON.stringify(json)], 'sign.gltf'), companionFiles:[] };
+  vi.spyOn(console, 'error').mockImplementation(() => {}); // GLTFLoader logs and catches its image failure.
+  await expect(actors.restoreTasks([slot],null,()=>false)[0].run()).rejects.toThrow('Missing glTF resource: missing.png');
+  expect(actors.objects.size).toBe(0); expect(scene.children).toHaveLength(0);
+});

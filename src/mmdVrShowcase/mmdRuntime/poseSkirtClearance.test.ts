@@ -1,6 +1,7 @@
 import {describe,expect,it} from 'vitest';
 import {Bone,BufferGeometry,Float32BufferAttribute,MeshBasicMaterial,Skeleton,SkinnedMesh,Uint16BufferAttribute,Vector3} from 'three';
 import {fitPoseSkirt} from './poseSkirtClearance';
+import {fitSparsePoseSkirt} from './sparsePoseSkirt';
 
 // Two independently skinned thighs and an authored three-panel overskirt.
 // Bring a real leg surface through one panel without touching the skirt bones.
@@ -28,6 +29,26 @@ function fixture(label='skirt',mask=1,mode='dynamic',insideOnly=false){
 }
 
 describe('manual pose overskirt clearance',()=>{
+  it('fits sparse output from original triangles, matches the native correction, and leaves all render inputs untouched',()=>{
+    const {mesh,pose,first,face,original}=fixture(),g=mesh.geometry,base=g.attributes.position;
+    pose(Math.PI/2);const native=fitPoseSkirt(mesh)!;
+    native.seed();native.present();const reference=base.getX(first)-original[3*first];native.clear();
+    const output=new Float32BufferAttribute(new Float32Array(original.length).fill(37),3);
+    g.setAttribute('position',output);g.morphTargetsRelative=true;
+    const edge=new MeshBasicMaterial();edge.userData.mmdTslOutlineMaterial=true;mesh.material.push(edge);
+    for(const group of g.groups.slice())g.addGroup(group.start,group.count,2);
+    const channel=(i:number)=>({count:base.count,getX:(v:number)=>v===i?.1:0,getY:()=>0,getZ:()=>0});
+    mesh.morphTargetInfluences=[1,0];
+    const layer=fitSparsePoseSkirt(mesh,{position:base,uv:g.attributes.uv,morphs:[channel(face),channel(first)],sampleable:()=>true})!;
+    const offsets=()=>{const points=new Map<number,number>();layer.visitOffsets((i,x)=>points.set(i,x));return points;};
+    layer.seed();layer.present();expect(offsets().get(first)).toBeCloseTo(reference,6);expect(reference).toBeGreaterThan(.035);
+    expect([...offsets().keys()].every(i=>i>=first&&i<face)).toBe(true);
+    layer.restore();expect(offsets().size).toBe(0);layer.present();expect(offsets().get(first)).toBeCloseTo(reference,6);
+    layer.restore();mesh.morphTargetInfluences[1]=1;layer.present();expect(offsets().size).toBe(0);
+    mesh.morphTargetInfluences[1]=0;layer.seed();layer.present();expect(offsets().size).toBeGreaterThan(0);
+    layer.clear();pose(0);layer.seed();layer.present();expect(offsets().size).toBe(0);
+    expect(base.array).toEqual(original);expect(output.array.every(x=>x===37)).toBe(true);
+  });
   it.each(['dynamic','dynamicBone'])('presents bounded clearance for a %s panel, preserving leg points and withdrawing before evaluation',mode=>{
     const {mesh,first,pose,point,original}=fixture('skirt',1,mode),layer=fitPoseSkirt(mesh)!;
     expect(layer).toBeTruthy();layer.seed();layer.present();expect(mesh.geometry.attributes.position.array).toEqual(original);

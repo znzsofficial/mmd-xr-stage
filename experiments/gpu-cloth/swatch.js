@@ -1,6 +1,6 @@
 // Original, in-memory PMX fitting swatch. Exercises exactly the same importer,
 // native world, pose clip, compute pass and draw calls as a picked local PMX.
-export function makeSwatch(){
+export function makeSwatch(colors){
   const bone=[],body=[],joint=[],vertices=[],groups=[[],[],[]];
   const addBone=(name,p,parent=-1)=>bone.push({name,p,parent})-1;
   const torso=addBone('下半身',[0,9,0]),spine=addBone('上半身',[0,11,0],torso),neck=addBone('首',[0,14,0],spine);addBone('頭',[0,15,0],neck);
@@ -21,15 +21,15 @@ export function makeSwatch(){
   for(let j=0;j<rows;j++)for(let k=0;k<cols;k++){const i=j*cols+k,v=j*cols+(k+1)%cols;
      joint.push([rb[i],j?rb[i-cols]:0,bone[bs[i]].p],[rb[i],rb[v],bone[bs[i]].p]);
      if(j<rows-1)groups[j===rows-2?2:1].push(start+i,start+i+cols,start+v,start+v,start+i+cols,start+v+cols);}
-  return encodeSwatch({bone,body,joint,vertices,groups},'fitting-swatch.pmx');
+  return encodeSwatch({bone,body,joint,vertices,groups},'fitting-swatch.pmx',colors);
 }
 
 // Also used by the independent mask fixture: same PMX importer, different rig.
-export function encodeSwatch({bone,body,joint,vertices,groups},filename){
+export function encodeSwatch({bone,body,joint,vertices,groups},filename,colors=[[.72,.58,.5],[.24,.63,.67],[.90,.72,.36]]){
   const bytes=[],enc=new TextEncoder(),scratch=new DataView(new ArrayBuffer(4));const u=x=>bytes.push(x&255),u16=x=>{u(x);u(x>>8);},i=x=>{scratch.setInt32(0,x,true);bytes.push(...new Uint8Array(scratch.buffer));},f=x=>{scratch.setFloat32(0,x,true);bytes.push(...new Uint8Array(scratch.buffer));};
   const vec=(...x)=>x.forEach(f),str=s=>{const a=enc.encode(s);i(a.length);bytes.push(...a);};bytes.push(...enc.encode('PMX '));f(2);bytes.push(8,1,0,2,1,1,2,1,2);str('Fitting swatch');str('');str('');str('');
   i(vertices.length);for(const v of vertices){vec(...v.p,...v.normal,0,0);u(0);u16(v.b);f(1);}i(groups.reduce((s,g)=>s+g.length,0));for(const g of groups)g.forEach(u16);
-  i(0);i(groups.length);for(const [k,color] of [[0,[.72,.58,.5]],[1,[.24,.63,.67]],[2,[.90,.72,.36]]]){str(['form','cloth','selvage'][k]);str('');vec(...color,1,0,0,0,1,.3,.3,.3);u(1);vec(0,0,0,1,0);bytes.push(255,255,0,1,0);str('');i(groups[k].length);}
+  i(0);i(groups.length);for(const [k,color] of colors.entries()){str(['form','cloth','selvage'][k]);str('');vec(...color,1,0,0,0,1,.3,.3,.3);u(1);vec(0,0,0,1,0);bytes.push(255,255,0,1,0);str('');i(groups[k].length);}
   i(bone.length);for(const b of bone){str(b.name);str('');vec(...b.p);u16(b.parent);i(0);u16(0x1e);vec(0,-.4,0);}
   i(0);i(0);i(body.length);for(const b of body){str(b.name);str('');u16(b.b);u(b.group??(b.dyn?6:0));u16(b.mask??(b.dyn?1<<6:0));u(b.h?2:0);vec(b.r,b.h,0,...b.p,0,0,0,b.dyn?.38:0,.8,.8,0,.4);u(b.dyn?1:0);}
   i(joint.length);for(const [a,b,p] of joint){str('seam');str('');u(0);u16(a);u16(b);vec(...p,0,0,0,0,0,0,0,0,0,-.45,-.3,-.45,.45,.3,.45,0,0,0,1,1,1);}

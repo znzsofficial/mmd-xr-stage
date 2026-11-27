@@ -6,7 +6,7 @@ import { useBackpack, type BackpackEntry, type BackpackLive } from "./store";
 import { formatMmdVrModelScale, nextMmdVrModelScale, previousMmdVrModelScale } from "../settings/mmdVrAdjustments";
 import { useMmdVrStore } from "../mmdVrStore";
 import { PageControls } from "./BackpackPanels";
-import { isSoloFloorSession } from './sessionAssets';
+import { isWebgpuStageSession } from './sessionAssets';
 import { HudButton, HudLine, HudSheet } from "../hud/PorcelainControls";
 import { useHudWorldInput } from "../hud/hudWorldInput";
 import { isStoryRoom, STORIES, toyLabel } from '../play/propCatalog';
@@ -74,7 +74,7 @@ function SelectedTools({ entry, instance, blocked, preview, styles }: { entry: B
   if(page==='pose'||page==='wardrobe'||page==='insert'||page==='milk'||page==='body'||page==='observe'){
     return <group ref={group} name="backpack-world-tools" scale={.86} pointerEventsOrder={1} pointerEventsType={{deny:['touch','grab']}}>
       {page==='pose'?<PoseHudControls assetId={entry.id} runtimeId={instance.runtimeId} onBack={()=>setPage('tools')}/>:
-        <ActorActivities hud soloFloor={isSoloFloorSession()} entry={page} assetId={entry.id} runtimeId={instance.runtimeId} onBack={()=>setPage('tools')} suspended={blocked||peek} onPeek={()=>setPeek(true)}/>}
+        <ActorActivities hud webgpu={isWebgpuStageSession()} entry={page} assetId={entry.id} runtimeId={instance.runtimeId} onBack={()=>setPage('tools')} suspended={blocked||peek} onPeek={()=>setPeek(true)}/>}
       {preview&&peek&&!blocked&&<HudButton position={[0,-.32,0]} size={[.78,.15]} variant="primary" label={t('bodyResume')} onPress={()=>setPeek(false)}/>}</group>;
   }
   const tallDetail=cues||eggPage||page==='wand'||page==='motions';

@@ -29,7 +29,10 @@ export function bindSkinMaps(actor:File,slots:SlotBinding[],load:(file:File)=>Pr
   const listeners=new Set<()=>void>();let version=0,disposed=false;
   const publish=()=>{version++;for(const fn of listeners)fn();};
   function assign(e:typeof entries[number],next:Texture|null){
-    for(const [i,m] of e.slot.maps.entries())m.map=next??e.originals[i];
+    for(const [i,m] of e.slot.maps.entries()){
+      m.map=next??e.originals[i];
+      m.userData.stageMaterial?.setDiffuse(m.map);
+    }
     const previous=e.texture;e.texture=next;previous?.dispose();
   }
   async function select(key:string,file:File|null,current:()=>boolean=()=>true){

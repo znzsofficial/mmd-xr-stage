@@ -7,7 +7,7 @@ import {
   setMmdVrHandColliderMatrix,
 } from "./handSlots";
 import { useMmdVrStore } from "../../mmdVrStore";
-import { isSoloFloorSession } from '../../backpack/sessionAssets';
+import { isWebgpuStageSession } from '../../backpack/sessionAssets';
 import { HAND_JOINTS, handContactLayout, handReferenceRadius } from "./handContactProfile";
 
 function HandCollider({ handedness, baseIndex }: { handedness: "left" | "right"; baseIndex: 0 | 6 }) {
@@ -23,7 +23,7 @@ function HandCollider({ handedness, baseIndex }: { handedness: "left" | "right";
   }, [baseIndex]);
 
   useFrame((_, delta, frame) => {
-    if (!hand || !physicsEnabled || !frame || frame.session.visibilityState !== "visible" || (delta <= 0 && isSoloFloorSession())) {
+    if (!hand || !physicsEnabled || !frame || frame.session.visibilityState !== "visible" || (delta <= 0 && isWebgpuStageSession())) {
       if (active.current) {
         for (let i = 0; i < HAND_JOINTS.length; i += 1) setMmdVrHandColliderMatrix(baseIndex + i, null);
         active.current = false;

@@ -3,12 +3,11 @@ import { useLanguageStore } from '../../languageStore';
 import { HudButton, HudLine } from '../hud/PorcelainControls';
 import { HudSlider, ValueLabel } from '../hud/HudValues';
 import { useMmdVrStore } from '../mmdVrStore';
-import { LIGHT_ORDER, normalizeMmdVrExposure } from './preferences';
+import { normalizeMmdVrExposure } from './preferences';
 import { getMmdVrRenderProfile, WALK_SPEED } from './mmdVrQuality';
 import { minSceneViewDistance, mmdVrViewDistanceToSlider, mmdVrSliderToViewDistance } from './mmdVrAdjustments';
 import { hasSceneryPeople } from '../scenery/catalog';
 import { lightNames, sceneEffects } from './environmentDisplay';
-import { isSoloFloorSession } from '../backpack/sessionAssets';
 
 export const settingsSections = [['player','settingsPlayer'],['character','settingsCharacter'],['environment','settingsEnvironment']] as const;
 export type SettingsSection = typeof settingsSections[number][0];
@@ -63,7 +62,7 @@ export function CharacterSettings({locked}:{locked:boolean}) {
     {physicsSwitch(.32)}
     <HudButton position={[.49,.32,0]} size={[.88,.18]} label={t('settingsMmdVrPhysicsReset')} disabled={locked||!physics||!count} variant="quiet" onPress={()=>useMmdVrStore.getState().requestPhysicsReset()}/>
     <HudButton position={[-.49,.09,0]} size={[.88,.18]} label={t('contactDetails')} variant="quiet" onPress={()=>showTuning(true)}/>
-    <HudButton position={[.49,.09,0]} size={[.88,.18]} active={p.balancedModelColor} disabled={isSoloFloorSession()} label={t(p.balancedModelColor?'modelColorBalanced':'modelColorBright')} onPress={()=>set({balancedModelColor:!p.balancedModelColor})}/>
+    <HudButton position={[.49,.09,0]} size={[.88,.18]} active={p.balancedModelColor} label={t(p.balancedModelColor?'modelColorBalanced':'modelColorBright')} onPress={()=>set({balancedModelColor:!p.balancedModelColor})}/>
     <HudLine position={[0,-.10,0]} width={1.85} text={t(count?'touchWithPhysics':'settingsPlaceFirst')} role="muted"/>
     <HudLine position={[0,-.30,0]} width={1.85} role="title" text={t('actorTouch')}/>
     <HudButton position={[0,-.50,0]} size={[1.85,.18]} label={t(p.chestCompression?'chestPressureOn':'chestPressureOff')} active={p.chestCompression} disabled={locked} onPress={()=>set({chestCompression:!p.chestCompression})}/>
@@ -74,11 +73,6 @@ export function CharacterSettings({locked}:{locked:boolean}) {
 export function EnvironmentSettings({onDrag,diagnostics}:Drag&{diagnostics:()=>void}) {
   const t=useLanguageStore(s=>s.t),p=useMmdVrStore(s=>s.prefs),set=useMmdVrStore(s=>s.setPrefs),profile=getMmdVrRenderProfile(p);
   const [details,showDetails]=useState(false),min=minSceneViewDistance(p.scenery),distance=Math.max(min,p.viewDistance);
-  if(isSoloFloorSession())return <group name="settings:environment">
-    <HudLine position={[0,.54,0]} width={1.85} role="title" text={t('settingsLighting')}/>
-    {LIGHT_ORDER.map((preset,i)=><HudButton key={preset} position={[i%2?.49:-.49,.27-.24*Math.floor(i/2),0]} size={[.88,.18]}
-      label={t(lightNames[preset])} active={preset===p.lightPreset} onPress={()=>set({lightPreset:preset})}/>)}
-  </group>;
   if(details)return <group name="settings:visual-details">
     <HudLine position={[-.48,.54,0]} width={.89} role="title" text={t('settingsVisualDetails')}/>
     <HudButton position={[.49,.54,0]} size={[.88,.16]} variant="quiet" label={t('settingsBackEnvironment')} onPress={()=>showDetails(false)}/>

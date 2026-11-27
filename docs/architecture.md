@@ -23,6 +23,8 @@
    电玩厅上下层共用 XZ；`supportY` 是射线命中面的世界高度，从预览、确认一直传到 `StageRoom`。提交时房间调用 [`resolvePlacementHeight`](../src/mmdVrShowcase/scenery/placementAreas.ts)：`null` 表示拒放，否则将返回的世界高度交给角色或物件。回访从快照的三维位置恢复。
 4. 离场时由房间判断快照是否完整。[从背包收回或在详情页移除](./architecture/maintenance.md#移除演员后恢复哪份布局)也会提交当前完整布局，不必等到离场。背包的 `saveBackpackLayout` 一次写入本景布局、按文件身份匹配的摆放记录及动作绑定；切景后重建实例。布局不是一组隐藏的 Three.js 网格，也不保存 Bullet 世界。
 
+WebGPU 沿用上述混合布局。每个加载的 PMX 对象各自持有布料、材质选择和可查询表面；文件名不是实例标识，修复纹理期间新旧实例还可能同时存在。房间在同一跟踪帧为所有演员准备一次材质管线，再画双眼。GLB/glTF 仍由房间的物件加载器持有，与 PMX 的求值器和 Bullet 世界分开。
+
 ## 按改动找入口
 
 想新增会飞、会落或会浮起的道具，先看[重力系统与扩展边界](./architecture/gravity.md)：普通房间和 10 个可步行天体如何取样，及哪些运动仍由玩家马达、演员 Bullet 或屏幕相机负责。
@@ -50,7 +52,7 @@
 | 插入面板的外阴与子宫全貌 | [短段入口内壁](../src/mmdVrShowcase/pelvic/atlas/entranceWall.ts)在真实开口后方使用同一深度缓冲，受口缘遮挡；不在 PMX 上新增通道。[总览中的下段剖面](../src/mmdVrShowcase/pelvic/atlas/overviewTract.ts)读取同一实测杆身，独立于缓存的宫体与两侧附件。冻结示意时新测量仍能绘制。 |
 | 收起身体工具，看舞台／继续编辑 | [屏幕面板导航](../src/mmdVrShowcase/screen/useScreenPanels.ts)和 [XR 演员工具](../src/mmdVrShowcase/backpack/BackpackWorldTools.tsx)暂时保留同一运行实例的编辑器。收起时卸下控件和图，不复制、保存或丢弃草稿。换演员、实例、房间不是收起。 |
 | 演员首页的服装、互动和身体观察 | [ActorActivities](../src/mmdVrShowcase/interaction/ActorActivities.tsx)只保存当前演员的短导航路径。打开[衣柜](../src/mmdVrShowcase/wardrobe/WardrobeControls.tsx)或[身体观察](../src/mmdVrShowcase/observation/ActorObservation.tsx)不会让 UI 接管舞台求值。上半身近景由[屏幕镜头](../src/mmdVrShowcase/screen/upperBodyView.ts)按当前角色姿势取景，不作接触标定，也不控制 XR 视点。 |
-| 单角色 XR 支架何时收起 | [ActorActivities](../src/mmdVrShowcase/interaction/ActorActivities.tsx) 的插入操作持有支架的界面寿命。打开衣柜详情只替换当前控件；返回时保留同一演员、支架和标定。离开整条插入操作时清理，已明确交给手柄的道具由房间接管。 |
+| WebGPU XR 支架何时收起 | [ActorActivities](../src/mmdVrShowcase/interaction/ActorActivities.tsx) 的插入操作持有支架的界面寿命。打开衣柜详情只替换当前控件；返回时保留同一演员、支架和标定。离开整条插入操作时清理，已明确交给手柄的道具由房间接管。 |
 | 舞台泌乳 | [`outlets.ts`](../src/mmdVrShowcase/bodyState/lactation/outlets.ts) 把作者的局部顶点形态绑定到实际皮肤表面；[房间](../src/mmdVrShowcase/bodyState/lactation/roomMilk.ts)只接收当次分侧扣量，在角色求值后更新遮挡和可见液滴。HUD 显示这笔操作是否获房间接收，不从回充、滑杆或读图倒推。 |
 | 默认设置、合法值、v1/v2 偏好兼容 | [`settings/preferences.ts`](../src/mmdVrShowcase/settings/preferences.ts)。首次进入、读取旧记录和场内更新共用同一套规则；[`mmdVrStore.ts`](../src/mmdVrShowcase/mmdVrStore.ts) 发布状态和操作。文件、布局和运行时句柄不属于偏好。 |
 | 某一间房的模型、入口、机位、遮挡 | [`scenery/`](../src/mmdVrShowcase/scenery/)；按[布景接入指南](./scenery/adding-a-set.md)改注册表和本景布局。菜单切景是否重置视角由 `catalog.ts` 决定；步行跨门由 `connections.ts` 的平移数据决定。 |

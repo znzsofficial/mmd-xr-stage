@@ -4,7 +4,7 @@ import {attribute,cameraProjectionMatrix,cameraViewMatrix,color,diffuseColor,flo
 import {CLASS_SUN,ROOM} from '../../src/mmdVrShowcase/scenery/ClassroomLayout';
 import {classroomBounce,classroomSunlight} from '../../src/mmdVrShowcase/scenery/ClassroomLight';
 import {SceneShader} from './sceneShader.jsx';
-import {boardDay,backDay,steelDay,parquetContact} from '../../src/mmdVrShowcase/scenery/ClassroomFinish';
+import {boardDay,backDay,steelDay,boardShadow,backShadow,steelShadow,parquetContact} from '../../src/mmdVrShowcase/scenery/ClassroomFinish';
 import {useBakedSurface} from '../../src/mmdVrShowcase/scenery/useBakedSurface';
 import cloudsUrl from '../../src/mmdVrShowcase/scenery/day-clouds.webp';
 
@@ -30,7 +30,7 @@ function windowGlint(r){
 }
 function Surface({onBeforeCompile:shade,map,color:tint='white',roughness:base=.88,side,vertexColors=false}){
   const mat=useMemo(()=>{
-    const board=shade===boardDay,back=shade===backDay,tube=shade===steelDay,wood=board||back;
+    const board=shade===boardDay||shade===boardShadow,back=shade===backDay||shade===backShadow,tube=shade===steelDay||shade===steelShadow,wood=board||back;
     const m=new MeshStandardNodeMaterial({color:new Color(tint),roughness:base,vertexColors,...(side==null?{}:{side})});
     if(wood){
       const edge=attribute('classCut','float').greaterThan(.5),panel=uv().sub(.5),wear=panel.length().mul(2.6).clamp().oneMinus();
@@ -41,7 +41,7 @@ function Surface({onBeforeCompile:shade,map,color:tint='white',roughness:base=.8
     }else{m.map=map??null;if(tube)m.roughnessNode=mix(.78,.34,smoothstep(.03,.033,positionGeometry.y));}
     if(shade===parquetContact&&map)m.aoNode=texture(map).a;
     if(!(wood||tube||shade===classroomSunlight||shade===classroomBounce||shade===parquetContact))return m;
-    const fill=diffuseColor.rgb.mul(windowFill(shade===classroomSunlight||wood||tube));
+    const fill=diffuseColor.rgb.mul(windowFill(shade===classroomSunlight||shade===boardDay||shade===backDay||shade===steelDay));
     m.emissiveNode=wood||tube?fill.add(windowGlint(roughness)):fill;return m;
   },[shade,map,tint,base,side,vertexColors]);useEffect(()=>()=>mat.dispose(),[mat]);return <primitive object={mat} attach="material"/>;
 }

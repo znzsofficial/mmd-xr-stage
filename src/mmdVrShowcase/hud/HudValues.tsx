@@ -60,10 +60,11 @@ export function HudSlider({
   const pointerRef = useRef<number | null>(null);
   const pointerTargetRef = useRef<{ releasePointerCapture?: (id: number) => void } | null>(null);
   const ratio = Math.min(1, Math.max(0, value));
+  const hitWidth = width + 0.12;
 
   function update(event: ThreeEvent<PointerEvent>) {
     if (!event.uv) return;
-    onChange(Math.min(1, Math.max(0, event.uv.x)));
+    onChange(Math.min(1, Math.max(0, .5 + (event.uv.x - .5) * hitWidth / width)));
   }
 
   function begin(event: ThreeEvent<PointerEvent>) {
@@ -137,7 +138,7 @@ export function HudSlider({
         onPointerCancel={end}
         onLostPointerCapture={end}
       >
-        <planeGeometry args={[width + 0.12, 0.16]} />
+        <planeGeometry args={[hitWidth, 0.16]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} depthTest={false} />
       </mesh>
     </group>

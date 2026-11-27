@@ -49,7 +49,7 @@ export function createRoomPropDisplay(){
     ];
     return ()=>{off.forEach(unsubscribe=>unsubscribe());reset();forgetWandResponses(useMmdVrStore.getState().models.map(m=>m.id));};
   }
-  function present(runtime:Pick<MmdRuntimeHandle,'getModelSurface'>,scene:Scene,wrist:Object3D|null,rig:PelvicRigHandle|null,frame:XRFrame|undefined,clock:Pick<Clock,'oldTime'>,skipSoftHead=false){
+  function present(runtime:Pick<MmdRuntimeHandle,'getModelSurface'>,scene:Scene,wrist:Object3D|null,rig:PelvicRigHandle|null,frame:XRFrame|undefined,clock:Pick<Clock,'oldTime'>){
     const opening=rig?.getAperture();
     if(opening)aperture.apply(opening.assetId,runtime.getModelSurface(opening.runtimeId),opening.amount);
     const contact=rig?.getActorContact()??null, profile=contact&&usePelvic.getState().byAsset[contact.assetId];
@@ -57,7 +57,7 @@ export function createRoomPropDisplay(){
     if((opening&&opening.amount>0)||contact)pelvicApplied=pelvicChanged=true;
     const {stand,held,character}=useStagePlay.getState(),toy=(held??character??stand)?.toy;
     if(held?.toy==='remoteEgg'){egg.present(scene,runtime.getModelSurface);return;}
-    if(skipSoftHead||toy!=='wand'&&toy!=='dildo')return;
+    if(toy!=='wand'&&toy!=='dildo')return;
     const stage=useMmdVrStore.getState();
     wand.advance(scene,stand?rig?.getStandRoot()??null:wrist,toy,held?.hand??null,frame,wandFrameMs(frame,clock.oldTime),
       stage.prefs.physicsHapticLevel,stage.models,runtime.getModelSurface);

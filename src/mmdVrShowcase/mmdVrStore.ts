@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { emptyAssetLoadProgress, type AssetLoadProgress } from "./stage/loading/mmdAssetLoadQueue";
 import type { StageSnapshot } from "./stage/stageSnapshot";
 import { LIGHT_ORDER, normalizeMmdVrPrefs, prefsStorage, type MmdVrPrefs } from './settings/preferences';
-import { endMmdVrAssetSession, isSoloFloorSession } from "./backpack/sessionAssets";
+import { endMmdVrAssetSession, isWebgpuStageSession } from "./backpack/sessionAssets";
 import { invalidateBackpackCommands, prepareBackpackEntry, useBackpack } from "./backpack/store";
 import { resetMmdVrClock } from "./stage/mmdVrClock";
 import { resetViewOnMenuSwitch } from "./scenery/catalog";
@@ -207,11 +207,11 @@ export const useMmdVrStore = create<MmdVrStore>((set, get) => ({
   },
   prefs: initialPrefs,
   setPrefs: (patch, options) => {
-    if (isSoloFloorSession() && patch.scenery && (!supportsWebgpuRoom(patch.scenery) || !fitsWebgpuRoom(useBackpack.getState().layouts[patch.scenery]))) return;
+    if (isWebgpuStageSession() && patch.scenery && (!supportsWebgpuRoom(patch.scenery) || !fitsWebgpuRoom(useBackpack.getState().layouts[patch.scenery]))) return;
     const previousRoom = get().prefs.scenery;
     const prefs = normalizeMmdVrPrefs({ ...get().prefs, ...patch });
     prefsStorage.write(prefs);
-    const leaveDistrict = !options?.preserveViewOnCrossing && (resetViewOnMenuSwitch(previousRoom, prefs.scenery) || (isSoloFloorSession() && previousRoom!==prefs.scenery));
+    const leaveDistrict = !options?.preserveViewOnCrossing && (resetViewOnMenuSwitch(previousRoom, prefs.scenery) || (isWebgpuStageSession() && previousRoom!==prefs.scenery));
     set({ prefs, loop: prefs.loop, ...(leaveDistrict ? {viewEpoch:get().viewEpoch+1} : {}) });
   },
   cyclePhysicsColliderRadius: () => {

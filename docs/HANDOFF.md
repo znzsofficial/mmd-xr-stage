@@ -6,6 +6,8 @@
 
 **本机工具链：**Node 26.13.1、pnpm 11.29、Vite 8.4、Vitest 5.1.2；`@types/node` / `@types/react` 分别更新至 26.6.11 / 19.3.3。独立 Babylon 对照实验使用 9.38，不进入游戏。主项目 Rapier 与 `@react-three/rapier` 继续配套 0.19.2，Three r187、loader fork 和 XR 输入补丁保持锁定。
 
+**本机混合布局版：**WebGL 的原背包先实测内嵌 GLB、外置 BIN／PNG 的 glTF，随后同一标签页实走 3 名演员＋3 件物件 WebGL → WebGPU → WebGL。单件收回、单人材质归属及原舞段恢复均有画面对照。玩家导入方法见[放一件 GLB 或 glTF](./gameplay/asset-workflow.md#放一件-glb-或-gltf)，证据见[混合布局实测](./webgpu-xr-status.md#混合布局候选材质与环境的画面对照)。
+
 ## 正式站单角色版：17 景、13/13 件道具
 
 本轮已结项。入口、玩法与后端选择见[当前正式版](./webgpu-xr-status.md#当前正式版)。同一穿衣演员已串测衣柜、观察、身体设置、道具、摆姿、支架录放和跨后端续场。Quest 实机手感与持续帧率标为未测，不安排玩家补测。

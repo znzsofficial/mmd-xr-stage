@@ -540,7 +540,7 @@ export function MmdVrPrepApp({showOverlay=true,loadFloorBackend,initialFloorRend
             {loadFloorBackend && supportsWebgpuRoom(prefs.scenery) && <label className="stage-field">
               <span className="stage-field-label">{t('floorXrRenderer')}</span>
               <select className="stage-select" data-floor-renderer value={floor.failed?'webgl':floorRenderer} disabled={!!floor.failed||phase==='entering'||phase==='active'} onChange={e=>setFloorRenderer(e.target.value==='webgpu'?'webgpu':'webgl')}>
-                <option value="webgl">WebGL</option><option value="webgpu">{t('floorWebgpuSolo')}</option>
+                <option value="webgl">WebGL</option><option value="webgpu">WebGPU</option>
               </select>
             </label>}
             <MusicPicker disabled={phase === 'entering' || phase === 'active'} />

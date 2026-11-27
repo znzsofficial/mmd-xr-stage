@@ -5,6 +5,10 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from 'node:path';
 
 const files = [
+  // Open single-actor tabs can still choose WebGPU or enter the planet after this update.
+  ['bf94c6d3','index-CuPTWg9O.js','105f898d28db633865bc1a8655c86151eedfb451a643a2fb897f208d746d007b'],
+  ['bf94c6d3','stage-host-CoaHNyfO.js','e01e2e7e73a98913c5877c25946dde469a5c1955e5f6b93f233d34b55e8afb25'],
+  ['bf94c6d3','PlanetPhysics-DgZhXRUR.js','66725a4b479ba9fa6b23aab8e564bd5e8413bffade9f9436fa28234c0d3a8615'],
   // Vite 8.4 renames shared chunks even when the package source is unchanged.
   ['9d9f1ae6','three.module-DVJnBgdk.js','b476d87290924fc73209689ed51577abe9a985e383f27a4ac3f6bd632193a5c8'],
   ['9d9f1ae6','three.core-B3xvqeNo.js','2ab09df1ace934298a5055887c017d6886e7bab66c68447949a8735f366cc847'],

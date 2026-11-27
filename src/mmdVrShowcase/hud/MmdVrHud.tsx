@@ -84,8 +84,9 @@ function DiagnosticsPanel({ onClose, onExit }: { onClose: () => void; onExit: ()
   const t = useLanguageStore((s) => s.t);
   const language = useLanguageStore((s) => s.language);
   const debug=useMmdVrStore(s=>s.physicsDebugEnabled),fps=useMmdVrStore(s=>s.prefs.showFps);
+  const models=useMmdVrStore(s=>s.models.length),objects=useMmdVrStore(s=>s.objects.length);
   const counts=useMmdVrStore(s=>s.physicsDebugEnabled?`R: ${s.physicsRigidBodyCount} · D: ${s.physicsDynamicBodyCount} · C: ${s.physicsContactCount} · S: ${s.physicsStepCount}`:'');
-  return <><TextPanel title={t("hudDiagnostics")} text={[...diagnosticLines(data,t,language),counts,t('diagHint')].filter(Boolean).join('\n')} onClose={onClose} onExit={onExit} />
+  return <><TextPanel title={t("hudDiagnostics")} text={[`${t('hudCharacters')}: ${models} · ${t('hudObjects')}: ${objects}`,...diagnosticLines(data,t,language),counts,t('diagHint')].filter(Boolean).join('\n')} onClose={onClose} onExit={onExit} />
     <HudButton position={[-.6,-.76,.03]} size={[1.1,.15]} label={t('settingsPanelFps')} active={fps} onPress={()=>useMmdVrStore.getState().setPrefs({showFps:!fps})}/>
     <HudButton position={[.6,-.76,.03]} size={[1.1,.15]} label={t(debug?'settingsMmdVrPhysicsDebugOn':'settingsMmdVrPhysicsDebugOff')} active={debug} onPress={()=>{const s=useMmdVrStore.getState();s.setPrefs({detailedPhysicsDiagnostics:!debug});s.setPhysicsDebugEnabled(!debug);}}/></>;
 }
@@ -566,6 +567,7 @@ export function MmdVrControlBar({onExit,busy,onDragChange:reportInteraction}:{on
   const inspect=useHudWorldInput(s=>s.inspect);
   useLayoutEffect(()=>{if(!inspect)return;useHudWorldInput.setState({inspect:null});
     const ix=[...models,...objects].findIndex(o=>o.id===inspect);if(ix<0)return;
+    useMmdVrStore.getState().setMaterialPanelModelId(null);
     setAssetIndex(ix);setTab('models');setIntro(false);setDock(false);setPage('advanced');recall();
   },[inspect,models,objects,recall]);
   const previousSelection = useRef(selected);

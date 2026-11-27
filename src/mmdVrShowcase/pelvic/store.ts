@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { useBackpack } from '../backpack/store';
-import { isSoloFloorSession } from '../backpack/sessionAssets';
+import { isWebgpuStageSession } from '../backpack/sessionAssets';
 import { sessionToys } from '../play/propCatalog';
 import { useHudWorldInput } from '../hud/hudWorldInput';
 import { useMmdVrStore } from '../mmdVrStore';
@@ -378,7 +378,7 @@ useBackpack.subscribe((b,p)=>{
   if(a){
     const live=b.live[a.assetId];
     if(!live?.visible||live.runtimeId!==a.runtimeId||b.entries!==p.entries&&!b.entries.some(e=>e.id===a.assetId&&e.kind==='model')||
-      isSoloFloorSession()&&b.selected!==p.selected&&b.selected!==a.assetId&&!(a.mode==='xrManual'&&a.awaitingWorld&&!b.selected))endPelvic(a.token);
+      isWebgpuStageSession()&&b.selected!==p.selected&&b.selected!==a.assetId&&!(a.mode==='xrManual'&&a.awaitingWorld&&!b.selected))endPelvic(a.token);
     else if(b.busy||b.draft||b.selected!==p.selected&&b.selected&&(b.selected!==a.assetId||a.mode==='xrManual'))interruptPelvic(a.token);
     else if(a.awaitingWorld&&!b.selected&&p.selected===a.assetId&&!blocked(a))usePelvic.setState({active:{...a,awaitingWorld:false,running:true}});
   }

@@ -9,6 +9,7 @@ type Draw={name:string; mat:Material; multiplier:number; visible:boolean; rawVis
 type Layer={all:Draw[]; edited:Draw[]; applied:boolean;revision:number};
 const layers=new WeakMap<SkinnedMesh,Layer>();
 export const drawRevision=(mesh:SkinnedMesh)=>layers.get(mesh)?.revision??0;
+export function invalidateDraws(mesh:SkinnedMesh){const layer=layers.get(mesh);if(layer)layer.revision++;}
 function indexDraws({model,materialNames}:MaterialPipelineEntry):Layer {
   const source=[model.mesh.material].flat(),all:Draw[]=[],seen=new Set<Material>();
   function add(mat:Material,index:number){
@@ -42,7 +43,12 @@ export function configureDraws(entry:MaterialPipelineEntry){
   const mesh=entry.model.mesh;let layer=layers.get(mesh);
   if(!layer){layer=indexDraws(entry);layers.set(mesh,layer);}
   restoreDraws(mesh);layer.edited.length=0;layer.revision++;
-  for(const d of layer.all){d.visible=entry.materialVisible[d.name]!==false;d.multiplier=entry.materialOverrides[d.name]?.opacity??1;
+  for(const d of layer.all){d.visible=entry.materialVisible[d.name]!==false;
+    const multiplier=entry.materialOverrides[d.name]?.opacity??1;
+    // r187 bakes an opaque fragment's alpha to 1. Invalidate on entry to
+    // and exit from the editable blend path, never per pose or slider tick.
+    if(d.mat.userData.stageMaterial&&(d.multiplier<1)!==(multiplier<1))d.mat.needsUpdate=true;
+    d.multiplier=multiplier;
     if(!d.visible||d.multiplier!==1)layer.edited.push(d);}
   entry.model.root.visible=entry.visible;presentDraws(mesh);
 }

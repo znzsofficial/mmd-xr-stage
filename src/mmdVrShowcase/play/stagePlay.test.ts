@@ -16,7 +16,7 @@ beforeEach(()=>get().reset());
 
 describe('shared prop catalog and ownership',()=>{
   it('shares all thirteen props in the solo room, replacing the existing owner',()=>{
-    beginMmdVrAssetSession([], 'soloFloor');
+    beginMmdVrAssetSession([], 'webgpu');
     try {
       get().mountStand('actor');
       get().equip('remoteEgg','right');expect(get().held?.toy).toBe('remoteEgg');expect(get().stand).toBeNull();

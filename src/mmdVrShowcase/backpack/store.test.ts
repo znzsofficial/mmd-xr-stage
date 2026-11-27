@@ -1,28 +1,30 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { clearBackpack, invalidateBackpackCommands, prepareBackpackEntry, syncBackpackFiles, useBackpack } from "./store";
 import { withAssetPath } from "../../mmdImport/assetPaths";
 import {beginMmdVrAssetSession,endMmdVrAssetSession} from './sessionAssets';
 
 const get = useBackpack.getState;
 beforeEach(clearBackpack);
+afterEach(endMmdVrAssetSession);
 
 describe('page backpack and stage ownership', () => {
-  it('scopes solo-floor capacity to that session without removing other library choices on return to WebGL',()=>{
+  it('shares mixed layout capacity and exact library choices on return to WebGL',()=>{
     const files=['a.pmx','b.pmx','room.glb'].map(name=>new File([],name));syncBackpackFiles(files);
     const [a,b,obj]=get().entries.map(e=>e.id);
-    beginMmdVrAssetSession([],'soloFloor');
+    beginMmdVrAssetSession([],'webgpu');
     try {
-      get().beginPlace(obj);expect(get().draft).toBeNull();
+      get().beginPlace(obj);expect(get().draft).toBe(obj);get().cancelPlace();
       get().beginPlace(b);expect(get().draft).toBe(b);get().cancelPlace();
       get().publishLive({[b]:{runtimeId:'b',visible:true,position:[0,0,-2]}});
-      get().beginPlace(a);expect(get().draft).toBeNull();
+      get().beginPlace(a);expect(get().draft).toBe(a);get().cancelPlace();
       get().beginPlace(b);get().confirmPlace(b,1,-1,90);expect(get().command).toMatchObject({id:b,moveRuntimeId:'b'});
     } finally {endMmdVrAssetSession();}
     prepareBackpackEntry(true);get().publishLive({[b]:{runtimeId:'restored-b',visible:true,position:[1,0,-1]}});
     get().beginPlace(a);expect(get().draft).toBe(a);get().cancelPlace();
     get().beginPlace(obj);expect(get().draft).toBe(obj);expect(get().files).toEqual(files);
   });
-  it('keeps four characters and their package identities, even with three stage slots; moving one needs no extra slot', () => {
+  it.each(['webgl','webgpu'] as const)('keeps the fourth character in the library; moving a mounted character costs no extra slot on %s', renderer => {
+    beginMmdVrAssetSession([],renderer);
     const files = [1,2,3,4].map(i => withAssetPath(new File([], 'hero.pmx'), `package-${i}/hero.pmx`));
     syncBackpackFiles(files);
     const ids = get().entries.map(e => e.id);

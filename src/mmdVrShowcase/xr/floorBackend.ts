@@ -1,8 +1,14 @@
 import {isSceneryId,type SceneryId} from '../scenery/catalog';
 import type { StageSnapshot } from '../stage/stageSnapshot';
+import {MMD_VR_MAX_MODELS,MMD_VR_MAX_OBJECTS} from '../backpack/sessionAssets';
 
 export const supportsWebgpuRoom=isSceneryId;
-export const fitsWebgpuRoom=(layout:StageSnapshot|null|undefined)=>!layout || (layout.assets.length<=1 && layout.assets.every(slot=>slot.kind==='model') && layout.models.length<=1 && !layout.objects.length);
+export function fitsWebgpuRoom(layout:StageSnapshot|null|undefined){
+  if(!layout)return true;
+  const models=layout.assets.filter(slot=>slot.kind==='model').length;
+  return models<=MMD_VR_MAX_MODELS && layout.assets.length-models<=MMD_VR_MAX_OBJECTS &&
+    layout.models.length<=MMD_VR_MAX_MODELS && layout.objects.length<=MMD_VR_MAX_OBJECTS;
+}
 
 /** The game owns the library, stage and HUD. An optional renderer owns just
  * its XR session lifetime. start must request XR in the original click. */

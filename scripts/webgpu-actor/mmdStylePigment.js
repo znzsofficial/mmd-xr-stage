@@ -6,7 +6,7 @@ import { mix, sRGBTransferEOTF, sRGBTransferOETF, texture, uniform, uv, vec3 } f
 // toon ramp, sphere map or highlight into albedo. This is not PBR recovery.
 export function mmdStylePigment(material) {
   const u = material.userData.mmdTslMaterialUniforms;
-  const map = material.userData.mmdTslTextureReferences.diffuseMap;
+  const map = material.userData.stageMaterial?.diffuse ?? material.userData.mmdTslTextureReferences.diffuseMap;
   const d = uniform(u.diffuse), neutral = d.add(uniform(u.ambient)).clamp();
   const f = uniform(u.textureFactor), tint = neutral.mul(mix(vec3(1), f.rgb, f.a));
   const sample = map && texture(map).sample(uv()).rgb;

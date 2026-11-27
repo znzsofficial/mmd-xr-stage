@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLanguageStore } from "../../languageStore";
 import { useBackpack } from "../backpack/store";
-import { isSoloFloorSession } from '../backpack/sessionAssets';
 import {
   formatMmdVrModelScale,
   mmdVrModelScaleToSlider,
@@ -63,7 +62,7 @@ export function AssetEditPanel({ asset, kind, editsLocked, onInteractionChange }
         position={[0, -0.46, 0]}
         label={t("settingsMmdVrMaterials")}
         size={[0.42, 0.08]}
-        disabled={!hasMaterials || isSoloFloorSession()}
+        disabled={!hasMaterials}
         onPress={() => setMaterialPanelModelId(runtimeId)}
       />}
     </group>
@@ -109,7 +108,7 @@ export function MaterialPanel({
   const slice = materials.slice(curPage * perPage, curPage * perPage + perPage);
 
   return (
-    <group position={[0, -0.12, 0.02]}>
+    <group name="hud:material-panel" position={[0, -0.12, 0.02]}>
       <HudButton position={[-0.65, 0.38, 0]} label={view === "detail" ? materialsLabel : closeLabel} size={[0.42, 0.14]} onPress={() => {
         if (view === "detail") { setView("list"); setSelectedMat(null); }
         else setModelId(null);

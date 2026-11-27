@@ -345,5 +345,13 @@ function poseLayer(mesh:SkinnedMesh,legs:Fit[],pelvis:number,patches:Patch[],pal
     }
     suspended=false;roll?.finish();
   }
-  return {seed,present,restore,clear,get hasField(){return shell.length>0;}};
+  return {seed,present,restore,clear,get hasField(){return shell.length>0;},
+    get hasOffsets(){return !suspended&&patches.some(p=>p.touched.length>0);},
+    // Sparse renderers reuse the same fitted displacements after the loader
+    // has written this frame's morphs. Only the art's original indices travel.
+    visitOffsets(write:(index:number,dx:number,dy:number,dz:number)=>void){
+      if(suspended)return;
+      for(const patch of patches)for(const {index,shown,rest} of patch.touched)
+        write(index,shown.x-rest.x,shown.y-rest.y,shown.z-rest.z);
+    },get capacity(){return patches.reduce((n,p)=>n+p.vertices.length,0);}};
 }

@@ -150,7 +150,6 @@ export type MmdRuntimeHandle = {
 };
 
 type RuntimeEntryWithPhysics = ActorDisplayEntry & {
-  actorBinding?: RoomActorBinding;
   manualMorphs?: ReturnType<typeof packMorphOverrides>;
   manualRestBound?: boolean;
   modelBytes?: ModelByteLease;

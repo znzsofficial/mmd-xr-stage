@@ -253,7 +253,11 @@ function applyMaterialOverrideToMaterial(
   ctx: MaterialLightingContext,
 ) {
   // Official TSL materials (WebGPU pipeline) — do not inject classic enhance.
-  if (material.userData?.mmdTslMaterialUniforms || material.userData?.mmdTslOutlineMaterial) return;
+  if (material.userData?.mmdTslMaterialUniforms) {
+    material.userData.stageMaterial?.sync(override, ctx);
+    return;
+  }
+  if (material.userData?.mmdTslOutlineMaterial) return;
   // Skip WebGL-only enhance injection on WebGPU MeshStandard fallback.
   if (material.userData?.mmdWebGpuStripped) {
     const std = material as THREE.MeshStandardMaterial;

@@ -19,7 +19,7 @@ type Page='use'|'view'|'fit'|'clothes'|'holder'|'fluid'|'technique';
 const main=(label:string,press:()=>void,disabled=false)=>buttons(key(label,press,{primary:true,disabled}));
 const link=(label:string,press:()=>void)=>buttons(key(label,press));
 
-export type PelvicNavigation={onClothing?:()=>void;cameraKey?:Pick<Key,'label'|'press'>;backLabel?:string;soloFloor?:boolean};
+export type PelvicNavigation={onClothing?:()=>void;cameraKey?:Pick<Key,'label'|'press'>;backLabel?:string;webgpu?:boolean};
 
 /** The insertion activity owns the tool through its wardrobe detour. Only a
  * deliberate handoff to world input can outlive the entire operator sheet. */
@@ -32,7 +32,7 @@ export function usePelvicToolLifetime(assetId:string,runtimeId:string,active:boo
   },[assetId,runtimeId,active]);
 }
 
-export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen'|'xr',{onClothing,cameraKey,backLabel,soloFloor=false}:PelvicNavigation) {
+export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen'|'xr',{onClothing,cameraKey,backLabel,webgpu=false}:PelvicNavigation) {
   const zh=useLanguageStore(s=>s.language==='zh'),l=(a:string,b:string)=>zh?a:b;
   const [page,go]=useState<Page>('use'),[fit,setFit]=useState<Fit>('position');
   const pending=useRef<(()=>void)|null>(null);
@@ -73,7 +73,7 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen
     result.status=l('成年角色 · 尚未放置支架','Adult character · no stand placed');
     const first=(m:PelvicMode,h?:Hand)=>{pending.current?.();pending.current=prepareFirstTool(assetId,runtimeId,source,m,h);};
     rows.push(buttons(...modes.map(([m,label])=>key(label,()=>first(m)))));
-    if(soloFloor&&handAllowed)rows.push(chooseHand(h=>first('xrManual',h)));
+    if(webgpu&&handAllowed)rows.push(chooseHand(h=>first('xrManual',h)));
     rows.push(link(l('成年角色入口设置','Adult opening settings'),()=>{if(enablePelvic(assetId,true))go('fit');}));
     if(onClothing)rows.push(link(l('调整服装','Clothing'),onClothing));
     return result;
@@ -148,7 +148,7 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen
     result.status=!known?l('没有找到入口。到「模型」手动指定起点。','Opening not found. Set an origin under Model.'):
        fit==='model'?[profile.showAdapter?l('外阴附件已开启','Vulva attachment on'):l('外阴附件已关闭','Vulva attachment off'),coverage].filter(Boolean).join(' · '):
       l('入口标定','Opening calibration');
-    rows.push(...fitRows({assetId,runtimeId,source,l,profile,support,fit,setFit,morph,names:names??[],page:morphPage,setPage:setMorphPage,clothes:soloFloor&&onClothing?onClothing:clothes,soloFloor,clear:()=>{disablePelvic(assetId);go('use');}}));
+    rows.push(...fitRows({assetId,runtimeId,source,l,profile,support,fit,setFit,morph,names:names??[],page:morphPage,setPage:setMorphPage,clothes:webgpu&&onClothing?onClothing:clothes,webgpu,clear:()=>{disablePelvic(assetId);go('use');}}));
   }else if(page==='fluid'){
     const c=profile.container,uterine=c==='fantasyUterine',amount=profile.fluid[c];
     result.status=`${uterine?l('宫腔','Uterus'):l('阴道','Vagina')} · ${amount} / ${profile.capacity[c]} ${l('单位','units')}`;
@@ -198,14 +198,13 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen
       if(mode==='standManual')rows.push(field(l('目标深度','Target depth'),Math.max(0,Math.round(target*100)),'%',[0,100],5,n=>jog(n/100),!jogReady||!running&&withdrawFirst));
       rows.push({kind:'depthReading'});
     }
-    if(soloFloor){
+    if(webgpu){
       if(known&&handAllowed)rows.push(chooseHand(h=>{if(mode!=='xrManual'||h!==hand)assign('xrManual',h);},running));
       if(mode)rows.push(link(l('收起假阳具','Put rod away'),()=>releasePelvic(assetId)));
     }
     const takes=!!profile.technique||mode==='standManual'&&ready;
     rows.push(buttons(key(clothesLabel,onClothing??clothes),...(cameraKey?[{...cameraKey,id:'actor-camera'}]:[])));
-    const more=known&&!soloFloor;
-    if(more||takes)rows.push(buttons(...(more?[key(l('更多操作','More controls'),()=>go('holder'))]:[]),
+    if(known||takes)rows.push(buttons(...(known?[key(l('更多操作','More controls'),()=>go('holder'))]:[]),
       ...(takes?[key(l('手法录放','Rail takes'),()=>go('technique'))]:[])));
   }
   return result;
