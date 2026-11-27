@@ -5,11 +5,11 @@ import {useMmdVrStore} from '../mmdVrStore';
 import type {StageSnapshot} from '../stage/stageSnapshot';
 
 // Exercise the real click/abort boundary without ever allocating a renderer.
-function arrange(){
-  const first=new File([],'one.pmx'), second=new File([],'two.pmx');
-  syncBackpackFiles([first,second]);
+function arrange(count=2){
+  const files=Array.from({length:count},(_,i)=>new File([],`${i}.pmx`));
+  syncBackpackFiles(files);
   const saved:StageSnapshot={scenery:'floor',models:[],objects:[],time:3,playing:false,loop:false,physicsEnabled:true,
-    assets:[first,second].map(modelFile=>({kind:'model',modelFile,companionFiles:[],bodyMotionFile:null}))};
+    assets:files.map(modelFile=>({kind:'model',modelFile,companionFiles:[],bodyMotionFile:null}))};
   useBackpack.setState({layouts:{floor:saved}});
   useMmdVrStore.getState().setPrefs({scenery:'floor'});useMmdVrStore.setState({savedStage:saved});
   const requestSession=vi.fn();
@@ -19,11 +19,21 @@ function arrange(){
 }
 afterEach(()=>{vi.unstubAllGlobals();clearBackpack();useMmdVrStore.setState(useMmdVrStore.getInitialState());});
 
-it('rejects a multi-actor continuation without requesting XR or consuming the previous layout',async()=>{
-  const {requestSession,saved}=arrange(), onStatus=vi.fn();
+it('rejects an over-capacity continuation without requesting XR or consuming the previous layout',async()=>{
+  const {requestSession,saved}=arrange(4), onStatus=vi.fn();
   const host=startGameFloor({resume:true,onStatus});await host.done;
   expect(host.status.phase).toBe('failed');expect(host.status.error).toBeTruthy();expect(onStatus).toHaveBeenCalled();
   expect(requestSession).not.toHaveBeenCalled();expect(useBackpack.getState().layouts.floor).toBe(saved);
+  expect(useMmdVrStore.getState().savedStage).toBe(saved);
+});
+
+it('requests XR for three actors and retains the complete layout if permission is denied',async()=>{
+  const {requestSession,saved}=arrange(3);
+  requestSession.mockRejectedValueOnce(Error('Permission denied'));
+  const host=startGameFloor({resume:true,onStatus:vi.fn()});
+  expect(requestSession).toHaveBeenCalledOnce();await host.done;
+  expect(host.status.error).toContain('Permission denied');
+  expect(useBackpack.getState().layouts.floor).toBe(saved);
   expect(useMmdVrStore.getState().savedStage).toBe(saved);
 });
 
