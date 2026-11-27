@@ -1,12 +1,12 @@
 # 会话交接｜2026-11-27
 
-**本轮已结项，无待发布的产品改动。** [海站与站前公园](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&view=screen) · [WebGPU 海站](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [`6e16d9e` 固定部署](https://a8c0dbf8.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md)。后续产品改动验证通过就发布，除非用户明确要求暂缓。
+**本轮已结项，无待发布的产品改动。** [海站与站前公园](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&view=screen) · [WebGPU 海站](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [`ce972ce` 固定部署](https://df5249b1.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md)。后续产品改动验证通过就发布，除非用户明确要求暂缓。
 
 ## 正式站能做什么
 
 - 17 个布景、13 件背包道具。WebGL 和 WebGPU 可在同一标签页续接 **3 名 PMX 演员＋3 件 GLB/glTF 物件**的布局，保留各自的动作、材质、摆位和舞段时刻。屏幕观看与默认 XR 入口仍用 WebGL。[物件导入](./gameplay/asset-workflow.md#放一件-glb-或-gltf) · [跨后端、换肤、接触和阴影的实绘对照](./webgpu-xr-status.md#混合布局材质与环境的画面对照)
-- 海边终点站背海一侧已接通日照喷泉公园、树荫长椅和商店街，同景实走往返、远端实际放置以及水面／座椅拒放均已在正式制品复核。新增[外置可撕丝袜](./gameplay/actor-tools.md)，WebGPU XR 的演员画风可选原 MMD、改进的仿终末地和[仿卡拉彼丘](./scenery/strinova-render-study.md#在舞台上切换)。1123 项舞台＋32 项工具测试通过，29 项主域页面／资源与本地制品一致。本轮未测 Quest 实戴。
-- [半透明搭档、体位与体外释放](./gameplay/pelvic-attachment.md)和尺寸预览继续沿用上一版。[角色工具实模回归](./performance/actor-tools-regression.md) · [历史 Quest 记录](./performance/quest-floor-dance.md)
+- 海站连接日照喷泉公园、树荫和商店街。同页支持[外置可撕丝袜](./gameplay/actor-tools.md)，WebGPU XR 的演员画风可选原 MMD、仿终末地和[仿卡拉彼丘](./scenery/strinova-render-study.md#在舞台上切换)。
+- 现有 [16 种快速体位](./gameplay/pose-and-body-states.md#快速体位)。[半透明搭档](./gameplay/pelvic-attachment.md#选择支架或半透明搭档)可在原位编辑演员，一侧膝盖变化不挪动另一侧撑手。穿衣实模七姿模拟双眼复核，最终成品另经 screen/Bullet 检查；[WebGPU 布料](./performance/gpu-cloth-lab.md#实际解算的内容)减少了采样矩阵上传与 CPU 骨节点访问，未证实整帧或 Quest FPS 上升。[角色工具回归](./performance/actor-tools-regression.md) · [历史 Quest 记录](./performance/quest-floor-dance.md)
 
 ## Loader 和上游 PR
 

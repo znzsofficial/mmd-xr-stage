@@ -12,6 +12,7 @@
 
 | 功能提交 | 已发布内容与验证范围 |
 |---|---|
+| `ce972ce` | [固定部署](https://df5249b1.mmd-xr-stage.pages.dev)。新增三种非对称体位和 XR 翻页；半透明搭档适配侧卧／跪撑、左右手独立支撑，可原位换姿；「近看搭档」框住两人。七姿桌面 GPU 模拟 XR 实测；最终成品另用穿衣实模、开物理通过屏幕操作。WebGPU 布料样本的矩阵上传量减 58.2%，未测出整帧提速。`5548ecd` 全量 1133＋33 项通过，最终头胸避让及相机修订另过 6 项聚焦、类型检查及构建。429 文件，SHA-256 `2e04ff79cfa0e71583991063dcdb1070f142ef5dbe3ebe6ad22f31e87ca54d2c`，主域 5 项入口资源与当前 WebGPU host 内容一致。 |
 | `6e16d9e` | [海站与站前公园](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&view=screen) · [固定部署](https://a8c0dbf8.mmd-xr-stage.pages.dev)。站台步行至喷泉、树荫和商店街；屏幕与模拟 XR 用实际射线放置，摇杆往返。实模外置丝袜的撕扯、换姿、换新和脱下均有像素对照；WebGPU XR 仿卡拉彼丘与仿终末地可按演员切换并恢复。1123＋32 项测试；424 文件 SHA-256 `5725181b68c53f60d2cbd6b97c7a3d6e1e907d41b7e6f6bf5121b19e0f600a83`，29 项主域资源一致。未测 Quest 真机。 |
 | `b124f61` | [正式舞台](https://mmd-xr-stage.pages.dev) · [固定部署](https://703e0c9c.mmd-xr-stage.pages.dev)。半透明搭档、三种新快速体位、面板阴道长度预览、自动往复主面板体外释放。成品屏幕 WebGL、桌面 GPU 模拟 XR 双眼与控制器用实模走通；穿衣和露出条件分别验证。1107 项舞台＋31 项工具测试通过；407 文件制品 SHA-256 `86f9d05cf40e06fdaa462212113524900b143b331ad190ca0e7a7a19a4d74e99`。主域 17 项页面与资源一致，未测 Quest 实戴。 |
 | `c8758cf` | [正式 WebGPU 舞台](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [固定部署](https://0ae4a810.mmd-xr-stage.pages.dev)。WebGL／WebGPU 均支持 3 名 PMX 演员＋3 件 GLB/glTF 物件，按原布局和舞段续场；WebGPU 接入换肤、材质、环境与摆姿裙片修正。loader 0.9.0（fork `c762507`）。1090 项舞台＋31 项工具测试通过，401 文件制品 SHA-256 `44cf72799a9ca7751d34aa8ee0a5c1dfc576cc07972868238b20d2ddae8477bd`。主域 17 项内容一致；线上海站在桌面模拟 XR 实际进退场并提交双眼。 |
