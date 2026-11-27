@@ -66,15 +66,13 @@ it.each(['screen','xr'] as const)('groups all one-press poses on %s; changing gr
     for (const [group,choices] of Object.entries(presetGroups)) {
       await ui.press(group==='basic'?'基础体位':'挑逗体位'); expect(delta(ui.sample(),last)).toBeLessThan(.001);
       expect(ui.key(group==='basic'?'跪坐掩胸':'仰卧屈膝')).toBeFalsy();
-      if(surface==='xr'){
-        // All pose keys use .14-high meshes. Leave clear space on either side
-        // of the grid for the group tabs and the receipt/undo row.
-        const keyY=(name:string)=>Number(ui.key(name)!.getAttribute('position')!.split(',')[1]);
-        const rows=choices.filter((_,i)=>i%2===0).map(p=>keyY(p.zh));
-        const y=[keyY('基础体位'),...rows,keyY('撤销'),keyY('恢复原动作')];
-        for(let i=1;i<y.length;i++)expect(y[i-1]-y[i]).toBeGreaterThan(.14);
-      }
-      for(const preset of choices) {
+      const paged = surface === 'xr' && choices.length > 8;
+      expect(!!ui.key('下一页')).toBe(paged);
+      for (const [index, preset] of choices.entries()) {
+        if (paged && index > 0 && index % 6 === 0) {
+          await ui.press('下一页');
+          expect(delta(ui.sample(), last)).toBeLessThan(.001);
+        }
         await ui.press(preset.zh); expect(ui.status()).toContain(`已应用 · ${preset.zh}`);
         before = last; last = ui.sample(); expect(delta(last, before)).toBeGreaterThan(.04);
       }
@@ -89,6 +87,47 @@ it.each(['screen','xr'] as const)('groups all one-press poses on %s; changing gr
     await ui.press('恢复原动作'); expect(delta(ui.sample(), original)).toBeLessThan(.001);
     expect(ui.onBack).toHaveBeenCalledOnce(); expect(useMmdVrStore.getState().playing).toBe(true);
   } finally { await ui.dispose(); }
+});
+
+it('fits eight XR presets without a pager and keeps page turns clear of the pose, Undo and Restore', async () => {
+  const ui = await editor('xr');
+  // Regroup real presets for the exact fit, two full pages and a one-key last page.
+  const originalGroups = { ...presetGroups };
+  const full = posePresets.slice(0, 13), exactFit = posePresets.slice(0, 8);
+  Object.assign(presetGroups, { basic: full, teasing: exactFit });
+  const keyY = (name: string) => Number(ui.key(name)!.getAttribute('position')!.split(',')[1]);
+  const checkRows = (names: string[]) => {
+    // Buttons are .14 high, including the page keys, Undo and Restore.
+    const y = ['基础体位', ...names, '撤销', '恢复原动作'].map(keyY);
+    for (let i = 1; i < y.length; i++) expect(y[i - 1] - y[i]).toBeGreaterThan(.14);
+  };
+  try {
+    await ui.mount(); await ui.press('快速体位');
+    const undo = ui.key('撤销')!.getAttribute('position'), restore = ui.key('恢复原动作')!.getAttribute('position');
+    await ui.press('上一页'); expect(ui.status()).toContain('1/3');
+    await ui.press(full[0].zh); const first = ui.sample();
+    for (let page = 0; page < 3; page++) {
+      if (page) await ui.press('下一页');
+      const visible = full.slice(page * 6, (page + 1) * 6);
+      expect(full.filter(p => ui.key(p.zh))).toEqual(visible);
+      expect(ui.status()).toContain(`${page + 1}/3`);
+      checkRows([...visible.filter((_, i) => i % 2 === 0).map(p => p.zh), '下一页']);
+      expect(keyY('上一页')).toBe(keyY('下一页'));
+      expect(ui.key('撤销')!.getAttribute('position')).toBe(undo);
+      expect(ui.key('恢复原动作')!.getAttribute('position')).toBe(restore);
+    }
+    await ui.press('下一页'); expect(ui.status()).toContain('3/3');
+    await ui.press('基础体位'); expect(ui.status()).toContain('3/3');
+    expect(delta(ui.sample(), first)).toBeLessThan(.001);
+    await ui.press(full[12].zh); expect(delta(ui.sample(), first)).toBeGreaterThan(.04);
+    await ui.press('上一页'); expect(ui.status()).toContain('2/3');
+    await ui.press('挑逗体位');
+    expect(ui.key('上一页')).toBeFalsy(); expect(ui.key('下一页')).toBeFalsy();
+    expect(full.filter(p => ui.key(p.zh))).toEqual(exactFit);
+    checkRows(exactFit.filter((_, i) => i % 2 === 0).map(p => p.zh));
+    await ui.press('撤销'); expect(delta(ui.sample(), first)).toBeLessThan(.001);
+    await ui.press('基础体位'); expect(ui.status()).toContain('1/3');
+  } finally { Object.assign(presetGroups, originalGroups); await ui.dispose(); }
 });
 
 it('keeps unsupported poses inert and lets a capable joint still be edited on a partial rig', async () => {

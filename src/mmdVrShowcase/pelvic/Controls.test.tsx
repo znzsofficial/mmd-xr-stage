@@ -2,13 +2,18 @@
 import {act,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {afterEach,expect,it,vi} from 'vitest';
-import {Group,Mesh,MeshBasicMaterial,Scene,Vector3} from 'three';
+import {Group,Mesh,MeshBasicMaterial,Scene,Texture,Vector3} from 'three';
+import {DefaultMmdRuntime,ThreeMmdLoader,disposeMmdModel} from '@yohawing/three-mmd-loader';
 import {useLanguageStore} from '../../languageStore';
 import {clearBackpack,useBackpack} from '../backpack/store';
 import {useMmdVrStore} from '../mmdVrStore';
+import {ActorActivities} from '../interaction/ActorActivities';
+import {mountPoseRoom,usePoseSession} from '../pose/poseSession';
+import {createPoseSolver,type PoseSolver} from '../pose/poseSolver';
+import {poseFixture} from '../pose/poseFixture.testSupport';
 import {PelvicScreenControls} from './Controls';
 import {usePelvicToolLifetime} from './usePelvicControls';
-import {advancePelvic,assignPelvic,consumePelvicDose,enablePelvic,interruptPelvic,patchPelvic,publishParkedSample,publishPelvicSample,publishPelvicSupport,startPelvic,usePelvic,type PelvicSample} from './store';
+import {advancePelvic,assignPelvic,consumePelvicDose,enablePelvic,interruptPelvic,parkPartnerForPose,patchPelvic,poseBlocksPelvicRig,publishParkedSample,publishPelvicSample,publishPelvicSupport,startPelvic,usePelvic,type PelvicSample} from './store';
 import {mountPelvicRig} from './rig';
 import {makeSilicone} from '../play/workshopModels';
 import {siliconeMount,siliconeOutlet,siliconeTilt} from '../play/siliconeProfile';
@@ -43,6 +48,44 @@ it('places the partner on its first press, keeps a running stroke on appearance 
     expect(host.querySelector('.pelvic-size-preview [data-part="vagina"]')).toBeTruthy();
     await click('操作');expect(host.querySelector('.live-pelvic-view')?.getAttribute('data-part')).toBe('uterus');
   }finally{await act(()=>root.unmount());}
+});
+
+it('adjusts a held actor from the partner sheet, parking the motor through edits and returning without a pending dose',async()=>{
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);vi.spyOn(document,'hidden','get').mockReturnValue(false);
+  const loader=new ThreeMmdLoader({runtimeFactory:()=>new DefaultMmdRuntime(),textureLoader:{load:(_url,done)=>{
+    const texture=new Texture();done?.(texture);return texture;
+  }}});
+  const model=await loader.loadModel(poseFixture().pmx,{outline:false,materialRenderOrder:false});
+  useMmdVrStore.setState({overlayOpen:true,presentation:'screen',playing:false});
+  useBackpack.setState({selected:'a',entries:[{id:'a',kind:'model',file:new File([],'adult.pmx'),path:'adult.pmx'}],live:{a:{runtimeId:'r',visible:true,position:[0,0,0]}}});
+  const scene=new Scene(),holder=new Group(),piece=new Group(),rod=new Mesh(makeSilicone(),new MeshBasicMaterial());
+  rod.name='play:piece:dildo';rod.position.fromArray(siliconeMount);rod.rotation.x=siliconeTilt;piece.add(rod);holder.add(piece);scene.add(model.root,holder);
+  const rig=mountPelvicRig({scene,host:holder,getRoot:()=>model.root,standPiece:()=>piece,standSpray:()=>null});
+  let editor:PoseSolver|null=null;
+  const posing=mountPoseRoom({open(){rig.interrupt();return editor=createPoseSolver(model,null,0);},close(){editor?.restore();editor=null;},dirty(){}});
+  const tick=()=>{model.update(0,{physics:false,ik:false});model.root.updateMatrixWorld(true);rig.advance(1/72,undefined,poseBlocksPelvicRig());};
+  const frames=async(n=1)=>act(()=>{for(let i=0;i<n;i++)tick();});
+  const host=document.createElement('div'),root=createRoot(host);
+  const click=async(label:string)=>{const button=[...host.querySelectorAll('button')].find(b=>b.textContent===label);expect(button?.disabled,label).toBe(false);await act(()=>button!.click());};
+  try{
+    await act(()=>root.render(<ActorActivities {...actor} entry="insert" onBack={()=>{}}/>));
+    await click('半透明搭档');await frames(2);await click('保持穿衣继续');await frames();await click('自动往复');await frames();
+    await click('开始往复');await frames(3);await click('释放到阴道');expect(pelvic().strokeOrder?.target).toBe('vaginal');
+    const motorToken=pelvic().active!.token;
+    await click('调整姿势');await frames(2);
+    const parked=pelvic().active!,partner=scene.getObjectByName('pelvic:partner')!;
+    const head=partner.getObjectByName('pelvic:partner-head')!,before=head.getWorldPosition(new Vector3());
+    expect(parked).toMatchObject({running:false,mode:'standAuto'});expect(usePoseSession.getState().editing).toBe(true);
+    expect(parked.assetId).toBe('a');expect(startPelvic('a')).toBe(false);
+    expect(parkPartnerForPose('a','r',motorToken)).toBe(false);expect(parked.token).not.toBe(motorToken);
+    expect(pelvic().strokeOrder).toBeNull();expect(rig.getStandRoot()).toBeNull();
+    await click('快速体位');await click('侧卧屈腿');await frames(3);
+    expect(partner.visible).toBe(true);expect(head.getWorldPosition(new Vector3()).distanceTo(before)).toBeGreaterThan(.15);
+    expect(pelvic().parkedSample!.tip[2]).toBeGreaterThan(.025);expect(pelvic().sample).toBeNull();
+    await click('保留姿势并返回');await frames();expect(pelvic().active?.token).toBe(parked.token);expect(usePoseSession.getState().editing).toBe(false);
+    expect(pelvic().byAsset.a.fluid.vaginal).toBe(0);await click('手动控制');await frames();await click('推进');await frames(60);
+    expect(pelvic().sample?.outletInside).toBe(true);expect(pelvic().byAsset.a.fluid.vaginal).toBe(0);
+  }finally{await act(()=>root.unmount());posing.dispose();rig.dispose();disposeMmdModel(model);rod.geometry.dispose();rod.material.dispose();}
 });
 
 it('sets any rim mode directly without placing a stand or replacing an actor’s recorded entry',async()=>{

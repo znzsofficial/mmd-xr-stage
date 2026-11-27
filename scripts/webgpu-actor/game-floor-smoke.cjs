@@ -2,7 +2,7 @@
 // node scripts/webgpu-actor/game-floor-smoke.cjs <local-clothed.pmx> <body.vmd> --strinova-style
 // node scripts/webgpu-actor/game-floor-smoke.cjs <local.pmx> <--milk-covered | --milk-exposed>
 // node scripts/webgpu-actor/game-floor-smoke.cjs <local.pmx> <--stand-covered | --stand-exposed>
-// node scripts/webgpu-actor/game-floor-smoke.cjs <local-adult.pmx> --partner [--covered | --exposed]
+// node scripts/webgpu-actor/game-floor-smoke.cjs <local-adult.pmx> --partner [--covered | --exposed] [--partner-poses]
 // node scripts/webgpu-actor/game-floor-smoke.cjs <local.pmx> --lunar-post
 // node scripts/webgpu-actor/game-floor-smoke.cjs <local-clothed.pmx> --environment [--shadow-sources]
 // node scripts/webgpu-actor/game-floor-smoke.cjs <small-actor-with-wrists.pmx> --story-props
@@ -48,7 +48,10 @@ async function main() {
   const stories=process.argv[3]==='--story-props';
   const stand=['--stand-covered','--stand-exposed'].includes(process.argv[3]);
   const partner=process.argv[3]==='--partner';
-  if(partner)assert(process.argv.length<=5 && [undefined,'--covered','--exposed'].includes(process.argv[4]),'Use --partner [--covered | --exposed]');
+  const partnerFlags=partner?process.argv.slice(4):[];
+  if(partner)assert(partnerFlags.every(f=>['--covered','--exposed','--partner-poses'].includes(f)) &&
+    new Set(partnerFlags).size===partnerFlags.length && !(partnerFlags.includes('--covered')&&partnerFlags.includes('--exposed')),
+    'Use --partner [--covered | --exposed] [--partner-poses]');
   const handheld=process.argv[3]==='--handheld';
   const remote=process.argv[3]==='--remote-egg';
   const environment=process.argv[3]==='--environment';
@@ -205,7 +208,8 @@ async function main() {
     if(stand||partner){
       await placeFromBag(second,landing,0);
       const take=partner?require('./game-floor-partner.cjs'):require('./game-floor-stand.cjs');
-      const result=await take({page,ids,click,until,bButton,frames,target,pickMounted,aim,trigger,idleRay,exposed:partner?process.argv[4]==='--exposed':plan==='--stand-exposed'});
+      const result=await take({page,ids,click,until,bButton,frames,target,pickMounted,aim,trigger,idleRay,
+        exposed:partner?partnerFlags.includes('--exposed'):plan==='--stand-exposed',partnerPoses:partnerFlags.includes('--partner-poses')});
       assert.deepEqual(errors,[]);assert.deepEqual(consoles.filter(x=>/shader|validation|wgsl|nodebuilder|pipeline/i.test(x)),[]);
       console.log(JSON.stringify(result,null,2));return;
     }

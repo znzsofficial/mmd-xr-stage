@@ -5,6 +5,7 @@ import { sessionToys } from '../play/propCatalog';
 import { useHudWorldInput } from '../hud/hudWorldInput';
 import { useMmdVrStore } from '../mmdVrStore';
 import { useStagePlay, type Hand } from '../play/stagePlay';
+import { usePoseSession } from '../pose/poseSession';
 import { defaultPelvicCalibration, type ContactMotion, type PelvicCalibration, type PelvicContact, type PelvicXYZ } from './contract';
 import { canStartAtOpening, exteriorExposureBlock, PELVIC_LIMITS as limits, type PelvicActive, type PelvicDoseTarget, type PelvicMode, type PelvicPatch, type PelvicProfile, type PelvicSample, type PelvicSupport } from './stateTypes';
 import {createRailRecorder,createRailReplay} from './railTechnique';
@@ -137,6 +138,23 @@ function park(a:PelvicActive){
   usePelvic.setState({active:{...a,token:++sequence,running:false,awaitingWorld:false,position,take:undefined},sample:null,parkedSample:null,strokeOrder:null,
     strokeReceipt:state().strokeOrder?.token===a.token?'cancelled':null});
 }
+
+/** Editing can show this actor's partner at the outside starting point. A
+ * parked draw never feeds a Bullet proxy, records an entry or delivers a dose. */
+export function poseBlocksPelvicRig(){
+  const pose=usePoseSession.getState();if(!pose.editing)return false;
+  const {active:a,byAsset}=state();
+  return !a||a.assetId!==pose.assetId||a.runtimeId!==pose.runtimeId||a.mode==='xrManual'||a.running||
+    a.position!==outside||byAsset[a.assetId]?.standAppearance!=='partner'||useBackpack.getState().selected!==a.assetId;
+}
+
+export function parkPartnerForPose(assetId:string,runtimeId:string,token:number){
+  const {active:a,byAsset}=state();
+  if(!a||a.assetId!==assetId||a.runtimeId!==runtimeId||a.token!==token||a.mode==='xrManual'||a.take?.kind==='record'||
+    byAsset[assetId]?.standAppearance!=='partner'||!selected(assetId)||blocked(a)||
+    useBackpack.getState().live[assetId]?.runtimeId!==runtimeId||useStagePlay.getState().stand?.assetId!==assetId)return false;
+  park(a);return true;
+}
 function dropBinding(){
   position=outside;direction=1;resetDrive();
   usePelvic.setState({active:null,sample:null,parkedSample:null,strokeOrder:null,strokeReceipt:null});
@@ -155,7 +173,7 @@ export function assignPelvic(assetId:string,mode:PelvicMode,source:PelvicActive[
 }
 export function startPelvic(assetId:string){
   const a=state().active,s=state().support[assetId];
-  if(a?.assetId!==assetId||blocked(a)||!s||s.runtimeId!==a.runtimeId||s.kind==='missing')return false;
+  if(a?.assetId!==assetId||blocked(a)||usePoseSession.getState().editing||!s||s.runtimeId!==a.runtimeId||s.kind==='missing')return false;
   if(a.running||a.awaitingWorld)return true;
   const p=state().byAsset[assetId];if(!p||!canStartAtOpening(p,s))return false;
   const awaitingWorld=a.mode==='xrManual'&&!!useBackpack.getState().selected;
@@ -231,7 +249,7 @@ export function advancePelvic(token:number,dtSeconds:number){
  * already running, both the live rail clock AND mounted outlet must be home. */
 export function startRailTechnique(assetId:string,kind:'record'|'replay'){
   const {active:a,byAsset,support,sample,parkedSample}=state(),p=byAsset[assetId];
-  if(!a||a.assetId!==assetId||a.mode!=='standManual'||a.take||!selected(assetId)||blocked(a)||!p||
+  if(!a||a.assetId!==assetId||a.mode!=='standManual'||a.take||usePoseSession.getState().editing||!selected(assetId)||blocked(a)||!p||
     support[assetId]?.runtimeId!==a.runtimeId||!canStartAtOpening(p,support[assetId])||Math.abs(position-outside)>1e-6||!(a.running?sample:parkedSample)?.railHome||
     (kind==='replay'&&!p.technique))return false;
   // A jog from .55 to -.2 can round to -.19999999999999996. Only snap
@@ -380,6 +398,13 @@ export function clearPelvicFluid(assetId:string){
 
 useStagePlay.subscribe((s,p)=>{
   const a=state().active;if(a&&(a.mode==='xrManual'?s.held!==p.held:s.stand!==p.stand))dropBinding();
+});
+// Reopening an already-held pose reuses its solver. A rapid edit/return can
+// happen between two draws; cancel the old stroke at entry, even in that case.
+usePoseSession.subscribe((s,p)=>{
+  if(s.editing&&(!p.editing||s.runtimeId!==p.runtimeId||s.assetId!==p.assetId)){
+    const a=state().active;if(a)interruptPelvic(a.token);
+  }
 });
 useHudWorldInput.subscribe((s,p)=>{const a=state().active;if(a?.source==='xr'&&s.blocked&&!p.blocked)interruptPelvic(a.token);});
 useMmdVrStore.subscribe((s,p)=>{

@@ -11,9 +11,12 @@ type Shape = {
   pelvisTuck?: number; // roll up from the hips, keeping the shoulder blades down
   leg: Pair; arm: Pair; // base→middle, middle→end; X mirrors for the right side
   rightLeg?: Pair; rightArm?: Pair; // asymmetric poses: literal, unmirrored
-  foot: Pair; palm?: Pair; // toes/fingers and dorsal normal; in stage axes
-  hold?: { segment:'thigh'|'shin'; fraction:number; normal:Direction; elbow:Direction; leftOnly?:boolean };
-  support: 'back' | 'knees' | 'feet' | 'side' | 'front' | 'seat';
+  foot: Pair; rightFoot?: Pair; palm?: Pair; // toes/fingers and dorsal normal; in stage axes
+  hold?: {
+    segment:'thigh'|'shin'; fraction:number; range?:readonly [number,number];
+    normal:Direction; elbow:Direction; leftOnly?:boolean; targetLeg?:'left'|'right';
+  };
+  support: 'back' | 'knees' | 'feet' | 'side' | 'front' | 'seat' | 'halfKneel';
 };
 export const presetShapes: Record<PosePresetId, Shape> = {
   supine: {
@@ -86,5 +89,27 @@ export const presetShapes: Record<PosePresetId, Shape> = {
     trunk:[[0,.73,-.68],[0,.68,.73]], headPitch:25, support:'seat',
     leg:[[.72,.27,.63],[.44,-.34,.83]], arm:[[.23,-.88,-.42],[-.08,-.98,.17]],
     foot:[[.38,.86,.33],[.25,.24,-.94]], palm:[[.48,0,-.88],[0,1,0]],
+  },
+  sideForwardLeg: {
+    trunk:[[0,.11,-1],[-1,0,0]], headPitch:5, support:'side',
+    leg:[[-.94,-.36,.12],[.12,-.12,.99]], rightLeg:[[-.08,-.15,1],[.13,-.04,1]],
+    arm:[[-.42,-.27,.87],[-.63,-.69,.34]], rightArm:[[-.74,-.14,-.65],[-.84,0,.54]],
+    foot:[[-.97,-.08,.25],[-.25,0,-.97]], rightFoot:[[-.96,0,.28],[-.28,0,-.96]],
+    palm:[[-.84,0,.54],[0,1,0]],
+    hold:{segment:'thigh',fraction:.46,range:[.18,.65],normal:[-.12,1,0],elbow:[-.24,.42,.87],leftOnly:true},
+  },
+  halfKneel: {
+    trunk:[[0,.98,.19],[0,-.19,.98]], headPitch:-7, support:'halfKneel',
+    leg:[[.19,-.13,.97],[.03,-.99,.11]], rightLeg:[[-.14,-.94,-.31],[-.04,0,-1]],
+    arm:[[.25,-.88,.40],[-.17,-.69,.70]], rightArm:[[-.48,-.86,-.18],[.16,-.72,.67]],
+    foot:[[.12,0,1],[0,1,0]], rightFoot:[[-.09,0,-1],[0,-1,0]],
+    hold:{segment:'thigh',fraction:.58,range:[.18,.7],normal:[.08,1,0],elbow:[.85,.02,-.47],leftOnly:true},
+  },
+  supineKneeHug: {
+    trunk:[[0,.065,-1],[0,1,.065]], headPitch:12, support:'back',
+    leg:[[-.10,.57,-.82],[.05,-.20,.98]], rightLeg:[[-.16,.30,.94],[-.05,-.55,.83]],
+    arm:[[.56,.29,.77],[-.60,.66,-.45]],
+    foot:[[.12,.28,1],[0,1,-.28]], rightFoot:[[-.09,0,1],[0,1,0]],
+    hold:{segment:'shin',fraction:.23,range:[.055,.34],normal:[1,.30,0],elbow:[.89,.14,.44],targetLeg:'left'},
   },
 };

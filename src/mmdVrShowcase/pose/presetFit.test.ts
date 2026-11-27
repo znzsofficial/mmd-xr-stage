@@ -159,6 +159,69 @@ it('leans a long-waisted sitter back far enough for its shorter supporting arm',
   }finally{pose.restore();disposeMmdModel(m);}
 });
 
+it.each([false,true])('fits the three asymmetric poses to their bearing surfaces and hand spans (uneven limbs=%s)',async uneven=>{
+  const f=poseFixture(false,'both',(name,x,y,z)=>{
+    if(uneven){
+      if(name==='RightKnee')y-=.12;
+      if(name==='LeftKnee')y+=.09;
+      if(/Arm|Elbow|Hand|Index|Neck|Head|Eye/.test(name))y+=.13;
+      if(/^Right(?:Elbow|Hand|Index)/.test(name))x=-.18+(x+.18)*.66;
+      if(name==='LeftIndex1')x+=.024;
+    }
+    return [x,y,z];
+  });
+  const m=await new ThreeMmdLoader().loadModel(f.pmx);addSkin(m);
+  const ground=bottom(m), rest=lengths(m),pose=createPoseSolver(m,null,0);
+  const p=(name:string)=>local(m,name);
+  const planted=(...parts:string[])=>{
+    expect(bottom(m)).toBeCloseTo(ground,5);
+    for(const part of parts)expect(bottom(m,part)-ground,part).toBeLessThan(.035);
+  };
+  function checkPalm(side:string,start:string,end:string,station:readonly [number,number],normal:Vector3){
+    const shaft=p(end).sub(p(start)),length=shaft.length(),along=shaft.divideScalar(length);
+    const hand=p(side+'Hand'),fingers=p(side+'Index1'),offset=hand.clone().lerp(fingers,.7).sub(p(start));
+    expect(fingers.sub(hand).normalize().dot(along)).toBeGreaterThan(.99);
+    const axial=offset.dot(along);
+    expect(axial/length,side+' grip along segment').toBeGreaterThan(station[0]);
+    expect(axial/length,side+' grip along segment').toBeLessThan(station[1]);
+    offset.addScaledVector(along,-axial);
+    expect(offset.dot(normal),side+' palm outside segment').toBeGreaterThan(.025);
+    expect(offset.length()).toBeLessThan(.125);
+  }
+  try{
+    expect(pose.applyPreset('sideForwardLeg')).toBe(true);m.update(0,edit);
+    expect(p('RightFoot').z-p('RightThigh').z).toBeGreaterThan(.85);
+    expect(p('LeftThigh').x-p('LeftKnee').x).toBeGreaterThan(.27);
+    expect(p('LeftFoot').z-p('LeftKnee').z).toBeGreaterThan(.32);
+    expect(p('LeftFoot').y-p('RightFoot').y).toBeLessThan(.09);
+    planted('RightElbow','RightHand','RightKnee','RightFoot','LeftFoot');
+    expect(bottom(m,'Pelvis')-ground,'resting hip').toBeLessThan(.035);
+    checkPalm('Left','LeftThigh','LeftKnee',uneven?[.15,.4]:[.45,.47],new Vector3(0,1,0));
+    expect(error(rest,lengths(m))).toBeLessThan(2e-5);
+
+    expect(pose.applyPreset('halfKneel')).toBe(true);m.update(0,edit);
+    planted('RightKnee','RightFoot','LeftFoot');
+    expect(p('LeftKnee').y-p('RightKnee').y).toBeGreaterThan(.30);
+    expect(p('LeftFoot').z-p('Pelvis').z).toBeGreaterThan(.30);
+    expect(p('RightKnee').z-p('RightFoot').z).toBeGreaterThan(.28);
+    expect(p('Head').y-p('Pelvis').y).toBeGreaterThan(.67);
+    checkPalm('Left','LeftThigh','LeftKnee',[.46,.6],new Vector3(0,1,0));
+    expect(error(rest,lengths(m))).toBeLessThan(2e-5);
+
+    expect(pose.applyPreset('supineKneeHug')).toBe(true);m.update(0,edit);
+    planted('RightFoot');
+    expect(Math.min(...['Pelvis','Spine','Head'].map(b=>bottom(m,b)))-ground).toBeLessThan(.025);
+    expect(p('LeftThigh').z-p('LeftKnee').z).toBeGreaterThan(.30);
+    expect(p('LeftKnee').y-p('Pelvis').y).toBeGreaterThan(.16);
+    expect(p('RightFoot').z-p('Pelvis').z).toBeGreaterThan(.64);
+    for(const [side,sign] of sideNames){
+      const station: [number,number]=uneven&&side==='Right'?[.05,.18]:[.22,.24];
+      checkPalm(side,'LeftKnee','LeftFoot',station,new Vector3(sign,0,0));
+    }
+    expect(error(rest,lengths(m))).toBeLessThan(2e-5);
+  }finally{pose.restore();disposeMmdModel(m);}
+});
+
 it('grounds the same actor on its authored skin when sparse GPU output replaces position',async()=>{
   const f=poseFixture(),loader=new ThreeMmdLoader(),m=await loader.loadModel(f.pmx,{materialRenderOrder:false,outline:false});
   const vmd=await loader.loadAnimation(f.vmd);addSkin(m);const g=m.mesh.geometry,base=g.attributes.position;
@@ -175,27 +238,30 @@ it('grounds the same actor on its authored skin when sparse GPU output replaces 
   }finally{disposeMmdModel(m);}
 });
 
-it('cups the drawn inner thighs: the palms follow a thicker leg without moving the knees',async()=>{
+it.each(['thighCradle','supineKneeHug'] as const)('moves both palms with the drawn leg thickness without moving the knees: %s',async id=>{
   const loader=new ThreeMmdLoader(),f=poseFixture();
+  const singleShin=id==='supineKneeHug',start=singleShin?'Knee':'Thigh',end=singleShin?'Foot':'Knee';
   async function sample(radius:number) {
     const m=await loader.loadModel(f.pmx,{outline:false});
     const p:number[]=[],j:number[]=[],w:number[]=[];
     for(const [side] of sideNames){
-      const thigh=local(m,side+'Thigh'),shaft=local(m,side+'Knee').sub(thigh),along=shaft.clone().normalize();
-      const k=m.mesh.skeleton.bones.indexOf(at(m,side+'Thigh'));
+      const pivot=local(m,side+start),shaft=local(m,side+end).sub(pivot),along=shaft.clone().normalize();
+      const k=m.mesh.skeleton.bones.indexOf(at(m,side+start));
       const radial=new Vector3(1,0,0),other=along.clone().cross(radial);
-      for(const t of [.4,.5,.6,.7,.8,.9])for(let i=0;i<32;i++){
-        const angle=i*Math.PI/16,v=thigh.clone().addScaledVector(shaft,t).addScaledVector(radial,radius*Math.cos(angle)).addScaledVector(other,radius*Math.sin(angle));
+      const r=singleShin&&side==='Right'?.036:radius;
+      for(const t of [.1,.2,.23,.3,.4,.5,.6,.7,.8,.9])for(let i=0;i<32;i++){
+        const angle=i*Math.PI/16,v=pivot.clone().addScaledVector(shaft,t).addScaledVector(radial,r*Math.cos(angle)).addScaledVector(other,r*Math.sin(angle));
         p.push(...v.toArray());j.push(k,0,0,0);w.push(1,0,0,0);
       }
     }
     const g=m.mesh.geometry;g.setAttribute('position',new Float32BufferAttribute(p,3));g.setAttribute('skinIndex',new Uint16BufferAttribute(j,4));g.setAttribute('skinWeight',new Float32BufferAttribute(w,4));
     const pose=createPoseSolver(m,null,0);
     try{
-      expect(pose.applyPreset('thighCradle')).toBe(true);m.update(0,edit);
+      expect(pose.applyPreset(id)).toBe(true);m.update(0,edit);
       return sideNames.map(([side])=>{
-        const atPalm=local(m,side+'Hand').lerp(local(m,side+'Index1'),.7),along=local(m,side+'Knee').sub(local(m,side+'Thigh'));
-        const reach=atPalm.sub(local(m,side+'Thigh'));reach.addScaledVector(along,-reach.dot(along)/along.lengthSq());
+        const target=singleShin?'Left':side;
+        const atPalm=local(m,side+'Hand').lerp(local(m,side+'Index1'),.7),along=local(m,target+end).sub(local(m,target+start));
+        const reach=atPalm.sub(local(m,target+start));reach.addScaledVector(along,-reach.dot(along)/along.lengthSq());
         expect(reach.length()-radius).toBeGreaterThan(.005);expect(reach.length()-radius).toBeLessThan(.022);
         return {reach,knee:along};
       });
@@ -219,15 +285,20 @@ it('fits an authored off-axis bind, offset soles and asymmetric leg lengths rath
   const ground=bottom(m),rest=lengths(m),hip=local(m,'LeftThigh').lerp(local(m,'RightThigh'),.5),
     across=local(m,'LeftThigh').sub(local(m,'RightThigh')).normalize(),forward=across.clone().cross(new Vector3(0,1,0));
   const pose=createPoseSolver(m,null,0);
-  try{for(const id of ['supine','legsUp','allFours','side','matingPress','proneKneeOut','bracedSeat'] as const){
+  try{for(const id of ['supine','legsUp','allFours','side','matingPress','proneKneeOut','bracedSeat','sideForwardLeg','halfKneel','supineKneeHug'] as const){
     expect(pose.applyPreset(id)).toBe(true);m.update(0,edit);
     expect(error(rest,lengths(m))).toBeLessThan(3e-5);expect(bottom(m)).toBeCloseTo(ground,5);
     const seat=local(m,'LeftThigh').lerp(local(m,'RightThigh'),.5),towardHead=local(m,'Head').sub(seat).normalize();
     expect(seat.x).toBeCloseTo(hip.x,5);expect(seat.z).toBeCloseTo(hip.z,5);
+    if(id==='halfKneel'){
+      expect(towardHead.y).toBeGreaterThan(.94);
+      expect(local(m,'LeftFoot').sub(local(m,'RightKnee')).dot(forward)).toBeGreaterThan(.34);
+      continue;
+    }
     const prone=id==='allFours'||id==='proneKneeOut';
     expect(towardHead.dot(forward)*(prone?1:-1)).toBeGreaterThan(id==='bracedSeat'?.55:.94);
     const q=m.mesh.getWorldQuaternion(new Quaternion()).invert().multiply(at(m,'Spine').getWorldQuaternion(new Quaternion()));
-    const face=forward.clone().applyQuaternion(q);if(id==='side')expect(face.dot(across)).toBeLessThan(-.96);
+    const face=forward.clone().applyQuaternion(q);if(id==='side'||id==='sideForwardLeg')expect(face.dot(across)).toBeLessThan(-.96);
     else expect(face.y*(prone?-1:1)).toBeGreaterThan(id==='bracedSeat'?.55:.94);
   }}finally{pose.restore();disposeMmdModel(m);}
 });

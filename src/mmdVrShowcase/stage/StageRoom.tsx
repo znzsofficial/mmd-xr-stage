@@ -51,7 +51,8 @@ import { useScreenWristCue } from '../play/screenWristCue';
 import {useHudWorldInput} from '../hud/hudWorldInput';
 import { RemoteWearable } from '../play/remote/RemoteWearable';
 import {presentRemoteWearable,wearableIn} from '../play/remote/wearableCollider';
-import {mountPoseRoom,usePoseSession} from '../pose/poseSession';
+import {mountPoseRoom} from '../pose/poseSession';
+import {poseBlocksPelvicRig} from '../pelvic/store';
 import {PoseHandles} from '../pose/PoseHandles';
 import {PelvicRig,type PelvicRigHandle} from '../pelvic/PelvicRig';
 import {PelvicObserver} from '../pelvic/PelvicObserver';
@@ -633,7 +634,7 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles,
     const owners=useStagePlay.getState(), inXR=store.presentation==='xr';
     const bag=useBackpack.getState();
     const pelvicBlocked=isRoomStale()||store.physicsBusy||store.physicsFatal||store.assetLoad.running||bag.busy||!!bag.draft||
-      pendingSeekSeed.current||physicsResetRequested||physicsReseedNeeded||usePoseSession.getState().editing||
+      pendingSeekSeed.current||physicsResetRequested||physicsReseedNeeded||poseBlocksPelvicRig()||
       (inXR&&(frame?.session.visibilityState!=='visible'||useHudWorldInput.getState().blocked));
     let propActive=false;
     if(physicsOn&&!isRoomStale()&&!store.physicsFatal&&!store.assetLoad.running&&!useBackpack.getState().busy&&!pendingSeekSeed.current&&(!inXR||frame?.session.visibilityState==='visible')){

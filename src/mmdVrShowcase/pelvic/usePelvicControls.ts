@@ -14,13 +14,13 @@ import {sessionToys,type Hand} from '../play/propCatalog';
 import {responseRows} from './responseRows';
 import {techniquePage} from './techniqueRows';
 import {assignPelvic,cancelStrokeDose,canStartAtOpening,clearPelvicFluid,disablePelvic,drainPelvic,enablePelvic,nudgePelvic,patchPelvic,PELVIC_LIMITS as lim,
-  releasePelvic,requestPelvicDose,requestStrokeDose,setPelvicCapacity,setPelvicGarmentVisible,startPelvic,stopPelvic,usePelvic,type PelvicMode} from './store';
+  parkPartnerForPose,releasePelvic,requestPelvicDose,requestStrokeDose,setPelvicCapacity,setPelvicGarmentVisible,startPelvic,stopPelvic,usePelvic,type PelvicMode} from './store';
 
 type Page='use'|'view'|'fit'|'clothes'|'holder'|'fluid'|'technique';
 const main=(label:string,press:()=>void,disabled=false)=>buttons(key(label,press,{primary:true,disabled}));
 const link=(label:string,press:()=>void)=>buttons(key(label,press));
 
-export type PelvicNavigation={onClothing?:()=>void;cameraKey?:Pick<Key,'label'|'press'>;backLabel?:string;webgpu?:boolean};
+export type PelvicNavigation={onClothing?:()=>void;onPose?:()=>void;cameraKey?:Pick<Key,'label'|'press'>;backLabel?:string;webgpu?:boolean};
 
 /** The insertion activity owns the tool through its wardrobe detour. Only a
  * deliberate handoff to world input can outlive the entire operator sheet. */
@@ -33,7 +33,7 @@ export function usePelvicToolLifetime(assetId:string,runtimeId:string,active:boo
   },[assetId,runtimeId,active]);
 }
 
-export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen'|'xr',{onClothing,cameraKey,backLabel,webgpu=false}:PelvicNavigation) {
+export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen'|'xr',{onClothing,onPose,cameraKey,backLabel,webgpu=false}:PelvicNavigation) {
   const zh=useLanguageStore(s=>s.language==='zh'),l=(a:string,b:string)=>zh?a:b;
   const [page,go]=useState<Page>('use'),[fit,setFit]=useState<Fit>('position');
   const pending=useRef<(()=>void)|null>(null);
@@ -226,7 +226,12 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen
       rows.push({kind:'depthReading'});
     }
     if(webgpu&&known&&handAllowed)rows.push(chooseHand(h=>{if(mode!=='xrManual'||h!==hand)assign('xrManual',h);},running));
-    if(mode&&(webgpu||partner&&mode!=='xrManual'))rows.push(link(putAway,()=>releasePelvic(assetId)));
+    if(mode&&(webgpu||partner&&mode!=='xrManual')){
+      const poseKey=partner&&mode!=='xrManual'&&onPose&&token!==undefined?key(l('调整姿势','Adjust pose'),()=>{
+        if(parkPartnerForPose(assetId,runtimeId,token))onPose();
+      },{pressToken:token,disabled:take?.kind==='record'}):null;
+      rows.push(buttons(...(poseKey?[poseKey]:[]),key(putAway,()=>releasePelvic(assetId))));
+    }
     const takes=!!profile.technique||mode==='standManual'&&ready;
     rows.push(buttons(key(clothesLabel,onClothing??clothes),...(cameraKey?[{...cameraKey,id:'actor-camera'}]:[])));
     if(known||takes)rows.push(buttons(...(known?[key(l('更多操作','More controls'),()=>go('holder'))]:[]),

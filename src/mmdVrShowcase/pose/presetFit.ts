@@ -133,8 +133,9 @@ export function fitPresets(source:SkinnedMesh, clip:ReturnType<typeof bindPoseCl
     if(s.headTurn)pitch.premultiply(new Quaternion().setFromAxisAngle(up,s.headTurn*Math.PI/180));
     orient(faceBone,pitch.multiply(tilt).multiply(boneQ.get(faceBone)!));
     function digits(l:Limb,hand:boolean,sign:number){
-      const pair=hand?s.palm:s.foot;if(!pair)return;
-      const m=measures.get(l)!, mirror=s.support==='side'?1:sign;
+      const override=!hand&&sign===-1?s.rightFoot:undefined;
+      const pair=override??(hand?s.palm:s.foot);if(!pair)return;
+      const m=measures.get(l)!, mirror=override||s.support==='side'?1:sign;
       orient(l.tip,transport(m.end,bindUp,dir(pair[0],mirror),dir(pair[1],mirror)).multiply(boneQ.get(l.tip)!));
     }
     for(const k of keys){
@@ -146,8 +147,39 @@ export function fitPresets(source:SkinnedMesh, clip:ReturnType<typeof bindPoseCl
         const shoulder=pos(limb[right?'rightHand':'leftHand'].base), thigh=pos(l.base);
         shoulder.addScaledVector(floorLeft,sign*.064*height);
         upper.copy(shoulder).setY(Math.max(shoulder.y,thigh.y)+.085*height).sub(thigh).normalize();
+      }else if(id==='supineKneeHug' && k==='leftFoot'){
+        // Bring one shin over the chest, within the span of both arms.
+        const chest=pos(limb.leftHand.base).lerp(pos(limb.rightHand.base),.42);
+        upper.copy(chest).addScaledVector(sky,.17*height).sub(pos(l.base)).normalize();
       }
       chain(l,hand,upper,dir(pair[1],override?1:sign));digits(l,hand,sign);
+    }
+    function grip(handSide:typeof sides[number],hold:NonNullable<typeof s.hold>){
+      const heldSide=hold.targetLeg??handSide, leg=limb[`${heldSide}Foot`],arm=limb[`${handSide}Hand`];
+      const shin=hold.segment==='shin',start=shin?leg.joint:leg.base,end=shin?leg.tip:leg.joint;
+      const shaft=between(start,end),length=shaft.length(),along=shaft.normalize();
+      const normal=dir(hold.normal,handSide==='left'?1:-1);
+      normal.addScaledVector(along,-along.dot(normal)).normalize();
+      const m=measures.get(arm)!;
+      function wristAt(fraction:number){
+        const center=pos(start).lerp(pos(end),fraction);
+        const pad=skin!.outset(`${heldSide}Leg`,center,normal,height,.050);
+        return center.addScaledVector(normal,pad+.009*height).addScaledVector(along,-.70*m.palmLength);
+      }
+      let wrist=wristAt(hold.fraction);
+      if(hold.range){
+        // Intersect this hand's reach sphere with the limb. A short arm can
+        // grip nearer the knee without pulling the other hand off its patch.
+        const shoulder=pos(arm.base).sub(wrist),reach=.98*(m.a+m.b);
+        if(shoulder.lengthSq()>reach*reach){
+          const axial=shoulder.dot(along),radialSq=shoulder.lengthSq()-axial*axial;
+          const span=Math.sqrt(Math.max(0,reach*reach-radialSq));
+          const nearest=Math.max(axial-span,Math.min(0,axial+span));
+          const fraction=Math.max(hold.range[0],Math.min(hold.range[1],hold.fraction+nearest/length));
+          wrist=wristAt(fraction);
+        }
+      }
+      return {along,normal,wrist};
     }
     function contacts(){
       const g=skin!.minima();
@@ -161,15 +193,30 @@ export function fitPresets(source:SkinnedMesh, clip:ReturnType<typeof bindPoseCl
         pad(`${side}Arm`,pos(arm.joint).y,0);pad(`${side}Hand`,pos(arm.tip).y,.013);
       }return g;
     }
-    const c=contacts(),support=s.support==='knees'?Math.max(c.leftLeg,c.rightLeg):s.support==='feet'?Math.max(c.leftFoot,c.rightFoot):
-      id==='sideLegLift'?Math.min(c.trunk,c.rightArm):c.trunk;
+    const c=contacts();
+    function supportLevel(){
+      if(s.support==='knees')return Math.max(c.leftLeg,c.rightLeg);
+      if(s.support==='feet')return Math.max(c.leftFoot,c.rightFoot);
+      if(s.support==='halfKneel')return Math.max(c.rightLeg,c.leftFoot);
+      if(id==='sideLegLift')return Math.min(c.trunk,c.rightArm);
+      return c.trunk;
+    }
+    const support=supportLevel();
     for(const side of sides){
       const sign=side==='left'?1:-1,leg=limb[`${side}Foot`],arm=limb[`${side}Hand`];
       const legFloor=c[`${side}Leg`],footFloor=c[`${side}Foot`];
-      if(s.support==='knees'||s.support==='front'||s.support==='seat'||id==='sideLegLift'&&side==='right'){
+      if(s.support==='knees'||s.support==='front'||s.support==='seat'||id==='sideForwardLeg'||
+        (id==='sideLegLift'||id==='halfKneel')&&side==='right'){
         // Fit the two segments independently. A seated heel bears weight while
         // its knee stays raised; kneeling, prone and side supports plant both.
         groundChain(leg,false,s.support==='seat'?0:support-legFloor,support-footFloor);
+        digits(leg,false,sign);
+      }else if(id==='halfKneel'||id==='supineKneeHug'&&side==='right'){
+        // Fit the planted sole without dragging its raised knee to the floor.
+        // A short shin limits how high this knee can stay above the ankle.
+        const ankleY=pos(leg.tip).y+support-footFloor, shin=measures.get(leg)!.b;
+        const kneeY=Math.min(pos(leg.joint).y,ankleY+shin*(id==='halfKneel'?.98:.72));
+        groundChain(leg,false,kneeY-pos(leg.joint).y,support-footFloor);
         digits(leg,false,sign);
       }else if(id==='supine'||s.support==='feet'&&Math.abs(support-footFloor)>height*1e-5){
         const foot=pos(leg.tip); foot.y+=support-footFloor;
@@ -186,18 +233,13 @@ export function fitPresets(source:SkinnedMesh, clip:ReturnType<typeof bindPoseCl
         const palm=pos(arm.base).addScaledVector(floorFront,-.23*(a+b)).addScaledVector(floorLeft,sign*.16*(a+b));
         palm.y=support+pos(arm.tip).y-c[`${side}Hand`];
         reach(arm,true,palm,dir([.72,.15,-.66],sign));digits(arm,true,sign);
-      }else if(id==='forearmKneel'||s.support==='front'){
+      }else if(id==='forearmKneel'||s.support==='front'||id==='sideForwardLeg'&&side==='right'){
         // Plant the two ends separately: wrist-only IK can put a palm down
         // with its elbow still in the air like the old all-fours pose.
         groundChain(arm,true,support-c[`${side}Arm`],support-c[`${side}Hand`]);
         digits(arm,true,sign);
       }else if(s.hold && (!s.hold.leftOnly || side==='left')){
-        const shin=s.hold.segment==='shin', start=shin?leg.joint:leg.base, end=shin?leg.tip:leg.joint;
-        const along=between(start,end).normalize(), normal=dir(s.hold.normal,sign);
-        normal.addScaledVector(along,-along.dot(normal)).normalize();
-        const center=pos(start).lerp(pos(end),s.hold.fraction),m=measures.get(arm)!;
-        const pad=skin.outset(`${side}Leg`,center,normal,height,.050);
-        const wrist=center.addScaledVector(normal,pad+.009*height).addScaledVector(along,-.70*m.palmLength);
+        const {along,normal,wrist}=grip(side,s.hold),m=measures.get(arm)!;
         reach(arm,true,wrist,dir(s.hold.elbow,sign));
         orient(arm.tip,transport(m.end,bindUp,along,normal).multiply(boneQ.get(arm.tip)!));
       }else if(id==='coveredKneel'){

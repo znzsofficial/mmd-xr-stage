@@ -23,6 +23,10 @@ it('keeps both mounted actors independently posed, with one-step undo including 
   try{
     expect(pose.begin('a','a1')).toBe(true);pose.setFeetLocked(true);pose.select('rightHand');expect(pose.setWristPinned('a','a1','rightHand',true)).toBe(true);
     const locked=solvers.get('a1')!.capture();expect(locked.soles?.leftFoot).toBeTruthy();
+    for(const id of ['sideForwardLeg','halfKneel','supineKneeHug'] as const){
+      expect(pose.applyPreset('a','a1',id)).toBe(true);
+      expect(pose.undo()).toBe(true);expect(solvers.get('a1')!.capture()).toEqual(locked);near(rig(b),originalB);
+    }
     expect(pose.applyPreset('a','a1','supine')).toBe(true);const supine=rig(a);near(rig(b),originalB);
     expect(usePoseSession.getState()).toMatchObject({feetLocked:false,pinnedWrists:[]});
     expect(pose.undo()).toBe(true);expect(solvers.get('a1')!.capture()).toEqual(locked);

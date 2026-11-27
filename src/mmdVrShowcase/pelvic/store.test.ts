@@ -3,13 +3,14 @@ import { Matrix4, Vector3 } from 'three';
 import { clearBackpack, useBackpack } from '../backpack/store';
 import { useHudWorldInput } from '../hud/hudWorldInput';
 import { useMmdVrStore } from '../mmdVrStore';
+import { usePoseSession } from '../pose/poseSession';
 import { giveScreenToy, useStagePlay } from '../play/stagePlay';
 import { siliconeOutlet } from '../play/siliconeProfile';
 import { createPelvicSolver, pelvicRailMatrix } from './geometry';
 import {prepareFirstTool} from './firstTool';
 import {
   advancePelvic, assignPelvic, cancelStrokeDose, clearPelvicFluid, clearPelvicSupport, consumePelvicDose, disablePelvic, drainPelvic,
-  enablePelvic, endPelvic, interruptPelvic, nudgePelvic, patchPelvic, PELVIC_LIMITS, publishPelvicSample,
+  enablePelvic, endPelvic, interruptPelvic, nudgePelvic, patchPelvic, poseBlocksPelvicRig, PELVIC_LIMITS, publishPelvicSample,
   publishPelvicSupport, requestPelvicDose, requestStrokeDose, setPelvicCapacity, setPelvicGarmentVisible, startPelvic, stopPelvic, usePelvic, type PelvicSupport,
 } from './store';
 
@@ -70,6 +71,18 @@ it('cancels first placement if selection leaves and returns before the room publ
   setup();usePelvic.setState({support:{}});prepareFirstTool('a','1','screen');
   bag().select('b');bag().select('a');publishPelvicSupport('a',support('1'));
   expect(get().active).toBeNull();expect(play().stand).toBeNull();expect(get().byAsset.a).toBeDefined();
+});
+
+it('invalidates the motor between draws when an already-held pose is reopened and closed',()=>{
+  opted();patchPelvic('a',{standAppearance:'partner'});assignPelvic('a','standAuto','screen');startPelvic('a');
+  const before=token(),pose=usePoseSession.getState();requestStrokeDose('a',before,'vaginal');
+  try{
+    usePoseSession.setState({assetId:'a',runtimeId:'1',editing:true});
+    expect(poseBlocksPelvicRig()).toBe(false);expect(get().active?.running).toBe(false);expect(startPelvic('a')).toBe(false);
+    usePoseSession.setState({assetId:'b',runtimeId:'2'});expect(poseBlocksPelvicRig()).toBe(true);
+  }finally{usePoseSession.setState(pose);}
+  expect(get().strokeOrder).toBeNull();expect(token()).not.toBe(before);expect(consumePelvicDose(before,inside)).toBe('none');
+  expect(get().byAsset.a.fluid.vaginal).toBe(0);expect(get().active?.running).toBe(false);
 });
 
 it('gates clothing and tracks measured geometry separately from commands, including on a paused screen clock',()=>{

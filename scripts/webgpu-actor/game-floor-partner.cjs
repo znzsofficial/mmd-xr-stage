@@ -52,6 +52,7 @@ async function observePartner(asset) {
       anyTool:rails||shown(stand)||shown(standRod)||shown(partner)||shown(partnerRod),
       body:displayPartner?[torso,head].map(o=>o.getWorldPosition(mesh.position.clone()).toArray()):null,
       clothed:!!profile?.clothed,confirmed:!!profile?.clothingClear,obstruction:s.support[asset]?.obstruction,
+      editing:p.runtimeId===runtime&&p.assetId===asset&&p.editing,
       held:p.runtimeId===runtime&&p.assetId===asset&&!p.editing&&p.canUndo,poseDrift:held?drift(held):null,
       receipt:s.strokeReceipt,fluid:profile?.fluid,sheet:!!scene.getObjectByName('pelvic:controls'),samples:!!(s.sample||s.parkedSample),auto:{...peak}};
   }
@@ -61,6 +62,7 @@ async function observePartner(asset) {
   function startClock() {
     if (labFixture.take) throw Error('Overlapping partner takes');
     labFixture.take=clock={time:performance.now(),inputs(){this.time+=1000/72;},afterDraw(){
+      window.partnerTake.onDraw?.();
       if (usePelvic.getState().active?.mode!=='standAuto' || !usePelvic.getState().active.running) return;
       const r=read(); if (!r.partnerOnly) return;
       peak.drops=Math.max(peak.drops,scene.getObjectByName('play:liquid-spray')?.count??0);
@@ -70,33 +72,37 @@ async function observePartner(asset) {
       } else if (phase==='out' && !r.inside && r.z>.02) { peak.outside=r.z; phase='in'; }
     }};
   }
-  window.partnerTake={read,pose,keepPose(){held=pose();return drift(neutral);},startClock,
+  window.partnerTake={read,pose,get clock(){return clock;},keepPose(){held=pose();return drift(neutral);},startClock,
     dispose(){if (labFixture.take===clock) labFixture.take=null;delete window.partnerTake;}};
 }
 
-// Read the actual group buttons on this sheet, then visit them by trigger. A
-// pose moving to another catalog group must not leave the take pressing a row
-// number which happens to select some other preset.
-async function choosePose({page,press,target}) {
-  const wanted='种付位';
+// Catalog identity selects the group and label; only controller presses can
+// change the page or apply the preset. Never address a choice by its row.
+async function choosePose({page,press,target},id) {
+  const {group,wanted}=await page.evaluate(async id=>{
+    const {presetGroups}=await import('/src/mmdVrShowcase/pose/presetCatalog.ts');
+    for(const [group,choices] of Object.entries(presetGroups)) {
+      const match=choices.find(p=>p.id===id); if(match)return {group,wanted:match.zh};
+    }
+    throw Error('Missing catalog pose '+id);
+  },id);
+  const basicPageTwo=id==='sideForwardLeg'||id==='halfKneel';
+  if(basicPageTwo)assert.equal(group,'basic',`${id}: expected basic poses page two`);
+  if(id==='supineKneeHug')assert.equal(group,'teasing');
   await press('快速体位');
-  const groups=await page.evaluate(async()=>{
-    const {posePresets}=await import('/src/mmdVrShowcase/pose/presetCatalog.ts');
-    const names=new Set(posePresets.map(p=>p.zh)), buttons=[];
-    gameTargets.floorState().scene.getObjectByName('pose:tools').traverseVisible(o=>{
-      if (o.name.startsWith('hud:')) buttons.push({label:o.name.slice(4),y:o.position.y});
-    });
-    const tab=buttons.find(b=>b.label==='快速体位'), firstChoice=Math.max(...buttons.filter(b=>names.has(b.label)).map(b=>b.y));
-    if (!tab||!Number.isFinite(firstChoice)) throw Error('Quick pose tab did not display any catalog choices');
-    return buttons.filter(b=>b.y<tab.y && b.y>firstChoice).map(b=>b.label);
-  });
-  const hasPose=()=>page.evaluate(n=>!!gameTargets.find({name:'hud:'+n}),wanted);
-  for (const group of groups) { if (await hasPose()) break; await press(group); }
-  assert(await hasPose(),'Quick pose not found in mounted groups: '+groups.join(', '));
-  await press(wanted); await target({name:'hud-label:已应用 · '+wanted}); await press('保留姿势并返回');
+  await press({basic:'基础体位',teasing:'挑逗体位'}[group]);
+  const visible=()=>page.evaluate(n=>!!gameTargets.find({name:'hud:'+n}),wanted);
+  if(basicPageTwo||!await visible()) {
+    if(basicPageTwo)assert(!await visible(),`${id}: unexpectedly on the first basic page`);
+    await target({name:'hud-label:1/2'}); await press('下一页'); await target({name:'hud-label:2/2'});
+  } else if(id==='allFours') {
+    await press('下一页'); await target({name:'hud-label:2/2'}); assert(!await visible());
+    await press('上一页'); await target({name:'hud-label:1/2'});
+  }
+  await press(wanted); await target({name:'hud-label:已应用 · '+wanted});
 }
 
-module.exports = async function({page,ids,click,until,bButton,frames,target,pickMounted,aim,trigger,idleRay,exposed}) {
+module.exports = async function({page,ids,click,until,bButton,frames,target,pickMounted,aim,trigger,idleRay,exposed,partnerPoses}) {
   const actor=await until('local adult PMX placed',s=>s.ready&&s.selected&&s.visible&&s.actor?.evaluations>0,null,120000);
   if (actor.physics) {
     await bButton(); await click('hudMore'); await click('settingsCharacter'); await click('settingsMmdVrPhysicsOn');
@@ -114,7 +120,7 @@ module.exports = async function({page,ids,click,until,bButton,frames,target,pick
   const poseStable=r=>assert(r.held&&r.poseDrift<.015,`Held actor pose changed: ${r.poseDrift} m`);
   await page.evaluate(observePartner,ids.model);
   try {
-    await click('actorPose'); await choosePose({page,press,target}); await target({key:'actorInsert'}); await frames(3);
+    await click('actorPose'); await choosePose({page,press,target},'matingPress'); await press('保留姿势并返回'); await target({key:'actorInsert'}); await frames(3);
     const poseChange=await page.evaluate(()=>partnerTake.keepPose());
     assert(poseChange>.08 && (await read()).held,'Preset did not change and hold the displayed PMX');
     await click('actorInsert'); assert(!(await read()).profile,'Expected first use on a fresh actor');
@@ -168,6 +174,8 @@ module.exports = async function({page,ids,click,until,bButton,frames,target,pick
     const cycling=await read();assert.deepEqual(cycling.fluid,deep.fluid);
     await press('停止往复'); await wait('automatic partner stopped',r=>r.mode==='standAuto'&&!r.running&&r.partnerOnly);
     await press('手动控制'); await wait('manual partner restored outside',r=>r.owned&&r.mode==='standManual'&&!r.running&&r.partnerOnly&&r.home&&!r.inside);
+    const poses=partnerPoses?await require('./game-floor-partner-poses.cjs')({page,asset:ids.model,runtime:actor.runtimeId,exposed,dir,
+      press,target,frames,idleRay,wait,poseStable,inside,choosePose:id=>choosePose({page,press,target},id)}):undefined;
     await press('返回角色'); await target({key:'actorInsert'});
     const gone=r=>!r.mode&&!r.standOwned&&!r.anyTool&&!r.samples;
     poseStable(await wait('return retires the mounted partner',gone));
@@ -178,6 +186,6 @@ module.exports = async function({page,ids,click,until,bButton,frames,target,pick
     const adapters=await page.evaluate(()=>labFixture.adapters);
     assert(adapters.some(a=>a.xrCompatible)&&adapters.every(a=>a.vendor&&!a.fallback&&!/swiftshader|warp|software|llvmpipe/i.test(JSON.stringify(a))),'Missing hardware GPU');
     return {clothing:exposed?'exposed':'covered',poseChangeM:poseChange,tipTravelM:tipTravel,depthM:deep.measured,switchToken:deep.token,
-      maxSwitchPoseDriftM:Math.max(stand.poseDrift,back.poseDrift),partnerDriftM:partnerDrift,auto:cycling.auto,eyes,capture};
+      maxSwitchPoseDriftM:Math.max(stand.poseDrift,back.poseDrift),partnerDriftM:partnerDrift,auto:cycling.auto,eyes,capture,poses};
   } finally { await page.evaluate(()=>window.partnerTake?.dispose()); }
 };

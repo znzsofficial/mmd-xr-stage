@@ -6,6 +6,7 @@ import {usePelvicToolLifetime} from '../pelvic/usePelvicControls';
 import {WardrobeScreenControls,WardrobeHudControls} from '../wardrobe/WardrobeControls';
 import {MilkScreenControls,MilkHudControls} from './MilkInteraction';
 import {BodyScreenControls,BodyHudControls} from '../bodyState/BodyControls';
+import {PoseScreenControls,PoseHudControls} from '../pose/PoseControls';
 import type {ObservationAtlasPart} from '../pelvic/atlas/painter';
 import type {ScreenCloseUp} from '../screen/upperBodyView';
 
@@ -13,7 +14,7 @@ export const actorActions=[['insert','actorInsert'],['milk','actorMilk']] as con
 export type ActivityEntry='wardrobe'|'observe'|'body'|typeof actorActions[number][0];
 type Props={assetId:string;runtimeId:string;entry:ActivityEntry;onBack:()=>void;closeUp?:ScreenCloseUp;hud?:boolean;webgpu?:boolean;suspended?:boolean;onPeek?:()=>void};
 
-function ScreenPage({page,children}:{page:ActivityEntry;children:ReactNode}){
+function ScreenPage({page,children}:{page:ActivityEntry|'pose';children:ReactNode}){
   const host=useRef<HTMLDivElement>(null);
   useLayoutEffect(()=>{
     const panel=host.current?.closest<HTMLElement>('.screen-library');if(panel)panel.scrollTop=0;
@@ -27,7 +28,7 @@ function ScreenPage({page,children}:{page:ActivityEntry;children:ReactNode}){
  * returns to the invoking tool; the mounted room still owns the simulation. */
 function ActivityTrail({entry,onBack,closeUp,hud=false,webgpu=false,suspended,onPeek,...actor}:Props){
   usePelvicToolLifetime(actor.assetId,actor.runtimeId,webgpu&&entry==='insert');
-  const t=useLanguageStore(s=>s.t),[detail,open]=useState<'wardrobe'|'observe'|null>(null);
+  const t=useLanguageStore(s=>s.t),[detail,open]=useState<'wardrobe'|'observe'|'pose'|null>(null);
   const [part,select]=useState<ObservationAtlasPart>('uterus');
   const page=detail??entry;
   const backLabel=t(detail&&entry==='insert'?'backToInsert':detail&&entry==='milk'?'backToMilk':'actorBack');
@@ -38,7 +39,8 @@ function ActivityTrail({entry,onBack,closeUp,hud=false,webgpu=false,suspended,on
   switch(page){
     case 'wardrobe': {const View=hud?WardrobeHudControls:WardrobeScreenControls;content=<View {...child}/>;break;}
     case 'observe': {const View=hud?ObservationHudControls:ObservationScreenControls;content=<View {...child}/>;break;}
-    case 'insert': {const View=hud?PelvicHudControls:PelvicScreenControls;content=<View {...child} webgpu={webgpu} lens={{part,select}} onClothing={()=>open('wardrobe')} cameraKey={cameraKey}/>;break;}
+    case 'pose': {const View=hud?PoseHudControls:PoseScreenControls;content=<View {...actor} onBack={()=>open(null)}/>;break;}
+    case 'insert': {const View=hud?PelvicHudControls:PelvicScreenControls;content=<View {...child} webgpu={webgpu} lens={{part,select}} onClothing={()=>open('wardrobe')} onPose={()=>open('pose')} cameraKey={cameraKey}/>;break;}
     case 'milk': {const View=hud?MilkHudControls:MilkScreenControls;content=<View {...child} inlineFigure={webgpu} onObserve={()=>open('observe')} onClothing={()=>open('wardrobe')} cameraKey={cameraKey}/>;break;}
     case 'body': content=hud?<BodyHudControls {...child} suspended={suspended} onPeek={onPeek}/>:<BodyScreenControls {...child} suspended={suspended}/>;break;
   }

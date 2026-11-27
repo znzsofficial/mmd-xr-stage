@@ -82,11 +82,21 @@ export function PoseHudControls(props: PoseControlsProps & { onBack: () => void 
 
 function QuickPoseKeys(props: QuickPoseProps) {
   const { choices, groups, status, apply, undo } = useQuickPoses(props);
+  const [page, setPage] = useState(0);
+  // Four two-key rows fit above Undo. Only a group that overflows needs the last row for paging.
+  const pageSize = choices.length > 8 ? 6 : 8;
+  const pageCount = Math.ceil(choices.length / pageSize);
+  const visible = choices.slice(page * pageSize, (page + 1) * pageSize);
   return <>
     {groups.map((g,i) => <Key key={g.id} x={i ? half : -half} y={.30} w={.59} text={g.label}
-      active={g.active} disabled={props.busy} press={g.select}/>)}
-    {choices.map((p,i) => <Key key={p.id} x={i%2 ? half : -half} y={.125 - Math.floor(i/2)*.165} w={.59}
+      active={g.active} disabled={props.busy} press={() => { if (!g.active) setPage(0); g.select(); }}/>)}
+    {visible.map((p,i) => <Key key={p.id} x={i%2 ? half : -half} y={.125 - Math.floor(i/2)*.165} w={.59}
       text={p.label} disabled={props.busy || !p.supported} press={() => apply(p.id)}/>)}
+    {pageCount > 1 && <>
+      <Key x={-.40} y={-.37} w={.42} text={props.t.previousPage} disabled={props.busy || page === 0} press={() => setPage(page - 1)} quiet/>
+      <HudLine position={[0,-.37,0]} width={.32} center text={`${page + 1}/${pageCount}`}/>
+      <Key x={.40} y={-.37} w={.42} text={props.t.nextPage} disabled={props.busy || page + 1 === pageCount} press={() => setPage(page + 1)} quiet/>
+    </>}
     <HudLine position={[-.19,-.52,0]} width={.84} role="muted" text={status}/>
     <Key x={.44} y={-.52} w={.34} text={props.t.undo} disabled={props.busy || !props.canUndo} press={undo}/>
   </>;
