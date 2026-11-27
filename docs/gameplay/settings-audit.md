@@ -11,7 +11,7 @@
 | 物理质量（低／中／高） | `maxSubSteps` 的 3／5／8 传到原生步进；`solverIterations` 的 15／20／20 没有传到原生世界。舞台每回调最多推进 50 ms，固定物理步长 1/60 秒，通常连低档的 3 个子步都已覆盖。不等于调高能让衣摆更精细。 | 日常保留固定质量；补步上限如需对照只放诊断。不基于旧文档的迭代数解释帧率。 |
 | 角色材质：金属度／粗糙度 | 控件会存值、也会写 shader uniform；当前舞台以 `toon`／`mmd` 渲染，环境贴图为空、环境强度为零。这两个值在 PBR 或环境反射分支里才会改变结果。 | 按材质能力显示；当前默认路径保留显隐、透明度和发光，别给用户两根可以拖动但看不出效果的滑杆。 |
 
-**自碰撞的实例。** 项目已有的模型检查记录中，288 个纯动态裙摆刚体在第 6 组，原作者屏蔽了该组内部碰撞。强行放行会改变哪些裙片可以相撞；头发或饰品若也符合分组条件同样会受影响。不能据此量化 FPS 损失。之前的「屏蔽裙摆接触」探针隔离的是另一种条件，不能拿来当这个开关的 A/B。[原记录](../three-mmd-loader-maintenance.md#离线诊断结果) · [碰撞掩码实现](../../src/mmdVrShowcase/mmdRuntime/mmdPhysics.ts)
+**自碰撞的实例。** 项目已有的模型检查记录中，288 个纯动态裙摆刚体在第 6 组，原作者屏蔽了该组内部碰撞。强行放行会改变哪些裙片可以相撞；头发或饰品若也符合分组条件同样会受影响。不能据此量化 FPS 损失。之前的「屏蔽裙摆接触」探针隔离的是另一种条件，不能拿来当这个开关的 A/B。[原记录](../three-mmd-loader-history.md#离线诊断结果) · [碰撞掩码实现](../../src/mmdVrShowcase/mmdRuntime/mmdPhysics.ts)
 
 **核实方式。** 从 `createCustomBulletMmdPhysicsBackend` 跟到已安装的 `dist/physics/mmdAnimBullet.js`。再在本机为[真实 Bullet 回归](../../scripts/physics-smoke.html)的 options 加读取记录：直接缓冲与复制缓冲各 240 帧，接触检查通过，两路径轨迹差 0；读到 `onStepWork`、`maxSubSteps`、`fixedTimeStep`，未读跟随系数和迭代数。此处证明的是参数连接，不是 Quest 性能或手感测试。[舞台时间上限](../../src/mmdVrShowcase/stage/mmdVrClock.ts) · [材质着色器](../../src/mmdVrShowcase/mmdRuntime/mmdMaterialEnhance.ts)
 

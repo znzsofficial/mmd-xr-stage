@@ -28,7 +28,7 @@
 
 ### 0.8.6 材质透明度、UV 和手动求值
 
-**修在哪里。** fork 的 `ThreeMmdModel.update/updateAsync` 原先只取求值后的形态权重，并未把材质偏移作用到绘制材质；Three 的原生形态也不消费 `morphAttributes.uv`。[本次 fork 修复](../three-mmd-loader-maintenance.md#材质透明度与-uv)在这里合成 diffuse／edge alpha（含全材质、乘与加），同步显色、透明混合、零 alpha 的深度规则和描边；从未变形的 UV 加权重算实际绘制属性，按拆分部件局部索引取偏移，静止不重复标脏。其他材质分量不在此次修复范围。
+**修在哪里。** fork 的 `ThreeMmdModel.update/updateAsync` 原先只取求值后的形态权重，并未把材质偏移作用到绘制材质；Three 的原生形态也不消费 `morphAttributes.uv`。[本次 fork 修复](../three-mmd-loader-history.md#材质透明度与-uv)在这里合成 diffuse／edge alpha（含全材质、乘与加），同步显色、透明混合、零 alpha 的深度规则和描边；从未变形的 UV 加权重算实际绘制属性，按拆分部件局部索引取偏移，静止不重复标脏。其他材质分量不在此次修复范围。
 
 舞台负责把手动名称解析为 PMX 索引，再用 `morphOverrides` 将直接权重送入原求值器。清除滑杆即恢复 VMD；没有动作、关物理的新演员仅在需要手动求值时绑定，释放后还原原始摆姿。衣柜透明度仍在求值之后叠乘，不充当 PMX 材质的底值。
 

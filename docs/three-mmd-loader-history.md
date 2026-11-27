@@ -1,0 +1,394 @@
+# three-mmd-loader 历史排障与升级记录
+
+这些是当时版本的复现条件、测量、修复及撤回方案，包含拆分前的 NekoVirtOS。查今天使用的版本和升级命令见[维护首页](./three-mmd-loader-maintenance.md)；查活跃分支和投稿见[上游贡献](./three-mmd-loader-upstream.md)。
+
+### 材质透明度与 UV
+
+`3ac1d8e` 是上一版 `9a45a5c` 的直接后继。改动在 fork 的 `src/three/surface-morphs.ts` 和模型更新入口，只消费已展开的形态权重。覆盖标准／附加 UV 与 diffuse／edge alpha，不改原生制品、版本或包入口。[同一批实模的证据与限制](./performance/model-feature-coverage.md#086-材质透明度uv-和手动求值)
+
+由干净的候选源码重新构建并导出，舞台安装后验了 243 个文件和实际 WebGL 像素。fork 测试 816 项通过、5 项跳过（原生测试的 4 项缺夹具须初始化固定的 `native/third_party/mmd-anim` 后复跑）。来源以 `loader-source.json` 为准。
+
+## 旧版扩展的复核入口
+- **测试中出现 `THREE_CJS_DEPRECATED` 时先看调用栈**：r187 的 `three.cjs` 会对 `require('three')` 告警。本项目实测调用方为 `meshline@3.3.1/dist/index.cjs` 与 `@react-three/fiber@9.8.2` 的 CJS 构建，来源是 Vitest 在 Node／jsdom 中解析 XR 依赖链。`vite.config.ts` 在测试模式让这条链使用包自带的 `module` 入口；不用改业务代码的 ESM 导入，也不要屏蔽 Node 的警告。生产构建另用 `singleThreeRuntime` 检查只有一份 Three.js。Node 关于 `localStorage` 的实验性提示是另一回事。
+- 还包含重获追踪刚体中心查询与 CCD IK 活跃节点矩阵优化。升级后执行 `ccdSolverParity.test.ts` 并与原求解器对照；补丁 hash 以 `pnpm-lock.yaml` 为准。
+- `performance.js` 为 `enabled:false` 配合 `onMeasure` 提供仅回调的阶段计时，不把私有文件名写入全局 Performance Timeline。背包新建角色时将七个不重叠的阶段加入匿名报告；升级后用一次 XR 放置及导出验证字段和隐私边界。
+- `DefaultMmdRuntime` 的 `captureStageSnapshots:false` 仅关闭调试数组复制，保留各阶段的世界矩阵更新；库默认行为不变。`onPhysicsPoseWork` 提供一次 external physics 求值的四个非重叠片段。升级时复核 `physicsSnapshotParity.test.ts`、`scripts/physics-playback-probe.html`、真实 Bullet 回归和导出字段，见[桌面对照](./performance/xr-runtime-performance.md)。
+- `syncRenderPalettes` 在整层级矩阵同步后按 Skeleton 身份去重，不跨 tick 缓存；`renderPaletteParity.test.ts` 覆盖多套绑定矩阵、代理重绑和两个运行时入口。Bullet 的可选 `onStepWork` 按成功调用采集输入、原生 step 和输出耗时，不改变 ABI 或子步规则。
+- 舞台额外开启 `coalescePhysicsWorldUpdates`。仅在外部物理生效、禁用快照时允许局部坐标求解段共用后续的显式世界矩阵更新。库默认保持原有行为。升级前复核 append / CCD 是否仍仅读局部姿态，保留 Bullet 输入前与输出后的更新；跑[真实动作骨矩阵、表情与蒙皮顶点配对回归](./performance/xr-runtime-performance.md#逐帧骨架更新与回场-vmd-复用)。
+- 原地切换需要 `createDetachedRuntime` 沿用加载器的 WASM／兼容求值器选择规则，`exchangeRuntime` 同时切换 `setAnimation`、`update`、`updateAsync` 和释放时读取的运行时。只替换公开的 `model.runtime` 无效，旧实现的方法闭包捕获另一个引用。升级需跑[真实切换对照](./performance/physics-toggle.md)。
+- 材质加载时只复用图片 alpha 采样，不复用各材质的 UV 判定。舞台另为同一观看内的重复加载提供有界缓存（最多 8 张、合计不超过 2 MiB），只接受同一 `File` 身份、尺寸匹配的静态 PNG。核对不可读重试、退出清理及默认贴图的释放。升级后跑 `materialAlphaTileParity.test.ts`、`roomAlphaTiles.test.ts` 和[真实回场探针](./performance/load-work-room-alpha.md)。
+
+## 原候选与旧基准（2026-11-25）
+
+形态数组纹理去重已经由 fork 在创建材质和描边代理时完成（上游 `3f3c82a`），不是本节的 CPU 候选。舞台仍负责绘制外的 `start/count` 读取；[普通及真实拆分 PMX 的形态分配与验收](./performance/model-memory.md)是升级门槛。
+
+**状态（2026-11-25）：只准备，未投稿。** 上游 [#47](https://github.com/yohawing/three-mmd-loader/pull/47) 是维护者的 `0.9.0` 发布 PR，不是我们的优化 PR。核对时仍为 open，head 为 `347bf20`。它已经处理 three r186/r187 的 TSL 导入兼容并提供 `debugPhysicsContactsForRigidBodyRange`；不重复投稿。这不意味着舞台当前安装的 `0.8.6` 可以撤掉补丁。
+
+**候选改什么。** #47 的 JS 和 WASM `tick` 仍在世界矩阵更新后，逐个 `SkinnedMesh` 调 `skeleton.update()`。身体、材质代理和描边共用同一 `Skeleton` 时会重复算同一组蒙皮矩阵。候选只在这一次遍历中按 `Skeleton` 对象去重，保留换绑、不同绑定逆矩阵和下一次 tick 的更新，不改公开 API 或原生 ABI。它与 #47 解决的 morph 纹理显存问题不同。CCD IK 是另一个候选，要在新基线上单独测，不并入本次。
+
+**本地准备包。** loader 工作树 `three-mmd-loader-palette-pr`，分支 `perf/dedupe-render-palettes`，直接基于 #47 而不是 fork/main。`4629aab` 是实现和回归，`1d444f0` 是可单独取舍的基准。舞台本机 `local-review/upstream/render-palettes/` 有英文 `PR.md`、恢复说明和两份 `format-patch`，无需从包含其他扩展的 fork 重新拆提交。
+
+**验证口径。** 两个新用例在 #47 原码上都复现每套骨架更新两次；修后 61 项相关测试通过，包括 JS 路径及使用假求值器、真实 Three 骨架的 WASM 包装层。Node 26.12.1 / Three r184，512 骨合成层级，预热后做 20 对测试，每个版本每批 80 tick、交替先后，取各批均值的中位数：35 个网格共享一套骨架，渲染同步 35→1 次、898.5→94.2 µs/tick；35 套独立骨架仍为 35 次、1347.4→1374.3 µs/tick，没有收益。另用 384×240 WebGL 对照静止、弯曲、换绑三帧，各帧 RGBA 均零像素差。该草稿未运行上游完整原生构建及 CI，不据此推算 Quest 帧率。
+
+**合并后再做。** 确认 #47 已合入，检查届时 `upstream/main` 的两个 tick 路径。若问题仍在，从新的 main 只移植上述两个提交，复跑相关测试和基准并更新 PR 草稿；若上游已去重则不再提交。这个时点与 npm 发版、舞台升级是三件不同的事。
+
+## 已解决问题
+
+### 1. dynamicWithBone 缩放漂移
+
+#### 表现
+
+- 开启物理后缩小模型，衣服等物理骨骼向模型原始高度漂移。
+- 本地参考 PMX 和此前多个模型均可复现。`sample/` 已被 Git 忽略；参考模型许可禁止二次分发，不得提交。
+
+#### 根因
+
+`MmdAnimBulletPhysicsBackend` 将所有非静态刚体的 Bullet 平移和旋转统一写回骨骼。MMD 的 `dynamicWithBone`（physics-with-bone）语义应保留动画骨骼的局部平移，只反馈物理旋转。
+
+旧 Ammo backend 已遵循该语义；新的 mmd-anim backend 对 `dynamic` 和 `dynamicWithBone` 未作区分。模型缩放后，错误的世界平移反馈尤其明显。
+
+#### 修复语义
+
+| 刚体模式 | 平移来源 | 旋转来源 | `updatedBoneIndices` |
+|----------|----------|----------|----------------------|
+| `dynamic` | Bullet | Bullet | 写入 |
+| `dynamicWithBone` | 动画输入 | Bullet | 写入 |
+
+保留了 0.8.1 的 solver ownership 和前向步进逻辑。没有在 physics step 中整体缩放刚体 world，也没有取消现有 root unit-scale 处理。
+
+#### 上游记录
+
+- Issue [#37](https://github.com/yohawing/three-mmd-loader/issues/37)
+- PR [#38](https://github.com/yohawing/three-mmd-loader/pull/38)
+- 分支：`fix/dynamic-with-bone-translation`
+- Commit：`20e16942c6e5301599500183cc5a967cbbd3b5e3`
+- Commit 标题：`fix(physics): preserve dynamic-with-bone translation`
+
+2026-08-17：已合入 `main`，并随 `@yohawing/three-mmd-loader@0.8.2` 发布。
+
+### 2. Bullet contact 查询未接通
+
+#### 表现
+
+- 原生 Bullet 已提供 contact 数据，但 TypeScript backend 没有暴露查询方法。
+- viewer 已尝试调用 `debugContactCount()` / `debugPhysicsContacts()`，compatibility backend 未实现转发，因此运行时始终无法取得接触。
+- NekoVirtOS 控制器 collider 可以参与物理，但无法据此触发触觉反馈。
+
+#### 根因
+
+原生导出 `_mmd_anim_bullet_world_collect_contacts` 已存在，缺失的是 TypeScript mmd-anim backend 的 ABI 解码和 `CustomBulletMmdCompatibilityBackend` 的方法转发。
+
+原生 `mmd_anim_bullet_contact_point` 每条为 48 bytes：
+
+| 偏移内容 | 类型 |
+|----------|------|
+| `rigidbody_index_a` | `int32` |
+| `rigidbody_index_b` | `int32` |
+| `distance` | `float` |
+| `position_world_on_a[3]` | `float[3]` |
+| `position_world_on_b[3]` | `float[3]` |
+| `normal_world_on_b[3]` | `float[3]` |
+
+#### 修复语义
+
+- `debugContactCount()` 使用 count-only native query，不创建 contact 列表。
+- `debugPhysicsContacts()` 解码完整 48-byte ABI。
+- contact buffer 仅在详细查询时延迟分配，后续查询复用，backend dispose 时释放。
+- native module 缺少可选导出或 backend 已 dispose 时，安全返回 `0` / `[]`。
+- stable Custom Bullet compatibility backend 转发两个方法。
+- 不需要修改或重建原生 WASM。
+
+#### 上游记录
+
+- Issue [#39](https://github.com/yohawing/three-mmd-loader/issues/39)
+- PR [#40](https://github.com/yohawing/three-mmd-loader/pull/40)
+- 分支：`fix/bullet-contact-debug-api`
+- Commit：`60e99d72e46c08004dc98acac8648a48f3ee4442`
+- Commit 标题：`feat(physics): expose Bullet contact queries`
+
+2026-08-17：已合入 `main`，并随 `@yohawing/three-mmd-loader@0.8.2` 发布。
+
+## NekoVirtOS 集成修改
+
+以下改动服务于本项目，不应混入上述 loader PR：
+
+| 修改 | 位置 | 说明 |
+|------|------|------|
+| Controller collider wrapper | `src/mmdVrShowcase/mmdRuntime/mmdPhysics.ts` | 向物理 context 追加控制器刚体，读取 contact 并区分左右控制器 |
+| Contact / backend 回归测试 | `src/mmdVrShowcase/mmdRuntime/mmdPhysics.test.ts` | 本仓覆盖 direct buffers、控制器/手部包装顺序、contact 索引及 patched Bullet ABI |
+| VR 触觉状态 | `src/mmdVrShowcase/xr/contact/mmdVrHaptics.ts` | 管理左右手接触、震动强度和 gate |
+| 触觉执行 | `src/mmdVrShowcase/xr/contact/MmdVrControllerColliders.tsx` | 驱动 WebXR haptic actuator |
+| VR contact 采样 | `src/mmdVrShowcase/stage/StageRoom.tsx` | 从物理 backend 采样 controller contact |
+| Unit-scale physics step | `src/mmdVrShowcase/mmdRuntime/mmdRuntime.ts`、`mmdRuntimeEntry.ts` | 模型显示缩放与 PMX 原尺寸物理 world 的集成处理 |
+
+### 受控的物理重建
+
+模型 transform 后调用 `rebuildPhysics()` 会销毁全部模型并异步重载，期间模型和面板消失，因此 transform 路径不再重建，而是对位置、旋转和复位执行非破坏性 `resetPhysics()` reseed。
+
+`MmdRuntimeHandle.rebuildPhysics()` 仅用于切换“衣物互撞”这类刚体创建时配置。重建期间 UI 保持 busy，并保存模型变换、动作、morph 权重与收藏、材质可见性和材质覆盖；失败时尝试按旧配置恢复。
+
+该问题属于 NekoVirtOS runtime 生命周期，不是 loader 上游问题。
+
+### 已撤回的方案
+
+曾考虑在 physics step 时取消 root scale 强制为 `1`，但刚体形状和关节仍是 PMX 原尺寸，整体传入缩放会产生新的尺寸不一致。该方案未经验证且已撤回，当前不缩放整个 physics context。
+
+## 真机确认
+
+用户已在设备上确认：
+
+- 控制器碰撞后有震动。
+- 开启物理后可以调整模型大小，模型和面板不会消失。
+- `dynamicWithBone` 平移反馈修复改善了使用该模式的衣物缩放漂移。
+- controller matrix rigid 化后，多个复杂纯动态裙子模型在缩放和启用控制器碰撞时均正常下落。
+- 主动控制器碰撞、contact 计数和震动正常。
+
+## 已解决：缩小模型后的纯动态裙子上漂
+
+### 稳定复现条件
+
+- 模型显示缩放小于 `1`。
+- 开启控制器碰撞。
+- 已在多个纯动态裙摆模型上复现。
+- 主要影响裙子；身体、头发和其他可碰撞部位通常表现正常。
+- 控制器不接触裙子、远离裙子或移动到其他位置时，裙子表现基本不变。
+- 缩放停止后裙子立即稳定，不会继续堆高；关闭控制器碰撞后会恢复正常。
+- 将控制器碰撞半径调到最小没有消除问题。
+- 关闭控制器碰撞后不出现同样的上漂。
+- 默认测试模型仍可能表现正常，因此不能用单个正常模型否定问题。
+
+### 与 loader 版本的关系
+
+- `0.8.0 -> 0.8.1` 没有物理 backend、runtime 物理流程或 Bullet WASM 改动。
+- `0.8.1` 仅包含 TSL Viewer、self-shadow shader 预编译和 release CI 修复，因此不是该问题的直接版本分界。
+- 需要关注的是 `0.7.0 -> 0.8.0`：loader 删除旧 `AmmoMmdPhysicsBackend`，改用 mmd-anim v0.3.3 Bullet backend，并替换 Bullet JS/WASM。
+- NekoVirtOS 在提交 `7dd6962` 中从 `^0.7.0` 直接升级到固定的 `0.8.1`，因此没有在项目内单独验证 `0.8.0`。
+- 最终根因位于 NekoVirtOS controller world-to-model 映射产生的非刚体矩阵，不是 loader 版本变化本身。
+
+### 已排除或证据不足的方向
+
+| 方向 | 结论 |
+|------|------|
+| 控制器实际碰到裙子 | 排除；控制器远离且没有接触时仍复现 |
+| 控制器球半径过大 | 排除；最小半径及修改模型空间半径换算均未改善 |
+| 单个 PMX 模型异常 | 排除；多个模型的裙子均可复现 |
+| `dynamicWithBone` 平移覆盖 | 不能解释当前问题；问题裙子主体可由纯 `dynamic` 刚体组成 |
+| 弹簧关节参数 | 同一密集裙摆模型 A/B，关闭弹簧后行为几乎不变 |
+| contact 查询和触觉采样 | 排除；这些路径只读取 Bullet contact，不参与求解 |
+| 瞬时控制器接触漏采样 | 排除；逐帧峰值锁存测试中 `C` 始终为 `0`，只有主动接触才变化 |
+| 控制器 proximity / 按需唤醒 | 未改善，已撤回 |
+| 开启碰撞后持续推进无动作物理 | 单独限制推进没有改善，不能作为根因 |
+| 动态衣物自碰撞 | 默认关闭；没有证据表明它是当前根因 |
+
+### 离线诊断结果
+
+复核 0.8.6 时请以[设置清查](./gameplay/settings-audit.md)为准：当前原生后端读取 `maxSubSteps`、`fixedTimeStep`，不消费舞台传入的 `solverIterations` 和 `dynamicWithBoneRotationFeedbackScale`。历史记录中的传参数值不是已在该后端生效的证据。
+
+- 密集裙摆样本主要由第 6 组的 `288` 个纯动态裙摆刚体组成，PMX mask 原本禁止同组互撞。
+- 该模型有 `78` 个弹簧关节；对照模型没有弹簧关节，但关闭弹簧未消除差异。
+- Bullet 仿真 3 秒后，这 `288` 个裙摆刚体中约 `238` 个向下、`28` 个小幅向上，离线环境没有复现真机中的整体上漂。
+- 首帧 seed 姿态与 PMX 原始姿态一致。
+- Bullet world 变换、局部骨骼回写和 Three.js world 变换闭环误差接近零。
+- 重力方向、关节索引、PMX 欧拉转换和坐标轴翻转未发现明确错误。
+
+### 排查中踩过的坑
+
+1. 不要因为现象只在开启控制器碰撞时出现，就直接断定控制器球正在碰裙子。开关还可能改变刚体数组、collision mask、静态刚体更新和物理时间策略。
+2. 不要用控制器中心位置代替球体边界判断接触，但也不要在没有 contact 证据时持续调整半径。
+3. PMX `localTranslation` 是相对骨骼的局部偏移，不能直接用于控制器到刚体的模型空间 proximity 判断。需要使用 Bullet 当前刚体 world transform。
+4. 冻结显示时间不一定等于完全绕过 runtime；应确认传入 backend 的 `deltaSeconds`。当前 loader 在时间不变时传入 `0`，但仍会执行 backend step 和输出读取。
+5. 不要用控制器从隐藏位置 `Y=-1000` 到手部的跳变去 reset 整个 backend。`backend.reset()` 会重置全部模型刚体，而不是只重置控制器。
+6. 控制器碰撞组必须优先使用模型未占用的 group。若 16 组全部占用，不能回退到已有组并将该组 bit OR 到所有模型 mask，否则可能意外开启模型内部碰撞。
+7. contact 总数超过 HUD 上限时不能直接返回零。密集裙子会产生数百个 world contact，从而让真实控制器 contact 被误报为 `C=0`。
+8. `debugPhysicsContactsForRigidBodyRange()` 当前仍让 native 写入完整 contact buffer，只减少 JS contact 对象物化；它不是真正的 native filtered query。
+9. 本机没有 Emscripten，`npm run build:bullet:mmd` 会因 `spawn em++ ENOENT` 失败。没有工具链时不要设计必须修改 Bullet ABI 才能验证的方案。
+10. 单个默认模型正常不代表实现正确。问题与裙子刚体模式、数量、层级和约束拓扑有关，必须至少使用一个纯动态密集裙子模型做回归。
+11. mmd-anim backend 的 `copyDynamicOutputs()` 已分两阶段读取所有 Bullet world pose，再使用同帧 physics parent world 转换子骨骼 local pose；现有父子纯动态链测试也覆盖该行为。没有反例前不要改写该层级转换。
+12. 默认模型主要使用 `dynamicWithBone`，复杂问题模型主要使用深层纯 `dynamic` 链；默认模型正常不能排除 synthetic controller bone 中非单位 scale 对纯动态链的影响。
+
+### 已撤回的实验性改动
+
+- 缩小模型时禁止控制器模型空间半径按 `1 / scale` 增大：真机无改善，已撤回。
+- 根据控制器移动版本和刚体 proximity 按需唤醒无动作物理：真机无改善，已撤回。
+- 控制器 tracking 大位移时调用整个 Bullet backend reset：会影响全部裙子刚体，已撤回。
+- proximity 直接读取 PMX `localTranslation`：坐标空间错误，已撤回。
+- 调试 HUD 的逐帧 contact 峰值锁存：确认无瞬时接触后已撤回，避免保留临时代码。
+
+### 根因定位 A/B 记录
+
+- scale-only transform 恢复非破坏性 `resetPhysics()` 无改善。
+- 完全跳过 controller wrapper 时复杂裙子正常，且物理时钟仍持续推进，将范围限定到 controller wrapper。
+- 保留 synthetic controller 骨骼和刚体但禁用 collision mask 时仍异常，排除了 contact、collision filter 和 broadphase pair。
+- 只扩展 synthetic skeleton/direct buffers、不追加 controller 刚体时仍异常，排除了额外 Bullet body。
+- extra world-matrix slots 固定为单位矩阵时正常，确认扩展 buffer 布局本身无问题。
+- 保留真实平移和旋转方向、仅归一化矩阵前三列时正常，最终确认触发条件是 controller matrix 中的 `1 / modelScale` 线性缩放。
+- 临时 A/B 查询模式和 HUD 标签在结论确认后已删除。
+- 初版 A/B 的 `R/D/S` 全为 `0` 是诊断 wrapper 耦合造成的假象；统计现已移到实际 Bullet context 前，能独立显示真实 `R/D/S`。
+
+### 已确认根因与生产修复
+
+- controller world matrix 通过 `unitRoot * inverseVisualRoot * worldMatrix` 映射到模型单位物理空间。该乘积会正确缩放平移，但也会把 `1 / modelScale` 写入矩阵的三个旋转基向量，使其成为非刚体变换。
+- mmd-anim external physics 接口的 bone world matrices 预期是平移加旋转的刚体矩阵。复杂纯 `dynamic` 父子链对 synthetic bone slot 中的非单位 scale 敏感，表现为缩小时裙子向骨盆后上方堆积；以 `dynamicWithBone` 为主的默认模型可能不受影响。
+- 生产 controller wrapper 现在写入矩阵前归一化前三列，保留模型空间平移和旋转方向，只移除 scale。controller sphere 半径仍独立通过 `/ modelScale` 换算，因此碰撞体大小和位置语义不变。
+- 最终真机确认：正常生产模式下复杂模型缩放、裙子下落、主动控制器碰撞、contact 计数和震动均正常。
+- 该问题属于 NekoVirtOS controller integration，不应混入 loader PR #38 或 PR #40。
+
+## 已解决：three r186 与 loader WebGPU self-shadow 的 TSL 兼容
+
+### 背景
+
+- NekoVirtOS 于 2026-09-14 将 three 从 0.185.1 升级到 0.186.0，以获得 WebXR MSAA（`WebGLRenderer` 以 `antialias: true` 创建时，r186 会在 WebGL2 的 `XRProjectionLayer` 上自动设置 MSAA samples，与既有 `antialiasPref` 偏好轴直接配合）。
+- r186 将 `getShadowMaterial()` / `getShadowRenderObjectFunction()` 从 `three/tsl` 公共导出中移除并私有化（`_getShadowMaterial` 等，无公开替代）。
+- loader 0.8.3 的 `dist/webgpu/self-shadow-pass.js`（实验性 TSL self-shadow，NekoVirtOS 策略强制关闭）静态导入这两个符号，导致 rolldown 构建报 `MISSING_EXPORT`。
+
+### 补丁语义
+
+- patch 追加 `self-shadow-pass.js` 修改：移除两个失效导入，`shadowMaterial` / `shadowRenderObjectFunction` 置 `null`，并在 `prepareShadowRender()` 的早退守卫中加入非空检查。
+- 降级行为：pass 的 `render()` / `compileAsync()` 返回 `false`，`setMode` / `visibilityNode` / `dispose` 仍可用；`pipeline.js` 对 pass 的全部调用点本就接受 `false` / optional chaining，且仅当 `needsSelfShadowVisibility` 为真时才创建 pass。
+- NekoVirtOS 的 Studio 策略是 TSL self-shadow 恒为关（`mmdRuntime.ts` / `mmdTslPipeline.ts`），因此该降级对当前产品面无行为差异；仅当上游跟进 r186 后才恢复完整 self-shadow 能力。
+
+### 后续
+
+- 上游发布适配 three r186 的版本（或恢复 TSL shadow 公共导出）后，移除补丁中的 self-shadow 段落并重跑本文验证命令。
+
+## 已执行验证
+
+### NekoVirtOS
+
+```bash
+pnpm install --frozen-lockfile
+pnpm exec tsc -b --pretty false
+pnpm test -- src/mmdVrShowcase/xr/contact/mmdVrHaptics.test.ts src/mmdVrShowcase/mmdVrStore.test.ts
+pnpm test
+pnpm build
+git diff --check
+```
+
+独立仓库现有 `mmdPhysics.test.ts`、`mmdRuntime.test.ts` 与 `mmdRuntimeLifecycle.test.ts`（均在 `src/mmdVrShowcase/mmdRuntime/`）：覆盖 direct buffers、包装顺序、contact forwarding、矩阵/半径缩放转换、unit-scale physics、迟到加载的资源回收和 GPU 资源释放。升级 loader 时在本仓运行这些测试，再运行完整测试和构建；原生 Bullet 仿真与头显交互仍需真机验证。
+
+### loader PR #38
+
+```bash
+npm ci
+npm run lint
+npm run build
+npm test
+npm run check:fixtures
+npm run smoke:dist
+```
+
+结果：82 个测试文件，761 项通过，5 项跳过；5 个 fixture 通过。
+
+### loader PR #40
+
+```bash
+npm run lint
+npm run build
+npm test
+npm run check:fixtures
+npm run smoke:dist
+```
+
+结果：82 个测试文件，762 项通过，5 项跳过；5 个 fixture 通过。
+
+`npm run smoke:types` 在本机 Windows + Node.js 26.5.0 下会因上游脚本使用 `spawnSync("npm")` 而找不到 `npm.cmd`。这是脚本的 Windows 调用限制；TypeScript build 和 declarations 已通过，上游 Linux Node.js 22/24 CI 应执行该 smoke test。
+
+## 后续操作
+
+### 查询 PR 状态
+
+在 loader 检出目录运行：
+
+```bash
+gh pr view 38 --repo yohawing/three-mmd-loader
+gh pr view 40 --repo yohawing/three-mmd-loader
+gh pr checks 38 --repo yohawing/three-mmd-loader
+gh pr checks 40 --repo yohawing/three-mmd-loader
+```
+
+如维护者要求修改，切换对应分支，修改、验证、创建新 commit 后正常 push。不要 amend 已推送 commit，除非用户明确要求。
+
+### 同步上游
+
+自 `82147af` 起，`fork/main` 持有舞台扩展，不再是官方 `main` 的镜像。跟进上游时，在 fork 当前 `main` 基础上开集成分支，合并新版，逐项核对补丁后再正常推送；不要用官方分支覆盖 fork 的扩展。官方 `v0.8.6` 标签仍指向 `9c47b94`。
+
+贡献分支有 review 修改时，先确认 upstream 是否已前进，再按上游偏好 rebase 或 merge。不要 force-push，除非明确获得批准。
+
+### 0.8.2 升级结果
+
+- 2026-08-17 的 `v0.8.2` 已包含 PR #38 和 PR #40。
+
+### 0.8.3 升级结果
+
+- 2026-09-13 的 `v0.8.3` 新增 `MmdAnimRuntime.setHostRig`/`setHostPose` retarget、外部世界矩阵物理回调，修复清空 host rig 后外部物理绑定，并升级 mmd-anim 至 0.5.1。NekoVirtOS 目前未使用这些新 API。
+- NekoVirtOS 已升级到 `@yohawing/three-mmd-loader@0.8.3`，并替换 `public/mmd/0.8.3/` 的配套 Bullet JS/WASM。0.8.3 的 WASM 与 0.8.2 不同（Rust 1.88.0 构建）。
+- 官方包仍没有 `debugPhysicsContactsForRigidBodyRange()`（已核对 0.8.3 发布包），因此 patch 只保留这一项 JS 过滤；patch 触及的 physics 文件在 0.8.2 与 0.8.3 间上下文一致，仅重命名沿用。
+- 上游若发布带 range query 的新版本，再删除 `patchedDependencies` 条目和 `patches/@yohawing__three-mmd-loader@0.8.3.patch`。
+
+### 0.8.4 升级结果
+
+- 2026-09-20 的 `v0.8.4`（`ca938ee`）新增逐次求值的 `morphOverrides`（模型/runtime 更新、异步 Worker 更新与 host pose 均可传入），手动权重在 VMD/rest 输入之后、组展开、骨骼 morph、Append 变换和 IK 之前生效；下一次更新省略即释放，显式 `0` 表示禁用该直接权重。mmd-anim 升至 v0.5.2。本项目暂未使用该 API。
+- 已核对 0.8.4 发布内容：仍无 `debugPhysicsContactsForRigidBodyRange()`；`src/webgpu/self-shadow-pass.ts` 仍从 `three/tsl` 导入 `getShadowMaterial`/`getShadowRenderObjectFunction`。两项 patch 语义原样保留。
+- 0.8.3 patch 对 0.8.4 暂存目录 `git apply` 上下文完全一致，经 `pnpm patch` + `patch-commit` 生成 `patches/@yohawing__three-mmd-loader@0.8.4.patch`（内容等价旧补丁，lockfile patch hash 不变）。
+- Bullet 资产与 0.8.3 字节级相同（mmd-anim 升级不触及 Bullet WASM），仍按版本化惯例复制到 `public/mmd/0.8.4/` 并更新 `mmdPhysics.ts` 脚本路径。
+- 注意：`git apply` 在仓库子目录中会按仓库根解析路径，无法直接写入 `node_modules/.pnpm_patches` 暂存目录；应使用 Git 自带 `usr/bin/patch.exe -d <staging> -p1`。
+
+### 本地 clone 同步（2026-09-20）
+
+- clone 的 `main` 已 ff-only 同步到 upstream v0.8.4（`ca938ee`）并推送 fork；submodule 跟进 mmd-anim v0.5.2（`2a53a4e`）。
+- `feat/bullet-contact-range-query` 仍基于 0.8.3 的 main，本次未 rebase（需要 force-push 批准）；项目侧由 patch 覆盖，分支待决定发 PR 时再处理。
+
+### 本地 clone 同步（2026-09-14）
+
+- clone 的 `main` 已从 v0.8.1 ff-only 同步到 upstream 0.8.3（`2963eb8`）并推送 fork；submodule 跟进 mmd-anim v0.5.1（`4f4b1f8`）。
+- `feat/bullet-contact-range-query` 已 rebase 到新 main（rebase 自动跳过上游已有的 dynamic-with-bone 提交，仅余 range query 单提交 `689d183`），经用户批准 `--force-with-lease` 强推 fork。与重构后的 main 无冲突，`npm test` 773 通过。
+- 暂不向上游发 PR（用户决定）；已合并的 #38/#40 分支按保留策略暂留。
+- 本机无 Rust/wasm-pack，`artifacts/mmd-anim/runtime/` 与 `src/parser/wasm/generated/` 的本地生成物从已安装的 0.8.3 包（同 mmd-anim v0.5.1 ABI）复制填充；切分支/rebase 后若 wasm 测试报 missing，按此重新填充即可。
+- 核对结论：上游 0.8.3 仍无 range query（patch 必要）；`self-shadow-pass.ts` 仍导入 `three/tsl` 的 `getShadowMaterial`（r186 兼容 shim 必要）。
+
+### 0.8.6 升级与依赖维护（2026-11-17）
+
+- loader clone `main` 已 fast-forward 至 upstream `9c47b94` 并推送 fork；mmd-anim 子模块同步至 v0.5.4（`f4f68d7`）。贡献分支保持原状。
+- 0.8.5 改进 IK/Append 求值并在 seek、重置和切换动作时清理 IK 历史；0.8.6 修复球面贴图方向与叠加强度、法线插值、toon/specular 光照，以及各后端的阴影一致性。Viewer 的默认阴影投影配置不等于本项目配置自动改变。
+- 发布包 physics 文件未改动，range-query 补丁原样保留。Bullet JS/WASM 与 0.8.4 的 SHA-256 一致，已从 0.8.6 发布包同步至版本化目录。
+- Three r187 仍不导出 `getShadowMaterial` / `getShadowRenderObjectFunction`。0.8.6 self-shadow pass 新增 material clone/fragmentNode 与 projection retain/release，因此重新适配降级补丁：删除失效导入及 material 初始化，render/compile 早退，material dispose 使用空值保护，projection.release 保留。新增 `mmdLoaderCompatibility.test.ts` 实测构造、无操作 render/compile、重复 dispose 和投影恢复。
+- `@react-three/xr` / `@pmndrs/xr` 升至 6.6.32，但 pending controller cleanup 缺陷仍在；无补丁时 `xrInputLifecycle.test.ts` 失败，迁移原补丁后通过。
+- Three 与类型同步至 0.187.0，Fiber 9.8.2 与 React/React DOM 19.3.1 配套。loader 的宽范围 `@types/three` 依赖曾保留 0.186.0，已更新锁文件到单一 0.187.0，未用类型断言绕过冲突。
+- XR 的 Zustand v4 范围通过 scoped overrides 统一到 4.5.7，解除旧 4.5.2 对 `use-sync-external-store@1.2.0` 的固定依赖，消除 React 19 peer 警告；应用自身使用 Zustand 5.1.0。
+- 常规依赖更新：Iconify React 3.0.6、zip.js 2.25.0、nanoid 6.0.2、Vite 8.3.8、React plugin 6.3.0、Vitest 5.1.0。
+- jsdom 保留 30.0.1：31.0.1 的 Node 要求为 `^22.22.2 || ^24.15.0 || >=26.0.0`，不符合当前 `.node-version` / engines 的 22.13.0 基线。先升级并验证 Node 基线后再迁移，不能只在本机 Node 26 上通过就直接升级。
+- 验证：33 个测试文件 / 143 项通过，TypeScript 与生产构建通过，peer 检查无冲突，官方 npm registry 的生产依赖审计零漏洞。本机测试环境为 Node 26.12.1；新增 Node 测试显式引用 `@types/node@22`。
+- 运行验证：上游生成的最小 PMX 经新版 WASM 解析与 MmdAnimRuntime 多次跳转求值通过；本地浏览器启用本项目 Bullet wrapper 渲染 120 帧（2 draw calls，无 WebGL 错误），contact 查询可调用。生产预览完成 PMX 导入与无头显进入失败恢复检查。生成文件和 smoke 页面仅在忽略的 `sample/` / 临时目录中使用，不随部署分发。此验证不替代真实模型衣物与 Quest 手柄/手部碰撞回归。
+
+### 新版本发布后
+
+1. 对照 [fork 扩展清单](https://github.com/znzsofficial/three-mmd-loader/blob/82147af4a1bcde3817165adb474c618c9b9f9f4e/docs/XR_STAGE_FORK.md)核对实际发布包的 API 和运行行为。2026-11-25 本次同步已用 fork 打包产物和舞台锁定的 Three r187 进行类型检查及 52 项专项回归；fork 自身 r184 下 808 项通过、5 项跳过。fork 对仍提供公开接口的 r184 保留实验性自阴影；r187 缺接口时与舞台补丁一样降级。
+2. 先在 fork 的集成分支更新上游，再在舞台更新 `@yohawing/three-mmd-loader` 的确切版本和来源。
+3. 用上面的导出命令从 fork 生成差异，不在舞台 patch 上独立开发。所有仍在使用的扩展都有上游等价实现并通过舞台回归后，才考虑删除整个 `patchedDependencies` 条目和 patch 文件。
+4. 同步版本化 Bullet 资产目录；正式舞台和实验页的路径由同一来源清单生成（预热和显式开物理共用）。
+5. 运行 `pnpm install` 更新 lockfile，确认旧 patch hash 消失。
+6. 重跑 TypeScript、指定物理/触觉测试、完整测试和 build。
+7. 再次进行真机回归：模型缩放、衣服物理、面板存续、左右控制器碰撞和震动。
+
+## 当时的本地分支保留策略（已归档）
+
+在当时的 loader clone 中保留了：
+
+- `fix/dynamic-with-bone-translation`，跟踪 `fork/fix/dynamic-with-bone-translation`
+- `fix/bullet-contact-debug-api`，跟踪 `fork/fix/bullet-contact-debug-api`
+- `feat/bullet-contact-range-query`，跟踪 `fork/feat/bullet-contact-range-query`，整合 PR #38、PR #40 和 range query
+
+PR 合并且 NekoVirtOS 已升级到包含修复的正式版本后，才考虑删除本地和 fork 分支。删除前确认没有待处理 review、未发布 commit 或回归修复。
+
+## 非阻塞提示
+
+- Windows checkout 可能显示 LF/CRLF 转换警告。
+- NekoVirtOS build 可能提示 loader parser 的 `node:fs/promises`、`node:url` 被 Vite externalized。
+- 部分 bundle chunk 超过 500 kB。
+- 上述提示与本次物理/contact 修复无直接关系。
+## 追踪恢复补丁
+
+`readRigidBodyCenters(indices, out)` 用版本内已有的 WASM getter 读取指定刚体中心。输出缓冲区由调用方持有，不分配逐刚体对象；应用只在手部/手柄重获追踪或发生大幅跳位时查询，同一物理步共用一次。升级 loader 时与 contact-range、TSL 降级一起核验。`handContactProfile.test.ts` 用实际 Bullet 验证两种缩放下的重叠恢复与正常快速推动。
+## Blender 角色的组合动作回归
+
+同一 actor 可以同时绑定身体姿势和独立表情。单个 VMD 继续使用它自己的字节；多层合成时不要把任意一路的原文件当成合成结果传入，否则关物理的 WASM 适配器会重新解析那一份 VMD，忽略另一层。传入合成后的轨道、空的原始字节，由 loader 的 parsed-track 路径求值。[实模复核](./gameplay/blender-characters.md)

@@ -8,7 +8,7 @@
 
 **本机混合布局版：**WebGL 的原背包先实测内嵌 GLB、外置 BIN／PNG 的 glTF，随后同一标签页实走 3 名演员＋3 件物件 WebGL → WebGPU → WebGL。单件收回、单人材质归属及原舞段恢复均有画面对照。玩家导入方法见[放一件 GLB 或 glTF](./gameplay/asset-workflow.md#放一件-glb-或-gltf)，证据见[混合布局实测](./webgpu-xr-status.md#混合布局候选材质与环境的画面对照)。
 
-**Loader 版本阻塞已解除。** 上游 `v0.9.0@62ce047` 已合入自有 fork 的 `main@c762507`，舞台按官方 tarball 重新导出补丁。实装 347 文件及 Bullet 配对一致；穿衣实模在 WebGPU 验衣柜、停机复原、摆姿录放，3 人 3 物两端往返复验通过。旧标签页的 0.8.6 物理文件及解析 WASM 仍保留。发布收据绑定最终提交；上游贡献单列，见[投稿建议](./three-mmd-loader-maintenance.md#上游投稿建议2026-11-27)。
+**Loader 版本阻塞已解除。** 上游 `v0.9.0@62ce047` 已合入自有 fork 的 `main@c762507`，舞台按官方 tarball 重新导出补丁。实装 347 文件及 Bullet 配对一致；穿衣实模在 WebGPU 验衣柜、停机复原、摆姿录放，3 人 3 物两端往返复验通过。旧标签页的 0.8.6 物理文件及解析 WASM 仍保留。舞台发布收据绑定 `c8758cf`；共享骨架去重已独立提交 [PR #48](https://github.com/yohawing/three-mmd-loader/pull/48)，见[投稿与分支记录](./three-mmd-loader-upstream.md)。
 
 ## 正式站单角色版：17 景、13/13 件道具
 
