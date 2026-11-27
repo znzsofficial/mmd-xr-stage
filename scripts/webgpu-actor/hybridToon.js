@@ -1,6 +1,6 @@
 import {
   cameraViewMatrix, float, max, mix, normalView, positionViewDirection,
-  smoothstep, sRGBTransferEOTF, texture, uniform, uv, vec3, vec4,
+  smoothstep, uniform, vec3, vec4,
 } from 'three/tsl';
 
 // Perceptual roughness controls highlight width. Fill/lit are the fraction of
@@ -29,16 +29,7 @@ export function parseHybridSlots(selection, endfield = false) {
   return slots;
 }
 
-export function diffusePigment(material, u) {
-  // Direct reflection needs *unlit* pigment. Same diffuse UV and live PMX
-  // factors as the fork; don't use toon shadows or a baked sphere as albedo.
-  const map = material.userData.mmdTslTextureReferences.diffuseMap;
-  const factor = uniform(u.textureFactor);
-  const tint = uniform(u.diffuse).mul(mix(vec3(1), factor.rgb, factor.a)).clamp();
-  return sRGBTransferEOTF(tint).mul(map ? texture(map).sample(uv()).rgb : vec3(1));
-}
-
-export function hybridToonColor(base, material, kind) {
+export function hybridToonColor(base, material, kind, paint) {
   const p = profiles[kind], u = material.userData.mmdTslMaterialUniforms;
   // pipeline.prepareRender updates these Vector3s in place, including setting
   // lightColor to zero for a hidden key. Bring L into the same eye space as N,V.
@@ -56,7 +47,7 @@ export function hybridToonColor(base, material, kind) {
   const denom = nh.mul(nh).mul(a2 - 1).add(1);
   const D = float(a2 / Math.PI).div(denom.mul(denom));
   const visibility = float(.25).div(nl.mul(1 - k).add(k).mul(nv.mul(1 - k).add(k)));
-  const f0 = kind === 'metal' ? diffusePigment(material, u).mul(.72).add(.16) : vec3(p.f0);
+  const f0 = kind === 'metal' ? paint.mul(.72).add(.16) : vec3(p.f0);
   const F = mix(f0, vec3(1), vh.oneMinus().pow(5));
   let reflection = F.mul(D).mul(visibility).mul(nl);
   if (p.sheen) reflection = reflection.add(nv.oneMinus().pow(3).mul(nl).mul(p.sheen));

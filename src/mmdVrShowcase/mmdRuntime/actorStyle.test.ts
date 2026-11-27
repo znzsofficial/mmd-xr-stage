@@ -20,6 +20,19 @@ it('styles named draws even on a shared atlas or without a texture; only matchin
   expect(inputs.map((s:{i:number})=>s.i)).toEqual([0,2]);
 });
 
+it('lets a Blender-numbered translation corroborate a primary role, not create or override one',()=>{
+  const labels=[['面','Face.001'],['顔','ＦＡＣＥ．００２'],['面','Face2'],['面','face_01'],
+    ['Face.001','Face'],['表情','face.001'],['睫','Face.001'],['','Face.001'],['面','Eye.001'],
+    ['皮革','Leather.001'],['布料','Leather.001'],['','Hair.002'],['unknown','Metal']];
+  const material=labels.map(([name,englishName],materialIndex)=>({map:{image:{width:2,height:2}},
+    userData:{mmdMaterial:{name,englishName,materialIndex,faceCount:3,texturePath:'set_face_01_D.png'}}}));
+  const plan=inspectActorStyle({mesh:{material}});
+  expect(plan.hybridSlots.face).toEqual([0,1]);
+  expect(plan.hybridSlots.leather).toEqual([9]);expect(plan.hybridSlots.metal).toEqual([12]);
+  expect(plan.hybridSlots.cloth).toEqual([]);expect(plan.hybridSlots.hair).toEqual([]);
+  expect(plan.inputs.map((s:{i:number})=>s.i)).toEqual([0,1]);
+});
+
 function setup(inputs:object[]=[{}]) {
   const result={cloth:new Map([[2,{dispose:vi.fn()}]]),face:new Map()};
   result.cloth.set(8,result.cloth.get(2)!);

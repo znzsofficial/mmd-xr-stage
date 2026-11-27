@@ -2,6 +2,7 @@ import { createMmdTslPipeline, disposeMmdTslShadowCaster } from '@yohawing/three
 import { max, sRGBTransferEOTF, sRGBTransferOETF } from 'three/tsl';
 import { hybridToonColor, parseHybridSlots } from './hybridToon.js';
 import { endfieldColor } from './endfieldToon.js';
+import { mmdStylePigment } from './mmdStylePigment.js';
 import { prepareSkinTransmission } from './skinTransmission.js';
 import { createFaceKeyShadow } from './faceKeyShadow.js';
 import { prepareOutline, installOutline } from './endfieldOutline.js';
@@ -81,7 +82,10 @@ export async function createActorMaterialAdapter(renderer, light, { balancedMode
       }
       for(const [index,role] of slots){
         const material=materials[index];
-        if(a.base.has(material))styled.set(material,endfieldColor(a.input.get(material),material,role,model.mesh,details,index));
+        if(!a.base.has(material))continue;
+        const pigment=mmdStylePigment(material);
+        const color=endfieldColor(a.input.get(material),material,role,model.mesh,details,index,pigment.paint);
+        styled.set(material,pigment.resolve(color,a.base.get(material)));
       }
       if(!styled.size){shadow?.dispose();return false;}
       if(a.bake)outline=installOutline(model.mesh,a.bake,{enabled:false});
@@ -128,7 +132,10 @@ export async function createActorMaterialAdapter(renderer, light, { balancedMode
           if (!material.userData.mmdTslMaterialUniforms) continue;
           const original=material.colorNode;
           if (balancedModelColor) material.colorNode = balancedToonColor(material.colorNode, ambientIntensity);
-          if (!canStyle && slots.has(index)) material.colorNode=hybridToonColor(material.colorNode,material,slots.get(index));
+          if (!canStyle && slots.has(index)) {
+            const pigment=mmdStylePigment(material), mmd=material.colorNode;
+            material.colorNode=pigment.resolve(hybridToonColor(mmd,material,slots.get(index),pigment.paint),mmd);
+          }
           if (canStyle && slots.has(index)) {
             base.set(material,material.colorNode);
             // On the stage return to its actual user-selected MMD grade. The

@@ -1,6 +1,6 @@
 import { cameraViewMatrix, float, max, mix, normalView, objectPosition, objectWorldMatrix, positionViewDirection,
   positionWorld, smoothstep, uniform, vec3, vec4 } from 'three/tsl';
-import { diffusePigment, hybridToonColor } from './hybridToon.js';
+import { hybridToonColor } from './hybridToon.js';
 import { endfieldCloth } from './endfieldCloth.js';
 import { mappedFace } from './endfieldFace.js';
 import { skinBandDelta, surfaceRadii } from './skinDiffusion.js';
@@ -40,8 +40,8 @@ function skinBase(paint,base,diffuse,key,diffusion,eyeSpan) {
   return mix(ink,base,.09).clamp();
 }
 
-export function endfieldColor(base, material, role, mesh, maps, index) {
-  const u = material.userData.mmdTslMaterialUniforms, paint = diffusePigment(material, u);
+export function endfieldColor(base, material, role, mesh, maps, index, paint) {
+  const u = material.userData.mmdTslMaterialUniforms;
   const light = uniform(u.lightColor), worldL = uniform(u.lightDirection);
   const L = cameraViewMatrix.mul(vec4(worldL, 0)).xyz, nl = normalView.dot(L);
   const key = max(light.r, max(light.g, light.b)).clamp();
@@ -67,5 +67,5 @@ export function endfieldColor(base, material, role, mesh, maps, index) {
   if (role === 'cloth' && maps?.cloth?.has(index)) return endfieldCloth(paint,base,maps.cloth.get(index),L,light,key);
   // Feed painted fabric into the existing directional BRDF. Re-light most of
   // its albedo so the old toon shadow doesn't double up with the fabric band.
-  return hybridToonColor(mix(base, paint.pow(.90).mul(1.22), .78), material, role);
+  return hybridToonColor(mix(base, paint.pow(.90).mul(1.22), .78), material, role, paint);
 }
