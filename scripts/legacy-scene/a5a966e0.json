@@ -1,0 +1,14 @@
+{
+  "revision": "d3e7fb88e92169ab07096c4f4191271793b9cbff",
+  "dist": {
+    "files": 459,
+    "sha256": "90a4344ea7b21a0480cb6b1af8049483515843d6a779b2296930bd9370ee1541"
+  },
+  "assets": {
+    "assets/PlanetPhysics-ChobuB_9.js": "c25762e55b1243b762c88e271ac98e8b7986b7e183fbf3f3fd4d79bae67a514a",
+    "assets/emulate-B5bE1EnS.js": "9d1d93e2ff33173a1518214c037a680d4d0bab1bf89ed044cf5ecd50fb358ee6",
+    "assets/index-BF2eBPh8.js": "778d79970998d67f7fd080afd9a41811dcc140b925dee42c785fc39135ed27c4",
+    "assets/rapier-CK0a5FfO.js": "5ef3cf8add4d7e575de0460511aab6cf522342f8c146692880eb7286e8fceec6",
+    "assets/stage-host-msYrApL6.js": "d332780f2c9e053471b2cc95e613b5488b1e23e793c8bf7a7ac8a73a4b33dd19"
+  }
+}

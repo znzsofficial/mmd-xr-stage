@@ -1,4 +1,5 @@
 import { blocks, type Block, type Point } from './arcadeLayout';
+import type {PickDeck} from '../routes/types';
 
 const top = (b: Block) => b.y + b.h / 2;
 export const pickDecks = blocks.filter(b => b.deck).map(b => ({ x:b.x, y:top(b), z:b.z, w:b.w, d:b.d }));
@@ -6,9 +7,9 @@ const inRect = (b: {x:number;z:number;w:number;d:number}, x: number, z: number, 
   Math.abs(x-b.x) <= b.w/2+margin && Math.abs(z-b.z) <= b.d/2+margin;
 const shoe = [[0,0],[.18,0],[-.18,0],[0,.18],[0,-.18]];
 
-export function arcadePlace(x: number, y: number, z: number) {
+export function arcadePlace(x: number, y: number, z: number, decks:readonly PickDeck[]=pickDecks) {
   if (![x,y,z].every(Number.isFinite)) return false;
-  return shoe.every(([dx,dz]) => pickDecks.some(d => Math.abs(d.y-y)<.002 && inRect(d,x+dx,z+dz))) &&
+  return shoe.every(([dx,dz]) => decks.some(d => Math.abs(d.y-y)<.002 && inRect(d,x+dx,z+dz))) &&
     !blocks.some(b => top(b)>y+.015 && b.y-b.h/2<y+1.72 && inRect(b,x,z,.18));
 }
 

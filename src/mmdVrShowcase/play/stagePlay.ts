@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type {Vector3} from 'three';
 import type { SceneryId } from '../scenery/catalog';
-import { TOYS, sessionToys, shelfToys, type Hand, type Toy } from './propCatalog';
+import { TOYS, hasToyStation, sessionToys, shelfToys, type Hand, type Toy } from './propCatalog';
 
 export type { Hand, Toy, StoryRoom } from './propCatalog';
 export { isStoryRoom } from './propCatalog';
@@ -10,11 +10,11 @@ export type StandToy = { assetId:string; toy:'dildo' };
 type Owners = { held:{toy:Toy; hand:Hand}|null; character:CharacterToy|null; stand:StandToy|null };
 export const ownerOf = (s:Owners) => s.held ?? s.character ?? s.stand;
 export const canUseGrip = (s:Owners,toy:Toy,hand:Hand,room:SceneryId) =>
-  s.held?.toy===toy && s.held.hand===hand && (TOYS[toy].portable===true || TOYS[toy].home===room);
+  s.held?.toy===toy && s.held.hand===hand && (TOYS[toy].portable===true || hasToyStation(toy,room));
 /** Grip starts the portable prop, but a room-specific interaction (e.g. ferry
  * gate) must never run against coincident coordinates in another set. */
 export function handleGripStart(toy:Toy,room:SceneryId,at:Vector3,dir:Vector3){
-  const item=TOYS[toy];if(item.home===null || item.home===room)item.onGrip?.(at,dir);
+  const item=TOYS[toy];if(item.home===null || hasToyStation(toy,room,at))item.onGrip?.(at,dir);
 }
 export const canGiveTo = (actor:{visible:boolean; wrists?:Partial<Record<Hand,boolean>>}|undefined, hand:Hand) =>
   !!actor?.visible && !!actor.wrists?.[hand];
@@ -71,7 +71,7 @@ export function giveScreenToy(assetId:string,toy:Toy,hand:Hand,room:SceneryId) {
   const play=useStagePlay.getState();
   if(play.held?.toy!==toy && !(play.character?.assetId===assetId && play.character.toy===toy)) {
     play.equip(toy,hand);
-    if(TOYS[toy].portable || TOYS[toy].home===room)TOYS[toy].onScreenEquip?.();
+    if(TOYS[toy].portable || hasToyStation(toy,room))TOYS[toy].onScreenEquip?.();
   }
   play.give(assetId,hand);
 }

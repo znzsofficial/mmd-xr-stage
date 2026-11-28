@@ -1,9 +1,11 @@
-import { UPPER } from '../../arcade/arcadeLayout';
+import { blocks, UPPER } from '../../arcade/arcadeLayout';
 import { POOL_ORIGIN, TIME_DECK, POOL } from '../../LidoLayout';
 
 // Survey in meadow metres, with +Z toward the park. Arcade west is +X.
 export const ARCADE_ORIGIN = {x:39,z:-15.4};
 export const WEST = {x:ARCADE_ORIGIN.x+9.10,z:2.90,half:1.54};
+export const westStreetDoor={x:WEST.x-ARCADE_ORIGIN.x,inGate:14.45,outGate:15.15,half:WEST.half+.01};
+export const shell=blocks.filter(s=>['court','balcony','east-balcony','west-walk','west-side','lounge-court','roof','west-sign','west-portal','west-spine','west-shelter-back','west-shelter-roof','west-end-wall','east-retaining','east-service','lounge-canopy','lounge-kiosk','tank-base'].includes(s.tag)||s.tag.startsWith('front-court')||s.tag==='wall'||s.tag==='header'||s.tag==='jamb'||s.tag==='lintel');
 export const EAST = {x:ARCADE_ORIGIN.x-7.85,z:POOL_ORIGIN.z-19.25,half:1.25};
 export type Road = 'street'|'viaduct';
 export type Surface = {id:string;road:Road;l:number;r:number;b:number;f:number;y:number;sx:number;sz:number};

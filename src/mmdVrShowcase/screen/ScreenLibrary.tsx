@@ -3,7 +3,7 @@ import { useBackpack, type BackpackEntry } from '../backpack/store';
 import { nextMmdVrModelScale, previousMmdVrModelScale } from '../settings/mmdVrAdjustments';
 import { useMmdVrStore } from '../mmdVrStore';
 import { useLayoutEffect, useRef, useState } from 'react';
-import { isStoryRoom, shelfToys, STORIES, TOYS, toyLabel, type Hand, type Toy, type StoryRoom } from '../play/propCatalog';
+import { hasToyStation, isStoryRoom, shelfToys, STORIES, TOYS, toyHomeLabel, toyLabel, type Hand, type Toy, type StoryRoom } from '../play/propCatalog';
 import { canGiveTo, giveScreenToy, ownerOf, requestScreenWristUse, useStagePlay } from '../play/stagePlay';
 import type { SceneryId } from '../scenery/catalog';
 import {ScreenEnvironmentSettings} from './ScreenEnvironmentSettings';
@@ -22,9 +22,9 @@ function ScreenToyGuide({toy,room,locked,close}:{toy:Toy;room:SceneryId;locked:b
   const t=useLanguageStore(s=>s.t),dialog=useRef<HTMLDialogElement>(null),item=TOYS[toy],{vr,screen,end}=item.guide;
   useLayoutEffect(()=>{const el=dialog.current!;el.showModal();return ()=>el.close();},[]);
   return <dialog ref={dialog} className="screen-guide-dialog" aria-labelledby="toy-guide-title" onCancel={e=>{e.preventDefault();e.stopPropagation();close();}}>
-    <h3 id="toy-guide-title">{t(toyLabel(toy,room))} · {t('toyGuide')}</h3><p>{t('toyShelfHome')}{t(item.homeLabel)}</p>
+    <h3 id="toy-guide-title">{t(toyLabel(toy,room))} · {t('toyGuide')}</h3><p>{t('toyShelfHome')}{t(toyHomeLabel(toy,room))}</p>
     {toy!=='remoteEgg'&&<p>{t('toyGuideScreenGive')}</p>}<p>{t(screen)}</p><p><strong>VR</strong> · {t(vr)}</p><p>{t(end)}</p>
-    <div className="screen-buttons"><button autoFocus onClick={close}>{t('toyCloseGuide')}</button>{item.home&&room!==item.home&&<button disabled={locked} onClick={()=>{close();useMmdVrStore.getState().setPrefs({scenery:item.home});}}>{t(item.visit)}</button>}</div>
+    <div className="screen-buttons"><button autoFocus onClick={close}>{t('toyCloseGuide')}</button>{item.home&&!hasToyStation(toy,room)&&<button disabled={locked} onClick={()=>{close();useMmdVrStore.getState().setPrefs({scenery:item.home});}}>{t(item.visit)}</button>}</div>
   </dialog>;
 }
 
@@ -60,7 +60,7 @@ export function ScreenLibrary({view,suspended=false,visit,locked,close,openBackp
     {isStoryRoom(room)&&<ScreenCues key={room} room={room} locked={locked} view={storyView}/>}
     <details className="screen-toy-guide"><summary>{t('toyList')} · {shelfToys.length}</summary>
       <p>{t('toyGuideScreenGive')}</p><ul>{shelfToys.map(toy=>{return <li key={toy}>
-        <span>{t(toyLabel(toy,room))}<small>{t('toyShelfHome')}{t(TOYS[toy].homeLabel)}</small></span>
+        <span>{t(toyLabel(toy,room))}<small>{t('toyShelfHome')}{t(toyHomeLabel(toy,room))}</small></span>
          <div>{actor&&selected&&(toy==='remoteEgg'?<button disabled={locked||!actor.visible} onClick={()=>{if(fitScreenEgg(selected.id)){choose({id:selected.id,toy});openItem();}}}>{t(eggWearer===selected.id?'eggControls':eggWearer?'eggTransfer':'eggWear')}</button>:(['left','right'] as const).map(hand=><button key={hand} disabled={locked||!canGiveTo(actor,hand)} onClick={()=>{choose({id:selected.id,toy});give(selected.id,toy,hand,room);}}>{t(hand==='left'?'propLeft':'propRight')}</button>))} <button onClick={()=>setGuide(toy)}>{t('toyGuide')}</button></div>
       </li>;})}</ul></details>
     {guide&&<ScreenToyGuide toy={guide} room={room} locked={locked} close={()=>setGuide(null)}/>}

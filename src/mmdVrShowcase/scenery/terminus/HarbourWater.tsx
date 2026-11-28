@@ -22,6 +22,20 @@ function tideTreads(){
   const g=new BufferGeometry();g.setAttribute('position',new Float32BufferAttribute(positions,3));return g;
 }
 
+// The park used to hide one unbroken water quad. The city's arcade court is
+// below flood level: remove inland water from the mesh on both renderers.
+export function harbourWaterSurface(){
+  const positions:number[]=[];
+  function water(left:number,right:number,near:number,far:number){
+    positions.push(left,0,near, left,0,far, right,0,far, left,0,near, right,0,far, right,0,near);
+  }
+  water(-120,120,-120,40);
+  water(-120,-65,40,120);
+  water(76,120,40,120);
+  const geometry=new BufferGeometry();geometry.setAttribute('position',new Float32BufferAttribute(positions,3));
+  geometry.computeVertexNormals();return geometry;
+}
+
 export function HarbourWater({clock}:{clock:ReturnType<typeof createTideClock>}){
   const scene=useThree(s=>s.scene),water=useRef<Mesh>(null),floating=useRef<Group>(null),buoy=useRef<Group>(null);
   const high=useMmdVrStore(s=>s.prefs.renderQuality==='high');
@@ -37,6 +51,7 @@ export function HarbourWater({clock}:{clock:ReturnType<typeof createTideClock>})
   // the tide, light and phase cells live after that copy, as on the TSL path.
   const bindUniforms=useCallback((m:ShaderMaterial)=>{if(m.isShaderMaterial)m.uniforms=u;},[u]);
   const treads=useMemo(tideTreads,[]);useLayoutEffect(()=>()=>treads.dispose(),[treads]);
+  const sea=useMemo(harbourWaterSurface,[]);useLayoutEffect(()=>()=>sea.dispose(),[sea]);
   useLayoutEffect(()=>bindStationTide(scene,clock),[scene,clock]);
   useFrame((_,dt)=>{
     const level=clock.step(dt);
@@ -51,8 +66,8 @@ export function HarbourWater({clock}:{clock:ReturnType<typeof createTideClock>})
       vertexShader={`varying vec3 skyDir;void main(){skyDir=position;vec4 clip=projectionMatrix*vec4(mat3(viewMatrix)*position,1.);gl_Position=vec4(clip.xy,0.,clip.w);}`}
        fragmentShader={harbourHorizon}/></mesh>
    {/* Opaque water: let nearer buildings, actors and the quay fill depth before shading the waves. */}
-   <mesh name="terminus:sea" renderOrder={20} ref={water} position={[0,clock.level,0]} rotation-x={-Math.PI/2} raycast={noPick} userData={{playerCollision:false}}>
-    <planeGeometry args={[240,240]}/><RoomShader effect="harbourWater" vertexShader={harbourVertex} fragmentShader={harbourWaterFragment} uniforms={u} onUpdate={bindUniforms} toneMapped={false}/>
+    <mesh name="terminus:sea" geometry={sea} renderOrder={20} ref={water} position={[0,clock.level,0]} raycast={noPick} userData={{playerCollision:false}}>
+     <RoomShader effect="harbourWater" vertexShader={harbourVertex} fragmentShader={harbourWaterFragment} uniforms={u} onUpdate={bindUniforms} toneMapped={false}/>
   </mesh><mesh name="terminus:tidal-stone" geometry={treads} raycast={noPick} userData={{playerCollision:false}}>
     <RoomShader effect="tidalStone" vertexShader={harbourVertex} fragmentShader={tidalStoneFragment} uniforms={u} onUpdate={bindUniforms} toneMapped={false}/>
   </mesh><mesh name="terminus:tidemark" position={[quay.x,-.72,quay.z-quay.d/2-.027]} rotation-y={Math.PI} raycast={noPick} userData={{playerCollision:false}}>

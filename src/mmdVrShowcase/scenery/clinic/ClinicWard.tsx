@@ -1,6 +1,6 @@
-import {RoomShader} from '../daylightMaterials';
+import {DaySurface,RoomShader} from '../daylightMaterials';
 import { useEffect, useMemo } from 'react';
-import { DoubleSide, SphereGeometry, type MeshStandardMaterial } from 'three';
+import { DoubleSide, SphereGeometry } from 'three';
 import { Batch } from '../SceneryBatch';
 import { useBakedSurface } from '../useBakedSurface';
 import { WARD, FIXTURES } from './clinicLayout';
@@ -15,25 +15,9 @@ import { instrumentGeometry, teachingModelGeometry } from './teachingSolids';
 import {GardenEntrance} from './GardenEntrance';
 import {SupplyCasework} from './SupplyCasework';
 import {ClinicNurse} from './ClinicNurse';
+import {wardBounce as bounce} from './wardDaylight';
 
 const noPick=()=>null;
-// A soft ceiling bounce, not a bank of point lights per fixture. Its broad
-// variation reads on the walls even with the mobile shadow map turned off.
-const bounce: MeshStandardMaterial['onBeforeCompile']=(shader)=>{
-  shader.vertexShader='varying vec3 vWardP;\n'+shader.vertexShader.replace('#include <project_vertex>',`
-    vec4 wardLocal=vec4(transformed,1.0);
-    #ifdef USE_INSTANCING
-      wardLocal=instanceMatrix*wardLocal;
-    #endif
-    vWardP=(modelMatrix*wardLocal).xyz;
-    #include <project_vertex>`);
-  shader.fragmentShader='varying vec3 vWardP;\n'+shader.fragmentShader.replace('#include <lights_fragment_end>',`
-    #include <lights_fragment_end>
-    float hall=1.-smoothstep(1.8,2.38,abs(vWardP.x));
-    float pool=.5+.5*cos((vWardP.z+.83)*2.088);
-    float height=smoothstep(.15,2.85,vWardP.y);
-    reflectedLight.indirectDiffuse+=diffuseColor.rgb*(vec3(.27,.29,.266)+height*vec3(.043,.040,.033)+hall*pool*vec3(.14,.116,.071));`);
-};
 
 // Brushed steel mirrors show a deliberately diffuse architectural reflection.
 // Re-project the opposite wall, partition and light in the eye's reflected
@@ -68,33 +52,33 @@ export function ClinicWard({ shadows }: {shadows:boolean}) {
   const teaching=useBakedSurface(teachingUrl);
   useEffect(()=>()=>{for(const g of Object.values(geo))g.dispose();},[geo]);
   return <group name="scenery:clinic">
-    <ClinicNurse shadows={shadows} shade={bounce}/>
-    <GardenEntrance shadows={shadows}/>
+    <ClinicNurse shadows={shadows}/>
+    <GardenEntrance city shadows={shadows}/>
     <SupplyCasework shadows={shadows}/>
     <mesh name="clinic:terrazzo-and-furniture-contact" position={[0,0,(WARD.south+WARD.north)/2]} rotation-x={-Math.PI/2} receiveShadow={shadows} raycast={noPick}>
-      <planeGeometry args={[WARD.east-WARD.west,WARD.south-WARD.north]}/><meshStandardMaterial key={floor?'floor':'plain'} map={floor} color={floor?'white':'#c7cfbf'} roughness={.83} onBeforeCompile={bounce}/>
+      <planeGeometry args={[WARD.east-WARD.west,WARD.south-WARD.north]}/><DaySurface key={floor?'floor':'plain'} map={floor} color={floor?'white':'#c7cfbf'} roughness={.61} onBeforeCompile={bounce}/>
     </mesh>
     <Batch name="clinic:architecture-and-casework" parts={p.blocks} shade={bounce}/>
-    <Batch name="clinic:upholstery-and-bevels" parts={p.soft} geometry={geo.pad} shade={bounce} casts={shadows}/>
-    <Batch name="clinic:frames-and-lamp-arms" parts={p.poles} round shade={bounce}/>
-    <Batch name="clinic:glazed-sanitaryware" parts={p.bowls} geometry={geo.bowl} shade={bounce}/>
+    <Batch name="clinic:upholstery-and-bevels" parts={p.soft} geometry={geo.pad} roughness={.56} shade={bounce} casts={shadows}/>
+    <Batch name="clinic:frames-and-lamp-arms" parts={p.poles} round roughness={.36} shade={bounce}/>
+    <Batch name="clinic:glazed-sanitaryware" parts={p.bowls} geometry={geo.bowl} roughness={.24} shade={bounce}/>
     <Batch name="clinic:formed-fittings" parts={p.ovals} geometry={geo.egg} shade={bounce}/>
     <Batch name="clinic:recessed-panels" parts={p.glow} lit/>
     <Batch name="clinic:theatre-led-optics" parts={p.bulbs} round lit/>
     <mesh name="clinic:gathered-privacy-linen" raycast={noPick} receiveShadow={shadows}>
-      <primitive object={geo.cloth} attach="geometry"/><meshStandardMaterial vertexColors side={DoubleSide} roughness={.98} onBeforeCompile={bounce}/>
+      <primitive object={geo.cloth} attach="geometry"/><DaySurface vertexColors side={DoubleSide} roughness={.98} onBeforeCompile={bounce}/>
     </mesh>
     <mesh name="clinic:bilingual-signs-prints-and-displays" raycast={noPick}>
       <primitive object={geo.plates} attach="geometry"/><meshBasicMaterial key={atlas?'atlas':'underprint'} map={atlas} color={atlas?'white':'#c5d4c6'}/>
     </mesh>
     <mesh name="clinic:six-authored-obstetric-education-plates" raycast={noPick}>
-      <primitive object={geo.education} attach="geometry"/><meshBasicMaterial key={education?'education':'paper'} map={education} color={education?'white':'#e9e5ce'}/>
+      <primitive object={geo.education} attach="geometry"/><DaySurface map={education} color={education?'white':'#e9e5ce'} roughness={.9} onBeforeCompile={bounce}/>
     </mesh>
     <mesh name="clinic:anatomical-castings" raycast={noPick}>
-      <primitive object={geo.models} attach="geometry"/><meshStandardMaterial vertexColors roughness={.60} onBeforeCompile={bounce}/>
+      <primitive object={geo.models} attach="geometry"/><DaySurface vertexColors roughness={.60} onBeforeCompile={bounce}/>
     </mesh>
     <mesh name="clinic:stainless-instrument-set" raycast={noPick}>
-      <primitive object={geo.instruments} attach="geometry"/><meshStandardMaterial vertexColors metalness={.22} roughness={.38} side={DoubleSide} onBeforeCompile={bounce}/>
+      <primitive object={geo.instruments} attach="geometry"/><DaySurface vertexColors metalness={.22} roughness={.38} side={DoubleSide} onBeforeCompile={bounce}/>
     </mesh>
     <mesh name="clinic:teaching-and-supply-prints" raycast={noPick}>
       <primitive object={geo.teaching} attach="geometry"/><meshBasicMaterial key={teaching?'teaching':'paper'} map={teaching} color={teaching?'white':'#efe8d8'}/>

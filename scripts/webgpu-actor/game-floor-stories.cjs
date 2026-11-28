@@ -28,7 +28,7 @@ function measureDraw(name) {
   });
 }
 
-module.exports=async function({page,click,until,bButton,frames,target,pickMounted,ids,placeFromBag,actorName}) {
+module.exports=async function({page,click,until,bButton,frames,target,pickMounted,ids,placeFromBag,trackAt,actorName}) {
   const adapters=await page.evaluate(()=>labFixture.adapters);
   assert(adapters.some(a=>a.xrCompatible)&&adapters.every(a=>a.vendor&&!a.fallback&&!/swiftshader|warp|llvmpipe|software/i.test(JSON.stringify(a))));
   async function bag(){await bButton();await click('hudBackpack');await click('hudToys');}
@@ -69,9 +69,12 @@ module.exports=async function({page,click,until,bButton,frames,target,pickMounte
   await until('ink reaches the opposite end of the curtain',()=>gameTargets.floorState().scene.getObjectByName('encore:print:right')?.material.uniforms.uReach.value>1);
   await checkMesh('encore:print:right',2500);
 
-  await visit('kite','lawn','visitKite');assert(!await page.evaluate(()=>gameTargets.find({name:'play:encore-station'})||gameTargets.find({name:'play:piece:encore'})));
-  await placeFromBag(actorName,[0,0,-2.8],0);
-  const actor=await until('one actor on the lawn',s=>s.ready&&s.selected&&s.actor?.evaluations>0,null,90000);
+  await visit('kite','seasideTerminus','visitKite');assert(!await page.evaluate(()=>gameTargets.find({name:'play:encore-station'})||gameTargets.find({name:'play:piece:encore'})));
+  const [sx,,sz]=await target({name:'story:bench-reel'});assert.deepEqual([sx,sz],[15,48]);
+  // Place the actor beside the real bench, clear of both armrests. Start the
+  // physical grip on the same green; the railway platform is not a launch site.
+  await trackAt(sx-1.8,sz+2.8);await placeFromBag(actorName,[sx-1.8,0,sz],0);
+  const actor=await until('one actor on the station green',s=>s.ready&&s.selected&&s.actor?.evaluations>0,null,90000);
   await click('hudDone');await equip('kite');await target({name:'kite:flight'});
   await pickMounted(ids.model);await click('propGive');await click('propRight');await click('storyWindLeft');
   await click('hudTools');await click('hudDone');await target({name:'watch:quiet'});
@@ -86,5 +89,5 @@ module.exports=async function({page,click,until,bButton,frames,target,pickMounte
   await bag();await click('toyStow');await until('wrist, reel and kite retired',s=>s.live===1&&!gameTargets.find({name:'play:character'})&&!gameTargets.find({name:'kite:flight'}));
   await bButton();await click('settingsVrDesktopExit',{retiring:true});
   await until('one session ended',s=>s.phase==='ended'&&!s.overlay&&!s.live);
-  return {rooms:['pool','liveHouse','lawn'],placedActors:1,visiblePixelsByEye:pixels};
+  return {rooms:['pool','liveHouse','seasideTerminus'],placedActors:1,visiblePixelsByEye:pixels};
 };

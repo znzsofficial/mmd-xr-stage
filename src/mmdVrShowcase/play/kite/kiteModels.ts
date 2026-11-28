@@ -36,6 +36,8 @@ function craft() {
 }
 
 export const GUIDE: Point = [0,.159,-.039];
+export const REEL_OFFSET:Point = [0,-.042,-.06];
+export const reelOutlet = {position:[REEL_OFFSET[0]+GUIDE[0],REEL_OFFSET[1]+GUIDE[1],REEL_OFFSET[2]+GUIDE[2]],direction:[0,0,-1]} as const;
 export function makeReel() {
   const m = craft(), bamboo = '#dfa959', bindings = '#245965', y = .089;
   // Hollow hexagonal flanges like two bamboo wagon wheels, and a lacquered

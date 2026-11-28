@@ -1,25 +1,26 @@
 import React,{useEffect,useMemo} from 'react';
 import {BackSide,Color,MeshBasicNodeMaterial,MeshStandardNodeMaterial} from 'three/webgpu';
-import {attribute,cameraProjectionMatrix,cameraViewMatrix,color,diffuseColor,float,instanceIndex,mix,normalWorld,positionGeometry,positionLocal,positionWorld,roughness,smoothstep,texture,uv,vec2,vec3,vec4,cameraPosition} from 'three/tsl';
-import {CLASS_SUN,ROOM} from '../../src/mmdVrShowcase/scenery/ClassroomLayout';
+import {attribute,cameraProjectionMatrix,cameraViewMatrix,color,diffuseColor,float,instanceIndex,mix,normalWorld,positionGeometry,positionLocal,positionWorld,roughness,smoothstep,step,texture,uv,vec2,vec3,vec4,cameraPosition} from 'three/tsl';
+import {CLERESTORY,ROOM} from '../../src/mmdVrShowcase/scenery/ClassroomLayout';
+import {SHORE_SUN} from '../../src/mmdVrShowcase/scenery/shoreDaylight';
+import {wardBounce,nurseFinish,wardWindows} from '../../src/mmdVrShowcase/scenery/clinic/wardDaylight';
 import {classroomBounce,classroomSunlight} from '../../src/mmdVrShowcase/scenery/ClassroomLight';
 import {SceneShader} from './sceneShader.jsx';
 import {boardDay,backDay,steelDay,boardShadow,backShadow,steelShadow,parquetContact} from '../../src/mmdVrShowcase/scenery/ClassroomFinish';
 import {useBakedSurface} from '../../src/mmdVrShowcase/scenery/useBakedSurface';
 import cloudsUrl from '../../src/mmdVrShowcase/scenery/day-clouds.webp';
 
-const bayWidth=ROOM.d/ROOM.bays;
 function windowFill(project){
   const p=positionWorld,sky=smoothstep(-ROOM.w/2,ROOM.w/2,p.x).oneMinus();
   const lift=smoothstep(0,1.6,p.y),facing=normalWorld.dot(vec3(-.94,.34,0)).max(0);
-  const bounce=mix(vec3(1,.91,.75),vec3(.88,.96,1),sky).mul(lift.mul(.23).add(.20).add(facing.mul(.17)).mul(sky).add(.12));
+  const bounce=mix(vec3(1,.91,.75),vec3(.88,.96,1),sky).mul(lift.mul(.16).add(.16).add(facing.mul(.13)).mul(sky).add(.075));
   if(!project)return bounce;
-  const ray=p.x.add(ROOM.w/2).div(-CLASS_SUN[0]),wy=p.y.add(ray.mul(CLASS_SUN[1])),wz=p.z.add(ray.mul(CLASS_SUN[2]));
-  const bay=wz.add(ROOM.d/2).mod(bayWidth);
-  const pane=smoothstep(.11,.21,bay).mul(smoothstep(bayWidth-.13,bayWidth-.04,bay).oneMinus()).mul(smoothstep(.016,.064,bay.sub(bayWidth/2).abs()))
-    .mul(smoothstep(ROOM.sill+.04,ROOM.sill+.12,wy)).mul(smoothstep(ROOM.lintel-.06,ROOM.lintel+.02,wy).oneMinus())
-    .mul(smoothstep(.018,.068,wy.sub(ROOM.transom).abs())).mul(ray.greaterThanEqual(0).select(1,0)).mul(smoothstep(ROOM.d/2-.1,ROOM.d/2,wz.abs()).oneMinus());
-  return bounce.add(vec3(1,.84,.57).mul(pane).mul(normalWorld.dot(vec3(...CLASS_SUN).normalize()).max(0)).mul(1.5));
+  const high=CLERESTORY,ray=p.z.sub(high.z).div(-SHORE_SUN[2]);
+  const offset=p.x.add(ray.mul(SHORE_SUN[0])).sub(high.left),wy=p.y.add(ray.mul(SHORE_SUN[1])),bay=offset.mod(high.pitch);
+  const pane=smoothstep(high.pier/2,high.pier/2+.055,bay.min(float(high.pitch).sub(bay)))
+    .mul(step(0,offset)).mul(step(offset,high.count*high.pitch)).mul(step(0,ray))
+    .mul(smoothstep(high.sill,high.sill+.055,wy)).mul(smoothstep(high.head-.055,high.head,wy).oneMinus());
+  return bounce.add(vec3(1,.86,.66).mul(pane).mul(normalWorld.dot(vec3(...SHORE_SUN).normalize()).max(0)).mul(1.3));
 }
 function windowGlint(r){
   const p=positionWorld,v=cameraPosition.sub(p).normalize(),d=v.negate().reflect(normalWorld),travel=p.x.add(ROOM.w/2).div(d.x.negate().max(.04)),hit=p.yz.add(d.yz.mul(travel));
@@ -28,10 +29,19 @@ function windowGlint(r){
   return vec3(.83,.93,1).mul(opening).mul(v.dot(normalWorld).clamp().oneMinus().pow(5).mul(.68).add(.038))
     .mul(smoothstep(.04,.38,d.x.negate())).mul(r.mul(.85).oneMinus()).mul(1.25);
 }
-function Surface({onBeforeCompile:shade,map,color:tint='white',roughness:base=.88,side,vertexColors=false}){
+function Surface({onBeforeCompile:shade,map,color:tint='white',roughness:base=.88,metalness=0,side,vertexColors=false}){
   const mat=useMemo(()=>{
     const board=shade===boardDay||shade===boardShadow,back=shade===backDay||shade===backShadow,tube=shade===steelDay||shade===steelShadow,wood=board||back;
-    const m=new MeshStandardNodeMaterial({color:new Color(tint),roughness:base,vertexColors,...(side==null?{}:{side})});
+    const m=new MeshStandardNodeMaterial({color:new Color(tint),roughness:base,metalness,vertexColors,...(side==null?{}:{side})});
+    if(shade===wardBounce||shade===nurseFinish){
+      const p=positionWorld,hall=smoothstep(1.8,2.38,p.x.abs()).oneMinus().mul(p.z.add(.83).mul(2.088).cos().mul(.5).add(.5));
+      const [west,east,north]=wardWindows.map(([x,z])=>p.xz.sub(vec2(x,z)).length());
+      const skylight=smoothstep(.3,4.4,west.min(east).min(north)).oneMinus();
+      m.map=map??null;
+      m.emissiveNode=diffuseColor.rgb.mul(vec3(.11,.12,.126).add(vec3(.08,.073,.058).mul(hall)).add(vec3(.15,.185,.21).mul(skylight)));
+      if(shade===nurseFinish)m.roughnessNode=attribute('finishRoughness','float');
+      return m;
+    }
     if(wood){
       const edge=attribute('classCut','float').greaterThan(.5),panel=uv().sub(.5),wear=panel.length().mul(2.6).clamp().oneMinus();
       // Data atlas: R is wood pigment; G/B are pore slopes, never display RGB.
@@ -43,7 +53,7 @@ function Surface({onBeforeCompile:shade,map,color:tint='white',roughness:base=.8
     if(!(wood||tube||shade===classroomSunlight||shade===classroomBounce||shade===parquetContact))return m;
     const fill=diffuseColor.rgb.mul(windowFill(shade===classroomSunlight||shade===boardDay||shade===backDay||shade===steelDay));
     m.emissiveNode=wood||tube?fill.add(windowGlint(roughness)):fill;return m;
-  },[shade,map,tint,base,side,vertexColors]);useEffect(()=>()=>mat.dispose(),[mat]);return <primitive object={mat} attach="material"/>;
+  },[shade,map,tint,base,metalness,side,vertexColors]);useEffect(()=>()=>mat.dispose(),[mat]);return <primitive object={mat} attach="material"/>;
 }
 function Sky({sun,warm}){
   const clouds=useBakedSurface(cloudsUrl,'mask'),[x,y,z]=sun;

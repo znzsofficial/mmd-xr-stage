@@ -1,22 +1,20 @@
 import type { SceneryId } from '../../catalog';
 import type { RoomLink } from '../../connections';
 import { PACE_CLOCK, PAVILION_POSTS, POOL, POOL_ORIGIN as P, TIME_DECK, judgeStand, poolBarrierParts } from '../../LidoLayout';
-import { blocks } from '../../arcade/arcadeLayout';
 import type { PickDeck, RouteExtension, RoutePoint } from '../types';
 import { bodies, type Piece } from './pieces';
 import { orientedMember } from './sight';
-import { ARCADE_ORIGIN as A, EAST as E, WEST as W, heightAt, inside, isFlat, routeSurfaces, streetEdge, type Road } from './site';
+import { ARCADE_ORIGIN as A, EAST as E, WEST as W, heightAt, inside, isFlat, routeSurfaces, shell, streetEdge, westStreetDoor, type Road } from './site';
+export {shell} from './site';
 
 const rooms=['lawn','arcadeHall','pool'] as const;
 const campus={x:0,z:0};
 export const siteOrigin=(room:SceneryId)=>room==='pool'?P:room==='arcadeHall'?A:campus;
-export const hasRoad=(room:SceneryId,road:Road)=>room==='arcadeHall'||(road==='street'?room==='lawn':room==='pool');
+export const hasRoad=(room:SceneryId,road:Road)=>road==='street'?room==='lawn':room==='arcadeHall'||room==='pool';
 const open=(mid:number,half:number):[number,number]=>[mid-half,mid+half];
 export const campusArcadeLinks:readonly RoomLink[]=[
-  {from:'lawn',to:'arcadeHall',axis:'z',direction:-1,gate:-.95,band:open(W.x,W.half+.01),offset:[-A.x,-A.z],
+  {from:'lawn',to:'arcadeHall',axis:'z',direction:-1,gate:A.z+westStreetDoor.inGate,band:open(W.x,westStreetDoor.half),offset:[-A.x,-A.z],
     arrival:{key:'campusToArcade',eye:[9.10,1.65,12.65],aim:[9.10,2.48,4.5]}},
-  {from:'arcadeHall',to:'lawn',axis:'z',direction:1,gate:15.15,band:open(W.x-A.x,W.half+.01),offset:[A.x,A.z],
-    arrival:{key:'arcadeToCampus',eye:[48.1,1.65,2.63],aim:[37.5,1.40,3.38]}},
   {from:'arcadeHall',to:'pool',axis:'x',direction:-1,gate:P.x+12.55-A.x,band:open(E.z-A.z,E.half+.01),offset:[A.x-P.x,A.z-P.z],
     arrival:{key:'arcadeToPool',eye:[11.95,1.65,-19.25],aim:[5.42,1.18,-20.62]}},
   {from:'pool',to:'arcadeHall',axis:'x',direction:1,gate:13.25,band:open(E.z-P.z,E.half+.01),offset:[P.x-A.x,P.z-A.z],
@@ -24,7 +22,12 @@ export const campusArcadeLinks:readonly RoomLink[]=[
 ];
 
 const inventory=rooms.map(room=>{
-  const {x:dx,z:dz}=siteOrigin(room),floor=routeSurfaces.filter(s=>hasRoad(room,s.road)),solids=bodies.filter(s=>hasRoad(room,s.road));
+  const {x:dx,z:dz}=siteOrigin(room);
+  // The full print street belongs to the legacy lawn. In the arcade only
+  // the short city vestibule beyond the court and the upper viaduct exist.
+  const floor=routeSurfaces.filter(s=>hasRoad(room,s.road)||(room==='arcadeHall'&&s.id==='west-turn'))
+    .map(s=>room==='arcadeHall'&&s.id==='west-turn'?{...s,f:A.z+westStreetDoor.outGate+.4}:s);
+  const solids=bodies.filter(s=>hasRoad(room,s.road));
   const decks:PickDeck[]=[];
   for(const s of floor.filter(isFlat)){
     // Lawn/pool already have a 72 m common ground pick plane. Split an
@@ -64,7 +67,6 @@ function intersects(p:Piece,from:RoutePoint,to:RoutePoint){
 }
 // The lawn sees borrowed exterior walls, not a second mounted hall. Ridges
 // and the dry lido aren't registered as extra actor floors in their aliases.
-export const shell=blocks.filter(s=>['court','balcony','east-balcony','west-walk','west-side','lounge-court','roof','west-sign','west-portal','west-spine','west-shelter-back','west-shelter-roof','west-end-wall','east-retaining','east-service','lounge-canopy','lounge-kiosk','tank-base'].includes(s.tag)||s.tag.startsWith('front-court')||s.tag==='wall'||s.tag==='header'||s.tag==='jamb'||s.tag==='lintel');
 const proxyWalls:Piece[]=shell.map(b=>({road:'street',id:b.tag,ink:b.ink,l:A.x+b.x-b.w/2,r:A.x+b.x+b.w/2,b:A.z+b.z-b.d/2,f:A.z+b.z+b.d/2,y:b.y+b.h/2,thick:b.h,sx:0,sz:0}));
 const finishSolids:Piece[]=[];
 function lidoObstacle(x:number,y:number,z:number,w:number,h:number,d:number){finishSolids.push({road:'viaduct',id:'lido-furniture',ink:'',l:P.x+x-w/2,r:P.x+x+w/2,b:P.z+z-d/2,f:P.z+z+d/2,y:y+h/2,thick:h,sx:0,sz:0});}

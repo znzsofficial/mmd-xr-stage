@@ -1,5 +1,6 @@
 import type { MeshStandardMaterial } from 'three';
-import { CLASS_SUN, ROOM } from './ClassroomLayout';
+import { CLERESTORY, ROOM } from './ClassroomLayout';
+import { SHORE_SUN } from './shoreDaylight';
 
 // Approximate light bounced from the window wall, without putting another
 // scene light on the imported character. For the shadowless Quest profile the
@@ -7,7 +8,8 @@ import { CLASS_SUN, ROOM } from './ClassroomLayout';
 // One interpolant, no shadow sampler and no runtime uniforms/updates.
 type Shader = Parameters<MeshStandardMaterial['onBeforeCompile']>[0];
 function windowLight(shader: Shader, project: boolean) {
-  const [x,y,z] = CLASS_SUN;
+  const [x,y,z] = SHORE_SUN;
+  const high=CLERESTORY;
   shader.vertexShader = 'varying vec3 vClassPosition;\n' + shader.vertexShader.replace('#include <project_vertex>', `
     vec4 classLocal = vec4(transformed, 1.);
     #ifdef USE_INSTANCING
@@ -21,18 +23,17 @@ function windowLight(shader: Shader, project: boolean) {
     float skyView = 1.-smoothstep(-${ROOM.w / 2}, ${ROOM.w / 2}, roomPos.x);
     float lift = smoothstep(.0, 1.6, roomPos.y);
     float facingWindow = max(0., dot(normal, mat3(viewMatrix) * vec3(-.94,.34,0.)));
-    float indirect = .12 + (.20+.23*lift+.17*facingWindow)*skyView;
+    float indirect = .075 + (.16+.16*lift+.13*facingWindow)*skyView;
     reflectedLight.indirectDiffuse += diffuseColor.rgb * mix(vec3(1.00,.91,.75),vec3(.88,.96,1.),skyView)*indirect;
     ${project ? `
-      float ray = (roomPos.x+${ROOM.w / 2})/${(-x).toFixed(3)};
-      float wy = roomPos.y+ray*${y.toFixed(3)}, wz = roomPos.z+ray*${z.toFixed(3)};
-      float bay = mod(wz+${ROOM.d / 2}, ${ROOM.d/ROOM.bays});
-      float panes = smoothstep(.11,.21,bay)*(1.-smoothstep(${ROOM.d/ROOM.bays-.13},${ROOM.d/ROOM.bays-.04},bay));
-      panes *= smoothstep(.016,.064,abs(bay-${ROOM.d/ROOM.bays/2}));
-      float sunlit = panes * smoothstep(${ROOM.sill+.04},${ROOM.sill+.12},wy)*(1.-smoothstep(${ROOM.lintel-.06},${ROOM.lintel+.02},wy));
-      sunlit *= smoothstep(.018,.068,abs(wy-${ROOM.transom}))*step(0.,ray)*(1.-smoothstep(${ROOM.d/2-.10},${ROOM.d/2},abs(wz)));
-      float incidence = max(0.,dot(normal,mat3(viewMatrix)*normalize(vec3(${CLASS_SUN.map(n => n.toFixed(3)).join(',')}))));
-      reflectedLight.directDiffuse += diffuseColor.rgb * vec3(1.,.84,.57)*(sunlit*incidence*1.5);
+      float ray = (roomPos.z-(${high.z.toFixed(3)}))/${(-z).toFixed(3)};
+      vec2 hit = roomPos.xy + ray*vec2(${x.toFixed(3)},${y.toFixed(3)});
+      float offset = hit.x-(${high.left}), bay = mod(offset,${high.pitch.toFixed(3)});
+      float pane = smoothstep(${high.pier/2},${high.pier/2+.055},min(bay,${high.pitch.toFixed(3)}-bay));
+      pane *= step(0.,offset)*step(offset,${(high.count*high.pitch).toFixed(3)})*step(0.,ray);
+      pane *= smoothstep(${high.sill},${high.sill+.055},hit.y)*(1.-smoothstep(${high.head-.055},${high.head},hit.y));
+      float incidence = max(0.,dot(normal,mat3(viewMatrix)*normalize(vec3(${SHORE_SUN.map(n => n.toFixed(3)).join(',')}))));
+      reflectedLight.directDiffuse += diffuseColor.rgb * vec3(1.,.86,.66)*(pane*incidence*1.3);
     ` : ''}`);
 }
 

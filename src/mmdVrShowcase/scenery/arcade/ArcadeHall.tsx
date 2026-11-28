@@ -78,7 +78,7 @@ for(const p of [lowerPad,upperPad]){
   for(const s of [-1,1]){add(p.x+s*.48,p.y+.009,p.z,.055,.012,.85,'#e4bf74');add(p.x,p.y+.009,p.z+s*.42,.94,.012,.055,'#e4bf74');}
 }
 
-function Batch({pieces,solid}:{pieces:readonly Piece[];solid:boolean}){
+function Batch({pieces,solid,casts=false}:{pieces:readonly Piece[];solid:boolean;casts?:boolean}){
   const ref=useRef<InstancedMesh>(null);
   const [g,m]=useMemo(()=>[new BoxGeometry(),new MeshStandardMaterial({roughness:.88})] as const,[]);
   useEffect(()=>()=>{g.dispose();m.dispose();},[g,m]);
@@ -86,7 +86,7 @@ function Batch({pieces,solid}:{pieces:readonly Piece[];solid:boolean}){
     pieces.forEach((b,i)=>{mat.makeScale(b.w,b.h,b.d);if(b.roll)mat.premultiply(rotation.makeRotationZ(b.roll));im.setMatrixAt(i,mat.setPosition(b.x,b.y,b.z));im.setColorAt(i,ink.set(b.ink));});
     im.instanceMatrix.needsUpdate=true;im.instanceColor!.needsUpdate=true;im.computeBoundingSphere();
   },[pieces]);
-  return <instancedMesh ref={ref} args={[g,m,pieces.length]} name={solid?'arcade:solids':'arcade:skins'} userData={{playerCollision:solid}} receiveShadow/>;
+  return <instancedMesh ref={ref} args={[g,m,pieces.length]} name={solid?'arcade:solids':'arcade:skins'} userData={{playerCollision:solid}} castShadow={casts} receiveShadow/>;
 }
 
 function Sign({text,pos,yaw=0,w,h,ink='#e6f0e8',bg='#38585f',floor=false}:{text:string;pos:[number,number,number];yaw?:number;w:number;h:number;ink?:string;bg?:string;floor?:boolean}){
@@ -96,9 +96,9 @@ function Sign({text,pos,yaw=0,w,h,ink='#e6f0e8',bg='#38585f',floor=false}:{text:
   return <mesh position={pos} rotation={[floor?-Math.PI/2:0,yaw,0]} userData={{playerCollision:false}}><planeGeometry args={[w,h]}/><meshBasicMaterial map={map} side={DoubleSide}/></mesh>;
 }
 
-export function ArcadeHall(){return <group pointerEvents="none" name="scenery:arcadeHall">
-  <Batch pieces={blocks} solid/><Batch pieces={trim} solid={false}/>
-  <ArcadePrints/>
+export function ArcadeHall({shadows}:{shadows:boolean}){return <group pointerEvents="none" name="scenery:arcadeHall">
+  <Batch pieces={blocks} solid casts={shadows}/><Batch pieces={trim} solid={false}/>
+  <ArcadePrints shadows={shadows}/>
   <Sign text="01    /    ARCADE" pos={[0,1.91,frontLip+.009]} w={1.58} h={.38}/>
   <Sign text="洞口试行   ↑   G / 左 X" pos={[lowerPad.x,1.07,board.z+.145]} w={1.98} h={.32} ink="#ffe5a9" bg="#575360"/>
   <Sign text="↓   G / 左 X" pos={[upperPad.x,UPPER+.021,upperPad.z]} w={.83} h={.28} floor/>

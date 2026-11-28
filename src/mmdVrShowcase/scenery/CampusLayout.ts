@@ -1,5 +1,4 @@
-import {ROOM} from './ClassroomLayout';
-import {ARBOR} from './meadowLandmarks';
+import {CLERESTORY,HIGH_PANES,ROOM,STUDENTS,WINDOWS} from './ClassroomLayout';
 import type {Part} from './SceneryBatch';
 
 type Room='classroom'|'lawn';
@@ -11,13 +10,23 @@ export const SCHOOL_GATE={out:rear+.36,in:rear-.12,half:.86};
 // Rear aisle → porch → brick path. Local classroom metres, also used by the meadow proxy.
 export const SCHOOL_PATH:readonly XZ[]=[[CAMPUS_DOOR,rear-.01],[CAMPUS_DOOR,6.64],[-5.22,7.54],[-7.20,8.29],[-8.75,9.68],[-10.98,11.51]];
 export const SCHOOL_PATH_WIDTH=2.04;
+// Mitre the actual brick courses through each bend. Both the floor print
+// and the adjacent city pavement use this exact boundary.
+function pathNormal(i:number,j:number):XZ{
+  const dx=SCHOOL_PATH[j][0]-SCHOOL_PATH[i][0],dz=SCHOOL_PATH[j][1]-SCHOOL_PATH[i][1],len=Math.hypot(dx,dz);
+  return [dz/len,-dx/len];
+}
+export const schoolBrickEdges=SCHOOL_PATH.map(([x,z],i)=>{
+  const a=pathNormal(Math.max(0,i-1),Math.max(1,i)),b=pathNormal(Math.min(i,SCHOOL_PATH.length-2),Math.min(i+1,SCHOOL_PATH.length-1));
+  const mx=a[0]+b[0],mz=a[1]+b[1],scale=SCHOOL_PATH_WIDTH*.5/(mx*a[0]+mz*a[1]);
+  return [[x+mx*scale,z+mz*scale],[x-mx*scale,z-mz*scale]] as const;
+});
 function pathDistance(x:number,z:number){let d=Infinity;
   for(let i=1;i<SCHOOL_PATH.length;i++){
     const [a,b]=SCHOOL_PATH[i-1],[c,e]=SCHOOL_PATH[i],u=c-a,v=e-b,t=Math.max(0,Math.min(1,((x-a)*u+(z-b)*v)/(u*u+v*v)));
     d=Math.min(d,Math.hypot(x-a-t*u,z-b-t*v));
   }return d;
 }
-export function nearCampusDoor(x:number,z:number){return Math.abs(x-CAMPUS_DOOR)<2&&z>3.6;}
 export function classPassageFloor(x:number,z:number){return (z>=rear-.36&&z<rear+.2)?Math.abs(x-CAMPUS_DOOR)<.86:z>=rear+.2&&pathDistance(x,z)<SCHOOL_PATH_WIDTH/2;}
 export function lawnSchoolFoot(x:number,z:number){x-=CAMPUS_OFFSET.x;z-=CAMPUS_OFFSET.z;
   return Math.abs(x)<ROOM.w/2+.20&&Math.abs(z)<rear+.19&&!(Math.abs(x-CAMPUS_DOOR)<.86&&z>rear-.65);
@@ -42,24 +51,40 @@ export function campusPassageParts(room:Room):Part[]{
   box(CAMPUS_DOOR+.91,2.25,6.02,.34,.13,.24,iron);box(CAMPUS_DOOR+.91,2.15,6.02,.28,.09,.18,'#fff0c5');
   return out;
 }
-export function classroomDistantArbor():Part[]{
-  const parts:Part[]=[],x=ARBOR.x-CAMPUS_OFFSET.x,z=ARBOR.z-CAMPUS_OFFSET.z;
-  for(const k of [-1,1])for(const s of [-1,1])parts.push({p:[x+k*1.53,1.32,z+s*1.16],s:[.17,2.64,.17],color:'#a08861'});
-  for(let i=0;i<9;i++){const zz=z+(i-4)*.37;parts.push({p:[x,2.82,zz],s:[3.74,.14,.095],color:'#b89c76'});
-    for(const k of [-1,1])parts.push({p:[x+k*(1.18+.2*Math.sin(i)),2.61,zz],s:[.34,.32+.17*Math.cos(i),.29],color:i%3?'#af93b4':'#90a378'});}return parts;
-}
-export function schoolExterior():Part[]{const parts:Part[]=[];
-  const box=(x:number,y:number,z:number,w:number,h:number,d:number,color:string)=>parts.push({p:[x+CAMPUS_OFFSET.x,y,z+CAMPUS_OFFSET.z],s:[w,h,d],color});
+export function schoolExterior(room:Room='lawn'):Part[]{const parts:Part[]=[];
+  const origin=room==='lawn'?CAMPUS_OFFSET:{x:0,z:0};
+  const box=(x:number,y:number,z:number,w:number,h:number,d:number,color:string)=>parts.push({p:[x+origin.x,y,z+origin.z],s:[w,h,d],color});
   const X=ROOM.w/2,H=ROOM.h;
   for(const [a,b] of [[-X,CAMPUS_DOOR-.93],[CAMPUS_DOOR+.93,X]]){
     box((a+b)/2,H/2,rear+.08,b-a,H,.16,'#d9c6a7');box((a+b)/2,.48,rear+.12,b-a,.96,.16,'#a4b5a1');
   }
   box(CAMPUS_DOOR,(H+2.4)/2,rear+.08,1.86,H-2.4,.16,'#dfcfb1');
-  box(0,H/2,-rear,ROOM.w,H,.18,'#d5c3a9');box(0,-.056,0,ROOM.w,.14,ROOM.d,'#bc9b74');
+  const {sill,head,z}=CLERESTORY;
+  box(0,sill/2,z,ROOM.w,sill,.16,'#d5c3a9');box(0,(H+head)/2,z,ROOM.w,H-head,.16,'#d5c3a9');
+  let last=-X;
+  for(const pane of HIGH_PANES){
+    box((last+pane.left)/2,(sill+head)/2,z,pane.left-last,head-sill,.16,'#d5c3a9');last=pane.right;
+  }
+  box((last+X)/2,(sill+head)/2,z,X-last,head-sill,.16,'#d5c3a9');
+  box(0,-.056,0,ROOM.w,.14,ROOM.d,'#bc9b74');
   box(0,H+.10,0,ROOM.w+.42,.20,ROOM.d+.40,'#758d80');
-  for(const s of [-1,1]){box(s*X,H/2,0,.14,H,ROOM.d,'#d9c6a7');box(s*(X+.08),2.03,0,.048,1.93,ROOM.d-.25,'#91adac');
-    for(let i=0;i<10;i++)box(s*(X+.12),2.04,-5.02+i*1.12,.095,2.02,i%2?.057:.13,'#dacbb1');}
+  // The window-side wall has real reveals; sunlight and the desks are
+  // visible through the row instead of being printed on a solid elevation.
+  box(-X,ROOM.sill/2,0,.18,ROOM.sill,ROOM.d,'#d9c6a7');
+  box(-X,(ROOM.lintel+H)/2,0,.18,H-ROOM.lintel,ROOM.d,'#d9c6a7');
+  box(-X-.035,ROOM.transom,0,.13,.065,ROOM.d,'#586e62');
+  for(const bay of WINDOWS){
+    box(-X,(ROOM.sill+ROOM.lintel)/2,bay.z-bay.width/2+.075,.20,ROOM.lintel-ROOM.sill,.15,'#a0aa95');
+    box(-X-.03,(ROOM.sill+ROOM.lintel)/2,bay.z,.073,ROOM.lintel-ROOM.sill,.055,'#526e63');
+    box(-X-.072,ROOM.sill-.036,bay.z,.34,.072,bay.width-.026,'#d9d1bb');
+  }
+  box(X,H/2,0,.14,H,ROOM.d,'#d9c6a7');box(X+.08,2.03,0,.048,1.93,ROOM.d-.25,'#91adac');
+  for(let i=0;i<10;i++)box(X+.12,2.04,-5.02+i*1.12,.095,2.02,i%2?.057:.13,'#dacbb1');
   box(-.7,1.97,-rear+.13,5.94,1.49,.09,'#465a51');
-  for(const z of [-3,-1.1,.8,2.7])for(const x of [-3.2,-2.25,2.05,3.0])box(x,.71,z,.86,.065,.56,'#bc9570');
+  for(const {desk,chair} of STUDENTS){
+    box(desk.x,.71,desk.z,desk.w,.065,desk.d,'#bc9570');
+    for(const side of [-1,1])box(desk.x+side*.33,.34,desk.z,.045,.68,.40,'#737d74');
+    box(chair.x,.44,chair.z,.42,.06,.44,'#c5a57d');box(chair.x,.67,chair.z+.18,.43,.23,.049,'#bf9c70');
+  }
   return parts;
 }

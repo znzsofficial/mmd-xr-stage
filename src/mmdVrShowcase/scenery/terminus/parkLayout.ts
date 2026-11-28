@@ -3,10 +3,8 @@ import type {PickDeck,RoutePoint} from '../routes/types';
 // The station's inland end is open from x=-4 to x=3. The park forecourt
 // shares the actual platform level: no portal, crossing trigger or new room.
 export const parkDeck:PickDeck={x:9.7,z:22.5,w:27,d:29,y:0};
-// A paved cut-through between the florist and coffee house ends at the
-// raised curb of the service lane. The street beyond belongs to traffic.
+// The original park meets the city crosswalk between the florist and coffee house.
 export const laneMouth:PickDeck={x:21.4,z:39.68,w:4.25,d:5.36,y:0};
-const laneRail={x:laneMouth.x,z:42.27,w:laneMouth.w,d:.15,bottom:0,top:.73};
 export const fountainCourt={x:4,z:23,radius:2.8};
 export const parkTrees=[
   {x:-2.25,z:15.5,variant:0,scale:.84}, {x:9.2,z:12.2,variant:2,scale:.89},
@@ -51,7 +49,6 @@ export type ParkBlock=Rect & {bottom:number;top:number};
 export const parkWalls:ParkBlock[]=[
   {x:-3.72,z:22.52,w:.16,d:28.96,bottom:0,top:.70},
   {x:13.1,z:8.12,w:20.2,d:.2,bottom:0,top:.78},
-  laneRail,
 ];
 const seatBlocks:ParkBlock[]=parkSeats.map(s=>({...s,w:seatWidth,d:seatDepth,bottom:.02,top:.89}));
 const bedBlocks:ParkBlock[]=parkBeds.map(b=>({...b,bottom:0,top:.45}));
@@ -90,7 +87,7 @@ function clipsRange(p:number,d:number,min:number,max:number,interval:number[]){
   interval[0]=Math.max(interval[0],Math.min(a,b));interval[1]=Math.min(interval[1],Math.max(a,b));
   return interval[0]<=interval[1];
 }
-function crossesBlock(a:RoutePoint,b:RoutePoint,box:ParkBlock){
+export function crossesBlock(a:RoutePoint,b:RoutePoint,box:ParkBlock){
   const from=localXZ(box,a.x,a.z),to=localXZ(box,b.x,b.z),t=[0,1];
   return clipsRange(from.x,to.x-from.x,-box.w/2,box.w/2,t)&&clipsRange(from.z,to.z-from.z,-box.d/2,box.d/2,t)&&clipsRange(a.y,b.y-a.y,box.bottom,box.top,t);
 }

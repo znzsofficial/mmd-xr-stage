@@ -26,7 +26,7 @@
 
 - [板材源](../../src/mmdVrShowcase/scenery/ClassroomBirch.py)：`python src/mmdVrShowcase/scenery/ClassroomBirch.py`（NumPy、Pillow）。512 × 256 对应 0.96 × 0.48 米，约 1.88 毫米/纹素。无损数据图 R 是旋切桦木底色系数，GB 是单独生成的木孔斜率；木纹色深不等于凹陷。桌面、椅座和靠背沿各自长轴用同一图，按实例错开裁片，保留 mip 和 4× 各向异性。封边只在露出的板侧出现，层线在远处按屏幕导数淡出。
 - [漆膜与窗面反射](../../src/mmdVrShowcase/scenery/ClassroomFinish.ts)：手肘、坐面和握孔通过板上坐标局部改变粗糙度（.52 → .34）；封边 .43，钢架粉末漆 .34，脚垫 .78。反射按视线、法线和粗糙度与原窗洞求交，材质没有新增环境探针。弯管与脚垫并在既有实例批次内。低档不需要实时投影也能读出接触关系。
-- [地板烘焙源](../../src/mmdVrShowcase/scenery/ClassroomPrints.ts)：运行 Vite 后打开 [`scripts/bake-classroom-prints.html`](../../scripts/bake-classroom-prints.html)，保存 `class-floor-day.webp` 和 `class-floor-shadow.webp`。两种模式沿用 1024 × 1024 地板 RGB，alpha 储存按 16 套桌椅的 128 只脚及椅子实际转角烘焙的近场遮蔽。只衰减间接漫反射，不再画一次日光投影。
+- [地板烘焙源](../../src/mmdVrShowcase/scenery/ClassroomPrints.ts)：用 [`scripts/bake-classroom-prints.html`](../../scripts/bake-classroom-prints.html) 保存 `class-floor-shadow.webp`，再运行 `python scripts/bake-classroom-day.py` 投影海站日光下的黑板高窗与桌椅，生成关实时阴影时的地板。两档共用 1024 × 1024 拼木和桌椅脚下的 alpha 遮蔽。长侧窗背阳，为木面提供天空反射。
 
 | 产品画布单帧，空场 | 旧 → 新绘制调用 | 旧 → 新三角形 |
 |---|---:|---:|

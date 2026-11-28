@@ -84,7 +84,7 @@ export async function runMixedTake({page,btn,screen,exit,place,sample,select,out
   }
   const people=cast.map(c=>c.name),props=signs.map(s=>s.name);
   const all=[...people,...props],removed=[people[1],props[1]];
-  const actorX=[-1.9,-.24,1.45],signX=[-1.05,.62,2.3];
+  const actorX=[-1.9,-.24,1.45],signX=[-1.05,.62,2.1];
   await screen();
   for(const [i,actor] of cast.entries()){
     await place(actor.name,actorX[i],-3.25);await btn('动作').click();
@@ -167,7 +167,7 @@ export async function runMixedTake({page,btn,screen,exit,place,sample,select,out
   const dancing=await eyes(null,all);
   for(const actor of dancing[0].people){const prev=six[0].people.find(p=>p.name===actor.name);assert(Math.hypot(...actor.point.map((v,i)=>v-prev.point[i]))>.055,actor.name+' failed to animate in XR');}
   await buttonB();await key('settingsMmdVrPause');const xrHold=await wait(s=>s.ready&&!s.playing);
-  await goRoom('hudClassroom','classroom',0);await goRoom('hudLawn','lawn',6);await quiet();
+  await goRoom('hudClassroom','classroom',0);await goRoom('hudAstralCourt','astralCourt',6);await quiet();
   compareLayout(held.items,(await state()).items);assert.equal((await state()).time,xrHold.time);await eyes(null,all);
   // Exit and resume the COMPLETE six-asset layout once before deleting either
   // target: both backends have to draw 3+3 on an actual restored clock.

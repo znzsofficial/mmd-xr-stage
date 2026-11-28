@@ -21,7 +21,7 @@ import {opalSurveyShots} from './planet/opalSurvey';
 import {shoreView} from './terminus/shoreLayout';
 
 type Point=readonly [number,number,number];
-type Shot={key:TranslationKey;eye:Point;aim:Point;up?:Point;fov?:number;link?:RoomLink;preloadLawn?:boolean;overview?:boolean};
+type Shot={key:TranslationKey;eye:Point;aim:Point;up?:Point;fov?:number;link?:RoomLink;overview?:boolean};
 type RoomView={entry:readonly [Point,Point];shots?:readonly Shot[]};
 // Frame the departure collars, still within their chart-selection reach.
 const departureChart={key:'opalDepartureChart',eye:[.55,8.85,4.5],aim:[.16,-.12,.55],fov:63} as const;
@@ -38,7 +38,7 @@ export const roomViews:Record<SceneryId,RoomView>={
   pool:{entry:[[2.1,1.7,2.8],[0,.85,-3.7]],shots:[LIDO_ROUTE_SHOTS.clock,LIDO_ROUTE_SHOTS.return]},
   classroom:{entry:[[.15,1.58,3.95],[0,1.05,-1.4]],shots:[
     {key:'campusWindow',eye:[.6,1.58,-.35],aim:[-13.17,1.46,6.90]},
-    {key:'campusHall',eye:[-4.02,1.61,5.83],aim:[-9.95,1.02,9.00],preloadLawn:true},
+    {key:'campusHall',eye:[-4.02,1.61,4.52],aim:[-4.58,1.35,9.40]},
     {key:'classWindowDesk',eye:[-1.30,1.14,3.35],aim:[-2.61,.61,2.65]},
     {key:'classWindowPortrait',eye:[-2.72,1.60,-1.91],aim:[.43,.98,-4.08]}]},
   lawn:{entry:[[.6,1.65,3.7],[0,1,-1.4]],shots:[
@@ -59,6 +59,12 @@ export const roomViews:Record<SceneryId,RoomView>={
 const tours=new Map<SceneryId,readonly Shot[]>();
 // Local standing views on the way; unlike a link's arrival camera these never change rooms.
 const streetViews:Partial<Record<SceneryId,readonly Shot[]>>={
+  seasideTerminus:[
+    {key:'cityClinicFront',eye:[17.8,1.65,53.86],aim:[8.6,1.46,53.8]},
+    {key:'citySchoolFront',eye:[40.54,1.65,58.8],aim:[39.97,1.54,53.6]},
+    {key:'cityPoolFront',eye:[-24.9,1.65,80.6],aim:[-24.25,1.55,71.35]},
+    {key:'cityArcadeFront',eye:[28.6,1.65,87.4],aim:[29.1,2.40,76]},
+  ],
   lawn:[{key:'campusPrintStreet',eye:[31.5,1.65,2.9],aim:[46.4,1.16,2.9]}],
   arcadeHall:[{key:'arcadePoolOverlook',eye:[-7.84,3.70,-24.15],aim:[-24,1.30,-24.15]}],
   pool:[{key:'poolArcadeWalk',eye:[6.2,1.65,-19.25],aim:[15,1.02,-19.25]}],

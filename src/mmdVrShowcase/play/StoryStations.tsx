@@ -1,6 +1,6 @@
 import { useLayoutEffect } from 'react';
 import { useMmdVrStore } from '../mmdVrStore';
-import { shelfToys, TOYS } from './propCatalog';
+import { hasToyStation, shelfToys, TOYS } from './propCatalog';
 import * as views from './propViews';
 import { useStagePlay } from './stagePlay';
 
@@ -13,6 +13,6 @@ export function StoryStations(){
   },[]);
   return <>{shelfToys.map(toy=>{
     const item=TOYS[toy], Station=views[item.view].Station;
-    return room===item.home&&Station ? <Station key={toy}/> : null;
+    return Station&&hasToyStation(toy,room) ? <Station key={toy}/> : null;
   })}</>;
 }

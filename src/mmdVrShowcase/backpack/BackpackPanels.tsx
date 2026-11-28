@@ -8,7 +8,7 @@ import {fitsWebgpuRoom} from '../xr/floorBackend';
 import { HudButton, HudLine, HudSheet } from "../hud/PorcelainControls";
 import { BackpackThumbnail, indexBackpackCovers } from "./BackpackThumbnail";
 import { useXRInputSourceState } from '@react-three/xr';
-import { sessionToys, toyLabel, TOYS, type Hand, type Toy } from '../play/propCatalog';
+import { hasToyStation, sessionToys, toyHomeLabel, toyLabel, TOYS, type Hand, type Toy } from '../play/propCatalog';
 import { useStagePlay } from '../play/stagePlay';
 import { clearCard, useLunarCard } from '../play/lunarCard';
 import { resetEncore } from '../play/encore/encoreRound';
@@ -22,6 +22,7 @@ export function SceneryPanel({ onClose, onSelected, locked }: { onClose: () => v
   return <group name="hud-scenery">
     <HudSheet size={[2.90,height]} />
     <HudLine position={[-.91,top-.19,0]} text={t("hudScenery")} width={0.86} role="title" />
+    {!rooms.includes(current)&&<HudLine position={[0,top-.19,0]} text={t(SCENERY[current].label)} width={.94} center/>}
     <HudButton position={[1.02,top-.19,0]} label={t("hudBack")} size={[0.65,0.14]} onPress={onClose} variant="quiet" />
     {rooms.map((id, i) => <HudButton key={id} position={[(i % cols - 1) * .94,top-.47-Math.floor(i/cols)*.23,0]}
       label={t(SCENERY[id].label)} active={id === current} disabled={locked || (webgpu && !fitsWebgpuRoom(layouts[id]))} size={[0.86, 0.17]} onPress={() => {
@@ -102,18 +103,18 @@ function ToyShelf({locked,onClose}:{locked:boolean;onClose:()=>void}) {
   const [page,setPage]=useState(0), pages=Math.ceil(toys.length/ROWS);
   if(help){const item=TOYS[help],{vr,end}=item.guide;return <group key="guide" name={`play:guide:${help}`}>
     <HudLine position={[0,.22,0]} text={t(toyLabel(help,room))+' · '+t('toyGuide')} width={2.03} role="title"/>
-    <HudLine position={[0,.08,0]} text={t('toyShelfHome')+t(item.homeLabel)} width={2.03} role="muted"/>
+    <HudLine position={[0,.08,0]} text={t('toyShelfHome')+t(toyHomeLabel(help,room))} width={2.03} role="muted"/>
     {(help==='remoteEgg'?['toyGuideEquip',vr,end] as const:['toyGuideEquip','toyGuideGive',vr,end] as const).map((key,i)=><HudLine key={key} position={[0,-.06-i*.128,0]} text={t(key)} width={2.03}/>)}
     <HudLine position={[0,-.59,0]} text={`B → ${t('hudBackpack')} → ${t('hudToys')} → ${t('toyStow')}`} width={2.03}/>
     <HudButton position={[-.49,-.755,0]} size={[.89,.16]} label={t('toyCloseGuide')} onPress={()=>setHelp(null)}/>
-    {item.home&&room!==item.home&&<HudButton position={[.49,-.755,0]} size={[.89,.16]} label={t(item.visit)} variant="quiet" disabled={locked||(webgpu&&!fitsWebgpuRoom(layouts[item.home]))} onPress={()=>{setHelp(null);useMmdVrStore.getState().setPrefs({scenery:item.home});}}/>}
+    {item.home&&!hasToyStation(help,room)&&<HudButton position={[.49,-.755,0]} size={[.89,.16]} label={t(item.visit)} variant="quiet" disabled={locked||(webgpu&&!fitsWebgpuRoom(layouts[item.home]))} onPress={()=>{setHelp(null);useMmdVrStore.getState().setPrefs({scenery:item.home});}}/>}
   </group>}
   return <group name="play:shelf">
     <HudLine position={[0,.24,0]} text={t(left||right?'toyShelfRule':'toyNeedController')} width={2.04} role="muted" />
-    {toys.slice(page*ROWS,(page+1)*ROWS).map((toy,i)=>{const {home,homeLabel}=TOYS[toy];
+    {toys.slice(page*ROWS,(page+1)*ROWS).map((toy,i)=>{const {home}=TOYS[toy];
       return <group name={`play:shelf:${toy}`} key={toy} position-y={.05-i*.205}>
         <HudLine position={[-.63,.041,0]} width={.84} text={t(toyLabel(toy,room))} />
-        <HudLine position={[-.63,-.044,0]} width={.84} text={t('toyShelfHome')+t(homeLabel)+(toy==='post'&&room===home?` · ${n}/3`:'')} role="muted" />
+        <HudLine position={[-.63,-.044,0]} width={.84} text={t('toyShelfHome')+t(toyHomeLabel(toy,room))+(toy==='post'&&room===home?` · ${n}/3`:'')} role="muted" />
         {(['left','right'] as const).map((hand,j)=><HudButton key={hand} position={[.02+j*.43,0,0]} size={[.40,.15]} active={held?.toy===toy&&held.hand===hand} label={t(hand==='left'?'toyLeft':'toyRight')} disabled={locked||!connected(hand)} onPress={()=>{useStagePlay.getState().equip(toy,hand);onClose();}}/>)}
         <HudButton position={[.88,0,0]} size={[.36,.145]} variant="quiet" label={t('toyGuide')} onPress={()=>setHelp(toy)}/>
       </group>;})}

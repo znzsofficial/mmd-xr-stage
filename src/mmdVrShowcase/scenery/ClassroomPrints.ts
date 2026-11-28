@@ -1,5 +1,5 @@
 import { CanvasTexture, SRGBColorSpace } from 'three';
-import { CLASS_FIXTURES, CLASS_SUN, ROOM, STUDENTS, WINDOWS, seededRandom } from './ClassroomLayout';
+import { CLASS_FIXTURES, ROOM, STUDENTS, seededRandom } from './ClassroomLayout';
 
 type Ink = CanvasRenderingContext2D;
 function paper(w: number, h: number, draw: (g: Ink) => void) {
@@ -13,7 +13,7 @@ function paper(w: number, h: number, draw: (g: Ink) => void) {
 // A whole-room light bake, rather than scores of alpha-blended decals. The
 // basketweave blocks rotate their grain as well as their joints. Mips keep the
 // thin veneer and endgrain marks quiet at grazing angles in stereo.
-export function parquet(shadows: boolean) {
+export function parquet() {
   const size = 1024, { w, d } = ROOM, rand = seededRandom(203);
   return paper(size, size, g => {
     g.fillStyle = '#997e62'; g.fillRect(0, 0, size, size);
@@ -43,27 +43,6 @@ export function parquet(shadows: boolean) {
     shade.addColorStop(0, '#c0b99e12'); shade.addColorStop(.3, '#c0b99e00'); shade.addColorStop(1, '#54463c46');
     g.fillStyle = shade; g.fillRect(0, 0, size, size);
     const px = (x: number) => size * (.5 + x / w), py = (z: number) => size * (.5 + z / d);
-    if (!shadows) {
-      // Project the actual window lights down the same vector as the stage sun.
-      const [sx, sy, sz] = CLASS_SUN;
-      const project = (y: number, z: number): [number, number] => [px(-w / 2 - y * sx / sy), py(z - y * sz / sy)];
-      const layer = document.createElement('canvas'); layer.width = size; layer.height = size;
-      const light = layer.getContext('2d')!;
-      light.fillStyle = '#fff0c5'; light.shadowBlur = 4; light.shadowColor = '#fff1d3';
-      for (const { z, width } of WINDOWS) for (let pane = 0; pane < 2; pane++) {
-        const a = z - width / 2 + pane * width / 2 + (pane === 0 ? .24 : .035), b = z - width / 2 + (pane + 1) * width / 2 - .05;
-        for (const [y0, y1] of [[ROOM.sill + .06, ROOM.transom - .036], [ROOM.transom + .035, ROOM.lintel - .04]]) {
-          light.beginPath(); light.moveTo(...project(y0, a)); light.lineTo(...project(y0, b)); light.lineTo(...project(y1, b)); light.lineTo(...project(y1, a)); light.closePath(); light.fill();
-        }
-      }
-      light.shadowBlur = 0; light.globalCompositeOperation = 'destination-out';
-      for (const { desk,chair } of STUDENTS) for(const [f,height] of [[desk,.74],[chair,.45]] as const) {
-        light.save(); light.translate(px(f.x-height*sx/sy),py(f.z-height*sz/sy)); light.rotate(-(f.yaw??0));
-        const ww=size*f.w/w,dd=size*f.d/d;
-        light.beginPath(); light.roundRect(-ww/2,-dd/2,ww,dd,3); light.fill(); light.restore();
-      }
-      g.save(); g.globalAlpha=.57; g.drawImage(layer,0,0); g.restore();
-    }
     for (const f of CLASS_FIXTURES) {
       g.save(); g.translate(px(f.x + .035), py(f.z + .025)); g.rotate(-(f.yaw ?? 0));
       g.scale(size * f.w / w * .8, size * f.d / d * .92);
@@ -71,8 +50,8 @@ export function parquet(shadows: boolean) {
       ao.addColorStop(0, '#463a3160'); ao.addColorStop(.53, '#54463839'); ao.addColorStop(1, '#725e4600');
       g.fillStyle = ao; g.fillRect(-1, -1, 2, 2); g.restore();
     }
-    // Alpha is an independent indirect-light mask. Keep the baked window
-    // projection and floor pigment in RGB: the A/B needs no alternate albedo.
+    // Alpha is an independent indirect-light mask. The low-profile print
+    // adds daylight to RGB only after this contact-only base is baked.
     const pixels=g.getImageData(0,0,size,size),data=pixels.data;
     function glide(x:number,z:number){
       const cx=px(x),cy=py(z),r=.18;

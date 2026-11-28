@@ -18,7 +18,7 @@ try{
     const q=window.entryTrial={deny:true,stereo:0},request=navigator.xr.requestSession.bind(navigator.xr);
     navigator.xr.requestSession=async(...args)=>{if(q.deny)throw new DOMException('Fixture denied XR','NotAllowedError');return q.session=await request(...args);};
     window.__THREE_DEVTOOLS__=new EventTarget();window.__THREE_DEVTOOLS__.addEventListener('observe',({detail:r})=>{if(!r.isWebGLRenderer)return;
-      const render=r.render;r.render=function(scene,...args){const v=render.call(this,scene,...args);if(scene.isScene&&scene.getObjectByName('scenery:lawn')&&r.xr.isPresenting&&r.xr.getFrame()?.session===q.session&&r.xr.getCamera().cameras.length===2){
+      const render=r.render;r.render=function(scene,...args){const v=render.call(this,scene,...args);if(scene.isScene&&scene.getObjectByName('scenery:seaside-terminus')&&r.xr.isPresenting&&r.xr.getFrame()?.session===q.session&&r.xr.getCamera().cameras.length===2){
         q.stereo++;q.actorCount=scene.children.filter(o=>o.userData.mmdModelId).length;}return v;};});
   }
   await page.addInitScript({content:await readFile(iwer,'utf8')+'\n('+install.toString()+')()'});
@@ -31,10 +31,10 @@ try{
   const item=name=>page.locator('.screen-item').filter({hasText:name});
   const place=async name=>{await openBag();await item(name).click();await button('放在中央').click();await page.locator('.screen-actor-sheet h2',{hasText:name.split('.')[0]}).waitFor();};
   async function expectRoom(placed){await openBag();for(const n of files){await item(n).locator('strong',{hasText:placed===n?'已上场':'放置'}).waitFor();}}
-  await screen();await place(files[0]);await room('lawn');await place(files[1]);await back();
+  await screen();await place(files[0]);await room('seasideTerminus');await place(files[1]);await back();
   await page.locator('.stage-first-room select').selectOption('classroom');await button('进入空舞台').click();
   await page.waitForFunction(()=>document.body.textContent.includes('Fixture denied XR'));
-  await screen();await expectRoom(files[0]);await room('lawn');await expectRoom(files[1]);await back();
+  await screen();await expectRoom(files[0]);await room('seasideTerminus');await expectRoom(files[1]);await back();
   await page.evaluate(()=>{entryTrial.deny=false;});await button('进入空舞台').click();
   await page.waitForFunction(()=>entryTrial.stereo>=3);assert.equal(await page.evaluate(()=>entryTrial.actorCount),0);
   await page.evaluate(()=>entryTrial.session.end());await page.locator('.xr-stage-overlay').waitFor({state:'detached'});

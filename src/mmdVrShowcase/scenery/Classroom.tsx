@@ -6,7 +6,6 @@ import { classroomProps } from './ClassroomProps';
 import {DaySurface} from './daylightMaterials';
 import { cameraInstancePrefix } from './cameraInstancePrefix';
 import {SchoolBrickWalk} from './SchoolBrickWalk';
-import {BorrowedMeadow} from './BorrowedMeadow';
 import { useBakedSurface } from './useBakedSurface';
 import floorDay from './class-floor-day.webp';
 import floorShadow from './class-floor-shadow.webp';
@@ -47,8 +46,7 @@ export function Classroom({ shadows }: { shadows: boolean }) {
     // straddles the otherwise empty aisle. Hardware stays in authored order.
     const setup = (ends:number[]) => (mesh:InstancedMesh) => cameraInstancePrefix(mesh,ends);
     const n=p.deskFrames.length, pairs=Array.from({length:Math.ceil(n/2)},(_,i)=>Math.min(2*i+2,n));
-    return {frames:setup(pairs),
-      hardware:setup(p.hardwareEnds), crowns:setup(p.crownEnds)};
+    return {frames:setup(pairs),hardware:setup(p.hardwareEnds)};
   }, [p]);
   const geometry = useMemo(() => ({ slab: woodSlab(), desk: deskFrame(), chair: chairFrame(),
     back: chairBack(), cloth: classroomCurtains(), foliage: canopyCluster(), paper: printedMatter() }), []);
@@ -58,14 +56,14 @@ export function Classroom({ shadows }: { shadows: boolean }) {
   const daylight = shadows ? classroomBounce : classroomSunlight;
   useEffect(() => () => { for (const g of Object.values(geometry)) g.dispose(); }, [geometry]);
   return <group name="scenery:classroom">
-    <BorrowedMeadow room="classroom"/><SchoolBrickWalk shadows={shadows}/>
+    <SchoolBrickWalk shadows={shadows}/>
     <mesh name="basketweave-parquet" rotation={[-Math.PI/2,0,0]} receiveShadow={shadows} raycast={()=>null}>
       <planeGeometry args={[ROOM.w, ROOM.d]} /><DaySurface key={floor?'wood':'plain'} map={floor} color={floor?'white':'#bd9a77'} roughness={.88} onBeforeCompile={parquetContact} />
     </mesh>
     <Batch name="room-shell-and-sashes" parts={p.shell} casts={shadows} shade={daylight} />
     <Batch name="joinery-and-campus" parts={p.trim} shade={daylight} />
     <Batch name="chalk-window-hardware" parts={p.round} round shade={daylight} onInstancesReady={prepare.hardware} />
-    <Batch name="quadrangle-foliage" parts={p.leaves} geometry={geometry.foliage} shade={classroomBounce} onInstancesReady={prepare.crowns} />
+    <Batch name="classroom-potted-plants" parts={p.leaves} geometry={geometry.foliage} shade={classroomBounce} />
     <Batch name="ceiling-practicals" parts={p.luminous} lit />
     <Batch name="radiused-wood-and-stationery" parts={p.slabs} geometry={geometry.slab} casts={shadows} shade={daylight} />
     <Batch name="birch-veneers" parts={p.veneers} geometry={geometry.slab} casts={shadows} shade={shadows?boardShadow:boardDay} map={grain??undefined} />

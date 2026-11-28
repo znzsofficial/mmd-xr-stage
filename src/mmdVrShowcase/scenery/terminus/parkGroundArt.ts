@@ -97,10 +97,8 @@ export function parkPavement(){
     }
   }
   slab(laneMouth.x,laneMouth.z,laneMouth.w,laneMouth.d,0,'#dbd9cc');
-  // Sloping street gutters and a muted kerb, glimpsed between the florist and
-  // the coffee house. The crossing stripes recede across the lane to the depot.
-  slab(21.4,44.1,6.0,3.6,-.006,'#999e98');
-  for(let j=0;j<5;j++)slab(21.17,42.79+j*.61,1.54,.24,.001,'#d4d1bf');
+  // The stripes are paint on the new district's flush crossing, not another slab.
+  for(let j=0;j<5;j++)slab(21.4,42.79+j*.61,2.28,.24,.004,'#e7e3cf');
   // Matte falloff against a recess. Same stone and world UVs as the adjacent
   // sidewalk; the softened edge is contact shade rather than a black strip.
   for(const s of parkShops){
@@ -175,7 +173,8 @@ export function parkPlanting(){
 // along the park's outer retaining wall into the cutting under the street.
 export function inlandEmbankment(){
   const land=new PaintedParts();
-  land.add(box(26.1,-.86,37.5,59.8,1.69,59),'#b4b6a6');
+  const cityEdge=laneMouth.z+laneMouth.d/2,near=parkDeck.z-parkDeck.d/2;
+  land.add(box(26.1,-.86,(near+cityEdge)/2,59.8,1.69,cityEdge-near),'#b4b6a6');
   land.add(box(9.7,-.87,8.02,27,.84,.17),'#9a9e8e');
   land.add(box(-6,-.72,29,3.96,.55,22),'#747970');
   for(let z=18.38;z<40;z+=.62)land.add(box(-6,-.405,z,2.48,.14,.21),'#6a5e4f');
@@ -202,7 +201,7 @@ export function inlandEmbankment(){
   // The mouth debouches onto a side street with a shallow drain and pavement
   // on both sides. Far-side ground deliberately meets the delivery buildings.
   land.add(box(18.25,-.038,44.50,36, .055,4.18),'#808984');
-  land.add(box(20.45,.065,46.98,33.1,.16,.94),'#bdbba7');
+  // The new pavement continues level through the crossing and over the old curb.
   land.add(box(8.50,.055,42.44,21.15,.13,.28),'#b5b8a5');
   land.add(box(30.0,-.031,35.5,4.60,.051,16),'#868e88');
   return land.finish();

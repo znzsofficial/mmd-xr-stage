@@ -5,10 +5,9 @@ import {Quaternion,Vector3,type Group,type Object3D} from 'three';
 import {useBackpack} from '../backpack/store';
 import {useMmdVrStore} from '../mmdVrStore';
 import {WALK_SPEED} from '../settings/mmdVrQuality';
-import {nearCampusDoor} from '../scenery/CampusLayout';
 import {RoomGate} from '../scenery/connections';
 import type {SceneryId} from '../scenery/catalog';
-import {walkBetweenZones,hintLawnPrints} from '../scenery/campusTransit';
+import {walkBetweenZones} from '../scenery/campusTransit';
 import type {MovementMode} from '../settings/preferences';
 import {createGroundMotor,groundedBody} from './groundMotor';
 import {roomEntry,roomGround} from './roomGround';
@@ -25,8 +24,8 @@ export function usePlayerMovement(originRef:RefObject<Group|null>,dragging:boole
   const [s]=useState(()=>({body:groundedBody(0,0,0),safe:{x:0,y:0,z:0},mode:null as MovementMode|null,
     room:null as SceneryId|null,epoch:-1,xDown:false,gate:new RoomGate(),motor:createGroundMotor(),solids:createSolidColumns(),
     roots:[] as Object3D[],root:undefined as Object3D|undefined,live:null as unknown,people:true,bodies:[] as ReturnType<typeof actorBodies>,stance:stanceProbe(),lift:0,setting:NaN,
-    direction:new Vector3(),q:new Quaternion(),left:newStick(),right:newStick(),headroom:{floor:0,ceiling:Infinity,blocked:false},snapReady:true,aDown:false,release:null as null|(()=>void)}));
-  useEffect(()=>()=>{s.release?.();s.solids.invalidate();s.roots=[];},[s]);
+    direction:new Vector3(),q:new Quaternion(),left:newStick(),right:newStick(),headroom:{floor:0,ceiling:Infinity,blocked:false},snapReady:true,aDown:false}));
+  useEffect(()=>()=>{s.solids.invalidate();s.roots=[];},[s]);
   useLayoutEffect(()=>observeStance(s.stance),[s]);
   useFrame(({gl,scene},elapsed,frame)=>{
     const origin=originRef.current,space=gl.xr.getReferenceSpace();if(!origin||!frame||!space)return;
@@ -54,7 +53,7 @@ export function usePlayerMovement(originRef:RefObject<Group|null>,dragging:boole
     const reset=changedRoom||s.epoch!==viewEpoch,returning=s.mode==='free'&&mode==='normal';
     if(reset||(mode==='free'&&s.mode!=='free')){s.root=undefined;s.live=null;s.roots=[];s.bodies=[];s.solids.invalidate();}
     if(reset){
-      s.room=room;s.epoch=viewEpoch;s.gate.reset();s.release?.();s.release=null;
+      s.room=room;s.epoch=viewEpoch;s.gate.reset();
       x=entry.x;z=entry.z;yaw=0;origin.position.y=roomGround(room,x,z);
       Object.assign(s.body,groundedBody(x,origin.position.y,z));Object.assign(s.safe,{x,y:s.body.y,z});jump=false;
     }else if(returning){
@@ -117,7 +116,6 @@ export function usePlayerMovement(originRef:RefObject<Group|null>,dragging:boole
         }
         const pace=room==='seasideTerminus'?shoreWalkingPace(scene,s.body.y):1;
         s.motor.advance(s.body,sample,dx*pace,dz*pace,dt,h,jump);x=s.body.x;z=s.body.z;
-        if(room==='classroom'&&!s.release&&nearCampusDoor(x,z))s.release=hintLawnPrints();
         // Keep sampling the seam across a small step down (or a jump through
         // the open doorway). Brief loss of ground contact must not erase it.
         const link=dragging?null:s.gate.next(room,x,z,s.body.y);
@@ -125,7 +123,7 @@ export function usePlayerMovement(originRef:RefObject<Group|null>,dragging:boole
         if(link){
           if(walkBetweenZones(link)){
             x+=link.offset[0];z+=link.offset[1];s.room=link.to;s.body.x=x;s.body.z=z;
-            Object.assign(s.safe,{x,y:s.body.y,z});s.gate.reset();s.release?.();s.release=null;
+            Object.assign(s.safe,{x,y:s.body.y,z});s.gate.reset();
           }else if(dx||dz){
             // During restoration or placement, stop the stick on this side;
             // do not silently miss the one crossing event and enter the proxy.

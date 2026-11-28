@@ -4,8 +4,7 @@ import { AstralCourt } from './AstralCourt';
 import { DawnChapel } from './DawnChapel';
 import { Classroom } from './Classroom';
 import { Meadow } from './Meadow';
-import { PoolTerrace, POOL_SUN } from './PoolTerrace';
-import {CLASS_SUN} from './ClassroomLayout';
+import { PoolTerrace } from './PoolTerrace';
 import {CHAPEL_SUN} from './ChapelLayout';
 import {MEADOW_SUN} from './meadowLandmarks';
 import { ClinicWard } from './clinic/ClinicWard';
@@ -17,7 +16,7 @@ import {VelvetStudio} from './velvet/VelvetStudio';
 import {MedievalChamber} from './chamber/MedievalChamber';
 import {ArcadeHall} from './arcade/ArcadeHall';
 import {SeasideTerminus} from './terminus/SeasideTerminus';
-import {SHORE_SUN} from './terminus/shoreLayout';
+import {SHORE_SUN,shoreDaylight} from './shoreDaylight';
 import type {SceneryId} from './catalog';
 import type {RoomLightingOverrides} from '../stage/lighting';
 
@@ -29,20 +28,20 @@ const day={sky:'day',hemi:.32,hemiSky:'#d4e5ee',hemiGround:'#a79d8d',fog:'#c5dfe
 const [shoreX,shoreY,shoreZ]=SHORE_SUN;
 export const roomSets:Record<SceneryId,RoomSetDefinition>={
   // Move the directional shadow camera up its own ray so the outer quay is in front of it.
-  seasideTerminus:{view:SeasideTerminus,sky:'harbour',sun:[shoreX*4,shoreY*4,shoreZ*4],
-    stageLight:{sun:1.58,sunColor:'#ffedce',ambientColor:'#e5efff'},
-    hemiSky:'#c8e4ff',hemiGround:'#ccd4ca',hemi:.86,fog:'#c2dde8',warmFog:'#e4d5c3'},
-  arcadeHall:{...day,view:ArcadeHall,sun:[-4,6,3],ambient:.33,hemi:.65},
+  seasideTerminus:{...shoreDaylight,view:SeasideTerminus,sky:'harbour',sun:[shoreX*4,shoreY*4,shoreZ*4],hemiGround:'#ccd4ca',hemi:.86},
+  arcadeHall:{...shoreDaylight,sky:'harbour',view:ArcadeHall,ambient:-.07,hemi:.34,hemiGround:'#a49ca0',
+    stageLight:{...shoreDaylight.stageLight,sun:.90}},
   glassPlanet:{view:GlassPlanet,sky:'stars',sun:[-5,3.2,3.8],hemiSky:'#e2d8fb',hemiGround:'#b4a0bf',hemi:.54,fog:'#15192f'},
   floor:{view:()=>null}, // StudioPlinth belongs to the shared StageFloor.
   liveHouse:{view:LiveHouse},
-  classroom:{...day,view:Classroom,sun:CLASS_SUN,
-    stageLight:{sun:1.34,sunColor:'#fff0d9',ambientColor:'#e3edfb'},
-    hemiSky:'#d9eaff',hemiGround:'#bba990',hemi:.64},
-  lawn:{...day,view:Meadow,sun:MEADOW_SUN,hemiGround:'#72845a'},pool:{...day,view:PoolTerrace,sun:POOL_SUN},
+  classroom:{...shoreDaylight,sky:'harbour',view:Classroom,ambient:-.04,hemi:.46,hemiGround:'#bba990',
+    stageLight:{...shoreDaylight.stageLight,sun:1.19}},
+  lawn:{...day,view:Meadow,sun:MEADOW_SUN,hemiGround:'#72845a'},
+  pool:{...shoreDaylight,sky:'harbour',view:PoolTerrace,hemi:.67,hemiGround:'#b3c9bd'},
   astralCourt:{view:AstralCourt,sky:'court',hemiSky:'#dadcf5',hemiGround:'#797883',hemi:.42,fog:'#555572'},
   chapel:{view:DawnChapel,sky:'day',sun:CHAPEL_SUN,warm:true,hemiSky:'#f5ede0',hemiGround:'#bcada1',hemi:.56,fog:'#d9d1c7'},
-  clinic:{view:ClinicWard,sky:'day',ambient:.2,hemiSky:'#f2f7f8',hemiGround:'#bbc6c1',hemi:.56,fog:'#e1e7e5'},
+  clinic:{...shoreDaylight,sky:'harbour',view:ClinicWard,hemiGround:'#bdc7c1',hemi:.51,
+    stageLight:{...shoreDaylight.stageLight,sun:1.01}},
   qinhuai:{view:Songhouse,sky:'river',sun:[-3,5.8,5.2],ambient:.11,hemiSky:'#f7d9b0',hemiGround:'#a68d7c',hemi:.48,fog:'#a59b98'},
   weddingCourt:{view:WeddingCourt,sky:'day',sun:[-3.4,6.1,5.8],ambient:.13,hemi:.48,hemiSky:'#faebd8',hemiGround:'#bdab98',fog:'#e6d9c6'},
   lanternSuite:{view:LanternSuite,sun:[3.8,3.02,-2.8],ambient:.20,hemi:.50,hemiSky:'#ffe0c8',hemiGround:'#ac8388',fog:'#513d49'},

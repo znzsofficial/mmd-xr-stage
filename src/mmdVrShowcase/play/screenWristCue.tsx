@@ -2,7 +2,7 @@ import {useLayoutEffect,useRef,type RefObject} from 'react';
 import {Vector3,type Group,type Object3D,type Scene} from 'three';
 import {useBackpack} from '../backpack/store';
 import {useMmdVrStore} from '../mmdVrStore';
-import {TOYS,type Toy} from './propCatalog';
+import {hasToyStation,TOYS,type Toy} from './propCatalog';
 import type {GripFrame,PropView} from './propView';
 import * as views from './propViews';
 import {bindScreenWristUse,canGiveTo,useStagePlay,type CharacterToy} from './stagePlay';
@@ -32,7 +32,7 @@ export function mountScreenWristCue({scene,canvas,wrist,getRoot,isRoomStale}:Hos
       !s.physicsBusy&&!s.physicsFatal&&!s.assetLoad.running&&!b.busy&&!b.draft&&b.selected===owner.assetId&&
       !s.pendingVisibilityToggles.includes(id)&&!s.pendingModelRemovals.includes(id)&&
       owner===useStagePlay.getState().character&&owner.toy===toy&&live?.runtimeId===id&&canGiveTo(live,owner.hand)&&
-      (item.portable||item.home===s.prefs.scenery);
+      (item.portable||hasToyStation(toy,s.prefs.scenery));
   }
   const unbind=bindScreenWristUse((owner,id)=>{
     if(!item.screenUse||!allowed(owner,id)||!inBag(owner.assetId)||!effect.current)return false;

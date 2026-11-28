@@ -4,7 +4,7 @@ import { ARBOR, ARBOR_POSTS, LAWN_SIZE, MEADOW_POSTS, MEADOW_SEAT, MEADOW_SUN, m
 import { LAWN_KNOLLS, LAWN_TREES } from './meadowPlanting';
 import { span } from './detailParts';
 import groundUrl from './meadow-walk.webp';
-import benchURL from './garden-joinery.webp';
+import {addGardenBench,GardenBenchGrain} from './GardenBench';
 import botanicalURL from './garden-botanicals.webp';
 import { useBakedSurface } from './useBakedSurface';
 import {campusPassageParts,lawnPaving,schoolExterior} from './CampusLayout';
@@ -71,20 +71,6 @@ function arborShade(){return paintedSurface(256,256,g=>{
 function LatticeShade(){const map=useMemo(arborShade,[]);useEffect(()=>()=>map.dispose(),[map]);return <mesh position={[ARBOR.x+2,.008,ARBOR.z+2]} rotation-x={-Math.PI/2} raycast={noPick}>
   <planeGeometry args={[11,11]}/><meshBasicMaterial map={map} transparent opacity={.27} depthWrite={false} polygonOffset polygonOffsetFactor={-1}/></mesh>;}
 
-function SeatFaces(){
-  const map=useBakedSurface(benchURL),geo=useMemo(()=>{
-    const p:number[]=[],uv:number[]=[];
-    const face=(a:V,b:V,c:V,d:V,top:number,bottom:number)=>{
-      const verts=[a,b,c,d],corners=[[.006,1-bottom/512],[.994,1-bottom/512],[.994,1-top/512],[.006,1-top/512]];
-      for(const i of [0,1,2,0,2,3]){p.push(...verts[i]);uv.push(...corners[i]);}
-    };
-    for(let i=0;i<4;i++){const z=-.23+i*.133;face([-.91,.457,z+.056],[.91,.457,z+.056],[.91,.457,z-.056],[-.91,.457,z-.056],i*70+2,(i+1)*70-2);}
-    for(const [i,y] of [.66,.82].entries())face([.923,y-.066,.225],[-.923,y-.066,.225],[-.923,y+.066,.225],[.923,y+.066,.225],282+70*i,348+70*i);
-    face([.214,.789,.202],[-.214,.789,.202],[-.214,.849,.202],[.214,.849,.202],422,510);
-    const g=new BufferGeometry();g.setAttribute('position',new Float32BufferAttribute(p,3));g.setAttribute('uv',new Float32BufferAttribute(uv,2));g.computeVertexNormals();return g;
-  },[]);useEffect(()=>()=>geo.dispose(),[geo]);return map&&<mesh name="garden-bench-grain" position={[MEADOW_SEAT.x,0,MEADOW_SEAT.z]} rotation-y={MEADOW_SEAT.yaw} geometry={geo} raycast={noPick}><meshStandardMaterial map={map} roughness={.81} polygonOffset polygonOffsetFactor={-1}/></mesh>;
-}
-
 // Fold each spray in world space: the two eyes see the same branches. Crop the
 // texture to the printed silhouette to avoid large empty quads around flowers.
 function botanicalSprays(crowns:Part[]) {
@@ -129,21 +115,7 @@ function grove() {
     }
   }
   for(const [i,f] of MEADOW_POSTS.entries()){box([f.x,.51,f.z],[.14,1.02,.14],'#aa976f');box([f.x,1.03,f.z],[.16,.05,.16],'#cfc29b');const b=MEADOW_POSTS[i+1];if(!b)continue;for(const y of [.38,.76])box([(f.x+b.x)/2,y,(f.z+b.z)/2],[.067,.092,Math.hypot(f.x-b.x,f.z-b.z)+.06],'#c4ae85',Math.atan2(f.x-b.x,f.z-b.z));}
-  const seat=MEADOW_SEAT;const put=(dx:number,y:number,dz:number,s:V,color:string)=>box([seat.x+dx*Math.cos(seat.yaw)+dz*Math.sin(seat.yaw),y,seat.z+dz*Math.cos(seat.yaw)-dx*Math.sin(seat.yaw)],s,color,seat.yaw);
-  for(const dx of [-.67,.67])for(const dz of [-.19,.19]){put(dx,.21,dz,[.075,.42,.075],'#555d50');put(dx,.035,dz,[.13,.07,.118],'#424e45');}
-  for(let i=0;i<4;i++){put(0,.43,-.23+i*.133,[1.82,.052,.113],['#bd9a72','#b28f67','#c4a078','#b59269'][i]);
-    for(const xx of [-.67,.67])put(xx,.457,-.23+i*.133,[.030,.006,.03],'#777869');}
-  for(const dx of [-.67,.67])put(dx,.65,.23,[.065,.53,.055],'#586557');
-  for(const y of [.66,.82])put(0,y,.25,[1.85,.135,.048],'#c5a277');
-  put(0,.819,.218,[.47,.09,.016],'#a38359');put(0,.819,.207,[.43,.064,.007],'#d5b987');
-  // Curved iron armrests and a stretcher on the bench already occupied by the reel.
-  const world=(x:number,y:number,z:number):V=>[seat.x+x*Math.cos(seat.yaw)+z*Math.sin(seat.yaw),y,seat.z+z*Math.cos(seat.yaw)-x*Math.sin(seat.yaw)];
-  for(const x of [-.80,.80]){
-    const rest:V[]=[[x,.43,-.18],[x,.57,-.20],[x,.643,-.145],[x,.665,-.07],[x,.665,.13],[x,.635,.19],[x,.46,.20]];
-    for(let j=1;j<rest.length;j++)branches.push(span(world(...rest[j-1]),world(...rest[j]),.044,'#617165'));
-    put(x,.673,.025,[.069,.036,.26],'#b69166');
-  }
-  put(0,.23,.03,[1.4,.055,.05],'#657367');
+  addGardenBench(MEADOW_SEAT,wood,branches);
   for(const post of ARBOR_POSTS){const {x,z}=post,side=Math.sign(x-ARBOR.x);
     box([x,.14,z],[.37,.28,.37],'#b2ac90');box([x,1.45,z],[.17,2.46,.17],'#967c54');
     box([x,.29,z],[.22,.05,.22],'#697465');box([x,2.50,z],[.20,.082,.20],'#777a65');
@@ -166,7 +138,7 @@ export function Meadow({shadows}:{shadows:boolean}) {
   useEffect(()=>()=>{grass.dispose();foliage.dispose();},[grass,foliage]);
   return <group name="scenery:lawn"><mesh rotation-x={-Math.PI/2} receiveShadow={shadows} raycast={noPick}><planeGeometry args={[LAWN_SIZE,LAWN_SIZE]} /><meshStandardMaterial key={map?'painted':'loading'} map={map} color={map?'white':'#98ae6c'} roughness={1} /></mesh>
     {!shadows&&<LatticeShade/>}
-    <SeatFaces/>
+    <GardenBenchGrain seat={MEADOW_SEAT}/>
     <LidoPlates pool={false}/>
     <GardenEntrance lawn shadows={shadows}/><SchoolBrickWalk lawn shadows={shadows}/>
     <Batch name="meadow-seat-and-split-rail" parts={p.wood} casts={shadows} /><Batch name="oak-and-birch-branches" parts={p.branches} round casts={shadows} />

@@ -145,7 +145,19 @@ async function main() {
     }
     // A high controller aims DOWN through the bag row at valid ground behind
     // it. A HUD release leaking into the new placement surface is detectable.
-    const handOrigin={x:.17,y:1.95,z:-.42};
+    const handOrigin={x:.17,y:1.95,z:-.42},trackedFoot={x:0,z:0};
+    // For a take at a distant station, place the simulated headset and grips
+    // there together. All target rays still point at the mounted world meshes.
+    async function trackAt(x,z){
+      trackedFoot.x=x;trackedFoot.z=z;handOrigin.x=x+.17;handOrigin.z=z-.42;
+      await page.evaluate(([x,z])=>{
+        labFixture.headX=x;labFixture.headZ=z;
+        for(const side of ['left','right']){
+          const pose={position:{x:x+(side==='right'?.15:-.25),y:1.1,z:z-.60},orientation:{x:0,y:0,z:0,w:1}};
+          labSession.setControllerPose(side,pose,pose);
+        }
+      },[x,z]);await frames(4);
+    }
     async function aim(point) {
       const reads=await page.evaluate(([at,from])=>{labSession.aimRay('right',at,from);return labSession.stats.targetRayReads.right;},[point,handOrigin]);
       await (await page.waitForFunction(n=>labSession.stats.targetRayReads.right>=n+2,reads)).dispose(); await frames();
@@ -167,7 +179,7 @@ async function main() {
       const row=await target({key:'hudPlace',row:name});
       if(!live)assert(await page.evaluate(n=>!!gameTargets.find({key:'hudPlace',row:n}),name===first?second:first));
       const k=(.012-handOrigin.y)/(row[1]-handOrigin.y);
-      assert(k>1 && Math.hypot(handOrigin.x+k*(row[0]-handOrigin.x),handOrigin.z+k*(row[2]-handOrigin.z))<7.9,'Aim the bag row over valid plinth ground');
+      assert(k>1 && Math.hypot(handOrigin.x+k*(row[0]-handOrigin.x)-trackedFoot.x,handOrigin.z+k*(row[2]-handOrigin.z)-trackedFoot.z)<7.9,'Aim the bag row over nearby ground');
       await aim(row);await trigger(true);assert(!await page.evaluate(n=>gameTargets.model(n).draft,name));
       let s=await read();assert(s.live===live && s.modelCount===live && s.placeCommands===before);
       await trigger(false);await until('bag row opens only its draft',(s,[n,b,l])=>gameTargets.model(n).draft && s.live===l && s.modelCount===l && s.placeCommands===b,[name,before,live]);
@@ -198,7 +210,7 @@ async function main() {
     }
     if(post||stories){
       const play=stories?require('./game-floor-stories.cjs'):require('./game-floor-post.cjs');
-      const result=await play({page,click,until,bButton,frames,target,aim,trigger,pickMounted,ids,placeFromBag,actorName:second});
+      const result=await play({page,click,until,bButton,frames,target,aim,trigger,pickMounted,ids,placeFromBag,trackAt,actorName:second});
       assert.deepEqual(errors,[]);assert.deepEqual(consoles.filter(x=>/shader|validation|wgsl|nodebuilder|pipeline/i.test(x)),[]);
       console.log(JSON.stringify(result,null,2));return;
     }

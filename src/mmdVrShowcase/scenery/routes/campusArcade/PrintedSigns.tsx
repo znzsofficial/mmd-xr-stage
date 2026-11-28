@@ -38,7 +38,7 @@ function sheets(room:SceneryId){
       const d=(s-.5)*w;v.push(x+(n==='z'?d:n==='-z'?-d:0),y+(t-.5)*h,z+(n==='x'?-d:n==='-x'?d:0));uv.push(l+.002+s*.496,b+.002+t*.246);
     }idx.push(k,k+1,k+2,k,k+2,k+3);
   }
-  if(room!=='pool'){
+  if(room==='lawn'){
     panel(0,34.1,3.06,6.648,7.05,.88,'-z');
     for(const [x,w,face,n] of [[22,6.3,5.31,3],[34.1,9,6.66,4],[44,6.4,5.31,3]])for(let k=0;k<n;k++)panel(k===1?3:k%2===0?1:2,x-w/2+(k+.5)*w/n,1.36,face-.183,w/n-.47,.81,'-z');
     panel(4,W.x+1.632,.30,1.18,1.57,.34,'-x');

@@ -5,9 +5,11 @@ import { useBackpack } from '../../backpack/store';
 import { useMmdVrStore } from '../../mmdVrStore';
 import { noPick } from '../../scenery/sceneryPaint';
 import { MEADOW_SEAT } from '../../scenery/meadowLandmarks';
+import { CITY_KITE_SEAT } from '../../scenery/city/green';
+import { hasToyStation } from '../propCatalog';
 import { useStagePlay } from '../stagePlay';
 import { CORD_SAMPLES, displayedEyelet, EYELET_NAME, flightPoint, headOf, REEL_NAME, registerEyelet, writeCord } from './kiteFlight';
-import { GUIDE, makeReel, makeStreamer, makeSwallow } from './kiteModels';
+import { GUIDE, REEL_OFFSET, makeReel, makeStreamer, makeSwallow } from './kiteModels';
 import { setKiteWind, useKiteStore } from './kiteStore';
 
 export function KiteReel() {
@@ -15,7 +17,7 @@ export function KiteReel() {
   const spool = useMemo(makeReel, []);
   useLayoutEffect(() => registerEyelet(scene, eyelet.current!), [scene]);
   useLayoutEffect(() => () => spool.dispose(), [spool]);
-  return <group name={REEL_NAME} position={[0,-.042,-.06]} pointerEvents="none">
+  return <group name={REEL_NAME} position={REEL_OFFSET} pointerEvents="none">
     <mesh geometry={spool} raycast={noPick}><meshStandardMaterial vertexColors roughness={.83}/></mesh>
     <group ref={eyelet} name={EYELET_NAME} position={GUIDE}/>
   </group>;
@@ -61,11 +63,16 @@ function Flight() {
     const { active,wind } = useKiteStore.getState(), c = play.character?.toy === 'kite' ? play.character : null;
     const eyelet = displayedEyelet(scene, !!c), live = c && useBackpack.getState().live[c.assetId];
     const actor = live && scene.children.find(o => o.userData.mmdModelId === live.runtimeId);
-    if (!active || stage.prefs.scenery !== 'lawn' || !eyelet || (!c && play.held?.toy !== 'kite') ||
+    const room=stage.prefs.scenery;
+    if (!active || !eyelet || (!c && play.held?.toy !== 'kite') ||
         (c && (!live?.visible || !live.wrists?.[c.hand] || !actor?.visible || stage.physicsBusy))) {
       group.visible = false; s.eyelet = null; s.actor = null; return;
     }
     eyelet.getWorldPosition(s.anchor);
+    const city=room==='seasideTerminus';
+    if(!hasToyStation('kite',room,s.anchor)){
+      group.visible=false;s.eyelet=null;return;
+    }
     const fresh = s.eyelet !== eyelet || s.actor !== (actor ?? null);
     const unit = actor ? Math.max(.38,Math.min(2.4,(live?.bounds?.size[1] ?? 1.65)/1.65)) : 1;
     if (actor && live) {
@@ -85,7 +92,8 @@ function Flight() {
     // controller lock the launch heading rather than swinging with head turns.
     if (fresh || actor || stage.presentation === 'screen') {
       const view = gl.xr.isPresenting ? gl.xr.getCamera() : camera;
-      if (!actor && gl.xr.isPresenting) { view.getWorldDirection(s.viewer); group.rotation.y = Math.atan2(-s.viewer.x,-s.viewer.z); }
+      if(city&&!actor&&stage.presentation==='screen')group.rotation.y=CITY_KITE_SEAT.yaw;
+      else if (!actor && gl.xr.isPresenting) { view.getWorldDirection(s.viewer); group.rotation.y = Math.atan2(-s.viewer.x,-s.viewer.z); }
       else { view.getWorldPosition(s.viewer); group.rotation.y = Math.atan2(s.viewer.x-s.face.x,s.viewer.z-s.face.z); }
     }
     group.position.copy(s.face); group.scale.setScalar(unit); group.worldToLocal(s.anchor);
@@ -109,17 +117,23 @@ function Flight() {
   </group>;
 }
 
+/** A screen cue uses the seated reel when there is no wrist. On the new
+ * green the same physical piece is visible at rest, also from a nearby door. */
+export function BenchReel({seat,height,showIdle=false}:{seat:{x:number;z:number;yaw:number};height:number;showIdle?:boolean}){
+  const screen=useMmdVrStore(s=>s.presentation==='screen');
+  const held=useStagePlay(s=>s.held?.toy==='kite');
+  const onWrist=useStagePlay(s=>s.character?.toy==='kite');
+  if(onWrist||!(held?screen:showIdle))return null;
+  return <group name="story:bench-reel" position={[seat.x,height,seat.z]} rotation-y={seat.yaw} pointerEvents="none" userData={{playerCollision:false}}><KiteReel/></group>;
+}
+
 export function KiteStation() {
+  const city=useMmdVrStore(s=>s.prefs.scenery==='seasideTerminus');
   const active = useKiteStore(s => s.active);
-  const owner = useStagePlay(s => s.character?.toy === 'kite' ? `${s.character.assetId}:${s.character.hand}` : s.held?.toy === 'kite' ? `held:${s.held.hand}` : null);
+  const owner = useStagePlay(s => s.character?.toy === 'kite' ? `actor:${s.character.assetId}:${s.character.hand}` : s.held?.toy === 'kite' ? `held:${s.held.hand}` : null);
   // Equip alone (XR shelf or first handoff from the screen) starts a flight.
   // Don't override an explicit simultaneous cue, or relaunch on resetKite().
   useLayoutEffect(() => { if (owner && !useKiteStore.getState().active) setKiteWind('right'); }, [owner]);
-  return active && owner ? <Flight key={owner}/> : null;
-}
-
-export function MeadowStation() {
-  const screen=useMmdVrStore(s=>s.presentation==='screen');
-  const held=useStagePlay(s=>s.held?.toy==='kite');
-  return <>{screen&&held&&<group name="story:bench-reel" position={[MEADOW_SEAT.x,.53,MEADOW_SEAT.z]} rotation-y={MEADOW_SEAT.yaw} pointerEvents="none"><KiteReel/></group>}<KiteStation/></>;
+  return <>{!city&&<BenchReel seat={MEADOW_SEAT} height={.53}/>}
+    {active&&owner&&<Flight key={owner}/>}</>;
 }

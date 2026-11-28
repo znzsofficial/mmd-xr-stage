@@ -6,13 +6,15 @@ import {actorBodies,sampleBodies} from '../movement/actorBodies';
 import {arcadePassage} from '../scenery/arcade/arcadeTravel';
 import {roomGround} from '../movement/roomGround';
 import {streetsIn} from '../scenery/routes/streets';
+import {cityLinks} from '../scenery/city/connections';
 import type {SceneryId} from '../scenery/catalog';
 
 // Orbit/zoom/tour remain inspection tools. On a floor, keyboard walking and
 // the labelled passage sample the same geometry and standing body as XR.
 export function screenStreetTravel(scene:Scene,room:SceneryId){
   const streets=streetsIn(room),arcade=room==='arcadeHall';
-  if(!arcade&&!streets.length)return undefined;
+  const exit=cityLinks.find(l=>l.from===room&&l.to==='seasideTerminus');
+  if(!exit&&!streets.length&&!arcade)return undefined;
   const solids=createSolidColumns(),motor=createGroundMotor(),lastEye=new Vector3(Infinity,0,0);
   let live=null as unknown,roomRoot=undefined as ReturnType<Scene['getObjectByName']>,roots:ReturnType<typeof playerSolidRoots>=[],actors:ReturnType<typeof actorBodies>=[];
   let body=groundedBody(0,0,0);const height=1.65,clearance=1.75;
@@ -24,6 +26,13 @@ export function screenStreetTravel(scene:Scene,room:SceneryId){
     if(live!==bag.live||root!==roomRoot){live=bag.live;roomRoot=root;roots=playerSolidRoots(scene);actors=actorBodies(bag.entries,bag.live);solids.invalidate();}
     if(lastEye.distanceToSquared(eye)>1e-8)body=groundedBody(eye.x,eye.y-height,eye.z);
   }
+  // Keep the same jamb, ticket pier and lintel collision when approaching
+  // from indoors. Above/below walking height the camera is still free.
+  function nearCityDoor(x:number,z:number){
+    if(!exit)return false;
+    const across=exit.axis==='x'?x:z,along=exit.axis==='x'?z:x;
+    return Math.abs(across-exit.gate)<3&&along>exit.band[0]-2&&along<exit.band[1]+2;
+  }
   return {
     walk(eye:Vector3,offset:Vector3,dt:number){
       if(!offset.lengthSq()&&(body.grounded||lastEye.distanceToSquared(eye)>1e-8))return;
@@ -31,7 +40,7 @@ export function screenStreetTravel(scene:Scene,room:SceneryId){
         // Keep the established free inspection camera in the original rooms.
         // At walking height on a street, the same motor as XR follows the
         // bridge crown and slopes and stops at the bank/rails. F/C still fly.
-        const onStreet=streets.some(s=>s.ground(room,eye.x,eye.z)!==null||s.ground(room,eye.x+offset.x,eye.z+offset.z)!==null);
+        const onStreet=nearCityDoor(eye.x,eye.z)||streets.some(s=>s.ground(room,eye.x,eye.z)!==null||s.ground(room,eye.x+offset.x,eye.z+offset.z)!==null);
         const y=roomGround(room,eye.x,eye.z);
         if(!onStreet||offset.y||Math.abs(eye.y-height-y)>.26){lastEye.set(Infinity,0,0);return;}
       }

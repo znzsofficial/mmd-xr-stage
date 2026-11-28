@@ -66,7 +66,7 @@ function grounds(room:SceneryId){
     for(const [i,x,zz,h] of [[1,5,-49.54,4.6],[2,14.66,-50.98,3.91],[3,20.9,-49.69,3.45],[4,28.7,-50.80,5.4],[5,36.9,-48.5,4.67],[6,21.5,-29.5,4.41],[7,15.8,-32.6,3.84],[8,8.8,-29.75,4.96],[9,29.6,-33.2,3.73]])tree(x,zz< -47?.30:-.40,zz,h,i);
     if(room==='arcadeHall')for(let i=0;i<9;i++)tree(-26.4+1.4*Math.sin(i*2.3),-.59,-49.2+i*3.96,4.0+1.16*Math.cos(i*.86),i);
   }
-  if(room!=='pool'){
+  if(room==='lawn'){
     // The print courtyards adjoin the old brick forecourt. Carry a low grass
     // berm beyond the end wall, with a corten seat-height edging and trees.
     for(let i=0;i<5;i++){

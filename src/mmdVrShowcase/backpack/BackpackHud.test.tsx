@@ -7,6 +7,7 @@ import { useLanguageStore } from "../../languageStore";
 import { useBackpack, type BackpackEntry } from "./store";
 import { useMmdVrStore } from "../mmdVrStore";
 import { SCENERY, mainSceneryIds, portalRooms } from "../scenery/catalog";
+import {SceneryOptions} from '../scenery/SceneryOptions';
 import {beginMmdVrAssetSession,endMmdVrAssetSession} from './sessionAssets';
 import { BackpackWorldTools, positionWorldTools } from "./BackpackWorldTools";
 import { MmdVrControlBar } from "../hud/MmdVrHud";
@@ -71,11 +72,22 @@ it.each(['webgl','webgpu'] as const)('returns from a portal room and offers only
   for (const id of [...mainSceneryIds].reverse()) {
     await click(t("hudScenery"));
     for (const other of portalRooms) expect(button(t(SCENERY[other].label))).toBeUndefined();
+    expect(button(t('hudLawn'))).toBeUndefined();
     await click(t(SCENERY[id].label));
     expect(store().prefs.scenery).toBe(id);
     if(id==='astralCourt')expect(button(t('hudBackpack'))).toBeUndefined();else expect(button(t('hudBackpack'))).toBeDefined();
     expect(button(t("hudModels"))).toBeUndefined();
   }
+});
+
+it('labels a bookmarked lawn without offering it as a destination in either picker',async()=>{
+  store().setPrefs({scenery:'lawn'});await render();await recall();await click(t('hudScenery'));
+  expect(labels()).toContain(t('hudLawn'));expect(button(t('hudLawn'))).toBeUndefined();
+  await act(async()=>root.render(<select value="lawn" onChange={()=>{}}><SceneryOptions current="lawn"/></select>));
+  const current=host.querySelector('select')!.selectedOptions[0];
+  expect([current.value,current.text,current.hidden,current.disabled]).toEqual(['lawn',t('hudLawn'),true,true]);
+  await act(async()=>root.render(<select value="seasideTerminus" onChange={()=>{}}><SceneryOptions current="seasideTerminus"/></select>));
+  expect(host.querySelector('option[value="lawn"]')).toBeNull();
 });
 
 it('shows where to take a toy, keeps it on the player for unsupported wrists and transfers only to the selected character',async()=>{
@@ -114,7 +126,7 @@ it('browses every guide in the chapel, returns to its page and travels without e
   }
   for(let i=0;!row('kite')&&i<shelfToys.length;i++)await click(t('loadPrevious'));
   expect(store().prefs.scenery).toBe('chapel');
-  await click(t('toyGuide'));await click(t('visitKite'));expect(store().prefs.scenery).toBe('lawn');expect(useStagePlay.getState().held).toBeNull();
+  await click(t('toyGuide'));await click(t('visitKite'));expect(store().prefs.scenery).toBe('seasideTerminus');expect(useStagePlay.getState().held).toBeNull();
 });
 
 it('can stow a character prop from the partially filled final shelf page',async()=>{

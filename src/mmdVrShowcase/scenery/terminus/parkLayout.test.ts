@@ -57,7 +57,7 @@ describe('continuous station park',()=>{
     expect(visiblePick(room,{x:13,y:1.4,z:19.5},13,0,25)).toBe(false);
     expect(visiblePick(room,{x:7,y:1.5,z:10},7,0,-11)).toBe(false);
     expect(visiblePick(room,{x:21.4,y:1.5,z:34.5},21.4,0,40.8)).toBe(true);
-    expect(roomGround(room,21.4,42.8)).toBe(-Infinity);
+    expect(roomGround(room,21.4,42.8)).toBe(0); // far side is now an actual city crossing
   });
 
   it('walks the normal motor past the actual station shelter, around the fountain and home through the same opening',()=>{

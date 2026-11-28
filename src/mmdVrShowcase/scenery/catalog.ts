@@ -25,7 +25,9 @@ export const portalHall = 'astralCourt';
 export const portalRooms = ['floor','liveHouse','velvetStudio','medievalChamber','lanternSuite','moonSpa'] as const satisfies readonly SceneryId[];
 export type PortalRoom = typeof portalRooms[number];
 export const isPortalRoom = (id:SceneryId):id is PortalRoom => (portalRooms as readonly SceneryId[]).includes(id);
-export const mainSceneryIds:readonly SceneryId[] = [portalHall,'glassPlanet',...sceneryIds.filter(id=>id!==portalHall&&id!=='glassPlanet'&&!isPortalRoom(id))];
+// The old campus lawn remains a distinct saved layout and bookmark. The
+// station green is reached on foot and shares the station's layout.
+export const mainSceneryIds:readonly SceneryId[] = [portalHall,'glassPlanet',...sceneryIds.filter(id=>id!==portalHall&&id!=='glassPlanet'&&id!=='lawn'&&!isPortalRoom(id))];
 export const hasSceneryPeople=(room:SceneryId)=>room==='clinic';
 
 /** A manual room jump must not strand the viewer on a distant terrace.

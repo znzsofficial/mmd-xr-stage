@@ -16,6 +16,7 @@ import { streetsIn } from './routes/streets';
 import type { PickDeck, RoutePoint as Point } from './routes/types';
 import {platform,quay,shorePlace,shoreSight} from './terminus/shoreLayout';
 import {laneMouth,parkDeck} from './terminus/parkLayout';
+import {classroomDoorSight,poolGateSight} from './city/layout';
 
 type Sight = (from: Point, x: number, y: number, z: number) => boolean;
 type PlacementRule = {
@@ -35,8 +36,8 @@ const rules: Record<SceneryId, PlacementRule> = {
   seasideTerminus:{decks:[platform,quay,parkDeck,laneMouth],visible:shoreSight,resolve:(x,z,y=0)=>y===0&&shorePlace(x,z)?0:null},
   floor: flat(plinthPlace),
   liveHouse: flat(liveHousePlace),
-  classroom: flat(classroomPlace),
-  pool: flat(poolPlace),
+  classroom: flat(classroomPlace,classroomDoorSight),
+  pool: flat(poolPlace,poolGateSight),
   lawn: flat(lawnPlace, (from,x,_y,z) => lawnClinicPlacementVisible(from,x,z)),
   astralCourt: { ...flat(courtPlace,portalPlacementSight), decks: [ground(108)] },
   chapel: flat(chapelPlace),
@@ -54,7 +55,9 @@ const rules: Record<SceneryId, PlacementRule> = {
   },
   arcadeHall: {
     decks: pickDecks, visible: arcadeSight,
-    resolve: (x,z,y=0) => arcadePlace(x,y,z) ? y : null,
+    // A heel on the old court and a toe on the new west vestibule have one
+    // continuous support surface even if the ray hit the original court.
+    resolve: (x,z,y=0) => arcadePlace(x,y,z,roomPickDecks('arcadeHall')) ? y : null,
   },
 };
 

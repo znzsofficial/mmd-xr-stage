@@ -62,7 +62,7 @@ try{
   await page.addInitScript({content:`window.layoutPixels=${layoutPixels}; (${observeScreen})();`});
   if(!screenOnly){const stereo=require('../../experiments/gpu-cloth/stereoShim.cjs'),extend=require('./xr-room-shim.cjs');
     await page.addInitScript({content:`(${stereo})(640);(${extend})();labFixture.controllerProfile='meta-quest-touch-plus';`});}
-  await page.goto(server.resolvedUrls.local[0]+(screenOnly?'?set=floor':'?set=lawn&xrBackend=webgpu'));
+  await page.goto(server.resolvedUrls.local[0]+(screenOnly?'?set=floor':'?set=astralCourt&xrBackend=webgpu'));
   await page.locator('.stage-drop-zone input[webkitdirectory]').setInputFiles(folder);await page.locator('.stage-report-stats').waitFor();
   const btn=name=>page.getByRole('button',{name,exact:true});
   const screen=()=>btn('屏幕观看').click(); const exit=()=>page.locator('.screen-back').click();

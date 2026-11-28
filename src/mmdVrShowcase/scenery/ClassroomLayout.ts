@@ -2,7 +2,13 @@
 // paired desks, the window wall and the entrance are intentional standing space.
 export interface Footprint { x: number; z: number; w: number; d: number; yaw?: number }
 export const ROOM = { w: 10.8, d: 11.2, h: 3.46, sill: .86, transom: 2.64, lintel: 3.13, bays: 5 };
-export const CLASS_SUN: [number, number, number] = [-6, 3.5, -2];
+// The long side windows face away from the coastal sun. Direct light enters
+// above the blackboard; the middle pier carries the clock below the lintel.
+export const CLERESTORY = {left:-4.7, pitch:2, count:5, pier:.54, sill:2.80, head:3.28, z:-ROOM.d/2-.08};
+export const HIGH_PANES = Array.from({length:CLERESTORY.count}, (_,i) => {
+  const start = CLERESTORY.left + i * CLERESTORY.pitch;
+  return {left:start+CLERESTORY.pier/2, right:start+CLERESTORY.pitch-CLERESTORY.pier/2};
+});
 export const WINDOWS = Array.from({ length: ROOM.bays }, (_, i) => {
   const width = ROOM.d / ROOM.bays;
   return { z: -ROOM.d / 2 + (i + .5) * width, width };

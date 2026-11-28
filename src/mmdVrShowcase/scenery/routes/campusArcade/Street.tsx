@@ -1,16 +1,14 @@
 import {useEffect,useMemo} from 'react';
-import {BufferGeometry,Float32BufferAttribute,PlaneGeometry} from 'three';
+import {BufferGeometry,Float32BufferAttribute} from 'three';
 import type {SceneryId} from '../../catalog';
 import {Batch,type Part} from '../../SceneryBatch';
-import {campusPassageParts,schoolExterior} from '../../CampusLayout';
-import {ARBOR,LAWN_SIZE} from '../../meadowLandmarks';
 import {distantLido,judgeStand,PACE_CLOCK,POOL,POOL_ORIGIN as P,poolBarrierParts} from '../../LidoLayout';
 import {noPick} from '../../sceneryPaint';
 import {useBakedSurface} from '../../useBakedSurface';
-import lawnPrint from '../../meadow-walk.webp';
 import typePrint from '../../arcade/hall-lettering.webp';
 import printRects from '../../arcade/printRects.json';
 import {gallerySign} from '../../arcade/westGallery';
+import {blocks} from '../../arcade/arcadeLayout';
 import {hasRoad,shell,siteOrigin} from './layout';
 import {ARCADE_ORIGIN as A} from './site';
 import {bodies,finishes} from './pieces';
@@ -18,10 +16,14 @@ import {profiles} from './geometry';
 import {PrintedSigns} from './PrintedSigns';
 import {CampusLandscape} from './Landscape';
 
-const exterior:Part[]=shell.map(s=>({p:[s.x,s.y,s.z],s:[s.w,s.h,s.d],color:s.ink}));
+// The floor seen through a side doorway, stair cheek and resting bench are
+// part of the view from the red passage. Leave the operating hall unmounted.
+const prospectTags=new Set(['hall-tile','upper-slab','west-step','lounge-step','west-glass','west-bench','west-seat','west-seat-foot','west-shoe']);
+const exterior:Part[]=[...shell,...blocks.filter(s=>prospectTags.has(s.tag)&&!shell.includes(s))]
+  .map(s=>({p:[s.x,s.y,s.z],s:[s.w,s.h,s.d],color:s.ink}));
 // From the approaching public street you see the exact red frame and original
 // enamel plate, but no duplicate hall actors, stage, console prints or lights.
-function BlockFront(){
+export function BlockFront({origin=A,shadows=false,name}:{origin?:{x:number;z:number};shadows?:boolean;name?:string}){
   const map=useBakedSurface(typePrint),g=useMemo(()=>{
     const geo=new BufferGeometry(),p:number[]=[],uv:number[]=[],idx:number[]=[];
     for(const [key,x,y,z,w,h,n] of [['graffiti',gallerySign.x,gallerySign.y,gallerySign.z+.095,gallerySign.w-.09,gallerySign.h-.09,'z'],['lounge',-12.48,2.09,.1,3.4,.44,'x']] as const){
@@ -30,18 +32,14 @@ function BlockFront(){
       }idx.push(k,k+1,k+2,k,k+2,k+3);
     }geo.setAttribute('position',new Float32BufferAttribute(p,3));geo.setAttribute('uv',new Float32BufferAttribute(uv,2));geo.setIndex(idx);geo.computeVertexNormals();return geo;
   },[]);useEffect(()=>()=>g.dispose(),[g]);
-  return <group position={[A.x,0,A.z]}><Batch name="campus:borrowed-arcade-envelope" parts={exterior}/>
+  return <group name={name} position={[origin.x,0,origin.z]}><Batch name="campus:borrowed-arcade-envelope" parts={exterior} casts={shadows}/>
     {map&&<mesh geometry={g} raycast={noPick} userData={{playerCollision:false}}><meshStandardMaterial map={map}/></mesh>}
     <mesh position={[-13.66,3.8,-1.31]}><sphereGeometry args={[.95,12,8]}/><meshStandardMaterial color="#a0af9e"/></mesh>
   </group>;
 }
 
-function prospects(){
-  const park=schoolExterior().concat(campusPassageParts('lawn'));
-  const {x,z}=ARBOR;for(const s of [-1,1])for(const t of [-1,1])park.push({p:[x+s*1.53,1.34,z+t*1.16],s:[.18,2.68,.18],color:'#9e8462'});
-  for(let i=-4;i<=4;i++){park.push({p:[x,2.85,z+i*.37],s:[3.74,.15,.1],color:'#b69770'});
-    for(const s of [-1,1])park.push({p:[x+s*1.19,2.62,z+i*.37],s:[.51,.46,.38],color:i%2?'#99aa7b':'#ad9bb2'});}
-  const lido=distantLido(),byClock=judgeStand().concat(poolBarrierParts()),c=PACE_CLOCK;
+export function lidoTimingView(){
+  const byClock=judgeStand().concat(poolBarrierParts()),c=PACE_CLOCK;
   const put=(x:number,y:number,z:number,w:number,h:number,d:number,color:string)=>byClock.push({p:[x,y,z],s:[w,h,d],color});
   put(c.x,.73,c.z,.087,1.46,.087,'#507879');put(c.x,1.83,c.z,.75,.75,.13,'#456769');put(c.x,1.83,c.z+.078,.65,.64,.033,'#e2dcc3');put(c.x,1.95,c.z+.100,.035,.24,.012,'#b76753');
   // Door panels and the dry finish posts align with the pool room; leave the
@@ -54,17 +52,11 @@ function prospects(){
   for(let i=-8;i<=8;i++)put(i*.59,2.64+(i/8)**2*.24,-16.8,.31,.20,.049,i%2?'#dd805d':'#639a9c');
   for(let i=0;i<8;i++)put(-7+i*2.14,1.17,-22.405,1.35,2.06,.068,'#82a49a');
   for(const u of [-8,-4,0,4,8])put(u,1.43,-20.89,.12,2.86,.12,'#ded0b9');
-  return {park,lido,byClock};
+  return byClock;
 }
-function CampusProspects(){
-  const p=useMemo(prospects,[]),map=useBakedSurface(lawnPrint),g=useMemo(()=>{
-    // The return looks down the student street onto the actual photo walk.
-    // Crop just that slice of park and retain its metre-addressed baked UVs.
-    const l=-9,r=29,b=-4.5,f=11,geo=new PlaneGeometry(r-l,f-b);geo.rotateX(-Math.PI/2);geo.translate((l+r)/2,-.014,(b+f)/2);
-    const uv=geo.attributes.uv,v=geo.attributes.position;for(let i=0;i<v.count;i++)uv.setXY(i,.5+v.getX(i)/LAWN_SIZE,.5-v.getZ(i)/LAWN_SIZE);return geo;
-  },[]);useEffect(()=>()=>g.dispose(),[g]);
-  return <><mesh geometry={g} raycast={noPick}><meshStandardMaterial map={map} color={map?'white':'#97ac78'}/></mesh>
-    <Batch name="campus:school-and-arbor" parts={p.park}/><Batch name="campus:finish-line-view" parts={p.lido}/>
+function TimingProspect(){
+  const p=useMemo(()=>({lido:distantLido(),byClock:lidoTimingView()}),[]);
+  return <><Batch name="campus:finish-line-view" parts={p.lido}/>
     <group position={[P.x,0,P.z]}><Batch name="campus:timing-station" parts={p.byClock}/></group></>;
 }
 export function CampusArcadeStreet({room}:{room:SceneryId}){
@@ -72,6 +64,6 @@ export function CampusArcadeStreet({room}:{room:SceneryId}){
   useEffect(()=>()=>{for(const g of meshes)g.dispose();},[meshes]);
   return <group name="campus:print-street-and-timing-walk" position={[-x,0,-z]} pointerEvents="none">
     {meshes.map((g,i)=><mesh key={i} name={i?'campus:street-finishes':'campus:street-solids'} geometry={g} receiveShadow raycast={noPick} userData={{playerCollision:i===0}}><meshStandardMaterial vertexColors roughness={.91}/></mesh>)}
-    <CampusLandscape room={room}/><PrintedSigns room={room}/>{room==='arcadeHall'?<CampusProspects/>:<BlockFront/>}
+    <CampusLandscape room={room}/><PrintedSigns room={room}/>{room==='arcadeHall'?<TimingProspect/>:<BlockFront/>}
   </group>;
 }

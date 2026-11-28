@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Vector3 } from 'three';
 import { canUseGrip, giveScreenToy, gripLatch, handleGripStart, useStagePlay } from './stagePlay';
-import { shelfToys, STORIES, TOYS, toyLabel } from './propCatalog';
+import { hasToyStation, shelfToys, STORIES, TOYS, toyHomeLabel, toyLabel } from './propCatalog';
+import {CITY_KITE_SEAT} from '../scenery/city/green';
 import { markAt, POST_MARKS, stamp, useLunarCard } from './lunarCard';
 import { saberLit } from './saberLight';
 import { useWandMotor } from './wandMotor';
@@ -88,6 +89,20 @@ describe('shared prop catalog and ownership',()=>{
     STORIES.lawn.cue('right');TOYS.kite.onGrip!(new Vector3(),forward);get().give('actor','left');
     expect(useKiteStore.getState()).toEqual({active:true,wind:'left'});
     get().reset();expect(useKiteStore.getState()).toEqual({active:false,wind:'right'});
+  });
+  it('flies from a reel on the city green or the original lawn, never at coincident coordinates in another set',()=>{
+    const city='seasideTerminus',axis=new Vector3(CITY_KITE_SEAT.x,.69,CITY_KITE_SEAT.z-.099),quay=new Vector3(6,1,-12);
+    expect(STORIES[city]).toBe(STORIES.lawn);
+    expect(TOYS.kite.home).toBe(city);expect(toyHomeLabel('kite','lawn')).toBe('hudLawn');
+    get().equip('kite','right');
+    expect(canUseGrip(get(),'kite','right',city)).toBe(true);
+    handleGripStart('kite',city,quay,forward);expect(useKiteStore.getState().active).toBe(false);
+    handleGripStart('kite',city,axis,forward);expect(useKiteStore.getState().wind).toBe('left');
+    handleGripStart('kite','classroom',axis,forward);expect(useKiteStore.getState().wind).toBe('left');
+    handleGripStart('kite','lawn',quay,forward);expect(useKiteStore.getState().wind).toBe('right');
+    get().give('actor','left');STORIES[city].cue('left');expect(useKiteStore.getState().wind).toBe('left');
+    expect(hasToyStation('kite',city,axis)).toBe(true);expect(hasToyStation('kite',city,quay)).toBe(false);
+    expect(hasToyStation('kite','lawn',quay)).toBe(true);expect(hasToyStation('kite','pool',axis)).toBe(false);
   });
   it('retains completed curtain and postcard when stowed, clears unowned artwork on leaving',()=>{
     get().equip('encore','left');TOYS.encore.onGrip!(new Vector3(BADGE_X,BADGE_Y,0),forward);

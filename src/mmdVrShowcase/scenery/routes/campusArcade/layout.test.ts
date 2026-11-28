@@ -23,13 +23,14 @@ it('clips to rotated finish-frame members, including yaw; their enclosing boxes 
   }expect(hits).toBeGreaterThan(2);expect(hits).toBeLessThan(30);g.dispose();mat.dispose();
 });
 
-it('closes the surveyed triangle without height changes or foot drift in either direction',()=>{
-  for(const order of [[0,2],[3,1]]){
-    const first=links[order[0]],next=links[order[1]],k=order[0]===0?1:-1;
-    expect(first.offset[0]+next.offset[0]+k*P.x).toBeCloseTo(0);expect(first.offset[1]+next.offset[1]+k*P.z).toBeCloseTo(0);
-  }
-  for(const l of links){const reverse=links.find(m=>m.to===l.from&&m.from===l.to)!;
+it('keeps the old lawn approach, both viaduct thresholds and their translated feet on the rendered floor',()=>{
+  const viaduct=links.filter(l=>l.from!=='lawn');
+  expect(viaduct).toHaveLength(2);
+  for(const l of viaduct){const reverse=viaduct.find(m=>m.to===l.from&&m.from===l.to)!;
     expect(l.gate+(l.axis==='x'?l.offset[0]:l.offset[1])).not.toBeCloseTo(reverse.gate);
+    for(const k of [0,1])expect(l.offset[k]+reverse.offset[k]).toBeCloseTo(0);
+  }
+  for(const l of links){
     for(const inset of [.20,.5,.8]){const mid=l.band[0]+inset*(l.band[1]-l.band[0]),x=l.axis==='x'?l.gate:mid,z=l.axis==='z'?l.gate:mid;
       expect(ext.ground(l.from,x,z)).toBe(0);expect(ext.ground(l.to,x+l.offset[0],z+l.offset[1])).toBe(0);}
   }

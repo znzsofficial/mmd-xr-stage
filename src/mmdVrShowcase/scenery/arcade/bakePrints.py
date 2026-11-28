@@ -3,6 +3,7 @@ fonts only. Pillow + NumPy. Coordinates in pixels, from the top left."""
 from pathlib import Path
 from math import sin,cos,pi
 import random
+import sys
 import numpy as np
 from PIL import Image,ImageDraw,ImageFont
 
@@ -61,10 +62,17 @@ def glass():
     for x in [-290,-118,163,449]:d.polygon([(x,512),(x+50,512),(x+302,0),(x+262,0)],fill=(195,224,226,23));
     d.rectangle((0,458,511,511),fill=(55,82,88,101));return a,Image.new('L',(S,S),156),79
 tiles=[floor(),ceiling(),plaster(),corrugate(),timber(),shutter(),floor(True),glass()]
-surface=Image.new('RGB',(4*S,2*S));finish=Image.new('RGB',surface.size)
+surface=Image.new('RGB',(4*S,2*S));finish=Image.new('RGB',surface.size);roughness=Image.new('L',surface.size)
 for i,(art,h,rough) in enumerate(tiles):
-    xy=(i%4*S,i//4*S);surface.paste(art,xy);v=np.array(h,dtype=float);sx=(np.roll(v,1,1)-np.roll(v,-1,1))*.009;sy=(np.roll(v,-1,0)-np.roll(v,1,0))*.009;den=np.sqrt(1+sx*sx+sy*sy);data=np.stack([127.5+127.5*sx/den,127.5+127.5*sy/den,np.clip(rough+2.6*cloud+pore,32,244)],-1);finish.paste(Image.fromarray(np.uint8(np.clip(data,0,255))),xy)
-surface.save(out/'hall-surfaces.webp',quality=89,method=6);finish.save(out/'hall-finishes.webp',lossless=True,method=6)
+    xy=(i%4*S,i//4*S);surface.paste(art,xy);v=np.array(h,dtype=float)
+    sx=(np.roll(v,1,1)-np.roll(v,-1,1))*.009;sy=(np.roll(v,-1,0)-np.roll(v,1,0))*.009;den=np.sqrt(1+sx*sx+sy*sy)
+    normal=127.5+127.5*np.stack([sx/den,sy/den,1/den],axis=-1)
+    finish.paste(Image.fromarray(np.uint8(normal)),xy)
+    roughness.paste(Image.fromarray(np.uint8(np.clip(rough+2.6*cloud+pore,32,244))),xy)
+finish.save(out/'hall-finishes.webp',lossless=True,method=6)
+roughness.resize((512,256),Image.Resampling.BOX).save(out/'hall-roughness.webp',lossless=True,method=6)
+if '--finishes-only' in sys.argv: sys.exit()
+surface.save(out/'hall-surfaces.webp',quality=89,method=6)
 
 # A printed sheet for authored graphics, never made by cropping a game image.
 sheet=Image.new('RGB',(2048,2048),'#303740');regions={}

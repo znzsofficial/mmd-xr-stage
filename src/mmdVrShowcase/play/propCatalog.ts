@@ -1,5 +1,6 @@
 import type { TranslationKey as Key } from '../../languageStore';
-import type { SceneryId } from '../scenery/catalog';
+import { SCENERY,type SceneryId } from '../scenery/catalog';
+import { onCityGreen } from '../scenery/city/green';
 import type { Vector3 } from 'three';
 import { getKiteWind, resetKite, setKiteWind } from './kite/kiteStore';
 import { aimFerry, launchFerry, resetFerry } from './ferry/voyage';
@@ -14,6 +15,10 @@ export type Hand = 'left' | 'right';
 type Story = { name:Key; help:Key; left:Key; right:Key; cue:(side:Hand)=>void };
 type Definition = {
   label:Key; homeLabel:Key; homeName?:Key;
+  /** Other existing stations, never destinations for the guide's Visit button. */
+  alsoAt?:readonly SceneryId[];
+  /** The primary station may occupy just one part of a continuous room. */
+  withinHome?:(x:number,z:number)=>boolean;
   /** The handheld effect can travel even when a station stays in its own set. */
   portable?:boolean;
   guide:{vr:Key; screen:Key; end:Key};
@@ -31,7 +36,7 @@ type Definition = {
 
 const catalog = {
   kite: {
-    label:'toyKite', home:'lawn', homeLabel:'hudLawn', visit:'visitKite', view:'meadowReel',grip:{point:[0,-.057,-.054],pitch:.10},
+    label:'toyKite', home:'seasideTerminus', withinHome:onCityGreen, alsoAt:['lawn'], homeLabel:'kiteGreenName', visit:'visitKite', view:'meadowReel',grip:{point:[0,-.057,-.054],pitch:.10},
     guide:{vr:'guideKiteVr', screen:'guideKiteScreen', end:'guideKiteEnd'},
     story:{name:'storyKite', help:'storyKiteHelp', left:'storyWindLeft', right:'storyWindRight', cue:setKiteWind},
     onGrip:()=>setKiteWind(getKiteWind()==='left'?'right':'left'), onStow:resetKite,
@@ -97,16 +102,27 @@ export type Toy = keyof typeof catalog;
 export const TOYS: Readonly<Record<Toy,Definition>> = catalog;
 export const shelfToys = Object.keys(catalog) as readonly Toy[];
 export function sessionToys() { return shelfToys; }
+export function hasToyStation(toy:Toy,room:SceneryId,at?:{x:number;z:number}){
+  const item=TOYS[toy];
+  if(item.home===room)return !at||!item.withinHome||item.withinHome(at.x,at.z);
+  return item.alsoAt?.includes(room)===true;
+}
+export function toyHomeLabel(toy:Toy,room:SceneryId){
+  const item=TOYS[toy];
+  return item.alsoAt?.includes(room)?SCENERY[room].label:item.homeLabel;
+}
 export function toyLabel(toy:Toy, room:SceneryId) {
-  const {home, homeName, label} = TOYS[toy];
-  return home===room && homeName ? homeName : label;
+  const {homeName, label} = TOYS[toy];
+  return homeName && hasToyStation(toy,room) ? homeName : label;
 }
 
 type WithStory = Extract<(typeof catalog)[Toy],{story:Story}>;
-export type StoryRoom = WithStory['home'];
+export type StoryRoom = WithStory['home'] | Extract<WithStory,{alsoAt:readonly SceneryId[]}>['alsoAt'][number];
 // Only rooms with a two-sided story expose the additional quick cues/camera.
 export const STORIES = Object.fromEntries(shelfToys.flatMap(toy => {
   const item = TOYS[toy];
-  return item.home && item.story ? [[item.home,{toy,...item.story}]] : [];
+  if(!item.home || !item.story)return [];
+  const story={toy,...item.story};
+  return [item.home,...(item.alsoAt??[])].map(room=>[room,story]);
 })) as Record<StoryRoom, Story & {toy:Toy}>;
 export function isStoryRoom(room:SceneryId):room is StoryRoom {return Object.hasOwn(STORIES,room);}

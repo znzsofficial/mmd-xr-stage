@@ -5,7 +5,7 @@ import {useBakedSurface} from './useBakedSurface';
 import {GUARD_CHAIR,PACE_CLOCK,POOL_ORIGIN,POOL,LIDO_ENTRY} from './LidoLayout';
 import {noPick} from './sceneryPaint';
 
-export function LidoPlates({pool}:{pool:boolean}){
+export function LidoPlates({pool,city=false}:{pool:boolean;city?:boolean}){
   const map=useBakedSurface(url),geo=useMemo(()=>{
     const verts:number[]=[],uv:number[]=[];
     function face(x:number,y:number,z:number,w:number,h:number,crop:number[],front=true){
@@ -15,7 +15,8 @@ export function LidoPlates({pool}:{pool:boolean}){
       }
     }
     const gate=8.34+(pool?0:POOL_ORIGIN.z),x=LIDO_ENTRY.x+(pool?0:POOL_ORIGIN.x);
-    face(x,2.46,gate+.074,3.11,.38,[1,1,765,110]);face(x,2.46,gate-.074,3.11,.38,[1,115,765,224],false);
+    face(x,2.46,gate+.074,3.11,.38,[1,1,765,110]);
+    if(!city)face(x,2.46,gate-.074,3.11,.38,[1,115,765,224],false);
     if(pool){
       for(let i=0;i<48;i++)for(const a of [null,i*Math.PI/24,(i+1)*Math.PI/24]){
         const dx=a===null?0:Math.cos(a),dy=a===null?0:Math.sin(a);
@@ -33,6 +34,6 @@ export function LidoPlates({pool}:{pool:boolean}){
       }
     }
     const g=new BufferGeometry();g.setAttribute('position',new Float32BufferAttribute(verts,3));g.setAttribute('uv',new Float32BufferAttribute(uv,2));g.computeVertexNormals();return g;
-  },[pool]);useEffect(()=>()=>geo.dispose(),[geo]);
+  },[pool,city]);useEffect(()=>()=>geo.dispose(),[geo]);
   return map&&<mesh name="lido:wayfinding" geometry={geo} raycast={noPick}><meshStandardMaterial map={map} roughness={.65}/></mesh>;
 }

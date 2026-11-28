@@ -2,6 +2,7 @@ import {BufferGeometry,Color,Float32BufferAttribute} from 'three';
 import {blocks,board,cabinets,ROOF,UPPER,skylight,lowerFrontZ,upperFrontZ,cladding} from './arcadeLayout';
 import layout from './printRects.json';
 import {diffusers,displays,gallerySign,lastRiser} from './westGallery';
+import {hallShade} from './hallShade';
 
 type V=[number,number,number];type Face={o:V;u:V;v:V};type Rect=readonly number[];
 // Origin at bottom left when viewed from outside. Floor UV axes are +X/-Z.
@@ -10,12 +11,14 @@ const xFace=(x:number,y:number,z:number,w:number,h:number,side=1):Face=>({o:[x,y
 const deck=(x:number,y:number,z:number,w:number,d:number,up=true):Face=>({o:[x-w/2,y,z+(up?1:-1)*d/2],u:[w,0,0],v:[0,0,(up?-1:1)*d]});
 const point=(f:Face,u:number,v:number):V=>f.o.map((a,j)=>a+u*f.u[j]+v*f.v[j]) as V;
 class Sheets{
+  constructor(readonly shadows?:boolean){}
   xyz:number[]=[];uv:number[]=[];index:number[]=[];rgb:number[]=[];color=new Color();
   quad(f:Face,rect:Rect,size:Rect,a=0,b=0,c=1,d=1,s=0,t=0,e=1,g=1){
     const [x,y,w,h]=rect,k=this.xyz.length/3;
     // inset the UVs instead of sampling the neighbouring printed cell at the seam
     for(const [u,v,i,j] of [[a,b,s,t],[c,b,e,t],[c,d,e,g],[a,d,s,g]]){
-      this.xyz.push(...point(f,u,v));this.uv.push((x+2+i*(w-4))/size[0],1-(y+2+(1-j)*(h-4))/size[1]);this.rgb.push(this.color.r,this.color.g,this.color.b);
+      const p=point(f,u,v),shade=this.shadows===undefined?1:hallShade(...p,this.shadows);
+      this.xyz.push(...p);this.uv.push((x+2+i*(w-4))/size[0],1-(y+2+(1-j)*(h-4))/size[1]);this.rgb.push(this.color.r*shade,this.color.g*shade,this.color.b*shade);
     }this.index.push(k,k+1,k+2,k,k+2,k+3);
   }
   finish(){const g=new BufferGeometry();g.setAttribute('position',new Float32BufferAttribute(this.xyz,3));g.setAttribute('color',new Float32BufferAttribute(this.rgb,3));g.setAttribute('uv',new Float32BufferAttribute(this.uv,2));g.setIndex(this.index);g.computeVertexNormals();g.computeBoundingSphere();return g;}
@@ -23,23 +26,28 @@ class Sheets{
 const size=[2048,1024];
 // Intersect each face with a metre grid, keeping partial tiles at cut doors,
 // the floor opening and the roof opening. No decal may bridge those holes.
-function repeat(sheet:Sheets,f:Face,cell:number,stepU:number,stepV:number){
+function repeat(sheet:Sheets,f:Face,cell:number,stepU:number,stepV:number,subdivisions:number){
   const rect=[(cell%4)*512,Math.floor(cell/4)*512,512,512],split=(vec:V,step:number)=>{
     const l=Math.hypot(...vec),start=vec.reduce((s,v,i)=>s+v*f.o[i],0)/l,coords=[];
-    for(let i=Math.floor(start/step+1e-8);i<Math.ceil((start+l)/step-1e-8);i++){
-      const a=Math.max(start,i*step),b=Math.min(start+l,(i+1)*step);coords.push([(a-start)/l,(b-start)/l,a/step-i,b/step-i]);
+    const pitch=step/subdivisions;
+    for(let i=Math.floor(start/pitch+1e-8);i<Math.ceil((start+l)/pitch-1e-8);i++){
+      const a=Math.max(start,i*pitch),b=Math.min(start+l,(i+1)*pitch),tile=Math.floor(i/subdivisions);
+      coords.push([(a-start)/l,(b-start)/l,a/step-tile,b/step-tile]);
     }return coords;
   };
   const cols=split(f.u,stepU),rows=split(f.v,stepV);
   for(const [a,c,s,e] of cols)for(const [b,d,t,g] of rows)sheet.quad(f,rect,size,a,b,c,d,s,t,e,g);
 }
 
-export function arcadePaint(){
-  const room=new Sheets(),posters=new Sheets(),screens=new Sheets(),leaves=new Sheets();
+export function arcadePaint(shadows=false){
+  const room=new Sheets(shadows),posters=new Sheets(),screens=new Sheets(),leaves=new Sheets();
   type Art=keyof typeof layout.rects;const art=(key:Art,f:Face,glow=false)=>(glow?screens:posters).quad(f,layout.rects[key],layout.size);
   const foliage=(f:Face,rect:Rect,flip:boolean)=>leaves.quad(f,rect,[1536,768],0,0,1,1,flip?1:0,0,flip?0:1,1);
   const ivy=(f:Face,flip:boolean)=>foliage(f,[0,0,512,512],flip);
-  const tile=(f:Face,i:number,x:number,y:number,tint='#ffffff')=>{room.color.set(tint);repeat(room,f,i,x,y);};
+  const tile=(f:Face,i:number,x:number,y:number,tint='#ffffff')=>{
+    const interiorDeck=f.v[2]<0&&f.o[1]>=0&&f.o[1]<UPPER+.02;
+    room.color.set(tint);repeat(room,f,i,x,y,interiorDeck?4:1);
+  };
   for(const b of blocks){const {x,y,z,w,h,d,tag}=b,top=y+h/2,bot=y-h/2;
     if(b.deck){tile(deck(x,top+.002,z,w,d),tag==='hall-tile'||tag==='upper-slab'?0:6,2.08,2.08);}
     if(tag==='roof'||tag==='upper-slab'||tag==='balcony')tile(deck(x,bot-.002,z,w,d,false),1,2.65,2.65);
@@ -118,12 +126,17 @@ export function arcadePaint(){
     const x=skylight.left+.38+i*.9,len=.36+.64*(.5+.5*Math.cos(2.6*i));
     const f=zFace(x,ROOF-.12-len/2,skylight.back+.051+.045*(i%3),1.32,len);f.v[2]=-.11;ivy(f,i%2===0);
   }
-  const canopy=[512,0,1024,768];for(const [x,y,z,w,h,angle] of [[-9.1,4.6,-7.1,7,4.8,.34],[-14.9,4.1,-5.8,5.8,4.6,.51],[-15.4,3.85,4.75,5.6,5.4,1.2],[-5.4,6.6,-5.25,5.4,3.9,.3],[6.1,6.9,-5.44,7,4.7,-.1],[15.2,3.35,-3.40,6.3,5.1,-1.2],[-5.2,3.61,13.34,6.6,4,-.4]]){
+  // Keep the two back crowns clear of the upper walkway at x=-7.85 so
+  // both eyes see the descent to the timing deck rather than a foliage card.
+  const canopy=[512,0,1024,768];for(const [x,y,z,w,h,angle] of [[-12.3,4.6,-7.1,3.7,4.8,.34],[-14.9,4.1,-5.8,5.8,4.6,.51],[-15.4,3.85,4.75,5.6,5.4,1.2],[-4.2,6.6,-5.25,3.5,3.9,.3],[6.1,6.9,-5.44,7,4.7,-.1],[15.2,3.35,-3.40,6.3,5.1,-1.2],[-5.2,3.61,13.34,6.6,4,-.4]]){
     const f=zFace(x,y,z,w,h);f.u=[w*Math.cos(angle),0,-w*Math.sin(angle)];f.o=[x-f.u[0]/2,y-h/2,z-f.u[2]/2];foliage(f,canopy,x<0);
   }
   // Beyond the greybox crop a painted city strip fills the door sightlines.
   // Alpha sky and the shared day sky meet without another opaque sky dome.
   for(let i=0;i<12;i++){
+    // The +Z forecourt now looks into the real city. Keep the side and rear
+    // strip behind the galleries, clear of the forward 120-degree sector.
+    if(i<2||i>=10)continue;
     const a=i*Math.PI/6,b=(i+1)*Math.PI/6,r=22;
     const x=r*Math.sin(a),z=r*Math.cos(a);foliage({o:[x,-3.4,z],u:[r*Math.sin(b)-x,0,r*Math.cos(b)-z],v:[0,9.2,0]},[0,512,512,256],i%2===1);
   }

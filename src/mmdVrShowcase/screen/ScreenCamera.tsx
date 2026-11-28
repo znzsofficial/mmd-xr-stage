@@ -6,9 +6,10 @@ import { useBackpack } from '../backpack/store';
 import { useMmdVrStore } from '../mmdVrStore';
 import { useLanguageStore } from '../../languageStore';
 import type { SceneryId } from '../scenery/catalog';
+import {CITY_KITE_SEAT as kiteSeat} from '../scenery/city/green';
 import { isStoryRoom, type StoryRoom } from '../play/stagePlay';
 import {roomViews,tourShots} from '../scenery/roomViews';
-import {walkBetweenZones,hintLawnPrints} from '../scenery/campusTransit';
+import {walkBetweenZones} from '../scenery/campusTransit';
 import { bindScreenCameraKeyboard } from './screenCameraKeyboard';
 import {screenStreetTravel} from './streetTravel';
 import {RoomGate} from '../scenery/connections';
@@ -21,6 +22,8 @@ import {planetCenterDrop} from './planetCenterDrop';
 
 type Point = [number,number,number];
 const storyViews:Record<StoryRoom,[Point,Point]>={
+  // Look across the end of the seat; from directly behind, the back slats hide the reel.
+  seasideTerminus:[[kiteSeat.x+6,1.62,kiteSeat.z+.8],[kiteSeat.x+.25,1.12,kiteSeat.z-1.25]],
   lawn:[[3,1.75,5],[3,2.05,-5]], pool:[[1.15,1.72,-2],[0,.32,-9.3]], liveHouse:[[.2,1.7,4.8],[0,1.90,-5.1]]
 };
 export type CameraActions = { reset():void; frame():void; upperBody:ScreenCloseUp['toggle']; inspectStand():void; center():void; story():void; tour(index:number):void };
@@ -106,7 +109,6 @@ export function ScreenCamera({actions,onReady,onCloseUpChange,viewport}:{actions
       const distance=Math.max(.52,at.distanceTo(base)*1.7)/Math.min(1,Math.max(.35,camera.aspect));
       camera.position.copy(orbit.target).addScaledVector(dir,distance);orbit.update();
     };
-    let releaseHints:(()=>void)|undefined;
     actions.current={reset,frame,inspectStand,upperBody(focus,assetId,runtimeId){
       const s=useMmdVrStore.getState(),b=useBackpack.getState(),live=b.live[assetId];
       if(!s.overlayOpen||s.presentation!=='screen'||s.prefs.scenery!==scenery||s.entryEpoch!==epoch||b.selected!==assetId||live?.runtimeId!==runtimeId||!live.visible)return;
@@ -124,9 +126,8 @@ export function ScreenCamera({actions,onReady,onCloseUpChange,viewport}:{actions
       wind?.dispose();
       if(shot.link){arrival.current={room:shot.link.to,eye:shot.eye,aim:shot.aim};if(!walkBetweenZones(shot.link))arrival.current=null;return;}
       forgetCloseUp();
-      if(shot.preloadLawn&&!releaseHints)releaseHints=hintLawnPrints();
       align(shot.up);
-      setLens(shot.overview?Math.min(130,Math.max(99,2*Math.atan(1.1/camera.aspect)*180/Math.PI)):shot.fov??50);camera.position.fromArray(shot.eye);orbit.target.fromArray(shot.aim);orbit.update();wind?.survey(camera.position,!!shot.up);},story(){if(isStoryRoom(scenery)){forgetCloseUp();const [eye,look]=storyViews[scenery];camera.position.set(...eye);orbit.target.set(...look);orbit.update();}},center(){const b=useBackpack.getState(),s=useMmdVrStore.getState();if(!b.draft||s.physicsBusy||s.assetLoad.running||s.physicsFatal)return;
+      setLens(shot.overview?Math.min(130,Math.max(99,2*Math.atan(1.1/camera.aspect)*180/Math.PI)):shot.fov??50);camera.position.fromArray(shot.eye);orbit.target.fromArray(shot.aim);orbit.update();wind?.survey(camera.position,!!shot.up);},story(){if(isStoryRoom(scenery)){forgetCloseUp();setLens(50);const [eye,look]=storyViews[scenery];camera.position.set(...eye);orbit.target.set(...look);orbit.update();}},center(){const b=useBackpack.getState(),s=useMmdVrStore.getState();if(!b.draft||s.physicsBusy||s.assetLoad.running||s.physicsFatal)return;
       const prev=b.live[b.draft], transform=prev&&(s.models.find(m=>m.id===prev.runtimeId)??s.objects.find(o=>o.id===prev.runtimeId));
       const deck=scenery==='glassPlanet'?planetCenterDrop(camera.position):{x:0,z:0,y:undefined};
       if(!deck){useBackpack.setState({error:useLanguageStore.getState().t('planetCenterBlocked')});return;}
@@ -147,7 +148,7 @@ export function ScreenCamera({actions,onReady,onCloseUpChange,viewport}:{actions
     // Observe crossings themselves: React can batch a round trip to the same room.
     const roomOff=useMmdVrStore.subscribe((s,p)=>{if(s.prefs.scenery!==p.prefs.scenery||s.entryEpoch!==p.entryEpoch)forgetCloseUp();});
     const poseOff=usePoseSession.subscribe((s,p)=>{if(s.dragging!==p.dragging)inputChanged();});
-    return ()=>{view.removeEventListener('pointerdown',alignForPointer,true);view.removeEventListener('wheel',alignForPointer,true);keyboard.current?.dispose(arrival.current?.walking===true);keyboard.current=null;travel?.dispose();off();roomOff();poseOff();releaseHints?.();forgetCloseUp();actions.current=null;onReady(false);orbit.dispose();camera.up.set(0,1,0);};
+    return ()=>{view.removeEventListener('pointerdown',alignForPointer,true);view.removeEventListener('wheel',alignForPointer,true);keyboard.current?.dispose(arrival.current?.walking===true);keyboard.current=null;travel?.dispose();off();roomOff();poseOff();forgetCloseUp();actions.current=null;onReady(false);orbit.dispose();camera.up.set(0,1,0);};
   },[camera,gl,scene,scenery,epoch,actions,onReady,onCloseUpChange,viewport]);
   return null;
 }

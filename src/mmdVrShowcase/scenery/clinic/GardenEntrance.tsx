@@ -34,7 +34,7 @@ class Prints {
   geometry(){const g=new BufferGeometry();g.setAttribute('position',new Float32BufferAttribute(this.points,3));g.setAttribute('uv',new Float32BufferAttribute(this.uv,2));g.computeVertexNormals();return g;}
 }
 
-function entrance(lawn:boolean){
+function entrance(lawn:boolean,city:boolean){
   const blocks:Part[]=[],limbs:Part[]=[],foliage:Part[]=[],prints=new Prints(),paving=new Prints();
   const box=(x:number,y:number,z:number,w:number,h:number,d:number,color:string,ry=0)=>blocks.push({p:[x,y,z],s:[w,h,d],color,ry});
   const sign=(x:number,y:number,z:number,w:number,h:number,rot:number,front:number,back?:number)=>{
@@ -51,9 +51,21 @@ function entrance(lawn:boolean){
     box(-8.6,1.56,-2.1,.16,3.12,13.8,chalk);box(-2.16,1.56,3.1,.16,3.12,3.3,'#c8d4c7');
     box(5.4,1.56,-.60,6.4,3.12,.16,'#d1d9ca');box(0,3.24,-2.10,17.62,.24,14.13,'#93a297');
     box(0,-.020,-2.10,17.3,.067,13.9,'#c7c7b8');
+    if(city){
+      // The low classroom windows look straight across at these four lights.
+      // Break the waiting-bay side into recessed sashes and projecting sills.
+      for(const z of [-7.7,-5.6,-3.5,-1.4]){
+        box(fx+.096,1.74,z,.061,1.34,1.94,pine);
+        box(fx+.139,1.73,z,.031,1.16,1.77,'#a2b8b1');
+        box(fx+.165,1.73,z,.051,1.20,.041,pine);
+        box(fx+.164,1.99,z,.052,.046,1.78,trim);
+      }
+      for(const [x,z] of [[6.99,1.19],[4.48,4.3]])for(const side of [-1,1])
+        box(x+side*.83,.205,z,.10,.40,.30,'#657e75');
+    }
     for(const [x,z] of [[6.99,1.19],[4.48,4.3]])for(let j=0;j<4;j++){
       box(x-.96+j*.64,.44,z,.56,.08,.48,'#7da298');box(x-.96+j*.64,.65,z+(z>3?.23:-.23),.55,.40,.08,'#98b4a6');}
-    for(const z of [-7.7,-5.6,-3.5,-1.4]){prints.face(fx+.103,1.73,z,1.81,1.21,Math.PI/2,6);box(fx+.11,1.09,z,.24,.08,1.88,stone);}
+    for(const z of [-7.7,-5.6,-3.5,-1.4]){if(!city)prints.face(fx+.103,1.73,z,1.81,1.21,Math.PI/2,6);box(fx+.11,1.09,z,.24,.08,1.88,stone);}
   }
   box(fx,(3.13+head)/2,fz,.21,3.13-head,wallGap,chalk);box(fx,head,fz,.30,.12,wallGap+.09,trim);
   for(const g of GLAZING){
@@ -69,24 +81,29 @@ function entrance(lawn:boolean){
   for(let j=0;j<17;j++)box(10.22,2.829,.52+j*.285,3.7,.052,.095,'#bca583');
   for(const z of [1.54,4.16])box(10.23,2.792,z,2.48,.024,.078,'#fff0c3');
   box(12.10,2.923,fz,.068,.19,4.97,bronze);
-  sign(fx+.155,1.57,.30,1.29,.59,Math.PI/2,0);sign(fx-.16,1.62,4.54,.45,.30,-Math.PI/2,2);
-  box(GUIDE.x,.53,GUIDE.z,.17,1.06,.16,pine);sign(GUIDE.x,1.22,GUIDE.z,.79,.39,2.13,1,2);
-  // Stone paving modules use individual UV islands, not a stretched ribbon.
-  for(let j=0;j<4;j++)for(let i=0;i<4;i++){
-    const x=APRON.x-APRON.w/2+i*APRON.w/4,z=APRON.z-APRON.d/2+j*APRON.d/4,w=APRON.w/4,d=APRON.d/4,y=.012;
-    paving.quad([x,y,z+d],[x+w,y,z+d],[x+w,y,z],[x,y,z],4);
+  sign(fx+.155,1.57,.30,1.29,.59,Math.PI/2,0);
+  if(!city){
+    sign(fx-.16,1.62,4.54,.45,.30,-Math.PI/2,2);
+    box(GUIDE.x,.53,GUIDE.z,.17,1.06,.16,pine);sign(GUIDE.x,1.22,GUIDE.z,.79,.39,2.13,1,2);
   }
-  box(APRON.x,-.059,APRON.z,APRON.w+.13,.122,APRON.d+.13,'#b4ac98');
-  const edges=WALK_POINTS.map(([x,z],i)=>{
-    const prev=WALK_POINTS[Math.max(0,i-1)],next=WALK_POINTS[Math.min(i+1,WALK_POINTS.length-1)],
-      dx=next[0]-prev[0],dz=next[1]-prev[1],s=(WALK_WIDTH/2)/Math.hypot(dx,dz);
-    return [[x+dz*s,.007,z-dx*s],[x-dz*s,.007,z+dx*s]] as [V,V];
-  });
-  for(let i=1;i<edges.length;i++){
-    const [a,b]=edges[i-1],[d,c]=edges[i],length=Math.hypot(d[0]-a[0],d[2]-a[2]);
-    const n=Math.max(1,Math.round(length/1.54)),lerp=(p:V,q:V,t:number):V=>[p[0]+(q[0]-p[0])*t,.007,p[2]+(q[2]-p[2])*t];
-    for(let j=0;j<n;j++)paving.quad(lerp(b,c,j/n),lerp(a,d,j/n),lerp(a,d,(j+1)/n),lerp(b,c,(j+1)/n),5);
-    for(const [p,q] of [[a,d],[b,c]]){const edge=span(p,q,.085,stone);edge.p[1]=-.036;blocks.push(edge);}
+  // Stone paving modules use individual UV islands, not a stretched ribbon.
+  if(!city){
+    for(let j=0;j<4;j++)for(let i=0;i<4;i++){
+      const x=APRON.x-APRON.w/2+i*APRON.w/4,z=APRON.z-APRON.d/2+j*APRON.d/4,w=APRON.w/4,d=APRON.d/4,y=.012;
+      paving.quad([x,y,z+d],[x+w,y,z+d],[x+w,y,z],[x,y,z],4);
+    }
+    box(APRON.x,-.059,APRON.z,APRON.w+.13,.122,APRON.d+.13,'#b4ac98');
+    const edges=WALK_POINTS.map(([x,z],i)=>{
+      const prev=WALK_POINTS[Math.max(0,i-1)],next=WALK_POINTS[Math.min(i+1,WALK_POINTS.length-1)],
+        dx=next[0]-prev[0],dz=next[1]-prev[1],s=(WALK_WIDTH/2)/Math.hypot(dx,dz);
+      return [[x+dz*s,.007,z-dx*s],[x-dz*s,.007,z+dx*s]] as [V,V];
+    });
+    for(let i=1;i<edges.length;i++){
+      const [a,b]=edges[i-1],[d,c]=edges[i],length=Math.hypot(d[0]-a[0],d[2]-a[2]);
+      const n=Math.max(1,Math.round(length/1.54)),lerp=(p:V,q:V,t:number):V=>[p[0]+(q[0]-p[0])*t,.007,p[2]+(q[2]-p[2])*t];
+      for(let j=0;j<n;j++)paving.quad(lerp(b,c,j/n),lerp(a,d,j/n),lerp(a,d,(j+1)/n),lerp(b,c,(j+1)/n),5);
+      for(const [p,q] of [[a,d],[b,c]]){const edge=span(p,q,.085,stone);edge.p[1]=-.036;blocks.push(edge);}
+    }
   }
   // Built planters with slab joints, an inboard soil line, switches of sage
   // and warm white daisies. Fold leaves and petals into one opaque mesh.
@@ -134,7 +151,7 @@ function entrance(lawn:boolean){
   }
   // The east-facing return looks across the split rail to the meadow. Borrow
   // that edge of the garden only, without mounting the meadow scene or actors.
-  if(!lawn){
+  if(!lawn&&!city){
     const rng=seededRandom(419);
     MEADOW_POSTS.forEach((f,i)=>{const x=f.x-CLINIC_ORIGIN.x,z=f.z-CLINIC_ORIGIN.z;box(x,.51,z,.14,1.02,.14,'#aa976f');
       if(i){const last=MEADOW_POSTS[i-1];for(const h of [.38,.76])blocks.push(span([last.x-CLINIC_ORIGIN.x,h,last.z-CLINIC_ORIGIN.z],[x,h,z],.073,'#c4ae85'));}});
@@ -148,17 +165,17 @@ function entrance(lawn:boolean){
 
 function BorrowedLawn(){const turf=useBakedSurface(turfUrl);return <mesh name="clinic:exterior-turf" position={[-CLINIC_ORIGIN.x,-.025,-CLINIC_ORIGIN.z]} rotation-x={-Math.PI/2} raycast={noPick}><planeGeometry args={[LAWN_SIZE,LAWN_SIZE]}/><meshStandardMaterial key={turf?'lawn':'plain'} map={turf} color={turf?'white':'#97ab75'} roughness={1}/></mesh>;}
 
-export function GardenEntrance({lawn=false,shadows}:{lawn?:boolean;shadows:boolean}){
-  const p=useMemo(()=>entrance(lawn),[lawn]),atlas=useBakedSurface(atlasUrl);
+export function GardenEntrance({lawn=false,city=false,shadows}:{lawn?:boolean;city?:boolean;shadows:boolean}){
+  const p=useMemo(()=>entrance(lawn,city),[lawn,city]),atlas=useBakedSurface(atlasUrl);
   useEffect(()=>()=>{p.herbs.dispose();p.signs.dispose();p.pavers.dispose();},[p]);
   return <group name="clinic:east-garden-entrance" position={lawn?[CLINIC_ORIGIN.x,0,CLINIC_ORIGIN.z]:[0,0,0]}>
     <Batch name="clinic:shared-canopy-and-garden-stone" parts={p.blocks} shade={skyBounce} casts={shadows}/>
     <Batch name="clinic:serviceberry-branches" parts={p.limbs} shade={skyBounce} round/>
-    {!lawn&&<Batch name="clinic:borrowed-lawn-hills" parts={p.foliage} foliage/>}
+    {!lawn&&!city&&<Batch name="clinic:borrowed-lawn-hills" parts={p.foliage} foliage/>}
     <mesh name="clinic:raised-planting" geometry={p.herbs} raycast={noPick}><meshStandardMaterial vertexColors side={DoubleSide} roughness={1} onBeforeCompile={skyBounce}/></mesh>
-    <mesh name="clinic:rain-marked-paving" geometry={p.pavers} raycast={noPick} receiveShadow={shadows}><meshStandardMaterial map={atlas} key={atlas?'stone':'loading'} color={atlas?'white':stone} roughness={.91} side={DoubleSide} onBeforeCompile={skyBounce}/></mesh>
+    {!city&&<mesh name="clinic:rain-marked-paving" geometry={p.pavers} raycast={noPick} receiveShadow={shadows}><meshStandardMaterial map={atlas} key={atlas?'stone':'loading'} color={atlas?'white':stone} roughness={.91} side={DoubleSide} onBeforeCompile={skyBounce}/></mesh>}
     <mesh name="clinic:wayfinding-enamel" geometry={p.signs} raycast={noPick}><meshBasicMaterial map={atlas} key={atlas?'enamel':'loading'} color={atlas?'white':pine}/></mesh>
     {GLAZING.map(r=><mesh key={r.z} name="clinic:parked-glass" position={[r.x,1.20,r.z]} raycast={noPick}><boxGeometry args={[.036,2.30,r.d]}/><meshStandardMaterial color="#80b6ac" transparent opacity={.22} depthWrite={false} roughness={.29}/></mesh>)}
-    {!lawn&&<BorrowedLawn/>}
+    {!lawn&&!city&&<BorrowedLawn/>}
   </group>;
 }

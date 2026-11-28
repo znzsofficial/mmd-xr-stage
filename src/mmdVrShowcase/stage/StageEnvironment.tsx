@@ -79,6 +79,7 @@ type Props = {
 export function StageEnvironment({scenery, lighting, prefs, profile, sunRef}: Props) {
   const { viewDistance, lightPreset } = prefs;
   const harbour=scenery==='seasideTerminus';
+  const coastalSky=roomSets[scenery].sky==='harbour';
   const extent = harbour ? 13 : profile.quality === 'high' ? 6 : profile.quality === 'balanced' ? 5 : 4;
   const far = harbour ? 85 : profile.quality === 'high' ? 24 : profile.quality === 'balanced' ? 20 : 16;
   const shadowSize = profile.shadows ? profile.shadowMapSize : 256;
@@ -88,7 +89,7 @@ export function StageEnvironment({scenery, lighting, prefs, profile, sunRef}: Pr
   // Keep the outer cliffs distinct while admitting sea air along their feet.
   const fogFar=harbour?Math.max(65,viewDistance):viewDistance;
   const environment=<>
-    <color attach="background" args={['#171a1d']}/>
+    <color attach="background" args={[coastalSky && prefs.stageSkyEnabled ? lighting.fogColor : '#171a1d']}/>
     {prefs.stageFogEnabled && scenery!=='glassPlanet' && <fog attach="fog" args={[lighting.fogColor, Math.min(10, viewDistance*.45), fogFar]}/>}
     {prefs.stageSkyEnabled && <Sky scenery={scenery} lighting={lighting} warm={lightPreset==='warm'}/>}
     <ambientLight color={lighting.ambientColor} intensity={lighting.ambient}/>
@@ -102,10 +103,10 @@ export function StageEnvironment({scenery, lighting, prefs, profile, sunRef}: Pr
     <group name="player:room-solids">
       {scenery==='floor' && <StudioPlinth segments={profile.floorSegments} shadows={profile.shadows} color={lighting.floorColor}/>}
       <RoomSet id={scenery} shadows={profile.shadows} concert={lightPreset==='contrast'}/>
-      <StreetScenery room={scenery}/>
+      <StreetScenery room={scenery} shadows={profile.shadows}/>
     </group>
     {lamps && prefs.stageLightPoolEnabled && <LightPool color={lighting.poolColor} opacity={Math.min(.14, rim*.08)}/>}
     {showSceneryGrid(scenery, profile.showGrid, prefs.gridPref==='on') && <gridHelper args={[12,12,'#d8dce0','#a5aaae']} position={[0,.01,0]}/>}
   </>;
-  return harbour?<HarbourLight.Provider value={harbourLight}>{environment}</HarbourLight.Provider>:environment;
+  return coastalSky?<HarbourLight.Provider value={harbourLight}>{environment}</HarbourLight.Provider>:environment;
 }

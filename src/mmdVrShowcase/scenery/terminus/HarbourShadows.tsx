@@ -24,11 +24,16 @@ export function HarbourShadows({sun}:{sun:RefObject<DirectionalLight|null>}){
     // Keep the old map exactly on the quay. A shot facing back at the station
     // from the park follows the ground in front of the viewer, not their back.
     const inland=MathUtils.smoothstep(focus.z,4,17);
-    focus.set(MathUtils.clamp(focus.x,-4,24),1.8,MathUtils.clamp(focus.z,0,38)).multiplyScalar(inland);
+    focus.set(MathUtils.clamp(focus.x,-42,52),1.8,MathUtils.clamp(focus.z,0,93)).multiplyScalar(inland);
     const shadow=light.shadow,cam=shadow.camera,extent=13,texel=2*extent/shadow.mapSize.x;
     const x=Math.round(focus.dot(right)/texel)*texel,y=Math.round(focus.dot(up)/texel)*texel;
-    if(cam.left===x-extent&&cam.bottom===y-extent)return;
+    // Beyond the shops the old far plane clips casters. Extend it in coarse
+    // increments without changing the quay crop or the lamp's direction.
+    const depth=light.position.length()-focus.dot(axis);
+    const far=Math.max(85,8*Math.ceil((depth+24)/8));
+    if(cam.left===x-extent&&cam.bottom===y-extent&&cam.far===far)return;
     cam.left=x-extent;cam.right=x+extent;cam.bottom=y-extent;cam.top=y+extent;
+    cam.far=far;
     cam.updateProjectionMatrix();shadow.needsUpdate=true;
   });
   return null;
