@@ -58,7 +58,7 @@ index 36336a6..c37a079 100644
 +export declare function createMmdAnimBulletPhysicsBackend(module: MmdAnimBulletModule, options?: BulletStepOptions): MmdAnimBulletPhysicsBackend;
 +export {};
 diff --git a/dist/physics/mmdAnimBullet.js b/dist/physics/mmdAnimBullet.js
-index ca36aed..edcdf4c 100644
+index ca36aed..fde16bb 100644
 --- a/dist/physics/mmdAnimBullet.js
 +++ b/dist/physics/mmdAnimBullet.js
 @@ -64,6 +64,8 @@ class MmdAnimBulletPhysicsBackendImpl {
@@ -98,7 +98,56 @@ index ca36aed..edcdf4c 100644
          return { simulated: !seedOnly && updated > 0, updatedBoneCount: updated };
      }
      reset(_context) {
-@@ -173,6 +183,22 @@ class MmdAnimBulletPhysicsBackendImpl {
+@@ -115,10 +125,14 @@ class MmdAnimBulletPhysicsBackendImpl {
+             : [];
+     }
+     debugContactCount() {
++        return this.collectContacts(0, 0);
++    }
++    // The C API always reports the total, even if only a prefix fits.
++    collectContacts(pointer, capacity) {
+         const collect = this.module._mmd_anim_bullet_world_collect_contacts;
+         if (this.disposedState || !collect)
+             return 0;
+-        if (collect(this.world, 0, 0, this.contactCountPointer) !== 0)
++        if (collect(this.world, pointer, capacity, this.contactCountPointer) !== 0)
+             return 0;
+         this.module.refreshMemoryViews?.();
+         return this.module.HEAPU32?.[this.contactCountPointer >>> 2] ?? 0;
+@@ -136,24 +150,24 @@ class MmdAnimBulletPhysicsBackendImpl {
+         return this.readContacts(firstRigidBodyIndex, firstRigidBodyIndex + rigidBodyCount);
+     }
+     readContacts(first, end) {
+-        const collect = this.module._mmd_anim_bullet_world_collect_contacts;
+-        const count = this.debugContactCount();
+-        if (!collect || count <= 0)
+-            return [];
++        let count = this.collectContacts(this.contactBufferPointer, this.contactBufferCapacity);
+         if (count > this.contactBufferCapacity) {
++            const pointer = this.module._malloc(count * CONTACT_POINT_BYTES);
++            if (!pointer)
++                return [];
+             if (this.contactBufferPointer !== 0)
+                 this.module._free(this.contactBufferPointer);
+-            this.contactBufferPointer = this.module._malloc(count * CONTACT_POINT_BYTES);
++            this.contactBufferPointer = pointer;
+             this.contactBufferCapacity = count;
++            count = this.collectContacts(pointer, count);
+         }
+-        if (collect(this.world, this.contactBufferPointer, this.contactBufferCapacity, this.contactCountPointer) !== 0)
++        if (!count)
+             return [];
+-        this.module.refreshMemoryViews?.();
+         const heap = this.module.HEAPF32;
+         if (!heap)
+             return [];
+         const heapI32 = new Int32Array(heap.buffer);
+-        const written = Math.min(this.module.HEAPU32?.[this.contactCountPointer >>> 2] ?? 0, this.contactBufferCapacity);
++        const written = Math.min(count, this.contactBufferCapacity);
+         const contacts = [];
+         for (let index = 0; index < written; index += 1) {
+             const base = (this.contactBufferPointer + index * CONTACT_POINT_BYTES) >>> 2;
+@@ -173,6 +187,22 @@ class MmdAnimBulletPhysicsBackendImpl {
          }
          return contacts;
      }

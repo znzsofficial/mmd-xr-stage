@@ -1,4 +1,4 @@
-// Offline instrumentation for the shipped 0.8.6 WASM only. No generated files.
+// Offline instrumentation for two verified releases. Never patch a player asset.
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
@@ -9,22 +9,27 @@ import {instrumentRowLoops} from './row-loops.mjs';
 import {countDecl, instrumentJointCounts, drainJointPasses} from './joint-counts.mjs';
 import {costDecl, costImport, instrumentJointCosts, costSnapshot} from './joint-costs.mjs';
 import {patchJointDispatch} from './joint-direct.mjs';
+import {patchIslandRange} from './island-range.mjs';
 
 export const phases = ['other', 'updateAabbs', 'calculateOverlappingPairs', 'dispatchAllCollisionPairs', 'calculateSimulationIslands', 'solveConstraints'];
 export const ROOT = 6, SUBSTEP = 7;
-export const profileBulletDir = new URL('../../public/mmd/0.8.6/', import.meta.url);
+const artifacts = {
+  '0.8.6': { digest: '02e32a4c9ec3b16d166feec06edc20cf689be9a60e3286f2048c3c02392bebc9', dataStart: 334517 },
+  '0.9.0': { digest: 'b82107ac43d0ec79f9bc0a601ec6a773401e13d007bc4c9113e34f17e772b990', dataStart: 334576 },
+};
+export const profileBulletDir = version => new URL(`../../public/mmd/${version}/`, import.meta.url);
 
 export function probeOptions(flags) {
   const counts=flags.includes('--joint-counts'), costs=flags.includes('--joint-costs');
   assert(!(costs && (counts || flags.includes('--rows'))),'Run joint costs separately from the row census');
   const rowLoops=counts || flags.includes('--rows');
-  return {rowLoops,solver:costs || rowLoops || flags.includes('--solver'),joints:counts?'counts':costs?'costs':undefined};
+  return {version:flags.includes('--0.9.0')?'0.9.0':'0.8.6',rowLoops,solver:costs || rowLoops || flags.includes('--solver'),joints:counts?'counts':costs?'costs':undefined};
 }
 
 // Pinned artifact: the default btQuickprof callbacks are no-ops, but the
 // named enter/leave sites survive -O3. No host clock is read per solver row;
 // the optional census counts inside WASM. The plain round trip is checked below.
-function instrument(wat, raw, solver, rowLoops, joints) {
+function instrument(wat, raw, dataStart, solver, rowLoops, joints) {
   const enter = 'i32.const 17292\n    i32.load\n    call_indirect $T0 (type $t0)';
   const leave = 'i32.const 17296\n    i32.load\n    call_indirect $T0 (type $t8)';
   const mark = id => `i32.const ${id}\n    call $stageMark`;
@@ -42,8 +47,8 @@ function instrument(wat, raw, solver, rowLoops, joints) {
   function entry(name) {
     // Address in the first active data segment of this digest (base 1024).
     const loc = raw.indexOf(name + '\0');
-    assert(loc > 334517 && raw.indexOf(name + '\0', loc + 1) === -1);
-    return `i32.const ${1024 + loc - 334517}\n    ${enter}`;
+    assert(loc > dataStart && raw.indexOf(name + '\0', loc + 1) === -1);
+    return `i32.const ${1024 + loc - dataStart}\n    ${enter}`;
   }
 
   wat = once(wat, '  (import "a" "a"', '  (import "stage" "mark" (func $stageMark (type $t0)))\n  (import "a" "a"');
@@ -90,11 +95,13 @@ function instrument(wat, raw, solver, rowLoops, joints) {
   return wat;
 }
 
-export async function createProfiledModule(mark, {rowLoops=false, solver=rowLoops, joints, dispatch} = {}) {
+export async function createProfiledModule(mark, {version='0.8.6', rowLoops=false, solver=rowLoops, joints, dispatch} = {}) {
   assert(!rowLoops || solver); assert(!joints || (solver && ['counts','costs'].includes(joints)));
   assert(!dispatch || !(mark || solver || rowLoops || joints),'A/B must not contain any timing marks');
-  const raw = readFileSync(new URL('mmd_bullet.wasm', profileBulletDir));
-  assert.equal(createHash('sha256').update(raw).digest('hex'), '02e32a4c9ec3b16d166feec06edc20cf689be9a60e3286f2048c3c02392bebc9');
+  const dir = profileBulletDir(version), {digest, dataStart} = artifacts[version];
+  const raw = readFileSync(new URL('mmd_bullet.wasm', dir));
+  assert.equal(createHash('sha256').update(raw).digest('hex'), digest);
+  assert.equal(raw.indexOf('out_contacts is null with non-zero capacity'), dataStart);
   const wabt = await wabtFactory(), input = wabt.readWasm(raw, {});
   let patched;
   try {
@@ -108,10 +115,12 @@ export async function createProfiledModule(mark, {rowLoops=false, solver=rowLoop
       assert(Buffer.from(plain.toBinary({}).buffer).equals(Buffer.concat([raw.subarray(0,2058),raw.subarray(2061)])));
     } finally { plain.destroy(); }
     const features={multi_memory:joints==='counts'};
-    patched = wabt.parseWat('profile.wat',dispatch ? patchJointDispatch(wat,dispatch) : instrument(wat, raw, solver, rowLoops,joints),features);
+    const source = dispatch === 'island-range' ? patchIslandRange(wat)
+      : dispatch ? patchJointDispatch(wat,dispatch) : instrument(wat, raw, dataStart, solver, rowLoops,joints);
+    patched = wabt.parseWat('profile.wat',source,features);
     patched.validate(features);
     const compiled = new WebAssembly.Module(patched.toBinary({}).buffer);
-    if(dispatch==='direct') {
+    if(dispatch && dispatch!=='audit') {
       const original=new WebAssembly.Module(raw);
       assert.deepEqual(WebAssembly.Module.imports(compiled),WebAssembly.Module.imports(original));
       assert.deepEqual(WebAssembly.Module.exports(compiled),WebAssembly.Module.exports(original));
@@ -121,7 +130,7 @@ export async function createProfiledModule(mark, {rowLoops=false, solver=rowLoop
     const m=await createNodeBulletModule({instantiateWasm(imports, ready) {
       const instance=new WebAssembly.Instance(compiled,dispatch ? imports : {...imports, stage:{mark,nowNs}});
       exports=instance.exports; ready(instance,compiled);
-    }}, profileBulletDir);
+    }}, dir);
     if(joints==='counts') m.drainJointPasses=()=>drainJointPasses(exports);
     if(joints==='costs') m.jointCosts=()=>costSnapshot(exports);
     if(dispatch==='audit') m.jointTargetAudit=()=>Object.fromEntries(['jointCalls','jointFirst','jointDifferent'].map(k=>[k,exports[k].value]));

@@ -4,10 +4,10 @@
 
 ## 仓库与依赖
 
-| 截至 2026-11-27 | 使用的版本 | 去哪里核对 |
+| 截至 2026-11-28 | 使用的版本 | 去哪里核对 |
 |---|---|---|
-| 本项目正式站 | 舞台 `c8758cf`；loader 0.9.0 + fork `c762507`，Three r187 | [固定部署](https://0ae4a810.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md) · [源码锁定清单](../loader-source.json)：347 个 loader `dist/` 文件 |
-| 我们的 fork | [`main@c762507`](https://github.com/znzsofficial/three-mmd-loader/commit/c76250712a07d3f1ded5a0cb39d19af70c8522c4) | 合入官方发布提交并保留舞台扩展；使用 npm 和 `package-lock.json` |
+| 本项目正式站 | loader 0.9.0 + fork `c4d56e8`，Three r187 | [发布记录](./release-history.md) · [源码锁定清单](../loader-source.json)：347 个 loader `dist/` 文件 |
+| 我们的 fork | [`main@c4d56e8`](https://github.com/znzsofficial/three-mmd-loader/commit/c4d56e8) | 接触读取复用缓冲；沿用官方 Bullet JS/WASM，使用 npm 和 `package-lock.json` |
 | 官方 | [`v0.9.0@62ce047`](https://github.com/yohawing/three-mmd-loader/releases/tag/v0.9.0)，mmd-anim 0.5.5 | 开发依赖锁定 Three r184；0.9.0 已包含 r187 的 TSL 自阴影兼容修复 |
 
 ## 特性归属

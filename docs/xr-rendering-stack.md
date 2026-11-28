@@ -8,7 +8,7 @@
 |---|---|
 | 应用与输入 | React 19.3.1、React Three Fiber 9.8.2、Three.js r187、`@react-three/xr` 6.6.32；页面状态用 Zustand 5.1.0。[依赖锁定](../pnpm-lock.yaml)；两个 XR 入口各自绑定会话与输入，复用[本地手柄配置](../src/xr/createAppXrStore.ts)、手追、菜单射线与玩家移动。 |
 | 房间与资产 | [MmdVrGameRoom](../src/mmdVrShowcase/xr/MmdVrGameRoom.tsx) 复用玩家、背包、放置、HUD 与道具。[StageRoom](../src/mmdVrShowcase/stage/StageRoom.tsx) 持有当前实例；同页切后端从布局恢复，17 景各可放 3 名演员＋3 件物件。GLB/glTF 由[物件加载器](../src/mmdVrShowcase/stage/loading/mmdVrGltf.ts)处理，不占用演员求值器。 |
-| 模型、动作、物理 | `@yohawing/three-mmd-loader` 0.9.0 ＋ fork `c762507` 的生成补丁，mmd-anim 0.5.5。[版本与制品](../loader-source.json) · [特性归属](./three-mmd-loader-maintenance.md#特性归属)。[演员运行时](../src/mmdVrShowcase/mmdRuntime/mmdRuntime.ts)负责 PMX/PMD、VMD、骨骼／IK 和形态权重；[Bullet WASM](../src/mmdVrShowcase/mmdRuntime/mmdPhysics.ts) 在 CPU 上运行，每个开物理的演员独占一个世界。VMD 时刻与物理步长独立，舞段暂停仍可拨衣。 |
+| 模型、动作、物理 | `@yohawing/three-mmd-loader` 0.9.0 ＋ fork `c4d56e8` 的生成补丁，mmd-anim 0.5.5。[版本与制品](../loader-source.json) · [特性归属](./three-mmd-loader-maintenance.md#特性归属)。[演员运行时](../src/mmdVrShowcase/mmdRuntime/mmdRuntime.ts)负责 PMX/PMD、VMD、骨骼／IK 和形态权重；[Bullet WASM](../src/mmdVrShowcase/mmdRuntime/mmdPhysics.ts) 在 CPU 上运行，每个开物理的演员独占一个世界。VMD 时刻与物理步长独立，舞段暂停仍可拨衣。 |
 
 ## 画面、材质与计算
 

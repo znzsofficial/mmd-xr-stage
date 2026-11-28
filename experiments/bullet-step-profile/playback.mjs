@@ -13,13 +13,14 @@ import {costReport} from './joint-costs.mjs';
 import {genericTarget} from './joint-direct.mjs';
 
 const [model, motion, ...flags] = process.argv.slice(2);
-assert(model && motion && flags.every(f=>['--reverse','--solver','--rows','--smoke','--joint-counts','--joint-costs','--stand','--held','--joint-target','--joint-direct'].includes(f)),
-  'Supply local PMX, body VMD [--solver|--rows|--joint-counts|--joint-costs|--joint-target|--joint-direct] [--stand|--held] [--smoke] [--reverse]');
+assert(model && motion && flags.every(f=>['--0.9.0','--reverse','--solver','--rows','--smoke','--joint-counts','--joint-costs','--stand','--held','--joint-target','--joint-direct','--island-range'].includes(f)),
+  'Supply local PMX, body VMD [--0.9.0] [--solver|--rows|--joint-counts|--joint-costs|--joint-target|--joint-direct|--island-range] [--stand|--held] [--smoke] [--reverse]');
 assert(!(flags.includes('--stand') && flags.includes('--held')));
 const workload=flags.includes('--stand')?'standing':flags.includes('--held')?'thighCradle':'dance';
 const opts=probeOptions(flags), {rowLoops,solver,joints}=opts, reverseFlag = flags.includes('--reverse'), smoke=flags.includes('--smoke');
-const dispatch=flags.includes('--joint-target')?'audit':flags.includes('--joint-direct')?'direct':undefined;
-assert(!(dispatch && (solver || flags.filter(f=>['--joint-target','--joint-direct'].includes(f)).length!==1)));
+const candidates = flags.filter(f => ['--joint-target','--joint-direct','--island-range'].includes(f));
+assert(candidates.length<=1 && !(candidates.length && solver));
+const dispatch = {'--joint-target':'audit','--joint-direct':'direct','--island-range':'island-range'}[candidates[0]];
 const inspectInputs=rowLoops || !!joints || !!dispatch;
 const pmx = new File([readFileSync(model)], 'actor.pmx'), vmd = workload==='dance' && new File([readFileSync(motion)], 'body.vmd');
 const order = reverseFlag ? [1,0] : [0,1], frames=smoke?6:24, warm=smoke?2:4, blocks=smoke?4:24;
@@ -63,7 +64,7 @@ const {createMmdRuntimeHandle, close} = await loadNodeBulletStage((base, options
   }
   row.module = m;
   return row.native = createCustomBulletMmdPhysicsBackend(m, options);
-}, profileBulletDir);
+}, profileBulletDir(opts.version));
 const {handContactShape,handReferenceRadius} = await import('../../src/mmdVrShowcase/xr/contact/handContactProfile.ts');
 const {propColliderShape} = await import('../../src/mmdVrShowcase/play/propColliders.ts');
 const sum = a => a.reduce((s,v)=>s+v,0), mean = a => sum(a)/a.length;
@@ -128,13 +129,13 @@ function comparePoses() {
 
 try {
   for (const index of order) {
-    const row = building = rows[index] = {profile:!!index, frameMs:[], abiMs:[], blocks:[], stepArgs:[], fed:[]};
+    const row = building = rows[index] = {profile:!!index, frameMs:[], abiMs:[], feedMs:[], outputsMs:[], blocks:[], stepArgs:[], fed:[]};
     row.rt = createMmdRuntimeHandle(new Scene(), {
       controllerColliders:()=>controllers, handColliders:()=>hands, handShape:handContactShape,
       handColliderRadius:()=>handReferenceRadius(.08), propColliders:()=>props, propShape:propColliderShape,
-      onBulletStepWork(_feed,abiMs,_out,seed) {
+      onBulletStepWork(feed,abiMs,outputs,seed) {
         if (!measured) return;
-        assert(!seed); row.abiMs.push(abiMs);
+        assert(!seed); row.abiMs.push(abiMs); row.feedMs.push(feed); row.outputsMs.push(outputs);
         if (row.profile && ledger) assert(ledger.last.ns/1e6 <= abiMs+0.001, 'Native call outside enclosing JS timer');
       },
     });
@@ -228,7 +229,7 @@ try {
   const abiDelta=rows[1].blocks.map((b,i)=>b.abiMs-rows[0].blocks[i].abiMs).toSorted((a,b)=>a-b);
   let jointDispatch;
   if(dispatch) {
-    jointDispatch={mode:dispatch,...genericTarget};
+    jointDispatch={mode:dispatch,...(dispatch!=='island-range' && genericTarget)};
     if(dispatch==='audit'){
       const a=profile.jointTargetAudit(); assert.equal(a.jointFirst,genericTarget.tableSlot,'Unexpected actual generic target');
       assert.equal(a.jointDifferent,0,'Joint dispatch target varied'); assert(a.jointCalls>initial.jointCalls);
@@ -239,10 +240,10 @@ try {
       Object.assign(jointDispatch,{pairedAbi:paired('abiMs'),pairedFrame:paired('frameMs')});
     }
   }
-  console.log(JSON.stringify({node:process.version, workload, environment, stepInputs, reverse:reverseFlag, smoke, frames,warm,blocks, ...counts[0],
+  console.log(JSON.stringify({node:process.version, bulletVersion:opts.version, workload, environment, stepInputs, reverse:reverseFlag, smoke, frames,warm,blocks, ...counts[0],
     bones:rows[0].mesh.skeleton.bones.length, poseSecondsPerFrame:vmd?1/72:0, fixedSeconds:1/60, ...native,
-    parity,wristTravel:initialWrist?wristTravel:null,jointDispatch,solver:solverSummary, medianPairedAbiDeltaMs:ms((abiDelta[(blocks-1)>>1]+abiDelta[blocks>>1])/2),
+    parity,wristTravel:initialWrist?wristTravel:null,...(dispatch==='island-range'?{islandRange:jointDispatch}:{jointDispatch}),solver:solverSummary, medianPairedAbiDeltaMs:ms((abiDelta[(blocks-1)>>1]+abiDelta[blocks>>1])/2),
     rows:rows.map(r=>({...(dispatch ? {variant:r.profile?dispatch:'original'} : {profile:r.profile}), calls:r.abiMs.length,
-      frameMs:ms(mean(r.frameMs)), frameP95Ms:ms(pct(r.frameMs,.95)), abiMs:ms(mean(r.abiMs)), blocks:r.blocks})),
+      frameMs:ms(mean(r.frameMs)), frameP95Ms:ms(pct(r.frameMs,.95)), abiMs:ms(mean(r.abiMs)), feedMs:ms(mean(r.feedMs)), outputsMs:ms(mean(r.outputsMs)), blocks:r.blocks})),
   },null,2));
 } finally { for (const r of rows) r?.rt?.dispose(); close(); }

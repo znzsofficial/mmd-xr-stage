@@ -5,6 +5,11 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from 'node:path';
 
 const files = [
+  ['b670de68','index-Br9RvbNh.js','a580d70b76fd5afbf5bfec66ef58c464b402d4ee77a73a40592fdd53dbe16cd2'],
+  ['b670de68','stage-host-DTWnsG0k.js','0c3125be9a06b6f9abe094e39c9b101b101b2c3e8ae5a19820fc5eae504c72da'],
+  ['b670de68','PlanetPhysics-BipgyDv4.js','7e7b07c4d3869eba93c489259625a002165c617d20ca5086809f83001543a338'],
+  ['b670de68','rapier-D8fR1YUl.js','9bd725267edfc5063f916bd94eb1f6f22c5b201df447744309c9087529da3154'],
+  ['b670de68','emulate-DLDcW4sl.js','ddfadc747bcb10ecf1fb31912df4b71115db9b6b9db2295e573552c4c0f85628'],
   ['e0e3c8b5','index-BxFA0mEb.js','8b0e09e88a0e1767bce248c16439f883bd6c9d2fb3478cf48f788a4aef4ad812'],
   ['e0e3c8b5','stage-host-D0GEECzc.js','6850c2c8ab3584a6333fc09d211e68114b69011cc790990370764f14baebded9'],
   ['e0e3c8b5','PlanetPhysics-D4a8WhAx.js','1964e04c41d699be4153da8de436a4b72250940b045e811d88030899b93f0be2'],
