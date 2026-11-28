@@ -1,8 +1,9 @@
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
-import { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
+import { useCallback, useContext, useLayoutEffect, useMemo, useRef } from 'react';
 import { type Group, type Ray, Vector3 } from 'three';
 import { useBackpack } from '../backpack/store';
 import { xrPoseSampler } from '../pose/xrPoseSample';
+import { FloorInputContext } from '../xr/floorInput';
 import { bindStockingPointer } from './stockingPointer';
 import { stockingPull } from './stockingPull';
 import { disarmStockingTear, recordStockingTear, useStockings, type StockingActor } from './stockingState';
@@ -15,12 +16,14 @@ const rayOnly = { allow: ['ray'] };
 
 export function StockingInput({ actor }: { actor: StockingActor }) {
   const { camera, gl } = useThree(), press = useRef<Press | null>(null);
+  const floorInput = useContext(FloorInputContext);
   const target = useRef<Group>(null), center = useMemo(() => new Vector3(), []);
   const live = useBackpack(s => s.live[actor.assetId]);
   const tracked = useMemo(xrPoseSampler, []);
   const fitOwner = useMemo(() => readStockingFitOwner(actor.runtimeId), [actor]);
   const valid = () => !!fitOwner && useStockings.getState().armed === actor && readStockingFitOwner(actor.runtimeId) === fitOwner;
-  const read = (source: XRInputSource, frame?: XRFrame) => tracked(source, gl.xr.getSession(), frame, gl.xr.getReferenceSpace(), gl.xr.getCamera().parent);
+  const read = (source: XRInputSource, frame?: XRFrame) => floorInput && !floorInput.tracked() ? null :
+    tracked(source, gl.xr.getSession(), frame, gl.xr.getReferenceSpace(), gl.xr.getCamera().parent);
   const cancel = useCallback((id?: number) => {
     const p = press.current;
     if (!p || (id !== undefined && id !== p.id)) return;
@@ -60,14 +63,23 @@ export function StockingInput({ actor }: { actor: StockingActor }) {
     const fit = subscribeStockingFit(() => { if (!handlers.current.valid()) interrupt(); });
     const off = useStockings.subscribe(s => { if (s.armed !== actor) cancel(); });
     if (!handlers.current.valid()) interrupt();
-    window.addEventListener('blur', interrupt); document.addEventListener('visibilitychange', pageVisibility);
-    session?.addEventListener('inputsourceschange', inputs); session?.addEventListener('end', interrupt); session?.addEventListener('visibilitychange', xrVisibility);
+    // On the external frame loop a missing viewer frame never reaches useFrame.
+    // Revoke only this pull on pose loss; focus loss also ends tear mode.
+    const offFloor = floorInput?.subscribe(reason => {
+      if (reason === 'viewer-pose-lost') cancel();
+      if (reason === 'visibility-lost') interrupt();
+    });
+    if (!floorInput) {
+      window.addEventListener('blur', interrupt); document.addEventListener('visibilitychange', pageVisibility);
+      session?.addEventListener('visibilitychange', xrVisibility);
+    }
+    session?.addEventListener('inputsourceschange', inputs); session?.addEventListener('end', interrupt);
     return () => {
-      off(); fit(); unbind?.(); cancel();
+      offFloor?.(); off(); fit(); unbind?.(); cancel();
       window.removeEventListener('blur', interrupt); document.removeEventListener('visibilitychange', pageVisibility);
       session?.removeEventListener('inputsourceschange', inputs); session?.removeEventListener('end', interrupt); session?.removeEventListener('visibilitychange', xrVisibility);
     };
-  }, [actor, camera, gl, cancel]);
+  }, [actor, camera, gl, cancel, floorInput]);
 
   useFrame((_, __, frame) => {
     const p = press.current;

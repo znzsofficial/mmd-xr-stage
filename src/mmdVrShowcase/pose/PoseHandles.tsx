@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
+import { useCallback, useContext, useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import { Group, MathUtils, PerspectiveCamera, Quaternion, type Ray, Raycaster, Vector3 } from 'three';
 import { useBackpack } from '../backpack/store';
@@ -12,6 +12,7 @@ import { poseHandleArt } from './poseHandleArt';
 import { poseActions, type PoseKey, usePoseSession } from './poseSession';
 import { usePoseTool } from './poseTool';
 import { bindScreenPosePointer } from './screenPosePointer';
+import { FloorInputContext } from '../xr/floorInput';
 
 type Capture = { setPointerCapture(id: number): void; releasePointerCapture(id: number): void; hasPointerCapture?(id: number): boolean };
 type Drag = { id: number; assetId: string; runtimeId: string; target: Capture; source?: XRInputSource; beganEmulated:boolean; start: Vector3; goal?: Vector3;
@@ -38,7 +39,9 @@ function MountedHandles() {
   const root = useRef<Group>(null), joints = useRef(new Map<PoseKey,Group>()), drag = useRef<Drag | null>(null);
   const guide = useRef<PoseGuideUpdate>(null), pick = useMemo(posePicker,[]), readTracked = useMemo(xrPoseSampler,[]);
   const pressCaster=useMemo(()=>new Raycaster(),[]);
-  const tracked = (source:XRInputSource,frame?:XRFrame) => readTracked(source,gl.xr.getSession(),frame,gl.xr.getReferenceSpace(),gl.xr.getCamera().parent);
+  const floorInput = useContext(FloorInputContext);
+  const tracked = (source:XRInputSource,frame?:XRFrame) => floorInput && !floorInput.tracked() ? null :
+    readTracked(source,gl.xr.getSession(),frame,gl.xr.getReferenceSpace(),gl.xr.getCamera().parent);
   const moving = usePoseSession(s=>s.dragging) && !!drag.current?.goal;
   const scratch = useMemo(() => ({ eye: new Vector3(), center: new Vector3(), out: new Vector3(), normal: new Vector3(),
     q: new Quaternion(), parentQ: new Quaternion() }), []);
@@ -126,6 +129,7 @@ function MountedHandles() {
       move: (ray,wheel) => drag.current?.update(ray,wheel), release,
     });
     const cancel = () => release(true);
+    const offFloor = floorInput?.subscribe(reason => { if (reason !== 'visible-frame-gap') cancel(); });
     const visible = () => { if (document.hidden) cancel(); };
     const session = gl.xr.getSession();
     const xrVisible = () => { if (session?.visibilityState !== 'visible') cancel(); };
@@ -134,14 +138,17 @@ function MountedHandles() {
     const off = [useBackpack.subscribe(changed),useHudWorldInput.subscribe(changed),useMmdVrStore.subscribe((s,prev) => {
       if (s.entryEpoch !== prev.entryEpoch || s.prefs.scenery !== prev.prefs.scenery) cancel(); else changed();
     }),usePoseSession.subscribe(changed)];
-    window.addEventListener('blur',cancel); document.addEventListener('visibilitychange',visible);
-    session?.addEventListener('visibilitychange',xrVisible); session?.addEventListener('inputsourceschange',sources); session?.addEventListener('end',cancel);
+    if (!floorInput) {
+      window.addEventListener('blur',cancel); document.addEventListener('visibilitychange',visible);
+      session?.addEventListener('visibilitychange',xrVisible);
+    }
+    session?.addEventListener('inputsourceschange',sources); session?.addEventListener('end',cancel);
     return () => {
-      off.forEach(f => f()); unbindScreen(); cancel();
+      offFloor?.(); off.forEach(f => f()); unbindScreen(); cancel();
       window.removeEventListener('blur',cancel); document.removeEventListener('visibilitychange',visible);
       session?.removeEventListener('visibilitychange',xrVisible); session?.removeEventListener('inputsourceschange',sources); session?.removeEventListener('end',cancel);
     };
-  },[camera,gl,acquire,release]);
+  },[camera,gl,acquire,release,floorInput]);
 
   const ownsXR = (e: XRPointer) => drag.current?.source && e.pointerId===drag.current.id && e.pointerState?.inputSource===drag.current.source;
   const eventFrame = (e: XRPointer) => (e.nativeEvent as unknown as Partial<XRInputSourceEvent>).frame;

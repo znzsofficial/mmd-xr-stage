@@ -30,6 +30,7 @@ import {takeFloorRenderer,returnFloorRenderer,bindFloorSession,requestFloorDispl
 import {DaylightMaterials} from '../../src/mmdVrShowcase/scenery/daylightMaterials';
 import {roomSets} from '../../src/mmdVrShowcase/scenery/roomSets';
 import {supportsWebgpuRoom,fitsWebgpuRoom} from '../../src/mmdVrShowcase/xr/floorBackend';
+import {bindFloorInput,FloorInputContext} from '../../src/mmdVrShowcase/xr/floorInput';
 import {classroomMaterials} from './classroomMaterials.jsx';
 import {trackedContacts} from './stage-tracked-contacts.js';
 import {usePlayerMovement} from '../../src/mmdVrShowcase/movement/usePlayerMovement';
@@ -70,7 +71,7 @@ function startFloor({resume,onStatus,fixture}) {
   const initialEpoch=useMmdVrStore.getState().entryEpoch;
   const entryState=useMmdVrStore.getState(),entryRoom=fixture?'floor':resume?entryState.savedStage?.scenery:entryState.prefs.scenery;
   let closing=false,committed=false,session,ended=false,ending,renderer,root,store,xrStore,backend,undo,unbindHands,epoch;
-  let timer,backendTask,resolveStop,resolveEarly,prevTime,elapsed=0,pageRetired=false,lost=false,gpuTiming,firstUse;
+  let timer,backendTask,resolveStop,resolveEarly,input,elapsed=0,pageRetired=false,lost=false,gpuTiming,firstUse;
   const profile=getMmdVrRenderProfile(entryState.prefs),requested=describeRenderRequest(entryState.prefs);
   const entryStart=performance.now();
   const recording=fixture?null:recordFloorPerformance(entryStart,requested);
@@ -105,7 +106,7 @@ function startFloor({resume,onStatus,fixture}) {
       const actor=backend?.status,s=useMmdVrStore.getState();
       log.error=`${error?.message??error} [${resume?'resume':'fresh'}; phase=${log.phase}; trackedDraws=${log.frames}; room=${committed?'mounted':'pending'}; loading=${committed&&s.assetLoad.running}; actor=${actor?.evaluations?'evaluated':actor?.style?'attached':'none'}]`;
     }
-    closing=true;clearTimeout(timer);fixture?.controls.reset();gpuTiming?.interrupt();
+    closing=true;input?.dispose();clearTimeout(timer);fixture?.controls.reset();gpuTiming?.interrupt();
     firstUse?.interrupt();
     if(committed && useMmdVrStore.getState().entryEpoch===epoch){
       if(!error)recording?.finish(firstUse);
@@ -121,22 +122,20 @@ function startFloor({resume,onStatus,fixture}) {
       if(!session){publish(log.error?'failed':'ended');resolveEarly();}
     }
   }
-  function interrupt(cancelDraft=true){
+  function interrupt(reason){
     if(closing)return;
-    if(cancelDraft!==false){recording?.interrupt();gpuTiming?.interrupt();firstUse?.interrupt();} // a long *visible* interval is a real stall
-    prevTime=undefined;fixture?.controls.reset();
-    if(committed){
+    const lostInput=reason!=='visible-frame-gap';
+    if(lostInput){recording?.interrupt();gpuTiming?.interrupt();firstUse?.interrupt();} // a long *visible* interval is a real stall
+    fixture?.controls.reset();
+    if(committed && useMmdVrStore.getState().entryEpoch===epoch){
       clearContacts();
-      // A frame with no viewer pose never reaches the Fiber room. Even a
-      // one-frame loss must retire the captured trigger before recovery.
       releaseMilk(useMilkInteraction.getState().hold);
-      if(cancelDraft!==false){ // A slow but still tracked frame is not a tracking loss.
+      if(lostInput){
         stopRemoteEgg();
         stopWand();
+        const bag=useBackpack.getState();if(bag.draft)bag.cancelPlace();
       }
       const stand=usePelvic.getState().active;if(stand)interruptPelvic(stand.token);
-      // A release after tracking or focus returns must not place a held draft.
-      const bag=useBackpack.getState();if(cancelDraft&&bag.draft)bag.cancelPlace();
     }
     backend?.beginFrame(null,null,true);
   }
@@ -154,7 +153,7 @@ function startFloor({resume,onStatus,fixture}) {
       await Promise.race([request.then(granted=>{
         session=granted;
         if(closing){void endOwnSession();return;}
-        session.addEventListener('end',endedSession);session.addEventListener('visibilitychange',interrupt);
+        session.addEventListener('end',endedSession);input=bindFloorInput(session,interrupt);
       }),stopped]);
       if(closing)return;
       if(!session.enabledFeatures?.includes('webgpu'))throw Error('Session did not enable WebGPU');
@@ -197,10 +196,10 @@ function startFloor({resume,onStatus,fixture}) {
         if(closing || !frame || frame.session!==session || !renderer.xr.isPresenting)return;
         try{
           const views=session.visibilityState==='visible' && frame.getViewerPose(renderer.xr.getReferenceSpace())?.views;
-          if(!views?.length){interrupt();return;}
+          const dt=input.frame(time,!!views?.length);
+          if(dt===null)return;
           firstUse?.frame(time,views);
-          const dt=prevTime==null?0:(time-prevTime)*.001;prevTime=time;
-          if(dt<0||dt>.25)interrupt(false);else elapsed+=dt;
+          elapsed+=dt;
           if(!log.frames && !sun.current){firstUse?.endFrame();return;} // Fiber must have committed the landmark floor.
           if(committed)fixture?.controls.sample(session.inputSources);
           const gpuPasses=gpuTiming && committed && recording.sampleDue(time) ? gpuTiming.begin(views.length) : undefined;
@@ -230,8 +229,9 @@ function startFloor({resume,onStatus,fixture}) {
               // XR's sessionstart happened before this subtree mounted. Its
               // pointer portal and Three's eye update both use camera.parent.
               store.setState({camera:renderer.xr.getCamera()});
-               root.render(<DaylightMaterials.Provider value={classroomMaterials}><FloorShadows renderer={renderer}/><XR store={xrStore}>{fixture?<><FloorPlayer origin={origin} contacts={fixture.contacts}/><MmdVrStageContent backend={b}/><BackpackPlacement/></>:
-                <MmdVrGameRoom originRef={origin} backend={b} onExit={stop} busy={false}/>}</XR></DaylightMaterials.Provider>);
+              root.render(<DaylightMaterials.Provider value={classroomMaterials}><FloorShadows renderer={renderer}/>
+                <FloorInputContext.Provider value={input.room}><XR store={xrStore}>{fixture?<><FloorPlayer origin={origin} contacts={fixture.contacts}/><MmdVrStageContent backend={b}/><BackpackPlacement/></>:
+                  <MmdVrGameRoom originRef={origin} backend={b} onExit={stop} busy={false}/>}</XR></FloorInputContext.Provider></DaylightMaterials.Provider>);
             }).catch(stop);
           }
           if(committed&&log.phase!=='active'&&useMmdVrStore.getState().captureStage){clearTimeout(timer);publish('active');}
@@ -256,7 +256,7 @@ function startFloor({resume,onStatus,fixture}) {
       firstUse?.dispose();
       recording?.dispose();
       if(renderer)await release(()=>returnFloorRenderer(renderer,committed&&!lost&&!pageRetired&&!log.error));
-      session?.removeEventListener('end',endedSession);session?.removeEventListener('visibilitychange',interrupt);
+      session?.removeEventListener('end',endedSession);
       window.removeEventListener('error',onError);window.removeEventListener('pagehide',pageHide);
       publish(log.error?'failed':'ended');
     }
