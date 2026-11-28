@@ -15,6 +15,7 @@ import { ThreeMmdLoader, type ThreeMmdModel } from "@yohawing/three-mmd-loader";
 import { createMmdVrGltfLoader } from "./loading/mmdVrGltf";
 import * as bullet from '../mmdRuntime/bulletModule';
 import {xrRoomRestoreTiming} from '../diagnostics/roomRestoreTiming';
+import {runtimeTiming} from '../diagnostics/runtimeTiming';
 import { beginBodyPreview, drainBodySide, patchBodyPreview } from '../bodyState/store';
 import { makeOutletFixture } from '../bodyState/lactation/outletFixture.test-support';
 import type {SavedModel,SavedObject,StageSnapshot} from './stageSnapshot';
@@ -162,12 +163,15 @@ it('polls only the live haptic grip after the paused XR step; debug can still re
   });
   try {
     await act(async () => root.render(<ControllerContactHaptics.Provider value={haptics}><RoomHarness scenery="floor" slots={[]} saved={null}/></ControllerContactHaptics.Provider>));
+    runtimeTiming.readAndReset();
     await tick(60);
     expect(read).not.toHaveBeenCalled();
     expect(update).toHaveBeenCalledTimes(60);
+    expect(runtimeTiming.readAndReset()?.controllerHapticWork).toBeUndefined();
     session.inputSources.push(source);
     await tick(60);
     expect(read.mock.calls).toEqual(Array.from({ length: 30 }, () => [1]));
+    expect(runtimeTiming.readAndReset()?.controllerHapticWork).toMatchObject({reads:30,positiveReads:30});
     expect(read.mock.invocationCallOrder[0]).toBeGreaterThan(update.mock.invocationCallOrder[61]);
     expect(pulse).toHaveBeenCalledOnce();
     session.inputSources.pop();
@@ -175,6 +179,7 @@ it('polls only the live haptic grip after the paused XR step; debug can still re
     read.mockClear();
     await tick(1, .1);
     expect(read.mock.calls).toEqual([[], [0], [1]]);
+    expect(runtimeTiming.readAndReset()?.controllerHapticWork).toBeUndefined();
     expect(useMmdVrStore.getState()).toMatchObject({ physicsContactCount: 3, physicsControllerContactCounts: [2, 1], physicsStepCount: 42 });
   } finally {
     await act(async () => root.unmount());

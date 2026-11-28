@@ -1,4 +1,5 @@
 import { createContext } from 'react';
+import { runtimeTiming } from '../../diagnostics/runtimeTiming';
 import {
   createMmdVrHapticDriver, createMmdVrHapticGate, getMmdVrHapticFeedback,
   MMD_VR_HAPTIC_POLL_INTERVAL, supportsMmdVrHaptics, type MmdVrHapticLevel,
@@ -39,7 +40,11 @@ function controllerSide(index: Side) {
         return;
       }
       if (pad !== gamepad) { reset(); pad = gamepad; }
-      if (poll) contact = read(index) > 0;
+      if (poll) {
+        const start = performance.now();
+        contact = read(index) > 0;
+        runtimeTiming.recordHapticRead(performance.now() - start, contact);
+      }
       if (gate.update(contact, nowMs)) void driver.pulse(pad, getMmdVrHapticFeedback(grip.speed(), level), nowMs);
     },
   };

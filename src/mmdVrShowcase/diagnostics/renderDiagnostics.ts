@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { WebGLRenderer } from "three";
 import { getMmdVrRenderProfile, type MmdVrQualityInput } from "../settings/mmdVrQuality";
-import type { BulletStepWork, PhysicsPoseWork, SkirtWork } from './runtimeTiming';
+import type { BulletStepWork, ControllerHapticWork, PhysicsPoseWork, SkirtWork, runtimeTiming } from './runtimeTiming';
 
 export type RenderRequest = {
   frameRate: string;
@@ -30,6 +30,7 @@ export type RenderDiagnostics = {
   modelUpdateCpuMaxMs: number | null;
   physicsPoseWork?: PhysicsPoseWork;
   bulletStepWork?: BulletStepWork;
+  controllerHapticWork?: ControllerHapticWork;
   skirtWork?: SkirtWork;
 };
 
@@ -59,7 +60,7 @@ export function readRenderDiagnostics(
   renderer: Pick<WebGLRenderer, "xr" | "getRenderTarget" | "getContext"> & Partial<Pick<WebGLRenderer, "info">>,
   requested: RenderRequest,
   cadence: { fps: number; frameIntervalMs: number } | null,
-  runtimeCost: { mean: number; max: number; physicsPoseWork?: PhysicsPoseWork; bulletStepWork?:BulletStepWork; skirtWork?:SkirtWork } | null = null,
+  runtimeCost: ReturnType<typeof runtimeTiming.readAndReset> = null,
 ): RenderDiagnostics {
   const session = renderer.xr.getSession();
   const active = Boolean(session && renderer.xr.isPresenting);
@@ -89,6 +90,7 @@ export function readRenderDiagnostics(
     modelUpdateCpuMaxMs: active ? runtimeCost?.max ?? null : null,
     ...(active && runtimeCost?.physicsPoseWork && {physicsPoseWork:runtimeCost.physicsPoseWork}),
     ...(active && runtimeCost?.bulletStepWork && {bulletStepWork:runtimeCost.bulletStepWork}),
+    ...(active && runtimeCost?.controllerHapticWork && {controllerHapticWork:runtimeCost.controllerHapticWork}),
     ...(active && runtimeCost?.skirtWork && {skirtWork:runtimeCost.skirtWork}),
   };
 }

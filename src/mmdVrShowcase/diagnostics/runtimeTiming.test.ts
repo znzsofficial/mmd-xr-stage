@@ -22,6 +22,12 @@ it('keeps native step bins separate from pose counts and flushes seed-only sampl
   t.recordBullet(3,0,0,true);expect(t.readAndReset()).toBeNull();t.record(4);expect(t.readAndReset()?.bulletStepWork).toBeUndefined();
 });
 
+it('reports contact reads outside the actor update and clears them on the next window',()=>{
+  const t=createRuntimeTiming();t.record(4);t.recordHapticRead(2.5,false);t.recordHapticRead(.25,true);
+  expect(t.readAndReset()).toEqual({mean:4,max:4,controllerHapticWork:{reads:2,positiveReads:1,totalMs:2.75,maxMs:2.5}});
+  t.record(3);expect(t.readAndReset()?.controllerHapticWork).toBeUndefined();
+});
+
 it('reports one-off fitting separately from recurring skirt display, and leaves ordinary viewing windows empty',()=>{
   const t=createRuntimeTiming();t.recordSkirt('fit',40);t.recordSkirt('display',2);t.recordSkirt('display',5);t.record(8);
   expect(t.readAndReset()?.skirtWork).toEqual({fits:1,fitTotalMs:40,fitMaxMs:40,displays:2,displayTotalMs:7,displayMaxMs:5});

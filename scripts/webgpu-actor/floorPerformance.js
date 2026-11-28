@@ -61,6 +61,7 @@ export function recordFloorPerformance(started,requested) {
         drawCalls:renderer.info.render.drawCalls,triangles:renderer.info.render.triangles,
         textures:renderer.info.memory.textures,geometries:renderer.info.memory.geometries,modelUpdateCpuMs:cost?.mean??null,modelUpdateCpuMaxMs:cost?.max??null,
         ...(cost?.physicsPoseWork && {physicsPoseWork:cost.physicsPoseWork}),...(cost?.bulletStepWork && {bulletStepWork:cost.bulletStepWork}),
+        ...(cost?.controllerHapticWork && {controllerHapticWork:cost.controllerHapticWork}),
         ...(cost?.skirtWork && {skirtWork:cost.skirtWork})};
       useRenderDiagnostics.getState().set(lastPublished=data);
       recording.sample(data,{scenery,models,objects,physics:!!backend&&state.physicsEnabled,playing:!!backend&&state.playing,
