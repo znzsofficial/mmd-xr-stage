@@ -1,8 +1,5 @@
 import {
   applyCommonQualityAxes,
-  formatDprLabel,
-  formatFrameRateLabel,
-  formatOnOff,
   type ImmersiveAntialiasPref,
   type ImmersiveDprPref,
   type ImmersiveFramebufferScalePref,
@@ -144,19 +141,4 @@ export function getMmdVrRenderProfile(
   }
 
   return base;
-}
-
-export function formatMmdVrProfileSummary(
-  profile: MmdVrRenderProfile,
-  language: "zh" | "en",
-): string {
-  const dpr = formatDprLabel(profile.dpr);
-  const aa = formatOnOff(profile.antialias, language);
-  const sh = formatOnOff(profile.shadows, language);
-  const gr = formatOnOff(profile.showGrid, language);
-  const fps = profile.targetFrameRateHz == null ? formatFrameRateLabel(profile.frameRate, language) : `${profile.targetFrameRateHz} Hz`;
-  if (language === "zh") {
-    return `DPR ${dpr} · AA ${aa} · 阴影 ${sh} · 网格 ${gr} · 走速 ${profile.walkSpeed.toFixed(2)} · 目标 ${fps}`;
-  }
-  return `DPR ${dpr} · AA ${aa} · shadows ${sh} · grid ${gr} · walk ${profile.walkSpeed.toFixed(2)} · target ${fps}`;
 }

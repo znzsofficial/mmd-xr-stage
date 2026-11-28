@@ -544,7 +544,7 @@ export function MmdVrPrepApp({showOverlay=true,loadFloorBackend,initialFloorRend
               </select>
             </label>}
             <MusicPicker disabled={phase === 'entering' || phase === 'active'} />
-           <DeviceSettings/>
+            <DeviceSettings disabled={phase==='entering'||phase==='active'}/>
         </aside></div>
       </main>
 

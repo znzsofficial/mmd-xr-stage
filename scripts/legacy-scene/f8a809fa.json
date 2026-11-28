@@ -1,0 +1,15 @@
+{
+  "revision": "f4107b9236bd5a15a96ecc61d12ef60a45ed967b",
+  "dist": {
+    "files": 496,
+    "sha256": "4ec666cc1c232d371f18eb80a79a657e015769537f038e1c12fbb066a125aec2"
+  },
+  "assets": {
+    "assets/PlanetPhysics-9adUy2ZY.js": "644a5633c8b7bbec4b4969f385b724cea5e9a9837f793b0f32b86ac62387f14b",
+    "assets/emulate-BA-ESUHC.js": "f28a60e350e6057236588a4b56f55fe338c37a2caaab2bcda627915346556a8b",
+    "assets/index-D2dIOBDe.js": "ba07e1208763249d2c52cf4af0aa96724a05f5257cc6711b02af1aff6e859234",
+    "assets/rapier-BbL3KuEA.js": "2cf990204a99572151e600314a0104a833f770525edaadce8a84614110188cbf",
+    "assets/stage-host-DilCEniQ.js": "b90747675b223199de8bdfc15cfed1066433ce21de922b7a278ea456ab11128b",
+    "labs/cloth/assets/index--VZUfs3G.js": "fc6e76dc61515729a0af82994349001895942529efa61a11bb31be2ea6211472"
+  }
+}
