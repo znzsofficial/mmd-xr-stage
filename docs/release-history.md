@@ -12,6 +12,7 @@
 
 | 功能提交 | 已发布内容与验证范围 |
 |---|---|
+| `9cab064` | [固定部署](https://6f5e5b11.mmd-xr-stage.pages.dev)。[海站公园树盘](./scenery/harbour-city.md)的土面与草地分层、格栅移出根须。WebGL 成品逐棵固定机位，交换草面绘制顺序造成的最大像素差 **26,761→3**，正常复画与恢复无差；WebGPU 模拟 XR 海站双眼绘制通过。5 项定向测试、构建、434 个历史资源哈希及 5 项正式入口资源核验通过。另整理了[上一版的 Quest 两端回访](./performance/quest-harbour-2026-11-28.md)。树盘修复尚无实戴反馈。 |
 | `8695550` | [固定部署](https://fdde1c52.mmd-xr-stage.pages.dev)。[纸鸢全场景放飞](./gameplay/README.md#四幕玩法)，[重角色远手柄查询](./performance/bullet-step-profile.md#第二轮看舞时两只手柄都离开演员)。成品屏幕实测长椅空场与远处角色腕部换风不移镜头；WebGPU 模拟 XR 真实按键测试了 Live House 两名角色的持有归属、双眼左右风向，以及从海站站台到绿地持续放飞。成品 WebGL XR 续接播放的 623 刚体实模，远离时无振动请求，两次靠近各发一次，普通导出含查询耗时。1,197 项舞台＋51 项工具测试通过，428 个旧资源 URL 验哈希；485 文件 SHA-256 `0a60233a4f5db7e2cf24f23eba1a6e7d17d46805cd080a583a9eb312d169e02f`，主域 32 项资源一致。未测 Quest 实戴。 |
 | `ecc813d` | [固定部署](https://da092441.mmd-xr-stage.pages.dev)。独立晴空草坪、专属布景和四条旧门线已移除。成品实测旧书签与无效链接均留在准备页、不改已选房间；海站长椅左右放飞、收回纸鸢正常。模拟 WebGL XR 八次跨馆，五份独立布局正确恢复；WebGPU XR 海站及四馆读取最终双眼画面。1,189 项舞台＋51 项工具测试通过，422 个旧资源 URL 验哈希；479 文件 SHA-256 `30c048f717fe4ba1599bc79cf423b04e47bb7b49af9ed8590672a7d4434cad21`，主域 31 项资源一致。本轮未测 Quest 实戴。 |
 | `4d13286` | [固定部署](https://23cfd2f6.mmd-xr-stage.pages.dev)。[城区店面和四馆接缝](./scenery/harbour-city.md)；[WebGPU 形态复用、风格 Worker、手追触觉及星球碰撞](./performance/avoidable-work.md)。成品完成八次跨馆恢复、实模首次切画风加载新 Worker；同段配对、双眼还原与原生 Rapier/Bullet 单列。WebGL 同一串游览机位，五种街区图（窗、铺地、木铁、树皮、叶簇）实际已绘纹理句柄 11→5，各自仅保留一份。1192 项舞台＋51 项工具测试通过；415 个旧 URL 验哈希，473 文件 SHA-256 `e75a434ffe820bb17a0e91b74e1da55b9b90c3195c376c6940a0c65d0b424afe`，主域 31 项资源一致。本轮未连 Quest。 |

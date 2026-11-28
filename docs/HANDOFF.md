@@ -1,6 +1,6 @@
 # 会话交接｜2026-11-28
 
-**当前正式版：随身纸鸢与重角色手柄查询。** [正式站](https://mmd-xr-stage.pages.dev) · [海站城区与四馆](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&view=screen) · [`8695550` 固定部署](https://fdde1c52.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md)。
+**当前正式版：修复海站公园树盘闪烁。** [正式站](https://mmd-xr-stage.pages.dev) · [海站公园](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&view=screen) · [`9cab064` 固定部署](https://6f5e5b11.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md)。
 
 **下次接续：**[Quest 海站同页两端记录](./performance/quest-harbour-2026-11-28.md)已收：均实得 120 Hz；WebGPU 仿终末地播舞用的是 Bullet 裙摆。两趟角色 CPU 均超预算，画风和舞段未配对。优先定位此演员为何没有进入 GPU 裙摆，再在实际 72 Hz 用同画风、同机位与舞段验证开物理播放。[累计优化](./performance/README.md#已完成的性能优化)
 
