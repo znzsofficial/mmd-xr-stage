@@ -1,8 +1,8 @@
 # 会话交接｜2026-11-28
 
-**本轮已结项，无待发布的产品改动。** [海站城区与四馆](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&view=screen) · [WebGPU 海站](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [`4d13286` 固定部署](https://23cfd2f6.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md)。后续产品改动验证通过就发布，除非用户明确要求暂缓。
+**当前正式版：已下线独立草坪。** [海站城区与四馆](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&view=screen) · [WebGPU 海站](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [`ecc813d` 固定部署](https://da092441.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md)。后续产品改动验证通过就发布，除非用户明确要求暂缓。
 
-**压缩后接续：**先读[已完成的性能优化](./performance/README.md#已完成的性能优化)。重角色含触觉的 CPU 慢帧约降 22%；近期四项、城区绘制与内存优化均已上线。`4d13286` 的全量收据为 1,192 项舞台＋51 项工具测试。当前版尚无 Quest 同条件稳态对照，本轮没有安排下一项开发。
+**压缩后接续：**先读[已完成的性能优化](./performance/README.md#已完成的性能优化)。重角色含触觉的桌面 CPU 慢帧约降 22%；近期四项、城区绘制与内存优化均已上线。Quest 3S 仍缺同舞段、实际 72 Hz 的周边着色对照，未安排下一项开发。
 
 ## 正式站能做什么
 
