@@ -59,7 +59,8 @@ export function parkArchitecture(){
   function shopfront(s:Shop,i:number){
     const {w,trim,color}=s,doorW=1.06,doorX=w/2-1.01,displayW=w-2.1,displayX=-.65;
     wall(0,1.52,-s.d/2-.16,w,3.04,s.d-.32,color);
-    wall(0,.20,-.13,w,.4,.49,trim);
+    // A projecting plinth caps the ends of both corner piers and the wall.
+    wall(0,.20,-.13,w+.04,.4,.49,trim);
     wall(displayX,1.42,-.16,displayW+.16,2.10,.29,shadow);
     picture(displayX,1.42,-.012,displayW,1.92,i,'stock');
     sill(displayX,.35,.075,displayW+.30,.29);
@@ -75,14 +76,15 @@ export function parkArchitecture(){
     picture(0,2.82,.335,w*.62-.035,.43,i,'sign');
   }
   function monitorRoof(w:number,y:number,d:number){
+    const curb=.18;
+    wall(0,y+curb/2,-d/2,w,curb,d,zinc);
+    wall(0,y+.025,.11,w+.04,.09,.075,zinc);
     for(let j=0;j<3;j++){
       const width=w/3,x=-w/2+width*(j+.5),rise=.83,angle=Math.atan2(rise,width);
-      wall(x,y+.09,-d/2,width,.18,d,zinc);
       pitched(x,y+rise/2,-d/2,Math.hypot(width,rise),.11,d+.26,'#899c95',0,angle);
-      wall(x+width/2-.045,y+rise/2,-d/2,.09,rise,d,'#98b8b8');
+      wall(x+width/2-.045,y+(rise+curb)/2,-d/2,.09,rise-curb,d,'#98b8b8');
       const side=new Shape();side.moveTo(-width/2,0);side.lineTo(width/2,0);side.lineTo(width/2,rise);side.closePath();
       add(new ExtrudeGeometry(side,{depth:.07,bevelEnabled:false}).translate(x,y,.038),'#a9c5c3');
-      wall(x,y+.045,.11,width,.09,.075,zinc);
     }
   }
   function gable(w:number,y:number,d:number){
@@ -134,7 +136,7 @@ export function parkArchitecture(){
     if(s.kind==='flowers'){
       const colors=['#d78a71','#d9ba70','#9f9ab0','#dddcc6'];
       for(let j=0;j<5;j++){
-        const cx=x+((j%3)-1)*.49,cz=z+Math.floor(j/3)*.29-.12;
+        const cx=x+((j%3)-1)*.49,cz=z+Math.floor(j/3)*.37-.16;
         add(turn([[.117,0],[.164,.33],[.175,.34],[.175,.365],[.148,.365],[.126,.29]],20).translate(cx,0,cz),j%2?'#929f96':'#b48a6b');
         for(let k=0;k<9;k++){
           const t=k*2.399+j,r=.06+.079*(k%3),ex=cx+r*Math.cos(t),ez=cz+r*Math.sin(t),y=.59+.068*((k+j)%6);
@@ -147,12 +149,12 @@ export function parkArchitecture(){
     // A timber trestle sits under the bakery and ceramics windows. At the
     // bookshop it supports a sloping box of sleeves rather than a flat table.
     for(const a of [-1,1])for(const b of [-1,1]){
-      const dx=(w/2-.12)*a;
+      const dx=(w/2-.12)*a+b*.027; // Crossed trestle legs sit side by side.
       add(rod([x+dx,.018,z+b*.26],[x+dx,.73,z-b*.16],.025,.025,6),'#89775b');
     }
     wall(x,.736,z,w,.064,.58,'#ae8c68');
     if(s.kind==='books'){
-      wall(x,.822,z-.25,w,.17,.048,'#a88c6b');wall(x,.822,z+.25,w,.17,.048,'#b39370');
+      wall(x,.838,z-.25,w,.14,.048,'#a88c6b');wall(x,.838,z+.25,w,.14,.048,'#b39370');
       for(let j=0;j<8;j++){
         const cx=x-w*.32+(j%3)*w*.31,cz=z-.12+.12*Math.floor(j/3),tints=['#a96854','#656f75','#a4a079','#91776c'];
         pitched(cx,.961,cz,.29,.38,.025,tints[j%4],-.15);

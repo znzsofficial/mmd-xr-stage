@@ -1595,7 +1595,12 @@ return {vertexNode,fragmentNode};
 
 export function nebula(read){
 const rr_dir=varyingProperty('vec3','scene_dir');
+const rr_gasUV=varyingProperty('vec2','scene_gasUV');
+const rr_dustUV=varyingProperty('vec2','scene_dustUV');
+const rr_warm=varyingProperty('float','scene_warm');
 const rr_builtin_position=positionGeometry;
+const rr_builtin_uv=uv();
+const rr_builtin_cameraPosition=varying(transpose(mat3(cameraViewMatrix)).mul(cameraViewMatrix.element(3).xyz.negate()));
 const rr_builtin_viewMatrix=cameraViewMatrix;
 const rr_builtin_projectionMatrix=cameraProjectionMatrix;
 const rr_fields=read('fields','sampler2D');
@@ -1603,21 +1608,8 @@ const rr_mapped=read('mapped','float');
 const rr_clock=read('clock','float');
 const rr_attention=read('attention','float');
 const rr_sunDir=read('sunDir','vec3');
-const rr_builtin_uv=uv();
-const rr_builtin_cameraPosition=varying(transpose(mat3(cameraViewMatrix)).mul(cameraViewMatrix.element(3).xyz.negate()));
 
-const vertexNode=(()=>{const roomMain = /*@__PURE__*/ Fn( () => {
-
-	const rrResult = property( 'vec4' );
-	rr_dir.assign( rr_builtin_position );
-	const p = rr_builtin_projectionMatrix.mul( vec4( mat3( rr_builtin_viewMatrix ).mul( rr_builtin_position ), 1. ) ).toVar();
-	rrResult.assign( p.xyww );
-
-	return rrResult;
-
-} );
-return roomMain();})();
-const fragmentNode=(()=>{const dustDistance = float( 235. ), emissionDistance = float( 720. ).toVar();
+const vertexNode=(()=>{const dustDistance = float( 235. ), emissionDistance = float( 720. ).toVar();
 
 const skyEye = /*@__PURE__*/ Fn( ( [ p ] ) => {
 
@@ -1639,17 +1631,36 @@ const shellDir = /*@__PURE__*/ Fn( ( [ eye, d, r ] ) => {
 
 } );
 
-const sampleLongitude = /*@__PURE__*/ Fn( ( [ atlas, rr_builtin_uv ] ) => {
+const chartUV = /*@__PURE__*/ Fn( ( [ shell, longitude ] ) => {
 
-	const dx = dFdx( rr_builtin_uv ).toVar(), dy = dFdy( rr_builtin_uv ).toVar();
-	dx.x.subAssign( floor( dx.x.add( .5 ) ) );
-	dy.x.subAssign( floor( dy.x.add( .5 ) ) );
+	const coord = vec2( longitude, step( 0., shell.y ) ).toVar();
 
-	return atlas.sample( rr_builtin_uv ).grad( dx, dy );
+	If( dot( shell.xz, shell.xz ).greaterThan( 1e-12 ), () => {
+
+		coord.assign( shellUV( shell ) );
+
+	} );
+
+	return vec2( coord.x.add( floor( longitude.sub( coord.x ).add( .5 ) ) ), coord.y );
 
 } );
 
-const trail = /*@__PURE__*/ Fn( ( [ n, origin, tangent, t ] ) => {
+const roomMain = /*@__PURE__*/ Fn( () => {
+
+	const rrResult = property( 'vec4' );
+	rr_dir.assign( rr_builtin_position );
+	const eye = skyEye( rr_builtin_cameraPosition ).toVar(), farN = shellDir( eye, rr_dir, emissionDistance ).toVar();
+	rr_gasUV.assign( chartUV( farN, rr_builtin_uv.x ) );
+	rr_dustUV.assign( chartUV( shellDir( eye, rr_dir, dustDistance ), rr_builtin_uv.x ) );
+	rr_warm.assign( smoothstep( - .44, .61, farN.x.sub( mul( .13, farN.z ) ).add( mul( .16, sin( farN.z.mul( 4. ) ) ) ) ) );
+	const p = rr_builtin_projectionMatrix.mul( vec4( mat3( rr_builtin_viewMatrix ).mul( rr_builtin_position ), 1. ) ).toVar();
+	rrResult.assign( p.xyww );
+
+	return rrResult;
+
+} );
+return roomMain();})();
+const fragmentNode=(()=>{const trail = /*@__PURE__*/ Fn( ( [ n, origin, tangent, t ] ) => {
 
 	const a = normalize( origin ).toVar();
 	const b = normalize( tangent.sub( dot( tangent, a ).mul( a ) ) ).toVar();
@@ -1662,18 +1673,28 @@ const trail = /*@__PURE__*/ Fn( ( [ n, origin, tangent, t ] ) => {
 const roomMain = /*@__PURE__*/ Fn( () => {
 
 	const rrResult = property( 'vec4' );
-	const n = normalize( rr_dir ).toVar(), eye = skyEye( rr_builtin_cameraPosition ).toVar();
-	const farN = shellDir( eye, n, emissionDistance ).toVar();
-	const gas = sampleLongitude( rr_fields, shellUV( farN ) ).rgb.mul( rr_mapped ).toVar();
-	const dust = sampleLongitude( rr_fields, shellUV( shellDir( eye, n, dustDistance ) ) ).b.mul( rr_mapped ).toVar();
-	const warm = smoothstep( - .44, .61, farN.x.sub( mul( .13, farN.z ) ).add( mul( .16, sin( farN.z.mul( 4. ) ) ) ) ).toVar();
-	const cloud = mix( vec3( .019, .17, .32 ), vec3( .31, .066, .12 ), warm ).toVar();
-	const filament = mix( vec3( .085, .58, .76 ), vec3( .79, .24, .11 ), warm ).toVar();
+	const n = normalize( rr_dir ).toVar();
+	const gas = rr_fields.sample( rr_gasUV ).rg.mul( rr_mapped ).toVar();
+	const dust = rr_fields.sample( rr_dustUV ).b.mul( rr_mapped ).toVar();
+	const cloud = mix( vec3( .019, .17, .32 ), vec3( .31, .066, .12 ), rr_warm ).toVar();
+	const filament = mix( vec3( .085, .58, .76 ), vec3( .79, .24, .11 ), rr_warm ).toVar();
 	const col = vec3( .0015, .0026, .008 ).add( mul( .78, gas.r ).mul( gas.r ).mul( cloud ).add( mul( .72, gas.g ).mul( gas.g ).mul( filament ) ).mul( sub( 1., mul( .93, dust ) ) ).mul( mix( .30, 1., rr_attention ) ) ).toVar();
 	const radius = length( n.sub( rr_sunDir ) ).toVar(), aa = max( .0006, fwidth( radius ) ).toVar();
 	col.addAssign( vec3( 1., .86, .64 ).mul( sub( 1., smoothstep( sub( .012, aa ), add( .012, aa ), radius ) ).mul( 2.1 ).add( mul( .25, exp( radius.negate().mul( 82. ) ) ) ).add( mul( .028, exp( radius.negate().mul( 12. ) ) ) ) ) );
-	col.addAssign( vec3( .50, .76, .98 ).mul( trail( n, vec3( .13, .28, - 1. ), vec3( .96, - .28, .2 ), mod( rr_clock, 12. ).div( 1.4 ) ) ) );
-	col.addAssign( vec3( .92, .63, .45 ).mul( trail( n, vec3( - .61, - .66, .58 ), vec3( - .4, .8, .1 ), mod( rr_clock.add( 5. ), 16. ).div( 1.75 ) ) ) );
+	const blueTime = mod( rr_clock, 12. ).div( 1.4 ).toVar(), amberTime = mod( rr_clock.add( 5. ), 16. ).div( 1.75 ).toVar();
+
+	If( blueTime.lessThan( 1. ), () => {
+
+		col.addAssign( vec3( .50, .76, .98 ).mul( trail( n, vec3( .13, .28, - 1. ), vec3( .96, - .28, .2 ), blueTime ) ) );
+
+	} );
+
+	If( amberTime.lessThan( 1. ), () => {
+
+		col.addAssign( vec3( .92, .63, .45 ).mul( trail( n, vec3( - .61, - .66, .58 ), vec3( - .4, .8, .1 ), amberTime ) ) );
+
+	} );
+
 	rrResult.assign( vec4( col, 1. ) );
 
 	return rrResult;

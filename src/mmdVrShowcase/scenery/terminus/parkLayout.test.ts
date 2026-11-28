@@ -5,7 +5,7 @@ import {roomGround} from '../../movement/roomGround';
 import {createSolidColumns} from '../../movement/solidColumns';
 import {resolvePlacementHeight,roomPickDecks,visiblePick} from '../placementAreas';
 import {parkArchitecture} from './parkArchitecture';
-import {inlandEmbankment,parkPlanting,parkStreetFurniture} from './parkGroundArt';
+import {inlandEmbankment,parkPavement,parkPlanting,parkStreetFurniture} from './parkGroundArt';
 import {fountainCourt,parkBeds,parkDeck,parkLights,parkSeats,parkShops,parkShots,parkTrees,windowDisplays} from './parkLayout';
 import {SHORE_SUN} from './shoreLayout';
 import {stationParts} from './stationParts';
@@ -16,6 +16,25 @@ import {barkGeometry} from './park/treeSurfaces';
 
 const room='seasideTerminus';
 describe('continuous station park',()=>{
+  it('gives the greenhouse curb, corner plinth and paving crossings a single front surface',()=>{
+    const {solid,prints}=parkArchitecture(),paving=parkPavement(),material=new MeshBasicMaterial();
+    const buildings=new Mesh(solid,material),ground=new Mesh(paving,material);
+    const street=new Vector3(16.66948,1.57,32.62539),square=new Vector3(-.87378,1.6,16.98165);
+    try {
+      // World points back-projected from the original stereo depth conflicts.
+      for(const [eye,point] of [[street,new Vector3(13.6692,5.35,37.1736)],
+        [street,new Vector3(2.4,.3971,37.4701)],[square,new Vector3(11.2178,5.4213,37.28)]]){
+        const hits=new Raycaster(eye,point.sub(eye).normalize()).intersectObject(buildings);
+        expect(hits.length).toBeGreaterThan(1);
+        expect(hits[1].distance-hits[0].distance).toBeGreaterThan(.001);
+      }
+      for(const [x,z] of [[19.759,34.519],[19.949,34.679]]){
+        const hits=new Raycaster(new Vector3(x,1.6,z),new Vector3(0,-1,0)).intersectObject(ground);
+        expect(hits).toHaveLength(1);expect(hits[0].point.y).toBeCloseTo(0);
+      }
+    }finally{solid.dispose();prints.dispose();paving.dispose();material.dispose();}
+  });
+
   it('keeps the shared platform lip and the street walk valid for actors, avoiding the pool, borders and furniture',()=>{
     expect(roomPickDecks(room)).toContain(parkDeck);
     for(const [x,z] of [[-1,7.99],[-1,8],[-1,8.01],[0,22],[5,32],[16.65,32.6],[21.4,23.5],[21.4,37],[21.4,40.85]]){

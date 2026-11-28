@@ -76,17 +76,31 @@ export function parkPavement(){
     quad([[x-w/2,y,z-d/2],[x-w/2,y,z+d/2],[x+w/2,y,z+d/2],[x+w/2,y,z-d/2]],color);
   }
   const {x,z,w,d}=parkDeck;
-  slab(x,z,w,d,0,'#fffdf7');
+  // Cut the straight walks and their basalt bands into the forecourt itself.
+  // A cross band runs through the junction; the lengthwise band stops at its edge.
+  const inlays=[
+    ...[34.52,34.68].map(z=>({x:9.65,z,w:26.8,d:.062,color:'#abb6ab'})),
+    ...[19.76,19.95].map(x=>({x,z:22.5,w:.067,d:28.87,color:'#a9b6ad'})),
+    {x:8.88,z:35.85,w:25.3,d:2.3,color:'#dbd9cc'},
+    {x:21.5,z:22.5,w:3.3,d:29,color:'#d1d8d3'},
+    {x,z,w,d,color:'#fffdf7'},
+  ].map(r=>({left:r.x-r.w/2,right:r.x+r.w/2,near:r.z-r.d/2,far:r.z+r.d/2,color:r.color}));
+  const edges=(values:number[])=>Array.from(new Set(values)).sort((a,b)=>a-b);
+  const rows=edges(inlays.flatMap(r=>[r.near,r.far]));
+  const columns=edges(inlays.flatMap(r=>[r.left,r.right]));
+  for(let j=1;j<rows.length;j++){
+    const near=rows[j-1],far=rows[j],bands=inlays.filter(r=>r.near<=near&&far<=r.far);
+    for(let i=1;i<columns.length;i++){
+      const left=columns[i-1],right=columns[i];
+      const band=bands.find(r=>r.left<=left&&right<=r.right)!;
+      quad([[left,0,near],[left,0,far],[right,0,far],[right,0,near]],band.color);
+    }
+  }
   slab(laneMouth.x,laneMouth.z,laneMouth.w,laneMouth.d,0,'#dbd9cc');
   // Sloping street gutters and a muted kerb, glimpsed between the florist and
   // the coffee house. The crossing stripes recede across the lane to the depot.
   slab(21.4,44.1,6.0,3.6,-.006,'#999e98');
   for(let j=0;j<5;j++)slab(21.17,42.79+j*.61,1.54,.24,.001,'#d4d1bf');
-  // Slabs carry through the station opening. The promenade's basalt strip is
-  // a flush inlay, never a second walk layer or a raised barrier across it.
-  slab(21.5,22.5,3.3,29,.002,'#d1d8d3');slab(8.88,35.85,25.3,2.3,.0022,'#dbd9cc');
-  for(const cx of [19.76,19.95])slab(cx,22.5,.067,28.87,.004,'#a9b6ad');
-  for(const z of [34.52,34.68])slab(9.65,z,26.8,.062,.004,'#abb6ab');
   // Matte falloff against a recess. Same stone and world UVs as the adjacent
   // sidewalk; the softened edge is contact shade rather than a black strip.
   for(const s of parkShops){

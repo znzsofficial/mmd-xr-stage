@@ -1,4 +1,4 @@
-// node scripts/verify-harbour-park.cjs [--dev]
+// node scripts/verify-harbour-park.cjs [--dev] [--depth | --sun]
 // One hardware WebGL browser. Screen tour, paired material controls, backpack rays,
 // then a single uninterrupted IWER normal-mode round trip in the same tab.
 const assert = require('node:assert/strict');
@@ -442,6 +442,13 @@ async function main() {
     };
     await tour('shoreParkEntry');
      await page.waitForLoadState('networkidle');
+     if(process.argv.includes('--depth')){
+       const results=await page.evaluate(require('./park-depth-take.cjs'));
+       await fs.writeFile(path.join(out,'screen-depth.json'),JSON.stringify(results,null,2)+'\n');
+       console.log('WebGL park opaque depth ties:',JSON.stringify(results));
+       assert.deepEqual(await page.evaluate(()=>parkQA.errors),[]);assert.deepEqual(errors,[]);
+       return;
+     }
      if(liveSun){
        await tour('shoreParkSeats');await frames(page,6);
        const leaves=[0,1,2,3].map(i=>'park:zelkova-leaves-'+i);
