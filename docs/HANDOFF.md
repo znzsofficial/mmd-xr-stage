@@ -1,8 +1,10 @@
 # 会话交接｜2026-11-28
 
-**本轮已结项，无待发布的产品改动。** [海站与站前公园](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&view=screen) · [WebGPU 海站](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [`fb4a7be` 固定部署](https://652a58ef.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md)。后续产品改动验证通过就发布，除非用户明确要求暂缓。
+**本轮已结项，无待发布的产品改动。** [海站与站前公园](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&view=screen) · [WebGPU 海站](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [`d3f7aac` 固定部署](https://6cc38554.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md)。后续产品改动验证通过就发布，除非用户明确要求暂缓。
 
 ## 正式站能做什么
+
+- WebGPU 首次并行准备布料管线，第二人和同设备再次入场复用；切回此前绘制过的画风可复用绘制对象。实模复切仿终末地由 28 个着色器模块／17 条渲染管线降为 **0／0**。首次画风仍按需编译。`gpuTiming=1` 额外导出首次进入、放置及换画风的分段墙钟。[同脚本放置和切换测量](./performance/README.md#webgpu-首次放置与切画风)
 
 - 新版修复[极端质量尾链离开骨盆](./performance/xr-runtime-performance.md#开物理后尾根离开身体)，以及 WebGPU XR 收起操作页误收搭档。屏幕与模拟 XR 同一 PMX、开物理 6 秒后尾根均稳定，收起搭档面板后手动位置保持、已启动的自动往复继续。[双后端技术栈](./xr-rendering-stack.md)并排列出渲染、求值、布料与按需 GPU 分段计时；[海站双眼画面与开销](./performance/README.md#webgpu-单人播舞)只作桌面结论。
 
