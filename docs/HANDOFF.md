@@ -1,8 +1,8 @@
 # 会话交接｜2026-11-28
 
-**当前正式版：修复海站公园树盘闪烁。** [正式站](https://mmd-xr-stage.pages.dev) · [海站公园](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&view=screen) · [`9cab064` 固定部署](https://6f5e5b11.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md)。
+**当前正式版：公园店面剔除与 WebGPU 外套下摆。** [正式站](https://mmd-xr-stage.pages.dev) · [WebGPU 海站](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [`f4107b9` 固定部署](https://f8a809fa.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md)。
 
-**下次接续：**[Quest 海站同页两端记录](./performance/quest-harbour-2026-11-28.md)已收：均实得 120 Hz；WebGPU 仿终末地播舞用的是 Bullet 裙摆。两趟角色 CPU 均超预算，画风和舞段未配对。优先定位此演员为何没有进入 GPU 裙摆，再在实际 72 Hz 用同画风、同机位与舞段验证开物理播放。[累计优化](./performance/README.md#已完成的性能优化)
+**下次接续：**[Quest 海站两端旧记录和下摆新验证](./performance/quest-harbour-2026-11-28.md)。外套下摆现已在桌面 WebGPU 实绘、拨衣通过；商店街同机位每眼店面提交从 56,146 降至 9,458 三角形，成品两眼像素一致。用本版在实际 72 Hz 复核同一演员、画风、机位与舞段；尚无新版 Quest 帧率。[累计优化](./performance/README.md#已完成的性能优化)
 
 ## 正式站能做什么
 
