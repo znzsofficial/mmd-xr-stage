@@ -1,6 +1,6 @@
 # 会话交接｜2026-11-28
 
-**本轮已结项，无待发布的产品改动。** [海站与站前公园](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&view=screen) · [WebGPU 海站](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [`5972872` 固定部署](https://fc3e5420.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md)。后续产品改动验证通过就发布，除非用户明确要求暂缓。
+**本轮已结项，无待发布的产品改动。** [海站与站前公园](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&view=screen) · [WebGPU 海站](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [`d3e7fb8` 固定部署](https://a5a966e0.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md)。后续产品改动验证通过就发布，除非用户明确要求暂缓。
 
 ## 正式站能做什么
 
@@ -20,7 +20,9 @@
 
 **复杂角色开物理播舞已完成第一轮。** 保留原求解器，减少手柄触觉重复扫描接触点。[同原件正反对照](./performance/bullet-step-profile.md#090-重角色与触觉查询)区分了纯求值、含触觉的 CPU 时间和双眼绘制间隔；`local-review/heavy-bullet/` 有具名样本。若继续追手柄查询，先量剩下那一次原生遍历中，接触流形查刚体编号的费用。Quest 持续帧率未测。
 
-**维护审查：**优先从已验收制品生成旧标签页兼容清单；按住类工具的失追通知等下一次扩交互前再收口。[范围和玩家验收](./architecture/maintenance.md#清理与验证预算)。本轮没有重构这些路径。
+**两项维护重构已上线。** 旧标签页资源从上版制品生成；已开着的旧页选模后，换成新制品仍能首次进 WebGPU、放置并走星球。WebGPU 房间同步撤销丢失头姿的袜面／摆姿拖动；仍可见的慢帧留在报告中。[范围和玩家验收](./architecture/maintenance.md#清理与验证预算)。搭档面板保持现状。
+
+**Quest / Adreno 候选：**在实际 72 Hz、相同角色与舞段先单独比较固定注视点渲染，再看眼图像素数、透明层重画与双眼转色带宽。[头显旧记录的帧预算和验证标准](./performance/quest-floor-dance.md#quest-3s-的帧预算与-adreno-优化)。本轮未连 Quest、未改画质默认值。
 
 **记录开关：建议暂缓。** 普通记录能留下偶发卡顿，详细 GPU 计时已默认关闭；若需要在 Quest 做“完全不记录”的对照，再评估一个独立于 FPS 显示的采样选项。[开销与重议条件](./performance/viewing-and-diagnostics.md#要不要加记录开关)
 
