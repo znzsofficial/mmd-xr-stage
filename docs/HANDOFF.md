@@ -1,6 +1,6 @@
 # 会话交接｜2026-11-28
 
-**当前正式版：公园店面剔除与 WebGPU 外套下摆。** [正式站](https://mmd-xr-stage.pages.dev) · [WebGPU 海站](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [`f4107b9` 固定部署](https://f8a809fa.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md)。
+**当前正式版：准备页画质三档常显，细调一层。** [正式站](https://mmd-xr-stage.pages.dev) · [WebGPU 海站](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [`f22d7fb` 固定部署](https://ac63ab3d.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md)。
 
 **下次接续：**[Quest 海站两端旧记录和下摆新验证](./performance/quest-harbour-2026-11-28.md)。外套下摆现已在桌面 WebGPU 实绘、拨衣通过；商店街同机位每眼店面提交从 56,146 降至 9,458 三角形，成品两眼像素一致。用本版在实际 72 Hz 复核同一演员、画风、机位与舞段；尚无新版 Quest 帧率。[累计优化](./performance/README.md#已完成的性能优化)
 
