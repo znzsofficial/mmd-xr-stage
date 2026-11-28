@@ -1,15 +1,23 @@
 import handCode from './handSupport.wgsl?raw';
 import collisionCode from './contact.wgsl?raw';
+import {clothProgram} from './clothPrograms.js';
 import {gripMotion} from './handMotion.js';
+
+const handSource=collisionCode+handCode;
+
+export async function prepareHandPipelines(device){
+  const program=await clothProgram(device,handSource,'原衣双手承托');
+  const [sample,lift]=await Promise.all([program.pipeline('handSamples'),program.pipeline('liftNodes')]);
+  return {sample,lift};
+}
 
 // The solver and the draw consume the same point buffer. A dispatch boundary
 // separates parallel reads of that buffer from node writes (no float atomics).
-export async function makeHandPass({device,rig,fitted,buf,shader,bind,palette,points,goals,history,caps,bounds,headers}){
-  const count=fitted.faces.length,motion=gripMotion();
+export function makeHandPass({device,rig,fitted,buf,bind,palette,points,goals,history,caps,bounds,headers},pipelines){
+  const count=fitted.faces.length;
   if(!count)return {count,observe(){},reset(){},begin:()=>false};
-  const m=await shader(collisionCode+handCode,'原衣双手承托');
-  const pipe=entryPoint=>device.createComputePipelineAsync({layout:'auto',compute:{module:m,entryPoint}});
-  const [sample,lift]=await Promise.all([pipe('handSamples'),pipe('liftNodes')]);
+  const {sample,lift}=pipelines;
+  const motion=gripMotion();
   const storage=(name,data)=>buf(name,data,GPUBufferUsage.STORAGE);
   const responses=storage('hand face responses',new Float32Array(8*count));
   const skin=[[1,storage('hand sample spans',fitted.heads)],[2,storage('hand sample weights',fitted.terms)],[3,palette],[4,goals],[5,points],[6,history],[9,responses]];

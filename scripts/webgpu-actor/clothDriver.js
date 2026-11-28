@@ -1,5 +1,5 @@
 import {Matrix4,Vector3} from 'three';
-import {CLOTH_DT,gpuResources,makeClothKernel} from '../../experiments/gpu-cloth/clothKernel.js';
+import {CLOTH_DT,gpuResources,makeClothKernel,prepareClothPipelines} from '../../experiments/gpu-cloth/clothKernel.js';
 
 // Only the hand shader uses these palette indices. Keep the authored terms and
 // their cloth-node indices intact for the other consumers of the fitted rig.
@@ -33,15 +33,16 @@ export async function createClothDriver(renderer,model,rig,{points,goals},signal
   const resources=gpuResources(device), release=()=>{signal?.removeEventListener('abort',release);resources.dispose();};
   signal?.throwIfAborted();signal?.addEventListener('abort',release,{once:true});
   try{
-    const {entries,handSamples}=prepareHandPalette(mesh,rig.handSamples);
-    const palette=new Float32Array(entries.length*16),pal=resources.buf('hand surface skin palette',palette,S);
-    // A compile may outlive put-away. Never allocate or bind borrowed surface
-    // buffers on its continuation after the synchronous actor teardown.
-    const guard=fn=>(...args)=>{signal?.throwIfAborted();return fn(...args);};
-    const shader=async(...args)=>{signal?.throwIfAborted();const m=await resources.shader(...args);signal?.throwIfAborted();return m;};
-    const kernel=await makeClothKernel(device,rig,{buf:guard(resources.buf),bind:guard(resources.bind),shader},
-      {points,goals,palette:pal,handSamples});
+    // Shared compilation may outlive put-away. Check before allocating or
+    // binding any actor resources on its continuation.
+    const pipelines=await prepareClothPipelines(device,rig.handSamples);
     signal?.throwIfAborted();
+    const {entries,handSamples}=prepareHandPalette(mesh,rig.handSamples);
+    const palette=new Float32Array(entries.length*16);
+    const pal=handSamples.faces.length?resources.buf('hand surface skin palette',palette,S):null;
+    const guard=fn=>(...args)=>{signal?.throwIfAborted();return fn(...args);};
+    const kernel=makeClothKernel(device,rig,{buf:guard(resources.buf),bind:guard(resources.bind)},
+      {points,goals,palette:pal,handSamples},pipelines);
     const targets=rig.rest.slice(),worldToMesh=new Matrix4(),skin=new Matrix4(),p=new Vector3();
     const palms=[new Vector3(),new Vector3()],local=[null,null];
 
@@ -74,7 +75,7 @@ export async function createClothDriver(renderer,model,rig,{points,goals},signal
       for(let i=0;i<rig.nodes.length;i++)p.setFromMatrixPosition(bones[rig.nodes[i].bone].matrixWorld)
         .applyMatrix4(worldToMesh).multiplyScalar(rig.scale).toArray(targets,i*4);
       device.queue.writeBuffer(goals,0,targets);
-      if((local[0]||local[1])&&entries.length){
+      if((local[0]||local[1])&&pal&&entries.length){
         // Attached PMX: remove the live placement from each sampled bone.
         // One contiguous write, even for scattered author IDs or a dense rig.
         for(let slot=0;slot<entries.length;slot++){

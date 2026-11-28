@@ -4,7 +4,7 @@ import collisionCode from './contact.wgsl?raw';
 import faceCode from './faceContact.wgsl?raw';
 import {makeFaceSamples} from './faceSamples.js';
 import {makeHandSamples} from './handSamples.js';
-import {gpuResources,makeClothKernel} from './clothKernel.js';
+import {gpuResources,makeClothKernel,prepareClothPipelines} from './clothKernel.js';
 import {makeSign} from './sign.js';
 
 export async function openDevice(){
@@ -22,13 +22,14 @@ export async function makeGpu(d,model,rig){
   const S=GPUBufferUsage.STORAGE,U=GPUBufferUsage.UNIFORM,V=GPUBufferUsage.VERTEX,mesh=model.mesh,geo=mesh.geometry;
   try{
     const surface=await shader(renderCode,'模型绘制');
+    const handSamples=makeHandSamples(mesh,rig),clothPipelines=await prepareClothPipelines(d,handSamples);
     const n=rig.nodes.length,targets=rig.rest.slice(),tbuf=buf('pose targets',targets,S),points=buf('solver output',targets,S|GPUBufferUsage.COPY_SRC);
     let debug,debugPipes,unculled;
     const attributes=['position','uv','skinIndex','skinWeight'].map((name,i)=>{const a=geo.attributes[name];return buf(name,i===2?new Uint16Array(a.array):new Float32Array(a.array),V);});
     const idx=buf('faces',geo.index.array,GPUBufferUsage.INDEX),indexFormat=geo.index.array instanceof Uint32Array?'uint32':'uint16';
     const vertices=['float32x3','float32x2','uint16x4','float32x4'].map((format,i)=>({arrayStride:[12,8,8,16][i],attributes:[{shaderLocation:i,offset:0,format}]}));
     const lut=buf('bone to particle',rig.lookup,S),skeleton=mesh.skeleton;skeleton.update();const pal=buf('skin palette',skeleton.boneMatrices,S);
-    const kernel=await makeClothKernel(d,rig,resources,{points,goals:tbuf,palette:pal,handSamples:makeHandSamples(mesh,rig)});
+    const kernel=makeClothKernel(d,rig,resources,{points,goals:tbuf,palette:pal,handSamples},clothPipelines);
     const {support,cap,box,meta,solver,relaxGroups}=kernel;
     let handSurfaceEnabled=true;
     let facePass,faceShown=false,faceCount=0,display,residual;const zero=buf('no surface offset',new Float32Array(4),S);

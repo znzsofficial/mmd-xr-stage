@@ -1,26 +1,30 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {registerHooks} from 'node:module';
+import {readFileSync} from 'node:fs';
+import {setImmediate as nextTurn} from 'node:timers/promises';
 import {Matrix4,Object3D,Vector3,Vector4} from 'three';
 import {ThreeMmdLoader,FallbackCore,disposeMmdModel} from '@yohawing/three-mmd-loader';
 import {mixedMaskPmx} from '../experiments/gpu-cloth/fixtures/mixed-mask.mjs';
 import {fitRig} from '../experiments/gpu-cloth/rig.js';
 import {makeHandSamples} from '../experiments/gpu-cloth/handSamples.js';
 import {GRIP_RADIUS} from '../experiments/gpu-cloth/handMotion.js';
+import {clothProgram} from '../experiments/gpu-cloth/clothPrograms.js';
 
 // CPU test of the data and frame contract, not a substitute for WGSL execution.
 const hook=registerHooks({load(url,ctx,next){return url.endsWith('.wgsl?raw')?
-  {format:'module',source:'export default "";',shortCircuit:true}:next(url,ctx);}});
-const {createClothDriver}=await import('./webgpu-actor/clothDriver.js');hook.deregister();
+  {format:'module',source:`export default ${JSON.stringify(readFileSync(new URL(url),'utf8'))};`,shortCircuit:true}:next(url,ctx);}});
+const {createClothDriver}=await import('./webgpu-actor/clothDriver.js');
+const {gpuResources,makeClothKernel,prepareClothPipelines}=await import('../experiments/gpu-cloth/clothKernel.js');hook.deregister();
 function recordingDevice(){
   const buffers=[],submits=[],writes=[];
   return {buffers,submits,writes,queue:{writeBuffer(b,offset,a){assert.equal(offset,0);b.data=a.slice();writes.push({buffer:b,bytes:a.byteLength});},submit(e){submits.push(e[0]);}},
     createBuffer(desc){const b={...desc,destroy(){this.destroyed=true;}};buffers.push(b);return b;},
     createShaderModule:()=>({getCompilationInfo:()=>({messages:[]})}),
     createComputePipelineAsync:({compute})=>({...compute,getBindGroupLayout:()=>0}),
-    createBindGroup:({entries})=>Object.fromEntries(entries.map(e=>[e.binding,e.resource.buffer])),
+    createBindGroup:({entries})=>Object.fromEntries(entries.map(e=>{assert.ok(!e.resource.buffer.destroyed);return [e.binding,e.resource.buffer];})),
     createCommandEncoder(){const dispatches=[];let pipe,group;return {beginComputePass:()=>({setPipeline(p){pipe=p;},setBindGroup(_,b){group=b;},
-      dispatchWorkgroups(){dispatches.push({name:pipe.entryPoint,group});},end(){}}),finish:()=>dispatches};},
+       dispatchWorkgroups(){dispatches.push({name:pipe.entryPoint,pipe,group});},end(){}}),finish:()=>dispatches};},
   };
 }
 const near=(a,b,msg)=>assert.ok(Math.abs(a-b)<3e-5,`${msg}: ${a} differs from ${b}`);
@@ -37,6 +41,138 @@ async function attachDriver(t,model,rig){
   const points=output('points'),goals=output('goals'),driver=await createClothDriver({backend:{device:d}},model,rig,{points,goals});
   t.after(driver.dispose);return {d,points,goals,driver};
 }
+
+test('cold sampled rig starts both modules and all four entries before allocating actor resources',async t=>{
+  const model=await loadFixture(t), rig=fitRig(model.mesh), device=recordingDevice();
+  rig.handSamples=makeHandSamples(model.mesh,rig);
+  const output=label=>device.createBuffer({label,size:rig.rest.byteLength,usage:136});
+  const surface={points:output('points'),goals:output('goals')};
+  const start=()=>createClothDriver({backend:{device}},model,rig,surface);
+  const modules=Promise.withResolvers(), entries=new Map();
+  const shaders=t.mock.method(device,'createShaderModule',()=>({getCompilationInfo:()=>modules.promise})).mock;
+  const create=device.createComputePipelineAsync;
+  const pipelines=t.mock.method(device,'createComputePipelineAsync',descriptor=>{
+    const gate=Promise.withResolvers();entries.set(descriptor.compute.entryPoint,gate);
+    return gate.promise.then(()=>create(descriptor));
+  }).mock;
+  const binds=t.mock.method(device,'createBindGroup').mock;
+  const ready=start();await nextTurn();
+  assert.equal(shaders.callCount(),2);assert.equal(entries.size,0);
+  modules.resolve({messages:[]});await nextTurn();
+  assert.deepEqual([...entries.keys()].sort(),['constrain','handSamples','liftNodes','predict']);
+
+  const failed=assert.rejects(ready,/compile failed/);
+  entries.get('constrain').reject(Error('compile failed'));await failed;
+  const retry=start();await nextTurn();
+  assert.equal(shaders.callCount(),2);assert.equal(pipelines.callCount(),5);
+  for(const [name,gate] of entries)if(name!=='liftNodes')gate.resolve();
+  await nextTurn();
+  assert.deepEqual(device.buffers,Object.values(surface));assert.equal(binds.callCount(),0);
+  entries.get('liftNodes').resolve();const driver=await retry;t.after(driver.dispose);
+  assert.ok(binds.callCount()>0);
+});
+
+test('cold no-hand rig, concurrent hand attach and warm reattach share four pipelines but no actor bindings',async t=>{
+  const model=await loadFixture(t), rig=fitRig(model.mesh), device=recordingDevice();
+  rig.handSamples=makeHandSamples(model.mesh,rig);
+  const shaders=t.mock.method(device,'createShaderModule').mock;
+  const pipelines=t.mock.method(device,'createComputePipelineAsync').mock;
+  const entryPoints=()=>pipelines.calls.map(call=>call.arguments[0].compute.entryPoint).sort();
+  function start(handSamples,signal){
+    const output=label=>device.createBuffer({label,size:rig.rest.byteLength,usage:136});
+    const surface={points:output('points'),goals:output('goals')};
+    const ready=createClothDriver({backend:{device}},model,{...rig,handSamples},surface,signal);
+    return {...surface,ready};
+  }
+  const empty={faces:[],terms:new Float32Array()};
+  const first=await start(empty).ready;
+  assert.equal(shaders.callCount(),1);
+  assert.deepEqual(entryPoints(),['constrain','predict']);
+  assert.ok(!device.buffers.some(b=>b.label==='hand surface skin palette'));
+  first.dispose();
+
+  const compiling=Promise.withResolvers(), release=Promise.withResolvers();
+  shaders.mockImplementationOnce(()=>({getCompilationInfo(){compiling.resolve();return release.promise;}}));
+  const abort=new AbortController(), retiring=start(rig.handSamples,abort.signal), survivor=start(rig.handSamples);
+  await compiling.promise;
+  abort.abort();retiring.points.destroy();retiring.goals.destroy();
+  const aborted=assert.rejects(retiring.ready,{name:'AbortError'});
+  release.resolve({messages:[]});
+  const driver=await survivor.ready;t.after(driver.dispose);await aborted;
+  const warm=start(rig.handSamples), other=await warm.ready;t.after(other.dispose);
+  assert.equal(shaders.callCount(),2);
+  assert.deepEqual(entryPoints(),['constrain','handSamples','liftNodes','predict']);
+
+  const hands=[new Vector3(-.12,.8,0),new Vector3(.12,.8,0)];
+  function step(current,surface){
+    assert.equal(current.step(1/72,hands),1);
+    const calls=device.submits.at(-1), sample=calls.find(c=>c.name==='handSamples');
+    assert.equal(sample.group[4],surface.goals);assert.equal(sample.group[5],surface.points);
+    const buffers=new Set(calls.flatMap(c=>Object.values(c.group)));
+    for(const buffer of buffers)assert.ok(!buffer.destroyed);
+    return buffers;
+  }
+  const bound=step(driver,survivor), warmBound=step(other,warm);
+  for(const buffer of warmBound)assert.ok(!bound.has(buffer));
+  driver.dispose();
+  for(const buffer of bound)assert.equal(!!buffer.destroyed,buffer!==survivor.goals&&buffer!==survivor.points);
+  step(other,warm);
+
+  // The standalone lab uses this exact solver module for its unculled probe.
+  const resources=gpuResources(device);t.after(resources.dispose);
+  const compiled=await prepareClothPipelines(device,empty);
+  const kernel=makeClothKernel(device,rig,resources,{...warm,handSamples:empty},compiled);
+  const constrain=pipelines.calls.find(call=>call.arguments[0].compute.entryPoint==='constrain');
+  assert.equal(kernel.solver,constrain.arguments[0].compute.module);
+  assert.equal(shaders.callCount(),2);
+  const pipe=await device.createComputePipelineAsync({layout:'auto',compute:{module:kernel.solver,entryPoint:'constrain',constants:{cull:false}}});
+  const groups=kernel.relaxGroups(pipe), encoder=device.createCommandEncoder();
+  kernel.run(encoder.beginComputePass(),1,false,{pipe,groups});
+  const relaxation=encoder.finish().slice(1);
+  assert.ok(relaxation.every(call=>call.pipe===pipe));
+  assert.deepEqual(relaxation.map(c=>c.group),[groups[1],groups[0],groups[1],groups[0],groups[1]]);
+});
+
+test('failed shader or entry can retry while a successful or in-flight sibling remains shared',async t=>{
+  const device=recordingDevice();
+  const shaders=t.mock.method(device,'createShaderModule').mock;
+  shaders.mockImplementationOnce(()=>({getCompilationInfo:()=>({messages:[{type:'error',lineNum:8,message:'invalid source'}]})}));
+  const bad=clothProgram(device,'source','first');
+  assert.equal(clothProgram(device,'source','second'),bad);
+  await assert.rejects(bad,/first: 8: invalid source/);
+  const program=await clothProgram(device,'source','retry');
+  const held=Promise.withResolvers(), pipelines=t.mock.method(device,'createComputePipelineAsync').mock;
+  pipelines.mockImplementationOnce(()=>held.promise);
+  const predict=program.pipeline('predict');
+  pipelines.mockImplementationOnce(()=>Promise.reject(Error('compile failed')));
+  const constrain=program.pipeline('constrain');
+  assert.equal(program.pipeline('constrain'),constrain);
+  await assert.rejects(constrain,/compile failed/);
+  const retried=await program.pipeline('constrain');
+  assert.equal(program.pipeline('predict'),predict);
+  held.resolve({});await predict;
+  assert.equal(await program.pipeline('constrain'),retried);
+  const variant=await clothProgram(device,'different source','retry');
+  assert.notEqual(await variant.pipeline('constrain'),retried);
+  assert.equal(shaders.callCount(),3);assert.equal(pipelines.callCount(),4);
+});
+
+test('device loss retires warm and pending entries without invalidating the replacement device',async t=>{
+  const old=recordingDevice(), replacement=recordingDevice(), loss=Promise.withResolvers();
+  old.lost=loss.promise;
+  const program=await clothProgram(old,'source','solver');
+  const warm=await program.pipeline('predict');
+  const held=Promise.withResolvers();
+  t.mock.method(old,'createComputePipelineAsync',()=>held.promise);
+  const pending=program.pipeline('constrain');
+  const next=await clothProgram(replacement,'source','solver');
+  const nextPredict=await next.pipeline('predict');assert.notEqual(nextPredict,warm);
+  loss.resolve({message:'lost during compile'});held.resolve({});
+  await assert.rejects(pending,/lost during compile/);
+  await assert.rejects(program.pipeline('predict'),/lost during compile/);
+  await assert.rejects(clothProgram(old,'source','solver'),/lost during compile/);
+  assert.equal(await (await clothProgram(replacement,'source','solver')).pipeline('predict'),nextPredict);
+});
 
 test('placed, posed PMX: compact palette skins the same authored faces at both placement scales',async t=>{
   const model=await loadFixture(t),{mesh}=model;
