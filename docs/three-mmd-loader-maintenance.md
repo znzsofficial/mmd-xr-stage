@@ -10,6 +10,8 @@
 | 我们的 fork | [`main@303bb7c`](https://github.com/znzsofficial/three-mmd-loader/commit/303bb7c) | `8730864` 实现可选的稀疏形态输出复用，`303bb7c` 同步公开 API 快照，运行产物一致。沿用官方 Bullet JS/WASM，使用 npm 和 `package-lock.json` |
 | 官方 | [`v0.9.0@62ce047`](https://github.com/yohawing/three-mmd-loader/releases/tag/v0.9.0)，mmd-anim 0.5.5 | 开发依赖锁定 Three r184；0.9.0 已包含 r187 的 TSL 自阴影兼容修复 |
 
+官方 tag 与该 fork 提交都锁定 `mmd-anim@3bbd5b0`（0.5.5）。补丁更新 loader 的 JS／TSL 和声明；正式站的核心 WASM 和 `public/mmd/0.9.0/` 的 Bullet JS／WASM 仍为 0.9.0 随包制品，两条线上路径已验哈希。测试用的 [Bullet #73](./three-mmd-loader-upstream.md#已提交bullet-空接触流形) 尚未进入正式包。
+
 ## 特性归属
 
 | 功能 | 谁提供，舞台如何使用 |

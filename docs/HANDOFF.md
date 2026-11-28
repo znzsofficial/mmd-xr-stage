@@ -2,7 +2,7 @@
 
 **当前正式版：WebGPU 放置角色时分帧上传贴图。** [正式站](https://mmd-xr-stage.pages.dev) · [WebGPU 海站](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [`52d8f74` 固定部署](https://2804ee0d.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md)。
 
-**当前性能主线：**[海站同一演员再放](./performance/quest-harbour-2026-11-28.md#把新演员的贴图上传分到已有-xr-帧)已减少桌面可见停顿；冷首放上屏后另有驱动等待。持续播放端优先接续 [Bullet 空流形跳过](./performance/bullet-step-profile.md#第二轮看舞时两只手柄都离开演员)，舞台仍固定在官方匹配二进制。日常用桌面双眼自动化，[实戴 72 Hz 口径](./performance/README.md#下一轮海站-72-hz)单列。海岬、叶簇合并采样和 KTX2 暂缓。
+**晚间收尾：**[已上线优化、桌面对照和下一次验收](./performance/README.md#晚间收尾)。重新放演员的停顿已缩短；冷首放上屏后的驱动等待留待后续。[Bullet 空流形优化](./three-mmd-loader-upstream.md#已提交bullet-空接触流形)已通过源码复编和实模回归，等含修复的 loader 正式包。日常用桌面双眼自动化，[实戴 72 Hz 口径](./performance/README.md#下一轮海站-72-hz)留作按需回访。
 
 ## 正式站能做什么
 

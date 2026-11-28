@@ -23,6 +23,10 @@
 
 用可公开生成的双色 PMX 固定机位，在 Three r184、r187 上分别实绘权重 `0 → 0.5 → 1 → 0`：官方 0.9.0 四帧相同；修后本体和描边依次为不透明、半透明、透明、恢复，背景材质保持不变，末帧 RGBA 与原图逐字节一致。提交分支构建、lint 通过，全套 837 项通过、5 项跳过；上游审阅及 CI 以 PR 链接为准。
 
+## 已提交：Bullet 空接触流形
+
+[mmd-anim #73](https://github.com/yohawing/mmd-anim/pull/73) 仍开放，来自 [mmd-anim fork](https://github.com/znzsofficial/mmd-anim/tree/perf/skip-empty-bullet-manifolds) 的 `1fdfcf1`，目标是 `mmd-anim` 的 `develop`。同一修复另回移到舞台当前锁定的 `0.5.5`，以同工具链复编，只改变 Bullet WASM。336 帧实模的接触序列和两种 Bullet 入口均通过回归；[源码构建与双眼对照](./performance/bullet-step-profile.md#第二轮看舞时两只手柄都离开演员)已存档。等待 loader 正式 npm 包包含更新后的 Bullet，再走舞台晋级；现有 `0.9.0` 原配二进制继续使用。
+
 ## 其他候选如何处理
 
 | 候选 | 处置与依据 |
