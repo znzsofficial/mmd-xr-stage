@@ -5,7 +5,7 @@ import {afterEach,beforeEach,expect,it,vi} from 'vitest';
 import {clearBackpack,useBackpack} from '../backpack/store';
 import {beginBodyPreview,patchBodyPreview,useBodyState} from '../bodyState/store';
 import {useMmdVrStore} from '../mmdVrStore';
-import {enablePelvic,usePelvic} from '../pelvic/store';
+import {advancePelvic,enablePelvic,patchPelvic,publishParkedSample,publishPelvicSupport,usePelvic} from '../pelvic/store';
 import {useConception} from '../bodyState/reproduction/store';
 import {ScreenStage} from './ScreenStage';
 
@@ -99,6 +99,21 @@ async function startPreview(){
   await act(()=>{expect(beginBodyPreview('a',true)).toBe(true);patchBodyPreview('a',{fullness:.7});});
   await click('触碰与适配');
 }
+it('keeps the same running partner on the screen stage when the player folds the insertion sheet',async()=>{
+  await click('pick b');await act(()=>{
+    useMmdVrStore.setState({overlayOpen:true,presentation:'screen'});
+    enablePelvic('b',true);patchPelvic('b',{clothed:true,standAppearance:'partner'});
+    publishPelvicSupport('b',{runtimeId:'r2',kind:'bones',anchorName:'hips'});
+  });
+  await click('插入');await click('自动往复');const pelvic=usePelvic.getState;
+  await act(()=>publishParkedSample(pelvic().active!.token,{tip:[0,0,.06],tail:[0,0,.18],depth:0,angleDeg:0,aligned:true,
+    atCervix:false,outletInside:false,outletVisible:false,radiusM:.024,lengthM:.092}));
+  await click('开始往复');const motor=pelvic().active!;await click('收起');expect(activeSheet()).toBeNull();
+  const from=advancePelvic(motor.token,.015);expect(advancePelvic(motor.token,.015)).toBeGreaterThan(from);
+  await click('pick b');await click('插入');expect(pelvic().active).toBe(motor);
+  await click('停止往复');expect(pelvic().active).toMatchObject({running:false,runtimeId:'r2'});
+  await click('收起搭档');expect(pelvic().active).toBeNull();
+});
 it('collapses to the stage, retains the same draft and page through the bag, and restores focus on both paths',async()=>{
   await startPreview();const inspection=useBodyState.getState().inspection;
   await escape();expect(activeSheet()).toBeNull();expect(host.querySelector('.body-editor')).toBeNull();

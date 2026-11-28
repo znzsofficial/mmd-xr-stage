@@ -46,10 +46,12 @@ export function HarbourWater({clock}:{clock:ReturnType<typeof createTideClock>})
     tide.boatY.value=level+fishingBoat.draft+.032*Math.sin(tide.phase.value);
     if(floating.current){floating.current.position.y=tide.boatY.value;floating.current.rotation.z=.003*Math.sin(tide.phase.value*.62);}
   });
-  return <><mesh name="terminus:sea-horizon" renderOrder={-90} frustumCulled={false} raycast={noPick} userData={{playerCollision:false}}><sphereGeometry args={[1,32,20]}/>
+  return <><mesh name="terminus:sea-horizon" renderOrder={-90} frustumCulled={false} raycast={noPick} userData={{playerCollision:false}}><sphereGeometry args={[1,32,10,0,2*Math.PI,Math.PI/2,Math.PI/2]}/>
     <RoomShader effect="harbourHorizon" side={BackSide} depthTest={false} depthWrite={false} toneMapped={false} uniforms={u} onUpdate={bindUniforms}
       vertexShader={`varying vec3 skyDir;void main(){skyDir=position;vec4 clip=projectionMatrix*vec4(mat3(viewMatrix)*position,1.);gl_Position=vec4(clip.xy,0.,clip.w);}`}
-      fragmentShader={harbourHorizon}/></mesh><mesh name="terminus:sea" ref={water} position={[0,clock.level,0]} rotation-x={-Math.PI/2} raycast={noPick} userData={{playerCollision:false}}>
+       fragmentShader={harbourHorizon}/></mesh>
+   {/* Opaque water: let nearer buildings, actors and the quay fill depth before shading the waves. */}
+   <mesh name="terminus:sea" renderOrder={20} ref={water} position={[0,clock.level,0]} rotation-x={-Math.PI/2} raycast={noPick} userData={{playerCollision:false}}>
     <planeGeometry args={[240,240]}/><RoomShader effect="harbourWater" vertexShader={harbourVertex} fragmentShader={harbourWaterFragment} uniforms={u} onUpdate={bindUniforms} toneMapped={false}/>
   </mesh><mesh name="terminus:tidal-stone" geometry={treads} raycast={noPick} userData={{playerCollision:false}}>
     <RoomShader effect="tidalStone" vertexShader={harbourVertex} fragmentShader={tidalStoneFragment} uniforms={u} onUpdate={bindUniforms} toneMapped={false}/>

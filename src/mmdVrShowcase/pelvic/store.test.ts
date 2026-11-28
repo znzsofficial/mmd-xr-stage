@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { Matrix4, Vector3 } from 'three';
 import { clearBackpack, useBackpack } from '../backpack/store';
+import { beginMmdVrAssetSession, endMmdVrAssetSession } from '../backpack/sessionAssets';
 import { useHudWorldInput } from '../hud/hudWorldInput';
 import { useMmdVrStore } from '../mmdVrStore';
 import { usePoseSession } from '../pose/poseSession';
@@ -71,6 +72,23 @@ it('cancels first placement if selection leaves and returns before the room publ
   setup();usePelvic.setState({support:{}});prepareFirstTool('a','1','screen');
   bag().select('b');bag().select('a');publishPelvicSupport('a',support('1'));
   expect(get().active).toBeNull();expect(play().stand).toBeNull();expect(get().byAsset.a).toBeDefined();
+});
+
+it('cancels WebGPU orders on deselect between draws and retires the binding when another actor is selected',()=>{
+  beginMmdVrAssetSession([],'webgpu');
+  try{
+    opted('xr');assignPelvic('a','standAuto','xr');startPelvic('a');const t=token();
+    for(const target of ['vaginal','external'] as const){
+      reading(inside,true);expect(requestStrokeDose('a',t,target)).toBe(true);
+      bag().select(null);bag().select('a');expect(get().active).toMatchObject({token:t,running:true});
+      expect(get().strokeOrder).toBeNull();expect(consumePelvicDose(t,{...inside,motion:'enter'})).toBe('none');
+      expect(consumePelvicDose(t,{...external,continuous:true})).toBe('none');
+    }
+    bag().select(null);bag().select('b');bag().select('a');
+    expect(get().active).toBeNull();expect(play().stand).toBeNull();expect(get().byAsset.a.fluid.vaginal).toBe(0);
+    expect(assignPelvic('a','xrManual','xr')).toBe(true);bag().select(null);
+    expect(get().active).toBeNull();expect(play().held).toBeNull(); // closed before the explicit handoff
+  }finally{endMmdVrAssetSession();}
 });
 
 it('invalidates the motor between draws when an already-held pose is reopened and closed',()=>{

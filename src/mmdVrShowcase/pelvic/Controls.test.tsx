@@ -12,7 +12,6 @@ import {mountPoseRoom,usePoseSession} from '../pose/poseSession';
 import {createPoseSolver,type PoseSolver} from '../pose/poseSolver';
 import {poseFixture} from '../pose/poseFixture.testSupport';
 import {PelvicScreenControls} from './Controls';
-import {usePelvicToolLifetime} from './usePelvicControls';
 import {advancePelvic,assignPelvic,consumePelvicDose,enablePelvic,interruptPelvic,parkPartnerForPose,patchPelvic,poseBlocksPelvicRig,publishParkedSample,publishPelvicSample,publishPelvicSupport,startPelvic,usePelvic,type PelvicSample} from './store';
 import {mountPelvicRig} from './rig';
 import {makeSilicone} from '../play/workshopModels';
@@ -158,21 +157,6 @@ it('keeps the manual release gated by the real outlet while viewing a different 
     expect(pelvic().active).toMatchObject({token,running:true});expect(button('释放到宫腔').disabled).toBe(false);
     await click('停止');expect(button('停止').disabled).toBe(true);expect(button('释放到宫腔').disabled).toBe(true);
     expect(pelvic().sample).toBeNull();expect(pelvic().byAsset.a.clothingClear).toBe(false);
-  }finally{await act(()=>root.unmount());}
-});
-
-it('keeps the XR stand for the clothing detour, retires it on exit, and preserves the deliberate handoff',async()=>{
-  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true);useMmdVrStore.setState({overlayOpen:true,presentation:'xr'});
-  useBackpack.setState({selected:'a',entries:[{id:'a',kind:'model',file:new File([],'a.pmx'),path:'a.pmx'}],live:{a:{runtimeId:'r',visible:true,position:[0,0,0]}}});
-  enablePelvic('a',true);publishPelvicSupport('a',{runtimeId:'r',kind:'bones',anchorName:'hips'});patchPelvic('a',{clothed:true});
-  const host=document.createElement('div'),root=createRoot(host);
-  function Activity({wardrobe=false}){usePelvicToolLifetime('a','r',true);return wardrobe?<span>Clothing</span>:<span>Insertion</span>;}
-  try{
-    await act(()=>root.render(<Activity/>));expect(assignPelvic('a','standManual','xr')).toBe(true);expect(startPelvic('a')).toBe(true);
-    const mounted=pelvic().active;await act(()=>root.render(<Activity wardrobe/>));expect(pelvic().active).toBe(mounted);
-    await act(()=>root.render(null));expect(pelvic().active).toBeNull();
-    await act(()=>root.render(<Activity/>));expect(assignPelvic('a','xrManual','xr','left')).toBe(true);expect(startPelvic('a')).toBe(true);
-    useBackpack.getState().select(null);await act(()=>root.render(null));expect(pelvic().active).toMatchObject({mode:'xrManual',running:true});
   }finally{await act(()=>root.unmount());}
 });
 

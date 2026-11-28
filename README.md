@@ -68,6 +68,8 @@ Fly a kite from a character’s wrist, send a ferry across the pool, dye a conce
 | State | Zustand |
 | Hosting | Cloudflare Pages |
 
+The [production WebGL2 / WebGPU XR stack matrix](./docs/xr-rendering-stack.md) compares actor rendering, skirt physics, stereo output and what each backend measures.
+
 Desktop and immersive views share the backpack and stage layouts. Only the active set mounts models and creates their Bullet worlds. Returning to a set restores its actors and motions from the saved layout. The [loader maintenance notes](./docs/three-mmd-loader-maintenance.md) document the version-matched Bullet assets and loader patches.
 
 ## WebXR requirements

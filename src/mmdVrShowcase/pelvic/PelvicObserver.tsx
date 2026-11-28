@@ -14,13 +14,12 @@ import type {PelvicRigHandle} from './PelvicRig';
 // that actor: it can be read while moving the tool and never consumes a ray.
 type ObserverProps={rig:RefObject<PelvicRigHandle|null>};
 export function PelvicObserver({rig}:ObserverProps){
-  const id=usePelvic(s=>s.active?.assetId??null),xr=useMmdVrStore(s=>s.presentation==='xr');
+  const id=usePelvic(s=>s.active?.mode==='xrManual'?s.active.assetId:null),xr=useMmdVrStore(s=>s.presentation==='xr');
   const live=useBackpack(s=>id?s.live[id]:undefined),panel=useBackpack(s=>!!s.selected||!!s.draft||s.busy);
   const blocked=useHudWorldInput(s=>s.blocked);
   return xr&&id&&live?.visible&&!panel&&!blocked?<SectionStand rig={rig} assetId={id} runtimeId={live.runtimeId}/>:null;
 }
 function SectionStand({assetId,runtimeId,rig}:{assetId:string;runtimeId:string}&ObserverProps){
-  const handheld=usePelvic(s=>s.active?.assetId===assetId&&s.active.runtimeId===runtimeId&&s.active.mode==='xrManual');
   const group=useRef<Group>(null),s=useMemo(()=>({eye:new Vector3(),look:new Vector3(),right:new Vector3(),up:new Vector3(0,1,0)}),[]);
   useFrame(({gl})=>{
     const live=useBackpack.getState().live[assetId],node=group.current;if(!node)return;
@@ -43,9 +42,9 @@ function SectionStand({assetId,runtimeId,rig}:{assetId:string;runtimeId:string}&
   });
   return <group ref={group} visible={false} name="pelvic:observer" pointerEvents="none">
     <PelvicLiveSection assetId={assetId} runtimeId={runtimeId}/>
-    {handheld&&<group position-y={-.207} scale={.5} name="pelvic:hand-depth" pointerEvents="none">
+    <group position-y={-.207} scale={.5} name="pelvic:hand-depth" pointerEvents="none">
       <mesh renderOrder={29} position-z={-.002} raycast={()=>null}><planeGeometry args={[.84,.12]}/>
         <meshBasicMaterial color={PRIVATE_COLORS.paper} toneMapped={false} fog={false} depthTest={false} depthWrite={false}/></mesh>
       <DepthHudReadout assetId={assetId} runtimeId={runtimeId} width={.79}/>
-    </group>}</group>;
+    </group></group>;
 }

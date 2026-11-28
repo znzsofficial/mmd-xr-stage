@@ -2,7 +2,7 @@ import {useLayoutEffect,useRef,useState,type ReactNode} from 'react';
 import {useLanguageStore} from '../../languageStore';
 import {ObservationScreenControls,ObservationHudControls} from '../observation/ActorObservation';
 import {PelvicScreenControls,PelvicHudControls} from '../pelvic/Controls';
-import {usePelvicToolLifetime} from '../pelvic/usePelvicControls';
+import {leavePelvicSheet} from '../pelvic/store';
 import {WardrobeScreenControls,WardrobeHudControls} from '../wardrobe/WardrobeControls';
 import {MilkScreenControls,MilkHudControls} from './MilkInteraction';
 import {BodyScreenControls,BodyHudControls} from '../bodyState/BodyControls';
@@ -27,7 +27,10 @@ function ScreenPage({page,children}:{page:ActivityEntry|'pose';children:ReactNod
 /** Clothing and observation can be opened from a running interaction. Back
  * returns to the invoking tool; the mounted room still owns the simulation. */
 function ActivityTrail({entry,onBack,closeUp,hud=false,webgpu=false,suspended,onPeek,...actor}:Props){
-  usePelvicToolLifetime(actor.assetId,actor.runtimeId,webgpu&&entry==='insert');
+  const {assetId,runtimeId}=actor;
+  useLayoutEffect(()=>{
+    if(webgpu&&entry==='insert')return ()=>leavePelvicSheet(assetId,runtimeId);
+  },[webgpu,entry,assetId,runtimeId]);
   const t=useLanguageStore(s=>s.t),[detail,open]=useState<'wardrobe'|'observe'|'pose'|null>(null);
   const [part,select]=useState<ObservationAtlasPart>('uterus');
   const page=detail??entry;

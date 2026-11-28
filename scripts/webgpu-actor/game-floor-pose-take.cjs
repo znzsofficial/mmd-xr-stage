@@ -116,7 +116,7 @@ async function gameFloorPoseTake({page,ids,click,until,bButton,frames,target,pic
     await press('播放手法');await press('返回操作');const replay=await wait('fresh replay reaches inside',s=>s.take==='replay'&&s.inside&&s.z<-.012);
     assert.equal(replay.fluid,parked.fluid,'Recorded strokes cannot replay a release');
     await press('释放到阴道');await (await page.waitForFunction(prev=>poseTake.read().fluid===prev+1,parked.fluid)).dispose();
-    await wait('saved technique completes',s=>!s.take&&!s.running);await press('返回角色');
+    const stopped=await wait('saved technique completes',s=>!s.take&&!s.running);await press('返回角色');
     const trace=await page.evaluate(()=>poseTake.stopTrace());
     const replayFrames=trace.filter(f=>f.token===replay.token&&f.take==='replay');
     const outside=replayFrames.findIndex(f=>f.z>.03&&!f.inside),inside=replayFrames.findIndex(f=>f.inside&&f.z<0);
@@ -126,7 +126,10 @@ async function gameFloorPoseTake({page,ids,click,until,bButton,frames,target,pic
     const dwell=replayFrames.filter(f=>Math.abs(f.z-saved.z)<.0001&&f.inside);
     assert(dwell.length>40,'Saved dwell was absent at the replay endpoint');
     assert(trace.every(f=>Math.abs(f.weight-parked.weight)<1e-6),'Clothed contact changed the selected exterior morph');
-    await target({key:'actorPose'});const final=await until('tool retired, same paused actor selected',(s,id)=>s.selected&&s.runtimeId===id&&s.hasBinding&&!s.playing&&!poseTake.read().mode,actor.runtimeId);
+    await target({key:'actorPose'});await click('actorInsert');
+    const resumed=await page.evaluate(()=>poseTake.read());assert.equal(resumed.token,stopped.token);assert(!resumed.running&&Math.abs(resumed.z-stopped.z)<.0001);
+    await press('收起假阳具');await press('返回角色');
+    const final=await until('tool stowed, same paused actor selected',(s,id)=>s.selected&&s.runtimeId===id&&s.hasBinding&&!s.playing&&!poseTake.read().mode,actor.runtimeId);
     assert.equal((await page.evaluate(()=>poseTake.read())).fluid,parked.fluid+1);
     return {eyes,pausedAt:paused.time,restoredAt:paused.time,resumedTo:final.time,takeSeconds:saved.seconds,replayedDwellFrames:dwell.length,
       outsideZ:replayFrames[outside].z,firstInsideZ:replayFrames[inside].z,deliveredZ:replayFrames[delivery].z};

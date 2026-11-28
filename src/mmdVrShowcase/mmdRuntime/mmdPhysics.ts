@@ -11,6 +11,7 @@ import { ColliderReentry, syntheticColliderBody } from "./colliderReentry";
 import {isActorPalm} from './actorPalms';
 import {elapsed,type PhysicsSwitchWork} from '../diagnostics/physicsSwitchWork';
 import {getBulletModule} from './bulletModule';
+import {createAnchoredChainMassInput} from './anchoredChainMass';
 
 export type { MmdPhysicsQuality };
 export type MmdControllerColliderMatrix = MmdPhysicsMatrix4ColumnMajorTuple | Float32Array;
@@ -111,10 +112,9 @@ export async function createBulletPhysicsBackend(options: {
         options.controllerRestitution,
       )
     : colliderBackend;
-  if (options.actorStep) {
-    const select = options.actorStep, step = result.step.bind(result);
-    result.step = context => select(context, step);
-  }
+  const chainInput = createAnchoredChainMassInput();
+  const select = options.actorStep, step = result.step.bind(result);
+  result.step = select ? context => select(chainInput(context), step) : context => step(chainInput(context));
   elapsed(work,'createBackendMs',backendStart);return result;
 }
 

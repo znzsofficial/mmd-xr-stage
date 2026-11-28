@@ -13,7 +13,7 @@ export function prepareRoomCloth(mesh) {
 
 // The owning XR callback initializes the Three buffers and performs every
 // dispatch. The pipeline's async compile only publishes a handle for later.
-export function roomCloth(renderer, model, rig, log) {
+export function roomCloth(renderer, model, rig, log, gpuTiming) {
   let driver, surface, setup, retired = false, active = false, interrupted = true;
   const abort = new AbortController();
   log.cloth = 'waiting'; log.nodes = rig.nodes.length; log.handSamples = rig.handSamples.faces.length;
@@ -22,7 +22,7 @@ export function roomCloth(renderer, model, rig, log) {
       surface = createClothSurface(renderer, model.mesh, rig);
       surface.setEnabled(false);
       log.cloth = 'preparing';
-      setup = createClothDriver(renderer, model, rig, surface, abort.signal).then(d => {
+      setup = createClothDriver(renderer, model, rig, surface, abort.signal, gpuTiming).then(d => {
         if (retired) { d.dispose(); return; }
         driver = d; log.cloth = 'ready';
       }).catch(fail);

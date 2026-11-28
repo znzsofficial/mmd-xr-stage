@@ -23,7 +23,8 @@ void main(){
 export function HarbourSky(){
   const uniforms=useHarbourSkyUniforms('sky');
   return <mesh name="terminus:clear-sky" frustumCulled={false} renderOrder={-100} raycast={noPick}>
-    <sphereGeometry args={[1,48,24]}/>
+    {/* The distant sea owns every ray below the horizon. Keep the original angular spacing. */}
+    <sphereGeometry args={[1,48,12,0,2*Math.PI,0,Math.PI/2]}/>
     <RoomShader effect="harbourSky" side={BackSide} uniforms={uniforms} depthTest={false} depthWrite={false}
       onUpdate={material=>{if(material.isShaderMaterial)material.uniforms=uniforms;}}
       toneMapped={false} vertexShader={vertex} fragmentShader={fragment}/>

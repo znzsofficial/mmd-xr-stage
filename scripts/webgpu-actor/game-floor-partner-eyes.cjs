@@ -44,7 +44,7 @@ module.exports = async function capturePartnerEyes(options) {
   for (const xyz of partnerTake.pose()) extend(partner.position.clone().fromArray(xyz));
   const at = lo.clone().lerp(hi,.5);
   const sheet = scene.getObjectByName('backpack-world-tools');
-  const side = Math.sign(origin.worldToLocal(sheet.getWorldPosition(point)).x - at.x) || 1;
+  const side = sheet ? Math.sign(origin.worldToLocal(sheet.getWorldPosition(point)).x - at.x) || 1 : 1;
   const distance = Math.max(.68,lo.distanceTo(hi)*.87);
   const dx = side*distance, dz = distance*.21, dy = distance*.48;
   const radius=Math.hypot(dx,dz),yaw=Math.atan2(dx,dz)+(options?.angle??0);

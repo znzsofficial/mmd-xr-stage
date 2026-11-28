@@ -173,10 +173,10 @@ module.exports=async function({page,ids,click,until,bButton,frames,target,pickMo
   await press('开始往复');await press('释放到阴道');await wait('motor delivered on the physical inward pass',s=>s.running&&!s.order&&s.fluid.vaginal===1);
   await page.evaluate(()=>{labFixture.tracking=false;});await frames(4);assert(!(await read()).running);
   await page.evaluate(()=>{labFixture.tracking=true;});await wait('tracking recovery at real outside pose',s=>!s.running&&s.rod&&s.localZ>.03&&!s.inside&&!s.order);
-  await press('开始往复');await press('返回角色');await wait('back removes the tool and its evidence',s=>!s.labels&&!s.owned&&!s.active&&!s.rod&&!s.order);
-  await click('actorInsert');await press('自动支架');await wait('reselected stand is at home',s=>s.owned&&s.rod&&s.localZ>.03&&!s.running);
-  await press('开始往复');await bButton();
-  await wait('B interrupts selected operator',s=>!s.owned&&!s.active&&!s.labels&&!s.order);
+  await press('开始往复');const motor=await read();await press('返回角色');
+  await wait('running stand remains on stage behind actor tools',s=>!s.labels&&s.owned&&s.rod&&s.rail&&s.running);
+  await click('actorInsert');assert.equal((await read()).token,motor.token);
+  await bButton();await wait('public B menu interrupts world input and clears orders',s=>s.owned&&!s.running&&!s.labels&&!s.order);
   await click('hudScenery');await click('hudClassroom');await until('new room has no inherited stand',s=>s.room==='classroom'&&s.ready&&!s.live&&!gameTargets.find({name:'pelvic:stand-piece'}));
   const final=await read(),receipts=await page.evaluate(()=>standTake.receipts),stats=await page.evaluate(()=>standTake.stats());
   assert.equal(stats.coveredShellFrames,0);assert(exposed?stats.maxDrops>0:stats.maxDrops===0,'Wrong exterior routing: '+JSON.stringify(stats));

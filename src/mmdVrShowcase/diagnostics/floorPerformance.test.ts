@@ -21,17 +21,21 @@ it('reports mounted assets, visible actor modes and actual WebGPU samples indepe
   try{
     useMmdVrStore.setState({models:live,modelCount:2,objects:[{...live[0],id:'chair'}],prefs:{...prior.prefs,scenery:'liveHouse'}});
     recording.begin();recording.draw(1,frame,views,renderer,null,'floor');
-    recording.draw(1100,frame,views,renderer,backend,'floor');
+    const gpuPasses={status:'pending',stereoSceneMs:null as number|null};
+    expect(recording.sampleDue(600)).toBe(false);expect(recording.sampleDue(1100)).toBe(true);
+    recording.draw(1100,frame,views,renderer,backend,'floor',gpuPasses);
     expect(useRenderDiagnostics.getState().current).toMatchObject({requested,refreshRate:72,width:400,height:400,foveation:null,targetSamples:4,
       layerAntialias:null,contextAntialias:null});
     actors[0].visible=false;live[0].visible=false;colors.msaaTextures[0].sampleCount=1;
     // A pending repair may already own an attachment before the room publishes it.
     actors.push({id:'pending',mode:'gpu',style:'endfield',visible:true});
     recording.draw(2300,frame,views,renderer,backend,'floor');
+    Object.assign(gpuPasses,{status:'read',stereoSceneMs:2.4}); // late map belongs to the earlier mixed cast
     expect(useRenderDiagnostics.getState().current?.targetSamples).toBeNull();
     actors[1].visible=false;live[1].visible=false;recording.draw(3400,frame,views,renderer,backend,'floor');
     recording.finish();const report=useLastPerformanceReport.getState().report!;
     expect(report.eyeViewports.map(v=>[v.width,v.height])).toEqual([[386,384],[386,384]]);
+    expect(report.windows.filter(w=>w.gpuPasses)).toEqual([expect.objectContaining({gpuFrameTimeMs:1100,actorStyle:'mixed',gpuPasses})]);
     expect(report.windows.map(w=>[w.scenery,w.models,w.objects,w.liveHouse,w.actorStyle,w.clothMode])).toEqual([
       ['floor',0,0,false,undefined,undefined],['liveHouse',2,1,true,'mixed','mixed'],
       ['liveHouse',2,1,true,'mmd','bullet'],['liveHouse',2,1,true,undefined,undefined],

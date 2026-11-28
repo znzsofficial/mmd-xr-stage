@@ -17,7 +17,7 @@ const empty = () => ({mode:'none', cloth:'none', nodes:0, clothSteps:0, fullBodi
 
 /** Renderer resources only. StageRoom owns PMX/VMD, the one evaluator, the
  * visual placement scale and the physics rebind. Never request another RAF. */
-export async function createStageActorBackend(renderer, scene, light, origin, grade={balancedModelColor:true}) {
+export async function createStageActorBackend(renderer, scene, light, origin, grade={balancedModelColor:true}, gpuTiming) {
   // The landmark sun can unmount when StageRoom mounts its own. The facade
   // takes one stable light reference; mirror the live room's world direction.
   const sun = new DirectionalLight(), palms = xrPalms();
@@ -98,7 +98,7 @@ export async function createStageActorBackend(renderer, scene, light, origin, gr
       const plan = inspectActorStyle(model);
       try {
         adapter.attach(model,undefined,plan.hasBase ? {hybridSlots:plan.hybridSlots,pmxBytes:source?.pmxBytes} : undefined);
-        if (rig) cloth = roomCloth(renderer,model,rig,log);
+        if (rig) cloth = roomCloth(renderer,model,rig,log,gpuTiming);
       } catch (error) { adapter.detach(model); throw error; }
 
       const style = createActorStyle(model,source,plan,adapter,notify);

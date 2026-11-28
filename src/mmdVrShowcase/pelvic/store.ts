@@ -209,6 +209,16 @@ export function endPelvic(token:number){
 }
 export function releasePelvic(assetId:string){const a=state().active;return a?.assetId===assetId&&endPelvic(a.token);}
 
+/** WebGPU operator-sheet exit: retire its undelivered commands, but leave
+ * the room's stand, motor clock and crossing history with the mounted actor. */
+export function leavePelvicSheet(assetId:string,runtimeId:string){
+  const a=state().active;
+  if(a?.source!=='xr'||a.assetId!==assetId||a.runtimeId!==runtimeId)return;
+  if(a.mode==='xrManual'){
+    if(!a.running||useBackpack.getState().selected)endPelvic(a.token);
+  }else cancelPendingDoses();
+}
+
 export function nudgePelvic(assetId:string,deltaNormalized:number){
   const a=state().active;if(a?.assetId!==assetId||!a.running||blocked(a)||a.mode!=='standManual'||a.take?.kind==='replay'||!Number.isFinite(deltaNormalized))return false;
   usePelvic.setState({active:{...a,position:clamp(a.position+deltaNormalized,limits.position)}});return true;
@@ -324,7 +334,8 @@ export function requestStrokeDose(assetId:string,token:number,target:PelvicDoseT
     byAsset:target==='external'||p.container===target?byAsset:{...byAsset,[assetId]:{...p,container:target}}});return true;
 }
 export function cancelStrokeDose(id:number){if(state().strokeOrder?.id!==id)return false;settleOrder('cancelled');return true;}
-export function discardPelvicDoses(token:number,poseHeld=false){if(state().active?.token===token){doseCount=0;if(!poseHeld)lastInside=entering=false;settleOrder('cancelled');}}
+function cancelPendingDoses(){doseCount=0;settleOrder('cancelled');}
+export function discardPelvicDoses(token:number,poseHeld=false){if(state().active?.token===token){if(!poseHeld)lastInside=entering=false;cancelPendingDoses();}}
 type DoseOutlet=Pick<PelvicContact,'outletInside'|'outletVisible'>&{
   motion?:ContactMotion|null;continuous?:boolean;outletLocal?:PelvicContact['outletLocal'];
 };
@@ -417,11 +428,15 @@ useBackpack.subscribe((b,p)=>{
   const a=state().active;
   if(a){
     const live=b.live[a.assetId];
+    const selectionChanged=b.selected!==p.selected;
     if(!live?.visible||live.runtimeId!==a.runtimeId||b.entries!==p.entries&&!b.entries.some(e=>e.id===a.assetId&&e.kind==='model')||
-      isWebgpuStageSession()&&b.selected!==p.selected&&b.selected!==a.assetId&&!(a.mode==='xrManual'&&a.awaitingWorld&&!b.selected))endPelvic(a.token);
-    else if(b.busy||b.draft||b.selected!==p.selected&&b.selected&&(b.selected!==a.assetId||a.mode==='xrManual'))interruptPelvic(a.token);
-    else if(b.selected!==p.selected&&!b.selected&&state().strokeOrder?.target==='external')settleOrder('cancelled');
+      isWebgpuStageSession()&&selectionChanged&&b.selected&&b.selected!==a.assetId)endPelvic(a.token);
+    else if(b.busy||b.draft||selectionChanged&&b.selected&&(b.selected!==a.assetId||a.mode==='xrManual'))interruptPelvic(a.token);
     else if(a.awaitingWorld&&!b.selected&&p.selected===a.assetId&&!blocked(a))usePelvic.setState({active:{...a,awaitingWorld:false,running:true}});
+    else if(selectionChanged&&!b.selected){
+      if(isWebgpuStageSession())leavePelvicSheet(a.assetId,a.runtimeId);
+      else if(state().strokeOrder?.target==='external')settleOrder('cancelled');
+    }
   }
   const s=state();let profiles=s.byAsset,support=s.support;
   if(b.entries!==p.entries){

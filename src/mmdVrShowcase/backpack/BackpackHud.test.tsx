@@ -16,7 +16,7 @@ import { useStagePlay } from '../play/stagePlay';
 import { shelfToys, TOYS } from '../play/propCatalog';
 import {useBodyState} from '../bodyState/store';
 import {chanceFor,useConception} from '../bodyState/reproduction/store';
-import {enablePelvic,patchPelvic,publishPelvicSample,publishPelvicSupport,usePelvic} from '../pelvic/store';
+import {advancePelvic,consumePelvicDose,enablePelvic,patchPelvic,publishParkedSample,publishPelvicSample,publishPelvicSupport,usePelvic,type PelvicSample} from '../pelvic/store';
 import {PelvicObserver} from '../pelvic/PelvicObserver';
 import {readAtlasView} from '../pelvic/atlas/view';
 
@@ -204,21 +204,42 @@ it.each(['webgl','webgpu'] as const)('hands off the metre readout when starting 
   await act(()=>bag().select('a0'));expect(host.querySelector('[name="pelvic:hand-depth"]')).toBeNull();expect(usePelvic.getState().sample).toBeNull();
 });
 
-it('keeps the same solo stand through a wardrobe visit and retires it on leaving Insertion',async()=>{
-  beginMmdVrAssetSession([], 'webgpu');
+it.each(['webgl','webgpu'] as const)('folds and reopens the same manual and automatic partner on %s',async scope=>{
+  beginMmdVrAssetSession([],scope);
   useBackpack.setState({selected:'a0',live:{a0:instance('actor0')}});
   useMmdVrStore.setState({overlayOpen:true,presentation:'xr'});
   vi.spyOn(document,'hidden','get').mockReturnValue(false);
   vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValue(null);
-  await render();await click(t('actorInsert'));await click('手动支架');
+  const pelvic=usePelvic.getState,sample:PelvicSample={tip:[0,0,.06],tail:[0,0,.18],depth:0,angleDeg:0,aligned:true,
+    atCervix:false,outletInside:false,outletVisible:false,radiusM:.024,lengthM:.092};
+  const parked=()=>act(()=>publishParkedSample(pelvic().active!.token,sample));
+  await act(()=>root.render(<><BackpackWorldTools/><PelvicObserver rig={{current:null}}/></>));
+  await click(t('actorInsert'));await click('半透明搭档');
   await act(()=>publishPelvicSupport('a0',{runtimeId:'actor0',kind:'bones',anchorName:'hips'}));
-  const stand=usePelvic.getState().active;
-  expect(stand).toMatchObject({mode:'standManual',runtimeId:'actor0'});
+  await parked();await click('保持穿衣继续');await parked();await click('推进');
+  const manual=pelvic().active!,owner=useStagePlay.getState().stand;
+  expect(manual).toMatchObject({mode:'standManual',runtimeId:'actor0',running:true});expect(manual.position).toBeCloseTo(.5);
   await click('调整服装');expect(host.querySelector('[name="wardrobe-hud"]')).not.toBeNull();
-  expect(usePelvic.getState().active).toBe(stand);
-  await click(t('backToInsert'));expect(usePelvic.getState().active).toBe(stand);
-  await click(t('actorBack'));expect(usePelvic.getState().active).toBeNull();
-  expect(useStagePlay.getState().stand).toBeNull();
+  await click(t('backToInsert'));expect(pelvic().active).toBe(manual);
+  const inside={...sample,tip:[0,0,-.034] as const,depth:.034,outletInside:true,outletVisible:false};
+  await act(()=>{for(let i=0;i<40;i++)advancePelvic(manual.token,1/72);publishPelvicSample(manual.token,inside);});
+  if(scope==='webgpu')await click('释放到阴道');
+  await click(t('actorBack'));await click(t('hudDone'));
+  expect(pelvic().active).toBe(manual);expect(advancePelvic(manual.token,1/72)).toBe(manual.position);
+  expect(consumePelvicDose(manual.token,inside)).toBe('none');
+  expect(host.querySelector('[name="pelvic:observer"]')).toBeNull();
+  await act(()=>bag().select('a0'));await click(t('actorInsert'));await click('停止');
+  expect(pelvic().active).toMatchObject({position:manual.position,running:false});expect(useStagePlay.getState().stand).toBe(owner);
+  await click('自动往复');await parked();await click('开始往复');const token=pelvic().active!.token;
+  await click('释放到阴道');expect(pelvic().strokeOrder?.token).toBe(token);
+  await click(t('bodyPeek'));expect(bag().selected).toBeNull();
+  expect(host.querySelector('[name="pelvic:observer"],[name="pelvic:controls"]')).toBeNull();
+  expect(pelvic().active).toMatchObject({mode:'standAuto',token,running:true});
+  if(scope==='webgpu')expect(pelvic().strokeOrder).toBeNull();
+  const from=advancePelvic(token,1/72);expect(advancePelvic(token,1/72)).toBeGreaterThan(from);
+  await act(()=>bag().select('a0'));await click(t('actorInsert'));expect(pelvic().active?.token).toBe(token);
+  await click('停止往复');expect(useStagePlay.getState().stand).toBe(owner);
+  await click('收起搭档');expect(pelvic().active).toBeNull();expect(useStagePlay.getState().stand).toBeNull();
 });
 
 it("targets the selected runtime for transforms, but the stable character and exact file for body/face motions", async () => {

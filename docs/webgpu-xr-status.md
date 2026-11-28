@@ -6,6 +6,8 @@
 
 两端共用[可撕丝袜](./performance/actor-tools-regression.md#外置丝袜的裂口与覆盖)和[半透明搭档换姿](./performance/actor-tools-regression.md#搭档姿势单腿编辑与重新跨入)。布料上传与整帧对照见[性能首页](./performance/README.md#webgpu-单人播舞)；上线检查、构建摘要和固定部署按[功能提交](./release-history.md#发布记录)查。本版未测 Quest 实戴帧率。
 
+[两端正式生产栈并排矩阵](./xr-rendering-stack.md)：共享求值器、材质与裙摆分工、XR 眼图输出和性能报告的测量范围。
+
 ### 历史版本 `d519c8d`：单角色工具验证
 
 | 玩家操作 | 本机结果 | 验证条件 |

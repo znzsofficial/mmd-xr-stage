@@ -31,7 +31,14 @@ async function observePartner(asset) {
     for (let p=o;p;p=p.parent) if (!p.visible) return false;
     return !o.isMesh || [o.material].flat().some(m=>m.visible && m.colorWrite && m.opacity>0);
   }
-  const peak = {inside:0,outside:null,passes:0,drops:0}; let phase='in';
+  const peak = {inside:0,outside:null,passes:0,drops:0}; let phase='in',foldBalance=null;
+  // Capture on the actual fold, before the first frame without controls. A
+  // legitimate delivery while the controller is still aiming precedes it.
+  const offSelection=useBackpack.subscribe((b,prev)=>{
+    const {active,byAsset}=usePelvic.getState();
+    if(prev.selected===asset&&!b.selected&&active?.runtimeId===runtime&&active.assetId===asset&&active.mode==='standAuto')
+      foldBalance={...byAsset[asset].fluid};
+  });
   function read() {
     const s=usePelvic.getState(), active=s.active, profile=s.byAsset[asset], sample=s.sample??s.parkedSample;
     const rig=scene.getObjectByName('pelvic:rig'), get=name=>rig?.getObjectByName('pelvic:'+name);
@@ -43,7 +50,7 @@ async function observePartner(asset) {
     const world=shown(selected)?selected.localToWorld(mesh.position.clone().set(0,tipHeight,centerZ(tipHeight))):null;
     const local=world && port?.worldToLocal(world.clone());
     const p=usePoseSession.getState();
-    return {profile:!!profile,appearance:profile?.standAppearance,mode:active?.mode??null,token:active?.token,
+    return {profile:!!profile,appearance:profile?.standAppearance,mode:active?.mode??null,token:active?.token,partnerId:partner?.uuid,
       owned:active?.assetId===asset && active.runtimeId===runtime && useStagePlay.getState().stand?.assetId===asset,
       standOwned:!!useStagePlay.getState().stand,running:!!active?.running,home:!!sample?.railHome,inside:!!s.sample?.outletInside,
       depth:sample?.depth,measured:local&&sample?projectDepth(sample,local):null,z:local?.z,world:world?.toArray(),
@@ -54,7 +61,8 @@ async function observePartner(asset) {
       clothed:!!profile?.clothed,confirmed:!!profile?.clothingClear,obstruction:s.support[asset]?.obstruction,
       editing:p.runtimeId===runtime&&p.assetId===asset&&p.editing,
       held:p.runtimeId===runtime&&p.assetId===asset&&!p.editing&&p.canUndo,poseDrift:held?drift(held):null,
-      receipt:s.strokeReceipt,fluid:profile?.fluid,sheet:!!scene.getObjectByName('pelvic:controls'),samples:!!(s.sample||s.parkedSample),auto:{...peak}};
+      receipt:s.strokeReceipt,fluid:profile?.fluid,foldBalance,sheet:!!scene.getObjectByName('pelvic:controls'),observer:!!scene.getObjectByName('pelvic:observer'),
+      samples:!!(s.sample||s.parkedSample),auto:{...peak}};
   }
   // The simulated display supplies regular 72 Hz timestamps even for a slow
   // local PMX. Input events and updates still go through the production loop.
@@ -73,7 +81,7 @@ async function observePartner(asset) {
     }};
   }
   window.partnerTake={read,pose,get clock(){return clock;},keepPose(){held=pose();return drift(neutral);},startClock,
-    dispose(){if (labFixture.take===clock) labFixture.take=null;delete window.partnerTake;}};
+    dispose(){offSelection();if (labFixture.take===clock) labFixture.take=null;delete window.partnerTake;}};
 }
 
 // Catalog identity selects the group and label; only controller presses can
@@ -118,6 +126,14 @@ module.exports = async function({page,ids,click,until,bButton,frames,target,pick
   }
   const travel=(a,b)=>Math.hypot(...a.map((v,i)=>v-b[i]));
   const poseStable=r=>assert(r.held&&r.poseDrift<.015,`Held actor pose changed: ${r.poseDrift} m`);
+  async function moveSheetAside(){
+    const drag=await page.evaluate(()=>{
+      const panel=gameTargets.floorState().scene.getObjectByName('backpack-world-tools');
+      const title=panel.getObjectByName('actor:move-sheet'), sign=Math.sign(panel.position.x)||1;
+      return [[0,0],[sign*1.45,1.25]].map(([x,y])=>title.localToWorld(title.position.clone().set(x,y,0)).toArray());
+    });
+    await aim(drag[0]); await trigger(true); await aim(drag[1]); await trigger(false); await idleRay();
+  }
   await page.evaluate(observePartner,ids.model);
   try {
     await click('actorPose'); await choosePose({page,press,target},'matingPress'); await press('保留姿势并返回'); await target({key:'actorInsert'}); await frames(3);
@@ -129,14 +145,7 @@ module.exports = async function({page,ids,click,until,bButton,frames,target,pick
     poseStable(parked); await target({name:'hud:手动控制'}); await target({name:'hud:自动往复'});
     // The operator sheet ignores depth. Move it aside by the real title so
     // that neither its buttons nor its live panel can mask the paired shot.
-    const drag=await page.evaluate(()=>{
-      const panel=gameTargets.floorState().scene.getObjectByName('backpack-world-tools');
-      const title=panel.getObjectByName('actor:move-sheet'), sign=Math.sign(panel.position.x)||1;
-      // Put the sheet above the seated player's sightline too. It renders over
-      // stage depth, so moving it sideways alone can mask the head in profile.
-      return [[0,0],[sign*1.45,1.25]].map(([x,y])=>title.localToWorld(title.position.clone().set(x,y,0)).toArray());
-    });
-    await aim(drag[0]); await trigger(true); await aim(drag[1]); await trigger(false); await idleRay();
+    await moveSheetAside();
     const {png,...eyes}=await page.evaluate(captureEyes);
     const dir=path.join(__dirname,'../../local-review/screenshots/partner-workbench'); await fs.mkdir(dir,{recursive:true});
     const capture=(exposed?'exposed':'covered')+'-partner-stereo.png'; await fs.writeFile(path.join(dir,capture),Buffer.from(png,'base64'));
@@ -163,29 +172,51 @@ module.exports = async function({page,ids,click,until,bButton,frames,target,pick
     }
     const partnerDrift=Math.max(...back.body.map((p,i)=>travel(p,deep.body[i])));
     assert(partnerDrift<.015,'Partner head or torso jumped on return');
+    // Return to actor tools, then dismiss those tools with Done. Neither
+    // controller release is a motor command or a request to stow the mesh.
+    await press('返回角色'); await click('hudDone'); await target({name:'watch:quiet'}); await frames(8);
+    const hidden=await read();
+    assert(!hidden.sheet&&!hidden.observer&&hidden.partnerOnly&&inside(hidden)); poseStable(hidden);
+    assert.equal(hidden.partnerId,back.partnerId); assert.equal(hidden.token,back.token); assert(travel(hidden.world,back.world)<.002);
+    const {png:foldedPng,...foldedEyes}=await page.evaluate(captureEyes);
+    const foldedCapture=(exposed?'exposed':'covered')+'-partner-folded-stereo.png';
+    await fs.writeFile(path.join(dir,foldedCapture),Buffer.from(foldedPng,'base64'));
+    assert([foldedEyes.torso,foldedEyes.head].every(pair=>pair.every(e=>e.pixels>24)),'Missing partner in folded stage eye images');
+    await pickMounted(ids.model); await click('actorInsert'); await press('停止');
+    const frozen=await wait('stop freezes the same manual partner at depth',r=>r.owned&&r.partnerOnly&&!r.running&&!r.inside&&r.z<-.015);
+    assert.equal(frozen.partnerId,back.partnerId); assert(travel(frozen.world,back.world)<.002);
+    await click('bodyPeek'); await target({name:'watch:quiet'}); await frames(8); await pickMounted(ids.model); await click('actorInsert');
+    const reopened=await read(); assert(reopened.sheet&&!reopened.running&&reopened.token===frozen.token&&reopened.partnerId===frozen.partnerId);
+    assert(travel(reopened.world,frozen.world)<.002); poseStable(reopened);
     await press('退回起点'); const home=await wait('manual outlet returns to home',r=>r.partnerOnly&&r.home&&!r.inside&&r.z>.03);
     assert(travel(home.world,ready.world)<.002); await press('停止');
     await press('自动往复'); await wait('automatic partner parked',r=>r.mode==='standAuto'&&!r.running&&r.partnerOnly&&r.z>.03&&!r.inside);
     await press('开始往复'); await wait('two admitted motor passes with an outside frame between',r=>r.auto.passes>=2);
-    await aim(await target({name:'hud:体外释放'}));await wait('request on an internal stroke',r=>r.inside&&r.depth>.035);
+    await aim(await target({name:'hud:体外释放'}));const beforeOutside=await wait('request on an internal stroke',r=>r.inside&&r.depth>.035);
     await trigger(true);await trigger(false);
     if(exposed)await wait('named outside delivery and visible particles',r=>r.receipt==='deliveredOutside'&&r.auto.drops>0);
     else {await frames(155);assert.equal((await read()).auto.drops,0);}
-    const cycling=await read();assert.deepEqual(cycling.fluid,deep.fluid);
+    assert.deepEqual((await read()).fluid,beforeOutside.fluid,'Outside release credited an internal site');
+    await click('bodyPeek'); await target({name:'watch:quiet'});
+    const folded=await read(); assert(folded.owned&&folded.running&&folded.partnerOnly&&!folded.sheet&&!folded.observer);
+    assert.deepEqual(folded.fluid,folded.foldBalance);
+    await (await page.waitForFunction(n=>partnerTake.read().auto.passes>=n+2,folded.auto.passes,{timeout:40000})).dispose();
+    await pickMounted(ids.model); await click('actorInsert');
+    const cycling=await read(); assert(cycling.sheet&&cycling.running&&cycling.partnerOnly);assert.deepEqual(cycling.fluid,folded.foldBalance);
+    assert.equal(cycling.token,folded.token); assert.equal(cycling.partnerId,folded.partnerId); poseStable(cycling);
     await press('停止往复'); await wait('automatic partner stopped',r=>r.mode==='standAuto'&&!r.running&&r.partnerOnly);
     await press('手动控制'); await wait('manual partner restored outside',r=>r.owned&&r.mode==='standManual'&&!r.running&&r.partnerOnly&&r.home&&!r.inside);
+    if(partnerPoses)await moveSheetAside(); // Re-picking the actor recalled a new sheet at its usual position.
     const poses=partnerPoses?await require('./game-floor-partner-poses.cjs')({page,asset:ids.model,runtime:actor.runtimeId,exposed,dir,
       press,target,frames,idleRay,wait,poseStable,inside,choosePose:id=>choosePose({page,press,target},id)}):undefined;
-    await press('返回角色'); await target({key:'actorInsert'});
     const gone=r=>!r.mode&&!r.standOwned&&!r.anyTool&&!r.samples;
-    poseStable(await wait('return retires the mounted partner',gone));
-    await click('actorInsert'); await press('半透明搭档'); await wait('re-enter and remount',r=>r.owned&&r.partnerOnly&&r.home&&!r.running);
     await press('收起搭档'); const dismissed=await wait('dismiss removes both representations',gone); poseStable(dismissed); assert(dismissed.sheet);
     await press('返回角色'); await until('same held PMX after dismissal',(s,id)=>s.runtimeId===id&&s.ready&&s.selected&&!s.playing,actor.runtimeId);
     await bButton(); await click('settingsVrDesktopExit',{retiring:true}); await until('partner session retired',s=>s.phase==='ended'&&!s.overlay&&!s.live);
     const adapters=await page.evaluate(()=>labFixture.adapters);
     assert(adapters.some(a=>a.xrCompatible)&&adapters.every(a=>a.vendor&&!a.fallback&&!/swiftshader|warp|software|llvmpipe/i.test(JSON.stringify(a))),'Missing hardware GPU');
     return {clothing:exposed?'exposed':'covered',poseChangeM:poseChange,tipTravelM:tipTravel,depthM:deep.measured,switchToken:deep.token,
-      maxSwitchPoseDriftM:Math.max(stand.poseDrift,back.poseDrift),partnerDriftM:partnerDrift,auto:cycling.auto,eyes,capture,poses};
+      maxSwitchPoseDriftM:Math.max(stand.poseDrift,back.poseDrift),partnerDriftM:partnerDrift,foldedManualDriftM:travel(hidden.world,back.world),
+      auto:cycling.auto,eyes,capture,foldedEyes,foldedCapture,poses};
   } finally { await page.evaluate(()=>window.partnerTake?.dispose()); }
 };

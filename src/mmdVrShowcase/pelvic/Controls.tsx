@@ -5,6 +5,7 @@ import { AtlasHudPanel, AtlasScreenPanel } from './atlas/AtlasPanel';
 import { LivePelvicHudView, LivePelvicScreenView, livePaneHeight, type LiveMonitorNavigation } from '../observation/LivePelvicView';
 import {ObservationDiagram} from '../observation/ObservationDiagram';
 import {useLanguageStore} from '../../languageStore';
+import {useBackpack} from '../backpack/store';
 import {SECTION_H,SECTION_W} from './sectionPaint';
 import {DepthHudReadout,DepthScreenReadout,StrokeHudReadout,StrokeScreenReadout,strokeReadoutHeight} from './StrokeReadout';
 import { PrivateButton, PrivateLine, PrivateSheet } from './HudPrivateControls';
@@ -129,6 +130,11 @@ function HudColumn({items,from,w,blocked,actor,live}:{items:HudRow[];from:number
 }
 function HudEditor({assetId,runtimeId,onBack,lens,...navigation}:HudProps) {
   const vm=usePelvicControls({assetId,runtimeId},'xr',navigation), split=vm.chart||vm.live||vm.sizePreview,width=split?panelW:1.34;
+  const viewOnStage=useLanguageStore(s=>s.t('bodyPeek'));
+  const fold=()=>{
+    const bag=useBackpack.getState();
+    if(bag.selected===assetId&&bag.live[assetId]?.runtimeId===runtimeId)bag.select(null);
+  };
   const cw=split?editorW:width-.1;
   // Note wrapping must not allocate a measurement canvas on each sampling or
   // slider tick; rows only need new metrics when their content/layout changes.
@@ -143,7 +149,8 @@ function HudEditor({assetId,runtimeId,onBack,lens,...navigation}:HudProps) {
   const h=Math.max(top-contentTop+stopH+statusH+rowGap+columnHeight(rows),top-plateTop+(vm.live?livePaneHeight:vm.chart?chartH:vm.sizePreview?previewH:0))+.036;
   return <group name="pelvic:controls" pointerEventsOrder={1} pointerEventsType={{allow:['ray']}}>
     <group position-y={top-h/2}><PrivateSheet size={[width,h]}/></group>
-    <ActorHudTitle position={[-.20,top-.087,0]} width={width-.51} text={vm.title}/>
+    <ActorHudTitle position={[-.43,top-.087,0]} width={width-.97} text={vm.title}/>
+    <PrivateButton position={[width/2-.636,top-.087,0]} size={[.45,.135]} label={viewOnStage} variant="quiet" onPress={fold}/>
     <PrivateButton position={[width/2-.218,top-.087,0]} size={[.337,.135]} label={vm.back} variant="quiet" onPress={onBack}/>
     {vm.enabled&&<group position={[split?rightX:0,top-.253,0]}><HudKeys items={vm.tabs} blocked={false} w={cw} tabs live={vm.live}/></group>}
     {vm.sizePreview&&<group position={[leftX,plateTop-previewH/2,0]}><SizePreview assetId={assetId} runtimeId={runtimeId} widthM={chartW}/></group>}

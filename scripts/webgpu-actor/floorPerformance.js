@@ -26,6 +26,7 @@ function sharedValue(actors,key){
 export function recordFloorPerformance(started,requested) {
   const recording=createPerformanceRecording(requested,started,'webgpu');
   let sampledAt,frames=0,lastPublished;
+  const sampleDue=time=>sampledAt===undefined || time-sampledAt>=1000;
   function clearPublished(){
     if(lastPublished && useRenderDiagnostics.getState().current===lastPublished){
       useRenderDiagnostics.getState().set(null);runtimeTiming.readAndReset();
@@ -34,7 +35,8 @@ export function recordFloorPerformance(started,requested) {
   }
   return {
     begin(){beginPerformanceAttempt('webgpu');runtimeTiming.readAndReset();},
-    draw(time,frame,views,renderer,backend,entryRoom) {
+    sampleDue,
+    draw(time,frame,views,renderer,backend,entryRoom,gpuPasses) {
       const hz=frame.session.frameRate;
       recording.timestamp(time,hz);
       const state=useMmdVrStore.getState();
@@ -45,7 +47,7 @@ export function recordFloorPerformance(started,requested) {
       if(backend)recording.placementFrame(useBackpack.getState().lastCompletedPlacement);
       const elapsed=time-sampledAt;
       ++frames;
-      if(sampledAt!==undefined && elapsed<1000)return;
+      if(!sampleDue(time))return;
       recording.eyes(views,renderer.xr.getCamera().cameras);
       const layer=frame.session.renderState.layers?.[0],cost=runtimeTiming.readAndReset();
       const visible=backend?state.models.filter(m=>m.visible):[];
@@ -57,10 +59,12 @@ export function recordFloorPerformance(started,requested) {
         layerAntialias:null,targetSamples:layer?sceneSamples(renderer):null,contextAntialias:null,
         foveation:Number.isFinite(layer?.fixedFoveation)?layer.fixedFoveation:null,
         drawCalls:renderer.info.render.drawCalls,triangles:renderer.info.render.triangles,
-        textures:renderer.info.memory.textures,geometries:renderer.info.memory.geometries,modelUpdateCpuMs:cost?.mean??null,modelUpdateCpuMaxMs:cost?.max??null};
+        textures:renderer.info.memory.textures,geometries:renderer.info.memory.geometries,modelUpdateCpuMs:cost?.mean??null,modelUpdateCpuMaxMs:cost?.max??null,
+        ...(cost?.physicsPoseWork && {physicsPoseWork:cost.physicsPoseWork}),...(cost?.bulletStepWork && {bulletStepWork:cost.bulletStepWork}),
+        ...(cost?.skirtWork && {skirtWork:cost.skirtWork})};
       useRenderDiagnostics.getState().set(lastPublished=data);
       recording.sample(data,{scenery,models,objects,physics:!!backend&&state.physicsEnabled,playing:!!backend&&state.playing,
-        liveHouse:scenery==='liveHouse',shadows:renderer.shadowMap.enabled,
+        liveHouse:scenery==='liveHouse',shadows:renderer.shadowMap.enabled,...(gpuPasses && {gpuPasses,gpuFrameTimeMs:time}),
         ...(styles.length>0&&styles.every(Boolean)&&{actorStyle:sharedValue(styles,'style'),clothMode:sharedValue(styles,'mode')})});
       sampledAt=time;frames=0;
     },

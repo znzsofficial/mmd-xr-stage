@@ -23,7 +23,7 @@ function prepareHandPalette(mesh,handSamples){
  * After pose evaluation call step once per frame before drawing (never once per eye).
  * Reset invalidates history; the next step reseeds in its own frame, even when dt is zero.
  */
-export async function createClothDriver(renderer,model,rig,{points,goals},signal){
+export async function createClothDriver(renderer,model,rig,{points,goals},signal,gpuTiming){
   const device=renderer.backend.device,mesh=model.mesh,{bones}=mesh.skeleton;
   if(!rig.handSamples)throw Error('Pass rig.handSamples fitted on the original PMX before TSL attach');
   const S=GPUBufferUsage.STORAGE,size=rig.rest.byteLength;
@@ -84,7 +84,7 @@ export async function createClothDriver(renderer,model,rig,{points,goals},signal
         device.queue.writeBuffer(pal,0,palette);
       }
       kernel.contacts(local,true,worldToMesh,handMetric);
-      const encoder=device.createCommandEncoder({label:'PMX cloth step'}),pass=encoder.beginComputePass();
+      const encoder=device.createCommandEncoder({label:'PMX cloth step'}),pass=encoder.beginComputePass(gpuTiming?.clothPass(steps));
       kernel.run(pass,steps,seed);pass.end();device.queue.submit([encoder.finish()]);
       seed=false;return steps;
     }

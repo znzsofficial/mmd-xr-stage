@@ -22,17 +22,6 @@ const link=(label:string,press:()=>void)=>buttons(key(label,press));
 
 export type PelvicNavigation={onClothing?:()=>void;onPose?:()=>void;cameraKey?:Pick<Key,'label'|'press'>;backLabel?:string;webgpu?:boolean};
 
-/** The insertion activity owns the tool through its wardrobe detour. Only a
- * deliberate handoff to world input can outlive the entire operator sheet. */
-export function usePelvicToolLifetime(assetId:string,runtimeId:string,active:boolean){
-  useLayoutEffect(()=>()=>{
-    const a=usePelvic.getState().active;
-    if(!active||a?.source!=='xr'||a.assetId!==assetId||a.runtimeId!==runtimeId)return;
-    if(a.mode==='xrManual'&&a.running&&!useBackpack.getState().selected)return;
-    releasePelvic(assetId);
-  },[assetId,runtimeId,active]);
-}
-
 export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen'|'xr',{onClothing,onPose,cameraKey,backLabel,webgpu=false}:PelvicNavigation) {
   const zh=useLanguageStore(s=>s.language==='zh'),l=(a:string,b:string)=>zh?a:b;
   const [page,go]=useState<Page>('use'),[fit,setFit]=useState<Fit>('position');

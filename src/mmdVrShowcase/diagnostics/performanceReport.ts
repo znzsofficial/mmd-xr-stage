@@ -14,7 +14,10 @@ export type XrBackend = 'webgl' | 'webgpu';
 type EyeSize = {eye:XREye;width:number;height:number};
 type SceneSample = { models: number; objects: number; physics: boolean; scenery?: string; liveHouse: boolean; shadows: boolean; playing: boolean; actorStyle?:string; clothMode?:string; actorPalmClothRequested?:boolean; heldToy?: import('../play/stagePlay').Toy | null; planetMovement?:ReturnType<typeof import('../movement/planetDiagnostics').samplePlanetMovement>;figureWork?:FigureWork;rodState?:'parked'|'running'|'inside' };
 type MovementSample = { playerStance?:ReturnType<typeof import('../movement/stanceDiagnostics').samplePlayerStance> };
-type Window = Omit<RenderDiagnostics, "requested" | "active"> & SceneSample & MovementSample & {
+// A sparse GPU observation of the window-ending XR frame, not a window mean.
+type PassSample = {gpuFrameTimeMs?:number; gpuPasses?: {status:'unsupported'|'unavailable'|'pending'|'missed'|'read';
+  clothSteps:number|null; clothMs:number|null; threeComputeMs:number|null; stereoSceneMs:number|null; stereoOutputMs:number|null}};
+type Window = Omit<RenderDiagnostics, "requested" | "active"> & SceneSample & MovementSample & PassSample & {
   elapsedMs: number;
   eyeViewports: EyeSize[];
   intervals: number;
@@ -94,7 +97,7 @@ export function createPerformanceRecording(requested: RenderRequest, entryStarte
         if (ms > 1500 / refreshRate) ++late;
       }
     },
-    sample(data: RenderDiagnostics, scene: SceneSample & MovementSample) {
+    sample(data: RenderDiagnostics, scene: SceneSample & MovementSample & PassSample) {
       const { requested: _requested, active: _active, ...metrics } = data;
       // Window-end observation, not a wall-time estimate of the VMD position.
       const { time, duration: motionDuration } = getMmdVrClock();
