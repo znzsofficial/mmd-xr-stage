@@ -37,14 +37,19 @@ module.exports = function parkDepthTake() {
       const take = result.views[name] = {};
       for (const offset of [-.045,0,.045]) {
         shot.position.set(eye[0]+offset,eye[1],eye[2]);shot.lookAt(aim[0]+offset,aim[1],aim[2]);shot.updateMatrixWorld();
+        render(alternate); // Warm draws that only become visible at this new camera position.
         render(baseline);
+        render(alternate);
+        const repeat=differences();
+        if (repeat) throw Error(`${name}: normal-order repeat changed ${repeat} pixels`);
         for (const {name,attr,original,reversed} of meshes) {
           attr.array.set(reversed);attr.needsUpdate=true;render(alternate);
           (take[name]??=[]).push(differences());
           attr.array.set(original);attr.needsUpdate=true;
         }
         render(alternate);
-        if (differences()!==0) throw Error('Park control frame did not restore: '+name);
+        const residual=differences();
+        if (residual) throw Error(`${name}: restored frame changed ${residual} pixels`);
       }
     }
   } finally {

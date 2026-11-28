@@ -5,6 +5,11 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from 'node:path';
 
 const files = [
+  ['6cc38554','index-CT5HksEN.js','0e7b10cba779fe673b5d4b391a8765e0c0d545d06de11dd78948ac88c0186310'],
+  ['6cc38554','stage-host-CDbZ622J.js','71cc8be70c9e227032e3f8500832b58f21effa9e0940b7fdd9df8a97e9e3f4b8'],
+  ['6cc38554','PlanetPhysics-BnqMsPyO.js','5370b13fbf784fa718889bfb481bf20897f8145bd88d9ff13cb60bc0268f5e1a'],
+  ['6cc38554','rapier-TweNREiR.js','42d6b010784ecd5b52dd77126f2625e41ec1dca53a0148d44e9ea06079272748'],
+  ['6cc38554','emulate-D0WlXtKQ.js','ad06b050bcdae8cab898a573e1100613d8808b138951eb40208c4a3698f87e6a'],
   ['652a58ef','index-b6V_py_p.js','1ab8fbf393991bdf9c70eea2f83c2d5ca9995d7bc14a690720f481f412a6c9b6'],
   ['652a58ef','stage-host-Bgn42xFH.js','c3ae3bcc4cb02e4590ab538eb69d40e759c135ecaac33635e2c99dfed099a7f0'],
   ['652a58ef','PlanetPhysics-De_fnkne.js','e0595049942b63f827b79597a769c22206c1d90dd1732e6a4f5b7651227c2e9f'],

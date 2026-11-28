@@ -14,7 +14,7 @@
 - **江南**：[双喜堂](./wedding-court.md)看喜幔、婚书与喜房；沿[枕河街](./jiangnan-river-street.md)可到[秦淮歌楼](./qinhuai.md)埠头、听曲廊和月蘅馆。跨景各存布局，楼内步行不卸载角色。
 - **天体**：母星北台的[六线航向盘](./opal-planet.md#从罗盘起飞六条往返风道)指向 01–06 号风环。想采色亮柱，走[白脊采谱路线](./opal-planet.md#母星沿白脊采谱)；想摆角色，除母星北台外，还可去 [06 伞灯星的菌圃台](./opal-planet.md#伞灯星和琥珀屿)。[苇湾星](./opal-planet.md#苇湾星与地表近景)可涉水；云母屿、硫珠屿从[玄釉星方向](./opal-planet.md#双星引力海峡)跨跳，琥珀屿从伞灯星跨跳。
 - [传送大厅实景：六扇拱门与中央通道](../screenshots/astral-portal-hall.webp)。门中的图像拍自六个空片场；只加载一张图集，不预加载六个房间或角色。
-- [布景渲染开销与取舍](../performance/scenery-render-work.md)：门框实例、喜堂家具与柏树的投影、赭砾／霜岬远月、菌圃按眼裁剪；包含玩家视角及切换前后的实测。
+- [布景渲染开销与取舍](../performance/scenery-render-work.md)：海站店面闪烁回投与树冠剔除、小行星星云按眼采样，以及门框实例、家具投影、远月与菌圃的实测。
 - **其他片场**：[黑绒私摄棚](./velvet-studio.md)、[中世纪刑讯室](./medieval-chamber.md)、[暮灯情侣套房与月庭双人私汤](./private-retreats.md)、晨光礼拜堂、简易地台和 Live House。
 
 ## 布景怎么做

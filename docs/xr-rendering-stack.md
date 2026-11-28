@@ -33,7 +33,11 @@
 | 正式会话导出 | [WebGL 记录器](../src/mmdVrShowcase/diagnostics/MmdVrDiagnostics.tsx)记录可见回调间隔、模型更新 CPU 墙钟、绘制调用／三角形；另有 Bullet 步进、放置和回场等分项。 | [WebGPU 记录器](../scripts/webgpu-actor/floorPerformance.js)记录可见回调间隔、模型 CPU、绘制计数，并按可见演员附画风和布料模式（可为 `mixed`）。两端用[同一导出格式](../src/mmdVrShowcase/diagnostics/performanceReport.ts)；`slowIntervals` 是超过实得刷新周期 1.5 倍的可见回调数，不是合成器丢帧数。 |
 | **GPU 分段计时** | 正式 XR 报告未导出 GPU pass 时间。开发用[海站 WebGL 探针](../scripts/verify-harbour-light.cjs)可用 `EXT_disjoint_timer_query_webgl2` 测指定绘制。 | 在 WebGPU 入口加 `gpuTiming=1`；设备支持 `timestamp-query` 时，[正式记录器](../scripts/webgpu-actor/floorGpuTiming.js)稀疏抽取一帧，分列原生布料 compute、Three compute、双眼主场景和最终双眼转色。不含其他离屏绘制和合成器，不是整帧 GPU 时间。无该项读数留 `null`，不可用／漏采按状态记录，关闭此选项不分配查询资源。[独立布料实验](./performance/gpu-cloth-lab.md#真实-vmd-同段对照)另按物理步分账。 |
 
-**未采用与引擎限制。** 正式布景已用实例化，未显式使用 `BundleGroup` 录制静态建筑的绘制命令，也未接入由 GPU 剔除后生成间接绘制命令的管线。双眼共享演员计算结果，但依然分别绘制：锁定的 Three r187 在 `XRManager._initWebGPUSession()` 中明确设置 `multiview: false`，这是该版原生 WebGPU XR 路径的限制；两层纹理或两个不同眼图都不能证明单遍 multiview 已启用。
+### 静态布景 Render Bundles 和双眼单遍绘制
+
+**静态 Render Bundles 已试验，未在正式舞台启用。** Three r187 的 WebGPU XR 已在每帧分别为两眼录制临时命令；这和 `BundleGroup` 跨帧复用静态命令不同。以[海站出口吊牌](../src/mmdVrShowcase/scenery/terminus/PlatformWayfinding.tsx)的 5 个不透明网格做命令层对照：普通组每眼各录 5 个 draw，各用自己的深度层，成功提交。换成 `BundleGroup` 后，两个眼层仍各录 5 个，而显式 bundle 里是 0 个 draw。r187 [执行显式 bundle](https://github.com/mrdoob/three.js/blob/r187/src/renderers/webgpu/WebGPUBackend.js#L1414-L1445) 时分层目标的 `currentPass` 仍是 `null`，在左右眼开始前抛错。这个试验用了真实的 Three 列表及编码路径、记录器代替原生 GPU；它验证兼容性，不是毫秒数或头显结果。升级 Three 后再用同一吊牌测双眼像素、转身剔除与跨帧录制次数。本机复现：`node local-review/verification/render-bundles-r187/probe.mjs`。
+
+**双眼单遍绘制未启用。** 锁定的 [Three r187 XRManager](https://github.com/mrdoob/three.js/blob/r187/src/renderers/common/XRManager.js#L770-L794) 在原生 WebGPU XR 路径明确禁用 `multiview`。双眼已经共享演员和布料计算结果，场景仍分别绘制。一个有两个切片的投影纹理不代表一次 draw 已广播给两眼。正式布景仍可使用实例化、视锥剔除和远景简化；没有接入 GPU 剔除后生成间接绘制命令的管线。
 
 ## 实测边界
 

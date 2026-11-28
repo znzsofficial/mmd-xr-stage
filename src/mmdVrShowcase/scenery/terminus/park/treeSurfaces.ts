@@ -1,5 +1,27 @@
-import {BufferGeometry, DynamicDrawUsage, Float32BufferAttribute, Vector3} from 'three';
-import {growTree, sprayFaces, sprayPoints, sprayUV} from './treeHabit';
+import {BufferGeometry, DynamicDrawUsage, Float32BufferAttribute, Matrix4, Vector3} from 'three';
+import {growTree, habitOf, sprayFaces, sprayPoints, sprayTiles, sprayUV, type ParkTree} from './treeHabit';
+
+export type TreeInstance = {matrix:Matrix4; exposure?:number};
+
+export function treeBatches(trees:readonly ParkTree[],habits:ReturnType<typeof growTree>[]){
+  const trunks=habits.map(()=>[] as TreeInstance[]);
+  const sprays=Array.from({length:sprayTiles},()=>[] as TreeInstance[]), crownEnds=sprays.map(()=>[] as number[]);
+  const placed=trees.map((tree,i)=>{
+    const v=habitOf(tree,i), s=tree.scale??1, placement=new Matrix4().makeScale(s,s,s).setPosition(tree.x,0,tree.z);
+    trunks[v].push({matrix:placement});
+    return {z:tree.z,placement,shoots:habits[v].shoots};
+  });
+  // From the square and its shaded benches, look inland towards the shops.
+  // Put those crowns first so off-screen trees on the station side can be
+  // omitted from the four existing draws without moving instance data.
+  for(const {placement,shoots} of placed.sort((a,b)=>b.z-a.z)){
+    for(const {matrix,tile,exposure} of shoots){
+      sprays[tile].push({matrix:new Matrix4().multiplyMatrices(placement,matrix),exposure});
+    }
+    for(let tile=0;tile<sprays.length;tile++)crownEnds[tile].push(sprays[tile].length);
+  }
+  return {trunks,sprays,crownEnds};
+}
 
 /** Ring-to-ring sweep. The flare, bent trunk and each fork retain continuous
  * shading and metre-scaled bark along their length. */
@@ -40,5 +62,6 @@ export function sprayGeometry(tile:number){
   g.setAttribute('uv',new Float32BufferAttribute(uv,2)); g.setIndex(sprayFaces); g.computeVertexNormals(); g.computeBoundingSphere();
   // The few moving tip verts stay within this bound for every instance.
   g.boundingSphere!.radius+=.055;
+  g.computeBoundingBox();g.boundingBox!.expandByScalar(.055);
   return g;
 }

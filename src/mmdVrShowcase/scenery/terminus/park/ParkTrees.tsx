@@ -1,20 +1,20 @@
 import {useEffect, useLayoutEffect, useMemo, useRef} from 'react';
 import {useFrame} from '@react-three/fiber';
-import {Color, DoubleSide, InstancedMesh, Matrix4, RepeatWrapping, type BufferGeometry, type Texture} from 'three';
+import {Color, DoubleSide, InstancedMesh, RepeatWrapping, type BufferGeometry, type Texture} from 'three';
+import {cameraInstancePrefix} from '../../cameraInstancePrefix';
 import {noPick} from '../../sceneryPaint';
 import {useBakedSurface} from '../../useBakedSurface';
 import {SHORE_SUN} from '../shoreLayout';
-import {growTree, habitCount, habitOf, sprayPoints, sprayTiles, type ParkTree} from './treeHabit';
-import {barkGeometry, sprayGeometry} from './treeSurfaces';
+import {growTree, habitCount, sprayPoints, sprayTiles, type ParkTree} from './treeHabit';
+import {barkGeometry, sprayGeometry, treeBatches, type TreeInstance} from './treeSurfaces';
 import {ParkLeafShade} from './ParkLeafShade';
 import barkUrl from './zelkova-bark.webp';
 import leavesUrl from './zelkova-sprays.webp';
 
-type Instance = {matrix:Matrix4; exposure?:number};
 type Props = {trees:readonly ParkTree[]; shadows:boolean};
 
-function TreeBatch({name, geometry, instances, shadows, map, leaves=false}:{
-  name:string; geometry:BufferGeometry; instances:Instance[]; shadows:boolean; map:Texture|null; leaves?:boolean;
+function TreeBatch({name, geometry, instances, shadows, map, crownEnds}:{
+  name:string; geometry:BufferGeometry; instances:TreeInstance[]; shadows:boolean; map:Texture|null; crownEnds?:number[];
 }){
   const ref=useRef<InstancedMesh>(null);
   useLayoutEffect(()=>{
@@ -26,10 +26,11 @@ function TreeBatch({name, geometry, instances, shadows, map, leaves=false}:{
     mesh.instanceMatrix.needsUpdate=true;
     if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;
     mesh.computeBoundingSphere();
-  },[geometry,instances]);
+    if(crownEnds)return cameraInstancePrefix(mesh,crownEnds,.45);
+  },[geometry,instances,crownEnds]);
   return <instancedMesh ref={ref} name={name} args={[geometry,undefined,instances.length]} raycast={noPick}
-    castShadow={shadows} receiveShadow userData={{playerCollision:!leaves}}>
-    {leaves ? <meshStandardMaterial map={map} alphaTest={.36} side={DoubleSide} roughness={.76}
+    castShadow={shadows} receiveShadow userData={{playerCollision:!crownEnds}}>
+    {crownEnds ? <meshStandardMaterial map={map} alphaTest={.36} side={DoubleSide} roughness={.76}
       emissive="#779332" emissiveMap={map} emissiveIntensity={.32}/> :
       <meshStandardMaterial key={map?'bark':'bare'} map={map} color={map?'white':'#817868'} roughness={.90}/>}
   </instancedMesh>;
@@ -42,17 +43,7 @@ export function ParkTrees({trees,shadows}:Props){
   const blades=useMemo(()=>Array.from({length:sprayTiles},(_,i)=>sprayGeometry(i)),[]);
   useEffect(()=>()=>{for(const g of [...wood,...blades])g.dispose();},[wood,blades]);
   useLayoutEffect(()=>{if(bark){bark.wrapS=bark.wrapT=RepeatWrapping; bark.needsUpdate=true;}},[bark]);
-  const {trunks,sprays}=useMemo(()=>{
-    const trunks=wood.map(()=>[] as Instance[]), sprays=blades.map(()=>[] as Instance[]);
-    for(const [i,tree] of trees.entries()){
-      const v=habitOf(tree,i), s=tree.scale??1, placement=new Matrix4().makeScale(s,s,s).setPosition(tree.x,0,tree.z);
-      trunks[v].push({matrix:placement});
-      for(const {matrix,tile,exposure} of habits[v].shoots){
-        sprays[tile].push({matrix:new Matrix4().multiplyMatrices(placement,matrix),exposure});
-      }
-    }
-    return {trunks,sprays};
-  },[trees,habits,wood,blades]);
+  const {trunks,sprays,crownEnds}=useMemo(()=>treeBatches(trees,habits),[trees,habits]);
   const time=useRef(0);
   useFrame((_,delta)=>{
     if(!map)return;
@@ -73,7 +64,7 @@ export function ParkTrees({trees,shadows}:Props){
     {wood.map((g,i)=>trunks[i].length>0&&<TreeBatch key={`wood-${i}`} name={`park:zelkova-wood-${i}`} geometry={g}
       instances={trunks[i]} shadows={shadows} map={bark}/>)}
     {map&&<group name="terminus:park-leaves">{blades.map((g,i)=>sprays[i].length>0&&<TreeBatch key={`leaves-${i}`} name={`park:zelkova-leaves-${i}`} geometry={g}
-      instances={sprays[i]} shadows={shadows} map={map} leaves/>)}</group>}
+      instances={sprays[i]} shadows={shadows} map={map} crownEnds={crownEnds[i]}/>)}</group>}
     {!shadows&&trees.length>0&&<ParkLeafShade trees={trees}/>}
   </group>;
 }
