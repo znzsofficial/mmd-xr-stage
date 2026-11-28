@@ -3,6 +3,7 @@ import { DirectionalLight, Group, Matrix4, PerspectiveCamera, Scene, Triangle, V
 import { createCustomBulletMmdPhysicsBackend } from '@yohawing/three-mmd-loader/physics';
 import { getBulletModule } from './bulletModule';
 import { createMmdRuntimeHandle } from './mmdRuntime';
+import type { RoomActorBackend } from './roomActorBackend';
 import {createPlacementWork} from '../diagnostics/placementWork';
 // @ts-expect-error internal Vite-only JS module, never imported by the stage entry
 import { createStageActorBackend } from '../../../scripts/webgpu-actor/stageActorBackend.js';
@@ -36,14 +37,30 @@ function actorFile(hasSkirt: boolean) {
 async function mount(hasSkirt=true, firstUse?:{model:()=>unknown}) {
   const scene=new Scene(), light=new DirectionalLight(), camera=new PerspectiveCamera();
   const renderer={init:async()=>{},isWebGPURenderer:true,backend:{isWebGPUBackend:true,device:{limits:{maxUniformBufferBindingSize:65536}}},
-    shadowMap:{type:1},xr:{enabled:true},compute:vi.fn()};
+    shadowMap:{type:1},xr:{enabled:true},compute:vi.fn(),initTexture:vi.fn()};
   const origin={current:new Group()}; // This fixture's player stands at the world origin.
   const backend=await createStageActorBackend(renderer,scene,light,origin,undefined,undefined,firstUse);
   const parked=new Matrix4().makeTranslation(0,-1000,0), shape=()=>({type:'sphere' as const,size:[.01,.01,.01] as const});
   const runtime=createMmdRuntimeHandle(scene,{actorBackend:backend,controllerColliders:()=>[parked,parked],
     handColliders:()=>Array(12).fill(parked),propColliders:()=>Array(8).fill(parked),propShape:shape});
-  const id=(await runtime.addModel(actorFile(hasSkirt),[],{physics:true,transform:{scale:.1}})).modelId;
   const frame={session:{visibilityState:'visible',inputSources:[]},getViewerPose:()=>({views:[{}]})};
+  const prepare=backend.prepareModelTextures;
+  backend.prepareModelTextures=async (...args: Parameters<NonNullable<RoomActorBackend['prepareModelTextures']>>) => {
+    // The real host keeps delivering tracked frames while addModel is pending.
+    // Pump the fixture here, without stepping physics before placement finishes.
+    let ready=false;
+    const placement=prepare(...args).finally(()=>{ready=true;});
+    const calls=renderer.initTexture.mock.calls.length;
+    backend.beginFrame(null,null,false);
+    expect(renderer.initTexture).toHaveBeenCalledTimes(calls);
+    for(let i=0;i<8&&!ready;i++){
+      backend.beginFrame(frame,{},false);
+      await Promise.resolve();
+    }
+    expect(ready).toBe(true);
+    await placement;
+  };
+  const id=(await runtime.addModel(actorFile(hasSkirt),[],{physics:true,transform:{scale:.1}})).modelId;
   const tick=(tracked=true,seconds=0,reseed=false,physics=true)=>{
     backend.beginFrame(tracked?frame:null,tracked?{}:null,reseed);
     runtime.update(seconds,physics,camera,1,false,1/72,reseed);
