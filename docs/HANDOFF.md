@@ -1,8 +1,10 @@
 # 会话交接｜2026-11-28
 
-**本轮已结项，无待发布的产品改动。** [海站与站前公园](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&view=screen) · [WebGPU 海站](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [`d3f7aac` 固定部署](https://6cc38554.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md)。后续产品改动验证通过就发布，除非用户明确要求暂缓。
+**本轮已结项，无待发布的产品改动。** [海站与站前公园](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&view=screen) · [WebGPU 海站](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [`b07bb7f` 固定部署](https://e0e3c8b5.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md)。后续产品改动验证通过就发布，除非用户明确要求暂缓。
 
 ## 正式站能做什么
+
+- 海站花园修掉店面共面重叠与铺装交叉抢深度，树冠四批按两眼可见范围减量；北台星云保留星核和环边精度，并减少逐片元壳面求交。[成品对照与剩余闪点范围](./performance/scenery-render-work.md#海站花园与小行星北台2026-11-28)。GPU 分段计时已用；r187 的显式 Render Bundles 经命令复现不适配双眼，WebGPU XR multiview 仍未启用。
 
 - WebGPU 首次并行准备布料管线，第二人和同设备再次入场复用；切回此前绘制过的画风可复用绘制对象。实模复切仿终末地由 28 个着色器模块／17 条渲染管线降为 **0／0**。首次画风仍按需编译。`gpuTiming=1` 额外导出首次进入、放置及换画风的分段墙钟。[同脚本放置和切换测量](./performance/README.md#webgpu-首次放置与切画风)
 
