@@ -1,8 +1,10 @@
 # 会话交接｜2026-11-28
 
-**本轮已结项，无待发布的产品改动。** [海站与站前公园](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&view=screen) · [WebGPU 海站](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [`b07bb7f` 固定部署](https://e0e3c8b5.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md)。后续产品改动验证通过就发布，除非用户明确要求暂缓。
+**本轮已结项，无待发布的产品改动。** [海站与站前公园](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&view=screen) · [WebGPU 海站](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [`bb8f1e5` 固定部署](https://b670de68.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md)。后续产品改动验证通过就发布，除非用户明确要求暂缓。
 
 ## 正式站能做什么
+
+- 「服装 → 可撕丝袜」分别识别两侧袜身和脚面，保留衣物遮挡；鞋里没有脚面也可以只贴合有连续腿面的部分。77 份本机角色版本由 23 份扩到 45 份适配，44 份在原衣下至少有一个同侧射线采样命中。[实测口径](./performance/actor-tools-regression.md#外置丝袜的裂口与覆盖) · [普通 XR 记账与可选 GPU 计时的区别](./performance/viewing-and-diagnostics.md#记录本身会不会掉帧)。具名矩阵仅在 `local-review/stocking-compat-round/matrix.md`。
 
 - 海站花园修掉店面共面重叠与铺装交叉抢深度，树冠四批按两眼可见范围减量；北台星云保留星核和环边精度，并减少逐片元壳面求交。[成品对照与剩余闪点范围](./performance/scenery-render-work.md#海站花园与小行星北台2026-11-28)。GPU 分段计时已用；r187 的显式 Render Bundles 经命令复现不适配双眼，WebGPU XR multiview 仍未启用。
 
