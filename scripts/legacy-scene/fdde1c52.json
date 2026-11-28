@@ -1,0 +1,15 @@
+{
+  "revision": "869555059e2e33a6fdbc60145b21fdef95bbae17",
+  "dist": {
+    "files": 485,
+    "sha256": "0a60233a4f5db7e2cf24f23eba1a6e7d17d46805cd080a583a9eb312d169e02f"
+  },
+  "assets": {
+    "assets/PlanetPhysics-3pgaGBRA.js": "7790102f4bf360cc58c43aadb5ae86004cb9167227ecbe191d466cdec8757b02",
+    "assets/emulate-ChmeW85D.js": "0f8e44ad7ffe470f783098d8312b42c15f736208a320ea176efd378a43ebebe5",
+    "assets/index-BRxGwRYT.js": "be7f82618dae458c5033deceeec34efeb05b3943acde565a19fab72b39f605da",
+    "assets/rapier-Bqyji6mp.js": "ead5d947ed813dfd785641b6a3ebd24750a20f903e1c865e7b05d29ea39c6042",
+    "assets/stage-host-DnwVTZEP.js": "bcaf0d68a01317646a1b287442e843ca1f7788a264936f597db060c5ddb63ef4",
+    "labs/cloth/assets/index-lxie2sff.js": "471112dacb681660799fa84766d9ca0d1a397c980844ad73953c237861c4be78"
+  }
+}

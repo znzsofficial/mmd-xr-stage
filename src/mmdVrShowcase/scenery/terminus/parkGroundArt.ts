@@ -2,7 +2,7 @@ import {BufferGeometry,CatmullRomCurve3,Color,CylinderGeometry,Float32BufferAttr
 import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';
 import {mergeGeometries,mergeVertices} from 'three/addons/utils/BufferGeometryUtils.js';
 import {PaintedParts,box,rod,turn} from '../../play/modelParts';
-import {fountainCourt,laneMouth,parkBeds,parkDeck,parkLights,parkSeats,parkShops,parkTrees,parkWalls,seatWidth} from './parkLayout';
+import {fountainCourt,laneMouth,parkBeds,parkDeck,parkLights,parkSeats,parkShops,parkTreeGrateRadius,parkTrees,parkWalls,seatWidth} from './parkLayout';
 
 const sage='#637a74',iron='#46585a', ivory='#e4ddc7';
 export function parkStreetFurniture(){
@@ -51,17 +51,25 @@ export function parkStreetFurniture(){
     hardware.add(rod([x,3.14,z],[x+.40,3.43,z],.034),sage);
     hardware.add(box(x+.40,3.435,z,.47,.087,.215),iron);hardware.add(box(x+.40,3.386,z,.41,.021,.16),'#eadab9');
   }
-  // Flush radial tree grates: trunk flare and soil show through the long slots.
-  for(const tree of parkTrees){
-    const {x,z}=tree;
-    hardware.add(new CylinderGeometry(.685,.685,.018,44).translate(x,.001,z),'#5e6250');
-    for(const r of [.335,.49,.66])hardware.add(turn([[r-.013,.009],[r-.013,.016],[r+.013,.016],[r+.013,.009]],52).translate(x,0,z),'#71736a');
+  return {oak,hardware:hardware.finish()};
+}
+
+export function parkTreeGrates(){
+  const grates=new PaintedParts();
+  for(const {x,z} of parkTrees){
+    // The soil sits above the adjacent turf (Y=.010). Both the roots and the
+    // exposed soil stay inside the clear opening of the outer iron collar.
+    grates.add(new CylinderGeometry(parkTreeGrateRadius-.003,parkTreeGrateRadius-.003,.027,54).translate(x,.0075,z),'#5e6250');
+    for(const [inner,outer] of [[.55,.573],[.649,parkTreeGrateRadius]]){
+      grates.add(turn([[outer,-.006],[outer,.031],[outer-.004,.037],[inner+.004,.037],[inner,.031],[inner,.017]],54)
+        .translate(x,0,z),'#71736a');
+    }
     for(let j=0;j<27;j++){
       const a=j*2*Math.PI/27,s=Math.sin(a),c=Math.cos(a);
-      hardware.add(rod([x+.32*c,.012,z+.32*s],[x+.66*c,.012,z+.66*s],.009,.009,5),'#818078');
+      grates.add(rod([x+.568*c,.026,z+.568*s],[x+.654*c,.026,z+.654*s],.008,.008,5),'#818078');
     }
   }
-  return {oak,hardware:hardware.finish()};
+  return grates.finish();
 }
 
 type Point=[number,number,number];

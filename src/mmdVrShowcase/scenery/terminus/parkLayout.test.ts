@@ -5,8 +5,8 @@ import {roomGround} from '../../movement/roomGround';
 import {createSolidColumns} from '../../movement/solidColumns';
 import {resolvePlacementHeight,roomPickDecks,visiblePick} from '../placementAreas';
 import {parkArchitecture} from './parkArchitecture';
-import {inlandEmbankment,parkPavement,parkPlanting,parkStreetFurniture} from './parkGroundArt';
-import {fountainCourt,parkBeds,parkDeck,parkLights,parkSeats,parkShops,parkShots,parkTrees,windowDisplays} from './parkLayout';
+import {inlandEmbankment,parkPavement,parkPlanting,parkStreetFurniture,parkTreeGrates} from './parkGroundArt';
+import {fountainCourt,parkBeds,parkDeck,parkLights,parkSeats,parkShops,parkShots,parkTreeGrateRadius,parkTrees,windowDisplays} from './parkLayout';
 import {SHORE_SUN} from './shoreLayout';
 import {stationParts} from './stationParts';
 import {waitingBayGeometry} from './waitingBayGeometry';
@@ -33,6 +33,40 @@ describe('continuous station park',()=>{
         expect(hits).toHaveLength(1);expect(hits[0].point.y).toBeCloseTo(0);
       }
     }finally{solid.dispose();prints.dispose();paving.dispose();material.dispose();}
+  });
+
+  it('keeps tree soil above the turf and the iron outside the root flares',()=>{
+    const grates=parkTreeGrates(),{beds,leaves,turf}=parkPlanting(),material=new MeshBasicMaterial();
+    const collars=new Mesh(grates,material),grass=new Mesh(turf,material);
+    try {
+      let lawnTrees=0;
+      for(const tree of parkTrees){
+        const {x,z,scale,variant}=tree;
+        // This exposed soil sample used to hit the soil and grass at Y=.010
+        // for the three trees within the lawns.
+        const ray=new Raycaster(new Vector3(x+.39,1,z+.083),new Vector3(0,-1,0));
+        const [soil]=ray.intersectObject(collars),[turfHit]=ray.intersectObject(grass);
+        if(turfHit)lawnTrees++;
+        expect(soil.point.y).toBeGreaterThan((turfHit?.point.y??0)+.010);
+        expect(roomGround(room,x+.39,z+.083)).toBe(0);
+        expect(resolvePlacementHeight(room,x+parkTreeGrateRadius-.02,z)).toBeNull();
+
+        // Check the mesh, including the swept bark thickness rather than just
+        // the authored root centerlines. The collar has no iron inside .54 m.
+        const wood=barkGeometry(growTree(variant,SHORE_SUN));
+        const points=wood.attributes.position;
+        try {
+          let flareRadius=0;
+          for(let i=0;i<points.count;i++){
+            if(points.getY(i)*scale<.30)flareRadius=Math.max(flareRadius,Math.hypot(points.getX(i),points.getZ(i))*scale);
+          }
+          expect(flareRadius).toBeLessThan(.54);
+        } finally {wood.dispose();}
+        const rim=new Raycaster(new Vector3(x+.665,1,z),new Vector3(0,-1,0)).intersectObject(collars);
+        expect(rim[0].point.y).toBeGreaterThan(soil.point.y+.010);
+      }
+      expect(lawnTrees).toBe(3);
+    } finally {grates.dispose();beds.dispose();leaves.dispose();turf.dispose();material.dispose();}
   });
 
   it('keeps the shared platform lip and the street walk valid for actors, avoiding the pool, borders and furniture',()=>{

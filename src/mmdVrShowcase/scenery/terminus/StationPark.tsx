@@ -3,7 +3,7 @@ import {DoubleSide} from 'three';
 import {noPick} from '../sceneryPaint';
 import {useCoastalPrint} from './coastalPrints';
 import {parkArchitecture} from './parkArchitecture';
-import {inlandEmbankment,parkPavement,parkPlanting,parkStreetFurniture} from './parkGroundArt';
+import {inlandEmbankment,parkPavement,parkPlanting,parkStreetFurniture,parkTreeGrates} from './parkGroundArt';
 import {fountainCourt,parkTrees} from './parkLayout';
 import {ParkFountain} from './park/ParkFountain';
 import {ParkTrees} from './park/ParkTrees';
@@ -13,10 +13,10 @@ const decorativeReceiver={playerCollision:false,parkLeafShadeReceiver:true};
 
 export function StationPark({shadows}:{shadows:boolean}){
   const park=useMemo(()=>({architecture:parkArchitecture(),paving:parkPavement(),street:parkStreetFurniture(),
-    garden:parkPlanting(),foundation:inlandEmbankment()}),[]);
+    garden:parkPlanting(),grates:parkTreeGrates(),foundation:inlandEmbankment()}),[]);
   useEffect(()=>()=>{
     park.architecture.solid.dispose();park.architecture.prints.dispose();park.paving.dispose();park.foundation.dispose();
-    park.street.oak.dispose();park.street.hardware.dispose();park.garden.beds.dispose();park.garden.leaves.dispose();park.garden.turf.dispose();
+    park.street.oak.dispose();park.street.hardware.dispose();park.grates.dispose();park.garden.beds.dispose();park.garden.leaves.dispose();park.garden.turf.dispose();
   },[park]);
   const shops=useCoastalPrint('shops'),pavers=useCoastalPrint('paving'),oak=useCoastalPrint('timber');
   return <group name="terminus:station-park" pointerEvents="none">
@@ -29,6 +29,7 @@ export function StationPark({shadows}:{shadows:boolean}){
       <meshStandardMaterial key={shops?'display':'glass'} map={shops} roughness={.60} vertexColors color={shops?'white':'#bfcec4'} polygonOffset polygonOffsetFactor={-1} polygonOffsetUnits={-1}/>
     </mesh>
     <mesh name="park:street-furniture" geometry={park.street.hardware} raycast={noPick} castShadow={shadows} receiveShadow userData={shadeReceiver}><meshStandardMaterial vertexColors roughness={.53} metalness={.12}/></mesh>
+    <mesh name="park:tree-grates" geometry={park.grates} raycast={noPick} castShadow={shadows} receiveShadow userData={decorativeReceiver}><meshStandardMaterial vertexColors roughness={.53} metalness={.12}/></mesh>
     <mesh name="park:oak-benches" geometry={park.street.oak} raycast={noPick} castShadow={shadows} receiveShadow userData={shadeReceiver}>
       <meshStandardMaterial key={oak?'wood':'plain'} map={oak} roughness={.56} color={oak?'white':'#a6825d'}/>
     </mesh>

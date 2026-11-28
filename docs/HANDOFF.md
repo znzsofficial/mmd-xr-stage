@@ -2,7 +2,7 @@
 
 **当前正式版：随身纸鸢与重角色手柄查询。** [正式站](https://mmd-xr-stage.pages.dev) · [海站城区与四馆](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&view=screen) · [`8695550` 固定部署](https://fdde1c52.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md)。
 
-**下次接续：**等本版首次 Quest 实测。[默认导出](./performance/next-quest-export.md)的 `controllerHapticWork` 与角色更新时间分列；手柄远离的 929 刚体桌面样本，两轮含查询 CPU P95 为 **16.96→13.20、16.93→13.06 ms**。有补步时继续精确查询；不能据此推算头显 FPS。[累计优化](./performance/README.md#已完成的性能优化)
+**下次接续：**[Quest 海站同页两端记录](./performance/quest-harbour-2026-11-28.md)已收：均实得 120 Hz；WebGPU 仿终末地播舞用的是 Bullet 裙摆。两趟角色 CPU 均超预算，画风和舞段未配对。优先定位此演员为何没有进入 GPU 裙摆，再在实际 72 Hz 用同画风、同机位与舞段验证开物理播放。[累计优化](./performance/README.md#已完成的性能优化)
 
 ## 正式站能做什么
 
@@ -22,7 +22,7 @@
 
 **纸鸢与海站：**线轴在任一布景均可拿取或交给角色，左右风签跟随持有者；海站长椅另供屏幕空场放飞。独立晴空草坪已移除，`?set=lawn` 按普通无效链接处理。四馆门前共用室外布局，馆内各存摆位，电玩厅二楼可步行到泳池计时台。[路线与布局边界](./scenery/harbour-city.md)。
 
-**重角色开物理播舞：**保留原求解器。已量出接触收集里查刚体编号的成本，手柄离开重角色时可跳过能确认为零的查询。[同原件正反对照及适用范围](./performance/bullet-step-profile.md#第二轮看舞时两只手柄都离开演员)；`local-review/heavy-bullet/` 有原始配对。头显只需[一趟正常看舞、触碰和导出](./performance/next-quest-export.md)，再判断先追物理还是双眼绘制。
+**重角色开物理播舞：**保留原求解器。手柄离开重角色时可跳过能确认为零的查询，[桌面正反对照与适用范围](./performance/bullet-step-profile.md#第二轮看舞时两只手柄都离开演员)见分测；`local-review/heavy-bullet/` 有原始配对。新头显报告已把查询和角色更新分列。
 
 **两项维护重构已上线。** 旧标签页资源从上版制品生成；已开着的旧页选模后，换成新制品仍能首次进 WebGPU、放置并走星球。WebGPU 房间同步撤销丢失头姿的袜面／摆姿拖动；仍可见的慢帧留在报告中。[范围和玩家验收](./architecture/maintenance.md#清理与验证预算)。搭档面板保持现状。
 

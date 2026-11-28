@@ -6,6 +6,7 @@ export const parkDeck:PickDeck={x:9.7,z:22.5,w:27,d:29,y:0};
 // The original park meets the city crosswalk between the florist and coffee house.
 export const laneMouth:PickDeck={x:21.4,z:39.68,w:4.25,d:5.36,y:0};
 export const fountainCourt={x:4,z:23,radius:2.8};
+export const parkTreeGrateRadius=.685;
 export const parkTrees=[
   {x:-2.25,z:15.5,variant:0,scale:.84}, {x:9.2,z:12.2,variant:2,scale:.89},
   {x:19.1,z:14.3,variant:1,scale:.95}, {x:13,z:23,variant:0,scale:1.06},
@@ -79,7 +80,7 @@ export function parkGround(x:number,z:number){
 export function parkPlace(x:number,z:number){
   const inLane=within(laneMouth,x,z,-.28)||(Math.abs(z-37)<.30&&Math.abs(x-laneMouth.x)<laneMouth.w/2-.28);
   return (inLane||within(parkDeck,x,z,-.28))&& !nearCircle(x,z,fountainCourt,fountainCourt.radius+.26)
-    && !parkTrees.some(t=>nearCircle(x,z,t,.83))&&!parkLights.some(p=>nearCircle(x,z,p,.35))
+    && !parkTrees.some(t=>nearCircle(x,z,t,parkTreeGrateRadius+.145))&&!parkLights.some(p=>nearCircle(x,z,p,.35))
     && !streetBlocks.some(b=>within(b,x,z,.26));
 }
 
