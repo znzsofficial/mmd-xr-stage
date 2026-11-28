@@ -2,7 +2,7 @@
 
 **当前正式版：准备页画质三档常显，细调一层。** [正式站](https://mmd-xr-stage.pages.dev) · [WebGPU 海站](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [`f22d7fb` 固定部署](https://ac63ab3d.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md)。
 
-**下次接续：**[Quest 海站两端旧记录和下摆新验证](./performance/quest-harbour-2026-11-28.md)。外套下摆现已在桌面 WebGPU 实绘、拨衣通过；商店街同机位每眼店面提交从 56,146 降至 9,458 三角形，成品两眼像素一致。用本版在实际 72 Hz 复核同一演员、画风、机位与舞段；尚无新版 Quest 帧率。[累计优化](./performance/README.md#已完成的性能优化)
+**下次接续：**[海站 72 Hz 验收与三项优化](./performance/README.md#下一轮海站-72-hz)。依次查公园像素与贴图、静态远景网格、开物理后的 Bullet；本轮只整理，三项均未开工。外套下摆已在桌面 WebGPU 实绘并通过双手拨衣，公园店面少画后六个机位双眼像素一致。尚无新版 Quest 帧率；[真机旧记录和桌面新验证](./performance/quest-harbour-2026-11-28.md)分开看。
 
 ## 正式站能做什么
 
@@ -26,13 +26,13 @@
 
 **两项维护重构已上线。** 旧标签页资源从上版制品生成；已开着的旧页选模后，换成新制品仍能首次进 WebGPU、放置并走星球。WebGPU 房间同步撤销丢失头姿的袜面／摆姿拖动；仍可见的慢帧留在报告中。[范围和玩家验收](./architecture/maintenance.md#清理与验证预算)。搭档面板保持现状。
 
-**Quest / Adreno 候选：**在实际 72 Hz、相同角色与舞段先单独比较固定注视点渲染，再看眼图像素数、透明层重画与双眼转色带宽。[头显旧记录的帧预算和验证标准](./performance/quest-floor-dance.md#quest-3s-的帧预算与-adreno-优化)。本轮未连 Quest、未改画质默认值。
+**准备页：**「观看画质」常显三档和 VR 目标刷新率，「画质细调」仅一层，旧偏好与预设数值维持原样。真机对照使用单项设置；整档切换改变多项，不能用于归因。
 
 **原始证据入口：**[四项优化及双眼还原](./performance/avoidable-work.md)；本机 `local-review/city-polish/` 保留同段形态 A/B、切画风对照、纹理句柄与周边细节设置回放，`local-review/heavy-bullet/` 保留重角色正反顺序 A/B。复工优先复用这些记录；电脑不同功耗档的绝对耗时不混算。
 
 **记录开关：建议暂缓。** 普通记录能留下偶发卡顿，详细 GPU 计时已默认关闭；若需要在 Quest 做“完全不记录”的对照，再评估一个独立于 FPS 显示的采样选项。[开销与重议条件](./performance/viewing-and-diagnostics.md#要不要加记录开关)
 
-WebGPU 大骨架容量是另一个兼容性问题，见上述里程碑的后备项。玩法候选仍是[按住吐舌、松开恢复](./gameplay/next-actor-tools.md#候选主动表情)或长椅落座；均未开工。旧片场封存等玩家点名。
+WebGPU 大骨架容量是独立的兼容性问题，本轮不排。玩法候选仍是[按住吐舌、松开恢复](./gameplay/next-actor-tools.md#候选主动表情)或长椅落座；均未开工。旧片场封存等玩家点名。
 
 ## Loader 和上游 PR
 
