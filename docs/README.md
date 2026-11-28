@@ -1,6 +1,6 @@
 # MMD XR Stage 文档
 
-**会话压缩后先读[交接页](./HANDOFF.md)。** 查线上功能看[发布记录](./release-history.md)；下一项玩法建议与验收条件在[角色工具候选](./gameplay/next-actor-tools.md#候选主动表情)，查慢帧从[WebGPU 单人播舞](./performance/README.md#webgpu-单人播舞)开始。[角色工具回归](./performance/actor-tools-regression.md)记录实模和模拟双眼测到了什么，[下次 Quest 导出](./performance/next-quest-export.md)列出仍缺的真机证据。
+**会话压缩后先读[交接页](./HANDOFF.md)。** 查线上功能看[发布记录](./release-history.md)。下一轮建议与收工条件见[复杂角色开物理播舞](./performance/README.md#下一里程碑复杂角色开物理播舞)；[记录开关取舍](./performance/viewing-and-diagnostics.md#要不要加记录开关)和[玩法候选](./gameplay/next-actor-tools.md#候选主动表情)另列。[角色工具回归](./performance/actor-tools-regression.md)区分了实模、模拟双眼和仍未验证的头显体验。
 
 | 要做什么 | 入口 |
 |---|---|
