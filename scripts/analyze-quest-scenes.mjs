@@ -32,7 +32,8 @@ function originProblem(r) {
 }
 
 function session(r) {
-  return { startedAt: r.startedAt, visibleMs: r.visibleIntervalMs, intervalCount: r.intervalCount,
+  return { backend: r.backend, entryAsset: r.entryAsset, eyeViewports: r.eyeViewports,
+    startedAt: r.startedAt, visibleMs: r.visibleIntervalMs, intervalCount: r.intervalCount,
     reportedRefreshRates: r.reportedRefreshRates, intervalsWithReportedRate: r.intervalsWithReportedRate,
     requested: pick(r.requested, requestKeys), retainedWindows: r.windows.length, windowsOmitted: r.windowsOmitted ?? null,
     wholeSessionCallbackP95UpperMs: r.callbackIntervalMs?.p95Upper ?? null,
@@ -51,26 +52,63 @@ function windowStats(rows) {
     maxWindowMeanIntervalMs: Math.max(...rows.map(w => w.frameIntervalMs)) };
 }
 
+function inspectWork(rows) {
+  const med = (get, source = rows) => {
+    const values = source.map(get).filter(n => Number.isFinite(n) && n >= 0);
+    return values.length ? { medianMs: median(values), samples: values.length } : null;
+  };
+  const cadence = rows.filter(w => count(w.slowIntervals) && positive(w.intervalsWithRate) &&
+    w.intervalsWithRate === w.intervals && w.slowIntervals <= w.intervals);
+  const sum = key => cadence.reduce((total, w) => total + w[key], 0);
+  const gpuStatus = {};
+  for (const w of rows) {
+    const status = w.gpuPasses?.status ?? 'notSampled';
+    gpuStatus[status] = (gpuStatus[status] ?? 0) + 1;
+  }
+  const gpu = rows.filter(w => w.gpuPasses?.status === 'read');
+  return {
+    cadence: cadence.length ? { windows: cadence.length, intervals: sum('intervals'), slowIntervals: sum('slowIntervals'),
+      slowFraction: sum('slowIntervals') / sum('intervals') } : null,
+    cpu: { actorWindowMean: med(w => w.modelUpdateCpuMs), bulletStepWindowMean: med(w => w.bulletStepWork?.worldStepMs),
+      hapticWindowTotal: med(w => w.controllerHapticWork?.totalMs) },
+    gpu: { sampleStatus: gpuStatus, stereoScene: med(w => w.gpuPasses.stereoSceneMs, gpu),
+      stereoOutput: med(w => w.gpuPasses.stereoOutputMs, gpu), cloth: med(w => w.gpuPasses.clothMs, gpu) },
+  };
+}
+
 // Group by observations, never by speed. These runs help locate the operator's
 // notes; an unchanged actor count does not mean that the viewer stood still.
 export function inspect(r) {
   const problem = originProblem(r);
   if (problem) return { problem };
   const runs = [];
+  const cadenceGaps = [];
   let run = [];
+  const inspectKeys = [...conditionKeys, 'actorStyle', 'clothMode'];
   function finishRun() {
-    runs.push({ conditions: pick(run[0], conditionKeys), firstEndMs: run[0].elapsedMs, lastEndMs: run.at(-1).elapsedMs,
-      snapshots: run.length, snapshotStats: windowStats(run) });
+    // The first endpoint after a transition can include the previous state.
+    const complete = run.slice(1);
+    runs.push({ conditions: pick(run[0], inspectKeys), eyeViewports: run[0].eyeViewports,
+      firstEndMs: run[0].elapsedMs, lastEndMs: run.at(-1).elapsedMs,
+      snapshots: run.length, snapshotStats: windowStats(run), work: inspectWork(complete) });
   }
   for (const w of r.windows) {
     const prev = run.at(-1);
-    if (prev && (!contiguous(w.elapsedMs - prev.elapsedMs) || differences(prev, w, conditionKeys).length)) {
-      finishRun(); run = [];
+    if (prev) {
+      const gapMs = w.elapsedMs - prev.elapsedMs;
+      const changed = differences(prev, w, inspectKeys);
+      if (!same(prev.eyeViewports, w.eyeViewports)) changed.push('eyeViewports');
+      if (gapMs > 1501) {
+        cadenceGaps.push({ firstEndMs: prev.elapsedMs, nextEndMs: w.elapsedMs, gapMs,
+          intervals: w.intervals ?? null, slowIntervals: w.slowIntervals ?? null,
+          endpointStateChanges: changed, nextConditions: pick(w, inspectKeys) });
+      }
+      if (!contiguous(gapMs) || changed.length) { finishRun(); run = []; }
     }
     run.push(w);
   }
   finishRun();
-  return { session: session(r), observedRunsNotCameraMarks: runs };
+  return { session: session(r), observedRunsNotCameraMarks: runs, cadenceGaps };
 }
 
 function readSpan(s) {
@@ -193,7 +231,9 @@ if (import.meta.main) {
     else {
       if (!(mode === 'inspect' ? files.length > 0 : Object.hasOwn(targets, mode) && files.length === 2)) throw new Error(usage);
       const reports = await Promise.all(files.map(async f => JSON.parse((await readFile(f, 'utf8')).replace(/^\uFEFF/, ''))));
-      const output = mode === 'inspect' ? reports.map(inspect) : analyzePair(mode, reports, values);
+      const output = mode === 'inspect'
+        ? reports.flatMap(r => r?.webgl?.backend === 'webgl' && r?.webgpu?.backend === 'webgpu' ? [r.webgl, r.webgpu] : [r]).map(inspect)
+        : analyzePair(mode, reports, values);
       console.log(JSON.stringify(output, null, 2));
       if (mode === 'inspect' ? output.some(x => x.problem) : !output.comparable) process.exitCode = 1;
     }

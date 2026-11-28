@@ -2,7 +2,7 @@
 
 **当前正式版：准备页画质三档常显，细调一层。** [正式站](https://mmd-xr-stage.pages.dev) · [WebGPU 海站](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [`f22d7fb` 固定部署](https://ac63ab3d.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md)。
 
-**下次接续：**[海站 72 Hz 验收与三项优化](./performance/README.md#下一轮海站-72-hz)。依次查公园像素与贴图、静态远景网格、开物理后的 Bullet；本轮只整理，三项均未开工。外套下摆已在桌面 WebGPU 实绘并通过双手拨衣，公园店面少画后六个机位双眼像素一致。尚无新版 Quest 帧率；[真机旧记录和桌面新验证](./performance/quest-harbour-2026-11-28.md)分开看。
+**当前性能主线：**桌面自动化先复现海站 72 Hz 的原衣播舞和接触，头显结果单列。[Bullet 空接触提前跳过](./performance/bullet-step-profile.md#第二轮看舞时两只手柄都离开演员)已有明确的原生收集收益，仍是实验候选；[公园单层拆测](./performance/scenery-render-work.md#海站公园空场逐组隐藏对照)中叶簇优先，海岬和 KTX2 暂缓。[海站验收口径](./performance/README.md#下一轮海站-72-hz) · [历史真机记录](./performance/quest-harbour-2026-11-28.md)。
 
 ## 正式站能做什么
 

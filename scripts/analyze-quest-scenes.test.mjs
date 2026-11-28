@@ -78,6 +78,45 @@ test('cloth-lab screen and lab XR windows are not stage measurements', () => {
   assert.equal(analyzePair('ab', [r, sample('pool', true)], abNotes).comparable, false);
 });
 
+test('inspection separates cloth modes and reports GPU reads without treating unavailable timings as zero', () => {
+  const r = sample('seasideTerminus', false, 6);
+  for (const [i, w] of r.windows.entries()) Object.assign(w, {
+    intervals: 60, intervalsWithRate: 60, slowIntervals: i === 0 || i === 3 ? 60 : 3,
+    actorStyle: 'mmd', clothMode: i < 3 ? 'bullet' : 'gpu',
+  });
+  r.windows[1].gpuPasses = { status: 'unsupported' };
+  r.windows[4].gpuPasses = { status: 'read', stereoSceneMs: 2, stereoOutputMs: 1, clothMs: null };
+  r.windows[5].gpuPasses = { status: 'missed' };
+  r.windows[5].intervalsWithRate = 59;
+  r.windows[5].controllerHapticWork = { totalMs: 0 };
+  const [bullet, gpu] = inspect(r).observedRunsNotCameraMarks;
+  assert.equal(bullet.conditions.clothMode, 'bullet');
+  assert.deepEqual(bullet.work.cadence, { windows: 2, intervals: 120, slowIntervals: 6, slowFraction: 0.05 });
+  assert.deepEqual(bullet.work.gpu.sampleStatus, { unsupported: 1, notSampled: 1 });
+  assert.equal(bullet.work.gpu.stereoScene, null);
+  assert.equal(gpu.conditions.clothMode, 'gpu');
+  assert.deepEqual(gpu.work.cadence, { windows: 1, intervals: 60, slowIntervals: 3, slowFraction: 0.05 });
+  assert.deepEqual(gpu.work.gpu.stereoScene, { medianMs: 2, samples: 1 });
+  assert.equal(gpu.work.gpu.cloth, null);
+  assert.deepEqual(gpu.work.cpu.hapticWindowTotal, { medianMs: 0, samples: 1 });
+});
+
+test('inspection reports a stall boundary even when observable state did not change', () => {
+  const r = sample('seasideTerminus', false, 4);
+  r.windows[2].elapsedMs = 3900;
+  Object.assign(r.windows[2], { intervals: 1, intervalsWithRate: 1, slowIntervals: 1, playing: false });
+  r.windows[1].playing = false;
+  r.windows[3].elapsedMs = 4900;
+  r.visibleIntervalMs = 4900;
+  const result = inspect(r);
+  assert.equal(result.cadenceGaps.length, 1);
+  assert.deepEqual(result.cadenceGaps[0], {
+    firstEndMs: 2000, nextEndMs: 3900, gapMs: 1900, intervals: 1, slowIntervals: 1,
+    endpointStateChanges: [], nextConditions: result.observedRunsNotCameraMarks[2].conditions,
+  });
+  assert.equal(result.cadenceGaps[0].nextConditions.playing, false);
+});
+
 test('900 seconds of comparable samples can still miss the target; keep a slow late window and loop reseed', () => {
   const pair = [sample('floor', false, 902), sample('seasideTerminus', true, 902)];
   const fast = analyzePair('steady', pair, steadyNotes);
