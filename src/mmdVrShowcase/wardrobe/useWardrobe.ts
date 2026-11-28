@@ -39,6 +39,7 @@ export function useWardrobe(props:WardrobeProps){
     undo&&all.some(p=>p.kind==='morph'?model!.weight(p.key)!==null:materials?.some(m=>m.name===p.key&&(!m.visible||m.opacity!==1)));
   return {l,model,types,labels,kind,items,index,piece,values,...values(piece),available,undo,modified,
     title:l('衣柜','Wardrobe'),back:props.backLabel??l('返回角色','Back to actor'),
+    stockings:l('可撕丝袜','Tearable stockings'),
     field:kind==='morph'?l('形态权重','Morph weight'):l('不透明度','Opacity'),
     empty:!available?l('请重新选择场上可见的角色。','Select a visible actor on stage.'):
       kind==='morph'?l('未找到可调的服装顶点形态。','No supported garment vertex morphs.'):

@@ -54,7 +54,7 @@ async function play({page,press,back,open,move,hold,capture,settle,whileTorn}) {
   assert(Math.max(...after.map((v,i)=>Math.hypot(...v.map((n,j)=>n-before[i][j]))))>.025,'New pose did not move the displayed legs');
   assert.deepEqual((await state()).tears,tears,'The new pose lost or relocated the recorded tear');
   await open(); await capture('pose-torn');
-  await press('换新一双'); await wait('Replace pair did not reset damage',s=>s.worn && !s.tears.length && !s.armed);
+  await press('换新袜'); await wait('Replace stockings did not reset damage',s=>s.worn && !s.tears.length && !s.armed);
   await capture('pose-intact'); await press('脱下'); await wait('Take off did not restore the original materials',s=>!s.worn && !s.armed && s.original);
   await capture('pose-off');
   const pose = await difference('pose-off','pose-intact','pose-torn'); requireTear(pose,'cross-pose');
@@ -82,7 +82,7 @@ module.exports = async function({page,ids,click,until,bButton,frames,target,pick
   }
   await page.evaluate(async id=>{const {observe}=await import('/scripts/webgpu-actor/stocking-probe.js');window.stockingProbe=observe(id);},ids.model);
   const press=async label=>{await aim(await target({name:'hud:'+label}));await trigger(true);await trigger(false);};
-  const open=async()=>{await click('actorWardrobe');await press('黑色长筒袜');};
+  const open=async()=>{await click('actorWardrobe');await press('可撕丝袜');};
   const back=async()=>{await press('返回衣柜');await press('返回角色');};
   const move=async({from,to})=>{
     await page.evaluate(({from:[x,y,z],to})=>{

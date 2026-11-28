@@ -10,11 +10,11 @@ function Screen(props:WardrobeProps){
   const w=useWardrobe(props),{l}=w,id=useId();
   const [expanded,expand]=useState<string|null>(null),[detail,open]=useState<'finder'|'stockings'|null>(null);
   if(detail==='finder'&&w.model)return <SlotFinder {...props} model={w.model} onBack={()=>open(null)}/>;
-  if(detail==='stockings')return <StockingControls {...props} available={w.available} onBack={()=>open(null)}/>;
+  if(detail==='stockings')return <StockingControls {...props} title={w.stockings} available={w.available} onBack={()=>open(null)}/>;
   return <div className="wardrobe-screen" role="group" aria-label={w.title}>
     <header><h3>{w.title}</h3><button type="button" onClick={props.onBack}>{w.back}</button></header>
     <nav aria-label={l('衣柜分类','Wardrobe categories')}>{w.types.map(k=><button type="button" key={k} aria-pressed={w.kind===k} onClick={()=>w.setKind(k)}>{w.labels[k]}</button>)}
-      <button type="button" disabled={!w.available} onClick={()=>open('stockings')}>{l('黑色长筒袜','Black thigh-highs')}</button></nav>
+      <button type="button" disabled={!w.available} onClick={()=>open('stockings')}>{w.stockings}</button></nav>
     {w.items.length?<ul className="wardrobe-pieces">{w.items.map((p,i)=>{
       const row=`${p.kind}:${p.key}`,open=expanded===row,{mat,weight,percent}=w.values(p);
       const verb=mat?(mat.visible?l('隐藏','Hide'):l('显示','Show')):weight===null?l('启用','Apply'):l('随动作','Release');
@@ -38,7 +38,7 @@ function Screen(props:WardrobeProps){
 function Hud(props:WardrobeProps){
   const w=useWardrobe(props),{l}=w,width=1.64,[detail,open]=useState<'finder'|'stockings'|null>(null);
   if(detail==='finder'&&w.model)return <SlotFinder {...props} hud model={w.model} onBack={()=>open(null)}/>;
-  if(detail==='stockings')return <StockingControls {...props} hud available={w.available} onBack={()=>open(null)}/>;
+  if(detail==='stockings')return <StockingControls {...props} hud title={w.stockings} available={w.available} onBack={()=>open(null)}/>;
   return <group name="wardrobe-hud"><HudSheet size={[1.78,1.54]}/>
     <HudLine position={[-.31,.59,0]} width={1} text={w.title} role="title"/>
     <HudButton position={[.52,.59,0]} size={[.62,.145]} label={w.back} onPress={props.onBack} variant="quiet"/>
@@ -56,7 +56,7 @@ function Hud(props:WardrobeProps){
     </group>:<HudLine position={[0,0,0]} width={width} text={w.empty} center/>}
     <HudButton position={[-.42,-.492,0]} size={[.80,.14]} label={l('恢复原装','Original outfit')} disabled={!w.modified} onPress={()=>w.restore('original')}/>
     <HudButton position={[.42,-.492,0]} size={[.80,.14]} label={l('撤销衣柜改动','Undo wardrobe edits')} disabled={!w.undo} onPress={()=>w.restore('undo')}/>
-    <HudButton position={[-.42,-.664,0]} size={[.80,.14]} label={l('黑色长筒袜','Black thigh-highs')} disabled={!w.available} onPress={()=>open('stockings')}/>
+    <HudButton position={[-.42,-.664,0]} size={[.80,.14]} label={w.stockings} disabled={!w.available} onPress={()=>open('stockings')}/>
     <HudButton position={[.42,-.664,0]} size={[.80,.14]} variant="quiet" label={w.finder} disabled={!w.available} onPress={()=>open('finder')}/>
   </group>;
 }

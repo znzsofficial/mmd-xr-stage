@@ -89,7 +89,7 @@ export function MmdVrDiagnostics({ requested }: { requested: RenderRequest }) {
       const data = readRenderDiagnostics(gl, requested, measured, runtimeTiming.readAndReset());
       useRenderDiagnostics.getState().set(data);
       const s = useMmdVrStore.getState(),figureWork=takeFigureWork(session),rod=usePelvic.getState();
-      const stance=samplePlayerStance(frame!,gl,scene);
+      const stance=samplePlayerStance(frame!,pose,gl,scene);
       recording.current?.sample(data, { models: s.models.length, objects: s.objects.length, playing: s.playing,
         ...(figureWork&&{figureWork}),...(rod.active&&{rodState:!rod.active.running?'parked':rod.sample?.outletInside?'inside':'running'}),
         physics: s.physicsEnabled, scenery: s.prefs.scenery, liveHouse: s.prefs.scenery === "liveHouse", shadows: gl.shadowMap.enabled,

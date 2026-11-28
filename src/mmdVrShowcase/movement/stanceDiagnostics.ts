@@ -19,9 +19,8 @@ function roll(q:Quaternion,vertical:Vector3){local.copy(vertical).applyQuaternio
 // Called at the recorder's cadence, after movement but BEFORE Three draws.
 // Read the actual submitted eye matrices after render: multiplying the planned
 // origin by the input pose here would hide a missing/incorrect camera parent.
-export function samplePlayerStance(frame:XRFrame,gl:WebGLRenderer,scene:Scene){
+export function samplePlayerStance(frame:XRFrame,pose:XRViewerPose,gl:WebGLRenderer,scene:Scene){
   const s=active;if(!s||s.frame!==frame)return;
-  const space=gl.xr.getReferenceSpace(),pose=space&&frame.getViewerPose(space);if(!pose)return;
   const sample={mode:s.mode,grounded:s.grounded,normalReturns:s.returns,trackedEyeM:metres(pose.transform.position.y),
     requestedOffsetM:s.wanted,appliedOffsetM:metres(s.lift),navTiltDeg:deg(s.navUp.angleTo(s.up)),
     drawn:null as null|{eyes:number;eyeAboveFootM:number;shellClearanceM:number|null;rigTiltDeg:number;viewRollDeg:number|null;trackedRollDeg:number|null}};
