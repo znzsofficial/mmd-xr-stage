@@ -38,7 +38,7 @@ WebGPU 大骨架容量是独立的兼容性问题，本轮不排。玩法候选�
 
 正式站使用官方 `three-mmd-loader 0.9.0`＋自有 fork `main@303bb7c` 的生成补丁，匹配 mmd-anim 0.5.5 和 Three r187；官方开发依赖仍锁 r184。[三方版本与特性归属](./three-mmd-loader-maintenance.md) · [精确来源与制品摘要](../loader-source.json) · [旧版排障归档](./three-mmd-loader-history.md)
 
-截至 2026-11-27 收尾，[#48 共享骨架 CPU 去重](https://github.com/yohawing/three-mmd-loader/pull/48) 和 [#49 材质／描边透明度](https://github.com/yohawing/three-mmd-loader/pull/49) 均已提交官方 `develop`，**Node 22、24 CI 全部通过，均未合并、无审阅意见**。两条修复都已由 fork 提供，正式站无需等待上游。若接续审阅，先查看对应 PR 的最新反馈；保留各自的 head 分支。[测试证据、贡献范围和分支清理记录](./three-mmd-loader-upstream.md)
+截至 2026-11-28，[#48 共享骨架 CPU 去重](https://github.com/yohawing/three-mmd-loader/pull/48) 已合入官方 `develop`（`708cc69`）；[#49 材质／描边透明度](https://github.com/yohawing/three-mmd-loader/pull/49) 仍开放，Node 22、24 CI 通过，尚无审阅意见。两条修复都在舞台 fork 中；官方 npm 稳定版仍是 `0.9.0`，等带修复的正式包发布后再核对可移除哪些补丁。[测试证据、贡献范围和分支清理记录](./three-mmd-loader-upstream.md)
 
 ## 未排期事项
 
