@@ -1,8 +1,8 @@
 # 会话交接｜2026-11-28
 
-**当前正式版：已下线独立草坪。** [海站城区与四馆](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&view=screen) · [WebGPU 海站](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [`ecc813d` 固定部署](https://da092441.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md)。后续产品改动验证通过就发布，除非用户明确要求暂缓。
+**当前正式版：随身纸鸢与重角色手柄查询。** [正式站](https://mmd-xr-stage.pages.dev) · [海站城区与四馆](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&view=screen) · [`8695550` 固定部署](https://fdde1c52.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md)。
 
-**压缩后接续：**先读[已完成的性能优化](./performance/README.md#已完成的性能优化)。重角色含触觉的桌面 CPU 慢帧约降 22%；近期四项、城区绘制与内存优化均已上线。Quest 3S 仍缺同舞段、实际 72 Hz 的周边着色对照，未安排下一项开发。
+**下次接续：**等本版首次 Quest 实测。[默认导出](./performance/next-quest-export.md)的 `controllerHapticWork` 与角色更新时间分列；手柄远离的 929 刚体桌面样本，两轮含查询 CPU P95 为 **16.96→13.20、16.93→13.06 ms**。有补步时继续精确查询；不能据此推算头显 FPS。[累计优化](./performance/README.md#已完成的性能优化)
 
 ## 正式站能做什么
 
