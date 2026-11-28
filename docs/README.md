@@ -1,6 +1,6 @@
 # MMD XR Stage 文档
 
-**会话压缩后先读[交接页](./HANDOFF.md)。** 查线上功能看[发布记录](./release-history.md)。[复杂角色开物理播舞](./performance/README.md#下一里程碑复杂角色开物理播舞)已有同原件结果；[维护审查](./architecture/maintenance.md#清理与验证预算)、[记录开关取舍](./performance/viewing-and-diagnostics.md#要不要加记录开关)和[玩法候选](./gameplay/next-actor-tools.md#候选主动表情)另列。[角色工具回归](./performance/actor-tools-regression.md)区分了实模、模拟双眼和仍未验证的头显体验。
+**会话压缩后先读[交接页](./HANDOFF.md)。** 查线上版本看[发布记录](./release-history.md)；查前面做过什么看[已完成的性能优化](./performance/README.md#已完成的性能优化)，按玩家操作列出对照条件、结果和待验项。[维护审查](./architecture/maintenance.md#清理与验证预算)、[记录开关取舍](./performance/viewing-and-diagnostics.md#要不要加记录开关)和[玩法候选](./gameplay/next-actor-tools.md#候选主动表情)另列。
 
 | 要做什么 | 入口 |
 |---|---|
@@ -13,7 +13,7 @@
 | 看互动结果或找回审图 | [日常观察／手动孕态参考](./gameplay/observation-reference.md) · [插入：游戏受孕率与一次释放的受精演出](./gameplay/pelvic-attachment.md#一次释放的受精演出) · [分侧泌乳与遮挡](./gameplay/stage-lactation-proposal.md) · [角色工具与本机审图索引](./gameplay/next-actor-tools.md) |
 | 查旧版孕期做到哪里 | [旧生育进程与孕期试样](./release-history.md#旧生育进程与孕期试样)：旧源码、孕日 35 的实测，以及未发布样张的查找入口 |
 | 找道具、手柄震动或互动玩法 | [星图、彩带、水母花火](./gameplay/README.md#随身舞台特效) · [道具接触与手柄震动](./gameplay/README.md#道具接触与手柄震动) · [已上线的四幕](./gameplay/README.md#四幕玩法) · [互动提案](./gameplay/interactive-scene-studies.md) |
-| 选地图、机位或步行路线 | [布景索引](./scenery/README.md) · [深空与风道](./scenery/opal-planet.md) · [校园环线](./scenery/campus-arcade-loop.md) · [喜院到秦淮](./scenery/jiangnan-river-street.md) |
+| 选地图、机位或步行路线 | [海站城区到四馆](./scenery/harbour-city.md) · [布景索引](./scenery/README.md) · [深空与风道](./scenery/opal-planet.md) · [喜院到秦淮](./scenery/jiangnan-river-street.md) |
 | 复查北台面板穿模 | [罗盘修复前后实景](./screenshots/north-instruments.webp) · [六条风道与操作](./scenery/opal-planet.md#从罗盘起飞六条往返风道) · [几何与实点证据](./scenery/opal-planet.md#北台仪表验证与维护) · [Quest 3S 短测](./performance/next-quest-export.md#北台仪表斜看与点选) |
 | 验收与查卡顿 | [下次 Quest 导出](./performance/next-quest-export.md) · [角色工具本机回归](./performance/actor-tools-regression.md) · [性能优先级](./performance/README.md) · [历次真机报告](./performance/viewing-and-diagnostics.md#已有测量) |
 | 接续 11 月 25 日真机反馈 | [眼高与母星侧倾、布料黑屏、Bullet 与手动裙面的分工](./performance/quest-2026-11-25.md) · [loader 历史排障](./three-mmd-loader-history.md) |

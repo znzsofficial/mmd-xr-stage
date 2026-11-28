@@ -2,6 +2,8 @@
 
 **本轮已结项，无待发布的产品改动。** [海站城区与四馆](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&view=screen) · [WebGPU 海站](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [`4d13286` 固定部署](https://23cfd2f6.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md)。后续产品改动验证通过就发布，除非用户明确要求暂缓。
 
+**压缩后接续：**先读[已完成的性能优化](./performance/README.md#已完成的性能优化)。重角色含触觉的 CPU 慢帧约降 22%；近期四项、城区绘制与内存优化均已上线。`4d13286` 的全量收据为 1,192 项舞台＋51 项工具测试。当前版尚无 Quest 同条件稳态对照，本轮没有安排下一项开发。
+
 ## 正式站能做什么
 
 - 「服装 → 可撕丝袜」分别识别两侧袜身和脚面，保留衣物遮挡；鞋里没有脚面也可以只贴合有连续腿面的部分。77 份本机角色版本由 23 份扩到 45 份适配，44 份在原衣下至少有一个同侧射线采样命中。[实测口径](./performance/actor-tools-regression.md#外置丝袜的裂口与覆盖) · [普通 XR 记账与可选 GPU 计时的区别](./performance/viewing-and-diagnostics.md#记录本身会不会掉帧)。具名矩阵仅在 `local-review/stocking-compat-round/matrix.md`。
@@ -18,7 +20,7 @@
 
 ## 下次从哪里接
 
-**海站城市布景：**四馆门前共用海站室外；穿过真实开口，才恢复各馆自己的布局。街边绿地继承纸鸢长椅，旧草坪仅保留兼容入口。[路线与布局边界](./scenery/harbour-city.md)。
+**海站城市布景：**四馆门前共用室外布局，旧草坪保留兼容入口。第二轮补了回潮招领窗和 11 家店的行业陈列，修正诊所后墙、教室砖路和池岸接缝。成品复验八次跨馆恢复；五种街区图在同一 WebGL 路线上的纹理句柄 11→5。[路线与布局边界](./scenery/harbour-city.md)。
 
 **复杂角色开物理播舞已完成第一轮。** 保留原求解器，减少手柄触觉重复扫描接触点。[同原件正反对照](./performance/bullet-step-profile.md#090-重角色与触觉查询)区分了纯求值、含触觉的 CPU 时间和双眼绘制间隔；`local-review/heavy-bullet/` 有具名样本。若继续追手柄查询，先量剩下那一次原生遍历中，接触流形查刚体编号的费用。Quest 持续帧率未测。
 
@@ -26,7 +28,7 @@
 
 **Quest / Adreno 候选：**在实际 72 Hz、相同角色与舞段先单独比较固定注视点渲染，再看眼图像素数、透明层重画与双眼转色带宽。[头显旧记录的帧预算和验证标准](./performance/quest-floor-dance.md#quest-3s-的帧预算与-adreno-优化)。本轮未连 Quest、未改画质默认值。
 
-**四项优化已完成：**WebGPU 复用未变的形态顶点并保护修裙外部写入；纯手追省触觉查询；星球移动演员不重建未变道具；首次选择仿终末地才后台烘焙合格演员的描边与薄皮数据。[配对数据、代价与双眼还原](./performance/avoidable-work.md)。
+**原始证据入口：**[四项优化及双眼还原](./performance/avoidable-work.md)；本机 `local-review/city-polish/` 保留同段形态 A/B、切画风对照、纹理句柄与周边细节设置回放，`local-review/heavy-bullet/` 保留重角色正反顺序 A/B。复工优先复用这些记录；电脑不同功耗档的绝对耗时不混算。
 
 **记录开关：建议暂缓。** 普通记录能留下偶发卡顿，详细 GPU 计时已默认关闭；若需要在 Quest 做“完全不记录”的对照，再评估一个独立于 FPS 显示的采样选项。[开销与重议条件](./performance/viewing-and-diagnostics.md#要不要加记录开关)
 
