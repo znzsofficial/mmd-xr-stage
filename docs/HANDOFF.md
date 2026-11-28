@@ -1,6 +1,6 @@
 # 会话交接｜2026-11-28
 
-**本轮已结项，无待发布的产品改动。** [海站城区与四馆](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&view=screen) · [WebGPU 海站](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [`245946e` 固定部署](https://1304ad3e.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md)。后续产品改动验证通过就发布，除非用户明确要求暂缓。
+**本轮已结项，无待发布的产品改动。** [海站城区与四馆](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&view=screen) · [WebGPU 海站](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [`4d13286` 固定部署](https://23cfd2f6.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md)。后续产品改动验证通过就发布，除非用户明确要求暂缓。
 
 ## 正式站能做什么
 

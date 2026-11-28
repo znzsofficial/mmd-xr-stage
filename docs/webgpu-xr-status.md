@@ -2,7 +2,7 @@
 
 ## 当前正式版
 
-**已发布：[`245946e` 固定部署](https://1304ad3e.mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [正式 WebGPU 海站](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu)。** 默认 XR 和屏幕观看用 WebGL；选 WebGPU XR 后，沿用同一背包与 3 人＋3 物布局，可按演员切换原 MMD、仿终末地和[仿卡拉彼丘](./scenery/strinova-render-study.md#在舞台上切换)。[站前公园至四馆门前](./scenery/harbour-city.md)共用海站布局，仍是 17 景、13 件背包道具。
+**已发布：[`4d13286` 固定部署](https://23cfd2f6.mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [正式 WebGPU 海站](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu)。** 默认 XR 和屏幕观看用 WebGL；选 WebGPU XR 后，沿用同一背包与 3 人＋3 物布局，可按演员切换原 MMD、仿终末地和[仿卡拉彼丘](./scenery/strinova-render-study.md#在舞台上切换)。[站前公园至四馆门前](./scenery/harbour-city.md)共用海站布局，仍是 17 景、13 件背包道具。
 
 两端共用[可撕丝袜](./performance/actor-tools-regression.md#外置丝袜的裂口与覆盖)和[半透明搭档换姿](./performance/actor-tools-regression.md#搭档姿势单腿编辑与重新跨入)。布料上传与整帧对照见[性能首页](./performance/README.md#webgpu-单人播舞)；上线检查、构建摘要和固定部署按[功能提交](./release-history.md#发布记录)查。本版未测 Quest 实戴帧率。
 
