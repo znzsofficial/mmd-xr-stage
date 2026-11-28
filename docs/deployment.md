@@ -1,10 +1,10 @@
 # 部署与 wrangler 版本注意事项
 
-最后更新：2026-11-27
+最后更新：2026-11-28
 
 ## 当前部署路径
 
-经典 Cloudflare Pages 直传。小改默认 `pnpm run release:quick [相关测试文件…]`，例如 `pnpm run release:quick experiments/gpu-cloth/xrPalms.test.js`。仅运行指定用例文件，再构建一次，上传后核对两入口及入口 JS/CSS。文案或布局只需看实际效果时可不指定测试；收据的 `checks.files` 会如实为空。PR 和 `master` 的 CI 在后台跑全量。背包数据、XR 入场、loader、跨模块重构或影响范围不清，用下面的 `release:prepare` 全量档。两档二选一，共用原制品收据、旧标签页保护和上传命令，不把快速档写成全量通过。发布从干净、已提交、用锁文件安装的检出开始：
+经典 Cloudflare Pages 直传。**在下一次构建覆盖 `dist/` 前，先[登记上一版固定部署](#从上一版制品生成旧标签页清单)**，把增量清单随本轮源码提交。小改默认 `pnpm run release:quick [相关测试文件…]`，例如 `pnpm run release:quick experiments/gpu-cloth/xrPalms.test.js`。仅运行指定用例文件，再构建一次，上传后核对两入口及入口 JS/CSS。文案或布局只需看实际效果时可不指定测试；收据的 `checks.files` 会如实为空。PR 和 `master` 的 CI 在后台跑全量。背包数据、XR 入场、loader、跨模块重构或影响范围不清，用下面的 `release:prepare` 全量档。两档二选一，共用原制品收据、旧标签页保护和上传命令，不把快速档写成全量通过。发布从干净、已提交、用锁文件安装的检出开始：
 
 ```bash
 pnpm run release:prepare
@@ -21,21 +21,27 @@ pnpm run deploy
 
 发布前检查构建 exit code；不要用 `| Select-Object` 等过滤管道掩盖失败。合并前完成必要验证和构建，合并后复用制品及时部署。验证生产 HTML 引用、JS/CSS/Bullet/动画 WASM 的内容哈希；HTTP 200 本身不能证明资源存在，因为 SPA 回退可能返回 HTML。验证 URL 加新的 cache-buster，勿复用旧查询参数。
 
-旧分块最多六路并行取回。可用 `STAGE_LEGACY_ASSETS` 指向留存的旧构建 `assets/` 目录：只读取清单列出的名字，每个文件仍验原 SHA-256，缺项从固定部署补齐。私有测试目录不是发布依赖。
-
-0.9.0 更换了动画解析 WASM 和 Bullet WASM。旧舞台与布料实验页首次导入 PMX 时，分别从 `assets/` 和 `labs/cloth/assets/` 读取原版 `mmd_anim_wasm_bg-CY5Cf0iI.wasm`；[旧标签页清单](../scripts/retain-legacy-scene.mjs)保留两个 URL。延后开启物理的旧页面仍从 `mmd/0.8.6/` 取配套 JS/WASM。全量上线核对覆盖新旧两套资源。
-
 本机 Git 推送已验证需显式代理：
 
 ```bash
 git -c http.proxy=http://127.0.0.1:7897 -c https.proxy=http://127.0.0.1:7897 push origin master
 ```
 
-小行星在进景时才取物理模块。兼容脚本保留 `37a0ef3` 的旧移动模块和内联 WASM，以及 `7acb202` 的平滑球壳物理适配器，方便已打开、尚未进星球的旧标签页。新页只在进星球时取当前适配器。
+## 从上一版制品生成旧标签页清单
 
-旧标签页首次打开器官动态图也会按需取 Worker。发布后从主域名 GET `/assets/organ.worker-dQG0D6Ad.js`（加新查询参数），对响应正文计算 SHA-256，与[保留清单](../scripts/retain-legacy-scene.mjs)中固定部署 `41ef223b` 的 `3d6c4a49afc3d6a435d5fe81cdfc7cf8b92b00989efc15cda6b2bb548e8e13cb` 比对。HTTP 200 或回退绘图正常都不能证明旧 Worker 内容正确。
+上版主域验收通过后，保留 **`dist/` 和它旁边的 `stage-release.local`**。取该版 Pages 上传结果中的固定部署 ID（例如 `fc3e5420`，不是 Git 短提交、`main` 或主域名）。在这对文件还在项目根目录时只需：
 
-入口观察图还会按需加载 `entryLettering.worker-*.js`，身体状态的乳房观察使用 `breast.worker-*.js`。从包含这些模块的版本升级时，也要核对并保留旧标签页需要的 Worker。实际杆位和计量不依赖绘图或字表 Worker。
+```bash
+pnpm run release:retain fc3e5420
+```
+
+若已另存旧版，把 `--dist` 指向留存的完整目录；默认从其父目录找收据，也可指定 `--receipt <文件>`。例如 `pnpm run release:retain fc3e5420 --dist local-review/release-archives/fc3e5420/dist`。登记在本地完成，不要求旧提交仍是当前 HEAD，也不会改动输入。工具逐件计算 SHA-256，先核对**完整文件树**与收据，再登记两个构建的 `assets/`、`labs/cloth/assets/` 下全部哈希资源，包括间接导入、Worker、WASM、CSS 和图片。两个目录中同名文件是两个 URL。入口 HTML 和 `public/` 的固定路径由当前构建提供；例如 `public/mmd/0.8.6/` 仍须保留旧 Bullet。
+
+[清单目录](../scripts/legacy-scene/)中 `history.mjs` 保留了原有的 309 条路径、来源部署和摘要。每个 `<部署 ID>.json` 记录上版提交、收据摘要及新增的「原相对路径 → SHA-256」。已知路径内容相同则沿用原部署；内容不同、中途改过制品或试图用不同的制品改写已生成的清单都会报错。`5972872` 的 454 个文件中有 403 个构建资源，[本轮增量](../scripts/legacy-scene/fc3e5420.json)为 94 个；重复登记输出 `0 new`。登记异常退出若留下 `.record.lock`，确认没有登记命令在运行后再移除这个锁并重试。
+
+`release:quick` 和 `release:prepare` 在**新制品**上补齐清单：已有文件先验哈希，禁止覆盖；缺项最多六路并行从原固定部署取回并验哈希。可设置 `STAGE_LEGACY_DIST` 为留存的完整旧 `dist/` 以按原路径读缓存，仅缓存缺项才联网。旧的 `STAGE_LEGACY_ASSETS` 仍可指向顶层 `assets/` 缓存，只匹配这一棵树。源文件即使 HTTP 200，正文与清单摘要不符也会拒绝写入。全量上线核对仍检查历史 `organ.worker-dQG0D6Ad.js` 以及新旧解析／Bullet WASM。
+
+跨版本行为验收：`node scripts/verify-old-tab.mjs <上版已封存的dist目录> dist`。同一个浏览器标签页在旧准备页先选 PMX，服务器切到补齐清单的新 `dist/` 后首次选 WebGPU、进星球、用扳机放下角色，并用摇杆实际走动。脚本检查两个眼图中演员的像素、已加载的旧分块、Rapier 步进和视点行程；不依赖 HTTP 200 或新开一页。
 
 ## wrangler ≥4.130 的代理委托坑（PR #15004）
 

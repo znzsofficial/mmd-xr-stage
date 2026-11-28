@@ -63,6 +63,7 @@ pnpm run deploy
 
 - `pnpm test` runs Vitest in the Node environment; some component tests use a `// @vitest-environment jsdom` pragma. jsdom in this setup does NOT provide `localStorage` — stub it in tests.
 - For this personal project, default to a short edit loop: check the changed behavior once and use `release:quick [test files...]` for small releases (visual check only is fine for copy/layout). CI runs `check` in the background. For backpack data, XR entry, loader changes or cross-module refactors use `release:prepare` instead; it includes `check`. Never run both modes on the same candidate. No routine long report or Quest export.
+- Before overwriting the last published `dist/`, generate its immutable-URL delta with `pnpm run release:retain <fixed Pages deployment ID>` against its receipt. Preserve the original relative paths in both asset trees. For release-tool changes run `scripts/verify-old-tab.mjs` with the archived and candidate builds; verify the already-open page can still place its model and walk with the planet driver.
 - Use the Node 26 LTS patch and pnpm 11 version pinned by `.node-version` and `package.json`, matching jsdom 31 and Node 26 types. Do not follow npm's `node` latest tag into Node 27 alpha.
 
 ## MMD Loader And Assets

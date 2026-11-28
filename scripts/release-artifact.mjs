@@ -8,8 +8,8 @@ import {join,relative,resolve} from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 
 const root=fileURLToPath(new URL('../',import.meta.url)), dir=join(root,'dist'), receipt=join(root,'stage-release.local');
-export async function identifyDist(directory) {
-  const digest=createHash('sha256'), names=[];
+export async function inspectDist(directory) {
+  const digest=createHash('sha256'), names=[], hashes=new Map();
   async function walk(prefix){
     for(const f of await readdir(join(directory,prefix),{withFileTypes:true})){
       const name=prefix+f.name;
@@ -19,8 +19,16 @@ export async function identifyDist(directory) {
   }
   await walk('');
   for(const required of ['index.html','labs/cloth/index.html'])assert(names.includes(required),`Incomplete dist: missing ${required}`);
-  for(const name of names.sort())digest.update(`${name}\0${hash('sha256',await readFile(join(directory,name)))}\n`);
-  return {files:names.length,sha256:digest.digest('hex')};
+  for(const name of names.sort()){
+    const sha256=hash('sha256',await readFile(join(directory,name)));
+    hashes.set(name,sha256);
+    digest.update(`${name}\0${sha256}\n`);
+  }
+  return {dist:{files:names.length,sha256:digest.digest('hex')},hashes};
+}
+
+export async function identifyDist(directory) {
+  return (await inspectDist(directory)).dist;
 }
 
 function cleanRevision(){
@@ -76,8 +84,8 @@ async function verifyLive(quick){
 
 async function main(action){
   if(action==='prepare'||action==='quick'){
-    await rm(receipt,{force:true});
     const revision=cleanRevision(), opts={cwd:root,stdio:'inherit'};
+    await rm(receipt,{force:true});
     execFileSync(process.execPath,['scripts/loader-sync.mjs','upstream'],opts);
     const quick=action==='quick', files=process.argv.slice(3).map(p=>relative(root,resolve(p)).replaceAll('\\','/'));
     if(quick){
