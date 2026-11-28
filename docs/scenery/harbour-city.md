@@ -23,4 +23,4 @@
 - [八条有向门线](../../src/mmdVrShowcase/scenery/city/connections.ts)与[落点及视线检查](../../src/mmdVrShowcase/scenery/city/layout.test.ts)。进出线错开，步行保留实时头向、跟踪偏移；室内外只借街景与门面，不复制邻馆演员或物理世界。
 - [屏幕鼠标摆位、键盘过门与模拟 XR 摇杆往返](../../scripts/verify-city-district.cjs)。核对各馆保存的布局、门外远端可摆位、隔墙及水面拒放。布景可用性和静态画面对照单列，本轮不判断头显持续帧率。
 
-本轮开发版在一趟 WebGL 模拟 XR 中从站台连续步行约 339 米，观察到八次过门；扣除坐标平移的跨门位移为 13.7–15.4 mm，保留双眼朝向与头显偏移。屏幕实放的 PMX／GLB 和四馆自己的物件在回访时恢复。模拟 WebGPU 分别回看街口、四馆内外和返程，验证最终颜色输出的左右眼。完整回放在 `local-review/verification/city-district/`，双眼取样在 `local-review/city-district/`。
+封存制品在一趟 WebGL 模拟 XR 中从站台连续步行 338.9 米，观察到八次过门；扣除坐标平移的跨门位移为 14.4–21.4 mm，保留双眼朝向与头显偏移。屏幕实放的 PMX／GLB 和四馆自己的物件在回访时恢复。模拟 WebGPU 分别回看街口、四馆内外和返程，共 14 处最终双眼视点；电玩二楼下坡处移开了原先挡住第一段路的树冠画片。另从屏幕背包选择绿地玩法机位、左／右风签，确认线轴在长椅上并实际放飞。完整回放在 `local-review/verification/city-district/`，双眼取样在 `local-review/city-district/`。

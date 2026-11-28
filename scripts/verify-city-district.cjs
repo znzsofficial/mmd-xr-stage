@@ -121,21 +121,39 @@ async function beginDrop(page, name) {
   if (await bag.getAttribute('aria-expanded') !== 'true') await bag.click();
   await page.locator('.screen-item').filter({hasText:name}).click();
   await page.waitForFunction(() => !!cityQA.scene.getObjectByName('backpack:ground'));
+  // React has removed the side sheet, but the Canvas resize observer can
+  // still be debouncing its former 776px width. Don't aim a test ray before
+  // the actual backing canvas has caught up with the full-width viewport.
+  await page.waitForFunction(()=>{
+    const r=cityQA.renderer,canvas=r.domElement,rect=canvas.getBoundingClientRect();
+    const area=document.querySelector('.screen-picture').getBoundingClientRect();
+    return Math.abs(rect.width-area.width)<=1 && Math.abs(canvas.width-rect.width*r.getPixelRatio())<=1;
+  });
 }
 
 // Only the observation point is set up; hover, down, up and the preview stamp
 // all go through the mounted screen canvas. No confirmPlace or store imports.
 async function drop(page, eye, xz, stamp) {
-  const [px,py] = await page.evaluate(({eye,xz,stamp}) => {
+  await page.evaluate(({eye,xz,stamp}) => {
     cityQA.target={eye,xz,stamp};
     const {camera,renderer} = cityQA;
     const v = camera.position.clone().set(xz[0],.012,xz[1]);
     camera.position.fromArray(eye); camera.lookAt(v); camera.updateMatrixWorld();
-    const rect = renderer.domElement.getBoundingClientRect(); v.project(camera);
+  }, {eye,xz,stamp});
+  // Opening/closing the backpack changes the canvas bounds. Project only
+  // AFTER layout and Fiber's camera aspect have caught up. A chatty test
+  // mouse must not turn a green hover at the requested XZ into a different
+  // release ray simply by reusing the coordinates from the previous layout.
+  await page.evaluate(async()=>{await Promise.all(document.getAnimations().filter(a=>a.effect?.getTiming().iterations!==Infinity).map(a=>a.finished.catch(()=>{})));});
+  await frames(page,3);
+  async function screenPoint(){return page.evaluate(xz=>{
+    const {camera,renderer}=cityQA,rect=renderer.domElement.getBoundingClientRect();
+    const v=camera.position.clone().set(xz[0],.012,xz[1]).project(camera);
     const x = rect.x+(1+v.x)*rect.width/2, y = rect.y+(1-v.y)*rect.height/2;
     if (document.elementFromPoint(x,y) !== renderer.domElement) throw Error('Canvas ray covered: '+xz);
     return [x,y];
-  }, {eye,xz,stamp});
+  },xz);}
+  const [px,py]=await screenPoint();
   // Every framed target lands near screen centre; move off first so the actual
   // pointer re-enters even if two successive rays have the same pixel address.
   await page.mouse.move(0,0); await page.mouse.move(px,py);
@@ -150,7 +168,7 @@ async function drop(page, eye, xz, stamp) {
   }, {xz,stamp}, {timeout:7000}).catch(e => { throw Error(`Missing ${stamp} stamp at ${xz}: ${e.message}`); });
   if (stamp === 'preview') return;
   const before = await page.evaluate(() => cityQA.inventory().map(v => v.uuid));
-  await page.mouse.click(px,py);
+  await page.mouse.down();await page.mouse.up();
   if (stamp !== 'valid') {
     await frames(page,3);
     assert(await page.evaluate(() => !!cityQA.scene.getObjectByName('backpack:ground')), `Rejected ${xz} consumed draft`);
