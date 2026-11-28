@@ -1,8 +1,10 @@
 # 会话交接｜2026-11-28
 
-**本轮已结项，无待发布的产品改动。** [海站与站前公园](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&view=screen) · [WebGPU 海站](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [`ce972ce` 固定部署](https://df5249b1.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md)。后续产品改动验证通过就发布，除非用户明确要求暂缓。
+**本轮已结项，无待发布的产品改动。** [海站与站前公园](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&view=screen) · [WebGPU 海站](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [`fb4a7be` 固定部署](https://652a58ef.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md)。后续产品改动验证通过就发布，除非用户明确要求暂缓。
 
 ## 正式站能做什么
+
+- 新版修复[极端质量尾链离开骨盆](./performance/xr-runtime-performance.md#开物理后尾根离开身体)，以及 WebGPU XR 收起操作页误收搭档。屏幕与模拟 XR 同一 PMX、开物理 6 秒后尾根均稳定，收起搭档面板后手动位置保持、已启动的自动往复继续。[双后端技术栈](./xr-rendering-stack.md)并排列出渲染、求值、布料与按需 GPU 分段计时；[海站双眼画面与开销](./performance/README.md#webgpu-单人播舞)只作桌面结论。
 
 - 17 个布景、13 件背包道具。WebGL 和 WebGPU 可在同一标签页续接 **3 名 PMX 演员＋3 件 GLB/glTF 物件**的布局，保留各自的动作、材质、摆位和舞段时刻。屏幕观看与默认 XR 入口仍用 WebGL。[物件导入](./gameplay/asset-workflow.md#放一件-glb-或-gltf) · [跨后端、换肤、接触和阴影的实绘对照](./webgpu-xr-status.md#混合布局材质与环境的画面对照)
 - 海站连接日照喷泉公园、树荫和商店街。同页支持[外置可撕丝袜](./gameplay/actor-tools.md)，WebGPU XR 的演员画风可选原 MMD、仿终末地和[仿卡拉彼丘](./scenery/strinova-render-study.md#在舞台上切换)。
