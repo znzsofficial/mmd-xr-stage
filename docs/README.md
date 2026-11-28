@@ -1,6 +1,6 @@
 # MMD XR Stage 文档
 
-**会话压缩后先读[交接页](./HANDOFF.md)。** 查线上功能看[发布记录](./release-history.md)。下一轮建议与收工条件见[复杂角色开物理播舞](./performance/README.md#下一里程碑复杂角色开物理播舞)；[记录开关取舍](./performance/viewing-and-diagnostics.md#要不要加记录开关)和[玩法候选](./gameplay/next-actor-tools.md#候选主动表情)另列。[角色工具回归](./performance/actor-tools-regression.md)区分了实模、模拟双眼和仍未验证的头显体验。
+**会话压缩后先读[交接页](./HANDOFF.md)。** 查线上功能看[发布记录](./release-history.md)。[复杂角色开物理播舞](./performance/README.md#下一里程碑复杂角色开物理播舞)已有同原件结果；[维护审查](./architecture/maintenance.md#清理与验证预算)、[记录开关取舍](./performance/viewing-and-diagnostics.md#要不要加记录开关)和[玩法候选](./gameplay/next-actor-tools.md#候选主动表情)另列。[角色工具回归](./performance/actor-tools-regression.md)区分了实模、模拟双眼和仍未验证的头显体验。
 
 | 要做什么 | 入口 |
 |---|---|

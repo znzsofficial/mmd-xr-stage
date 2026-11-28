@@ -1,6 +1,6 @@
 # 会话交接｜2026-11-28
 
-**本轮已结项，无待发布的产品改动。** [海站与站前公园](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&view=screen) · [WebGPU 海站](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [`bb8f1e5` 固定部署](https://b670de68.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md)。后续产品改动验证通过就发布，除非用户明确要求暂缓。
+**本轮已结项，无待发布的产品改动。** [海站与站前公园](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&view=screen) · [WebGPU 海站](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&xrBackend=webgpu) · [`5972872` 固定部署](https://fc3e5420.mmd-xr-stage.pages.dev) · [发布记录](./release-history.md)。后续产品改动验证通过就发布，除非用户明确要求暂缓。
 
 ## 正式站能做什么
 
@@ -18,7 +18,9 @@
 
 ## 下次从哪里接
 
-**建议的下一里程碑（待确认）：[让复杂角色开物理播舞更稳](./performance/README.md#下一里程碑复杂角色开物理播舞)。** 先在已能播放原件的 WebGL 路径分测 Bullet 关节和碰撞。收工看同一舞段的角色更新慢帧是否重复下降，以及尾巴、裙摆、碰触和恢复是否保持。无需玩家先导 Quest JSON。
+**复杂角色开物理播舞已完成第一轮。** 保留原求解器，减少手柄触觉重复扫描接触点。[同原件正反对照](./performance/bullet-step-profile.md#090-重角色与触觉查询)区分了纯求值、含触觉的 CPU 时间和双眼绘制间隔；`local-review/heavy-bullet/` 有具名样本。若继续追手柄查询，先量剩下那一次原生遍历中，接触流形查刚体编号的费用。Quest 持续帧率未测。
+
+**维护审查：**优先从已验收制品生成旧标签页兼容清单；按住类工具的失追通知等下一次扩交互前再收口。[范围和玩家验收](./architecture/maintenance.md#清理与验证预算)。本轮没有重构这些路径。
 
 **记录开关：建议暂缓。** 普通记录能留下偶发卡顿，详细 GPU 计时已默认关闭；若需要在 Quest 做“完全不记录”的对照，再评估一个独立于 FPS 显示的采样选项。[开销与重议条件](./performance/viewing-and-diagnostics.md#要不要加记录开关)
 
@@ -26,7 +28,7 @@ WebGPU 大骨架容量是另一个兼容性问题，见上述里程碑的后备�
 
 ## Loader 和上游 PR
 
-正式站使用官方 `three-mmd-loader 0.9.0`＋自有 fork `main@c762507` 的生成补丁，匹配 mmd-anim 0.5.5 和 Three r187；官方开发依赖仍锁 r184。[三方版本与特性归属](./three-mmd-loader-maintenance.md) · [精确来源与制品摘要](../loader-source.json) · [旧版排障归档](./three-mmd-loader-history.md)
+正式站使用官方 `three-mmd-loader 0.9.0`＋自有 fork `main@c4d56e8` 的生成补丁，匹配 mmd-anim 0.5.5 和 Three r187；官方开发依赖仍锁 r184。[三方版本与特性归属](./three-mmd-loader-maintenance.md) · [精确来源与制品摘要](../loader-source.json) · [旧版排障归档](./three-mmd-loader-history.md)
 
 截至 2026-11-27 收尾，[#48 共享骨架 CPU 去重](https://github.com/yohawing/three-mmd-loader/pull/48) 和 [#49 材质／描边透明度](https://github.com/yohawing/three-mmd-loader/pull/49) 均已提交官方 `develop`，**Node 22、24 CI 全部通过，均未合并、无审阅意见**。两条修复都已由 fork 提供，正式站无需等待上游。若接续审阅，先查看对应 PR 的最新反馈；保留各自的 head 分支。[测试证据、贡献范围和分支清理记录](./three-mmd-loader-upstream.md)
 
