@@ -1,0 +1,15 @@
+{
+  "revision": "ecc813d76f7b9ce345c61d8eb9f179529c1d7520",
+  "dist": {
+    "files": 479,
+    "sha256": "30c048f717fe4ba1599bc79cf423b04e47bb7b49af9ed8590672a7d4434cad21"
+  },
+  "assets": {
+    "assets/PlanetPhysics-2qEGeXQw.js": "7c66b7abe324cb75592308be9770d45e2d5c3ff99386903d923c2b630e71570d",
+    "assets/clinic-garden-CNb6Of2o.webp": "6081300fe8d50c5c68391df1dd54bd50983c3305c2dc55fd1fd4778aae153c8a",
+    "assets/emulate-BMBmTEeg.js": "6b1527af3a84666025ef9b6dd903144f310f3aac52ff76f2c297cda958fb4ae2",
+    "assets/index-B1QMn5h0.js": "135f2dde89acb8a6d2dbb07be6a36e2560ca7bffe53a09aaa8e9e1d87c76dcbb",
+    "assets/rapier-BmyzpIhH.js": "2aead16092b38fc33f753d64161fb37641d716cd10abdae7d301b4adc6c05d28",
+    "assets/stage-host-jx-FY0LN.js": "d261d8d615019ccced32d147ee709eff9d7cd49e553e300e23b3ecd5cf9a12a5"
+  }
+}

@@ -12,6 +12,7 @@ import {isActorPalm} from './actorPalms';
 import {elapsed,type PhysicsSwitchWork} from '../diagnostics/physicsSwitchWork';
 import {getBulletModule} from './bulletModule';
 import {createAnchoredChainMassInput} from './anchoredChainMass';
+import {ControllerContactBounds} from './controllerContactBounds';
 
 export type { MmdPhysicsQuality };
 export type MmdControllerColliderMatrix = MmdPhysicsMatrix4ColumnMajorTuple | Float32Array;
@@ -70,13 +71,16 @@ export async function createBulletPhysicsBackend(options: {
   const work=options.switchWork,started=work?performance.now():0;
   const {createCustomBulletMmdPhysicsBackend,module}=await getBulletModule(work).finally(()=>elapsed(work,'bulletModuleMs',started));
   const backendStart=work?performance.now():0;
+  const contactBounds = options.controllerColliders ? new ControllerContactBounds() : undefined;
+  const report = options.onBulletStepWork;
   const backendOptions = {
-    onStepWork: options.onBulletStepWork,
+    onStepWork: report && contactBounds ? contactBounds.accountForStepWork(report) : report,
     fixedTimeStep: 1 / 60,
     maxSubSteps: MAX_SUBSTEPS[options.quality?.() ?? 'medium'],
   };
+  const observedModule = contactBounds?.observe(module, (indices, out): boolean => bulletBackend.readRigidBodyCenters(indices, out));
   const bulletBackend = createCustomBulletMmdPhysicsBackend(
-    module,
+    observedModule ?? module,
     backendOptions,
   );
   const diagnosticBackend = createPhysicsDiagnosticsBackend(bulletBackend, options.simulationDelta, options.onPhysicsBones, options.modelScale, options.onEligibleColliders);
@@ -110,6 +114,7 @@ export async function createBulletPhysicsBackend(options: {
         refreshStepOptions,
         options.controllerFriction,
         options.controllerRestitution,
+        undefined, 'xr', contactBounds,
       )
     : colliderBackend;
   const chainInput = createAnchoredChainMassInput();
@@ -228,6 +233,7 @@ export function createControllerColliderPhysicsBackend(
   restitution: number | (() => number) = 0,
   makeShape: ColliderShapeFactory = (_, r) => ({ type: "sphere", size: [r, r, r] }),
   family: 'xr'|'prop' = 'xr',
+  contactBounds?: ControllerContactBounds,
 ): MmdControllerColliderPhysicsBackend {
   let sourceSkeleton: MmdPhysicsStepContext["skeleton"];
   let sourceRigidBodies: MmdPhysicsStepContext["rigidBodies"];
@@ -277,6 +283,7 @@ export function createControllerColliderPhysicsBackend(
       const matrices = getMatrices();
       if (!matrices.length || !context.skeleton || !context.rigidBodies) {
         controllerBodyCount = 0;
+        contactBounds?.beforeStep(undefined, 0);
         return backend.step(context);
       }
       const boneCount = context.skeleton.bones.length;
@@ -352,6 +359,7 @@ export function createControllerColliderPhysicsBackend(
           })),
         ];
       }
+      contactBounds?.beforeStep(augmentedRigidBodies, colliderCount);
       const isDirect = directBuffers != null && context.inputTranslations === directBuffers.inputTranslations;
       if (isDirect) {
         writeControllerInputs(
@@ -413,11 +421,13 @@ export function createControllerColliderPhysicsBackend(
     },
     reset: (context) => {
       controllerBodyCount = 0;
+      contactBounds?.invalidate();
       debugContactsStep = -1;
       backend.reset?.(context);
     },
     dispose: () => {
       controllerBodyCount = 0;
+      contactBounds?.invalidate();
       debugContacts = [];
       debugContactsStep = -1;
       backend.dispose?.();
@@ -432,6 +442,7 @@ export function createControllerColliderPhysicsBackend(
       // Their colliders therefore follow this wrapper's range in Bullet's array.
       const firstBodyIndex = sourceRigidBodyCount;
       if (debugContactsStep !== stepCount) {
+        if (contactBounds?.canSkip()) return 0;
         if (debugBackend.debugPhysicsContactsForRigidBodyRange) {
           debugContacts = debugBackend.debugPhysicsContactsForRigidBodyRange(
             firstBodyIndex,
@@ -459,6 +470,7 @@ export function createControllerColliderPhysicsBackend(
           if (includesA || includesB) totalControllerContacts += 1;
         }
         debugContactsStep = stepCount;
+        contactBounds?.observedCount(totalControllerContacts);
       }
       return controllerIndex == null ? totalControllerContacts : contactCounts[controllerIndex];
     },
