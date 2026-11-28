@@ -3,7 +3,7 @@ import { visibleTexel } from '../play/wandOpacity';
 import { shownMaterial, shownObject } from './stockingDraws';
 import { stockingFabric } from './stockingFabric';
 import type { StockingPatch } from './stockingFit';
-import type { StockingTear } from './stockingState';
+import type { StockingSide, StockingTear } from './stockingState';
 
 function fabricPatch(patch: StockingPatch, fabric: ReturnType<typeof stockingFabric>) {
   const { draw, vertices, side }=patch, geometry=new BufferGeometry();
@@ -60,12 +60,16 @@ function fabricPatch(patch: StockingPatch, fabric: ReturnType<typeof stockingFab
 }
 
 export function mountStockings(scene:Scene, fits:StockingPatch[], runtimeId:string) {
-  const group=new Group(), fabrics={left:stockingFabric('left'),right:stockingFabric('right')};
+  const group=new Group(), fabrics=new Map<StockingSide,ReturnType<typeof stockingFabric>>();
   group.name=`wardrobe:stockings:${runtimeId}`;
-  const parts=fits.map(fit=>fabricPatch(fit,fabrics[fit.side]));
+  const parts=fits.map(fit=>{
+    let fabric=fabrics.get(fit.side);
+    if (!fabric) {fabric=stockingFabric(fit.side);fabrics.set(fit.side,fabric);}
+    return fabricPatch(fit,fabric);
+  });
   group.add(...parts.map(p=>p.mesh)); scene.add(group);
   return { group, update(frame:number,changed:boolean,tears:readonly StockingTear[]) {
-    fabrics.left.update(tears); fabrics.right.update(tears);
+    for (const fabric of fabrics.values()) fabric.update(tears);
     for (const part of parts) part.update(frame,changed);
   }, pick(caster:Raycaster) {
     let nearest:ReturnType<typeof parts[number]['pick']>=null;
@@ -73,5 +77,5 @@ export function mountStockings(scene:Scene, fits:StockingPatch[], runtimeId:stri
       const hit=p.pick(caster); if (hit && (!nearest || hit.distance<nearest.distance)) nearest=hit;
     }
     return nearest;
-  }, dispose(){ group.removeFromParent(); for(const p of parts)p.dispose(); fabrics.left.map.dispose(); fabrics.right.map.dispose(); } };
+  }, dispose(){ group.removeFromParent(); for(const p of parts)p.dispose(); for(const fabric of fabrics.values())fabric.map.dispose(); } };
 }

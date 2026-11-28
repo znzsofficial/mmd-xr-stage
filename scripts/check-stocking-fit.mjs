@@ -62,7 +62,8 @@ try {
     const standingGap=skinDistance();assert(standingGap<.002,'Fabric detached from the standing PMX.');
     const clothAlpha=()=>{
       const map=site.mesh.material.alphaMap,{width,height,data}=map.image;
-      return data[(Math.floor(hit.v*height)*width+Math.floor(hit.u*width))*4+1];
+      const channels=data.length/(width*height);
+      return data[(Math.floor(hit.v*height)*width+Math.floor(hit.u*width))*channels+1];
     };
     // Check cover, uncover, without a timeline tick or rewriting any PMX material.
     const block=new Mesh(new BoxGeometry(.04,.04,.04),new MeshBasicMaterial());
