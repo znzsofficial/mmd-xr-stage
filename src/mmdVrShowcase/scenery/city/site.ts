@@ -1,5 +1,6 @@
 import {CAMPUS_DOOR,SCHOOL_GATE,campusPassageParts,schoolExterior} from '../CampusLayout';
-import {EAST_FACE,GARDEN_DOOR,GUIDE,approachSolids} from '../clinic/clinicApproach';
+import {forecourtEdge} from '../arcade/westGallery';
+import {APRON,EAST_FACE,GARDEN_DOOR,GUIDE,approachSolids} from '../clinic/clinicApproach';
 import {LIDO_ENTRY,LIDO_GATE,POOL_ORIGIN,arcadeParts,distantLido,poolBarrierParts} from '../LidoLayout';
 import {shell,westStreetDoor as arcadeDoor} from '../routes/campusArcade/site';
 import type {Part} from '../SceneryBatch';
@@ -16,6 +17,7 @@ export const CITY_ORIGINS={
 
 const c=CITY_ORIGINS.clinic,s=CITY_ORIGINS.classroom,p=CITY_ORIGINS.pool,a=CITY_ORIGINS.arcadeHall;
 const clinicZ=c.z+GARDEN_DOOR.z, schoolX=s.x+CAMPUS_DOOR, poolX=p.x+LIDO_ENTRY.x, arcadeX=a.x+arcadeDoor.x;
+const apronEnd=Math.min(c.x+APRON.x+APRON.w/2,cityGreenDeck.x-cityGreenDeck.w/2);
 const laneLeft=laneMouth.x-laneMouth.w/2,laneRight=laneMouth.x+laneMouth.w/2;
 
 function paving(id:string,left:number,right:number,back:number,front:number):PickDeck & {id:string}{
@@ -28,11 +30,14 @@ export const cityPavements=[
   paving('station-street',laneLeft,laneRight,laneMouth.z+laneMouth.d/2,56.8),
   paving('green-east',cityGreenDeck.x+cityGreenDeck.w/2,laneLeft,47.6,50.6),
   paving('green-north',14,17.5,cityGreenDeck.z+cityGreenDeck.d/2,52.3),
-  paving('clinic-walk',9.10,laneLeft,52.3,55.3),
-  paving('clinic-door',c.x+GARDEN_DOOR.inGate-.40,9.10,clinicZ-GARDEN_DOOR.clear/2,clinicZ+GARDEN_DOOR.clear/2),
+  paving('clinic-walk',apronEnd,laneLeft,52.3,55.3),
+  paving('clinic-porch',c.x+GARDEN_DOOR.x,apronEnd,clinicZ-APRON.d/2,clinicZ+APRON.d/2),
+  paving('clinic-door',c.x+GARDEN_DOOR.inGate-.40,c.x+GARDEN_DOOR.x,clinicZ-GARDEN_DOOR.clear/2,clinicZ+GARDEN_DOOR.clear/2),
   paving('school-street',-1,schoolX+2.15,56.8,60.2),
-  paving('school-porch',schoolX-1.75,schoolX+1.75,54.40,56.8),
-  paving('school-door',schoolX-SCHOOL_GATE.half,schoolX+SCHOOL_GATE.half,s.z+SCHOOL_GATE.in-.40,54.40),
+  // The brick walk fans west across this landing. A narrow rectangle around
+  // the canopy alone left a gap in the walkable route along the brick bend.
+  paving('school-porch',schoolX-5.52,schoolX+1.75,53.80,56.8),
+  paving('school-door',schoolX-SCHOOL_GATE.half,schoolX+SCHOOL_GATE.half,s.z+SCHOOL_GATE.in-.40,53.80),
   paving('inland-street',-1,3,60.2,85.2),
   paving('sports-street',poolX-2.1,arcadeX+2.1,85.2,88.8),
   paving('pool-walk',poolX-1.85,poolX+1.85,75.7,85.2),
@@ -45,7 +50,7 @@ export type CityBlock={x:number;z:number;w:number;d:number;bottom:number;top:num
 // A separate piece drawn by the west forecourt connects its last metre to
 // the city paving. It must also support a translated foot from either room.
 export const arcadeVestibule=paving('arcade-vestibule',arcadeX-arcadeDoor.half,arcadeX+arcadeDoor.half,
-  a.z+13,a.z+arcadeDoor.inGate-.40);
+  a.z+forecourtEdge,a.z+arcadeDoor.inGate-.40);
 export const cityDecks:readonly PickDeck[]=[...cityPavements,arcadeVestibule,cityGreenDeck];
 
 function partBlock(part:Part):CityBlock{
@@ -64,7 +69,7 @@ const clinicBlocks=[...EAST_FACE,...approachSolids.filter(solid=>solid!==GUIDE),
 const lidoBlocks=[...arcadeParts('pool'),...poolBarrierParts()].map(partBlock).filter(b=>b.top>.06);
 // distantLido uses meadow coordinates. Reuse its pavilion rather than
 // closing the open air around the basin with an invented perimeter wall.
-const poolPavilion=distantLido().map(partBlock).filter(b=>b.top>.06).map(b=>({...b,x:b.x-POOL_ORIGIN.x,z:b.z-POOL_ORIGIN.z}));
+const poolPavilion=distantLido('city').map(partBlock).filter(b=>b.top>.06).map(b=>({...b,x:b.x-POOL_ORIGIN.x,z:b.z-POOL_ORIGIN.z}));
 const arcadeBlocks=shell.map(b=>({x:b.x,z:b.z,w:b.w,d:b.d,bottom:b.y-b.h/2,top:b.y+b.h/2})).filter(b=>b.top>.04);
 export const localFacades={classroom:schoolBlocks,clinic:clinicBlocks,pool:[...lidoBlocks,...poolPavilion],arcadeHall:arcadeBlocks};
 function translate(blocks:readonly CityBlock[],origin:{x:number;z:number}){

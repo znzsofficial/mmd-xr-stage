@@ -2,12 +2,12 @@ import {useEffect,useMemo} from 'react';
 import {noPick} from '../sceneryPaint';
 import {useBakedSurface} from '../useBakedSurface';
 import {waitingBayContact,waitingBayGeometry} from './waitingBayGeometry';
-import oakAndIron from './waiting-bay.webp';
+import {useCoastalPrint} from './coastalPrints';
 import response from './waiting-bay-rm.webp';
 
 export function WaitingBay({shadows}:{shadows:boolean}){
   const geometry=useMemo(waitingBayGeometry,[]), contact=useMemo(waitingBayContact,[]);
-  const map=useBakedSurface(oakAndIron), finish=useBakedSurface(response,'data');
+  const map=useCoastalPrint('timber'), finish=useBakedSurface(response,'data');
   useEffect(()=>()=>{geometry.dispose();contact.dispose();},[geometry,contact]);
   return <>
     <mesh name="terminus:waiting-bay" geometry={geometry} castShadow={shadows} receiveShadow raycast={noPick}>

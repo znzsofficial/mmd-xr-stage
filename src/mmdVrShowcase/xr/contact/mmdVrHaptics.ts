@@ -41,21 +41,6 @@ export type MmdVrHapticGamepad = Gamepad & {
   vibrationActuator?: DualRumbleActuator | null;
 };
 
-const controllerContacts: [boolean, boolean] = [false, false];
-
-export function setMmdVrHapticContacts(left: boolean, right: boolean) {
-  controllerContacts[0] = left;
-  controllerContacts[1] = right;
-}
-
-export function clearMmdVrHapticContacts() {
-  setMmdVrHapticContacts(false, false);
-}
-
-export function getMmdVrHapticContact(index: 0 | 1): boolean {
-  return controllerContacts[index];
-}
-
 export type MmdVrHapticGate = {
   update: (contactActive: boolean, nowMs: number) => boolean;
   reset: () => void;
@@ -121,7 +106,8 @@ export type MmdVrHapticDriver = {
 };
 
 export function supportsMmdVrHaptics(gamepad: MmdVrHapticGamepad | null | undefined): boolean {
-  return Boolean(gamepad?.hapticActuators?.[0] || gamepad?.vibrationActuator);
+  return !!gamepad && gamepad.connected !== false && (typeof gamepad.hapticActuators?.[0]?.pulse === 'function'
+    || typeof gamepad.vibrationActuator?.playEffect === 'function');
 }
 
 // A wand, contact feedback and a remote can all write to the same gamepad.

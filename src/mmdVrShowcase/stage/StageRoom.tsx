@@ -1,7 +1,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { runtimeTiming } from "../diagnostics/runtimeTiming";
 import {elapsed,type PhysicsSwitchWork} from '../diagnostics/physicsSwitchWork';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import * as THREE from "three";
 import {
   isMmdRuntimeRebuildError,
@@ -33,11 +33,8 @@ import { createPlacementWork } from '../diagnostics/placementWork';
 import type { SceneryId } from "../scenery/catalog";
 import { resolvePlacementHeight, visiblePick } from "../scenery/placementAreas";
 import { mountStockingRoom } from '../wardrobe/stockingSurface';
-import {
-  clearMmdVrHapticContacts,
-  MMD_VR_HAPTIC_POLL_INTERVAL,
-  setMmdVrHapticContacts,
-} from "../xr/contact/mmdVrHaptics";
+import { ControllerContactHaptics } from '../xr/contact/controllerContactHaptics';
+import { FloorInputContext } from '../xr/floorInput';
 import { consumeRoomModelCommands } from "./roomModelCommands";
 import { createAssetLoadQueue, emptyAssetLoadProgress, type AssetLoadProgress } from "./loading/mmdAssetLoadQueue";
 import { restoreStageTime, type StageSnapshot } from "./stageSnapshot";
@@ -95,7 +92,8 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles,
   const staticSettleElapsed = useRef(0);
   const pendingSeekSeed = useRef(false);
   const physicsContactPollRef = useRef(0);
-  const hapticContactPollRef = useRef(0);
+  const contactHaptics = useContext(ControllerContactHaptics);
+  const floorInput = useContext(FloorInputContext);
   const lastPhysicsResetEpochRef = useRef(0);
   const playingRef = useRef(false);
   const loopRef = useRef(false);
@@ -148,7 +146,11 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles,
     });
   }, []);
 
-  useEffect(() => clearMmdVrHapticContacts, []);
+  useLayoutEffect(() => {
+    if (!contactHaptics) return;
+    const unsubscribe = floorInput?.subscribe(contactHaptics.reset);
+    return () => { unsubscribe?.(); contactHaptics.reset(); };
+  }, [contactHaptics, floorInput]);
 
   function saveRoom(): StageSnapshot | null {
     const s = useMmdVrStore.getState();
@@ -681,6 +683,9 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles,
       if(store.presentation==='xr')runtimeTiming.record(performance.now() - start);
       lastEvaluatedTimeRef.current = evaluationTime;
     }
+    // Both reads share the evaluated step. Prop feedback still writes after the ordinary grip pulse.
+    if (inXR) contactHaptics?.advance(frame, delta, clock.elapsedTime * 1000,
+      physicsOn ? store.prefs.physicsHapticLevel : 'off', rt.getControllerContactCount);
     const posedCarrier=poseCharacterProp(rt);
     wristCue.driver.current?.advance(delta,posedCarrier);
     presentRemoteWearable(scene);
@@ -695,20 +700,6 @@ export function MmdVrStageRoom({ scenery, saved, slots, motionCache, alphaTiles,
     stockingRoom.current?.advance(evaluate||propMorphChanged);
     milkRoom.current?.advance(delta,frame);
     if(store.presentation!=='xr')return;
-    hapticContactPollRef.current += delta;
-    if (hapticContactPollRef.current >= MMD_VR_HAPTIC_POLL_INTERVAL) {
-      hapticContactPollRef.current %= MMD_VR_HAPTIC_POLL_INTERVAL;
-      if (store.physicsEnabled
-        && !store.physicsBusy
-        && store.prefs.physicsHapticLevel !== "off") {
-        setMmdVrHapticContacts(
-          rt.getControllerContactCount(0) > 0,
-          rt.getControllerContactCount(1) > 0,
-        );
-      } else {
-        clearMmdVrHapticContacts();
-      }
-    }
     physicsContactPollRef.current += delta;
     if (physicsContactPollRef.current >= 0.1) {
       physicsContactPollRef.current = 0;

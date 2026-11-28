@@ -1,10 +1,11 @@
 import { blocks, UPPER } from '../../arcade/arcadeLayout';
+import {forecourtEdge,westStreetDoor} from '../../arcade/westGallery';
+export {westStreetDoor} from '../../arcade/westGallery';
 import { POOL_ORIGIN, TIME_DECK, POOL } from '../../LidoLayout';
 
 // Survey in meadow metres, with +Z toward the park. Arcade west is +X.
 export const ARCADE_ORIGIN = {x:39,z:-15.4};
-export const WEST = {x:ARCADE_ORIGIN.x+9.10,z:2.90,half:1.54};
-export const westStreetDoor={x:WEST.x-ARCADE_ORIGIN.x,inGate:14.45,outGate:15.15,half:WEST.half+.01};
+export const WEST = {x:ARCADE_ORIGIN.x+westStreetDoor.x,z:2.90,half:westStreetDoor.half-.01};
 export const shell=blocks.filter(s=>['court','balcony','east-balcony','west-walk','west-side','lounge-court','roof','west-sign','west-portal','west-spine','west-shelter-back','west-shelter-roof','west-end-wall','east-retaining','east-service','lounge-canopy','lounge-kiosk','tank-base'].includes(s.tag)||s.tag.startsWith('front-court')||s.tag==='wall'||s.tag==='header'||s.tag==='jamb'||s.tag==='lintel');
 export const EAST = {x:ARCADE_ORIGIN.x-7.85,z:POOL_ORIGIN.z-19.25,half:1.25};
 export type Road = 'street'|'viaduct';
@@ -14,7 +15,7 @@ const surfaces:Surface[]=[];
 function pad(road:Road,id:string,l:number,r:number,b:number,f:number,y=0,sx=0,sz=0){
   surfaces.push({road,id,l,r,b,f,y,sx,sz});
 }
-export const streetEdge=a.z+13, highStart=a.z-6.4, turn=e.z+e.half;
+export const streetEdge=a.z+forecourtEdge, highStart=a.z-6.4, turn=e.z+e.half;
 const landingZ=2.05,mid=1.08,highX=e.x-e.half, midRight=a.x-20.9,midLeft=a.x-23.70,lowX=p.x+14.5;
 pad('street','garden-walk',-1.45,w.x-w.half,w.z-w.half,w.z+w.half);
 pad('street','print-court',30,38.2,w.z+w.half,6.4);

@@ -6,6 +6,7 @@ import {span} from './detailParts';
 export const POOL_ORIGIN={x:-11.4,z:-20.3};
 export const LIDO_ENTRY={x:6.15,z:9.26,w:3.22,d:5.52};
 export const LIDO_GATE={in:7.65,out:8.35,half:1.48};
+export const POOL_WATER_Y=-.16;
 export const LIDO_PIERS=[{x:4.37,z:8.88,w:.75,d:2.95},{x:7.94,z:8.34,w:.54,d:1.72}];
 export const TIME_DECK={x:5.72,z:-20.55,w:5.05,d:2.72};
 export const GUARD_CHAIR={x:7.05,z:-20.65,w:1.4,d:1.70};
@@ -22,6 +23,34 @@ export const POOL={
   flagPosts:[-9.5,-16.8].flatMap(z=>[-5.45,5.45].map(x=>({x,z,w:.14,d:.14}))),
 };
 export const POOL_SUPPORT=[POOL.deck,...POOL.walks,POOL.farWalk,TIME_DECK,LIDO_ENTRY];
+export const PAVILION_APRON={x:.8,z:-22,w:19,d:4.5};
+// Support is a union: for example the ticket approach runs 1.25 m onto the
+// sun deck. Lay a single finished slab across each connected band instead of
+// stacking two almost level tops under the same pair of shoes.
+function pavingSlabs(){
+  const apron=PAVILION_APRON,leftEdge=apron.x-apron.w/2,rightEdge=apron.x+apron.w/2;
+  const edges=Array.from(new Set([...POOL_SUPPORT,apron].flatMap(r=>[r.z-r.d/2,r.z+r.d/2]))).sort((a,b)=>a-b);
+  const deck:typeof POOL_SUPPORT=[],pavilion:typeof POOL_SUPPORT=[];
+  for(let i=1;i<edges.length;i++){
+    const d=edges[i]-edges[i-1],z=(edges[i]+edges[i-1])/2;
+    const spans=POOL_SUPPORT.filter(r=>Math.abs(z-r.z)<r.d/2)
+      .map(r=>({left:r.x-r.w/2,right:r.x+r.w/2})).sort((a,b)=>a.left-b.left);
+    let j=0,cursor=leftEdge;
+    function apronUntil(end:number){
+      const right=Math.min(end,rightEdge);
+      if(Math.abs(z-apron.z)<apron.d/2&&right>cursor)pavilion.push({x:(cursor+right)/2,z,w:right-cursor,d});
+    }
+    while(j<spans.length){
+      const {left}=spans[j];let right=spans[j++].right;
+      while(j<spans.length&&spans[j].left<=right)right=Math.max(right,spans[j++].right);
+      apronUntil(left);cursor=Math.max(cursor,right);
+      deck.push({x:(left+right)/2,z,w:right-left,d});
+    }
+    apronUntil(rightEdge);
+  }
+  return {deck,pavilion};
+}
+export const {deck:POOL_SLABS,pavilion:PAVILION_SLABS}=pavingSlabs();
 // Keep the eastern two rails, but terminate them at a real opening to the
 // timing deck. The other bays and the opposite perimeter remain intact.
 export function poolBarrierParts():Part[]{
@@ -48,10 +77,9 @@ export function arcadeParts(room:'pool'|'lawn'):Part[]{
   const {x:dx,z:dz}=room==='pool'?{x:0,z:0}:POOL_ORIGIN,out:Part[]=[];
   const box=(x:number,y:number,z:number,w:number,h:number,d:number,color:string)=>out.push({p:[x+dx,y,z+dz],s:[w,h,d],color});
   const {x,z,w,d}=LIDO_ENTRY,blue='#35777e',cream='#eadcc0',coral='#ce8066';
-  if(room==='lawn')box(x,-.112,z,w,.25,d,cream);
   for(let j=0;j<9;j++){const zz=z-d/2+(j+.5)*d/9;
     for(const s of [-1,1])box(x+s*(w/2-.21),.016,zz,.13,.006,d/9-.013,j%3?blue:coral);
-    box(x,.016,zz,2.79,.006,.016,'#b3ae9a');}
+    box(x,.016,zz,w-2*(.21+.065),.006,.016,'#b3ae9a');}
   // Follow the same ceramic stripe past the entry into the east promenade.
   // The opposite side stays open for the sun beds and the water-play station.
   const start=z-d/2,end=POOL.water.z+POOL.water.d/2;
@@ -71,10 +99,14 @@ export function arcadeParts(room:'pool'|'lawn'):Part[]{
   for(const s of [-1,1])box(6.15+s*.98,2.658,8.34,.48,.033,.22,'#fff1cf');
   return out;
 }
-export function distantLido():Part[]{const {x,z}=POOL_ORIGIN,water=POOL.water;return [
+export function distantLido(site:'lawn'|'city'='lawn'):Part[]{const {x,z}=POOL_ORIGIN,water=POOL.water;
+  // The legacy meadow has its own continuous turf at zero. The city instead
+  // has a real cutout for the basin, with the water below the coping.
+  const deckTop=site==='lawn'?.01:0,waterTop=site==='lawn'?.015:POOL_WATER_Y;
+  return [
   {p:[x+.8,1.44,-23.15+z],s:[18.5,2.86,1.42],color:'#f2dfb9'}, {p:[x+.8,3,-22.5+z],s:[19.2,.30,3.8],color:'#649592'},
-  {p:[x+water.x,-.035,z+water.z],s:[water.w,.1,water.d],color:'#76b8bd'},
-  ...POOL_SUPPORT.filter(r=>r!==LIDO_ENTRY).map(r=>({p:[x+r.x,-.105,z+r.z] as Part['p'],s:[r.w,.23,r.d] as Part['s'],color:'#e0d5bf'})),
+  {p:[x+water.x,waterTop-.05,z+water.z],s:[water.w,.1,water.d],color:'#76b8bd'},
+  ...POOL_SLABS.map(r=>({p:[x+r.x,deckTop-.125,z+r.z] as Part['p'],s:[r.w,.25,r.d] as Part['s'],color:'#e0d5bf'})),
   ...[-5.45,5.45].map(u=>({p:[x+u,1.5,-9.5+z] as Part['p'],s:[.07,3,.07] as Part['s'],color:'#87a4a1'})),
   ...Array.from({length:17},(_,i)=>({p:[x+(i-8)*.59,2.66+((i-8)/8)**2*.24,-9.5+z] as Part['p'],s:[.34,.20,.05] as Part['s'],color:i%2?'#dd805d':'#639a9c'})),
 ];}

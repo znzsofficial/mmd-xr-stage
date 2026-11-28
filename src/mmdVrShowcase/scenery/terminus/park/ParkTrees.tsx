@@ -1,15 +1,13 @@
 import {useEffect, useLayoutEffect, useMemo, useRef} from 'react';
 import {useFrame} from '@react-three/fiber';
-import {Color, DoubleSide, InstancedMesh, RepeatWrapping, type BufferGeometry, type Texture} from 'three';
+import {Color, DoubleSide, InstancedMesh, type BufferGeometry, type Texture} from 'three';
 import {cameraInstancePrefix} from '../../cameraInstancePrefix';
 import {noPick} from '../../sceneryPaint';
-import {useBakedSurface} from '../../useBakedSurface';
+import {useCoastalPrint} from '../coastalPrints';
 import {SHORE_SUN} from '../shoreLayout';
 import {growTree, habitCount, sprayPoints, sprayTiles, type ParkTree} from './treeHabit';
 import {barkGeometry, sprayGeometry, treeBatches, type TreeInstance} from './treeSurfaces';
 import {ParkLeafShade} from './ParkLeafShade';
-import barkUrl from './zelkova-bark.webp';
-import leavesUrl from './zelkova-sprays.webp';
 
 type Props = {trees:readonly ParkTree[]; shadows:boolean};
 
@@ -37,12 +35,11 @@ function TreeBatch({name, geometry, instances, shadows, map, crownEnds}:{
 }
 
 export function ParkTrees({trees,shadows}:Props){
-  const map=useBakedSurface(leavesUrl), bark=useBakedSurface(barkUrl);
+  const map=useCoastalPrint('sprays'), bark=useCoastalPrint('bark');
   const habits=useMemo(()=>Array.from({length:habitCount},(_,i)=>growTree(i,SHORE_SUN)),[]);
   const wood=useMemo(()=>habits.map(barkGeometry),[habits]);
   const blades=useMemo(()=>Array.from({length:sprayTiles},(_,i)=>sprayGeometry(i)),[]);
   useEffect(()=>()=>{for(const g of [...wood,...blades])g.dispose();},[wood,blades]);
-  useLayoutEffect(()=>{if(bark){bark.wrapS=bark.wrapT=RepeatWrapping; bark.needsUpdate=true;}},[bark]);
   const {trunks,sprays,crownEnds}=useMemo(()=>treeBatches(trees,habits),[trees,habits]);
   const time=useRef(0);
   useFrame((_,delta)=>{

@@ -2,7 +2,7 @@ import {RoomShader} from './daylightMaterials';
 import { useMemo, useRef, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { BufferGeometry, Color, CylinderGeometry, DoubleSide, Float32BufferAttribute, IcosahedronGeometry, TorusGeometry, Vector3, type Mesh,type ShaderMaterial } from 'three';
-import {arcadeParts,judgeStand,PACE_CLOCK,POOL,POOL_SUPPORT,POOL_ORIGIN,PAVILION_POSTS,poolBarrierParts} from './LidoLayout';
+import {arcadeParts,judgeStand,PACE_CLOCK,POOL,POOL_SLABS,POOL_ORIGIN,POOL_WATER_Y,PAVILION_POSTS,PAVILION_SLABS,poolBarrierParts} from './LidoLayout';
 import {reserveArcadeSite} from './routes/campusArcade/site';
 import {LidoPlates} from './LidoPlates';
 import { span } from './detailParts';
@@ -39,7 +39,7 @@ export function poolFurnishings() {
   // The surrounding lawn is below the basin rather than crossing the water.
   for(const side of [-1,1])box([side*11.3,-.315,-11.2],[8.4,.25,37.9],'#98b283');
   box([0,-.315,3.37],[14.2,.25,8.76],'#98b283');box([0,-.315,-24.82],[14.2,.25,10.66],'#98b283');
-  for(const [i,r] of POOL_SUPPORT.entries())box([r.x,-.125+i*.001,r.z],[r.w,.25,r.d],'#e7dbc4');
+  for(const r of POOL_SLABS)box([r.x,-.125,r.z],[r.w,.25,r.d],'#e7dbc4');
   blocks.push(...arcadeParts('pool'),...judgeStand());
   const clock=PACE_CLOCK;
   tube([clock.x,.70,clock.z],[.084,1.40,.084],'#63867f');tube([clock.x,.055,clock.z],[.43,.11,.43],'#8c9990');
@@ -50,7 +50,7 @@ export function poolFurnishings() {
     box([x,-.11,-12.4],[.28,.23,13.6],'#829b96'); box([x+Math.sign(x)*.22,-.003,-12.4],[.15,.01,13.42],'#8b9c95');
   }
   for(const z of [-5.72,-19.08])box([0,-.11,z],[10.0,.23,.23],'#829b96');
-  for(const x of [-3.33,0,3.33]) for(let j=0;j<56;j++)tube([x,-.14,-5.94-j*.236],[.105,.21,.105],j<6||j>49?'#c94d42':j%4===0?'#f7edcf':'#397eaa',Math.PI/2);
+  for(const x of [-3.33,0,3.33]) for(let j=0;j<56;j++)tube([x,POOL_WATER_Y+.02,-5.94-j*.236],[.105,.21,.105],j<6||j>49?'#c94d42':j%4===0?'#f7edcf':'#397eaa',Math.PI/2);
   for(const r of POOL.blocks){box([r.x,.26,r.z],[.36,.52,.43],'#d5ddd4');box([r.x,.55,r.z],[r.w,.08,r.d],'#367895',0,-.07);
     for(let k=0;k<6;k++)box([r.x,.593+k*.005,r.z-.20+k*.071],[.56,.015,.024],'#70999e',0,-.07);
     for(const s of [-1,1])tube([r.x+s*.133,.30,r.z+.263],[.027,.18,.027],'#91a8a5');tube([r.x,.211,r.z+.263],[.027,.293,.027],'#91a8a5',0,Math.PI/2);}
@@ -79,7 +79,8 @@ export function poolFurnishings() {
     }
   }
   // A low pool pavilion and its changing-room doors anchor the far end.
-  box([.8,-.33,-22],[19,.65,4.5],'#dcceb6');box([.8,1.44,-23.15],[18.5,2.86,1.42],'#f2dfb9');
+  for(const r of PAVILION_SLABS)box([r.x,-.33,r.z],[r.w,.65,r.d],'#dcceb6');
+  box([.8,1.44,-23.15],[18.5,2.86,1.42],'#f2dfb9');
   box([.8,2.98,-22.5],[19,.18,3.6],'#598c88');box([.8,3.12,-22.5],[19.2,.13,3.8],'#e8dfc5');
   for(let j=0;j<8;j++){const x=-7+j*2.14;box([x,1.17,-22.41],[1.35,2.06,.06],j%2?'#769e97':'#88aaa0');box([x+.44,1.14,-22.36],[.05,.16,.042],'#d4c5a5');for(let k=0;k<4;k++)box([x,1.85+k*.065,-22.36],[1.06,.023,.04],'#587a76');}
   for(const {x,z,w,d} of PAVILION_POSTS){box([x,1.43,z],[w,2.86,d],'#e6d6b7');box([x,.17,z],[.21,.34,.21],'#849f93');}
@@ -128,7 +129,7 @@ function Water() {
   const uniforms=useMemo(()=>({time:{value:0},sun:{value:new Vector3(...SHORE_SUN).normalize()}}),[]);
   const w=POOL.water;const ref=useRef<ShaderMaterial>(null);
   useFrame((_,dt)=>{if(ref.current)uniforms.time.value=(uniforms.time.value+Math.min(.05,dt))%1000;});
-  return <mesh position={[w.x,-.16,w.z]} rotation-x={-Math.PI/2} raycast={noPick} name="pool-water"><planeGeometry args={[w.w,w.d]} /><RoomShader effect="pool" ref={ref} uniforms={uniforms}
+  return <mesh position={[w.x,POOL_WATER_Y,w.z]} rotation-x={-Math.PI/2} raycast={noPick} name="pool-water"><planeGeometry args={[w.w,w.d]} /><RoomShader effect="pool" ref={ref} uniforms={uniforms}
     vertexShader={`varying vec3 wp; void main(){wp=(modelMatrix*vec4(position,1.)).xyz;gl_Position=projectionMatrix*viewMatrix*vec4(wp,1.);}`}
     fragmentShader={`varying vec3 wp;uniform float time;uniform vec3 sun;
     void main(){vec2 p=wp.xz; vec3 eye=normalize(cameraPosition-wp);float t=time*.68;

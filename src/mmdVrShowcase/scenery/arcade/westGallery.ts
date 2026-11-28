@@ -7,6 +7,24 @@ const body=(tag:string,x:number,y:number,z:number,w:number,h:number,d:number,ink
 const edge=(x:number,y:number,z:number,w:number,h:number,d:number,ink:string,roll=0)=>box(skins,'trim',x,y,z,w,h,d,ink,roll);
 
 const enamel='#b96358',lip='#cf806a',blue='#527486',steel='#454f61';
+export const westStreetDoor={x:9.10,inGate:14.45,outGate:15.15,half:1.55};
+// The two travel lines straddle an actual opening from the street into the
+// forecourt. Its low cheek walls lead back to the court, leaving the sign in
+// the taller, recessed game gallery visible from the approach.
+const door=westStreetDoor,entryZ=(door.inGate+door.outGate)/2;
+export const forecourtEdge=13;
+export const forecourtWall={z:12.96,d:.25};
+const courtFace=forecourtWall.z+forecourtWall.d/2;
+for(const side of [-1,1]){
+  const x=door.x+side*(door.half+.16),end=entryZ-.18,start=side<0?courtFace:forecourtEdge;
+  body('west-portal',x,.38,(start+end)/2,.22,.76,end-start,'#ac8978');
+  body('west-portal',x,.795,(start+end)/2,.26,.07,end-start,'#d8c7a8');
+  body('west-portal',x,.18,entryZ,.32,.36,.36,'#756d69');
+  body('west-portal',x,1.51,entryZ,.26,2.30,.32,enamel);
+}
+body('west-portal',door.x,2.76,entryZ,3.84,.20,.39,enamel);
+body('west-portal',door.x,2.89,entryZ,3.94,.06,.48,'#687b79');
+
 export const lastRiser={x:10.255,z:1.50,w:1.97};
 export const gallerySign={x:9.30,y:3.93,z:6.32,w:3.50,h:1.12,d:.18};
 const s=gallerySign;

@@ -9,7 +9,7 @@ export function actorBodies(entries:readonly BackpackEntry[],live:Record<string,
     if(!actor.visible||!actor.bounds||!entries.some(e=>e.id===id&&e.kind==='model'))return [];
     const {size,center}=actor.bounds,h=size[1],r=Math.min(.14*h,.5*Math.max(size[0],size[2]));
     if(!(r>0))return [];
-    return [{x:actor.position[0],z:actor.position[2],bottom:center[1]-h/2,top:center[1]+h/2,r}];
+    return [{id,x:actor.position[0],z:actor.position[2],bottom:center[1]-h/2,top:center[1]+h/2,r}];
   });
 }
 export function sampleBodies(bodies:ReturnType<typeof actorBodies>,x:number,z:number,y:number,c:Column){

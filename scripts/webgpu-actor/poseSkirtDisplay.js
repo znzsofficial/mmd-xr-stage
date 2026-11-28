@@ -1,4 +1,5 @@
 import {Fn,If,attributeArray,instanceIndex,storage,uint,uniform} from 'three/tsl';
+import {invalidateMmdTslSparseMorphOutputs} from '@yohawing/three-mmd-loader/webgpu';
 import {fitPoseSkirt} from '../../src/mmdVrShowcase/mmdRuntime/poseSkirtClearance';
 import {fitSparsePoseSkirt} from '../../src/mmdVrShowcase/mmdRuntime/sparsePoseSkirt';
 
@@ -19,6 +20,7 @@ export function createFloorPoseSkirt(renderer,mesh,source){
       version=layer.version;
     }
     show=entries>0;
+    if(show&&!wasShown)invalidateMmdTslSparseMorphOutputs(mesh);
   }
   return {
     fit(){
@@ -43,7 +45,11 @@ export function createFloorPoseSkirt(renderer,mesh,source){
           compute.name='Manual pose skirt clearance';
         }
         if(version!==submitted){points.value.array.set(staging.subarray(0,entries*4));points.value.needsUpdate=true;}
-        used.value=entries;renderer.compute(compute);
+        used.value=entries;
+        // GPU addAssign does not change BufferAttribute.version. Even the
+        // first prepare after this layer stops must reconstruct a clean base.
+        invalidateMmdTslSparseMorphOutputs(mesh);
+        renderer.compute(compute);
       }
       // A skipped presentation retains the last complete buffer. Whenever the
       // loader actually runs it overwrites ALL previous offsets, even on hold.

@@ -14,8 +14,9 @@ export const TREES=[{x:10.05,z:-.20,h:3.43},{x:14.80,z:4.91,h:3.17}];
 export const WALK_POINTS:readonly (readonly [number,number])[]=[[22.25,-.64],[20.25,.03],[18.10,1.36],[16.47,2.24],[14.72,2.72],[12.80,2.80],[11.72,2.80]];
 export const WALK_WIDTH=2.04;
 export const EAST_FACE=[[-9,mid-wallGap/2],[mid+wallGap/2,4.8]].map(([a,b])=>box(face,(a+b)/2,.16,b-a,3.12));
+export const DOOR_TRIM=box(face,mid,.30,wallGap+.09,head+.06,head-.06);
 export const approachSolids:Solid[]=[...GLAZING,...CANOPY_POSTS,...BEDS,GUIDE,
-  ...TREES.map(t=>box(t.x,t.z,.26,.26,t.h)),box(face,mid,.20,wallGap,3.12,head),box(10.2,mid,3.62,4.96,3.06,2.75)];
+  ...TREES.map(t=>box(t.x,t.z,.26,.26,t.h)),DOOR_TRIM,box(face,mid,.21,wallGap,3.13,DOOR_TRIM.top),box(10.2,mid,3.62,4.96,3.06,2.75)];
 const footprint=box(0,-2.1,17.40,13.80,3.2);
 const preview=[box(-.42,-2.1,16.5,13.80,3.2),...EAST_FACE]; // stop beyond the seam, not at the drawn wall
 export function touches(x:number,z:number,r:Area,margin=0){

@@ -65,7 +65,7 @@ async function verifyLive(quick){
     const host=js.match(/stage-host-[\w-]+\.js/)?.[0];assert(host,'Missing optional WebGPU floor');
     paths.add('assets/'+host);
     const floorJs=await readFile(join(dir,'assets',host),'utf8');
-    for(const m of floorJs.matchAll(/(?:actorStyleMaps\.worker-|three\.webgpu[^/"']*?-)[\w-]+\.js/g))paths.add('assets/'+m[0]);
+     for(const m of floorJs.matchAll(/(?:(?:actorStyleMaps|endfieldGeometry)\.worker-|three\.webgpu[^/"']*?-)[\w-]+\.js/g))paths.add('assets/'+m[0]);
     for(const m of js.matchAll(/(?:PlanetPhysics-|planet-physics-)[\w-]+\.js/g))paths.add('assets/'+m[0]);
     for(const file of await readdir(join(dir,'assets')))if(/^mmd_anim_wasm_bg-.*\.wasm$/.test(file))paths.add('assets/'+file);
     for(const file of await readdir(join(dir,'labs/cloth/assets')))paths.add('labs/cloth/assets/'+file);

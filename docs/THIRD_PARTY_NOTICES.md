@@ -30,7 +30,7 @@ These assets are served from the application's origin because loading controller
 
 `public/mmd/0.9.0/` contains the unmodified `mmd_bullet.js` and `mmd_bullet.wasm` from `dist/physics/mmd/` in the [official 0.9.0 npm package](https://www.npmjs.com/package/@yohawing/three-mmd-loader/v/0.9.0). `public/mmd/0.8.6/` retains the pair from the 0.8.6 package for older open tabs.
 
-The game's loader uses a generated patch from the [stage fork](https://github.com/znzsofficial/three-mmd-loader). The exact source revision and distribution digest are recorded in [loader-source.json](../loader-source.json). The native runtime is [mmd-anim v0.5.5](https://github.com/yohawing/mmd-anim/tree/v0.5.5) (MIT, © 2026 Yohawing); its vendored Bullet library carries the [zlib license](https://github.com/yohawing/mmd-anim/blob/v0.5.5/crates/mmd-anim-physics-bullet/vendor/bullet3/LICENSE.txt).
+The game's loader uses a generated patch from the [stage fork](https://github.com/znzsofficial/three-mmd-loader), including its opt-in [sparse morph output reuse](https://github.com/znzsofficial/three-mmd-loader/commit/8730864). The exact source revision and distribution digest are recorded in [loader-source.json](../loader-source.json). The native runtime is [mmd-anim v0.5.5](https://github.com/yohawing/mmd-anim/tree/v0.5.5) (MIT, © 2026 Yohawing); its vendored Bullet library carries the [zlib license](https://github.com/yohawing/mmd-anim/blob/v0.5.5/crates/mmd-anim-physics-bullet/vendor/bullet3/LICENSE.txt).
 
 MIT License
 

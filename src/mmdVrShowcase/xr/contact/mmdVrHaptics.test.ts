@@ -1,11 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  clearMmdVrHapticContacts,
   createMmdVrHapticDriver,
   createMmdVrHapticGate,
   getMmdVrHapticFeedback,
-  getMmdVrHapticContact,
-  setMmdVrHapticContacts,
   type MmdVrHapticGamepad,
 } from "./mmdVrHaptics";
 
@@ -17,16 +14,9 @@ function deferred<T>() {
 
 describe("MMD VR haptics", () => {
   beforeEach(() => {
-    clearMmdVrHapticContacts();
     vi.spyOn(performance, "now").mockReturnValue(3_000);
   });
   afterEach(() => vi.restoreAllMocks());
-
-  it("stores per-controller contacts without publishing React state", () => {
-    setMmdVrHapticContacts(true, false);
-    expect(getMmdVrHapticContact(0)).toBe(true);
-    expect(getMmdVrHapticContact(1)).toBe(false);
-  });
 
   it("maps controller speed to conservative Low and Normal feedback", () => {
     expect(getMmdVrHapticFeedback(0, "normal")).toEqual({

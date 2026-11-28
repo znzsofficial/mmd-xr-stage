@@ -4,12 +4,12 @@ import {BenchReel} from '../../play/kite/KiteStation';
 import {addGardenBench,GardenBenchGrain} from '../GardenBench';
 import {Batch,type Part} from '../SceneryBatch';
 import {noPick} from '../sceneryPaint';
-import {useBakedSurface} from '../useBakedSurface';
+import {useCoastalPrint} from '../terminus/coastalPrints';
 import {cityGreenDeck,CITY_KITE_SEAT} from './green';
 
 export function CityGreen({shadows=true}:{shadows?:boolean}){
   const {x,z,w,d,y}=cityGreenDeck;
-  const grass=useBakedSurface('/scenery/terminus/park-shops.webp');
+  const grass=useCoastalPrint('shops');
   const ground=useMemo(()=>{
     // Use the coastal park's cut grass and clover, without its shop signs in
     // adjacent atlas cells. The patch meets street paving at its own edges.

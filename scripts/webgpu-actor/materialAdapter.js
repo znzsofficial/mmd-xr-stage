@@ -1,5 +1,5 @@
 import { createMmdTslBaseColorNode, createMmdTslPipeline, disposeMmdTslShadowCaster } from '@yohawing/three-mmd-loader/webgpu';
-import { Color } from 'three';
+import { BufferAttribute, Color } from 'three';
 import { materialEmissive, materialOpacity, max, sRGBTransferEOTF, sRGBTransferOETF, uniform, uniformTexture, uv } from 'three/tsl';
 import { invalidateDraws } from '../../src/mmdVrShowcase/wardrobe/draws';
 import { actorKeyLight, hybridToonColor, parseHybridSlots } from './hybridToon.js';
@@ -8,7 +8,8 @@ import { strinovaColor } from './strinovaToon.js';
 import { actorStyleMode } from './actorStyleSlots.js';
 import { createActorStylePasses } from './actorStylePasses.js';
 import { mmdStylePigment } from './mmdStylePigment.js';
-import { prepareSkinTransmission } from './skinTransmission.js';
+import { maskName, prepareSkinTransmission } from './skinTransmission.js';
+import { captureEndfieldGeometry, readEndfieldGeometry } from './endfieldGeometry.js';
 import { createFaceKeyShadow } from './faceKeyShadow.js';
 import { prepareOutline, installOutline } from './endfieldOutline.js';
 
@@ -126,7 +127,7 @@ export async function createActorMaterialAdapter(renderer, light, { balancedMode
     if(mode==='endfield' && !a.endfieldReady)return false;
     if(mode!=='strinova' && mode!=='endfield')return false;
     const {slots}=a;
-    const details={...maps,thinSkin:a.thinSkin};
+    const details={...maps,thinSkin:a.thinSkin || !!a.skinAttribute};
     const casters=details.faceCasterSlots ?? (details.face?.size ? [...slots].filter(([,role])=>['hair','cloth','leather'].includes(role)).map(([i])=>i) : []);
     if(casters.some(i=>!Number.isInteger(i)||i<0||i>=a.count||slots.get(i)==='face'))throw new RangeError('Expected authored non-receiver face caster slots');
     const styled=new Map(),materials=[model.mesh.material].flat();let shadow,outline;
@@ -146,6 +147,7 @@ export async function createActorMaterialAdapter(renderer, light, { balancedMode
       }
       if(!styled.size){shadow?.dispose();return false;}
       if(mode==='endfield' && a.bake)outline=installOutline(model.mesh,a.bake,{enabled:false,stylePasses});
+      if(mode==='endfield' && a.skinAttribute)a.geometry.setAttribute(maskName,a.skinAttribute);
     } catch(e){outline?.dispose();shadow?.dispose();throw e;}
     a.styles.set(mode,styled);
     if(mode==='endfield'){a.shadow=shadow;a.outline=outline;a.smoothOutline=details.smoothOutline!==false;}
@@ -154,6 +156,8 @@ export async function createActorMaterialAdapter(renderer, light, { balancedMode
   function retire(model){
     const a=actors.get(model);if(!a)return;
     setStyle(model,'mmd');a.outline?.dispose();a.shadow?.dispose();actors.delete(model);
+    if(a.skinAttribute && a.geometry.getAttribute(maskName)===a.skinAttribute)a.geometry.deleteAttribute(maskName);
+    a.skinAttribute?.dispose();
   }
   return {
     loadOptions: pipeline.createModelLoadOptions(),
@@ -167,10 +171,16 @@ export async function createActorMaterialAdapter(renderer, light, { balancedMode
         if (i >= count) throw new RangeError(`Hybrid PMX slot ${i} outside authored slot count ${count}`);
       }
       const skin = canStyle && detailMaps?.skinLighting!==false ? [...slots.keys()].filter(i=>slots.get(i)==='skin') : [];
-      let thinSkin=false,bake=null,styleReady=true;
+      let thinSkin=false,bake=null,styleReady=true,evidence;
+      const geometry=model.mesh.geometry;
       try {
-        thinSkin=skin.length>0 && prepareSkinTransmission(model.mesh,skin)>0;
-        if(canStyle&&slots.size&&detailMaps?.smoothOutline!==false)bake=prepareOutline(model.mesh,slots,{pmxBytes:detailMaps?.pmxBytes});
+        if(canStyle && slots.size && detailMaps?.deferStyleGeometry && typeof Worker!=='undefined'){
+          evidence=captureEndfieldGeometry(model.mesh,slots,skin,detailMaps);
+        }
+        if(evidence===undefined){
+          thinSkin=skin.length>0 && prepareSkinTransmission(model.mesh,skin)>0;
+          if(canStyle&&slots.size&&detailMaps?.smoothOutline!==false)bake=prepareOutline(model.mesh,slots,{pmxBytes:detailMaps?.pmxBytes});
+        }
       } catch(e){
         // In the switchable stage these are optional attributes, not a reason
         // to discard a valid PMX. The research probe, however, must report it.
@@ -207,12 +217,25 @@ export async function createActorMaterialAdapter(renderer, light, { balancedMode
             input.set(material,endfield?material.colorNode:original);
           }
         }
-        if(canStyle)actors.set(model,{base,input,count,slots,bake,thinSkin,cast:true,endfieldReady:styleReady,styles:new Map(),mode:'mmd'});
+        if(canStyle)actors.set(model,{base,input,count,slots,bake,thinSkin,evidence,geometry,cast:true,endfieldReady:styleReady&&!evidence,styles:new Map(),mode:'mmd'});
         if(endfield && prepareStyle(model,detailMaps))setStyle(model,'endfield');
       }
       return attached;
     },
     prepareStyle,setStyle,
+    loadStyleGeometry(model,signal) {
+      const a=actors.get(model);
+      if(!a?.evidence)return null;
+      return readEndfieldGeometry(a.evidence,signal).then(({outline,skin})=>{
+        signal.throwIfAborted();
+        if(actors.get(model)!==a || model.mesh.geometry!==a.geometry)throw Error('Style attachment retired');
+        // Mail only: the displayed frame installs both attributes with the graph.
+        if(outline)a.bake={geometry:a.geometry,height:outline.height,stats:outline.stats,
+          direction:outline.directions ? new BufferAttribute(outline.directions,4) : null};
+        if(skin)a.skinAttribute=new BufferAttribute(skin,1);
+        a.evidence=null;a.endfieldReady=true;
+      });
+    },
     setFaceCastersEnabled(model,on) {const a=actors.get(model);if(a&&!a.shadowFailed){a.cast=!!on;a.shadow?.setEnabled(a.mode==='endfield'&&a.cast);}},
     prepare(scene,afterMaterialSync) {
       const ready=pipeline.prepareRender(scene);

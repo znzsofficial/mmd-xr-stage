@@ -1453,3 +1453,192 @@ index 1670f0a..d546821 100644
  export { evaluateMmdBmpTextureAlpha, injectMmdBmp32BitAlphaHeader } from "./texture-bmp.js";
  export { decodeMmdTgaTexture } from "./texture-tga.js";
  export { isMmdBmpLikeTexturePath, isMmdTgaLikeTexturePath, isMmdDdsTexturePath, createTextureResolver, resolveMappedTexture, normalizeMmdTexturePath } from "./texture-source.js";
+diff --git a/dist/webgpu/index.d.ts b/dist/webgpu/index.d.ts
+index 48d661f..3b93dd0 100644
+--- a/dist/webgpu/index.d.ts
++++ b/dist/webgpu/index.d.ts
+@@ -10,6 +10,6 @@ export { appendMmdTslOutlineGroups, createMmdTslMaterialFromSource, replaceMmdMo
+ export type { MmdTslMaterialAssemblyOptions } from "./material-assembly.js";
+ export { createMmdTslShadowCaster, disposeMmdTslShadowCaster, type CreateMmdTslShadowCasterOptions } from "./shadow-caster.js";
+ export type { MmdWebGpuRenderer } from "./sparse-morph-runtime.js";
+-export { computeMmdTslSparsePositionMorphs, disposeMmdTslSparsePositionMorphs, enableMmdTslSparsePositionMorphs } from "./sparse-morph-runtime.js";
++export { computeMmdTslSparsePositionMorphs, disposeMmdTslSparsePositionMorphs, enableMmdTslSparsePositionMorphs, invalidateMmdTslSparseMorphOutputs } from "./sparse-morph-runtime.js";
+ export { createMmdTslModelLoadOptions, createMmdTslPipeline, createModelLoadOptions } from "./pipeline.js";
+ export type { MmdTslModelLoadOptions, MmdTslPipeline, MmdTslPipelineAttachOptions, MmdTslPipelineModel, MmdTslPipelineOptions, MmdTslSelfShadowDebugState } from "./pipeline.js";
+diff --git a/dist/webgpu/index.js b/dist/webgpu/index.js
+index 5eac275..d218db7 100644
+--- a/dist/webgpu/index.js
++++ b/dist/webgpu/index.js
+@@ -7,5 +7,5 @@
+ export { MMD_TSL_DEFAULT_LIGHT_COLOR, MMD_TSL_DEFAULT_TOON_COORD_OFFSET, createMmdTslBaseColorNode, createMmdTslToonMaterial, syncMmdTslMaterialState } from "./material-core.js";
+ export { appendMmdTslOutlineGroups, createMmdTslMaterialFromSource, replaceMmdModelMaterialsWithTsl } from "./material-assembly.js";
+ export { createMmdTslShadowCaster, disposeMmdTslShadowCaster } from "./shadow-caster.js";
+-export { computeMmdTslSparsePositionMorphs, disposeMmdTslSparsePositionMorphs, enableMmdTslSparsePositionMorphs } from "./sparse-morph-runtime.js";
++export { computeMmdTslSparsePositionMorphs, disposeMmdTslSparsePositionMorphs, enableMmdTslSparsePositionMorphs, invalidateMmdTslSparseMorphOutputs } from "./sparse-morph-runtime.js";
+ export { createMmdTslModelLoadOptions, createMmdTslPipeline, createModelLoadOptions } from "./pipeline.js";
+diff --git a/dist/webgpu/pipeline.d.ts b/dist/webgpu/pipeline.d.ts
+index 68316a9..9014527 100644
+--- a/dist/webgpu/pipeline.d.ts
++++ b/dist/webgpu/pipeline.d.ts
+@@ -17,6 +17,9 @@ export interface MmdTslPipelineAttachOptions {
+     readonly light?: THREE.DirectionalLight;
+     /** Backgrounds can opt out of the sparse position-morph compute path. */
+     readonly sparseMorphs?: boolean;
++    /** Skip unchanged sparse compute groups for this mesh only. External GPU
++     * writers must invalidateMmdTslSparseMorphOutputs(mesh) before writing. */
++    readonly reuseSparseMorphOutputs?: boolean;
+     readonly selfShadowEnabled?: boolean;
+     /** @deprecated Use selfShadowEnabled. Will be removed in 1.0.0. */
+     readonly selfShadow?: boolean;
+diff --git a/dist/webgpu/pipeline.js b/dist/webgpu/pipeline.js
+index d1e6730..c837e55 100644
+--- a/dist/webgpu/pipeline.js
++++ b/dist/webgpu/pipeline.js
+@@ -149,7 +149,8 @@ function createInitializedPipeline(renderer, options) {
+                 materials,
+                 uniforms,
+                 receiverUniforms,
+-                sparseMorphs
++                sparseMorphs,
++                reuseSparseMorphOutputs: attachOptions.reuseSparseMorphOutputs === true
+             };
+             attached.push(state);
+             attachedByMesh.set(model.mesh, state);
+@@ -185,7 +186,7 @@ function createInitializedPipeline(renderer, options) {
+             for (let index = 0; index < attached.length; index += 1) {
+                 const state = attached[index];
+                 if (state.sparseMorphs) {
+-                    computeMmdTslSparsePositionMorphs(renderer, state.model.mesh);
++                    computeMmdTslSparsePositionMorphs(renderer, state.model.mesh, state.reuseSparseMorphOutputs);
+                 }
+                 syncMaterialStates(state);
+                 syncReceiverVisibility(state);
+diff --git a/dist/webgpu/sparse-morph-runtime.d.ts b/dist/webgpu/sparse-morph-runtime.d.ts
+index e139d47..fb17bb1 100644
+--- a/dist/webgpu/sparse-morph-runtime.d.ts
++++ b/dist/webgpu/sparse-morph-runtime.d.ts
+@@ -2,6 +2,10 @@ import type * as THREE from "three/webgpu";
+ export interface MmdWebGpuRenderer {
+     readonly backend?: {
+         readonly isWebGPUBackend?: boolean;
++        readonly device?: object;
++        get?(attribute: THREE.BufferAttribute): {
++            readonly buffer?: object;
++        } | undefined;
+     };
+     compute(node: THREE.Node | THREE.Node[]): Promise<void> | undefined;
+ }
+@@ -12,5 +16,11 @@ export declare function enableMmdTslSparsePositionMorphs(mesh: THREE.SkinnedMesh
+  * @experimental
+  */
+ export declare function disposeMmdTslSparsePositionMorphs(mesh: THREE.SkinnedMesh): boolean;
+-/** @experimental */
+-export declare function computeMmdTslSparsePositionMorphs(renderer: MmdWebGpuRenderer, mesh: THREE.SkinnedMesh): boolean;
++/** Invalidate before an external GPU write to any of this mesh's sparse outputs.
++ * GPU writes do not advance BufferAttribute.version. The next compute restores
++ * every output, even if the final write was made by a now-retired display layer.
++ * @experimental */
++export declare function invalidateMmdTslSparseMorphOutputs(mesh: THREE.SkinnedMesh): void;
++/** Returns true if a compute group was submitted; reuse is opt-in and requires
++ * external writers to call invalidateMmdTslSparseMorphOutputs(). @experimental */
++export declare function computeMmdTslSparsePositionMorphs(renderer: MmdWebGpuRenderer, mesh: THREE.SkinnedMesh, reuseOutputs?: boolean): boolean;
+diff --git a/dist/webgpu/sparse-morph-runtime.js b/dist/webgpu/sparse-morph-runtime.js
+index 040ca2b..bdb2bde 100644
+--- a/dist/webgpu/sparse-morph-runtime.js
++++ b/dist/webgpu/sparse-morph-runtime.js
+@@ -1,3 +1,4 @@
++import { StaticDrawUsage } from "three/webgpu";
+ import * as TSL from "three/tsl";
+ import { getMmdGeometryMorphSource } from "../three/internal-morph-source.js";
+ import { packMmdPositionMorphsToVertexCsr, packMmdUvMorphsToVertexCsr } from "./sparse-morph.js";
+@@ -22,7 +23,8 @@ export function enableMmdTslSparsePositionMorphs(mesh) {
+     const packedPosition = packMmdPositionMorphsToVertexCsr(vertexCount, morphs);
+     if (packedPosition.morphIndices.length > 0) {
+         const output = createSparseMorphCompute(position, packedPosition, weights, "vec3");
+-        replacedAttributes.push(captureSparseMorphAttribute(mesh.geometry, "position", position));
++        output.computeNode.name = "MMD sparse morph: position";
++        replacedAttributes.push(captureSparseMorphAttribute(mesh.geometry, "position", position, output.attribute));
+         mesh.geometry.setAttribute("position", output.attribute);
+         mesh.geometry.morphAttributes.position = [];
+         computeNodes.push(output.computeNode);
+@@ -87,8 +89,25 @@ export function disposeMmdTslSparsePositionMorphs(mesh) {
+     sparsePositionMorphStates.delete(mesh);
+     return true;
+ }
+-/** @experimental */
+-export function computeMmdTslSparsePositionMorphs(renderer, mesh) {
++/** Invalidate before an external GPU write to any of this mesh's sparse outputs.
++ * GPU writes do not advance BufferAttribute.version. The next compute restores
++ * every output, even if the final write was made by a now-retired display layer.
++ * @experimental */
++export function invalidateMmdTslSparseMorphOutputs(mesh) {
++    const state = sparsePositionMorphStates.get(mesh);
++    if (state)
++        state.lastRenderer = undefined;
++}
++// The GPU allocation may have been retired/recreated underneath the very same
++// BufferAttribute. If the backend cannot identify it, never retain a result.
++function outputBuffer(renderer, mesh, slot) {
++    if (mesh.geometry.getAttribute(slot.name) !== slot.output || slot.output.usage !== StaticDrawUsage)
++        return undefined;
++    return renderer.backend?.get?.(slot.output)?.buffer;
++}
++/** Returns true if a compute group was submitted; reuse is opt-in and requires
++ * external writers to call invalidateMmdTslSparseMorphOutputs(). @experimental */
++export function computeMmdTslSparsePositionMorphs(renderer, mesh, reuseOutputs = false) {
+     const state = sparsePositionMorphStates.get(mesh);
+     if (!state) {
+         return false;
+@@ -97,6 +116,13 @@ export function computeMmdTslSparsePositionMorphs(renderer, mesh) {
+         throw new Error("MMD_TSL_SPARSE_POSITION_MORPH_REQUIRES_WEBGPU");
+     }
+     const influences = mesh.morphTargetInfluences;
++    if (reuseOutputs && state.lastRenderer === renderer && state.lastDevice === renderer.backend.device &&
++        state.weights.every((value, i) => Object.is(value, Math.fround(influences?.[i] ?? 0))) &&
++        state.replacedAttributes.every(slot => slot.lastVersion === slot.output.version && slot.lastBuffer !== undefined &&
++            slot.lastBuffer === outputBuffer(renderer, mesh, slot))) {
++        return false;
++    }
++    state.lastRenderer = undefined; // A throw or an asynchronous submission cannot establish a clean output.
+     for (let index = 0; index < state.weights.length; index += 1) {
+         state.weights[index] = influences?.[index] ?? 0;
+     }
+@@ -104,7 +130,15 @@ export function computeMmdTslSparsePositionMorphs(renderer, mesh) {
+         attribute.needsUpdate = true;
+     }
+     const onlyComputeNode = state.computeNodes[0];
+-    renderer.compute(state.computeNodes.length === 1 && onlyComputeNode ? onlyComputeNode : state.computeNodes);
++    const pending = renderer.compute(state.computeNodes.length === 1 && onlyComputeNode ? onlyComputeNode : state.computeNodes);
++    if (reuseOutputs && !pending && renderer.backend.device) {
++        for (const slot of state.replacedAttributes) {
++            slot.lastBuffer = outputBuffer(renderer, mesh, slot);
++            slot.lastVersion = slot.output.version;
++        }
++        state.lastDevice = renderer.backend.device;
++        state.lastRenderer = renderer;
++    }
+     return true;
+ }
+ function appendUvCompute(geometry, attributeName, base, packed, weights, computeNodes, weightsAttributes, storageAttributes, replacedAttributes) {
+@@ -112,17 +146,19 @@ function appendUvCompute(geometry, attributeName, base, packed, weights, compute
+         return;
+     const nodeType = base.itemSize === 2 ? "vec2" : "vec4";
+     const output = createSparseMorphCompute(base, packed, weights, nodeType);
+-    replacedAttributes.push(captureSparseMorphAttribute(geometry, attributeName, base));
++    output.computeNode.name = `MMD sparse morph: ${attributeName}`;
++    replacedAttributes.push(captureSparseMorphAttribute(geometry, attributeName, base, output.attribute));
+     geometry.setAttribute(attributeName, output.attribute);
+     geometry.morphAttributes[attributeName] = [];
+     computeNodes.push(output.computeNode);
+     weightsAttributes.push(output.weightsAttribute);
+     storageAttributes.push(...output.storageAttributes);
+ }
+-function captureSparseMorphAttribute(geometry, name, attribute) {
++function captureSparseMorphAttribute(geometry, name, attribute, output) {
+     return {
+         name,
+         attribute,
++        output,
+         morphAttributes: geometry.morphAttributes[name],
+         hadMorphAttributes: Object.prototype.hasOwnProperty.call(geometry.morphAttributes, name)
+     };

@@ -52,13 +52,17 @@ it('lets a Blender-numbered translation corroborate a primary role, not create o
   expect(plan.inputs.map((s:{i:number})=>s.i)).toEqual([0,1]);
 });
 
+function deferred<T>() {
+  let resolve!:(value:T)=>void, reject!:(reason:Error)=>void;
+  const promise=new Promise<T>((yes,no)=>{resolve=yes;reject=no;});
+  return {promise,resolve,reject};
+}
+
 function setup(inputs:object[]=[{}]) {
   const result={cloth:new Map([[2,{dispose:vi.fn()}]]),face:new Map()};
   result.cloth.set(8,result.cloth.get(2)!);
-  let resolve!:(v:typeof result)=>void, reject!:(e:Error)=>void;
-  const promise=new Promise<typeof result>((r,j)=>{resolve=r;reject=j;});
-  const pending={resolve,reject,promise};
-  const load=vi.fn((_src:object,_inputs:object[],_signal:AbortSignal)=>promise);
+  const pending=deferred<typeof result>();
+  const load=vi.fn((_src:object,_inputs:object[],_signal:AbortSignal)=>pending.promise);
   const adapter={prepareStyle:vi.fn(()=>true),setStyle:vi.fn(()=>true)},notify=vi.fn(), model={};
   const style=createActorStyle(model,{}, {hasBase:true,inputs,hybridSlots:{cloth:[2,8]}},adapter,notify,load);
   return {model,notify,style,adapter,load,pending,result};
@@ -118,6 +122,20 @@ it('installs Strinova while Endfield maps are pending and ignores the stale choi
   pending.resolve(result);await pending.promise;expect(style.frame()).toBe(false);
   style.choose('endfield');style.frame();style.choose('mmd');style.frame();
   expect(adapter.setStyle.mock.calls).toEqual(['strinova','endfield','mmd'].map(mode=>[model,mode]));style.dispose();
+});
+
+it('runs the authored bake only for Endfield, retries after worker failure, and never applies a late choice',async()=>{
+  const first=deferred<void>(),retry=deferred<void>();
+  const geometry=vi.fn().mockReturnValueOnce(first.promise).mockReturnValueOnce(retry.promise).mockReturnValue(null);
+  const adapter={prepareStyle:vi.fn(()=>true),setStyle:vi.fn(()=>true),loadStyleGeometry:geometry};
+  const style=createActorStyle({}, {}, {hasBase:true,inputs:[],hybridSlots:{skin:[0]}},adapter,()=>{});
+  style.choose('strinova');style.frame();expect(geometry).not.toHaveBeenCalled();
+  style.choose('endfield');expect(style.frame()).toBe(false);first.reject(Error('worker unavailable'));await first.promise.catch(()=>{});
+  expect(style.snapshot).toMatchObject({phase:'failed',requested:'strinova',mode:'strinova',failedModes:[]});
+  style.choose('endfield');style.choose('mmd');style.frame();retry.resolve();await retry.promise;
+  expect(style.frame()).toBe(false);expect(style.snapshot.mode).toBe('mmd');
+  style.choose('endfield');expect(style.frame()).toBe(true);expect(style.snapshot.mode).toBe('endfield');
+  style.dispose();expect(geometry.mock.calls[0][1].aborted).toBe(true);
 });
 
 it('only sends the selected package and resolved diffuse; retiring the actor terminates its decoder',async()=>{

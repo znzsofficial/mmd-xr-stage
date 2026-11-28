@@ -1,6 +1,7 @@
 import {BufferGeometry,Color,Float32BufferAttribute} from 'three';
 import {ROOM} from '../ClassroomLayout';
-import {LIDO_ENTRY,POOL} from '../LidoLayout';
+import {PAVILION_APRON,POOL,POOL_SUPPORT} from '../LidoLayout';
+import {blocks as arcadeLayout} from '../arcade/arcadeLayout';
 import {cityGreenDeck} from './green';
 import {arcadeVestibule,CITY_ORIGINS,cityPavements,type CityVenue} from './site';
 import {besideSchoolWalk} from './brickMargin';
@@ -57,41 +58,60 @@ export function buildStreetGround(room:StreetRoom){
   const cut=[bounds(cityGreenDeck)];
   if(venueOnStreet(room,'clinic'))cut.push(room==='clinic'?area(c.x-8.6,c.x+8.6,c.z-9,c.z+4.8):area(c.x-8.65,c.x+8.65,c.z-9.05,c.z+4.85));
   if(schoolVisible)cut.push(area(s.x-ROOM.w/2,s.x+ROOM.w/2,s.z-ROOM.d/2,s.z+ROOM.d/2));
-  if(venueOnStreet(room,'pool'))cut.push(bounds(POOL.deck,p.x,p.z),bounds(LIDO_ENTRY,p.x,p.z));
-  if(venueOnStreet(room,'arcadeHall'))cut.push(area(a.x-15,a.x+13,a.z-6,a.z+13));
+  if(venueOnStreet(room,'pool'))cut.push(...[POOL.water,PAVILION_APRON,...POOL_SUPPORT].map(r=>bounds(r,p.x,p.z)));
+  // Across the new street portal you can see into the game hall before the
+  // swap. The sunken court needs an actual soil face up to grade: simply
+  // cutting its rectangle exposed the sky beneath the edge of the street.
+  if(venueOnStreet(room,'arcadeHall')){
+    for(const floor of arcadeLayout)if(floor.tag==='court'||floor.tag==='hall-tile'||floor.tag==='lounge-court')cut.push(bounds(floor,a.x,a.z));
+    const lounge=arcadeLayout.find(block=>block.tag==='lounge-court')!;
+    const {l,r,b,f}=bounds(lounge,a.x,a.z),low=lounge.y+lounge.h/2,grade=-.026;
+    const side=(x:number,z:number,xx:number,zz:number)=>earth.face([[x,low,z],[x,grade,z],[xx,grade,zz],[xx,low,zz]],'#998f7c');
+    const left=Math.max(l,view.l),right=Math.min(r,view.r),back=Math.max(b,view.b),front=Math.min(f,view.f);
+    if(f>=view.b&&f<=view.f&&left<right)side(left,f,right,f);
+    if(b>=view.b&&b<=view.f&&left<right)side(right,b,left,b);
+    if(l>=view.l&&l<=view.r&&back<front)side(l,back,l,front);
+  }
   // Carts use the narrower dark carriageway; the stone walks meet its flush
-  // gutter. The lanes terminate at the goods depot and the far loading court.
-  const lanes=[area(23.96,27.02,46.6,56.6),area(-11.5,53.5,60.42,63.02),
-    area(-4.42,-1.19,60.42,88.65),area(-47.4,54.1,89.02,92.32),area(-45.65,-42.2,40.1,96.6),
-    area(52.0,55.15,41.1,94),area(-50.2,55.15,99.1,102.3)];
+  // gutter. Keep the school road in front of the sunken arcade court, and
+  // run the service lane behind the whole shop row instead of through it.
+  const lanes=[area(23.96,27.02,46.6,56.6),area(-11.5,53.5,60.42,62.28),
+    area(-4.42,-1.19,60.42,88.65),area(-47.4,54.1,89.02,92.32),area(-45.65,-42.2,40.1,104.28),
+    area(48.85,51.70,41.1,104.28),area(-50.2,51.70,101.68,104.28)];
   // One top triangle pair per cell, regardless of how many routes meet there.
   // Only exposed outer boundaries get a kerb; no stripes bisect a T junction.
-  const grid=(axis:'x'|'z')=>{
+  const grid=(axis:'x'|'z',shapes:Bounds[],walks:Bounds[])=>{
     const lo=axis==='x'?'l':'b',hi=axis==='x'?'r':'f';
     const points=[view[lo],view[hi]];
-    for(const item of [...cut,...lanes,...street])points.push(item[lo],item[hi]);
-    for(const item of street)points.push(item[lo]+.14,item[hi]-.14);
+    for(const item of shapes)points.push(item[lo],item[hi]);
+    for(const item of walks)points.push(item[lo]+.14,item[hi]-.14);
     return [...new Set(points.map(v=>Math.round(v*1e5)/1e5))].filter(v=>v>=view[lo]&&v<=view[hi]).sort((a,b)=>a-b);
   };
-  const xs=grid('x'),zs=grid('z');
+  const shapes=[...cut,...lanes,...street],zs=grid('z',shapes,street);
   const pavedAt=(x:number,z:number)=>street.some(q=>contains(q,x,z));
-  for(let j=1;j<zs.length;j++)for(let i=1;i<xs.length;i++){
-    const l=xs[i-1],r=xs[i],b=zs[j-1],f=zs[j],x=(l+r)/2,z=(b+f)/2;
-    if(cut.some(q=>contains(q,x,z)))continue;
-    const st=street.find(q=>contains(q,x,z));
-    const patch=(surface:Surface,y:number,tint:string)=>{
-      for(const poly of besideSchoolWalk(l,r,b,f,schoolVisible))surface.face(poly.map(([x,z])=>[x,y,z]),tint);
-    };
-    if(st){
-      const edge=(x<st.l+.14&&!pavedAt(st.l-.002,z))||(x>st.r-.14&&!pavedAt(st.r+.002,z))||
-        (z<st.b+.14&&!pavedAt(x,st.b-.002))||(z>st.f-.14&&!pavedAt(x,st.f+.002));
-      const tint=edge?'#aab6a9':st.id==='sports-street'?'#e8dac4':st.id==='inland-street'?'#e0ddd0':'#faf4df';
-      patch(paving,st.y,tint);
-    }else{
-      const road=lanes.some(q=>contains(q,x,z));
-      // The raised fill meets the original park embankment (top -.015) and
-      // stays dry at the highest tide (-.06). No grass platform under the pit.
-      patch(earth,road?-.009:-.026,road?'#8a938d':'#aab19a');
+  for(let j=1;j<zs.length;j++){
+    const b=zs[j-1],f=zs[j],z=(b+f)/2;
+    // A poolside edge doesn't require a cut all the way across every city
+    // block. Include the walks just across either end for kerbs at T joins.
+    const inBand=(q:Bounds)=>q.b<=f+.002&&q.f>=b-.002;
+    const xs=grid('x',shapes.filter(inBand),street.filter(inBand));
+    for(let i=1;i<xs.length;i++){
+      const l=xs[i-1],r=xs[i],x=(l+r)/2;
+      if(cut.some(q=>contains(q,x,z)))continue;
+      const st=street.find(q=>contains(q,x,z));
+      const patch=(surface:Surface,y:number,tint:string)=>{
+        for(const poly of besideSchoolWalk(l,r,b,f,schoolVisible))surface.face(poly.map(([x,z])=>[x,y,z]),tint);
+      };
+      if(st){
+        const edge=(x<st.l+.14&&!pavedAt(st.l-.002,z))||(x>st.r-.14&&!pavedAt(st.r+.002,z))||
+          (z<st.b+.14&&!pavedAt(x,st.b-.002))||(z>st.f-.14&&!pavedAt(x,st.f+.002));
+        const tint=edge?'#aab6a9':st.id==='sports-street'?'#e8dac4':st.id==='inland-street'?'#e0ddd0':'#faf4df';
+        patch(paving,st.y,tint);
+      }else{
+        const road=lanes.some(q=>contains(q,x,z));
+        // The raised fill stays dry at the highest tide (-.06).
+        patch(earth,road?-.009:-.026,road?'#8a938d':'#aab19a');
+      }
     }
   }
   if(room==='seasideTerminus'){

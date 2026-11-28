@@ -25,8 +25,10 @@ export const parkLights=[{x:-3.05,z:10.4},{x:20.1,z:19.4},{x:20.1,z:32},{x:1.65,
 
 // Local +Z points OUT of a shop. Local +X runs right as seen from the park.
 export const parkShops=[
-  {kind:'bakery',x:-.8,z:37.2,yaw:Math.PI,w:6.4,d:5.9,h:5.85,color:'#eadabd',trim:'#507b73'},
-  {kind:'books',x:6.8,z:37.65,yaw:Math.PI,w:8.1,d:7.2,h:9.25,color:'#ba7860',trim:'#f1debd'},
+  // The shallow back-of-house and eaves leave a service gap before the
+  // clinic's rear wall at z=42; the public shopfronts still face the park.
+  {kind:'bakery',x:-.8,z:37.2,yaw:Math.PI,w:6.4,d:3.65,h:5.85,color:'#eadabd',trim:'#507b73'},
+  {kind:'books',x:6.8,z:37.65,yaw:Math.PI,w:8.1,d:3.45,h:9.25,color:'#ba7860',trim:'#f1debd'},
   {kind:'flowers',x:15.2,z:37.28,yaw:Math.PI,w:8.0,d:5.4,h:5.35,color:'#ebdfc3',trim:'#77958a'},
   {kind:'coffee',x:23.65,z:32.2,yaw:-Math.PI/2,w:7.8,d:6.2,h:9.7,color:'#e5dfc9',trim:'#477879'},
   {kind:'cycles',x:23.55,z:23.95,yaw:-Math.PI/2,w:7.7,d:5.4,h:5.6,color:'#aec1c2',trim:'#8e5845'},

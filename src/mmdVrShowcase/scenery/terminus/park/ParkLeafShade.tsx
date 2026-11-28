@@ -1,10 +1,9 @@
 import {useEffect, useLayoutEffect, useMemo, useRef} from 'react';
 import {BufferGeometry, Float32BufferAttribute, Matrix4, Vector3, type InstancedMesh, type Mesh, type Object3D} from 'three';
 import {noPick, paintedSurface} from '../../sceneryPaint';
-import {useBakedSurface} from '../../useBakedSurface';
+import {useCoastalPrint} from '../coastalPrints';
 import {SHORE_SUN} from '../shoreLayout';
 import {habitOf, shadowPrint, type ParkTree} from './treeHabit';
-import shadeUrl from './zelkova-shade.webp';
 
 function shadePrint(trees:readonly ParkTree[],atlas:HTMLImageElement){
   const rects=trees.map((t,i)=>{
@@ -70,7 +69,7 @@ function projectReceivers(park:Object3D,grove:Object3D,print:ReturnType<typeof s
 }
 
 export function ParkLeafShade({trees}:{trees:readonly ParkTree[]}){
-  const atlas=useBakedSurface(shadeUrl), ref=useRef<Mesh>(null);
+  const atlas=useCoastalPrint('leafShade'), ref=useRef<Mesh>(null);
   const print=useMemo(()=>atlas && atlas.image instanceof HTMLImageElement?shadePrint(trees,atlas.image):null,[atlas,trees]);
   useEffect(()=>()=>print?.texture.dispose(),[print]);
   useLayoutEffect(()=>{

@@ -1,4 +1,4 @@
-import {westGallery} from './westGallery';
+import {forecourtEdge,forecourtWall,westGallery} from './westGallery';
 
 // Stage dimensions in metres, not measurements from the game. Facing the
 // twin front doors from outside, east/LOUNGE is on the left (-X), west on +X.
@@ -23,11 +23,11 @@ function slab(tag:string,l:number,r:number,b:number,f:number,top:number,h:number
 const turf='#799687', tile='#626d7e', upperTile='#616875', teal='#569699', ivory='#c1b7a8';
 // Base court and sunken lounge are distinct travel/pick surfaces. All treads
 // have real tops; upper gallery is four plates, never an invisible whole quad.
-slab('court',-8,13,frontLip,13,0,.20,'#999b95');
+slab('court',-8,13,frontLip,forecourtEdge,0,.20,'#999b95');
 slab('court',-8,13,-6,-4.5,0,.20,'#999b95');
 slab('court',-8,-7,-4.5,frontLip,0,.20,'#999b95');
 slab('court',7,14,-4.5,frontLip,0,.20,'#90959e');
-slab('lounge-court',-15,-8,-6,13,-.68,.22,turf);
+slab('lounge-court',-15,-8,-6,forecourtEdge,-.68,.22,turf);
 slab('hall-tile',-7,7,-4.5,frontLip,0,.14,tile);
 for(let i=0;i<4;i++)slab('lounge-step',-8-(i+1)*.43,-8-i*.43,-2.0,4.15,-.17*i,.20,'#999c98');
 function ring(tag:string,hole:typeof opening,top:number,h:number,ink:string,deck:boolean){
@@ -94,8 +94,8 @@ block('east-service-cap',-12.48,2.64,-5.63,4.62,1.02,.32,'#50746f');
 block('west-shelter-back',13.95,0,.30,.24,3.42,8.53,'#77858b');
 block('west-shelter-roof',12.61,3.17,.03,2.74,.23,8.79,'#6e8389');
 block('west-end-wall',10.05,0,-5.60,5.98,3.42,.23,'#77868b');
-block('front-court-east',-4.88,0,12.96,4.70,2.85,.25,'#ad8e79');
-block('front-court-west',4.84,0,12.96,5.50,2.72,.25,'#b07964');
+block('front-court-east',-4.88,0,forecourtWall.z,4.70,2.85,forecourtWall.d,'#ad8e79');
+block('front-court-west',4.84,0,forecourtWall.z,5.50,2.72,forecourtWall.d,'#b07964');
 export const cabinets:{x:number;y:number;z:number;side:number;style:'twin'|'fault'|'vent'}[]=[];
 function cabinet(x:number,y:number,z:number,style:'twin'|'fault'|'vent'){
   const side=Math.sign(-x),w=style==='fault'?1.27:.76,h=style==='fault'?2.31:1.71;

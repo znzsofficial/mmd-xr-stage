@@ -4,9 +4,11 @@ import {noPick,paintedSurface} from '../sceneryPaint';
 import {CITY_ORIGINS,cityPavements} from './site';
 import {mapCase} from './streetFurniture';
 import {inReturnView,type StreetRoom} from './streetGround';
+import type {Print,PrintedPanel} from './streetPrint';
 
 const pine='#335b58',cream='#f1dfb8',teal='#417e7e',red='#c2684e';
-function sportsMural(){return paintedSurface(1280,280,g=>{
+const sportsMural:Print={w:1024,h:224,paint(g){
+  g.scale(.8,.8);
   g.fillStyle=cream;g.fillRect(0,0,1280,280);
   // A fired-ceramic frieze: a swimmer breaks across two colours of surf.
   // The curved strokes are independent artwork, not a poster from the arcade.
@@ -28,39 +30,38 @@ function sportsMural(){return paintedSurface(1280,280,g=>{
   // Glaze interrupts the artwork at the grout, rather than a second depth layer.
   g.lineWidth=1.8;g.strokeStyle='rgba(77,78,61,.29)';g.beginPath();
   for(let x=0;x<=1280;x+=40){g.moveTo(x,0);g.lineTo(x,280);}for(let y=0;y<=280;y+=40){g.moveTo(0,y);g.lineTo(1280,y);}g.stroke();
-});}
+}};
 
-function arcadeElevation():Part[]{
-  const parts:Part[]=[];
-  const add=(x:number,y:number,z:number,w:number,h:number,d:number,color:string,rx=0)=>parts.push({p:[x,y,z],s:[w,h,d],color,rx});
+const sportingSash:Print={w:256,h:176,paint(g){
+  const light=g.createLinearGradient(0,0,0,176);light.addColorStop(0,'#b1c4bb');light.addColorStop(.52,'#8ba9a9');light.addColorStop(1,'#617d77');
+  g.fillStyle=light;g.fillRect(0,0,256,176);g.fillStyle='#aab8a9';
+  for(let j=0;j<4;j++)g.fillRect(0,3+j*9,256,4);
+  g.fillStyle='#657e79';g.fillRect(0,47,256,4);g.fillStyle='#6d877e';g.fillRect(4,119,76,57);g.fillRect(162,127,77,49);
+}};
+
+const intakeGrille:Print={w:128,h:64,paint(g){
+  g.fillStyle='#789084';g.fillRect(0,0,128,64);g.fillStyle='#49665e';g.fillRect(5,5,118,54);
+  for(let y=9;y<55;y+=10){g.fillStyle='#aeb6a1';g.fillRect(9,y,110,4);g.fillStyle='#81958a';g.fillRect(9,y+4,110,3);}
+}};
+
+export function appendSportsElevation(room:StreetRoom,parts:Part[],prints:PrintedPanel[]){
+  if(room!=='seasideTerminus'&&room!=='classroom'&&room!=='pool')return;
+  const o=CITY_ORIGINS.arcadeHall;
+  const add=(x:number,y:number,z:number,w:number,h:number,d:number,color:string,rx=0)=>parts.push({p:[o.x+x,y,o.z+z],s:[w,h,d],color,rx});
   // The actual back wall is a solid two-storey block at z=-4.5. A high-sill
   // ribbon and a continuous cantilever distinguish it from the red entrance.
   for(let i=0;i<6;i++){
     const x=-5.75+2.30*i;
     add(x,1.88,-4.74,2.17,1.46,.20,'#66796e');
-    add(x,1.86,-4.849,1.99,1.28,.038,i%2?'#84a5a4':'#87a9a7');
-    add(x,2.31,-4.881,1.99,.29,.021,'#bbc9b7');
-    for(const dx of [-.98,0,.98])add(x+dx,1.87,-4.896,.05,1.37,.074,pine);
-    add(x,2.13,-4.909,2.03,.056,.082,pine);add(x,1.107,-4.86,2.23,.095,.44,'#d8d2b9');
-    add(x+.53,.68,-4.708,.75,.40,.115,'#7a9186');
-    for(let k=0;k<4;k++)add(x+.53,.55+k*.080,-4.778,.65,.023,.066,'#c1c3ab');
+    prints.push({x:o.x+x,y:1.86,z:o.z-4.848,w:1.99,h:1.28,yaw:Math.PI,art:sportingSash});
+    add(x,1.86,-4.87,.06,1.32,.075,pine);add(x,1.107,-4.86,2.23,.095,.44,'#d8d2b9');
+    prints.push({x:o.x+x+.53,y:.78,z:o.z-4.641,w:.75,h:.38,yaw:Math.PI,art:intakeGrille});
   }
   add(0,3.28,-5.04,14.44,.20,1.18,'#b9c2af');add(0,3.202,-5.65,14.55,.16,.13,pine);
   for(let j=0;j<8;j++)add(-6.62+j*1.89,3.04,-5.10,.075,.15,.87,'#688275',-.24);
   add(0,4.96,-4.72,13.26,2.52,.16,'#9c927a');add(0,6.285,-4.76,13.44,.11,.32,'#c7bda5');
   for(const s of [-1,1])add(s*6.86,4.97,-4.732,.14,3.00,.21,'#acc0ad');
-  return parts;
-}
-
-function ArcadeWall(){
-  const art=useMemo(sportsMural,[]),parts=useMemo(arcadeElevation,[]);
-  useEffect(()=>()=>art.dispose(),[art]);
-  const o=CITY_ORIGINS.arcadeHall;
-  return <group name="city:arcade-sports-elevation" position={[o.x,0,o.z]}>
-    <Batch name="city:arcade-glazed-window-ribbon" parts={parts}/>
-    <mesh name="city:sports-ceramic-mural" rotation-y={Math.PI} position={[0,4.96,-4.805]} raycast={noPick} userData={{playerCollision:false}}>
-      <planeGeometry args={[13.13,2.40]}/><meshStandardMaterial map={art} roughness={.73}/></mesh>
-  </group>;
+  prints.push({x:o.x,y:4.96,z:o.z-4.813,w:13.13,h:2.40,yaw:Math.PI,art:sportsMural});
 }
 
 function cityMap(){return paintedSurface(864,448,g=>{
@@ -69,7 +70,7 @@ function cityMap(){return paintedSurface(864,448,g=>{
   g.font='650 32px system-ui,sans-serif';g.fillStyle=cream;g.fillText('海站街区图',25,39);
   g.textAlign='right';g.font='650 20px system-ui,sans-serif';g.fillText('STATION DISTRICT   /   01',839,37);g.textAlign='left';
   for(const q of cityPavements){g.fillStyle='#b4b9a5';g.fillRect(px(q.x+q.w/2),py(q.z+q.d/2),q.w*6.9,q.d*6.1);}
-  const route=[[21.4,43],[21.4,58.5],[1,58.5],[1,87],[29.1,87],[29.1,82.5]];
+  const route=[[mapCase.x,58.5],[1,58.5],[1,87],[29.1,87],[29.1,82.5]];
   g.strokeStyle=red;g.lineWidth=6;g.lineJoin='round';g.setLineDash([10,5]);g.beginPath();
   for(const [i,[x,z]] of route.entries()){if(i)g.lineTo(px(x),py(z));else g.moveTo(px(x),py(z));}g.stroke();g.setLineDash([]);
   const stops=[['01','花园诊所',8.6,53.8],['02','海站教室',39.97,53.6],['03','夏日泳池',-24.25,72.05],['04','电玩厅西廊',29.1,82.5]] as const;
@@ -103,8 +104,5 @@ function DistrictMap({shadows}:{shadows:boolean}){
 }
 
 export function SportsStreetLandmark({room,shadows}:{room:StreetRoom;shadows:boolean}){
-  // Pool sees the same rear wall via its existing ramp-side arcade envelope.
-  // The active hall's return sees the opposite record shop, not its own rear.
-  return <>{(room==='seasideTerminus'||room==='classroom'||room==='pool')&&<ArcadeWall/>}
-    {inReturnView(room,mapCase.x,mapCase.z)&&<DistrictMap shadows={shadows}/>}</>;
+  return inReturnView(room,mapCase.x,mapCase.z)?<DistrictMap shadows={shadows}/>:null;
 }

@@ -1,52 +1,51 @@
 import { useFrame } from "@react-three/fiber";
 import { useXRInputSourceState, XRSpace } from "@react-three/xr";
-import { useEffect, useRef } from "react";
+import { useContext, useEffect, useLayoutEffect, useRef } from "react";
 import * as THREE from "three";
 import {
   clearMmdVrControllerColliders,
   setMmdVrControllerColliderMatrix,
 } from "./controllerSlots";
-import {
-  createMmdVrHapticDriver,
-  createMmdVrHapticGate,
-  getMmdVrHapticFeedback,
-  getMmdVrHapticContact,
-  supportsMmdVrHaptics,
-  type MmdVrHapticGamepad,
-} from "./mmdVrHaptics";
+import { ControllerContactHaptics } from './controllerContactHaptics';
 import { useMmdVrStore } from "../../mmdVrStore";
 import { isWebgpuStageSession } from '../../backpack/sessionAssets';
+
+function gripTracked(tracked: (THREE.Object3D & { transformReady?: boolean }) | null, frame: XRFrame | undefined, delta: number) {
+  // The external XR loop resumes at dt=0 after lost tracking. Let Bullet
+  // consume a parked slot before a newly acquired pose can move this body.
+  return Boolean((delta > 0 || !isWebgpuStageSession()) && frame?.session.visibilityState === "visible" && tracked?.visible && tracked.transformReady !== false);
+}
 
 function ControllerCollider({ handedness, index }: { handedness: "left" | "right"; index: 0 | 1 }) {
   const controller = useXRInputSourceState("controller", handedness);
   const physicsEnabled = useMmdVrStore((state) => state.physicsEnabled);
   const physicsDebugEnabled = useMmdVrStore((state) => state.physicsDebugEnabled);
-  const physicsBusy = useMmdVrStore((state) => state.physicsBusy);
   const colliderRadius = useMmdVrStore((state) => state.prefs.physicsColliderRadius);
-  const hapticLevel = useMmdVrStore((state) => state.prefs.physicsHapticLevel);
   const contactCount = useMmdVrStore((state) => state.physicsControllerContactCounts[index]);
   const ref = useRef<THREE.Object3D>(null);
-  const hapticGateRef = useRef(createMmdVrHapticGate());
-  const hapticDriverRef = useRef(createMmdVrHapticDriver());
   const lastPositionRef = useRef<THREE.Vector3 | null>(null);
   const smoothedSpeedRef = useRef(0);
   const positionRef = useRef(new THREE.Vector3());
-  const hapticPathEnabledRef = useRef(false);
+  const haptics = useContext(ControllerContactHaptics);
+  const source = controller?.inputSource;
+  useLayoutEffect(() => {
+    lastPositionRef.current = null;
+    smoothedSpeedRef.current = 0;
+    if (source?.gripSpace) return haptics?.bind(index, {
+      source, tracked: (frame, delta) => gripTracked(ref.current, frame, delta), speed: () => smoothedSpeedRef.current,
+    });
+  }, [haptics, index, source]);
 
-  useFrame((state, delta, frame) => {
-    const object = ref.current;
-    const tracked = object as (THREE.Object3D & { transformReady?: boolean }) | null;
-    // The external XR loop resumes at dt=0 after lost tracking. Let Bullet
-    // consume a parked slot before a newly acquired pose can move this body.
-    const trackingReady = Boolean((delta > 0 || !isWebgpuStageSession()) && frame?.session.visibilityState === "visible" && tracked?.visible && tracked.transformReady !== false);
-    if (!trackingReady) {
+  useFrame((_, delta, frame) => {
+    const tracked = ref.current;
+    if (!tracked || !gripTracked(tracked, frame, delta)) {
       setMmdVrControllerColliderMatrix(index, null);
       lastPositionRef.current = null;
       smoothedSpeedRef.current = 0;
     } else {
-      tracked!.updateWorldMatrix(true, false);
-      setMmdVrControllerColliderMatrix(index, tracked!.matrixWorld);
-      positionRef.current.setFromMatrixPosition(tracked!.matrixWorld);
+      tracked.updateWorldMatrix(true, false);
+      setMmdVrControllerColliderMatrix(index, tracked.matrixWorld);
+      positionRef.current.setFromMatrixPosition(tracked.matrixWorld);
       const previousPosition = lastPositionRef.current;
       if (previousPosition && delta > 0 && delta <= 0.1) {
         const speed = Math.min(3, previousPosition.distanceTo(positionRef.current) / Math.max(delta, 1 / 120));
@@ -58,35 +57,9 @@ function ControllerCollider({ handedness, index }: { handedness: "left" | "right
         smoothedSpeedRef.current = 0;
       }
     }
-
-    const gamepad = controller?.inputSource.gamepad as MmdVrHapticGamepad | undefined;
-    const hapticPathEnabled = trackingReady
-      && physicsEnabled
-      && !physicsBusy
-      && hapticLevel !== "off"
-      && supportsMmdVrHaptics(gamepad);
-    if (!hapticPathEnabled) {
-      hapticGateRef.current.reset();
-      if (hapticPathEnabledRef.current) hapticDriverRef.current.reset();
-      hapticPathEnabledRef.current = false;
-      return;
-    }
-    hapticPathEnabledRef.current = true;
-    const contactActive = getMmdVrHapticContact(index);
-    const nowMs = state.clock.elapsedTime * 1000;
-    if (hapticGateRef.current.update(contactActive, nowMs)) {
-      void hapticDriverRef.current.pulse(
-        gamepad,
-        getMmdVrHapticFeedback(smoothedSpeedRef.current, hapticLevel),
-        nowMs,
-      );
-    }
   });
 
   useEffect(() => () => {
-    hapticGateRef.current.reset();
-    hapticDriverRef.current.reset();
-    hapticPathEnabledRef.current = false;
     setMmdVrControllerColliderMatrix(index, null);
   }, [index]);
   if (!controller?.inputSource.gripSpace) return null;

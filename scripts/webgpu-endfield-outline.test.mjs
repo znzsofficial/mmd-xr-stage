@@ -5,6 +5,9 @@ import { ArrayCamera, Bone, BufferGeometry, Float32BufferAttribute, MeshToonMate
 import { positionLocal, vec3 } from 'three/tsl';
 import { replaceMmdModelMaterialsWithTsl } from '@yohawing/three-mmd-loader/webgpu';
 import { installOutline, prepareOutline } from './webgpu-actor/endfieldOutline.js';
+import { captureEndfieldGeometry, readEndfieldGeometry } from './webgpu-actor/endfieldGeometry.js';
+import { bakeEndfieldGeometry } from './webgpu-actor/endfieldGeometry.worker.js';
+import { prepareSkinTransmission } from './webgpu-actor/skinTransmission.js';
 import { parsePmxSectionInventory } from '@yohawing/three-mmd-loader/parser';
 import { encodeSwatch } from '../experiments/gpu-cloth/swatch.js';
 
@@ -61,6 +64,34 @@ test('hard panel hinges and special skin weights retain their authored direction
     const {direction}=prepareOutline(mesh,roles);
     assert.deepEqual(direction.array.slice(0,3), orig.array.slice(0,3));
   }
+});
+
+test('style worker uses immutable authored attributes, index, groups, edge flags and finger bind pose',async()=>{
+  const mesh=fixture(), g=mesh.geometry, [root,child]=mesh.skeleton.bones;
+  root.name='左中指１';child.name='左中指２';root.add(child);child.position.y=1;mesh.updateMatrixWorld(true);mesh.bind(mesh.skeleton);
+  const selection=new Map([[0,'skin'],[1,'hair']]);
+  const evidence=captureEndfieldGeometry(mesh,selection,[0],{});
+  const original=prepareOutline(mesh,selection);
+  assert.ok(prepareSkinTransmission(mesh,[0])>0);
+  const expectedSkin=g.attributes.mmdSkinThinness.array.slice();
+  replaceMmdModelMaterialsWithTsl(mesh,{appendOutlineGroups:true});
+  g.attributes.position.array.fill(10);g.attributes.uv.array.fill(0);g.attributes.normal.array.fill(0);
+  g.index.array.fill(0);g.groups[0].count=0;root.name='unknown';child.position.y=3;
+  const {outline,skin}=await bakeEndfieldGeometry(structuredClone(evidence));
+  assert.deepEqual(outline.directions,original.direction.array);assert.deepEqual(outline.stats,original.stats);
+  assert.equal(outline.height,original.height);assert.deepEqual(skin,expectedSkin);
+});
+
+test('retiring or losing a worker leaves the same immutable snapshot usable for a new request',async()=>{
+  const snapshot=captureEndfieldGeometry(fixture(),roles,[],{}),abort=new AbortController();
+  let terminated=0;
+  const worker={postMessage(data){assert.equal(data,snapshot);},terminate(){terminated++;}};
+  const failed=readEndfieldGeometry(snapshot,abort.signal,()=>worker);worker.onerror({});
+  await assert.rejects(failed,/optional style geometry/);assert.equal(worker.onmessage,null);
+  const pending=readEndfieldGeometry(snapshot,abort.signal,()=>worker);abort.abort();await assert.rejects(pending,{name:'AbortError'});
+  const retry=readEndfieldGeometry(snapshot,new AbortController().signal,()=>worker);
+  worker.onmessage({data:await bakeEndfieldGeometry(snapshot)});assert.ok((await retry).outline.directions.length);
+  assert.equal(terminated,3);
 });
 
 function charts(mode='continuous') {

@@ -1,5 +1,5 @@
 import { positionMorphs } from './positionMorphs.js';
-import { Vector3 } from 'three/webgpu';
+import { Vector3 } from 'three';
 
 // The sparse TSL path deliberately omits dense morphs. Read just the exact
 // position-morph memberships/deltas from the SAME source PMX, using the

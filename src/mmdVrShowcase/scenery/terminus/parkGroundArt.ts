@@ -190,7 +190,8 @@ export function inlandEmbankment(){
   for(const x of [-8.16,-3.84]){
     land.add(box(x,.58,37.4,.36,2.47,.68),'#aaa994');land.add(box(x,.23,36.76,.47,1.56,.83),'#969c8c');
   }
-  land.add(box(-15.26,-.38,35.68,14.0,1.90,22.1),'#909887');
+  // Stop the service terrace short of the clinic's west wall (x=-8.6).
+  land.add(box(-15.61,-.38,35.68,13.30,1.90,22.1),'#909887');
   land.add(box(-12.66,.69,36.66,7.4,.24,18.7),'#a1a291');
   for(let j=0;j<5;j++){
     const h=.21*j+.22;land.add(box(-9.66,h/2-.02,26.4+j*.37,2.0,h,.39),'#a6a998');

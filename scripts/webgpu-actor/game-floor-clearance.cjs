@@ -3,6 +3,7 @@ const fs=require('node:fs/promises');
 const path=require('node:path');
 
 async function observe({id,slots}){
+  const {fullReference,invalidateMmdTslSparseMorphOutputs}=await import('/scripts/webgpu-actor/sparse-morph-observer.js');
   const {useBackpack}=await import('/src/mmdVrShowcase/backpack/store.ts');
   const {authoredSurface}=await import('/src/mmdVrShowcase/play/authoredSurface.ts');
   const {ClothCrossing}=await import('/src/mmdVrShowcase/mmdRuntime/clothCrossing.ts');
@@ -14,10 +15,10 @@ async function observe({id,slots}){
     /skirt|スカート|裙/i.test([b.name,b.englishName,bones[b.boneIndex]?.name].join(' '))).map(b=>b.boneIndex));
   const hip=bones.find(b=>[b.name,b.userData.mmdBoneName,b.userData.mmdEnglishBoneName].some(n=>/^(hips?|lower body|下半身|pelvis)$/i.test(n??'')));
   const {skinIndex,skinWeight}=mesh.geometry.attributes;
-  const native=gl.compute,device=gl.backend.device;let saved,copyRaw=false,passes=0;
+  const native=gl.compute,device=gl.backend.device;let saved,copyRaw=false,passes=0,clearance;
   function copy(from,to){const e=device.createCommandEncoder();e.copyBufferToBuffer(from,0,to,0,from.size);device.queue.submit([e.finish()]);}
   gl.compute=function(node,...rest){if(node?.name==='Manual pose skirt clearance'){
-    passes++;if(copyRaw){const buffer=gl.backend.get(output).buffer;
+     clearance=node;passes++;if(copyRaw){const buffer=gl.backend.get(output).buffer;
       saved??=device.createBuffer({size:buffer.size,usage:GPUBufferUsage.COPY_DST|GPUBufferUsage.COPY_SRC});copy(buffer,saved);}}
     return native.call(this,node,...rest);};
   const pictures={},states={};
@@ -51,7 +52,10 @@ async function observe({id,slots}){
     const eyes=pictures.corrected.map((im,i)=>{const raw=pictures.raw[i];let n=0;
       for(let y=Math.floor(im.height*.15);y<im.height*.86;y++)for(let x=Math.floor(im.width*.1);x<im.width*.90;x++){
         const k=4*(y*im.width+x);if([0,1,2].some(c=>Math.abs(raw.data[k+c]-im.data[k+c])>6))n++;}return n;});
-    return {points,leaked,peak,boneDrift,eyes,steps:[a.steps,b.steps],modes:[a.mode,b.mode],passes,rawCrossings:crossings(b),correctedCrossings:crossings(a)};}
+     return {points,leaked,peak,boneDrift,eyes,correctedReference:match('corrected','reference'),steps:[a.steps,b.steps],modes:[a.mode,b.mode],passes,rawCrossings:crossings(b),correctedCrossings:crossings(a)};}
+  function match(actual,reference){return pictures[actual].map((im,eye)=>{const other=pictures[reference][eye].data;let changed=0;
+    for(let i=0;i<im.data.length;i+=4)if(im.data[i]!==other[i]||im.data[i+1]!==other[i+1]||im.data[i+2]!==other[i+2])changed++;
+    return changed;});}
   function restError(){const p=states.restored.p,stride=states.restored.stride;let max=0;
     if(mesh.morphTargetInfluences.some(w=>w!==0))throw Error('Expected original neutral PMX for restoration control');
     const pos=source.position;for(let i=0;i<pos.count;i++){const j=i*stride;max=Math.max(max,Math.abs(p[j]-pos.getX(i)),Math.abs(p[j+1]-pos.getY(i)),Math.abs(p[j+2]-pos.getZ(i)));}return max;}
@@ -66,8 +70,13 @@ async function observe({id,slots}){
         n++;if(n<3)return;const status=stageProbe.read().actor,buffer=gl.backend.get(output).buffer;
         const stride=buffer.size/output.count/4;
         if(stride!==4&&stride!==3)throw Error('Unexpected sparse stride');
-        for(const tag of tags){
-          if(tag==='raw'){if(!saved)throw Error('No corrected skirt on this frame');copy(saved,buffer);gl.render(scene,gameTargets.floorState().camera);}
+         for(const tag of tags){
+           if(tag==='reference'||tag==='clean-reference'){
+             fullReference(gl,mesh);
+             if(tag==='reference'){invalidateMmdTslSparseMorphOutputs(mesh);native.call(gl,clearance);}
+             gl.render(scene,gameTargets.floorState().camera);
+           }
+           if(tag==='raw'){if(!saved)throw Error('No corrected skirt on this frame');invalidateMmdTslSparseMorphOutputs(mesh);copy(saved,buffer);gl.render(scene,gameTargets.floorState().camera);}
           const matrices=bones.flatMap(b=>[...b.matrixWorld.elements]);
           jobs.push(Promise.all([s.copyEyes(),gl.getArrayBufferAsync(output)]).then(([pair,bytes])=>{
             pictures[tag]=pair;states[tag]={p:new Float32Array(bytes),matrices,stride,steps:status.clothSteps,mode:status.mode};}));
@@ -76,7 +85,7 @@ async function observe({id,slots}){
       }catch(e){end();reject(e);}}};});await Promise.all(jobs);}
   function sheet(){const tags=['raw','corrected','restored'],{width,height}=pictures.raw[0],c=document.createElement('canvas');c.width=width*2;c.height=height*tags.length;
     tags.forEach((tag,y)=>pictures[tag].forEach((im,x)=>c.getContext('2d').putImageData(im,x*width,y*height)));return c.toDataURL().split(',')[1];}
-  window.clearanceTake={capture,compare,restError,sheet,get passes(){return passes;},dispose(){gl.compute=native;saved?.destroy();delete window.clearanceTake;}};
+  window.clearanceTake={capture,compare,match,restError,sheet,get passes(){return passes;},dispose(){gl.compute=native;saved?.destroy();delete window.clearanceTake;}};
 }
 
 module.exports=async function({page,ids,bButton,click,until,target,pickMounted,aim,trigger,frames,idleRay}){
@@ -93,10 +102,12 @@ module.exports=async function({page,ids,bButton,click,until,target,pickMounted,a
     await click('actorPose');await press('快速体位');await press('四点跪撑');await press('保留姿势并返回');await click('hudDone');
     await target({name:'watch:quiet'});await idleRay();await frames(72);
     await until('authored sparse hem and full native world on the held pose',s=>s.actor.mode==='bullet'&&s.actor.fullBodies===s.actor.keptBodies&&clearanceTake.passes>0);
-    const result=await page.evaluate(async()=>{await clearanceTake.capture('corrected','raw');return clearanceTake.compare();});
+     const result=await page.evaluate(async()=>{await clearanceTake.capture('corrected','reference','raw');return clearanceTake.compare();});
+     assert.deepEqual(result.correctedReference,[0,0],'Corrected skirt differs from full recompute in the same eyes');
     assert(result.points>0&&!result.leaked&&result.eyes.every(n=>n>3)&&result.boneDrift<1e-5&&result.steps[0]===result.steps[1],JSON.stringify(result));
     await pickMounted(ids.model);await click('actorPose');await press('恢复原动作');await click('hudDone');await target({name:'watch:quiet'});await idleRay();
-    await until('original free cloth resumes',s=>s.actor.mode==='gpu');await page.evaluate(()=>clearanceTake.capture('restored'));
+     await until('original free cloth resumes',s=>s.actor.mode==='gpu');await page.evaluate(()=>clearanceTake.capture('restored','clean-reference'));
+     result.restoredReference=await page.evaluate(()=>clearanceTake.match('restored','clean-reference'));assert.deepEqual(result.restoredReference,[0,0]);
     result.residual=await page.evaluate(()=>clearanceTake.restError());assert.equal(result.residual,0);
     const dir=path.resolve('local-review/screenshots/pose-and-contact');await fs.mkdir(dir,{recursive:true});
     await fs.writeFile(path.join(dir,'skirt-stereo.png'),Buffer.from(await page.evaluate(()=>clearanceTake.sheet()),'base64'));

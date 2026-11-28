@@ -1,8 +1,7 @@
 import {useEffect,useLayoutEffect,useMemo} from 'react';
-import {RepeatWrapping} from 'three';
 import {campusPassageParts,schoolExterior} from '../CampusLayout';
 import {ROOM} from '../ClassroomLayout';
-import {arcadeParts,distantLido,LIDO_ENTRY,POOL,POOL_ORIGIN} from '../LidoLayout';
+import {arcadeParts,distantLido,POOL_ORIGIN} from '../LidoLayout';
 import {LidoPlates} from '../LidoPlates';
 import {Batch} from '../SceneryBatch';
 import {SchoolBrickWalk} from '../SchoolBrickWalk';
@@ -12,6 +11,7 @@ import {BlockFront,lidoTimingView} from '../routes/campusArcade/Street';
 import {noPick} from '../sceneryPaint';
 import {ParkTrees} from '../terminus/park/ParkTrees';
 import {useBakedSurface} from '../useBakedSurface';
+import {useCoastalPrint} from '../terminus/coastalPrints';
 import lesson from '../class-lesson.webp';
 import {CITY_ORIGINS} from './site';
 import {StreetShops} from './StreetShops';
@@ -35,11 +35,7 @@ function LidoFront({shadows}:{shadows:boolean}){
   const {x,z}=CITY_ORIGINS.pool;
   const parts=useMemo(()=>{
     const finish=arcadeParts('pool').concat(lidoTimingView());
-    for(const q of distantLido())finish.push({...q,p:[q.p[0]-POOL_ORIGIN.x,q.p[1],q.p[2]-POOL_ORIGIN.z]});
-    // The original entry slab joins the deck; expose only the portion past
-    // the shared deck edge. Its tile and gate prints continue across the seam.
-    const end=LIDO_ENTRY.z+LIDO_ENTRY.d/2,start=POOL.deck.z+POOL.deck.d/2;
-    finish.push({p:[LIDO_ENTRY.x,-.114,(start+end)/2],s:[LIDO_ENTRY.w,.25,end-start],color:'#e4d7bf'});
+    for(const q of distantLido('city'))finish.push({...q,p:[q.p[0]-POOL_ORIGIN.x,q.p[1],q.p[2]-POOL_ORIGIN.z]});
     return finish;
   },[]);
   return <group name="city:lido-front" position={[x,0,z]}>
@@ -48,9 +44,8 @@ function LidoFront({shadows}:{shadows:boolean}){
 }
 
 function StreetSurface({room}:{room:StreetRoom}){
-  const geometry=useMemo(()=>buildStreetGround(room),[room]),map=useBakedSurface('/scenery/terminus/park-paving.webp');
+  const geometry=useMemo(()=>buildStreetGround(room),[room]),map=useCoastalPrint('paving');
   useEffect(()=>()=>{geometry.earth.dispose();geometry.paving.dispose();},[geometry]);
-  useLayoutEffect(()=>{if(map){map.wrapS=map.wrapT=RepeatWrapping;map.needsUpdate=true;}},[map]);
   return <group name="city:ground" userData={{parkLeafShadeReceiver:true,playerCollision:false}}>
     <mesh name="city:reclaimed-blocks" geometry={geometry.earth} raycast={noPick} receiveShadow>
       <meshStandardMaterial vertexColors roughness={.96}/></mesh>

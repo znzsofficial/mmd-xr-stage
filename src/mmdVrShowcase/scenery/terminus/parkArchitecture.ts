@@ -236,7 +236,7 @@ export function parkArchitecture(){
   // set-backs, stair cores, wraparound balconies and roof plant in silhouette.
   // The former inland silhouettes occupied today's clinic, school and street.
   // Set the next row beyond the playable district; keep the depot on the corner.
-  const skyline=[[-38,94,8.5,9,13],[-12,99,9,9,17],[12,99,8.6,7,12],[36,96,9,8,19],
+  const skyline=[[-38,105.5,8.5,9,13],[-12,106.6,9,9,17],[12,105.8,8.6,7,12],[36,107.4,9,8,19],
     [57.6,42,9,8,12],[37.3,20.8,9,8,16],[39,7.5,8,9,10],[50,29,7,11,18]];
   skyline.forEach(([x,z,w,d,h],i)=>{
     local(x,z,i>3?-.99:Math.PI);const tones=['#c5c8bc','#c4b9a1','#c1c9c4','#bdad9c'];

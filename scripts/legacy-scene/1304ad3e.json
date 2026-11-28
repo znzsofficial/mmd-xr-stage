@@ -1,0 +1,16 @@
+{
+  "revision": "245946ec9bd629b5837b60f24412e9c7720249e1",
+  "dist": {
+    "files": 466,
+    "sha256": "007ef323381dd119f7dd1d7e1e0124823c1645a62c34b5f9289196846ef0cd1f"
+  },
+  "assets": {
+    "assets/PlanetPhysics-ClUWsMlo.js": "612210f6373d54a68010d6376b76b8ce2c72221b75d49b246bdfa31563ee607e",
+    "assets/class-floor-day-C-ZQZtMG.webp": "9af494258593286c57c62de1c2c2d1c02a02bc09b03131e4da61b609f13bb21f",
+    "assets/emulate-CHc4QUlt.js": "83e101d630a97461678ccb02de7f1fc57b4222885a01f4564404a474c1b5bb05",
+    "assets/hall-roughness-B9Ms-QCJ.webp": "b03ea42c49a42ff7f1519268dbf708038026e72538da5a55ad59835d63ce0d09",
+    "assets/index-DhkDh6rQ.js": "0bc101064a9d50a919837c3abfd013fc9d953804f588b59ef801b9982b90681c",
+    "assets/rapier-CdaHytLd.js": "d5a01aba322a742d69cb12439060c2acbfae0961ee1ce18150acd72f71d2ac7e",
+    "assets/stage-host-ux-IOE_Z.js": "ab15e179a44bb35c3a95bfa0cb745b9b15393ead53cb12886921c10d4319c702"
+  }
+}

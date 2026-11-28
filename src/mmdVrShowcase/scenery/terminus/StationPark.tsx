@@ -1,13 +1,12 @@
-import {useEffect,useLayoutEffect,useMemo} from 'react';
-import {DoubleSide,RepeatWrapping} from 'three';
+import {useEffect,useMemo} from 'react';
+import {DoubleSide} from 'three';
 import {noPick} from '../sceneryPaint';
-import {useBakedSurface} from '../useBakedSurface';
+import {useCoastalPrint} from './coastalPrints';
 import {parkArchitecture} from './parkArchitecture';
 import {inlandEmbankment,parkPavement,parkPlanting,parkStreetFurniture} from './parkGroundArt';
 import {fountainCourt,parkTrees} from './parkLayout';
 import {ParkFountain} from './park/ParkFountain';
 import {ParkTrees} from './park/ParkTrees';
-import joinery from './waiting-bay.webp';
 
 const shadeReceiver={parkLeafShadeReceiver:true};
 const decorativeReceiver={playerCollision:false,parkLeafShadeReceiver:true};
@@ -19,8 +18,7 @@ export function StationPark({shadows}:{shadows:boolean}){
     park.architecture.solid.dispose();park.architecture.prints.dispose();park.paving.dispose();park.foundation.dispose();
     park.street.oak.dispose();park.street.hardware.dispose();park.garden.beds.dispose();park.garden.leaves.dispose();park.garden.turf.dispose();
   },[park]);
-  const shops=useBakedSurface('/scenery/terminus/park-shops.webp'),pavers=useBakedSurface('/scenery/terminus/park-paving.webp'),oak=useBakedSurface(joinery);
-  useLayoutEffect(()=>{if(pavers){pavers.wrapS=pavers.wrapT=RepeatWrapping;pavers.needsUpdate=true;}},[pavers]);
+  const shops=useCoastalPrint('shops'),pavers=useCoastalPrint('paving'),oak=useCoastalPrint('timber');
   return <group name="terminus:station-park" pointerEvents="none">
     <mesh name="park:city-embankment" geometry={park.foundation} raycast={noPick} receiveShadow><meshStandardMaterial vertexColors roughness={.93}/></mesh>
     <mesh name="park:paving" geometry={park.paving} raycast={noPick} receiveShadow userData={decorativeReceiver}>

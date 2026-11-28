@@ -4,7 +4,7 @@ import {Batch,type Part} from '../SceneryBatch';
 import {span} from '../detailParts';
 import {seededRandom} from '../ClassroomLayout';
 import {useBakedSurface} from '../useBakedSurface';
-import {APRON,BEDS,CANOPY_POSTS,CLINIC_ORIGIN,GLAZING,GUIDE,GARDEN_DOOR,EAST_FACE,TREES,WALK_POINTS,WALK_WIDTH} from './clinicApproach';
+import {APRON,BEDS,CANOPY_POSTS,CLINIC_ORIGIN,DOOR_TRIM,GLAZING,GUIDE,GARDEN_DOOR,EAST_FACE,TREES,WALK_POINTS,WALK_WIDTH} from './clinicApproach';
 import atlasUrl from './clinic-garden.webp';
 import turfUrl from '../meadow-walk.webp';
 import {LAWN_SIZE,MEADOW_POSTS} from '../meadowLandmarks';
@@ -34,7 +34,7 @@ class Prints {
   geometry(){const g=new BufferGeometry();g.setAttribute('position',new Float32BufferAttribute(this.points,3));g.setAttribute('uv',new Float32BufferAttribute(this.uv,2));g.computeVertexNormals();return g;}
 }
 
-function entrance(lawn:boolean,city:boolean){
+export function gardenEntranceParts(lawn:boolean,city:boolean){
   const blocks:Part[]=[],limbs:Part[]=[],foliage:Part[]=[],prints=new Prints(),paving=new Prints();
   const box=(x:number,y:number,z:number,w:number,h:number,d:number,color:string,ry=0)=>blocks.push({p:[x,y,z],s:[w,h,d],color,ry});
   const sign=(x:number,y:number,z:number,w:number,h:number,rot:number,front:number,back?:number)=>{
@@ -43,10 +43,10 @@ function entrance(lawn:boolean,city:boolean){
     prints.face(x+dx,y,z+dz,w,h,rot,front);
     if(back!==undefined)prints.face(x-dx,y,z-dz,w,h,rot+Math.PI,back);
   };
-  const {x:fx,z:fz,head,wallGap}=GARDEN_DOOR;
+  const {x:fx,z:fz,wallGap}=GARDEN_DOOR;
   // Waiting bay and seats behind a true hole, seen before the scene swaps.
   if(lawn){
-    for(const r of EAST_FACE){box(r.x,1.56,r.z,r.w,3.12,r.d,chalk);box(r.x,.47,r.z,.20,.94,r.d,'#a5b9ac');}
+    for(const r of EAST_FACE){box(r.x,2.03,r.z,r.w,2.18,r.d,chalk);box(r.x,.47,r.z,.20,.94,r.d,'#a5b9ac');}
     for(const z of [-9,4.8])box(0,1.56,z,17.32,3.12,.16,chalk);
     box(-8.6,1.56,-2.1,.16,3.12,13.8,chalk);box(-2.16,1.56,3.1,.16,3.12,3.3,'#c8d4c7');
     box(5.4,1.56,-.60,6.4,3.12,.16,'#d1d9ca');box(0,3.24,-2.10,17.62,.24,14.13,'#93a297');
@@ -67,7 +67,8 @@ function entrance(lawn:boolean,city:boolean){
       box(x-.96+j*.64,.44,z,.56,.08,.48,'#7da298');box(x-.96+j*.64,.65,z+(z>3?.23:-.23),.55,.40,.08,'#98b4a6');}
     for(const z of [-7.7,-5.6,-3.5,-1.4]){if(!city)prints.face(fx+.103,1.73,z,1.81,1.21,Math.PI/2,6);box(fx+.11,1.09,z,.24,.08,1.88,stone);}
   }
-  box(fx,(3.13+head)/2,fz,.21,3.13-head,wallGap,chalk);box(fx,head,fz,.30,.12,wallGap+.09,trim);
+  box(fx,(3.13+DOOR_TRIM.top)/2,fz,.21,3.13-DOOR_TRIM.top,wallGap,chalk);
+  box(fx,(DOOR_TRIM.bottom+DOOR_TRIM.top)/2,fz,DOOR_TRIM.w,DOOR_TRIM.top-DOOR_TRIM.bottom,DOOR_TRIM.d,trim);
   for(const g of GLAZING){
     for(const s of [-1,1])box(fx,1.21,g.z+s*g.d/2,.17,2.41,.05,pine);
     box(fx,.079,g.z,.16,.14,g.d,trim);for(const s of [-1,1])prints.face(fx+s*.081,1.15,g.z,g.d-.04,.17,s*Math.PI/2,3);
@@ -166,7 +167,7 @@ function entrance(lawn:boolean,city:boolean){
 function BorrowedLawn(){const turf=useBakedSurface(turfUrl);return <mesh name="clinic:exterior-turf" position={[-CLINIC_ORIGIN.x,-.025,-CLINIC_ORIGIN.z]} rotation-x={-Math.PI/2} raycast={noPick}><planeGeometry args={[LAWN_SIZE,LAWN_SIZE]}/><meshStandardMaterial key={turf?'lawn':'plain'} map={turf} color={turf?'white':'#97ab75'} roughness={1}/></mesh>;}
 
 export function GardenEntrance({lawn=false,city=false,shadows}:{lawn?:boolean;city?:boolean;shadows:boolean}){
-  const p=useMemo(()=>entrance(lawn,city),[lawn,city]),atlas=useBakedSurface(atlasUrl);
+  const p=useMemo(()=>gardenEntranceParts(lawn,city),[lawn,city]),atlas=useBakedSurface(atlasUrl);
   useEffect(()=>()=>{p.herbs.dispose();p.signs.dispose();p.pavers.dispose();},[p]);
   return <group name="clinic:east-garden-entrance" position={lawn?[CLINIC_ORIGIN.x,0,CLINIC_ORIGIN.z]:[0,0,0]}>
     <Batch name="clinic:shared-canopy-and-garden-stone" parts={p.blocks} shade={skyBounce} casts={shadows}/>

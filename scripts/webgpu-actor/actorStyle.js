@@ -11,6 +11,24 @@ export function createActorStyle(model, source, plan, adapter, notify, load = lo
   const choices = new Map();
   let timing;
   function publish(patch) { state = {...state,...patch}; notify(); }
+  function phase(choice){return choice.readingMaps || choice.readingGeometry ? 'loading' : 'ready';}
+  function startGeometry(choice) {
+    if(choice.readingGeometry)return;
+    const work=adapter.loadStyleGeometry?.(model,abort.signal);
+    if(!work)return;
+    choice.readingGeometry=true;
+    work.then(()=>{
+      choice.readingGeometry=false;
+      if(!abort.signal.aborted && state.requested==='endfield')publish({phase:phase(choice)});
+    },()=>{
+      choice.readingGeometry=false;
+      // Keep the currently displayed graph and its wardrobe. A fresh click
+      // can retry the immutable snapshot; it needn't decode its maps again.
+      if(abort.signal.aborted || state.requested!=='endfield')return;
+      timing?.cancel();timing=undefined;
+      publish({phase:'failed',requested:state.mode});
+    });
+  }
   async function read(mode, choice, inputs, loadTiming) {
     const at = loadTiming && performance.now();
     try {
@@ -23,10 +41,10 @@ export function createActorStyle(model, source, plan, adapter, notify, load = lo
       if (loadTiming) loadTiming.report.mapLoadFailed = true;
     }
     if (loadTiming) loadTiming.report.mapLoadWallMs = performance.now()-at;
-    choice.phase = 'ready';
+    choice.readingMaps = false;
     const counts = mode === 'strinova' ? {hairMasks:choice.maps?.hair?.size ?? 0} :
       {clothMaps:choice.maps?.cloth?.size ?? 0,faceMaps:choice.maps?.face?.size ?? 0};
-    publish(state.requested === mode ? {...counts,phase:'ready'} : counts);
+    publish(state.requested === mode ? {...counts,phase:phase(choice)} : counts);
   }
   return {
     get snapshot() { return state; },
@@ -39,16 +57,19 @@ export function createActorStyle(model, source, plan, adapter, notify, load = lo
       if (requested === 'mmd') { publish({requested,phase:'ready'}); return; }
       const cached = choices.get(requested);
       if (cached) {
-        if (timing) timing.report.maps = cached.phase==='loading' ? 'in-flight' : 'cached';
-        publish({requested,phase:cached.phase}); return;
+        if (timing) timing.report.maps = cached.readingMaps ? 'in-flight' : 'cached';
+        if(requested==='endfield')startGeometry(cached);
+        publish({requested,phase:phase(cached)}); return;
       }
       const inputs = requested === 'endfield' ? plan.inputs : plan.hairInputs ?? [];
       // The basic Strinova graph never needs the Endfield decoder's face or cloth maps.
       const needsMaps = source && inputs.length && (requested === 'endfield' || source.companionFiles?.some(f=>/\.strand-mask\.png$/i.test(f.name)));
-      const choice = {phase:needsMaps ? 'loading' : 'ready'};
+      const choice = {readingMaps:!!needsMaps,readingGeometry:false};
       if (timing) timing.report.maps = needsMaps ? 'load' : 'skipped';
       const loadTiming = timing;
-      choices.set(requested,choice); publish({requested,phase:choice.phase});
+      choices.set(requested,choice);
+      if(requested==='endfield')startGeometry(choice);
+      publish({requested,phase:phase(choice)});
       if (needsMaps) void read(requested,choice,inputs,loadTiming);
     },
     frame() {

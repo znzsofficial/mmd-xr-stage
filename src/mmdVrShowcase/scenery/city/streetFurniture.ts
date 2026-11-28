@@ -1,4 +1,4 @@
-import {shopBuildingBlocks} from './streetPlots';
+import {shopBuildingBlocks,tideOfficeParts,watchClockParts} from './streetPlots';
 
 // City metres. The board's front looks along local +Z; directions on the
 // reverse are written for a pedestrian approaching from that side.
@@ -23,6 +23,7 @@ export const cityStreetTrees = [
 const post=(x:number,z:number,w:number,top:number)=>({x,z,w,d:w,bottom:0,top});
 export const cityStreetFurnitureBlocks = [
   ...shopBuildingBlocks,
+  ...[...tideOfficeParts,...watchClockParts].map(({p:[x,y,z],s:[w,h,d]})=>({x,z,w,d,bottom:y-h/2,top:y+h/2})),
   {...mapCase,bottom:mapCase.y-mapCase.h/2,top:mapCase.y+mapCase.h/2},
   ...[-.90,.90].map(dx=>post(mapCase.x+dx,mapCase.z,.13,mapCase.y)),
   ...cityFingerposts.flatMap(({x,z,yaw})=>[

@@ -18,7 +18,7 @@
 
 ## 下次从哪里接
 
-**海站城市布景：**四馆门前共用海站室外；穿过真实开口，才恢复各馆自己的布局。街边绿地继承纸鸢长椅，旧草坪仅保留兼容入口。[路线与布局边界](./scenery/harbour-city.md)。性能专项暂缓；以后重开时从[四项备选与验收条件](./performance/avoidable-work.md)选一项。
+**海站城市布景：**四馆门前共用海站室外；穿过真实开口，才恢复各馆自己的布局。街边绿地继承纸鸢长椅，旧草坪仅保留兼容入口。[路线与布局边界](./scenery/harbour-city.md)。
 
 **复杂角色开物理播舞已完成第一轮。** 保留原求解器，减少手柄触觉重复扫描接触点。[同原件正反对照](./performance/bullet-step-profile.md#090-重角色与触觉查询)区分了纯求值、含触觉的 CPU 时间和双眼绘制间隔；`local-review/heavy-bullet/` 有具名样本。若继续追手柄查询，先量剩下那一次原生遍历中，接触流形查刚体编号的费用。Quest 持续帧率未测。
 
@@ -26,7 +26,7 @@
 
 **Quest / Adreno 候选：**在实际 72 Hz、相同角色与舞段先单独比较固定注视点渲染，再看眼图像素数、透明层重画与双眼转色带宽。[头显旧记录的帧预算和验证标准](./performance/quest-floor-dance.md#quest-3s-的帧预算与-adreno-优化)。本轮未连 Quest、未改画质默认值。
 
-**不降画质的优化设计（未实施）：**优先验证 WebGPU 形态权重不变时复用上一帧的顶点结果；普通 XR 的触觉查询、星球道具碰撞重建与放置等待另列。[依据、反例和收工条件](./performance/avoidable-work.md)。
+**四项优化已完成：**WebGPU 复用未变的形态顶点并保护修裙外部写入；纯手追省触觉查询；星球移动演员不重建未变道具；首次选择仿终末地才后台烘焙合格演员的描边与薄皮数据。[配对数据、代价与双眼还原](./performance/avoidable-work.md)。
 
 **记录开关：建议暂缓。** 普通记录能留下偶发卡顿，详细 GPU 计时已默认关闭；若需要在 Quest 做“完全不记录”的对照，再评估一个独立于 FPS 显示的采样选项。[开销与重议条件](./performance/viewing-and-diagnostics.md#要不要加记录开关)
 
@@ -34,7 +34,7 @@ WebGPU 大骨架容量是另一个兼容性问题，见上述里程碑的后备�
 
 ## Loader 和上游 PR
 
-正式站使用官方 `three-mmd-loader 0.9.0`＋自有 fork `main@c4d56e8` 的生成补丁，匹配 mmd-anim 0.5.5 和 Three r187；官方开发依赖仍锁 r184。[三方版本与特性归属](./three-mmd-loader-maintenance.md) · [精确来源与制品摘要](../loader-source.json) · [旧版排障归档](./three-mmd-loader-history.md)
+正式站使用官方 `three-mmd-loader 0.9.0`＋自有 fork `main@303bb7c` 的生成补丁，匹配 mmd-anim 0.5.5 和 Three r187；官方开发依赖仍锁 r184。[三方版本与特性归属](./three-mmd-loader-maintenance.md) · [精确来源与制品摘要](../loader-source.json) · [旧版排障归档](./three-mmd-loader-history.md)
 
 截至 2026-11-27 收尾，[#48 共享骨架 CPU 去重](https://github.com/yohawing/three-mmd-loader/pull/48) 和 [#49 材质／描边透明度](https://github.com/yohawing/three-mmd-loader/pull/49) 均已提交官方 `develop`，**Node 22、24 CI 全部通过，均未合并、无审阅意见**。两条修复都已由 fork 提供，正式站无需等待上游。若接续审阅，先查看对应 PR 的最新反馈；保留各自的 head 分支。[测试证据、贡献范围和分支清理记录](./three-mmd-loader-upstream.md)
 

@@ -20,6 +20,7 @@ import { makeOutletFixture } from '../bodyState/lactation/outletFixture.test-sup
 import type {SavedModel,SavedObject,StageSnapshot} from './stageSnapshot';
 import {planetPlace} from '../scenery/planet/planetLayout';
 import {clearingDeck} from '../scenery/planet/lanternClearing';
+import { ControllerContactHaptics, createControllerContactHaptics } from '../xr/contact/controllerContactHaptics';
 
 const harness = vi.hoisted(() => ({
   three: {} as Record<string, unknown>,
@@ -136,6 +137,49 @@ it('gives a held XR pose a renderer commit after evaluation and on subsequent fr
     expect(backend.beginFrame).toHaveBeenLastCalledWith(frame,space,false);
     expect(getMmdVrClock().time).toBe(.8);
   } finally {await act(async()=>root.unmount());s.closeOverlay();}
+});
+
+it('polls only the live haptic grip after the paused XR step; debug can still read all counts with no consumer', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  harness.three = { scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(), size: { width: 640, height: 480 }, gl: {} };
+  const update = vi.fn(), read = vi.fn((index?: number) => index === 0 ? 2 : index === 1 ? 1 : 3);
+  const runtime = { duration: 2, update, dispose: vi.fn(), listModels: () => [], exportProjectModels: () => [],
+    getControllerContactCount: read, getPhysicsStepCount: () => 42, getRigidBodyCount: () => 12, getDynamicRigidBodyCount: () => 7 };
+  vi.mocked(createMmdRuntimeHandle).mockReturnValue(runtime as unknown as ReturnType<typeof createMmdRuntimeHandle>);
+  const haptics = createControllerContactHaptics(), pulse = vi.fn(() => true);
+  const source = { gripSpace: {}, gamepad: { hapticActuators: [{ pulse }] } } as unknown as XRInputSource;
+  const hand = { hand: {} } as XRInputSource;
+  const session = Object.assign(new EventTarget(), { visibilityState: 'visible', inputSources: [hand] });
+  const frame = { session } as unknown as XRFrame;
+  haptics.bind(1, { source, speed: () => 0, tracked: () => true });
+  const store = useMmdVrStore.getState(), previousLevel = store.prefs.physicsHapticLevel;
+  store.openOverlay('xr'); store.setPrefs({ scenery: 'floor', physicsHapticLevel: 'normal' });
+  useMmdVrStore.setState({ physicsEnabled: true, playing: false, physicsDebugEnabled: false });
+  const root = createRoot(document.createElement('div'));
+  let count = 0;
+  const tick = (frames: number, delta = 1 / 60) => act(() => {
+    for (let i = 0; i < frames; i++) harness.frame!({ clock: { elapsedTime: ++count * delta } }, delta, frame);
+  });
+  try {
+    await act(async () => root.render(<ControllerContactHaptics.Provider value={haptics}><RoomHarness scenery="floor" slots={[]} saved={null}/></ControllerContactHaptics.Provider>));
+    await tick(60);
+    expect(read).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledTimes(60);
+    session.inputSources.push(source);
+    await tick(60);
+    expect(read.mock.calls).toEqual(Array.from({ length: 30 }, () => [1]));
+    expect(read.mock.invocationCallOrder[0]).toBeGreaterThan(update.mock.invocationCallOrder[61]);
+    expect(pulse).toHaveBeenCalledOnce();
+    session.inputSources.pop();
+    await act(() => useMmdVrStore.setState({ physicsDebugEnabled: true }));
+    read.mockClear();
+    await tick(1, .1);
+    expect(read.mock.calls).toEqual([[], [0], [1]]);
+    expect(useMmdVrStore.getState()).toMatchObject({ physicsContactCount: 3, physicsControllerContactCounts: [2, 1], physicsStepCount: 42 });
+  } finally {
+    await act(async () => root.unmount());
+    store.closeOverlay(); store.setPrefs({ physicsHapticLevel: previousLevel }); useMmdVrStore.setState({ physicsDebugEnabled: false });
+  }
 });
 
 function loadedCharacter() {

@@ -7,7 +7,7 @@ import clinker from './garden-clinker.webp';
 
 // Bisect the turn at each brick course end. Adjoining spans share vertices:
 // no overlapping squares, jutting slab corners or cracks on the inside turn.
-function walk(){
+export function schoolBrickWalkGeometry(){
   const path=SCHOOL_PATH,positions:number[]=[],uv:number[]=[],index:number[]=[];let len=0;
   for(let i=0;i<path.length;i++){
     const [x,z]=path[i];
@@ -18,7 +18,7 @@ function walk(){
   const g=new BufferGeometry();g.setAttribute('position',new Float32BufferAttribute(positions,3));g.setAttribute('uv',new Float32BufferAttribute(uv,2));g.setIndex(index);g.computeVertexNormals();return g;
 }
 export function SchoolBrickWalk({lawn=false,shadows}:{lawn?:boolean;shadows:boolean}){
-  const g=useMemo(walk,[]),map=useBakedSurface(clinker);
+  const g=useMemo(schoolBrickWalkGeometry,[]),map=useBakedSurface(clinker);
   useEffect(()=>()=>g.dispose(),[g]);useLayoutEffect(()=>{if(map){map.wrapT=RepeatWrapping;map.needsUpdate=true;}},[map]);
   return <mesh name="school:garden-clinker-walk" position={lawn?[CAMPUS_OFFSET.x,0,CAMPUS_OFFSET.z]:[0,0,0]} geometry={g} receiveShadow={shadows} raycast={noPick}>
     <meshStandardMaterial key={map?'clay':'base'} map={map} roughness={.94} color={map?'white':'#b78164'}/></mesh>;

@@ -1,6 +1,7 @@
 // node scripts/webgpu-actor/game-floor-smoke.cjs <local-clothed.pmx> <body.vmd> <two-site-hand-plan.json | --actor-style>
 // node scripts/webgpu-actor/game-floor-smoke.cjs <local-clothed.pmx> <body.vmd> --strinova-style
 // node scripts/webgpu-actor/game-floor-smoke.cjs <local-clothed.pmx> <body.vmd> --gpu-timing
+// node scripts/webgpu-actor/game-floor-smoke.cjs <clothed-blink-reference.pmx> <body.vmd> --sparse-morphs
 // node scripts/webgpu-actor/game-floor-smoke.cjs <local.pmx> <--milk-covered | --milk-exposed>
 // node scripts/webgpu-actor/game-floor-smoke.cjs <local.pmx> <--stand-covered | --stand-exposed>
 // node scripts/webgpu-actor/game-floor-smoke.cjs <local-adult.pmx> --partner [--covered | --exposed] [--partner-poses]
@@ -60,10 +61,10 @@ async function main() {
   const [pmx,vmd,plan]=(withoutMotion?[process.argv[2],null,process.argv[3]]:process.argv.slice(2,5)).map(v=>!v||v.startsWith('--')?v:path.resolve(v));
   assert(pmx && (vmd||withoutMotion) && plan, 'Expected a PMX and a smoke take');
   const singleActor=plan==='--single-actor';
-  const timing=plan==='--gpu-timing';
+  const timing=plan==='--gpu-timing', sparse=plan==='--sparse-morphs';
   const stockingsOnly=singleActor && process.argv.length===6 && process.argv[5]==='stockings';
   const strinova=plan==='--strinova-style';
-  const basic=plan==='--basic-style',styleOnly=basic||strinova||plan==='--actor-style',classroom=plan==='--classroom',portrait=plan==='--room-light', json = !withoutMotion && !styleOnly && !classroom && !portrait && !singleActor && !timing && JSON.parse(await fs.readFile(plan, 'utf8'));
+  const basic=plan==='--basic-style',styleOnly=basic||strinova||plan==='--actor-style',classroom=plan==='--classroom',portrait=plan==='--room-light', json = !withoutMotion && !styleOnly && !classroom && !portrait && !singleActor && !timing && !sparse && JSON.parse(await fs.readFile(plan, 'utf8'));
   const entryRoom=stories?'pool':post?'astralCourt':portrait?process.argv[5]:classroom?'classroom':'floor';
   if(portrait)assert(['classroom','seasideTerminus'].includes(entryRoom),'Expected a lit portrait room');
   const sites = json && (json.plan ?? json).sites.map(({start,end,spot,radial,marks,mat}) => ({start,end,spot,radial,marks,mat}));
@@ -75,6 +76,7 @@ async function main() {
   let server, browser, page, step = 'prepare', localProfile = false;
   try {
     await makeImport(folder,pmx,vmd);
+    if(sparse)await require('./game-floor-sparse-morphs.cjs').prepare(folder,pmx,first,second,motion);
     if(strinova){
       // Same asset bytes under another File and runtime ID: any shared style
       // cache keyed by PMX data, texture or slot name leaks into this control.
@@ -107,7 +109,7 @@ async function main() {
     const href = new URL(report.entry,server.resolvedUrls.local[0]);
     if(timing)href.searchParams.set('gpuTiming','1');
     page.on('response', r => {if(r.ok() && r.url()===new URL('/xr-input/1.0.20/meta-quest-touch-plus/profile.json',href).href)localProfile=true;});
-    await page.addInitScript({content:`(${stereo})(${portrait||withoutMotion||singleActor||strinova?640:240}); (${extend})(); labFixture.controllerProfile='meta-quest-touch-plus'; labFixture.hostStatus=()=>({phase:'idle'}); ${environment?`(${require('./environment-take.cjs').display})();`:''}`});
+    await page.addInitScript({content:`(${stereo})(${portrait||withoutMotion||singleActor||strinova||sparse?640:240}); (${extend})(); labFixture.controllerProfile='meta-quest-touch-plus'; labFixture.hostStatus=()=>({phase:'idle'}); ${environment?`(${require('./environment-take.cjs').display})();`:''}`});
     await page.goto(href.href);
     const selector=page.locator('.stage-first-room select');
     assert.equal(await selector.inputValue(),entryRoom);
@@ -198,7 +200,13 @@ async function main() {
     await target({name:'watch:quiet'});await idleRay();
     if(timing){
       const take=require('./game-floor-timing.cjs');
-      const result=await take({page,click,until,bButton,target,idleRay,place:()=>placeFromBag(second,landing,0)});
+      const result=await take({page,click,until,bButton,target,idleRay,pickMounted,ids,place:()=>placeFromBag(second,landing,0)});
+      assert.deepEqual(errors,[]);assert.deepEqual(consoles.filter(x=>/shader|validation|wgsl|nodebuilder|pipeline/i.test(x)),[]);
+      console.log(JSON.stringify(result,null,2));return;
+    }
+    if(sparse){
+      await placeFromBag(second,landing,0);
+      const result=await require('./game-floor-sparse-morphs.cjs').run({page,ids,click,until,bButton,frames,target,pickMounted,aim,trigger,idleRay,placeFromBag,first,second,landing});
       assert.deepEqual(errors,[]);assert.deepEqual(consoles.filter(x=>/shader|validation|wgsl|nodebuilder|pipeline/i.test(x)),[]);
       console.log(JSON.stringify(result,null,2));return;
     }
