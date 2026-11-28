@@ -17,11 +17,11 @@ const empty = () => ({mode:'none', cloth:'none', nodes:0, clothSteps:0, fullBodi
 
 /** Renderer resources only. StageRoom owns PMX/VMD, the one evaluator, the
  * visual placement scale and the physics rebind. Never request another RAF. */
-export async function createStageActorBackend(renderer, scene, light, origin, grade={balancedModelColor:true}, gpuTiming) {
+export async function createStageActorBackend(renderer, scene, light, origin, grade={balancedModelColor:true}, gpuTiming, firstUse) {
   // The landmark sun can unmount when StageRoom mounts its own. The facade
   // takes one stable light reference; mirror the live room's world direction.
   const sun = new DirectionalLight(), palms = xrPalms();
-  const adapter = await createActorMaterialAdapter(renderer,sun,{...grade,stageEdits:true});
+  const adapter = await createActorMaterialAdapter(renderer,sun,{...grade,stageEdits:true,reuseStylePasses:true});
   // Models get their runtime IDs after attachment. Key the attachment by the
   // loaded model itself, including during restore and disposal of stale loads.
   const actors = new Map();
@@ -54,6 +54,7 @@ export async function createStageActorBackend(renderer, scene, light, origin, gr
   }
   return {
     loadOptions:adapter.loadOptions,
+    beginModelLoad:firstUse?.model,
     getGarmentPose:id=>actorFor(id)?.garment??null,
     getEggSurface:id=>actorFor(id)?.egg(),
     prepareMilkOutlets:(model,stale,bytes)=>prepareFloorMilk(model,stale,bytes,()=>{
@@ -78,10 +79,11 @@ export async function createStageActorBackend(renderer, scene, light, origin, gr
       }
       worldPalms = tracked ? palms.read(frame,space,origin.current.matrixWorld) : null;
     },
-    attach(model,source) {
+    attach(model,source,timing) {
       if (disposed) throw new DOMException('Room retired','AbortError');
       if (actors.has(model)) throw Error('Model already attached');
       const log = empty();
+      const attachAt = timing && performance.now();
       const g = model.mesh.geometry;
       const basePosition=g.attributes.position,baseUv=g.attributes.uv;
       // liveBounds reads GEOMETRY bounds, whereas the TSL facade caches the
@@ -101,7 +103,7 @@ export async function createStageActorBackend(renderer, scene, light, origin, gr
         if (rig) cloth = roomCloth(renderer,model,rig,log,gpuTiming);
       } catch (error) { adapter.detach(model); throw error; }
 
-      const style = createActorStyle(model,source,plan,adapter,notify);
+      const style = createActorStyle(model,source,plan,adapter,notify,undefined,firstUse);
       const surface=bindAuthoredSurface(model.mesh,basePosition,baseUv,source?.pmxBytes,rig,()=>cloth?.active);
       const skirt=createFloorPoseSkirt(renderer,model.mesh,surface);
       const filter = rig && skirtPhysicsFilter(rig);
@@ -146,6 +148,7 @@ export async function createStageActorBackend(renderer, scene, light, origin, gr
           if (retired) return;
           retired = true; ready = cut = false;
           actors.delete(model);
+          timing?.cancel();
           authoredSurface.delete(model.mesh);
           try { egg?.dispose();skirt.dispose();cloth?.dispose(); } finally {
             try { adapter.detach(model); } finally { style.dispose(); notify(); }
@@ -157,7 +160,12 @@ export async function createStageActorBackend(renderer, scene, light, origin, gr
       const offsets=model.mesh.userData.mmdMorphs.flatMap((m,i)=>['uv','material','unknown'].includes(m.type)?[i]:[]);
       const garment={position:basePosition,get morphs(){return surface.morphs;},
         sampleable:()=>!retired&&!cloth?.active&&!skirt.active&&surface.sampleable([])&&offsets.every(i=>model.mesh.morphTargetInfluences[i]===0)};
-      actors.set(model,{log,binding,cloth,skirt,model,file:source?.file,style,garment,egg:()=>egg??=makeEggSurface(model.mesh,basePosition,baseUv,source?.pmxBytes,rig,()=>cloth?.active)});
+      actors.set(model,{log,binding,cloth,skirt,model,file:source?.file,style,timing,garment,egg:()=>egg??=makeEggSurface(model.mesh,basePosition,baseUv,source?.pmxBytes,rig,()=>cloth?.active)});
+      if(timing){
+        timing.report.attachWallMs=performance.now()-attachAt;
+        timing.report.loaderWallMs=timing.work.loaderWallMs;
+        timing.report.loadTexturesWallMs=timing.work.loaderStagesMs?.['load-textures']??null;
+      }
       notify();
       return binding;
     },
@@ -168,7 +176,7 @@ export async function createStageActorBackend(renderer, scene, light, origin, gr
       for(const actor of actors.values()){
         const {model,style}=actor, revision=drawRevision(model.mesh);
         if(actor.skirt.dirty)changed=true;
-        if(model.root.parent && model.root.visible && style.frame())changed=true;
+        if(model.root.parent && model.root.visible){actor.timing?.mark();if(style.frame())changed=true;}
         if(actor.drawRevision!==revision){actor.drawRevision=revision;changed=true;}
       }
       if(!changed)return;

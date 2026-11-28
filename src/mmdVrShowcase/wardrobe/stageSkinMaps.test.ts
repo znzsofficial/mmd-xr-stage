@@ -6,9 +6,13 @@ import { bindSkinMaps } from './skinMaps';
 import { bindSlots } from './slots';
 
 it('keeps shared PMX atlases independent across attached actors, duplicate slots, a late decode and a remount', async () => {
+  type Draw = (...args:unknown[])=>unknown;
+  const ordinary:Draw = (...args)=>args[8] ?? null;
+  let callback:Draw|null = ordinary;
   const renderer = {init:async()=>{},isWebGPURenderer:true,
+    getRenderObjectFunction:()=>callback,setRenderObjectFunction:(value:Draw|null)=>{callback=value;},renderObject:ordinary,
     backend:{isWebGPUBackend:true,device:{limits:{maxUniformBufferBindingSize:65536}}},xr:{enabled:true}};
-  const adapter = await createActorMaterialAdapter(renderer, new DirectionalLight(), {stageEdits:true});
+  const adapter = await createActorMaterialAdapter(renderer, new DirectionalLight(), {stageEdits:true,reuseStylePasses:true});
   const atlas = new Texture(), firstFile = new File([], 'actor.pmx'), otherFile = new File([], 'actor.pmx');
   const skin = new File([], 'skin.png'), pendingFile = new File([], 'skin.png');
   function attach(file: File, load: (f: File)=>Promise<Texture>) {
@@ -19,9 +23,12 @@ it('keeps shared PMX atlases independent across attached actors, duplicate slots
     const mats = [0,1].map(()=>new MeshToonMaterial({name:'face',map:atlas}));
     const mesh = new SkinnedMesh(g,mats), bone = new Bone(), model = {root:new Group(),mesh};
     mesh.add(bone);mesh.bind(new Skeleton([bone]));model.root.add(mesh);
-    adapter.attach(model,{sparseMorphs:false});
+    adapter.attach(model,{sparseMorphs:false},{hybridSlots:{face:[0]},smoothOutline:false});
     const slots = bindSlots(mesh), maps = bindSkinMaps(file,slots,load);
-    return {maps,slots,mats:mesh.material,close(){adapter.detach(model);maps.dispose();}};
+    return {maps,slots,mats:mesh.material,
+      style(mode:string){if(mode!=='mmd')expect(adapter.prepareStyle(model,{},mode)).toBe(true);expect(adapter.setStyle(model,mode)).toBe(true);},
+      pass:(slot:number)=>(callback??ordinary)(mesh,{},null,g,mesh.material[slot],null,null,null,null),
+      close(){adapter.detach(model);maps.dispose();}};
   }
   const one = new Texture(), late = new Texture(), resumed = new Texture();
   let resolve!: (t: Texture)=>void;
@@ -30,15 +37,21 @@ it('keeps shared PMX atlases independent across attached actors, duplicate slots
   const key = a.slots[0].key;
   const sampled = (model: typeof a) => model.mats.map(m=>m.userData.stageMaterial.diffuse.value);
   expect(a.slots.map(s=>[s.key,s.textured])).toEqual([['face [#1]',true],['face [#2]',true]]);
+  a.style('endfield'); b.style('strinova');
+  expect([a.pass(0),a.pass(1),b.pass(0)]).toEqual(['mmd-stage:endfield',null,'mmd-stage:strinova']);
   expect(await a.maps.select(key,skin)).toBe(true);
+  a.style('mmd'); a.style('endfield');
   expect(sampled(a)).toEqual([one,atlas]);expect(sampled(b)).toEqual([atlas,atlas]);
   expect(b.maps.status(key).choices).toEqual([]);
   const stale = a.maps.select(key,pendingFile);a.close();
   const c = attach(firstFile,async()=>resumed);await Promise.resolve();
+  expect([a.pass(0),b.pass(0),c.pass(0)]).toEqual([null,'mmd-stage:strinova',null]);
+  c.style('endfield');
   expect(sampled(c)).toEqual([resumed,atlas]);
   const dispose = vi.spyOn(late,'dispose');resolve(late);expect(await stale).toBe(false);
   expect(dispose).toHaveBeenCalledOnce();expect(sampled(c)).toEqual([resumed,atlas]);
   expect(await c.maps.select(key,null)).toBe(true);
   for(const model of [a,b,c])expect(sampled(model)).toEqual([atlas,atlas]);
-  b.close();c.close();adapter.dispose();
+  b.close();expect(c.pass(0)).toBe('mmd-stage:endfield');
+  c.close();adapter.dispose();expect(callback).toBe(ordinary);
 });

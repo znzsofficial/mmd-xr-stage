@@ -12,7 +12,7 @@ import * as THREE from "three";
 import { placementLoaderProfile } from '../diagnostics/placementWork';
 import {mountedModelBytePool, type ModelByteLease} from './mountedModelBytes';
 import { PhysicsPoseDisplay } from "./physicsPoseDisplay";
-import type { RoomActorBackend, RoomActorBinding } from './roomActorBackend';
+import type { ModelLoadTiming, RoomActorBackend, RoomActorBinding } from './roomActorBackend';
 import {
   bodyDisplay, clearPoseForRebind, presentEvaluatedPose, releaseRemovedPose, restoreHiddenPose,
   restorePoseBeforeFrame, seedEditedSkirt, type ActorDisplayEntry,
@@ -466,13 +466,14 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
   ) {
     const lease = (options.modelBytePool ?? mountedModelBytePool).acquire(modelFile);
     if (lease) byteLeases.add(lease);
-    try { return await assembleEntry(modelFile, companionFiles, withPhysics, transform, preferredId, isStale, work, lease); }
-    catch (error) { releaseBytes(lease); throw error; }
+    const timing = actorBackend?.beginModelLoad?.(work);
+    try { return await assembleEntry(modelFile, companionFiles, withPhysics, transform, preferredId, isStale, timing?.work ?? work, lease, timing); }
+    catch (error) { timing?.cancel(); releaseBytes(lease); throw error; }
   }
 
   async function assembleEntry(
     modelFile: File, companionFiles: readonly File[], withPhysics: boolean, transform: MmdModelTransform,
-    preferredId: string | undefined, isStale: () => boolean, work: MmdAddModelOptions['work'], modelBytes?: ModelByteLease,
+    preferredId: string | undefined, isStale: () => boolean, work: MmdAddModelOptions['work'], modelBytes?: ModelByteLease, timing?: ModelLoadTiming,
   ) {
     const stale = () => disposed || isStale();
     const assertCurrent = () => { if (stale()) throw new DOMException("Stage changed", "AbortError"); };
@@ -608,7 +609,7 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
       // Use the authored slot names. The renderer can append outline groups
       // and replace the dense mesh attributes during this synchronous attach.
       materialNames = extractMaterialNames(model);
-      actorBinding = actorBackend?.attach(model,{file:modelFile,resolver:textureResolver,companionFiles,pmxBytes:source instanceof Uint8Array?source:undefined});
+      actorBinding = actorBackend?.attach(model,{file:modelFile,resolver:textureResolver,companionFiles,pmxBytes:source instanceof Uint8Array?source:undefined},timing);
       if (withPhysics) bindStaticMmdPhysicsRuntime(model);
       colliderRoot = model.root;
       prepareModel?.(model.root);

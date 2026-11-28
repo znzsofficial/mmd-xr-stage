@@ -128,7 +128,12 @@ export function createPerformanceRecording(requested: RenderRequest, entryStarte
   };
 }
 
-type Report = NonNullable<ReturnType<ReturnType<typeof createPerformanceRecording>["finish"]>>;
+type FirstUseEvent = { startMs:number; toStereoSubmitWallMs:number; maxTrackedIntervalMs:number|null;
+  threePipelineRequests:number; threePipelineCallWallMs:number } & (
+  {kind:'entry'} | {kind:'model'; loaderWallMs:number; loadTexturesWallMs:number|null; attachWallMs:number} |
+  {kind:'style'; mode:import('../mmdRuntime/roomActorBackend').ActorStyleMode; maps?:'skipped'|'load'|'in-flight'|'cached';
+    mapLoadFailed?:boolean; mapLoadWallMs?:number; prepareStyleWallMs?:number; repeatPrepareStyle?:boolean});
+type Report = NonNullable<ReturnType<ReturnType<typeof createPerformanceRecording>["finish"]>> & {webgpuFirstUse?:FirstUseEvent[]};
 export const useLastPerformanceReport = create<{ report: Report | null }>(() => ({ report: null }));
 
 // Only the qualification page offers the two backends in one tab. Keep at most

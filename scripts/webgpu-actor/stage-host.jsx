@@ -25,6 +25,7 @@ import {createStageActorBackend} from './stageActorBackend.js';
 import {stageControls} from './stage-controls.js';
 import {recordFloorPerformance} from './floorPerformance.js';
 import {createFloorGpuTiming} from './floorGpuTiming.js';
+import {recordFloorFirstUse} from './floorFirstUse.js';
 import {takeFloorRenderer,returnFloorRenderer,bindFloorSession,requestFloorDisplay} from './floorRenderer.js';
 import {DaylightMaterials} from '../../src/mmdVrShowcase/scenery/daylightMaterials';
 import {roomSets} from '../../src/mmdVrShowcase/scenery/roomSets';
@@ -69,9 +70,10 @@ function startFloor({resume,onStatus,fixture}) {
   const initialEpoch=useMmdVrStore.getState().entryEpoch;
   const entryState=useMmdVrStore.getState(),entryRoom=fixture?'floor':resume?entryState.savedStage?.scenery:entryState.prefs.scenery;
   let closing=false,committed=false,session,ended=false,ending,renderer,root,store,xrStore,backend,undo,unbindHands,epoch;
-  let timer,backendTask,resolveStop,resolveEarly,prevTime,elapsed=0,pageRetired=false,lost=false,gpuTiming;
+  let timer,backendTask,resolveStop,resolveEarly,prevTime,elapsed=0,pageRetired=false,lost=false,gpuTiming,firstUse;
   const profile=getMmdVrRenderProfile(entryState.prefs),requested=describeRenderRequest(entryState.prefs);
-  const recording=fixture?null:recordFloorPerformance(performance.now(),requested);
+  const entryStart=performance.now();
+  const recording=fixture?null:recordFloorPerformance(entryStart,requested);
   const stopped=new Promise(r=>resolveStop=r);
   const earlyExit=new Promise(r=>resolveEarly=r);
   const publish=phase=>{if(log.phase!==phase){log.phase=phase;onStatus?.();}};
@@ -104,8 +106,9 @@ function startFloor({resume,onStatus,fixture}) {
       log.error=`${error?.message??error} [${resume?'resume':'fresh'}; phase=${log.phase}; trackedDraws=${log.frames}; room=${committed?'mounted':'pending'}; loading=${committed&&s.assetLoad.running}; actor=${actor?.evaluations?'evaluated':actor?.style?'attached':'none'}]`;
     }
     closing=true;clearTimeout(timer);fixture?.controls.reset();gpuTiming?.interrupt();
+    firstUse?.interrupt();
     if(committed && useMmdVrStore.getState().entryEpoch===epoch){
-      if(!error)recording?.finish();
+      if(!error)recording?.finish(firstUse);
       clearContacts();
       // Snapshot while the live room and its actor still exist.
       useMmdVrStore.getState().closeOverlay();
@@ -120,7 +123,7 @@ function startFloor({resume,onStatus,fixture}) {
   }
   function interrupt(cancelDraft=true){
     if(closing)return;
-    if(cancelDraft!==false){recording?.interrupt();gpuTiming?.interrupt();} // a long *visible* interval is a real stall
+    if(cancelDraft!==false){recording?.interrupt();gpuTiming?.interrupt();firstUse?.interrupt();} // a long *visible* interval is a real stall
     prevTime=undefined;fixture?.controls.reset();
     if(committed){
       clearContacts();
@@ -141,9 +144,9 @@ function startFloor({resume,onStatus,fixture}) {
   const onError=e=>stop(e.error??e.message), pageHide=()=>{pageRetired=true;stop();};
   async function run(){
     try {
+      recording?.begin();
       if(T.REVISION!=='187'||!navigator.xr||!navigator.gpu||!globalThis.XRGPUBinding)throw Error('WebGPU XR 不可用');
-       readLayout();
-       recording?.begin();
+      readLayout();
       window.addEventListener('pagehide',pageHide);
       // Request from the original click. Until a tracked draw succeeds, no
       // page state, previous scene or asset binding is changed.
@@ -165,7 +168,10 @@ function startFloor({resume,onStatus,fixture}) {
       renderer.onError=info=>stop(`${info.type}: ${info.message}`);
       await renderer.init();if(closing)return;
       if(!renderer.backend.isWebGPUBackend)throw Error('WebGPU adapter unavailable');
-      if(recording && new URLSearchParams(location.search).get('gpuTiming')==='1')gpuTiming=createFloorGpuTiming(renderer);
+      if(recording && new URLSearchParams(location.search).get('gpuTiming')==='1'){
+        gpuTiming=createFloorGpuTiming(renderer);
+        firstUse=recordFloorFirstUse(renderer,entryStart);
+      }
       undo=bindR187ProjectionOutput(renderer);
       const prefs=useMmdVrStore.getState().prefs;
       const scene=new T.Scene(),camera=new T.PerspectiveCamera(60,1,.05,Math.max(minSceneViewDistance(entryRoom),prefs.viewDistance)),sun=React.createRef();
@@ -192,12 +198,14 @@ function startFloor({resume,onStatus,fixture}) {
         try{
           const views=session.visibilityState==='visible' && frame.getViewerPose(renderer.xr.getReferenceSpace())?.views;
           if(!views?.length){interrupt();return;}
+          firstUse?.frame(time,views);
           const dt=prevTime==null?0:(time-prevTime)*.001;prevTime=time;
           if(dt<0||dt>.25)interrupt(false);else elapsed+=dt;
-          if(!log.frames && !sun.current)return; // Fiber must have committed the landmark floor.
+          if(!log.frames && !sun.current){firstUse?.endFrame();return;} // Fiber must have committed the landmark floor.
           if(committed)fixture?.controls.sample(session.inputSources);
           const gpuPasses=gpuTiming && committed && recording.sampleDue(time) ? gpuTiming.begin(views.length) : undefined;
           advance(elapsed,false,store.getState(),frame);
+          firstUse?.endFrame();
           if(gpuPasses)gpuTiming.end();
           if(closing)return;
           recording?.draw(time,frame,views,renderer,committed?backend:null,entryRoom,gpuPasses);
@@ -209,7 +217,7 @@ function startFloor({resume,onStatus,fixture}) {
             if(!fixture)requestFloorDisplay(session,profile,requested);
             timer=setTimeout(()=>stop(Error('Stage did not become ready after the first draw')),15000);
             const grade=fixture?undefined:{balancedModelColor:prefs.balancedModelColor,ambientIntensity:lighting.ambient};
-            backendTask=createStageActorBackend(renderer,scene,sun.current,origin,grade,gpuTiming).then(b=>{
+            backendTask=createStageActorBackend(renderer,scene,sun.current,origin,grade,gpuTiming,firstUse).then(b=>{
               backend=b;if(closing)return;
               const saved=readLayout();
               const state=useMmdVrStore.getState();
@@ -245,6 +253,7 @@ function startFloor({resume,onStatus,fixture}) {
       await release(()=>xrStore?.destroy());
       await release(()=>backend?.dispose());await release(()=>undo?.());
       gpuTiming?.dispose();
+      firstUse?.dispose();
       recording?.dispose();
       if(renderer)await release(()=>returnFloorRenderer(renderer,committed&&!lost&&!pageRetired&&!log.error));
       session?.removeEventListener('end',endedSession);session?.removeEventListener('visibilitychange',interrupt);

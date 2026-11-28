@@ -3,14 +3,16 @@ import { actorStyleMode } from './actorStyleSlots.js';
 
 /** Lifetime: one attachment, not one file basename, style click or VMD. The
  * worker produces mail; only frame() may install a graph on a live model. */
-export function createActorStyle(model, source, plan, adapter, notify, load = loadActorStyleMaps) {
+export function createActorStyle(model, source, plan, adapter, notify, load = loadActorStyleMaps, firstUse) {
   const abort = new AbortController();
   const slots = Object.fromEntries(Object.entries(plan.hybridSlots).map(([k,v])=>[k,v.length]));
   let state = { phase:plan.hasBase ? 'available' : 'unavailable', requested:'mmd', mode:'mmd',
     slots, clothMaps:0, faceMaps:0, hairMasks:0, failedModes:[] };
   const choices = new Map();
+  let timing;
   function publish(patch) { state = {...state,...patch}; notify(); }
-  async function read(mode, choice, inputs) {
+  async function read(mode, choice, inputs, loadTiming) {
+    const at = loadTiming && performance.now();
     try {
       const result = await load(source,inputs,abort.signal);
       if (abort.signal.aborted) { disposeActorStyleMaps(result); return; }
@@ -18,7 +20,9 @@ export function createActorStyle(model, source, plan, adapter, notify, load = lo
     } catch {
       // Even a broken optional decoder leaves the named base materials usable.
       if (abort.signal.aborted) return;
+      if (loadTiming) loadTiming.report.mapLoadFailed = true;
     }
+    if (loadTiming) loadTiming.report.mapLoadWallMs = performance.now()-at;
     choice.phase = 'ready';
     const counts = mode === 'strinova' ? {hairMasks:choice.maps?.hair?.size ?? 0} :
       {clothMaps:choice.maps?.cloth?.size ?? 0,faceMaps:choice.maps?.face?.size ?? 0};
@@ -29,25 +33,41 @@ export function createActorStyle(model, source, plan, adapter, notify, load = lo
     choose(value) {
       const requested = actorStyleMode(value);
       if (abort.signal.aborted || !plan.hasBase || requested === state.requested || state.failedModes.includes(requested)) return;
+      if (requested !== 'mmd' && requested !== 'endfield' && requested !== 'strinova') return;
+      timing?.cancel();
+      timing = requested !== state.mode ? firstUse?.style(requested) : undefined;
       if (requested === 'mmd') { publish({requested,phase:'ready'}); return; }
-      if (requested !== 'endfield' && requested !== 'strinova') return;
       const cached = choices.get(requested);
-      if (cached) { publish({requested,phase:cached.phase}); return; }
+      if (cached) {
+        if (timing) timing.report.maps = cached.phase==='loading' ? 'in-flight' : 'cached';
+        publish({requested,phase:cached.phase}); return;
+      }
       const inputs = requested === 'endfield' ? plan.inputs : plan.hairInputs ?? [];
       // The basic Strinova graph never needs the Endfield decoder's face or cloth maps.
       const needsMaps = source && inputs.length && (requested === 'endfield' || source.companionFiles?.some(f=>/\.strand-mask\.png$/i.test(f.name)));
       const choice = {phase:needsMaps ? 'loading' : 'ready'};
+      if (timing) timing.report.maps = needsMaps ? 'load' : 'skipped';
+      const loadTiming = timing;
       choices.set(requested,choice); publish({requested,phase:choice.phase});
-      if (needsMaps) void read(requested,choice,inputs);
+      if (needsMaps) void read(requested,choice,inputs,loadTiming);
     },
     frame() {
+      if (timing && timing.report.mode === state.mode) timing.mark();
       if (abort.signal.aborted || state.phase !== 'ready' || state.mode === state.requested) return false;
       try {
         const choice = choices.get(state.requested);
+        const at = choice && timing && performance.now();
         if (choice && !adapter.prepareStyle(model,choice.maps,state.requested)) throw Error('Unavailable style');
+        if (choice && timing) {
+          timing.report.prepareStyleWallMs = performance.now()-at;
+          timing.report.repeatPrepareStyle = !!choice.prepared;
+          choice.prepared = true;
+        }
         if (!adapter.setStyle(model,state.requested)) throw Error('Unavailable style');
+        timing?.mark();
         publish({mode:state.requested});
       } catch {
+        timing?.cancel(); timing=undefined;
         // Optional graph failure is not a room or actor failure. The adapter
         // owns any partly prepared graph and releases it on normal detach.
         try { adapter.setStyle(model,'mmd'); } catch { /* retain the baseline */ }
@@ -56,6 +76,6 @@ export function createActorStyle(model, source, plan, adapter, notify, load = lo
       return true;
     },
     // Called after adapter.detach; a later worker reply can only release itself.
-    dispose() { abort.abort(); for (const choice of choices.values()) disposeActorStyleMaps(choice.maps); choices.clear(); },
+    dispose() { timing?.cancel(); abort.abort(); for (const choice of choices.values()) disposeActorStyleMaps(choice.maps); choices.clear(); },
   };
 }

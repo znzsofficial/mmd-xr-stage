@@ -5,6 +5,7 @@ import type { SampleMilkOutlet } from '../bodyState/lactation/outlets';
 import type { GarmentPose } from '../pelvic/garment';
 import type { EggSurfaceBackend } from '../play/remote/eggSurface';
 import type { fitPoseSkirt } from './poseSkirtClearance';
+import type { PlacementWork } from '../diagnostics/placementWork';
 
 /** A renderer attachment to the room's model. It never loads a PMX, binds a
  * clip, advances a clock or owns a Bullet world. */
@@ -56,13 +57,21 @@ export interface RoomActorStyles {
   choose(id:string,file:File,mode:ActorStyleMode):void;
 }
 
+/** Created by the observing backend, then handed back to that same attachment.
+ * A failure before attach has no binding to dispose, so the loader cancels it. */
+export interface ModelLoadTiming {
+  work: PlacementWork;
+  cancel(): void;
+}
+
 export interface RoomActorBackend {
   readonly loadOptions: Parameters<ThreeMmdLoader['loadModel']>[1];
+  beginModelLoad?(work?: PlacementWork): ModelLoadTiming;
   readonly styles?: RoomActorStyles;
   prepareMilkOutlets?(model:ThreeMmdModel,stale:()=>boolean,bytes?:Uint8Array):Promise<SampleMilkOutlet>;
   getGarmentPose:(runtimeId:string)=>GarmentPose|null;
   getEggSurface?:(runtimeId:string)=>EggSurfaceBackend|undefined;
-  attach(model: ThreeMmdModel,source:{file:File;resolver:TextureResolver;companionFiles:readonly File[];pmxBytes?:Uint8Array}): RoomActorBinding;
+  attach(model: ThreeMmdModel,source:{file:File;resolver:TextureResolver;companionFiles:readonly File[];pmxBytes?:Uint8Array},timing?:ModelLoadTiming): RoomActorBinding;
   setLight(light: DirectionalLight | null): void;
   beginFrame(frame: XRFrame | null, space: XRReferenceSpace | null, reseed: boolean): void;
   prepareRender(poseUpdated:boolean): void;

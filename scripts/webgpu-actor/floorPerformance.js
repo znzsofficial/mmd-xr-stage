@@ -71,7 +71,7 @@ export function recordFloorPerformance(started,requested) {
     interrupt(){
       recording.interrupt();sampledAt=undefined;frames=0;clearPublished();
     },
-    finish(){const report=recording.finish();if(report)publishPerformanceReport(report);},
+    finish(firstUse){const report=recording.finish();if(report)publishPerformanceReport(firstUse?{...report,webgpuFirstUse:firstUse.snapshot()}:report);},
     dispose:clearPublished,
   };
 }

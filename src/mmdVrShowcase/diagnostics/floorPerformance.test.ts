@@ -34,6 +34,7 @@ it('reports mounted assets, visible actor modes and actual WebGPU samples indepe
     expect(useRenderDiagnostics.getState().current?.targetSamples).toBeNull();
     actors[1].visible=false;live[1].visible=false;recording.draw(3400,frame,views,renderer,backend,'floor');
     recording.finish();const report=useLastPerformanceReport.getState().report!;
+    expect(report).not.toHaveProperty('webgpuFirstUse');
     expect(report.eyeViewports.map(v=>[v.width,v.height])).toEqual([[386,384],[386,384]]);
     expect(report.windows.filter(w=>w.gpuPasses)).toEqual([expect.objectContaining({gpuFrameTimeMs:1100,actorStyle:'mixed',gpuPasses})]);
     expect(report.windows.map(w=>[w.scenery,w.models,w.objects,w.liveHouse,w.actorStyle,w.clothMode])).toEqual([
@@ -41,5 +42,12 @@ it('reports mounted assets, visible actor modes and actual WebGPU samples indepe
       ['liveHouse',2,1,true,'mmd','bullet'],['liveHouse',2,1,true,undefined,undefined],
     ]);
     recording.interrupt();expect(useRenderDiagnostics.getState().current).toBeNull();
+    const next=recordFloorPerformance(5000,requested);
+    try {
+      next.begin();expect(useLastPerformanceReport.getState().report).toBeNull();
+      next.draw(5010,frame,views,renderer,null,'floor');next.draw(5030,frame,views,renderer,null,'floor');
+      const events=[{kind:'entry',startMs:0,toStereoSubmitWallMs:10,maxTrackedIntervalMs:20,threePipelineRequests:2,threePipelineCallWallMs:1}];
+      next.finish({snapshot:()=>events});expect(useLastPerformanceReport.getState().report?.webgpuFirstUse).toEqual(events);
+    } finally {next.dispose();}
   }finally{recording.dispose();beginPerformanceAttempt('webgpu');useMmdVrStore.setState(prior);}
 });

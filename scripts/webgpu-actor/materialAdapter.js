@@ -6,6 +6,7 @@ import { actorKeyLight, hybridToonColor, parseHybridSlots } from './hybridToon.j
 import { endfieldColor } from './endfieldToon.js';
 import { strinovaColor } from './strinovaToon.js';
 import { actorStyleMode } from './actorStyleSlots.js';
+import { createActorStylePasses } from './actorStylePasses.js';
 import { mmdStylePigment } from './mmdStylePigment.js';
 import { prepareSkinTransmission } from './skinTransmission.js';
 import { createFaceKeyShadow } from './faceKeyShadow.js';
@@ -85,9 +86,10 @@ function editableStageColor(mesh, material, balanced, ambientIntensity) {
  * Detach releases TSL compute/shadow helpers; it does not undo material and
  * outline replacement. Discard a failed/retired model rather than reattaching it.
  */
-export async function createActorMaterialAdapter(renderer, light, { balancedModelColor = false, ambientIntensity = 0.55, hybridSlots, endfield = false, stageEdits = false } = {}) {
+export async function createActorMaterialAdapter(renderer, light, { balancedModelColor = false, ambientIntensity = 0.55, hybridSlots, endfield = false, stageEdits = false, reuseStylePasses = false } = {}) {
   const defaultSlots = parseHybridSlots(hybridSlots, endfield);
   const actors = new Map();
+  const stylePasses = reuseStylePasses ? createActorStylePasses(renderer) : null;
   function shadowFailure(a,error) {
     // A bad optional caster must never take down the device session's actor.
     // Keep its zero-strength target until detach: compiled face nodes refer to it.
@@ -107,9 +109,9 @@ export async function createActorMaterialAdapter(renderer, light, { balancedMode
     try {
       a.outline?.setEnabled(mode==='endfield' && a.smoothOutline);
       a.shadow?.setEnabled(mode==='endfield' && a.cast);
-      for(const [material,color] of colors){material.colorNode=color;material.needsUpdate=true;}
+      for(const [material,color] of colors){material.colorNode=color;material.needsUpdate=true;stylePasses?.set(material,mode);}
     } catch(e){
-      for(const [material,color] of a.base){material.colorNode=color;material.needsUpdate=true;}
+      for(const [material,color] of a.base){material.colorNode=color;material.needsUpdate=true;stylePasses?.set(material,'mmd');}
       a.mode='mmd';
       try {a.outline?.setEnabled(false);} finally {a.shadow?.setEnabled(false);}
       throw e;
@@ -143,7 +145,7 @@ export async function createActorMaterialAdapter(renderer, light, { balancedMode
         styled.set(material,color);
       }
       if(!styled.size){shadow?.dispose();return false;}
-      if(mode==='endfield' && a.bake)outline=installOutline(model.mesh,a.bake,{enabled:false});
+      if(mode==='endfield' && a.bake)outline=installOutline(model.mesh,a.bake,{enabled:false,stylePasses});
     } catch(e){outline?.dispose();shadow?.dispose();throw e;}
     a.styles.set(mode,styled);
     if(mode==='endfield'){a.shadow=shadow;a.outline=outline;a.smoothOutline=details.smoothOutline!==false;}
@@ -224,7 +226,7 @@ export async function createActorMaterialAdapter(renderer, light, { balancedMode
       retire(model);return pipeline.detach(model);
     },
     dispose() {
-      for(const model of actors.keys())retire(model);pipeline.dispose();
+      for(const model of actors.keys())retire(model);stylePasses?.dispose();pipeline.dispose();
     },
   };
 }

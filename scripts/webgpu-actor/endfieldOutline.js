@@ -176,7 +176,7 @@ function vertex(width, height, role) {
 
 /** After successful pipeline.attach. Only loader-authored outline materials;
  * no new groups, material or pass. Dispose before adapter.detach. */
-export function installOutline(mesh, prepared, { enabled = true } = {}) {
+export function installOutline(mesh, prepared, { enabled = true, stylePasses } = {}) {
   const g = mesh.geometry, { direction, height, stats } = prepared;
   if (g !== prepared.geometry || g.hasAttribute(attrName)) throw Error('Outline geometry changed or already installed');
   const slots = new Map(stats.slots.map(s => [s.slot,s])), entries = [];
@@ -211,6 +211,7 @@ export function installOutline(mesh, prepared, { enabled = true } = {}) {
         if (m.vertexNode === e.after) m.vertexNode = e.before;
       }
       m.needsUpdate = true;
+      stylePasses?.set(m, active ? 'endfield' : 'mmd');
     }
   }
   setEnabled(enabled);

@@ -3,6 +3,7 @@ import { DirectionalLight, Group, Matrix4, PerspectiveCamera, Scene, Triangle, V
 import { createCustomBulletMmdPhysicsBackend } from '@yohawing/three-mmd-loader/physics';
 import { getBulletModule } from './bulletModule';
 import { createMmdRuntimeHandle } from './mmdRuntime';
+import {createPlacementWork} from '../diagnostics/placementWork';
 // @ts-expect-error internal Vite-only JS module, never imported by the stage entry
 import { createStageActorBackend } from '../../../scripts/webgpu-actor/stageActorBackend.js';
 // @ts-expect-error original in-memory PMX encoder
@@ -32,12 +33,12 @@ function actorFile(hasSkirt: boolean) {
   return encodeSwatch({bone,body,joint,vertices,groups:[[],[0,1,2],[]]},'room.pmx') as File;
 }
 
-async function mount(hasSkirt=true) {
+async function mount(hasSkirt=true, firstUse?:{model:()=>unknown}) {
   const scene=new Scene(), light=new DirectionalLight(), camera=new PerspectiveCamera();
   const renderer={init:async()=>{},isWebGPURenderer:true,backend:{isWebGPUBackend:true,device:{limits:{maxUniformBufferBindingSize:65536}}},
     shadowMap:{type:1},xr:{enabled:true},compute:vi.fn()};
   const origin={current:new Group()}; // This fixture's player stands at the world origin.
-  const backend=await createStageActorBackend(renderer,scene,light,origin);
+  const backend=await createStageActorBackend(renderer,scene,light,origin,undefined,undefined,firstUse);
   const parked=new Matrix4().makeTranslation(0,-1000,0), shape=()=>({type:'sphere' as const,size:[.01,.01,.01] as const});
   const runtime=createMmdRuntimeHandle(scene,{actorBackend:backend,controllerColliders:()=>[parked,parked],
     handColliders:()=>Array(12).fill(parked),propColliders:()=>Array(8).fill(parked),propShape:shape});
@@ -51,6 +52,19 @@ async function mount(hasSkirt=true) {
   };
   return {backend,runtime,id,tick,close:()=>{runtime.dispose();backend.dispose();}};
 }
+
+it('profiles the actual PMX loader on an uninstrumented placement/restore, and marks only a tracked visible attachment',async()=>{
+  const timing={work:createPlacementWork(),report:{},mark:vi.fn(),cancel:vi.fn()};
+  const {runtime,id,tick,close}=await mount(false,{model:()=>timing});
+  try {
+    expect(timing.report).toMatchObject({attachWallMs:expect.any(Number),loaderWallMs:timing.work.loaderWallMs,
+      loadTexturesWallMs:timing.work.loaderStagesMs?.['load-textures']});
+    expect(timing.work.loaderStagesMs?.['load-textures']).toEqual(expect.any(Number));
+    runtime.setModelVisible(id,false);tick();runtime.setModelVisible(id,true);tick(false);
+    expect(timing.mark).not.toHaveBeenCalled();tick();expect(timing.mark).toHaveBeenCalledOnce();
+  } finally {close();}
+  expect(timing.cancel).toHaveBeenCalledOnce();
+});
 
 it('hands the matched chain to a ready driver only, retains native body motion and all 22 slots, and restores the same actor',async()=>{
   const release:string[]=[];
