@@ -218,7 +218,7 @@ async function main() {
     }
     if(post||stories){
       const play=stories?require('./game-floor-stories.cjs'):require('./game-floor-post.cjs');
-      const result=await play({page,click,until,bButton,frames,target,aim,trigger,pickMounted,ids,placeFromBag,trackAt,actorName:second});
+      const result=await play({page,click,until,bButton,frames,target,aim,trigger,pickMounted,ids,placeFromBag,trackAt,actorName:second,first});
       assert.deepEqual(errors,[]);assert.deepEqual(consoles.filter(x=>/shader|validation|wgsl|nodebuilder|pipeline/i.test(x)),[]);
       console.log(JSON.stringify(result,null,2));return;
     }

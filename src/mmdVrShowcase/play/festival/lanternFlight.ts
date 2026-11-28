@@ -1,6 +1,7 @@
 import { Vector3 } from 'three';
 import type { SceneryId } from '../../scenery/catalog';
 import type { GripFrame } from '../propView';
+import {horizonTangent} from '../localHorizon';
 
 export const POD_LIMIT=3, SCHOOL_SIZE=5, PETALS=6;
 export const BLOOM_AT=.86, SWIM_AT=1.26, SHELL_END=2.7, SHOW_END=5.3;
@@ -10,12 +11,6 @@ const clamp=(x:number)=>Math.max(0,Math.min(1,x));
 export function ease(x:number){x=clamp(x);return x*x*(3-2*x);}
 export const petalOpening=(age:number)=>ease((age-BLOOM_AT)/.78);
 export const shellSize=(age:number)=>(.48+.52*ease(age/.34))*(1-ease((age-1.91)/(SHELL_END-1.91)));
-
-export function lanternTangent(direction:Vector3,up:Vector3,out:Vector3){
-  out.copy(direction).projectOnPlane(up);
-  if(out.lengthSq()<.0001){const useX=Math.abs(up.x)<.8;out.set(useX?1:0,0,useX?0:1).projectOnPlane(up);}
-  return out.normalize();
-}
 
 /** Same contract as sampleStageGravity: write acceleration, return this traveller's next owner. */
 type SampleGravity<W>=(room:SceneryId,point:Vector3,previous:W|null,acceleration:Vector3)=>W|null;
@@ -59,7 +54,7 @@ export function createLanternFlight<W>(sampleGravity:SampleGravity<W>){
         const j=p.school[i],age=t-SWIM_AT-i*.105;if(age<0)continue;
         const [x,z,speed]=fans[i];
         if(j.age<0){
-          lanternTangent(p.dir,p.up,forward);side.crossVectors(forward,p.up);
+          horizonTangent(p.dir,p.up,forward);side.crossVectors(forward,p.up);
           j.lane.copy(side).multiplyScalar(x).addScaledVector(forward,z).normalize();
           j.point.copy(p.point).addScaledVector(p.up,.047).addScaledVector(j.lane,.015);
           j.up.copy(p.up);j.owner=p.owner;

@@ -7,7 +7,7 @@ import { MoonPost } from './MoonPost';
 import { EncoreMic } from './encore/EncoreMic';
 import { EncoreStation } from './encore/EncoreStation';
 import { FerryStation } from './ferry/FerryStation';
-import { KiteReel, KiteStation } from './kite/KiteStation';
+import { KiteReel } from './kite/KiteReel';
 import {reelOutlet} from './kite/kiteModels';
 import { BubbleStream, LiquidSpray, StampAim } from './heldEffects';
 import {siliconeOutlet} from './siliconeProfile';
@@ -15,7 +15,7 @@ import { BubblePiece, SiliconePiece, StampPiece } from './simplePieces';
 import type { PropView } from './propView';
 import { EggHandset, EggHandFeedback } from './remote/RemotePieces';
 
-export const kiteReel:PropView = {Piece:KiteReel, Station:KiteStation,outlet:reelOutlet};
+export const kiteReel:PropView = {Piece:KiteReel,outlet:reelOutlet};
 export const ribbonMic:PropView = {Piece:EncoreMic, Station:EncoreStation};
 export const shellBlower:PropView = {Piece:BubblePiece, HeldEffect:BubbleStream, Station:FerryStation};
 export const lunarPunch:PropView = {Piece:StampPiece, HeldEffect:StampAim, Station:MoonPost};

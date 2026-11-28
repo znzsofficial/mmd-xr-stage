@@ -10,7 +10,7 @@ import {fitRows,type Fit} from './fitRows';
 import {entryClearance} from './solver';
 import {exteriorExposureBlock} from './stateTypes';
 import {prepareFirstTool} from './firstTool';
-import {sessionToys,type Hand} from '../play/propCatalog';
+import type {Hand} from '../play/propCatalog';
 import {responseRows} from './responseRows';
 import {techniquePage} from './techniqueRows';
 import {assignPelvic,cancelStrokeDose,canStartAtOpening,clearPelvicFluid,disablePelvic,drainPelvic,enablePelvic,nudgePelvic,patchPelvic,PELVIC_LIMITS as lim,
@@ -58,7 +58,7 @@ export function usePelvicControls({assetId,runtimeId}:PelvicActor,source:'screen
     status:'',warn:false,live:page==='use',sizePreview:page==='fit'&&fit==='size',motorReadout:false,chart:page==='view',blocked,enabled:!!profile};
   const partner=profile?.standAppearance==='partner',partnerLabel=l('半透明搭档','Translucent partner');
   const modes=[['standManual',partner?l('手动控制','Manual control'):l('手动支架','Manual stand')],['standAuto',partner?l('自动往复','Automatic strokes'):l('自动支架','Motor stand')]] as const;
-  const handAllowed=source==='xr'&&sessionToys().includes('dildo');
+  const handAllowed=source==='xr';
   const chooseHand=(press:(h:Hand)=>void,disabled=false)=>buttons(...(['left','right'] as const).map(h=>
     key(h==='left'?l('交给左手','Left hand'):l('交给右手','Right hand'),()=>press(h),{active:mode==='xrManual'&&h===hand,disabled})));
   if(!profile){

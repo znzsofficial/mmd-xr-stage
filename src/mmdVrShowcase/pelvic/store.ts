@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { useBackpack } from '../backpack/store';
 import { isWebgpuStageSession } from '../backpack/sessionAssets';
-import { sessionToys } from '../play/propCatalog';
 import { useHudWorldInput } from '../hud/hudWorldInput';
 import { useMmdVrStore } from '../mmdVrStore';
 import { useStagePlay, type Hand } from '../play/stagePlay';
@@ -163,7 +162,7 @@ function dropBinding(){
 export function assignPelvic(assetId:string,mode:PelvicMode,source:PelvicActive['source'],hand:Hand='right'){
   const {byAsset,support}=state(),live=useBackpack.getState().live[assetId],stage=useMmdVrStore.getState();
   if(!selected(assetId)||!byAsset[assetId]||source!==stage.presentation||blocked({assetId,source})||
-    (mode==='xrManual'&&(source!=='xr'||!sessionToys().includes('dildo')))||support[assetId]?.runtimeId!==live.runtimeId||support[assetId].kind==='missing')return false;
+    (mode==='xrManual'&&source!=='xr')||support[assetId]?.runtimeId!==live.runtimeId||support[assetId].kind==='missing')return false;
   const play=useStagePlay.getState();
   if(mode==='xrManual'){
     if(play.held?.toy!=='dildo'||play.held.hand!==hand)play.equip('dildo',hand);

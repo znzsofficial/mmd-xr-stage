@@ -14,6 +14,7 @@ import { MmdVrControlBar } from "../hud/MmdVrHud";
 import * as hudValues from "../hud/HudValues";
 import { useHudWorldInput } from "../hud/hudWorldInput";
 import { useStagePlay } from '../play/stagePlay';
+import {useKiteStore} from '../play/kite/kiteStore';
 import { shelfToys, TOYS } from '../play/propCatalog';
 import {useBodyState} from '../bodyState/store';
 import {chanceFor,useConception} from '../bodyState/reproduction/store';
@@ -109,6 +110,18 @@ it('offers the complete prop shelf and the imported object tab on WebGPU',async(
   for(let first=0;first<expected.length;first+=3){
     if(first)await click(t('loadNext'));expect(rows()).toEqual(expected.slice(first,first+3));
   }
+});
+
+it('changes wind at a character wrist away from the seaside station and stows the kite there',async()=>{
+  const play=useStagePlay.getState();play.reset();store().setPrefs({scenery:'pool'});
+  useBackpack.setState({selected:'a0',live:{a0:{...instance('m42'),wrists:{left:true,right:true}}}});
+  play.equip('kite','right');await render();await click(t('propGive'));
+  expect(button(t('storyWindLeft'))).toBeUndefined();await click(t('propRight'));
+  await click(t('storyWindLeft'));expect(useKiteStore.getState().wind).toBe('left');
+  await click(t('propLeft'));expect(useKiteStore.getState().wind).toBe('left');
+  expect(button(t('storyFerryLeft'))).toBeUndefined();
+  await click(t('storyWindRight'));expect(useKiteStore.getState().wind).toBe('right');
+  await click(t('toyStow'));expect(button(t('storyWindLeft'))).toBeUndefined();expect(useKiteStore.getState().active).toBe(false);
 });
 
 it('browses every guide in the chapel, returns to its page and travels without equipping',async()=>{

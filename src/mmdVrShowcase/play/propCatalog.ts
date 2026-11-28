@@ -1,8 +1,7 @@
 import type { TranslationKey as Key } from '../../languageStore';
 import type { SceneryId } from '../scenery/catalog';
-import { onCityGreen } from '../scenery/city/green';
 import type { Vector3 } from 'three';
-import { getKiteWind, resetKite, setKiteWind } from './kite/kiteStore';
+import { getKiteWind, resetKite, setKiteWind, startKite } from './kite/kiteStore';
 import { aimFerry, launchFerry, resetFerry } from './ferry/voyage';
 import { aimEncore, dyeEncore, resetEncore } from './encore/encoreRound';
 import { clearCard } from './lunarCard';
@@ -12,11 +11,11 @@ import { clearRemoteEgg, cycleRemoteEgg } from './remote/remoteMotor';
 import { constellationGrip, ribbonPenGrip, lanternGrip } from './festival/fittings';
 
 export type Hand = 'left' | 'right';
-type Story = { name:Key; help:Key; left:Key; right:Key; cue:(side:Hand)=>void };
+type Cues = { left:Key; right:Key; cue:(side:Hand)=>void };
+type Story = Cues & { name:Key; help:Key };
+const windCues = {left:'storyWindLeft', right:'storyWindRight', cue:setKiteWind} as const;
 type Definition = {
   label:Key; homeLabel:Key; homeName?:Key;
-  /** A station may occupy just one part of a continuous room. */
-  withinHome?:(x:number,z:number)=>boolean;
   /** The handheld effect can travel even when a station stays in its own set. */
   portable?:boolean;
   guide:{vr:Key; screen:Key; end:Key};
@@ -28,28 +27,30 @@ type Definition = {
   /** Named screen action at the actor's wrist. Omit held seconds for a single start frame. */
   screenUse?:{label:Key;duration?:number};
   onGrip?:(at:Vector3, dir:Vector3)=>void;
+  onStationGrip?:(at:Vector3, dir:Vector3)=>void;
   onEquip?:()=>void; onScreenEquip?:()=>void; onStow?:()=>void; onLeave?:()=>void;
   story?:Story;
+  wristCues?:Cues;
 } & ({home:SceneryId; visit:Key} | {home:null; visit:null});
 
 const catalog = {
   kite: {
-    label:'toyKite', home:'seasideTerminus', withinHome:onCityGreen, homeLabel:'kiteGreenName', visit:'visitKite', view:'kiteReel',grip:{point:[0,-.057,-.054],pitch:.10},
+    label:'toyKite', portable:true, home:'seasideTerminus', homeLabel:'allSets', visit:'visitKite', view:'kiteReel',grip:{point:[0,-.057,-.054],pitch:.10},
     guide:{vr:'guideKiteVr', screen:'guideKiteScreen', end:'guideKiteEnd'},
-    story:{name:'storyKite', help:'storyKiteHelp', left:'storyWindLeft', right:'storyWindRight', cue:setKiteWind},
-    onGrip:()=>setKiteWind(getKiteWind()==='left'?'right':'left'), onStow:resetKite,
+    story:{name:'storyKite', help:'storyKiteHelp', ...windCues}, wristCues:windCues,
+    onEquip:startKite, onGrip:()=>setKiteWind(getKiteWind()==='left'?'right':'left'), onStow:resetKite,
   },
   encore: {
     label:'toyEncore', home:'liveHouse', homeLabel:'toyClubName', visit:'visitEncore', view:'ribbonMic',grip:{point:[0,-.065,-.055],pitch:.12},
     guide:{vr:'guideEncoreVr', screen:'guideEncoreScreen', end:'guideEncoreEnd'},
     story:{name:'storyEncore', help:'storyEncoreHelp', left:'storyDyeLeft', right:'storyDyeRight', cue:dyeEncore},
-    onGrip:(at,dir)=>{const side=aimEncore(at,dir); if(side)dyeEncore(side);}, onLeave:resetEncore,
+    onStationGrip:(at,dir)=>{const side=aimEncore(at,dir); if(side)dyeEncore(side);}, onLeave:resetEncore,
   },
   bubbles: {
     label:'toyBubbles', portable:true, home:'pool', homeLabel:'allSets', homeName:'toyShell', visit:'visitFerry', view:'shellBlower',grip:{point:[0,-.054,-.057],pitch:0},
     guide:{vr:'guideBubblesVr', screen:'guideBubblesScreen', end:'guideBubblesEnd'},
     story:{name:'storyFerry', help:'storyFerryHelp', left:'storyFerryLeft', right:'storyFerryRight', cue:launchFerry},
-    onGrip:(at,dir)=>{const side=aimFerry(at,dir); if(side)launchFerry(side,at);}, onStow:resetFerry,
+    onStationGrip:(at,dir)=>{const side=aimFerry(at,dir); if(side)launchFerry(side,at);}, onStow:resetFerry,
   },
   post: {
     label:'toyPost', home:'floor', homeLabel:'toyStudioName', visit:'visitPost', view:'lunarPunch',grip:{point:[0,-.054,-.059],pitch:0},
@@ -99,10 +100,8 @@ const catalog = {
 export type Toy = keyof typeof catalog;
 export const TOYS: Readonly<Record<Toy,Definition>> = catalog;
 export const shelfToys = Object.keys(catalog) as readonly Toy[];
-export function sessionToys() { return shelfToys; }
-export function hasToyStation(toy:Toy,room:SceneryId,at?:{x:number;z:number}){
-  const item=TOYS[toy];
-  return item.home===room && (!at || !item.withinHome || item.withinHome(at.x,at.z));
+export function hasToyStation(toy:Toy,room:SceneryId){
+  return TOYS[toy].home===room;
 }
 export function toyLabel(toy:Toy, room:SceneryId) {
   const {homeName, label} = TOYS[toy];

@@ -9,7 +9,8 @@ import { PageControls } from "./BackpackPanels";
 import { isWebgpuStageSession } from './sessionAssets';
 import { HudButton, HudLine, HudSheet } from "../hud/PorcelainControls";
 import { useHudWorldInput } from "../hud/hudWorldInput";
-import { isStoryRoom, STORIES, toyLabel } from '../play/propCatalog';
+import { hasToyStation, TOYS, toyLabel } from '../play/propCatalog';
+import {useKiteStore} from '../play/kite/kiteStore';
 import { canGiveTo, useStagePlay } from '../play/stagePlay';
 import {EggControls,WandControls} from '../hud/ContactPropControls';
 import {useBodyState} from '../bodyState/store';
@@ -58,10 +59,11 @@ function SelectedTools({ entry, instance, blocked, preview, styles }: { entry: B
   useLayoutEffect(()=>{if(blocked&&page==='body'&&preview)setPeek(true);else if(!preview)setPeek(false);},[blocked,page,preview]);
   const held=useStagePlay(s=>s.held?.toy),holding=!!held;
   const wearer=useRemoteEgg(s=>s.assetId);
-  const carries = useStagePlay(s=>s.character?.assetId===entry.id);
-  const characterToy=useStagePlay(s=>s.character?.toy),room=useMmdVrStore(s=>s.prefs.scenery);
+  const character = useStagePlay(s=>s.character), carries=character?.assetId===entry.id;
+  const characterToy=character?.toy,room=useMmdVrStore(s=>s.prefs.scenery);
   const eggPage=page==='prop'&&held==='remoteEgg',wandOut=held==='wand'||characterToy==='wand';
-  const cues=page==='prop'&&carries&&isStoryRoom(room)&&characterToy===STORIES[room].toy;
+  const cues=page==='prop'&&carries&&(TOYS[character.toy].wristCues??(hasToyStation(character.toy,room)?TOYS[character.toy].story:undefined));
+  const wind=useKiteStore(s=>cues&&characterToy==='kite'&&s.active?s.wind:null);
   const group = useRef<THREE.Group>(null), last = useRef<BackpackLive["position"] | null>(null);
   useFrame(({ camera, gl }) => {
     const pos = instance.bounds?.center ?? instance.position;
@@ -104,7 +106,7 @@ function SelectedTools({ entry, instance, blocked, preview, styles }: { entry: B
       <HudButton position={[0.475, -0.145, 0]} label={t("hudLarger")} size={[0.28, 0.14]} disabled={locked || !transform || nextMmdVrModelScale(scale) === scale} onPress={() => useMmdVrStore.getState().requestModelScale(instance.runtimeId, nextMmdVrModelScale(scale))} />
       <HudButton position={[0,-.365,0]} label={t('hudPutAway')} size={[1.24,.14]} disabled={locked} onPress={()=>useBackpack.getState().putAway(entry.id)} />
     </>}
-    {cues&&isStoryRoom(room)&&(['left','right'] as const).map((side,i)=><HudButton key={side} position={[(i-.5)*.63,-.555,0]} size={[.59,.14]} disabled={locked||!instance.visible} label={t(STORIES[room][side])} onPress={()=>STORIES[room].cue(side)}/>)}
+    {cues&&(['left','right'] as const).map((side,i)=><HudButton key={side} position={[(i-.5)*.63,-.555,0]} size={[.59,.14]} active={wind===side} disabled={locked||!canGiveTo(instance,character.hand)} label={t(cues[side])} onPress={()=>cues.cue(side)}/>)}
   </group>;
 }
 

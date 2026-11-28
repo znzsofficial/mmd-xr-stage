@@ -1,6 +1,6 @@
 import {useEffect,useMemo} from 'react';
 import {PlaneGeometry} from 'three';
-import {BenchReel} from '../../play/kite/KiteStation';
+import {BenchReel} from '../../play/kite/KiteReel';
 import {addGardenBench,GardenBenchGrain} from '../GardenBench';
 import {Batch,type Part} from '../SceneryBatch';
 import {noPick} from '../sceneryPaint';

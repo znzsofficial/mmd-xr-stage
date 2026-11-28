@@ -1,4 +1,7 @@
-import { Vector3, type Object3D } from 'three';
+import { Matrix4, Quaternion, Vector3, type Object3D } from 'three';
+import {sampleStageGravity, type World} from '../../movement/gravityField';
+import type {SceneryId} from '../../scenery/catalog';
+import {horizonTangent} from '../localHorizon';
 
 export const REEL_NAME = 'play:piece:kite';
 export const EYELET_NAME = 'kite:eyelet';
@@ -13,16 +16,36 @@ export function registerEyelet(scene: Object3D, eyelet: Object3D) {
   return () => { set.delete(eyelet); };
 }
 
-export function displayedEyelet(scene: Object3D, character: boolean) {
+export function displayedEyelet(scene: Object3D, owner: 'wrist'|'controller'|'bench') {
   const candidates = eyelets.get(scene);
   if (candidates) for (const eyelet of candidates) {
-    let onWrist = false;
+    let mount: typeof owner | undefined;
     for (let p: Object3D | null = eyelet; p && p.visible; p = p.parent) {
-      if (p.name === 'play:character') onWrist = true;
-      if (p === scene && onWrist === character) return eyelet;
+      if (p.name === 'play:character') mount = 'wrist';
+      if (p.userData.heldToy === 'kite') mount = 'controller';
+      if (p.name === 'story:bench-reel') mount = 'bench';
+      if (p === scene && mount === owner) return eyelet;
     }
   }
   return null;
+}
+
+/** Carry a held reel's launch heading around a curved surface without making
+ * it swing with later head turns. In deep space retain the last local horizon. */
+export function createKiteHorizon(){
+  const up=new Vector3(0,1,0),sample=new Vector3(),back=new Vector3(0,0,1),right=new Vector3();
+  const arc=new Quaternion(),basis=new Matrix4();
+  let well:World|null=null;
+  return {up,sample(room:SceneryId,anchor:Vector3,fresh:boolean){
+    if(fresh){well=null;up.set(0,1,0);}
+    well=sampleStageGravity(room,anchor,well,sample);
+    if(sample.lengthSq()>1e-10){
+      sample.normalize().negate();back.applyQuaternion(arc.setFromUnitVectors(up,sample));up.copy(sample);
+    }
+  },orient(rotation:Quaternion,heading:Vector3|null){
+    horizonTangent(heading??back,up,back);
+    rotation.setFromRotationMatrix(basis.makeBasis(right.crossVectors(up,back),up,back));
+  }};
 }
 
 const heads = new WeakMap<Object3D, Object3D | null>();

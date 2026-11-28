@@ -1,10 +1,10 @@
 import { useFrame, useThree } from '@react-three/fiber';
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef } from 'react';
 import { Group, Matrix4, Vector3 } from 'three';
 import { useBackpack } from '../backpack/store';
 import { useHudWorldInput } from '../hud/hudWorldInput';
 import { useMmdVrStore } from '../mmdVrStore';
-import { sessionToys, TOYS, type Toy, type Hand } from './propCatalog';
+import { TOYS, type Toy, type Hand } from './propCatalog';
 import { canUseGrip, gripLatch, handleGripStart, useStagePlay } from './stagePlay';
 import type { GripFrame } from './propView';
 import * as views from './propViews';
@@ -66,6 +66,6 @@ function InHand({toy,hand}:{toy:Toy;hand:Hand}) {
 }
 
 export function StagePlay(){
-  const [toys]=useState(sessionToys), held=useStagePlay(s=>s.held);
-  return <>{held&&toys.includes(held.toy)&&<InHand key={`${held.hand}:${held.toy}`} {...held}/>}<StoryStations/></>;
+  const held=useStagePlay(s=>s.held);
+  return <>{held&&<InHand key={`${held.hand}:${held.toy}`} {...held}/>}<StoryStations/></>;
 }

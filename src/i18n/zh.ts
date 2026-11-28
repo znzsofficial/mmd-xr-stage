@@ -81,7 +81,7 @@ export const zh = {
   toyFeather:'羽毛挑逗刷',guideFeatherVr:'握住漆柄，转动手腕即可挥动羽束。',guideFeatherScreen:'递给自选成年角色的左手或右手，调握姿可改变羽端朝向。',guideFeatherEnd:'只用于持握摆姿；收回或切景即可放下。',
   toyGuide:'用法',toyCloseGuide:'关闭说明',toyShelfRule:'各景都可拿取或递给角色。',toyShelfHome:'生效地点：',visitSaber:'去星环遗庭',
   toyGuideEquip:'扳机点「左手拿」或「右手拿」，不用换景。',toyGuideGive:'扳机点角色 → 递道具 → 选角色的手。',toyGuideScreenGive:'选中已放置的角色，在「角色道具」选道具和左右手。',
-  kiteGreenName:'海站街边绿地',guideKiteVr:'站在草地上拿起线轴，轻握侧键换风向。',guideKiteScreen:'点「玩法机位」看长椅，选「左风签」或「右风签」放飞。',guideKiteEnd:'递给角色后线随手走；收回线轴，纸鸢落下。',
+  guideKiteVr:'手持时侧握换风；递给角色后，在道具面板选「左风签」或「右风签」。',guideKiteScreen:'把线轴交给任一手腕即可放飞，在旁边选「左风签」或「右风签」。在海站也可从背包选风签，从长椅放飞。',guideKiteEnd:'换手保留风向，收回线轴即结束放飞。',
   guideEncoreVr:'瞄准舞台两翼，每翼各握一次侧键。',guideEncoreScreen:'在 Live House 的背包里依次点「染左翼」「染右翼」。',guideEncoreEnd:'先染的一侧决定幕纹；收回话筒后仍可看幕。',
   guideBubblesVr:'在任何布景按住侧握键都能吹泡泡。',guideBubblesScreen:'在泳池背包选「左门发船」或「右门发船」。',guideBubblesEnd:'只在泳池：瞄准拱门，松开再握一次发船。',
   guidePostVr:'对准三枚不同星印，每枚松开再握一次侧键。',guidePostScreen:'盖印需 VR 手柄；屏幕可把盖印器递给角色摆姿势。',guidePostEnd:'集齐三枚显出邮票，第一枚决定邮徽。',

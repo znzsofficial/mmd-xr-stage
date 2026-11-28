@@ -8,7 +8,7 @@ import {fitsWebgpuRoom} from '../xr/floorBackend';
 import { HudButton, HudLine, HudSheet } from "../hud/PorcelainControls";
 import { BackpackThumbnail, indexBackpackCovers } from "./BackpackThumbnail";
 import { useXRInputSourceState } from '@react-three/xr';
-import { hasToyStation, sessionToys, toyLabel, TOYS, type Hand, type Toy } from '../play/propCatalog';
+import { hasToyStation, shelfToys, toyLabel, TOYS, type Hand, type Toy } from '../play/propCatalog';
 import { useStagePlay } from '../play/stagePlay';
 import { clearCard, useLunarCard } from '../play/lunarCard';
 import { resetEncore } from '../play/encore/encoreRound';
@@ -98,9 +98,9 @@ function ToyShelf({locked,onClose}:{locked:boolean;onClose:()=>void}) {
   const characterHasToy=useStagePlay(s=>!!(s.character||s.stand));
   const connected=(h:Hand)=>!!(h==='left'?left:right)?.inputSource.gripSpace;
   const [help,setHelp]=useState<Toy|null>(null);
-  const toys=sessionToys(), webgpu=isWebgpuStageSession();
+  const webgpu=isWebgpuStageSession();
   const layouts=useBackpack(s=>s.layouts);
-  const [page,setPage]=useState(0), pages=Math.ceil(toys.length/ROWS);
+  const [page,setPage]=useState(0), pages=Math.ceil(shelfToys.length/ROWS);
   if(help){const item=TOYS[help],{vr,end}=item.guide;return <group key="guide" name={`play:guide:${help}`}>
     <HudLine position={[0,.22,0]} text={t(toyLabel(help,room))+' · '+t('toyGuide')} width={2.03} role="title"/>
     <HudLine position={[0,.08,0]} text={t('toyShelfHome')+t(item.homeLabel)} width={2.03} role="muted"/>
@@ -111,7 +111,7 @@ function ToyShelf({locked,onClose}:{locked:boolean;onClose:()=>void}) {
   </group>}
   return <group name="play:shelf">
     <HudLine position={[0,.24,0]} text={t(left||right?'toyShelfRule':'toyNeedController')} width={2.04} role="muted" />
-    {toys.slice(page*ROWS,(page+1)*ROWS).map((toy,i)=>{const {home,homeLabel}=TOYS[toy];
+    {shelfToys.slice(page*ROWS,(page+1)*ROWS).map((toy,i)=>{const {home,homeLabel}=TOYS[toy];
       return <group name={`play:shelf:${toy}`} key={toy} position-y={.05-i*.205}>
         <HudLine position={[-.63,.041,0]} width={.84} text={t(toyLabel(toy,room))} />
         <HudLine position={[-.63,-.044,0]} width={.84} text={t('toyShelfHome')+t(homeLabel)+(toy==='post'&&room===home?` · ${n}/3`:'')} role="muted" />

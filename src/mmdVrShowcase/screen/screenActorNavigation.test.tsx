@@ -5,6 +5,9 @@ import {afterEach,beforeEach,expect,it,vi} from 'vitest';
 import {clearBackpack,useBackpack} from '../backpack/store';
 import {beginBodyPreview,patchBodyPreview,useBodyState} from '../bodyState/store';
 import {useMmdVrStore} from '../mmdVrStore';
+import {useLanguageStore} from '../../languageStore';
+import {useStagePlay} from '../play/stagePlay';
+import {useKiteStore} from '../play/kite/kiteStore';
 import {advancePelvic,enablePelvic,patchPelvic,publishParkedSample,publishPelvicSupport,usePelvic} from '../pelvic/store';
 import {useConception} from '../bodyState/reproduction/store';
 import {ScreenStage} from './ScreenStage';
@@ -58,6 +61,26 @@ it('does not replace an explicitly opened bag when placement finishes in the bac
   const command=useBackpack.getState().command!;
   await click('背包');await act(()=>useBackpack.getState().finishCommand(command));
   expect(useBackpack.getState().selected).toBe('b');expect(activeSheet()?.querySelector('h2')?.textContent).toBe('背包');
+});
+
+it('flies from the selected wrist in the classroom; the actor-free bench and its camera cue stay at the station',async()=>{
+  const t=useLanguageStore.getState().t,wind=useKiteStore.getState;
+  await act(()=>{
+    useStagePlay.getState().reset();stage.setPrefs({scenery:'classroom'});
+    useBackpack.setState(s=>({live:{...s.live,b:{...s.live.b,wrists:{left:true,right:true}}}}));
+  });
+  await click('背包');expect(button(t('storyView'))).toBeUndefined();expect(button(t('storyWindLeft'))).toBeUndefined();
+  await click('pick b');const choice=activeSheet()!.querySelector<HTMLSelectElement>('.screen-props select')!;
+  await act(()=>{choice.value='kite';choice.dispatchEvent(new Event('change',{bubbles:true}));});
+  expect(button(t('storyWindLeft'))).toBeUndefined();await click(t('propLeft'));
+  expect(wind()).toEqual({active:true,wind:'right'});await click(t('storyWindLeft'));await click(t('propRight'));
+  expect(button(t('storyWindLeft')).getAttribute('aria-pressed')).toBe('true');
+  expect(useStagePlay.getState().character).toMatchObject({toy:'kite',assetId:'b',hand:'right'});
+  await click(t('storyWindRight'));await click(t('toyStow'));expect(wind().active).toBe(false);
+  // Changing rooms closes the previous actor sheet onto the new room's bag.
+  await act(()=>stage.setPrefs({scenery:'seasideTerminus'}));expect(button(t('storyView'))).toBeDefined();
+  await click(t('storyWindLeft'));expect(wind()).toEqual({active:true,wind:'left'});expect(useStagePlay.getState().character).toBeNull();
+  await click(t('toyStow'));
 });
 
 it('shows each bound file even with duplicate basenames and unbinds the selected actor’s face',async()=>{

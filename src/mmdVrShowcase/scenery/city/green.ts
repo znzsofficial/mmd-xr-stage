@@ -7,7 +7,3 @@ export const CITY_KITE_SEAT = {x:15, z:48, yaw:0} as const;
 export const cityGreenBlocks = [
   {x:CITY_KITE_SEAT.x, z:CITY_KITE_SEAT.z, w:1.85, d:.58, bottom:0, top:.915},
 ];
-
-export function onCityGreen(x:number,z:number){
-  return Math.abs(x-cityGreenDeck.x)<=cityGreenDeck.w/2 && Math.abs(z-cityGreenDeck.z)<=cityGreenDeck.d/2;
-}

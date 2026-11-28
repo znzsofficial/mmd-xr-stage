@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Vector3 } from 'three';
 import { canUseGrip, giveScreenToy, gripLatch, handleGripStart, useStagePlay } from './stagePlay';
 import { hasToyStation, shelfToys, STORIES, TOYS, toyLabel } from './propCatalog';
-import {CITY_KITE_SEAT} from '../scenery/city/green';
+import {sceneryIds} from '../scenery/catalog';
 import { markAt, POST_MARKS, stamp, useLunarCard } from './lunarCard';
 import { saberLit } from './saberLight';
 import { useWandMotor } from './wandMotor';
@@ -90,23 +90,28 @@ describe('shared prop catalog and ownership',()=>{
     expect(useKiteStore.getState()).toEqual({active:true,wind:'left'});
     get().reset();expect(useKiteStore.getState()).toEqual({active:false,wind:'right'});
   });
-  it('flies only from a reel on the city green, never at coincident coordinates in another set',()=>{
-    const city='seasideTerminus',axis=new Vector3(CITY_KITE_SEAT.x,.69,CITY_KITE_SEAT.z-.099),quay=new Vector3(6,1,-12);
-    expect(STORIES[city].toy).toBe('kite');expect(TOYS.kite.home).toBe(city);
-    get().equip('kite','right');
-    expect(canUseGrip(get(),'kite','right',city)).toBe(true);
-    handleGripStart('kite',city,quay,forward);expect(useKiteStore.getState().active).toBe(false);
-    handleGripStart('kite',city,axis,forward);expect(useKiteStore.getState().wind).toBe('left');
-    handleGripStart('kite','classroom',axis,forward);expect(useKiteStore.getState().wind).toBe('left');
-    handleGripStart('kite',city,axis,forward);expect(useKiteStore.getState().wind).toBe('right');
-    get().give('actor','left');STORIES[city].cue('left');expect(useKiteStore.getState().wind).toBe('left');
-    expect(hasToyStation('kite',city,axis)).toBe(true);expect(hasToyStation('kite',city,quay)).toBe(false);
-    expect(hasToyStation('kite','pool',axis)).toBe(false);
+  it('flies from either owner in every set; only the city has an actor-free kite cue',()=>{
+    expect(STORIES.seasideTerminus.toy).toBe('kite');
+    expect(sceneryIds.filter(room=>hasToyStation('kite',room))).toEqual(['seasideTerminus']);
+    for(const room of sceneryIds){
+      get().equip('kite','left');expect(useKiteStore.getState()).toEqual({active:true,wind:'right'});
+      expect(canUseGrip(get(),'kite','left',room)).toBe(true);
+      handleGripStart('kite',room,new Vector3(-4,1.2,9),forward);expect(useKiteStore.getState().wind).toBe('left');
+      get().give('actor','right');expect(canUseGrip(get(),'kite','left',room)).toBe(false);
+      giveScreenToy('actor','kite','left',room);expect(useKiteStore.getState().wind).toBe('left');
+      TOYS.kite.wristCues!.cue('right');expect(useKiteStore.getState().wind).toBe('right');
+      get().equip('bubbles','right');expect(useKiteStore.getState().active).toBe(false);
+      giveScreenToy('actor','kite','left',room);expect(useKiteStore.getState().active).toBe(true);
+      get().stow();expect(useKiteStore.getState().active).toBe(false);
+    }
   });
   it('retains completed curtain and postcard when stowed, clears unowned artwork on leaving',()=>{
-    get().equip('encore','left');TOYS.encore.onGrip!(new Vector3(BADGE_X,BADGE_Y,0),forward);
+    const badge=new Vector3(BADGE_X,BADGE_Y,0);
+    get().equip('encore','left');handleGripStart('encore','floor',badge,forward);expect(useEncorePrint.getState().first).toBeNull();
+    handleGripStart('encore','liveHouse',badge,forward);
     STORIES.liveHouse.cue('left');get().stow();expect(useEncorePrint.getState()).toEqual({first:'right',complete:true});
-    get().equip('post','left');expect(markAt(0,0)).toBe(-1);
+    get().equip('post','left');expect(canUseGrip(get(),'post','left','liveHouse')).toBe(false);
+    expect(canUseGrip(get(),'post','left','floor')).toBe(true);expect(markAt(0,0)).toBe(-1);
     for(const i of [1,1,5,-1,0,2]){const point=POST_MARKS[i];stamp(point?markAt(point[0],point[1]):i);}
     get().stow();expect(useLunarCard.getState().stamps).toEqual([1,0,2]);
     get().reset();expect(useLunarCard.getState().stamps).toEqual([]);expect(useEncorePrint.getState().first).toBeNull();

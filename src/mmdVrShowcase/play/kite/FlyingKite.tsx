@@ -1,26 +1,14 @@
-import { useFrame, useThree } from '@react-three/fiber';
+import { useFrame } from '@react-three/fiber';
 import { useLayoutEffect, useMemo, useRef } from 'react';
 import { BufferAttribute, BufferGeometry, Color, DoubleSide, DynamicDrawUsage, Group, Object3D, Vector3 } from 'three';
 import { useBackpack } from '../../backpack/store';
 import { useMmdVrStore } from '../../mmdVrStore';
 import { noPick } from '../../scenery/sceneryPaint';
-import { CITY_KITE_SEAT } from '../../scenery/city/green';
 import { hasToyStation } from '../propCatalog';
 import { useStagePlay } from '../stagePlay';
-import { CORD_SAMPLES, displayedEyelet, EYELET_NAME, flightPoint, headOf, REEL_NAME, registerEyelet, writeCord } from './kiteFlight';
-import { GUIDE, REEL_OFFSET, makeReel, makeStreamer, makeSwallow } from './kiteModels';
-import { setKiteWind, useKiteStore } from './kiteStore';
-
-export function KiteReel() {
-  const scene = useThree(s => s.scene), eyelet = useRef<Group>(null);
-  const spool = useMemo(makeReel, []);
-  useLayoutEffect(() => registerEyelet(scene, eyelet.current!), [scene]);
-  useLayoutEffect(() => () => spool.dispose(), [spool]);
-  return <group name={REEL_NAME} position={REEL_OFFSET} pointerEvents="none">
-    <mesh geometry={spool} raycast={noPick}><meshStandardMaterial vertexColors roughness={.83}/></mesh>
-    <group ref={eyelet} name={EYELET_NAME} position={GUIDE}/>
-  </group>;
-}
+import { CORD_SAMPLES, createKiteHorizon, displayedEyelet, flightPoint, headOf, writeCord } from './kiteFlight';
+import { makeStreamer, makeSwallow } from './kiteModels';
+import { useKiteStore } from './kiteStore';
 
 function makeLine() {
   const geometry = new BufferGeometry(), coords = new Float32Array(CORD_SAMPLES*6);
@@ -56,29 +44,29 @@ function Flight() {
   const birdMesh = useMemo(makeSwallow, []), streamer = useMemo(makeStreamer, []), line = useMemo(makeLine, []);
   useLayoutEffect(() => () => { birdMesh.dispose(); streamer.dispose(); line.geometry.dispose(); }, [birdMesh,streamer,line]);
   const s = useMemo(() => ({ anchor: new Vector3(), face: new Vector3(), viewer: new Vector3(), end: new Vector3(),
-    eyelet: null as Object3D | null, actor: null as Object3D | null, time: 0, lane: 1 }), []);
+    horizon:createKiteHorizon(), eyelet: null as Object3D | null, actor: null as Object3D | null, time: 0, lane: 1 }), []);
   useFrame(({scene,camera,gl},delta) => {
     const group = rig.current!, kite = bird.current!, stage = useMmdVrStore.getState(), play = useStagePlay.getState();
     const { active,wind } = useKiteStore.getState(), c = play.character?.toy === 'kite' ? play.character : null;
-    const eyelet = displayedEyelet(scene, !!c), live = c && useBackpack.getState().live[c.assetId];
+    const mount = c ? 'wrist' : stage.presentation==='screen' ? 'bench' : 'controller';
+    const eyelet = displayedEyelet(scene, mount), live = c && useBackpack.getState().live[c.assetId];
     const actor = live && scene.children.find(o => o.userData.mmdModelId === live.runtimeId);
     const room=stage.prefs.scenery;
-    if (!active || !eyelet || (!c && play.held?.toy !== 'kite') ||
+    if (!active || !eyelet || (!c && play.held?.toy !== 'kite') || (mount==='bench' && !hasToyStation('kite',room)) ||
         (c && (!live?.visible || !live.wrists?.[c.hand] || !actor?.visible || stage.physicsBusy))) {
       group.visible = false; s.eyelet = null; s.actor = null; return;
     }
     eyelet.getWorldPosition(s.anchor);
-    if(!hasToyStation('kite',room,s.anchor)){
-      group.visible=false;s.eyelet=null;return;
-    }
     const fresh = s.eyelet !== eyelet || s.actor !== (actor ?? null);
+    s.horizon.sample(room,s.anchor,fresh);
+    const up=s.horizon.up;
     const unit = actor ? Math.max(.38,Math.min(2.4,(live?.bounds?.size[1] ?? 1.65)/1.65)) : 1;
     if (actor && live) {
       const head = headOf(actor);
-      if (head) { head.getWorldPosition(s.face); s.face.y += .075*unit; }
-      else if (live.bounds) { s.face.set(...live.bounds.center); s.face.y += .34*live.bounds.size[1]; }
-      else { s.face.set(...live.position); s.face.y += 1.46*unit; }
-    } else { s.face.copy(s.anchor); s.face.y += .21; }
+      if (head) head.getWorldPosition(s.face).addScaledVector(up,.075*unit);
+      else if (live.bounds) s.face.set(...live.bounds.center).addScaledVector(up,.34*live.bounds.size[1]);
+      else s.face.set(...live.position).addScaledVector(up,1.46*unit);
+    } else s.face.copy(s.anchor).addScaledVector(up,.21);
     if (!Number.isFinite(s.anchor.distanceToSquared(s.face)) || s.anchor.distanceToSquared(s.face) > (3.6*unit)**2) {
       group.visible = false; s.eyelet = null; return;
     }
@@ -86,14 +74,10 @@ function Flight() {
     if (fresh) { s.time = 0; s.lane = targetLane; }
     s.eyelet = eyelet; s.actor = actor ?? null; s.time += dt;
     s.lane += (targetLane-s.lane)*(1-Math.exp(-dt*2.8));
-    // Frame the shoulder in the viewer's horizontal plane. With a hand-held
-    // controller lock the launch heading rather than swinging with head turns.
-    if (fresh || actor || stage.presentation === 'screen') {
-      const view = gl.xr.isPresenting ? gl.xr.getCamera() : camera;
-      if(!actor&&stage.presentation==='screen')group.rotation.y=CITY_KITE_SEAT.yaw;
-      else if (!actor && gl.xr.isPresenting) { view.getWorldDirection(s.viewer); group.rotation.y = Math.atan2(-s.viewer.x,-s.viewer.z); }
-      else { view.getWorldPosition(s.viewer); group.rotation.y = Math.atan2(s.viewer.x-s.face.x,s.viewer.z-s.face.z); }
-    }
+    const view = gl.xr.isPresenting ? gl.xr.getCamera() : camera;
+    const heading = actor ? view.getWorldPosition(s.viewer).sub(s.face) : mount==='bench' ? eyelet.getWorldDirection(s.viewer) :
+      fresh ? view.getWorldDirection(s.viewer).negate() : null;
+    s.horizon.orient(group.quaternion,heading);
     group.position.copy(s.face); group.scale.setScalar(unit); group.worldToLocal(s.anchor);
     flightPoint(s.end,s.time,s.lane,!actor);
     kite.position.copy(s.end);
@@ -115,21 +99,8 @@ function Flight() {
   </group>;
 }
 
-/** A screen cue uses the bench reel when there is no wrist. The same piece
- * is visible at rest on the city green, including from a nearby door. */
-export function BenchReel({seat,height}:{seat:{x:number;z:number;yaw:number};height:number}){
-  const screen=useMmdVrStore(s=>s.presentation==='screen');
-  const held=useStagePlay(s=>s.held?.toy==='kite');
-  const onWrist=useStagePlay(s=>s.character?.toy==='kite');
-  if(onWrist||(held&&!screen))return null;
-  return <group name="story:bench-reel" position={[seat.x,height,seat.z]} rotation-y={seat.yaw} pointerEvents="none" userData={{playerCollision:false}}><KiteReel/></group>;
-}
-
-export function KiteStation() {
+export function FlyingKite() {
   const active = useKiteStore(s => s.active);
   const owner = useStagePlay(s => s.character?.toy === 'kite' ? `actor:${s.character.assetId}:${s.character.hand}` : s.held?.toy === 'kite' ? `held:${s.held.hand}` : null);
-  // Equip alone (XR shelf or first handoff from the screen) starts a flight.
-  // Don't override an explicit simultaneous cue, or relaunch on resetKite().
-  useLayoutEffect(() => { if (owner && !useKiteStore.getState().active) setKiteWind('right'); }, [owner]);
   return active&&owner ? <Flight key={owner}/> : null;
 }

@@ -1,5 +1,6 @@
 import { Color, DoubleSide, DynamicDrawUsage, Group, InstancedMesh, Matrix4, MeshBasicMaterial, Object3D, Quaternion, Vector3 } from 'three';
-import { ease, lanternTangent, PETALS, petalOpening, POD_LIMIT, SCHOOL_SIZE, SHELL_END, shellSize, SHOW_END, type LanternPodState } from './lanternFlight';
+import { ease, PETALS, petalOpening, POD_LIMIT, SCHOOL_SIZE, SHELL_END, shellSize, SHOW_END, type LanternPodState } from './lanternFlight';
+import {horizonTangent} from '../localHorizon';
 import { lanternBell, lanternPetal, lanternTassels } from './lanternPaper';
 
 /** Three opaque, ink-coloured batches for the whole show. No transparent
@@ -16,7 +17,7 @@ export function createLanternDisplay(){
   const palette=['#fff4e4','#bfffe4','#ffcadc','#c6ddff','#fff0ac'].map(s=>new Color(s));
   const pen=new Object3D(),basis=new Matrix4(),q=new Quaternion(),z=new Vector3(),x=new Vector3();
   function face(up:Vector3,lane:Vector3){
-    lanternTangent(lane,up,z);x.crossVectors(up,z);q.setFromRotationMatrix(basis.makeBasis(x,up,z));
+    horizonTangent(lane,up,z);x.crossVectors(up,z);q.setFromRotationMatrix(basis.makeBasis(x,up,z));
   }
   function flush(m:InstancedMesh,count:number){
     m.count=count;m.visible=count>0;

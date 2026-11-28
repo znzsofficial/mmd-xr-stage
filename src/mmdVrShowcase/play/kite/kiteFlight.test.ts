@@ -1,19 +1,38 @@
-import { Bone, Group, Scene, Vector3 } from 'three';
+import { Bone, Group, Quaternion, Scene, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import { CORD_SAMPLES, displayedEyelet, flightPoint, headOf, registerEyelet, writeCord } from './kiteFlight';
+import { CORD_SAMPLES, createKiteHorizon, displayedEyelet, flightPoint, headOf, registerEyelet, writeCord } from './kiteFlight';
 import { getKiteWind, resetKite, setKiteWind, useKiteStore } from './kiteStore';
+import {homeWorld} from '../../movement/gravityReference';
 
-describe('meadow swallow', () => {
-  it('uses the displayed eyelet after a wrist handoff; hidden, detached and unmounted anchors cannot fly', () => {
-    const scene = new Scene(), stand = new Group(), wrist = new Group(); wrist.name = 'play:character';
-    const a = new Group(), b = new Group(); stand.add(a); wrist.add(b); scene.add(stand,wrist);
-    const release = registerEyelet(scene,a); registerEyelet(scene,b);
-    expect(displayedEyelet(scene,false)).toBe(a); expect(displayedEyelet(scene,true)).toBe(b);
+describe('portable swallow kite', () => {
+  it('never substitutes the visible bench for a hidden controller or a missing wrist', () => {
+    const scene = new Scene(), stand = new Group(), wrist = new Group(), hand = new Group();
+    stand.name='story:bench-reel';wrist.name='play:character';hand.userData.heldToy='kite';
+    const a = new Group(), b = new Group(), c = new Group();stand.add(a); wrist.add(b);hand.add(c);scene.add(stand,wrist,hand);
+    const release=registerEyelet(scene,a);registerEyelet(scene,b);registerEyelet(scene,c);
+    expect(displayedEyelet(scene,'bench')).toBe(a);expect(displayedEyelet(scene,'controller')).toBe(c);
+    hand.visible=false;expect(displayedEyelet(scene,'controller')).toBeNull();
     wrist.position.set(1,2,3); wrist.rotation.z = Math.PI/2; b.position.y = .1;
-    expect(displayedEyelet(scene,true)!.getWorldPosition(new Vector3()).x).toBeCloseTo(.9);
-    wrist.visible=false; expect(displayedEyelet(scene,true)).toBeNull();
-    wrist.visible=true; scene.remove(wrist); expect(displayedEyelet(scene,true)).toBeNull();
-    release(); expect(displayedEyelet(scene,false)).toBeNull();
+    expect(displayedEyelet(scene,'wrist')!.getWorldPosition(new Vector3()).x).toBeCloseTo(.9);
+    wrist.visible=false; expect(displayedEyelet(scene,'wrist')).toBeNull();
+    wrist.visible=true; scene.remove(wrist); expect(displayedEyelet(scene,'wrist')).toBeNull();
+    release(); expect(displayedEyelet(scene,'bench')).toBeNull();
+  });
+
+  it('carries the launch heading along the shell and lifts above the local horizon',()=>{
+    const frame=createKiteHorizon(),rotation=new Quaternion(),radial=new Vector3(),at=new Vector3();
+    const up=new Vector3(0,1,0),back=new Vector3(0,0,1),tip=new Vector3();
+    for(let i=0;i<=12;i++){
+      const angle=i*Math.PI/12;radial.set(Math.sin(angle),Math.cos(angle),0);
+      at.copy(homeWorld.centre).addScaledVector(radial,homeWorld.radius+1.4);
+      frame.sample('glassPlanet',at,i===0);frame.orient(rotation,i===0?back:null);
+      expect(up.clone().applyQuaternion(rotation).dot(radial)).toBeCloseTo(1);
+      expect(back.clone().applyQuaternion(rotation).dot(back)).toBeCloseTo(1);
+      expect(flightPoint(tip,2,1,true).applyQuaternion(rotation).dot(radial)).toBeGreaterThan(1.2);
+    }
+    frame.sample('glassPlanet',at.set(1e4,0,0),false);expect(frame.up.dot(radial)).toBeCloseTo(1);
+    frame.sample('chapel',at,true);frame.orient(rotation,up); // straight overhead is still a usable horizontal basis
+    expect(up.clone().applyQuaternion(rotation).dot(up)).toBeCloseTo(1);
   });
 
   it('uses the animated PMX head rather than the model origin when the dancer bends and turns', () => {
