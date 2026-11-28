@@ -605,6 +605,10 @@ export function createMmdRuntimeHandle(scene: THREE.Scene, options: MmdRuntimeOp
         ? await actorBackend.prepareMilkOutlets(model,stale,source instanceof Uint8Array?source:undefined)
         : await prepareMilkOutlets(model,stale);
       assertCurrent();
+      if (actorBackend?.prepareModelTextures) {
+        await actorBackend.prepareModelTextures(model,stale,work);
+        assertCurrent();
+      }
       configureActorPalms(model.mesh,palmsRequested());
       // Use the authored slot names. The renderer can append outline groups
       // and replace the dense mesh attributes during this synchronous attach.

@@ -29,3 +29,9 @@
 - **长停顿与稳态分开：**上面一趟首放到双眼提交约 **675 ms**，相关区间最长可见间隔约 **527 ms**。另一趟在同页、同渲染器收回再放同一原 File：首放／再放分别 **696／577 ms** 到双眼提交，最长可见间隔 **455／400 ms**。`load-textures` 仍为 **240／235 ms**，是 loader 内的贴图装配整段，不等于纯解码或造成最长停顿的独占时间；两次均有 11 条 Three 管线请求，同步 API 调用累计小于 1 ms。稳态未复现这类停顿，下一处值得拆的是再放时仍重复的贴图处理与首次上屏工作。
 
 复现及原始数据：`local-review/harbour-actor-timing.cjs [--placement]`、`local-review/harbour-actor-timing.json` 和 `local-review/harbour-placement-timing.json`。设备旧导出与本节不直接比较。
+
+### 把新演员的贴图上传分到已有 XR 帧
+
+跟踪 `copyExternalImageToTexture`，原版首放与再放各有约 **141 ms** 的图片拷贝挤在第一个演员绘制回调。改为[放置期间每个有效 XR 帧上传一张](../../src/mmdVrShowcase/stage/loading/modelTextureUploads.ts)，上传齐才挂接并绘制，避免先出现缺图模型。去重按纹理对象，使用原本的贴图尺寸、采样和 mip，离场取消未完队列。WebGL 已有独立的上传节奏。
+
+同一海站原衣实模，原路径／候选两轮：首次提交前最长可见间隔 **351 → 194／188 ms**，再放 **364 → 103／103 ms**；确认到双眼提交，首次 **680 → 680／714 ms**，再放 **580 → 391／394 ms**。每次分开上传 10 张，单张最长约 **33–35 ms**。再放的 `load-textures` 也变短，但上传调度位于 loader 之后，此差额不全部归给分帧。冷加载首次提交后仍有一趟级别约 **440 ms** 的顶点 uniform 缓冲驱动等待，单列，不算作本次已消除。通用 `compileAsync` 原型会为同一演员多生成 7 条管线，并增加等待上场的时间；未纳入本次修复。桌面模拟 XR，不代表 Quest 时间。

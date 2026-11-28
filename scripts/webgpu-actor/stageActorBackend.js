@@ -11,6 +11,7 @@ import {makeEggSurface} from './eggSurface.js';
 import {bindAuthoredSurface} from './authoredSurface.js';
 import {authoredSurface} from '../../src/mmdVrShowcase/play/authoredSurface';
 import {createFloorPoseSkirt} from './poseSkirtDisplay.js';
+import {createModelTextureUploads} from '../../src/mmdVrShowcase/stage/loading/modelTextureUploads';
 
 const empty = () => ({mode:'none', cloth:'none', nodes:0, clothSteps:0, fullBodies:0, keptBodies:0,
   bulletSteps:0, bulletSimulatedSteps:0, updatedBones:0, evaluations:0, poseSeconds:0, physicsDelta:0});
@@ -21,6 +22,7 @@ export async function createStageActorBackend(renderer, scene, light, origin, gr
   // The landmark sun can unmount when StageRoom mounts its own. The facade
   // takes one stable light reference; mirror the live room's world direction.
   const sun = new DirectionalLight(), palms = xrPalms();
+  const textureUploads = createModelTextureUploads(texture => renderer.initTexture(texture));
   const adapter = await createActorMaterialAdapter(renderer,sun,{...grade,stageEdits:true,reuseStylePasses:true});
   // Models get their runtime IDs after attachment. Key the attachment by the
   // loaded model itself, including during restore and disposal of stale loads.
@@ -55,6 +57,7 @@ export async function createStageActorBackend(renderer, scene, light, origin, gr
   return {
     loadOptions:adapter.loadOptions,
     beginModelLoad:firstUse?.model,
+    prepareModelTextures:textureUploads.prepare,
     getGarmentPose:id=>actorFor(id)?.garment??null,
     getEggSurface:id=>actorFor(id)?.egg(),
     prepareMilkOutlets:(model,stale,bytes)=>prepareFloorMilk(model,stale,bytes,()=>{
@@ -71,6 +74,7 @@ export async function createStageActorBackend(renderer, scene, light, origin, gr
       ++serial;
       seedFrame = reseed;
       tracked = !!(origin.current && space && frame?.session.visibilityState === 'visible' && frame.getViewerPose(space)?.views.length);
+      if (tracked) textureUploads.advance();
       if (!tracked || reseed) {
         palms.reset();
         for(const actor of actors.values()){
@@ -195,6 +199,7 @@ export async function createStageActorBackend(renderer, scene, light, origin, gr
     dispose() {
       if (disposed) return;
       disposed = true; tracked = false; worldPalms = null; palms.reset();
+      textureUploads.dispose();
       for(const actor of actors.values())actor.binding.dispose();
       listeners.clear(); adapter.dispose(); sun.dispose();
     },

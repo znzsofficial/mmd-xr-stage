@@ -67,6 +67,7 @@ export interface ModelLoadTiming {
 export interface RoomActorBackend {
   readonly loadOptions: Parameters<ThreeMmdLoader['loadModel']>[1];
   beginModelLoad?(work?: PlacementWork): ModelLoadTiming;
+  prepareModelTextures?(model:ThreeMmdModel,stale:()=>boolean,work?:PlacementWork):Promise<void>;
   readonly styles?: RoomActorStyles;
   prepareMilkOutlets?(model:ThreeMmdModel,stale:()=>boolean,bytes?:Uint8Array):Promise<SampleMilkOutlet>;
   getGarmentPose:(runtimeId:string)=>GarmentPose|null;

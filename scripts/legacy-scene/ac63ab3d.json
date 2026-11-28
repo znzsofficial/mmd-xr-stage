@@ -1,0 +1,15 @@
+{
+  "revision": "f22d7fbe98f8d16ff90fed3707c239f9a2f9ff56",
+  "dist": {
+    "files": 502,
+    "sha256": "75d38120a2a74dde7f12eca1763716ff7269dbe948923d548c1a7b5551d5777f"
+  },
+  "assets": {
+    "assets/PlanetPhysics-C9hMc0Ln.js": "3c145768b429af4866d9c8c45393aacf1560bf5a801ce562cfb5e3f42f07679a",
+    "assets/emulate-BDP_NhLU.js": "b44e62ea5ee4cf1025704c5ccae18b0e1cef594c0078dd6b34796a1c25e5416d",
+    "assets/index-BORy-nJl.js": "6c32b419238e8a512b7981d554589e83f8bef6b899a72f04a07f07127486e4a6",
+    "assets/index-CMqmj6R2.css": "671b330c8c5e917749bf813fbb8002ead18c674f3267ad14a6203516c9601236",
+    "assets/rapier-BwbtuyZI.js": "612c2ca63d97d5aa82550cec0921b2a30af02b92ecdf5934cb86ecf32e3727b9",
+    "assets/stage-host-Cgaf5z_u.js": "011704272c8ae3520779cdc31e98f281204c555f4dbd816d37c25a067d3ff6c7"
+  }
+}

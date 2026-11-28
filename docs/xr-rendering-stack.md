@@ -24,7 +24,7 @@
 
 ## XR 输出与性能诊断
 
-**编译在什么时候发生？** WebGL2 放置新 PMX 时先逐张预传贴图，有 `KHR_parallel_shader_compile` 才用当前房间和相机[异步预编译](../src/mmdVrShowcase/stage/loading/prepareModelGpu.ts)；导出的 `compileAsyncWallMs` 是等待墙钟。WebGPU 布景在构建时将登记的 GLSL 转为 TSL，浏览器仍需针对实际设备与目标格式生成渲染管线。[四条布料管线](../experiments/gpu-cloth/clothPrograms.js)按设备复用，但绑定与输出缓冲各演员独占。[演员画风](../scripts/webgpu-actor/actorStyle.js)按选择准备附图，已绘制的变体通过 [Three 的绘制 pass 标识](../scripts/webgpu-actor/actorStylePasses.js)复用。附图就绪、双眼提交和镜片呈现是不同的时点。正式版不会在进入 XR 前编译所有演员和画风。[首次放人及复切对照、报告字段](./performance/README.md#webgpu-首次放置与切画风)
+**编译在什么时候发生？** WebGL2 放置新 PMX 时先逐张预传贴图，有 `KHR_parallel_shader_compile` 才用当前房间和相机[异步预编译](../src/mmdVrShowcase/stage/loading/prepareModelGpu.ts)；导出的 `compileAsyncWallMs` 是等待墙钟。WebGPU 新 PMX 的底图、toon 与球图[分到既有的跟踪帧上传](../src/mmdVrShowcase/stage/loading/modelTextureUploads.ts)，随后才挂接演员；未完成的放置随房间失效。WebGPU 布景在构建时将登记的 GLSL 转为 TSL，浏览器仍需针对实际设备与目标格式生成渲染管线。[四条布料管线](../experiments/gpu-cloth/clothPrograms.js)按设备复用，但绑定与输出缓冲各演员独占。[演员画风](../scripts/webgpu-actor/actorStyle.js)按选择准备附图，已绘制的变体通过 [Three 的绘制 pass 标识](../scripts/webgpu-actor/actorStylePasses.js)复用。附图就绪、双眼提交和镜片呈现是不同的时点。[首次放人及复切对照、报告字段](./performance/README.md#webgpu-首次放置与切画风)
 
 | 维护项 | WebGL2 XR | WebGPU XR |
 |---|---|---|
