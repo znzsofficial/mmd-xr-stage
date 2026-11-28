@@ -3,7 +3,6 @@ import type { SceneryId } from './catalog';
 import { COURT_SHOTS } from './ObservatoryLayout';
 import { CHAPEL_SHOTS } from './ChapelLayout';
 import { CLINIC_SHOTS,CLINIC_VIEW } from './clinic/clinicLayout';
-import {CLINIC_ORIGIN} from './clinic/clinicApproach';
 import {roomLinks,type RoomLink} from './connections';
 import {LIDO_ROUTE_SHOTS} from './LidoLayout';
 import {SCREEN_ENTRY,SHOTS} from './qinhuai/songhouseLayout';
@@ -41,10 +40,6 @@ export const roomViews:Record<SceneryId,RoomView>={
     {key:'campusHall',eye:[-4.02,1.61,4.52],aim:[-4.58,1.35,9.40]},
     {key:'classWindowDesk',eye:[-1.30,1.14,3.35],aim:[-2.61,.61,2.65]},
     {key:'classWindowPortrait',eye:[-2.72,1.60,-1.91],aim:[.43,.98,-4.08]}]},
-  lawn:{entry:[[.6,1.65,3.7],[0,1,-1.4]],shots:[
-    {key:'campusSchool',eye:[.30,1.62,-2.67],aim:[5.21,1.53,-7.60]},
-    {key:'campusArbor',eye:[-.73,1.58,.6],aim:[-4.2,1.40,-6.4]},LIDO_ROUTE_SHOTS.gate,
-    {key:'clinicGardenPorch',eye:[CLINIC_ORIGIN.x+16.40,1.6,CLINIC_ORIGIN.z+2.28],aim:[CLINIC_ORIGIN.x+9.28,1.33,CLINIC_ORIGIN.z+2.32]}]},
   astralCourt:{entry:[[0,1.65,5.65],[0,1.42,-3.6]],shots:COURT_SHOTS.map(s=>({...s,overview:s.key==='courtOverview'}))},
   chapel:{entry:[[.25,1.63,4.7],[0,1.68,-3.8]],shots:CHAPEL_SHOTS}, clinic:{entry:CLINIC_VIEW,shots:[...CLINIC_SHOTS,
     {key:'clinicEastExit',eye:[4.18,1.58,2.74],aim:[10.77,1.28,2.83]},
@@ -65,7 +60,6 @@ const streetViews:Partial<Record<SceneryId,readonly Shot[]>>={
     {key:'cityPoolFront',eye:[-24.9,1.65,80.6],aim:[-24.25,1.55,71.35]},
     {key:'cityArcadeFront',eye:[28.6,1.65,87.4],aim:[29.1,2.40,76]},
   ],
-  lawn:[{key:'campusPrintStreet',eye:[31.5,1.65,2.9],aim:[46.4,1.16,2.9]}],
   arcadeHall:[{key:'arcadePoolOverlook',eye:[-7.84,3.70,-24.15],aim:[-24,1.30,-24.15]}],
   pool:[{key:'poolArcadeWalk',eye:[6.2,1.65,-19.25],aim:[15,1.02,-19.25]}],
   weddingCourt:[{key:'weddingBridgeView',eye:[-17,2.07,10.45],aim:[-23.4,1.14,10.45]}],

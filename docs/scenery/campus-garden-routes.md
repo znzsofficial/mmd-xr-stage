@@ -1,8 +1,8 @@
 # 从哪扇门走：校园三条跨区路线
 
-**历史路线。** 四馆现从[海站城区](./harbour-city.md)进出。下文的双向门线和截图对应旧版；旧草坪可进馆，回程到城市街道。
+**历史路线，已下线。** 四馆现从[海站城区](./harbour-city.md)进出。以下保留旧版的双向门线、截图及验收记录。
 
-每条路由一处正在使用的空间接到另一处：教室窗边走道接花园，藤径接泳池东岸，草坪木栅尽头接候诊席。**跨区只发生在真实开口；花架、长椅和岔口本身不是触发区。** 屏幕导览和 XR 共用[六条有向门线](../../src/mmdVrShowcase/scenery/connections.ts)。
+当时的布局中，教室窗边走道接花园，藤径接泳池东岸，草坪木栅尽头接候诊席。跨区只发生在真实开口；屏幕导览和 XR 共用当时的六条有向门线。
 
 | 两端 | 旧址的问题 | 现在站在门口能看到什么 |
 | --- | --- | --- |
@@ -28,4 +28,4 @@
 
 - **屏幕**：生产构建在 Edge／WebGL 逐条从出发端机位切换到目标端，共十二幅。检查实际程序的顶点、片元 `COMPILE_STATUS` 和 `LINK_STATUS`，包含近岸可见的泳池水材质。比较了教室返程的地板、泳场返程的花架中心线、门诊出门的园路。另用屏幕背包和真实鼠标在四景各落下同一份合成 GLB，含远端计时台 `(5.55, −20.22)`。
 - **模拟 Quest 3**：使用 IWER 左拇指杆，依次教室→草坪→门诊→草坪→泳池→草坪→教室。每次转换保持追踪偏移 `(+0.19, 1.61, −0.14)`、头向 `0.22 rad`，不增加 `viewEpoch`、停杆不反跳。六个方向都先用自由模式穿线：没有换景，回普通模式回到最后安全脚位，再用普通行走过门。以真实扳机在四景分别落下标记；候诊席和水面拒放，回教室仍有原先放下的标记。模拟器不能代替头显上的舒适度和帧率检查。
-- **可重复检查**：[校园路线测试](../../src/mmdVrShowcase/scenery/CampusLayout.test.ts)、[候诊东门测试](../../src/mmdVrShowcase/scenery/clinic/clinicApproach.test.ts)。本机烟测工具 `xr-browser-smoke/garden-crossings-{screen,mouse,xr}.cjs`；输出在同目录的 `route-round/garden-final/` 和 `route-round/garden-xr/`。用的都是合成测试资产。
+- **当时的检查工具**：`xr-browser-smoke/garden-crossings-{screen,mouse,xr}.cjs`；输出在同目录的 `route-round/garden-final/` 和 `route-round/garden-xr/`。用的都是合成测试资产。

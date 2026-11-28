@@ -1,0 +1,16 @@
+{
+  "revision": "4d13286f897ffb6b13bf74b0d40dcac1e834a6a8",
+  "dist": {
+    "files": 473,
+    "sha256": "e75a434ffe820bb17a0e91b74e1da55b9b90c3195c376c6940a0c65d0b424afe"
+  },
+  "assets": {
+    "assets/PlanetPhysics-BQ7x9RNu.js": "a72c3108ed6a47156219dd9f1fe9e51130350302b576e5c96ccff37e4907e6ae",
+    "assets/emulate-CxzuHTFR.js": "48f23e494b1b759310c60ff85942a19502ad83b14d29e2c527fb29d4f2de8c06",
+    "assets/endfieldGeometry.worker-DerXnty1.js": "2657c1507aa0cdfe36761dd8d7a0a238ed9af718ddffc15debef2f967fc9c380",
+    "assets/index-Bqv47H9-.js": "0441e46f78399e7d789848c8fbed8c12696cf7b884e3cca8313253d8d5affefb",
+    "assets/rapier-CLuBzDM3.js": "ed068d995281c3a34f39274357db973d694a337f431208184b8ad73ff4f2f38a",
+    "assets/stage-host-BG95CWEV.js": "4b8720d1b20e749dba81e0b5f2ec3a34d2a97ba853c48b49027603e6aa7e1d20",
+    "labs/cloth/assets/index-BiSi28SP.js": "6c63e8be41037884ae00ae246a2c945ee59971599c1c6a5a331b1bdeca25d398"
+  }
+}

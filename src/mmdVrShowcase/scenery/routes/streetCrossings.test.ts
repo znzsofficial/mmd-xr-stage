@@ -15,7 +15,7 @@ it('closes the arcade / timing deck / station loop in a single coordinate system
   const loop=[link('seasideTerminus','arcadeHall'),link('arcadeHall','pool'),link('pool','seasideTerminus')];
   for(const axis of [0,1])expect(loop.reduce((sum,l)=>sum+l.offset[axis],0)).toBeCloseTo(0,6);
 });
-it.each([['lawn','campusPrintStreet',0],['arcadeHall','arcadePoolOverlook',2.05],['pool','poolArcadeWalk',0],
+it.each([['arcadeHall','arcadePoolOverlook',2.05],['pool','poolArcadeWalk',0],
   ['weddingCourt','weddingBridgeView',.42],['qinhuai','qinhuaiLanternQuay',0]] as const)(
   '%s has a local street tour at standing height, separate from the crossing action',(room,key,y)=>{
     const shot=tourShots(room).find(s=>s.key===key)!;

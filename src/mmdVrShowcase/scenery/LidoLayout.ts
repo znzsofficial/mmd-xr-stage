@@ -1,8 +1,7 @@
 import type {Part} from './SceneryBatch';
 import {span} from './detailParts';
 
-// Pool origin in meadow metres. Both rooms draw the actual arcade, so walking
-// through the gate changes only the active district, not the user's heading.
+// Pool location in the shared arcade-to-pool walkway's coordinate system.
 export const POOL_ORIGIN={x:-11.4,z:-20.3};
 export const LIDO_ENTRY={x:6.15,z:9.26,w:3.22,d:5.52};
 export const LIDO_GATE={in:7.65,out:8.35,half:1.48};
@@ -63,19 +62,15 @@ export function poolBarrierParts():Part[]{
     }
   }return parts;
 }
-// Meadow only borrows the forecourt up to the door; the basin is in the active pool set.
-export function borrowedLido(x:number,z:number){return Math.abs(x-POOL_ORIGIN.x)<POOL.deck.w/2+.2&&z<POOL_ORIGIN.z+LIDO_GATE.in-.36;}
 export const LIDO_ROUTE_SHOTS={
-  gate:{key:'lidoGate',eye:[-4.43,1.61,-7.52],aim:[-5.62,1.55,-13.65]},
   clock:{key:'lidoClock',eye:[6.14,1.58,-16.49],aim:[5.85,1.30,-20.91]},
   return:{key:'lidoLookBack',eye:[6.85,1.63,3.36],aim:[5.96,1.60,10.05]},
 } as const;
-export function inLidoApproach(x:number,z:number,margin=0){return Math.abs(x-POOL_ORIGIN.x-LIDO_ENTRY.x)<2.45+margin&&z< -7.9+margin&&z>POOL_ORIGIN.z+6-margin||borrowedLido(x,z);}
 
 // Append to an existing instance batch: no second pool/station running behind a gate.
-export function arcadeParts(room:'pool'|'lawn'):Part[]{
-  const {x:dx,z:dz}=room==='pool'?{x:0,z:0}:POOL_ORIGIN,out:Part[]=[];
-  const box=(x:number,y:number,z:number,w:number,h:number,d:number,color:string)=>out.push({p:[x+dx,y,z+dz],s:[w,h,d],color});
+export function arcadeParts():Part[]{
+  const out:Part[]=[];
+  const box=(x:number,y:number,z:number,w:number,h:number,d:number,color:string)=>out.push({p:[x,y,z],s:[w,h,d],color});
   const {x,z,w,d}=LIDO_ENTRY,blue='#35777e',cream='#eadcc0',coral='#ce8066';
   for(let j=0;j<9;j++){const zz=z-d/2+(j+.5)*d/9;
     for(const s of [-1,1])box(x+s*(w/2-.21),.016,zz,.13,.006,d/9-.013,j%3?blue:coral);
@@ -99,16 +94,13 @@ export function arcadeParts(room:'pool'|'lawn'):Part[]{
   for(const s of [-1,1])box(6.15+s*.98,2.658,8.34,.48,.033,.22,'#fff1cf');
   return out;
 }
-export function distantLido(site:'lawn'|'city'='lawn'):Part[]{const {x,z}=POOL_ORIGIN,water=POOL.water;
-  // The legacy meadow has its own continuous turf at zero. The city instead
-  // has a real cutout for the basin, with the water below the coping.
-  const deckTop=site==='lawn'?.01:0,waterTop=site==='lawn'?.015:POOL_WATER_Y;
+export function distantLido():Part[]{const water=POOL.water;
   return [
-  {p:[x+.8,1.44,-23.15+z],s:[18.5,2.86,1.42],color:'#f2dfb9'}, {p:[x+.8,3,-22.5+z],s:[19.2,.30,3.8],color:'#649592'},
-  {p:[x+water.x,waterTop-.05,z+water.z],s:[water.w,.1,water.d],color:'#76b8bd'},
-  ...POOL_SLABS.map(r=>({p:[x+r.x,deckTop-.125,z+r.z] as Part['p'],s:[r.w,.25,r.d] as Part['s'],color:'#e0d5bf'})),
-  ...[-5.45,5.45].map(u=>({p:[x+u,1.5,-9.5+z] as Part['p'],s:[.07,3,.07] as Part['s'],color:'#87a4a1'})),
-  ...Array.from({length:17},(_,i)=>({p:[x+(i-8)*.59,2.66+((i-8)/8)**2*.24,-9.5+z] as Part['p'],s:[.34,.20,.05] as Part['s'],color:i%2?'#dd805d':'#639a9c'})),
+  {p:[.8,1.44,-23.15],s:[18.5,2.86,1.42],color:'#f2dfb9'}, {p:[.8,3,-22.5],s:[19.2,.30,3.8],color:'#649592'},
+  {p:[water.x,POOL_WATER_Y-.05,water.z],s:[water.w,.1,water.d],color:'#76b8bd'},
+  ...POOL_SLABS.map(r=>({p:[r.x,-.125,r.z] as Part['p'],s:[r.w,.25,r.d] as Part['s'],color:'#e0d5bf'})),
+  ...[-5.45,5.45].map(x=>({p:[x,1.5,-9.5] as Part['p'],s:[.07,3,.07] as Part['s'],color:'#87a4a1'})),
+  ...Array.from({length:17},(_,i)=>({p:[(i-8)*.59,2.66+((i-8)/8)**2*.24,-9.5] as Part['p'],s:[.34,.20,.05] as Part['s'],color:i%2?'#dd805d':'#639a9c'})),
 ];}
 export function judgeStand(){
   const out:Part[]=[],{x,z}=GUARD_CHAIR,frame='#d2d8c8',wood='#c4855d';

@@ -2,6 +2,14 @@ import { expect, it, vi } from 'vitest';
 import { MMD_VR_PREFS_KEY, MMD_VR_PREFS_LEGACY_KEY, prefsStorage } from './preferences';
 import { useMmdVrStore } from '../mmdVrStore';
 
+it.each(['lawn','unknown-set'])('falls back to the default room for a stored %s ID without losing other preferences',scenery=>{
+  const saved=JSON.stringify({scenery,lightPreset:'warm',handTracking:false});
+  vi.stubGlobal('localStorage',{getItem:(key:string)=>key===MMD_VR_PREFS_KEY?saved:null});
+  try {
+    expect(prefsStorage.read()).toMatchObject({scenery:'astralCourt',lightPreset:'warm',handTracking:false});
+  } finally {vi.unstubAllGlobals();}
+});
+
 it('keeps migrated preferences across a partial stage edit and reload, leaving the legacy record intact', () => {
   const original = useMmdVrStore.getState();
   const legacy = JSON.stringify({ lightPreset:'rim', liveHouseEnabled:true, frameRatePref:'mid',

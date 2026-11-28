@@ -72,7 +72,6 @@ it.each(['webgl','webgpu'] as const)('returns from a portal room and offers only
   for (const id of [...mainSceneryIds].reverse()) {
     await click(t("hudScenery"));
     for (const other of portalRooms) expect(button(t(SCENERY[other].label))).toBeUndefined();
-    expect(button(t('hudLawn'))).toBeUndefined();
     await click(t(SCENERY[id].label));
     expect(store().prefs.scenery).toBe(id);
     if(id==='astralCourt')expect(button(t('hudBackpack'))).toBeUndefined();else expect(button(t('hudBackpack'))).toBeDefined();
@@ -80,14 +79,14 @@ it.each(['webgl','webgpu'] as const)('returns from a portal room and offers only
   }
 });
 
-it('labels a bookmarked lawn without offering it as a destination in either picker',async()=>{
-  store().setPrefs({scenery:'lawn'});await render();await recall();await click(t('hudScenery'));
-  expect(labels()).toContain(t('hudLawn'));expect(button(t('hudLawn'))).toBeUndefined();
-  await act(async()=>root.render(<select value="lawn" onChange={()=>{}}><SceneryOptions current="lawn"/></select>));
+it('labels the current portal room without offering it as a destination in either picker',async()=>{
+  store().setPrefs({scenery:'velvetStudio'});await render();await recall();await click(t('hudScenery'));
+  expect(labels()).toContain(t('hudVelvetStudio'));expect(button(t('hudVelvetStudio'))).toBeUndefined();
+  await act(async()=>root.render(<select value="velvetStudio" onChange={()=>{}}><SceneryOptions current="velvetStudio"/></select>));
   const current=host.querySelector('select')!.selectedOptions[0];
-  expect([current.value,current.text,current.hidden,current.disabled]).toEqual(['lawn',t('hudLawn'),true,true]);
+  expect([current.value,current.text,current.hidden,current.disabled]).toEqual(['velvetStudio',t('hudVelvetStudio'),true,true]);
   await act(async()=>root.render(<select value="seasideTerminus" onChange={()=>{}}><SceneryOptions current="seasideTerminus"/></select>));
-  expect(host.querySelector('option[value="lawn"]')).toBeNull();
+  expect(Array.from(host.querySelectorAll('option'),option=>option.value)).toEqual(mainSceneryIds);
 });
 
 it('shows where to take a toy, keeps it on the player for unsupported wrists and transfers only to the selected character',async()=>{

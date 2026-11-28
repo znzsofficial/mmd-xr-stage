@@ -33,8 +33,8 @@ it('has one screen arrival for each directed doorway, with original heading and 
   expect(cityLinks).toHaveLength(8);
   for(const room of Object.keys(marks) as CityVenue[]){
     const o=CITY_ORIGINS[room],into=cityLinks.find(l=>l.to===room)!,out=cityLinks.find(l=>l.from===room)!;
-    expect(roomLinks.filter(l=>l.from==='lawn'&&l.to===room)).toHaveLength(1);
-    expect(roomLinks.filter(l=>l.from===room&&l.to==='lawn')).toHaveLength(0);
+    expect(roomLinks.filter(l=>l.from===station&&l.to===room)).toEqual([into]);
+    expect(roomLinks.filter(l=>l.from===room&&l.to===station)).toEqual([out]);
     expect(into.axis).toBe(room==='clinic'?'x':'z');expect(into.direction).toBe(-1);expect(out.direction).toBe(1);
     for(const link of [into,out]){
       const origin=link===into?-1:1;

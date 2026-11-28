@@ -1,6 +1,6 @@
 # 校园环线与秦淮河街：浏览器实走记录
 
-2026-11-21 · 共用开发版舞台，桌面 Edge / SwiftShader、IWER Quest 3 输入。只用本地生成的橙色三角 GLB。以下记录的是功能和画面，不是头显帧率或舒适度测量。
+2026-11-21 · 共用开发版舞台，桌面 Edge / SwiftShader、IWER Quest 3 输入。只用本地生成的橙色三角 GLB。以下记录的是功能和画面，不是头显帧率或舒适度测量。[当时的版画街与计时步道](../scenery/campus-loop-street-views.webp)；现版电玩厅入口在[海站体育街](../scenery/harbour-city.md)。
 
 ## 普通 XR 移动与摆放
 

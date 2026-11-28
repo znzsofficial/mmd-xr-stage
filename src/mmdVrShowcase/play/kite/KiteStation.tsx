@@ -4,7 +4,6 @@ import { BufferAttribute, BufferGeometry, Color, DoubleSide, DynamicDrawUsage, G
 import { useBackpack } from '../../backpack/store';
 import { useMmdVrStore } from '../../mmdVrStore';
 import { noPick } from '../../scenery/sceneryPaint';
-import { MEADOW_SEAT } from '../../scenery/meadowLandmarks';
 import { CITY_KITE_SEAT } from '../../scenery/city/green';
 import { hasToyStation } from '../propCatalog';
 import { useStagePlay } from '../stagePlay';
@@ -69,7 +68,6 @@ function Flight() {
       group.visible = false; s.eyelet = null; s.actor = null; return;
     }
     eyelet.getWorldPosition(s.anchor);
-    const city=room==='seasideTerminus';
     if(!hasToyStation('kite',room,s.anchor)){
       group.visible=false;s.eyelet=null;return;
     }
@@ -92,7 +90,7 @@ function Flight() {
     // controller lock the launch heading rather than swinging with head turns.
     if (fresh || actor || stage.presentation === 'screen') {
       const view = gl.xr.isPresenting ? gl.xr.getCamera() : camera;
-      if(city&&!actor&&stage.presentation==='screen')group.rotation.y=CITY_KITE_SEAT.yaw;
+      if(!actor&&stage.presentation==='screen')group.rotation.y=CITY_KITE_SEAT.yaw;
       else if (!actor && gl.xr.isPresenting) { view.getWorldDirection(s.viewer); group.rotation.y = Math.atan2(-s.viewer.x,-s.viewer.z); }
       else { view.getWorldPosition(s.viewer); group.rotation.y = Math.atan2(s.viewer.x-s.face.x,s.viewer.z-s.face.z); }
     }
@@ -117,23 +115,21 @@ function Flight() {
   </group>;
 }
 
-/** A screen cue uses the seated reel when there is no wrist. On the new
- * green the same physical piece is visible at rest, also from a nearby door. */
-export function BenchReel({seat,height,showIdle=false}:{seat:{x:number;z:number;yaw:number};height:number;showIdle?:boolean}){
+/** A screen cue uses the bench reel when there is no wrist. The same piece
+ * is visible at rest on the city green, including from a nearby door. */
+export function BenchReel({seat,height}:{seat:{x:number;z:number;yaw:number};height:number}){
   const screen=useMmdVrStore(s=>s.presentation==='screen');
   const held=useStagePlay(s=>s.held?.toy==='kite');
   const onWrist=useStagePlay(s=>s.character?.toy==='kite');
-  if(onWrist||!(held?screen:showIdle))return null;
+  if(onWrist||(held&&!screen))return null;
   return <group name="story:bench-reel" position={[seat.x,height,seat.z]} rotation-y={seat.yaw} pointerEvents="none" userData={{playerCollision:false}}><KiteReel/></group>;
 }
 
 export function KiteStation() {
-  const city=useMmdVrStore(s=>s.prefs.scenery==='seasideTerminus');
   const active = useKiteStore(s => s.active);
   const owner = useStagePlay(s => s.character?.toy === 'kite' ? `actor:${s.character.assetId}:${s.character.hand}` : s.held?.toy === 'kite' ? `held:${s.held.hand}` : null);
   // Equip alone (XR shelf or first handoff from the screen) starts a flight.
   // Don't override an explicit simultaneous cue, or relaunch on resetKite().
   useLayoutEffect(() => { if (owner && !useKiteStore.getState().active) setKiteWind('right'); }, [owner]);
-  return <>{!city&&<BenchReel seat={MEADOW_SEAT} height={.53}/>}
-    {active&&owner&&<Flight key={owner}/>}</>;
+  return active&&owner ? <Flight key={owner}/> : null;
 }

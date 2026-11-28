@@ -1,6 +1,6 @@
 # 花径到门诊南门（旧版记录）
 
-当前门诊从**东侧候诊区**进入，[新路线、门线与验收](./campus-garden-routes.md)。以下坐标、截图和性能数据只对应当时的南门版本。
+当前门诊从[海站街道](./harbour-city.md)进入东侧候诊区。以下坐标、截图和性能数据只对应当时的南门版本。
 
 [花径岔口](../screenshots/clinic-garden-fork.webp) · [雨棚旁的全身站位](../screenshots/clinic-south-canopy.webp) · [从候诊厅回望花园](../screenshots/clinic-garden-lookback.webp)。图中 1.72 米的木偶是验证用原创 PMX，不是场景自带角色。
 

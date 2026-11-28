@@ -313,7 +313,7 @@ it('a retired frame cannot drain the replacement room’s pending model commands
   const actor=file('target.pmx'),{place,store,bag,id,exit}=await setupBag([actor]);
   try{
     await place(actor);const oldFrame=harness.frame!;
-    await act(async()=>store().setPrefs({scenery:'lawn'}));await place(actor);
+    await act(async()=>store().setPrefs({scenery:'liveHouse'}));await place(actor);
     const target=bag().live[id(actor)].runtimeId;
     await act(async()=>{store().requestModelScale(target,.5);oldFrame({},1/90);});
     expect(store().pendingModelTransforms).toHaveLength(1);
@@ -503,12 +503,12 @@ it('reuses the last large body on room return, and releases it on library remova
   const {motion,place,exit,store,bag,id}=await setupBag([a,vmd],true);
   try {
     await place(a);await act(async()=>bag().applyMotion(id(a),vmd,'body'));
-    await act(async()=>store().setPrefs({scenery:'lawn'}));
-    xrRoomRestoreTiming.begin('lawn','floor',true);await act(async()=>store().setPrefs({scenery:'floor'}));
+    await act(async()=>store().setPrefs({scenery:'liveHouse'}));
+    xrRoomRestoreTiming.begin('liveHouse','floor',true);await act(async()=>store().setPrefs({scenery:'floor'}));
     const e=xrRoomRestoreTiming.frame('floor');expect(e?.success).toBe(true);expect(e?.taskWallMs.body).toBeTypeOf('number');
     expect(e?.motionWork).toEqual([{slot:'body',cache:'hit',evaluator:'other',loadWallMs:expect.any(Number),setAnimationMs:expect.any(Number)}]);
     expect(motion).toHaveBeenCalledOnce();expect(JSON.stringify(e)).not.toContain('private-');
-    await act(async()=>store().setPrefs({scenery:'lawn'}));
+    await act(async()=>store().setPrefs({scenery:'liveHouse'}));
     await act(async()=>syncBackpackFiles([a]));
     await act(async()=>syncBackpackFiles([a,vmd]));
     await act(async()=>store().setPrefs({scenery:'floor'}));expect(motion).toHaveBeenCalledTimes(2);
@@ -519,7 +519,7 @@ it('preserves the other actor and clock when unbinding, restores per-room choice
   const a=file('a.pmx'), b=file('b.pmx'), body=file('body.vmd'), face=file('face.vmd');
   const {motion,place,exit,store,bag,id}=await setupBag([a,b,body,face],true);
   const bind=(actor:File, clip:File|null, slot:'body'|'face')=>act(async()=>bag().applyMotion(id(actor),clip,slot));
-  const switchTo=(scenery:'floor'|'lawn')=>act(async()=>store().setPrefs({scenery}));
+  const switchTo=(scenery:'floor'|'liveHouse')=>act(async()=>store().setPrefs({scenery}));
   try {
     await place(a);await place(b);await bind(a,body,'body');await bind(a,face,'face');await bind(b,body,'body');
     const neighbor=bag().live[id(b)],clock=store().duration/2;
@@ -528,16 +528,16 @@ it('preserves the other actor and clock when unbinding, restores per-room choice
     await act(async()=>store().setPlaying(true));await bind(a,null,'face');
     expect(getMmdVrClock().time).toBe(clock);expect(store().playing).toBe(true);
     expect(bag().live[id(b)].runtimeId).toBe(neighbor.runtimeId);expect(bag().bindings[id(b)].body).toBe(body);
-    await switchTo('lawn');await place(a);await bind(a,face,'face');await switchTo('floor');
+    await switchTo('liveHouse');await place(a);await bind(a,face,'face');await switchTo('floor');
     expect(bag().bindings[id(a)]).toEqual({body:undefined,face:undefined});
     expect(runtimeWith(a).exportProjectModels().find(m=>m.modelFile===a)).toMatchObject({bodyMotionFile:null,faceMotionFile:null});
     await bind(b,null,'body');expect(getMmdVrClock()).toMatchObject({time:0,duration:0});expect(store().playing).toBe(false);
     expect(bag().layouts.floor).toMatchObject({time:0,playing:false});expect(bag().files).toContain(body);
     await bind(b,body,'body');expect(store().playing).toBe(true);expect(motion).toHaveBeenCalledTimes(2);
-    await switchTo('lawn');expect(bag().bindings[id(a)].face).toBe(face);expect(bag().bindings[id(a)].body).toBeUndefined();
+    await switchTo('liveHouse');expect(bag().bindings[id(a)].face).toBe(face);expect(bag().bindings[id(a)].body).toBeUndefined();
     await bind(a,null,'face');
   } finally {await exit();}
-  expect(store().savedStage).toMatchObject({scenery:'lawn',time:0,playing:false,assets:[{bodyMotionFile:null,faceMotionFile:null}]});
+  expect(store().savedStage).toMatchObject({scenery:'liveHouse',time:0,playing:false,assets:[{bodyMotionFile:null,faceMotionFile:null}]});
 });
 
 it('arms idle Bullet only after the next frame of a successful fresh manual character placement', async () => {
@@ -551,7 +551,7 @@ it('arms idle Bullet only after the next frame of a successful fresh manual char
     await place(a);expect(arm).not.toHaveBeenCalled();expect(actor.reads).toHaveBeenCalledTimes(2);
     await frame();expect(arm).toHaveBeenCalledOnce();const eligible=arm.mock.calls[0][0];expect(eligible()).toBe(true);
     await place(a,2);await frame();expect(arm).toHaveBeenCalledOnce();expect(actor.reads).toHaveBeenCalledTimes(2);
-    await act(async()=>store().setPrefs({scenery:'lawn'}));expect(cancel).toHaveBeenCalled();expect(eligible()).toBe(false);
+    await act(async()=>store().setPrefs({scenery:'liveHouse'}));expect(cancel).toHaveBeenCalled();expect(eligible()).toBe(false);
     await act(async()=>store().setPrefs({scenery:'floor'}));await frame();expect(bag().live[id(a)]).toBeDefined();expect(arm).toHaveBeenCalledOnce();
     expect(actor.reads).toHaveBeenCalledTimes(3);
     await act(async()=>bag().putAway(id(a)));await place(a);await frame();const second=arm.mock.calls[1][0];
@@ -604,7 +604,7 @@ it("keeps neighbors mounted, restores the actor's binding and material after put
     expect(neighborSource.reads).toHaveBeenCalledOnce();
     expect(load.mock.calls.filter(([source]) => neighborSource.owns(source))).toHaveLength(1);
 
-    await act(async () => store().setPrefs({scenery:"lawn"}));
+    await act(async () => store().setPrefs({scenery:"liveHouse"}));
     expect(scene.children).toHaveLength(0);
     expect(bag().live).toEqual({});
     await place(a, -3);
@@ -617,7 +617,7 @@ it("keeps neighbors mounted, restores the actor's binding and material after put
     expect(load.mock.calls.filter(([source]) => neighborSource.owns(source))).toHaveLength(2);
     expect(bag().live[id(a)].position).toEqual([2,0,-2]);
     expect(bag().bindings[id(a)].body).toBe(vmd);
-    expect(bag().layouts.lawn?.models[0].transform.positionX).toBe(-3);
+    expect(bag().layouts.liveHouse?.models[0].transform.positionX).toBe(-3);
   } finally { await exit(); }
   const saved = store().savedStage!;
   expect(saved.scenery).toBe("floor");
@@ -735,7 +735,7 @@ it('persists a gallery performance at its actual height and moves the restored i
     await act(async()=>store().setPrefs({scenery:'qinhuai'}));
     await place(a,-6.76,90,-1.8);
     expect(bag().live[id(a)].position).toEqual([-6.76,2.72,-1.8]);
-    await act(async()=>store().setPrefs({scenery:'lawn'}));await act(async()=>store().setPrefs({scenery:'qinhuai'}));
+    await act(async()=>store().setPrefs({scenery:'liveHouse'}));await act(async()=>store().setPrefs({scenery:'qinhuai'}));
     expect(bag().live[id(a)].position).toEqual([-6.76,2.72,-1.8]);
     const restoredId = bag().live[id(a)].runtimeId;
     await place(a,0,90,-5);

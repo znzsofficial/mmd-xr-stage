@@ -61,7 +61,7 @@ it('draws from a selected actor’s visible winding eye and never transfers a pe
     for(const interrupt of [()=>{bag.select('b');bag.select('a');},()=>{play().adjust(0,0,30);play().adjust(0,0,-30);},
       ()=>{useMmdVrStore.setState({physicsBusy:true});useMmdVrStore.setState({physicsBusy:false});},
       ()=>{canvas.dispatchEvent(new Event('webglcontextlost'));canvas.dispatchEvent(new Event('webglcontextrestored'));},
-      ()=>{stage.setPrefs({scenery:room==='pool'?'lawn':'pool'});stage.setPrefs({scenery:room});}]){
+      ()=>{stage.setPrefs({scenery:room==='pool'?'seasideTerminus':'pool'});stage.setPrefs({scenery:room});}]){
       await click(label);await act(interrupt);tick();tick();expect(visibleStrips()).toBe(1);
     }
     const owner=play().character!;

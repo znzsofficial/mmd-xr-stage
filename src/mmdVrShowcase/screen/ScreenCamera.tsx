@@ -24,7 +24,7 @@ type Point = [number,number,number];
 const storyViews:Record<StoryRoom,[Point,Point]>={
   // Look across the end of the seat; from directly behind, the back slats hide the reel.
   seasideTerminus:[[kiteSeat.x+6,1.62,kiteSeat.z+.8],[kiteSeat.x+.25,1.12,kiteSeat.z-1.25]],
-  lawn:[[3,1.75,5],[3,2.05,-5]], pool:[[1.15,1.72,-2],[0,.32,-9.3]], liveHouse:[[.2,1.7,4.8],[0,1.90,-5.1]]
+  pool:[[1.15,1.72,-2],[0,.32,-9.3]], liveHouse:[[.2,1.7,4.8],[0,1.90,-5.1]]
 };
 export type CameraActions = { reset():void; frame():void; upperBody:ScreenCloseUp['toggle']; inspectStand():void; center():void; story():void; tour(index:number):void };
 

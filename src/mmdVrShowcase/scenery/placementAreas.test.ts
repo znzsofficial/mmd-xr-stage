@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { sceneryIds } from './catalog';
 import { canPlaceInScenery } from './placementAreas';
-import { ARBOR, ARBOR_POSTS, MEADOW_POSTS, MEADOW_SEAT } from './meadowLandmarks';
-import { LAWN_KNOLLS, LAWN_TREES } from './meadowPlanting';
 import { BACKLINE, WEDGES } from './stageLayouts';
 import { POOL } from './LidoLayout';
 import { CLASS_FIXTURES, ROOM } from './ClassroomLayout';
@@ -57,21 +55,12 @@ describe('placeable ground at foot height', () => {
     expect(canPlaceInScenery('liveHouse',2,-4.65)).toBe(true);
     expect(canPlaceInScenery('liveHouse',-3.3,-3.62)).toBe(true);
   });
-  it('rejects the raised parts of the meadow while preserving the grassy clearing', () => {
-    for(const f of [...LAWN_TREES,...LAWN_KNOLLS]) expect(canPlaceInScenery('lawn',f.x,f.z)).toBe(false);
-    for(const [x,z] of [[3,-2],[-2.5,3],[0,-3.5]]) expect(canPlaceInScenery('lawn',x,z)).toBe(true);
-  });
-  it('keeps the new near-field furniture and fence out of backpack footprints while leaving viewing positions open', () => {
-    for(const f of ARBOR_POSTS)expect(canPlaceInScenery('lawn',f.x,f.z)).toBe(false);
-    expect(canPlaceInScenery('lawn',ARBOR.x,ARBOR.z)).toBe(true);
+  it('keeps poolside furniture and live stage equipment out of backpack footprints while leaving viewing positions open', () => {
     for(const f of Object.values(BACKLINE))expect(canPlaceInScenery('liveHouse',f.x,f.z)).toBe(false);
     for(const f of [POOL.rescue,...POOL.flagPosts])expect(canPlaceInScenery('pool',f.x,f.z)).toBe(false);
     for(const fixture of [...POOL.loungers,...POOL.parasols])expect(canPlaceInScenery('pool',fixture.x,fixture.z)).toBe(false);
     for(const fixture of WEDGES)expect(canPlaceInScenery('liveHouse',fixture.x,fixture.z)).toBe(false);
-    expect(canPlaceInScenery('lawn',MEADOW_SEAT.x,MEADOW_SEAT.z)).toBe(false);
-    for(let i=1;i<MEADOW_POSTS.length;i++) {const a=MEADOW_POSTS[i-1],b=MEADOW_POSTS[i];expect(canPlaceInScenery('lawn',(a.x+b.x)/2,(a.z+b.z)/2)).toBe(false);}
     expect(canPlaceInScenery('pool',3,-4.9)).toBe(true);
-    expect(canPlaceInScenery('lawn',3.1,-3.5)).toBe(true);
     expect(canPlaceInScenery('liveHouse',0,2.4)).toBe(true);
   });
 });

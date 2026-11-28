@@ -1,13 +1,11 @@
 import type {SceneryId} from '../scenery/catalog';
 import {ROOM} from '../scenery/ClassroomLayout';
-import {classPassageFloor,lawnSchoolFoot} from '../scenery/CampusLayout';
+import {classPassageFloor} from '../scenery/CampusLayout';
 import {chapelFloor} from '../scenery/ChapelLayout';
 import {onObservatoryFloor} from '../scenery/ObservatoryLayout';
-import {LAWN_SIZE} from '../scenery/meadowLandmarks';
 import {SIMPLE_FLOOR_RADIUS} from '../scenery/stageLayouts';
-import {borrowedLido,POOL,POOL_SUPPORT} from '../scenery/LidoLayout';
+import {POOL,POOL_SUPPORT} from '../scenery/LidoLayout';
 import {clinicNavigation} from '../scenery/clinic/clinicNavigation';
-import {canWalkByLawnClinic} from '../scenery/clinic/clinicApproach';
 import {songhouseClear,songhouseHeight,XR_ENTRY} from '../scenery/qinhuai/songhouseLayout';
 import {weddingClear,WEDDING_ENTRY} from '../scenery/wedding/weddingLayout';
 import {retreatGround,retreatPlan} from '../scenery/retreat/retreatLayout';
@@ -49,7 +47,6 @@ export function roomGround(room:SceneryId,x:number,z:number){
       const interior=Math.abs(x)<ROOM.w/2-.16&&Math.abs(z)<ROOM.d/2-.16;
       return interior||classPassageFloor(x,z)?0:-Infinity;
     }
-    case 'lawn':return Math.max(Math.abs(x),Math.abs(z))<LAWN_SIZE/2-.16&&canWalkByLawnClinic(x,z)&&!borrowedLido(x,z)&&!lawnSchoolFoot(x,z)?0:-Infinity;
     case 'clinic':return clinicNavigation.clear(x,z)?0:-Infinity;
     case 'weddingCourt':return weddingClear(x,z)?0:-Infinity;
     case 'lanternSuite': case 'moonSpa':return retreatGround(room,x,z);

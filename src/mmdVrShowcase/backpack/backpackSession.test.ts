@@ -15,7 +15,7 @@ describe('backpack session boundary', () => {
     useBackpack.setState({layouts:{classroom:saved}});initial.setPrefs({scenery:'classroom'});
     expect(useMmdVrStore.getState().prefs.scenery).toBe('floor');expect(useBackpack.getState().layouts.classroom).toBe(saved);
     useBackpack.setState({layouts:{classroom:room}});initial.setPrefs({scenery:'classroom'});expect(useMmdVrStore.getState().prefs.scenery).toBe('classroom');
-    initial.setPrefs({scenery:'lawn'},{preserveViewOnCrossing:true});expect(useMmdVrStore.getState().prefs.scenery).toBe('lawn');
+    initial.setPrefs({scenery:'seasideTerminus'},{preserveViewOnCrossing:true});expect(useMmdVrStore.getState().prefs.scenery).toBe('seasideTerminus');
   });
   it('allows characters and objects alongside a hidden actor and retains their files on exit',()=>{
     syncBackpackFiles(['one.pmx','two.pmx','lamp.glb'].map(name=>new File([],name)));

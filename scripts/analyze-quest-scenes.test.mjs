@@ -5,7 +5,7 @@ import { analyzePair, inspect } from './analyze-quest-scenes.mjs';
 // Synthetic only. The recorder rounds both window FPS and elapsedMs; its
 // histogram is for the whole session, even when the window ring has wrapped.
 function sample(scene, secondRun = false, length = 28, stepMs = 1000) {
-  const steady = ['floor', 'lawn'].includes(scene);
+  const steady = ['floor', 'seasideTerminus', 'lawn'].includes(scene);
   const hz = steady ? 72 : 90;
   const windows = Array.from({ length }, (_, i) => ({
     elapsedMs: (i + 1) * stepMs, models: steady ? 1 : 0, objects: 0, scenery: scene, playing: steady, physics: steady,
@@ -79,13 +79,13 @@ test('cloth-lab screen and lab XR windows are not stage measurements', () => {
 });
 
 test('900 seconds of comparable samples can still miss the target; keep a slow late window and loop reseed', () => {
-  const pair = [sample('floor', false, 902), sample('lawn', true, 902)];
+  const pair = [sample('floor', false, 902), sample('seasideTerminus', true, 902)];
   const fast = analyzePair('steady', pair, steadyNotes);
   assert.deepEqual(fast.blockers, []);
   assert.equal(fast.allRoundedWindowsAtLeast72, true);
-  const lawn = pair[1];
-  lawn.windows[840].bulletStepWork.seedOnly = 1; // normal loop; remaining steps still advanced
-  Object.assign(lawn.windows[877], { fps: 36, frameIntervalMs: 27.8 });
+  const station = pair[1];
+  station.windows[840].bulletStepWork.seedOnly = 1; // normal loop; remaining steps still advanced
+  Object.assign(station.windows[877], { fps: 36, frameIntervalMs: 27.8 });
   const slow = analyzePair('steady', pair, steadyNotes);
   assert.deepEqual(slow.blockers, []);
   assert.equal(slow.allRoundedWindowsAtLeast72, false);

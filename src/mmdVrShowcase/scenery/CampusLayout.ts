@@ -1,13 +1,11 @@
 import {CLERESTORY,HIGH_PANES,ROOM,STUDENTS,WINDOWS} from './ClassroomLayout';
 import type {Part} from './SceneryBatch';
 
-type Room='classroom'|'lawn';
 type XZ=readonly [number,number];
-export const CAMPUS_OFFSET={x:9,z:-13.3};
 export const CAMPUS_DOOR=-4.03;
 const rear=ROOM.d/2;
 export const SCHOOL_GATE={out:rear+.36,in:rear-.12,half:.86};
-// Rear aisle → porch → brick path. Local classroom metres, also used by the meadow proxy.
+// Rear aisle → porch → brick path, in local classroom metres.
 export const SCHOOL_PATH:readonly XZ[]=[[CAMPUS_DOOR,rear-.01],[CAMPUS_DOOR,6.64],[-5.22,7.54],[-7.20,8.29],[-8.75,9.68],[-10.98,11.51]];
 export const SCHOOL_PATH_WIDTH=2.04;
 // Mitre the actual brick courses through each bend. Both the floor print
@@ -28,17 +26,13 @@ function pathDistance(x:number,z:number){let d=Infinity;
   }return d;
 }
 export function classPassageFloor(x:number,z:number){return (z>=rear-.36&&z<rear+.2)?Math.abs(x-CAMPUS_DOOR)<.86:z>=rear+.2&&pathDistance(x,z)<SCHOOL_PATH_WIDTH/2;}
-export function lawnSchoolFoot(x:number,z:number){x-=CAMPUS_OFFSET.x;z-=CAMPUS_OFFSET.z;
-  return Math.abs(x)<ROOM.w/2+.20&&Math.abs(z)<rear+.19&&!(Math.abs(x-CAMPUS_DOOR)<.86&&z>rear-.65);
-}
-export function lawnPaving(x:number,z:number,margin=0){return Math.abs(x-CAMPUS_OFFSET.x)<ROOM.w/2+.2+margin&&Math.abs(z-CAMPUS_OFFSET.z)<rear+.2+margin||pathDistance(x-CAMPUS_OFFSET.x,z-CAMPUS_OFFSET.z)<SCHOOL_PATH_WIDTH/2+.22+margin;}
 const screenX=CAMPUS_DOOR+1.38;
-export function passagePost(room:Room,x:number,z:number){if(room==='lawn'){x-=CAMPUS_OFFSET.x;z-=CAMPUS_OFFSET.z;}
+export function passagePost(x:number,z:number){
   return Math.abs(x-screenX)<.31&&Math.abs(z-6.77)<1.24 || Math.abs(x-CAMPUS_DOOR+1.40)<.30&&Math.abs(z-6.04)<.33;
 }
-export function campusPassageParts(room:Room):Part[]{
-  const dx=room==='lawn'?CAMPUS_OFFSET.x:0,dz=room==='lawn'?CAMPUS_OFFSET.z:0,out:Part[]=[];
-  const box=(x:number,y:number,z:number,w:number,h:number,d:number,color:string,ry=0,rx=0)=>out.push({p:[x+dx,y,z+dz],s:[w,h,d],ry,rx,color});
+export function campusPassageParts():Part[]{
+  const out:Part[]=[];
+  const box=(x:number,y:number,z:number,w:number,h:number,d:number,color:string,ry=0,rx=0)=>out.push({p:[x,y,z],s:[w,h,d],ry,rx,color});
   const birch='#c79f71',iron='#485e58';
   // A small lean-to grows out of the teaching block, closed only on its service side.
   box(CAMPUS_DOOR,2.87,6.63,3.33,.13,2.69,'#6d8276',0,.09);
@@ -51,9 +45,8 @@ export function campusPassageParts(room:Room):Part[]{
   box(CAMPUS_DOOR+.91,2.25,6.02,.34,.13,.24,iron);box(CAMPUS_DOOR+.91,2.15,6.02,.28,.09,.18,'#fff0c5');
   return out;
 }
-export function schoolExterior(room:Room='lawn'):Part[]{const parts:Part[]=[];
-  const origin=room==='lawn'?CAMPUS_OFFSET:{x:0,z:0};
-  const box=(x:number,y:number,z:number,w:number,h:number,d:number,color:string)=>parts.push({p:[x+origin.x,y,z+origin.z],s:[w,h,d],color});
+export function schoolExterior():Part[]{const parts:Part[]=[];
+  const box=(x:number,y:number,z:number,w:number,h:number,d:number,color:string)=>parts.push({p:[x,y,z],s:[w,h,d],color});
   const X=ROOM.w/2,H=ROOM.h;
   for(const [a,b] of [[-X,CAMPUS_DOOR-.93],[CAMPUS_DOOR+.93,X]]){
     box((a+b)/2,H/2,rear+.08,b-a,H,.16,'#d9c6a7');box((a+b)/2,.48,rear+.12,b-a,.96,.16,'#a4b5a1');

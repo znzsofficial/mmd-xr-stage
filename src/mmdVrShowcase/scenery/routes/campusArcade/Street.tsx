@@ -1,6 +1,5 @@
 import {useEffect,useMemo} from 'react';
 import {BufferGeometry,Float32BufferAttribute} from 'three';
-import type {SceneryId} from '../../catalog';
 import {Batch,type Part} from '../../SceneryBatch';
 import {distantLido,judgeStand,PACE_CLOCK,PAVILION_SLABS,POOL,POOL_ORIGIN as P,POOL_WATER_Y,poolBarrierParts} from '../../LidoLayout';
 import {noPick} from '../../sceneryPaint';
@@ -9,8 +8,8 @@ import typePrint from '../../arcade/hall-lettering.webp';
 import printRects from '../../arcade/printRects.json';
 import {gallerySign} from '../../arcade/westGallery';
 import {blocks} from '../../arcade/arcadeLayout';
-import {hasRoad,shell,siteOrigin} from './layout';
-import {ARCADE_ORIGIN as A} from './site';
+import {siteOrigin,type TimingWalkRoom} from './layout';
+import {ARCADE_ORIGIN as A,shell} from './site';
 import {bodies,finishes} from './pieces';
 import {profiles} from './geometry';
 import {PrintedSigns} from './PrintedSigns';
@@ -55,15 +54,15 @@ export function lidoTimingView(){
   return byClock;
 }
 function TimingProspect(){
-  const p=useMemo(()=>({lido:distantLido('city'),byClock:lidoTimingView()}),[]);
-  return <><Batch name="campus:finish-line-view" parts={p.lido}/>
-    <group position={[P.x,0,P.z]}><Batch name="campus:timing-station" parts={p.byClock}/></group></>;
+  const p=useMemo(()=>({lido:distantLido(),byClock:lidoTimingView()}),[]);
+  return <group position={[P.x,0,P.z]}><Batch name="campus:finish-line-view" parts={p.lido}/>
+    <Batch name="campus:timing-station" parts={p.byClock}/></group>;
 }
-export function CampusArcadeStreet({room}:{room:SceneryId}){
-  const {x,z}=siteOrigin(room),meshes=useMemo(()=>[bodies,finishes].map(layer=>profiles(layer.filter(p=>hasRoad(room,p.road)))),[room]);
+export function CampusArcadeStreet({room}:{room:TimingWalkRoom}){
+  const {x,z}=siteOrigin(room),meshes=useMemo(()=>[bodies,finishes].map(profiles),[]);
   useEffect(()=>()=>{for(const g of meshes)g.dispose();},[meshes]);
-  return <group name="campus:print-street-and-timing-walk" position={[-x,0,-z]} pointerEvents="none">
+  return <group name="campus:timing-walk" position={[-x,0,-z]} pointerEvents="none">
     {meshes.map((g,i)=><mesh key={i} name={i?'campus:street-finishes':'campus:street-solids'} geometry={g} receiveShadow raycast={noPick} userData={{playerCollision:i===0}}><meshStandardMaterial vertexColors roughness={.91}/></mesh>)}
-    <CampusLandscape room={room}/><PrintedSigns room={room}/>{room==='arcadeHall'?<TimingProspect/>:<BlockFront/>}
+    <CampusLandscape room={room}/><PrintedSigns/>{room==='arcadeHall'?<TimingProspect/>:<BlockFront/>}
   </group>;
 }

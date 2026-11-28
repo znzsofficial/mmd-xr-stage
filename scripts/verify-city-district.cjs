@@ -26,7 +26,7 @@ const along = (v, gate) => v.axis === 0 ? [gate,v.center] : [v.center,gate];
 
 function install() {
   localStorage.setItem('neko-virt-os.mmd-vr-showcase.v2', JSON.stringify({
-    scenery:'seasideTerminus', movementMode:'normal', walkSpeedPref:'fast', normalEyeOffset:0,
+    scenery:'pool', movementMode:'normal', walkSpeedPref:'fast', normalEyeOffset:0,
     renderQuality:'balanced', advancedRenderOverrides:true, shadowsPref:'off', dprPref:1,
   }));
   const device = window.cityDevice = new IWER.XRDevice(IWER.metaQuest3, {stereoEnabled:true});
@@ -201,10 +201,25 @@ async function setupScreen(page,report) {
   const rooms = page.locator('.screen-header select');
   await page.locator('.stage-launch-row .stage-btn-secondary').first().click();
   await page.waitForFunction(() => cityQA.room === 'seasideTerminus');
-  assert.equal(await rooms.locator('option[value="lawn"]:not([hidden])').count(),0);
+  assert.equal(await rooms.locator('option[value="lawn"]').count(),0);
   const outdoorLayout = [['actor',...farActor],['object',...farSign]];
   const faces=['city:clinic-front','city:school-front','city:lido-front','city:arcade-front'];
   await page.waitForFunction(names=>names.every(n=>cityQA.scene.getObjectByName(n)),['city:street',...faces]);
+  const bag=page.locator('.screen-corner button[aria-expanded]');
+  if (await bag.getAttribute('aria-expanded')!=='true') await bag.click();
+  const cues=page.locator('.screen-story');
+  await cues.getByRole('button',{name:zh.storyView,exact:true}).click();
+  await page.waitForFunction(()=>cityQA.scene.getObjectByName('story:bench-reel')?.visible);
+  for (const [label,side] of [[zh.storyWindLeft,-1],[zh.storyWindRight,1]]) {
+    await cues.getByRole('button',{name:label,exact:true}).click();
+    await page.waitForFunction(side=>{
+      const flight=cityQA.scene.getObjectByName('kite:flight');
+      return flight?.visible && flight.getObjectByName('kite:swallow')?.position.x*side>.5;
+    },side);
+  }
+  await cues.getByRole('button',{name:zh.toyStow,exact:true}).click();
+  await page.waitForFunction(()=>!cityQA.scene.getObjectByName('kite:flight'));
+  await bag.click();
   if (process.argv.includes('--shots')) {
     for (const key of ['cityClinicFront','citySchoolFront','cityPoolFront','cityArcadeFront']) {
       await page.locator('.screen-corner select').selectOption({label:zh[key]});
@@ -404,7 +419,18 @@ async function main() {
     page.on('pageerror',e=>report.errors.push(e.message));
     page.on('console',m=>{if (m.type()==='error' && /shader|webgl|program|texture/i.test(m.text())) report.errors.push(m.text());});
     await page.addInitScript({content:await fs.readFile(iwer,'utf8')+`\n;(${install})();`});
-    const url=new URL(address); url.searchParams.set('set',outdoor); url.searchParams.set('xrBackend','webgl');
+    const url=new URL(address);
+    for (const id of ['unknown-room','lawn']) {
+      url.search=new URLSearchParams({set:id,view:'screen'}).toString();
+      await page.goto(url.href);
+      const picker=page.locator('.stage-first-room select');
+      await picker.waitFor();
+      assert.equal(await picker.inputValue(),'pool','Unknown links must leave the saved room selection alone');
+      assert.equal(await picker.locator('option[value="lawn"]').count(),0);
+      assert.equal(await page.locator('.screen-header').count(),0,'Invalid bookmarks must not start a viewer');
+      assert.equal(new URL(page.url()).searchParams.get('set'),id,'Invalid bookmarks must not redirect');
+    }
+    url.search=new URLSearchParams({set:outdoor,xrBackend:'webgl'}).toString();
     await page.goto(url.href);
     await page.locator('input[type=file]').nth(1).setInputFiles([
       {name:'swatch.pmx',mimeType:'application/octet-stream',buffer:Buffer.from(await makeSwatch().arrayBuffer())},

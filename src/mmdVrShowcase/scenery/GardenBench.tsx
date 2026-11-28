@@ -9,8 +9,7 @@ import benchUrl from './garden-joinery.webp';
 type Seat={x:number;z:number;yaw:number};
 type Point=Part['p'];
 
-// The same bench supports the reel in the old campus and the city green.
-// Append into the host's batches so the original meadow keeps its draw count.
+// The reel rests on the timber boards; the curved iron arms use a round batch.
 export function addGardenBench(seat:Seat,boards:Part[],rails:Part[]){
   const c=Math.cos(seat.yaw),s=Math.sin(seat.yaw);
   const world=(x:number,y:number,z:number):Point=>[seat.x+x*c+z*s,y,seat.z+z*c-x*s];

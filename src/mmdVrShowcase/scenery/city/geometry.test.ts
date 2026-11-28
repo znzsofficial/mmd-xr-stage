@@ -5,7 +5,7 @@ import {createSolidColumns} from '../../movement/solidColumns';
 import {roomGround} from '../../movement/roomGround';
 import {campusPassageParts,schoolExterior} from '../CampusLayout';
 import {schoolBrickWalkGeometry} from '../SchoolBrickWalk';
-import {arcadeParts,distantLido,POOL_ORIGIN,POOL_WATER_Y} from '../LidoLayout';
+import {arcadeParts,distantLido,POOL_WATER_Y} from '../LidoLayout';
 import {poolFurnishings} from '../PoolTerrace';
 import type {Part} from '../SceneryBatch';
 import {gardenEntranceParts} from '../clinic/GardenEntrance';
@@ -62,7 +62,7 @@ it('keeps the park shop backs and rail terrace out of the clinic, and the next s
 it('shows one slab at the ticket deck and timing walk joins, and water below the coping in the city',()=>{
   const street=fixture(),pool=fixture(),p=CITY_ORIGINS.pool,g=buildStreetGround(station);
   street.surface(g.paving);street.surface(g.earth);
-  street.batch(distantLido('city'),p.x-POOL_ORIGIN.x,p.z-POOL_ORIGIN.z);street.batch([...arcadeParts('pool'),...lidoTimingView()],p.x,p.z);
+  street.batch([...distantLido(),...arcadeParts(),...lidoTimingView()],p.x,p.z);
   pool.batch(poolFurnishings().blocks);
   for(const [x,z] of [[6.42,7.18],[6.03,12.015],[6.25,-5.732],[6.63,-19.04],[4.39,-19.80]]){
     expect(street.topHits(p.x+x,p.z+z)).toEqual([expect.closeTo(0,5)]);
@@ -86,11 +86,11 @@ it.each(Object.keys(routes) as CityVenue[])('walks the finished %s approach both
   const f=fixture(),o=CITY_ORIGINS[venue],g=buildStreetGround(station);
   f.surface(g.paving);f.surface(g.earth);
   if(venue==='classroom'){
-    f.surface(schoolBrickWalkGeometry(),o.x,o.z);f.batch([...campusPassageParts('classroom'),...schoolExterior('classroom')],o.x,o.z);
+    f.surface(schoolBrickWalkGeometry(),o.x,o.z);f.batch([...campusPassageParts(),...schoolExterior()],o.x,o.z);
     expect(f.topHits(36.81,56.294)).toEqual([expect.closeTo(.012,5)]);
   }else if(venue==='clinic'){
-    const parts=gardenEntranceParts(true,true);f.batch(parts.blocks,o.x,o.z);
-    parts.herbs.dispose();parts.signs.dispose();parts.pavers.dispose();
+    const parts=gardenEntranceParts(true);f.batch(parts.blocks,o.x,o.z);
+    parts.herbs.dispose();parts.signs.dispose();
     expect(f.topHits(10.4,52.04)).toContainEqual(expect.closeTo(0,5));
     // A high ray just clips the green lintel trim before it reaches the wall.
     const from=new Vector3(8,3.02,53.81),to=new Vector3(10.28,.018,53.81);
@@ -98,7 +98,7 @@ it.each(Object.keys(routes) as CityVenue[])('walks the finished %s approach both
     expect(ray.intersectObjects(f.root.children)[0].point.x).toBeCloseTo(8.45);
     expect(visiblePick(station,from,to.x,0,to.z)).toBe(false);
   }else if(venue==='pool'){
-    f.batch(arcadeParts('pool'),o.x,o.z);f.batch(distantLido('city'),o.x-POOL_ORIGIN.x,o.z-POOL_ORIGIN.z);
+    f.batch([...arcadeParts(),...distantLido()],o.x,o.z);
   }else{
     f.batch(shell.map(b=>({p:[b.x,b.y,b.z],s:[b.w,b.h,b.d],color:b.ink})),o.x,o.z);
     for(const [room,offset] of [[station,{x:0,z:0}],[venue,o]] as const){

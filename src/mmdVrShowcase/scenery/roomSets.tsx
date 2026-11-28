@@ -3,10 +3,8 @@ import { LiveHouse } from './LiveHouse';
 import { AstralCourt } from './AstralCourt';
 import { DawnChapel } from './DawnChapel';
 import { Classroom } from './Classroom';
-import { Meadow } from './Meadow';
 import { PoolTerrace } from './PoolTerrace';
 import {CHAPEL_SUN} from './ChapelLayout';
-import {MEADOW_SUN} from './meadowLandmarks';
 import { ClinicWard } from './clinic/ClinicWard';
 import { Songhouse } from './qinhuai/Songhouse';
 import { WeddingCourt } from './wedding/WeddingCourt';
@@ -24,7 +22,6 @@ import type {RoomLightingOverrides} from '../stage/lighting';
 // component types, never mounted meshes, textures or inactive room worlds.
 type RoomSetDefinition=RoomLightingOverrides & {view:ComponentType<{shadows:boolean;concert:boolean}>;
   sky?:'day'|'court'|'river'|'stars'|'harbour';warm?:boolean};
-const day={sky:'day',hemi:.32,hemiSky:'#d4e5ee',hemiGround:'#a79d8d',fog:'#c5dfe6',warmFog:'#e7c8a7'} as const;
 const [shoreX,shoreY,shoreZ]=SHORE_SUN;
 export const roomSets:Record<SceneryId,RoomSetDefinition>={
   // Move the directional shadow camera up its own ray so the outer quay is in front of it.
@@ -36,7 +33,6 @@ export const roomSets:Record<SceneryId,RoomSetDefinition>={
   liveHouse:{view:LiveHouse},
   classroom:{...shoreDaylight,sky:'harbour',view:Classroom,ambient:-.04,hemi:.46,hemiGround:'#bba990',
     stageLight:{...shoreDaylight.stageLight,sun:1.19}},
-  lawn:{...day,view:Meadow,sun:MEADOW_SUN,hemiGround:'#72845a'},
   pool:{...shoreDaylight,sky:'harbour',view:PoolTerrace,hemi:.67,hemiGround:'#b3c9bd'},
   astralCourt:{view:AstralCourt,sky:'court',hemiSky:'#dadcf5',hemiGround:'#797883',hemi:.42,fog:'#555572'},
   chapel:{view:DawnChapel,sky:'day',sun:CHAPEL_SUN,warm:true,hemiSky:'#f5ede0',hemiGround:'#bcada1',hemi:.56,fog:'#d9d1c7'},

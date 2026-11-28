@@ -1,6 +1,6 @@
 import {useEffect,useLayoutEffect,useMemo} from 'react';
 import {BufferGeometry,Float32BufferAttribute,RepeatWrapping} from 'three';
-import {CAMPUS_OFFSET,SCHOOL_PATH,schoolBrickEdges} from './CampusLayout';
+import {SCHOOL_PATH,schoolBrickEdges} from './CampusLayout';
 import {noPick} from './sceneryPaint';
 import {useBakedSurface} from './useBakedSurface';
 import clinker from './garden-clinker.webp';
@@ -17,9 +17,9 @@ export function schoolBrickWalkGeometry(){
   }
   const g=new BufferGeometry();g.setAttribute('position',new Float32BufferAttribute(positions,3));g.setAttribute('uv',new Float32BufferAttribute(uv,2));g.setIndex(index);g.computeVertexNormals();return g;
 }
-export function SchoolBrickWalk({lawn=false,shadows}:{lawn?:boolean;shadows:boolean}){
+export function SchoolBrickWalk({shadows}:{shadows:boolean}){
   const g=useMemo(schoolBrickWalkGeometry,[]),map=useBakedSurface(clinker);
   useEffect(()=>()=>g.dispose(),[g]);useLayoutEffect(()=>{if(map){map.wrapT=RepeatWrapping;map.needsUpdate=true;}},[map]);
-  return <mesh name="school:garden-clinker-walk" position={lawn?[CAMPUS_OFFSET.x,0,CAMPUS_OFFSET.z]:[0,0,0]} geometry={g} receiveShadow={shadows} raycast={noPick}>
+  return <mesh name="school:garden-clinker-walk" geometry={g} receiveShadow={shadows} raycast={noPick}>
     <meshStandardMaterial key={map?'clay':'base'} map={map} roughness={.94} color={map?'white':'#b78164'}/></mesh>;
 }

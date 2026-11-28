@@ -177,7 +177,7 @@ export function classroomProps() {
   }
   plant(BOOKCASE.x+.62,1.055,BOOKCASE.z,1.35);
   plant(REAR_CASE.x-.92,1.055,REAR_CASE.z,1.68);
-  trim.push(...campusPassageParts('classroom'));
+  trim.push(...campusPassageParts());
 
   // Window bank first. Only the plain steel batches change order: the birch
   // shader's gl_InstanceID is the original student's veneer sample.

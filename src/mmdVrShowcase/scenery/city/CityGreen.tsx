@@ -30,6 +30,6 @@ export function CityGreen({shadows=true}:{shadows?:boolean}){
     <Batch name="city:kite-bench" parts={bench.boards} casts={shadows}/>
     <Batch name="city:kite-bench-arms" parts={bench.rails} round casts={shadows}/>
     <GardenBenchGrain seat={CITY_KITE_SEAT}/>
-    <BenchReel seat={CITY_KITE_SEAT} height={.576} showIdle/>
+    <BenchReel seat={CITY_KITE_SEAT} height={.576}/>
   </group>;
 }

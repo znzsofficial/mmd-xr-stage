@@ -53,7 +53,7 @@ export function ClinicWard({ shadows }: {shadows:boolean}) {
   useEffect(()=>()=>{for(const g of Object.values(geo))g.dispose();},[geo]);
   return <group name="scenery:clinic">
     <ClinicNurse shadows={shadows}/>
-    <GardenEntrance city shadows={shadows}/>
+    <GardenEntrance shadows={shadows}/>
     <SupplyCasework shadows={shadows}/>
     <mesh name="clinic:terrazzo-and-furniture-contact" position={[0,0,(WARD.south+WARD.north)/2]} rotation-x={-Math.PI/2} receiveShadow={shadows} raycast={noPick}>
       <planeGeometry args={[WARD.east-WARD.west,WARD.south-WARD.north]}/><DaySurface key={floor?'floor':'plain'} map={floor} color={floor?'white':'#c7cfbf'} roughness={.61} onBeforeCompile={bounce}/>

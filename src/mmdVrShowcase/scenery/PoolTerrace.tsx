@@ -40,7 +40,7 @@ export function poolFurnishings() {
   for(const side of [-1,1])box([side*11.3,-.315,-11.2],[8.4,.25,37.9],'#98b283');
   box([0,-.315,3.37],[14.2,.25,8.76],'#98b283');box([0,-.315,-24.82],[14.2,.25,10.66],'#98b283');
   for(const r of POOL_SLABS)box([r.x,-.125,r.z],[r.w,.25,r.d],'#e7dbc4');
-  blocks.push(...arcadeParts('pool'),...judgeStand());
+  blocks.push(...arcadeParts(),...judgeStand());
   const clock=PACE_CLOCK;
   tube([clock.x,.70,clock.z],[.084,1.40,.084],'#63867f');tube([clock.x,.055,clock.z],[.43,.11,.43],'#8c9990');
   tube([clock.x,1.83,clock.z],[.76,.12,.76],'#416d6b',Math.PI/2);
@@ -179,5 +179,5 @@ export function PoolTerrace({shadows}:{shadows:boolean}) {
     <mesh geometry={flags} raycast={noPick}><meshStandardMaterial vertexColors roughness={1} side={DoubleSide}/></mesh>
     <mesh geometry={ring} position={[POOL.rescue.x,1.18,POOL.rescue.z+.11]} raycast={noPick}><meshStandardMaterial vertexColors roughness={.76}/></mesh>
     <mesh rotation-x={-Math.PI/2} position={[POOL.deck.x,.002,POOL.deck.z]} receiveShadow={shadows} raycast={noPick}><planeGeometry args={[POOL.deck.w,POOL.deck.d]}/><meshStandardMaterial key={stone?'tiles':'loading'} map={stone} color={stone?'white':'#e4d6bd'} roughnessMap={finish} aoMap={shadows?null:finish} polygonOffset polygonOffsetFactor={-1}/></mesh>
-    <mesh ref={hand} geometry={needles} position={[PACE_CLOCK.x,1.83,PACE_CLOCK.z+.081]} raycast={noPick}><meshBasicMaterial vertexColors side={DoubleSide}/></mesh><LidoPlates pool city/><Water /></group>;
+    <mesh ref={hand} geometry={needles} position={[PACE_CLOCK.x,1.83,PACE_CLOCK.z+.081]} raycast={noPick}><meshBasicMaterial vertexColors side={DoubleSide}/></mesh><LidoPlates/><Water /></group>;
 }

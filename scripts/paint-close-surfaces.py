@@ -1,5 +1,4 @@
-"""Offline originals for four existing sets. Pillow + NumPy, deterministic seeds.
-The meadow print builds on the path/shadow layer from bake-meadow.ts.
+"""Offline originals for the pool, live house, stage floor and city bench.
 Run: python scripts/paint-close-surfaces.py; no Python on the headset.
 """
 from pathlib import Path
@@ -44,21 +43,6 @@ def lido():
         x=side*8.35;z=-1.35;m.ellipse([uv(x-.29,z-.27),uv(x+.34,z+.33)],fill=118)
     im=Image.composite(Image.blend(im,Image.new('RGB',im.size,'#887c77'),.8),im,mask.filter(ImageFilter.GaussianBlur(3.0)))
     save(im,'lido-pavement')
-
-def meadow():
-    n=1792; im=Image.open(OUT/'meadow-ground.webp').convert('RGB').resize((n,n),Image.Resampling.BICUBIC)
-    im=variation(im,noise(n,n,700,720)*2+noise(n,n,73,70)*3);d=ImageDraw.Draw(im,'RGBA');scale=n/58
-    def uv(x,z):return ((x+29)*scale,(z+29)*scale)
-    for i in range(28000):
-        z=rng.uniform(-17,17);x=-3.1+1.7*sin(z*.22+.9)+.038*z+rng.normal(0,.42)
-        a,b=uv(x,z);r=rng.uniform(.5,1.4);col=(134,124,94,35) if i%3 else (236,224,186,67)
-        d.ellipse((a-r,b-r*.55,a+r,b+r*.55),fill=col)
-    # The long seat and its feet need contact shadow at the reel's launch spot.
-    mask=Image.new('L',(n,n));m=ImageDraw.Draw(mask);a=-.55
-    def seat(u,v):return uv(4.1+u*cos(a)+v*sin(a),-4.4+v*cos(a)-u*sin(a))
-    m.polygon([seat(x,z) for x,z in [(-.9,-.19),(.9,-.19),(.98,.51),(-.82,.51)]],fill=115)
-    im=Image.composite(Image.blend(im,Image.new('RGB',im.size,'#525940'),.8),im,mask.filter(ImageFilter.GaussianBlur(2.4)))
-    save(im,'meadow-walk')
 
 def garden_joinery():
     # Five separately sawn boards share one small atlas with the botanical label.
@@ -111,4 +95,12 @@ def studio():
     save(im,'studio-registration')
 
 if __name__=='__main__':
-    lido();meadow();boards();studio();garden_joinery()
+    lido()
+    # Authored stream start for the parquet, registration marks and bench.
+    # Restoring the cached half-word also preserves the first board's length.
+    rng.bit_generator.state = {
+        'bit_generator':'PCG64',
+        'state':{'state':62243019243057628251453394950139041757,'inc':73595516370337634070877500517117243319},
+        'has_uint32':1, 'uinteger':3949378895,
+    }
+    boards();studio();garden_joinery()

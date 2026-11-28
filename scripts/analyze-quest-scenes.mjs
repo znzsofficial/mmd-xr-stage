@@ -94,8 +94,11 @@ function measure(r, mark, mode, index, block) {
   const hzCounts = Object.entries(r.reportedRefreshRates ?? {});
   if (hzCounts.length !== 1 || !positive(Number(hzCounts[0][0])) || hzCounts[0][1] !== r.intervalCount ||
       r.intervalsWithReportedRate !== r.intervalCount) block('整场实际 Hz 有切换、缺报或计数不符');
-  const expectedScene = ['floor', 'lawn'][index];
   if (mode === 'steady') {
+    // New outdoor takes use the station; archived lawn sessions retain their
+    // own identity and cannot be stitched to station windows.
+    const outdoor = r.windows[0].scenery === 'lawn' ? 'lawn' : 'seasideTerminus';
+    const expectedScene = index === 0 ? 'floor' : outdoor;
     if (r.visibleIntervalMs < targets.steady) block('整场可见回调不足 900 秒');
     if (r.windows.some(w => w.scenery !== expectedScene)) block(`必须是 ${expectedScene} 独立会话`);
     if (hzCounts.length !== 1 || Number(hzCounts[0][0]) !== 72) block('持续 72 验收须由会话实际报告 72 Hz');
@@ -177,7 +180,7 @@ export function analyzePair(mode, reports, notes = {}) {
 
 const usage = `node scripts/analyze-quest-scenes.mjs inspect FILE.json [FILE.json ...]
 node scripts/analyze-quest-scenes.mjs ab OLD.json NEW.json --quest --builds 6061e24,b91325b --view "参照物" --quality balanced --spans 10:40,12:42
-node scripts/analyze-quest-scenes.mjs steady FLOOR.json LAWN.json --quest --builds SHA,SHA --view "相对演员的距离与朝向" --quality balanced --same-actor --spans 20:930,25:935
+node scripts/analyze-quest-scenes.mjs steady FLOOR.json STATION.json --quest --builds SHA,SHA --view "相对演员的距离与朝向" --quality balanced --same-actor --spans 20:930,25:935
 --spans 为各自累计可见秒数，须据实填；确认条件见 docs/performance/next-quest-export.md。`;
 
 if (import.meta.main) {

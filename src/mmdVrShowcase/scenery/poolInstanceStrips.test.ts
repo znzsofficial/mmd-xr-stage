@@ -39,8 +39,7 @@ it('keeps the pace-clock, return and stereo edge geometry, with full instances r
       const {clock,return:back}=LIDO_ROUTE_SHOTS;
       expect(draw(clock.eye,clock.aim)).toBeLessThan(full*.45);
       if(i)expect(draw(back.eye,back.aim)).toBeLessThan(full*.15);
-      // The city no longer mounts the former meadow's 50 distant crowns.
-      // Bound actual submissions at this view, independent of that denominator.
+      // Bound submitted crowns at the room entry independently of the total count.
       else expect(draw([2.1,1.7,2.8],[0,.85,-3.7])).toBeLessThanOrEqual(84);
       mesh.position.set(-2,.6,3);mesh.rotation.y=.32;mesh.updateMatrixWorld();
       for(const yaw of [0,36,76,93,145,180,240,303])for(const side of [-.032,.032])draw(clock.eye,clock.aim,yaw,side);

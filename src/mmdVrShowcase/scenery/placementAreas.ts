@@ -1,7 +1,6 @@
 import type { SceneryId } from './catalog';
-import { chapelPlace, classroomPlace, courtPlace, lawnPlace, liveHousePlace, plinthPlace, poolPlace } from './flatPlacement';
+import { chapelPlace, classroomPlace, courtPlace, liveHousePlace, plinthPlace, poolPlace } from './flatPlacement';
 import { clinicNavigation } from './clinic/clinicNavigation';
-import { lawnClinicPlacementVisible } from './clinic/clinicApproach';
 import { PICK_DECKS, songhouseClear, songhouseHeight, songhousePlacementVisible } from './qinhuai/songhouseLayout';
 import { weddingClear, weddingVisible } from './wedding/weddingLayout';
 import { retreatPlace, retreatVisible, type Retreat } from './retreat/retreatLayout';
@@ -38,7 +37,6 @@ const rules: Record<SceneryId, PlacementRule> = {
   liveHouse: flat(liveHousePlace),
   classroom: flat(classroomPlace,classroomDoorSight),
   pool: flat(poolPlace,poolGateSight),
-  lawn: flat(lawnPlace, (from,x,_y,z) => lawnClinicPlacementVisible(from,x,z)),
   astralCourt: { ...flat(courtPlace,portalPlacementSight), decks: [ground(108)] },
   chapel: flat(chapelPlace),
   clinic: flat(clinicNavigation.place, (from,x,_y,z) => clinicNavigation.visible(from,x,z)),

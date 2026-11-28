@@ -1,12 +1,11 @@
 import {useEffect,useLayoutEffect,useMemo} from 'react';
 import {campusPassageParts,schoolExterior} from '../CampusLayout';
 import {ROOM} from '../ClassroomLayout';
-import {arcadeParts,distantLido,POOL_ORIGIN} from '../LidoLayout';
+import {arcadeParts,distantLido} from '../LidoLayout';
 import {LidoPlates} from '../LidoPlates';
 import {Batch} from '../SceneryBatch';
 import {SchoolBrickWalk} from '../SchoolBrickWalk';
 import {GardenEntrance} from '../clinic/GardenEntrance';
-import {CLINIC_ORIGIN} from '../clinic/clinicApproach';
 import {BlockFront,lidoTimingView} from '../routes/campusArcade/Street';
 import {noPick} from '../sceneryPaint';
 import {ParkTrees} from '../terminus/park/ParkTrees';
@@ -20,7 +19,7 @@ import {cityStreetTrees} from './streetFurniture';
 import {SportsStreetLandmark} from './SportsStreetLandmark';
 
 function SchoolFront({shadows}:{shadows:boolean}){
-  const {x,z}=CITY_ORIGINS.classroom,parts=useMemo(()=>schoolExterior('classroom').concat(campusPassageParts('classroom')),[]);
+  const {x,z}=CITY_ORIGINS.classroom,parts=useMemo(()=>schoolExterior().concat(campusPassageParts()),[]);
   const board=useBakedSurface(lesson);
   useLayoutEffect(()=>{if(board){board.offset.set(.001,.502);board.repeat.set(.998,.496);}},[board]);
   return <group name="city:school-front" position={[x,0,z]}>
@@ -33,13 +32,9 @@ function SchoolFront({shadows}:{shadows:boolean}){
 
 function LidoFront({shadows}:{shadows:boolean}){
   const {x,z}=CITY_ORIGINS.pool;
-  const parts=useMemo(()=>{
-    const finish=arcadeParts('pool').concat(lidoTimingView());
-    for(const q of distantLido('city'))finish.push({...q,p:[q.p[0]-POOL_ORIGIN.x,q.p[1],q.p[2]-POOL_ORIGIN.z]});
-    return finish;
-  },[]);
+  const parts=useMemo(()=>arcadeParts().concat(lidoTimingView(),distantLido()),[]);
   return <group name="city:lido-front" position={[x,0,z]}>
-    <Batch name="city:lido-ticket-pier-and-finish" parts={parts} casts={shadows}/><LidoPlates pool city/>
+    <Batch name="city:lido-ticket-pier-and-finish" parts={parts} casts={shadows}/><LidoPlates/>
   </group>;
 }
 
@@ -64,7 +59,7 @@ export function CityStreet({shadows,room='seasideTerminus'}:{shadows:boolean;roo
   return <group name="city:street" position={[-origin.x,0,-origin.z]} pointerEvents="none">
     <StreetSurface room={room}/><StreetShops room={room} shadows={shadows}/>
     {needsFront('clinic')&&<group name="city:clinic-front" position={[clinic.x,0,clinic.z]}>
-      <group position={[-CLINIC_ORIGIN.x,0,-CLINIC_ORIGIN.z]}><GardenEntrance lawn city shadows={shadows}/></group></group>}
+      <GardenEntrance includeWard shadows={shadows}/></group>}
     {needsFront('classroom')&&<SchoolFront shadows={shadows}/>}
     {needsFront('pool')&&<LidoFront shadows={shadows}/>}
     {needsFront('arcadeHall')&&<BlockFront name="city:arcade-front" origin={CITY_ORIGINS.arcadeHall} shadows={shadows}/>}

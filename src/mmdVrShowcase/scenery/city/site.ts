@@ -1,7 +1,7 @@
 import {CAMPUS_DOOR,SCHOOL_GATE,campusPassageParts,schoolExterior} from '../CampusLayout';
 import {forecourtEdge} from '../arcade/westGallery';
-import {APRON,EAST_FACE,GARDEN_DOOR,GUIDE,approachSolids} from '../clinic/clinicApproach';
-import {LIDO_ENTRY,LIDO_GATE,POOL_ORIGIN,arcadeParts,distantLido,poolBarrierParts} from '../LidoLayout';
+import {APRON,EAST_FACE,GARDEN_DOOR,approachSolids} from '../clinic/clinicApproach';
+import {LIDO_ENTRY,LIDO_GATE,arcadeParts,distantLido,poolBarrierParts} from '../LidoLayout';
 import {shell,westStreetDoor as arcadeDoor} from '../routes/campusArcade/site';
 import type {Part} from '../SceneryBatch';
 import {laneMouth} from '../terminus/parkLayout';
@@ -60,18 +60,15 @@ function partBlock(part:Part):CityBlock{
   return {x,z,w,d:depth,bottom:y-height/2,top:y+height/2};
 }
 // Omit the floor slabs: their shoe surfaces do not occlude an actor on them.
-const schoolBlocks=[...schoolExterior('classroom'),...campusPassageParts('classroom')].map(partBlock).filter(b=>b.top>.04);
-const clinicBlocks=[...EAST_FACE,...approachSolids.filter(solid=>solid!==GUIDE),
+const schoolBlocks=[...schoolExterior(),...campusPassageParts()].map(partBlock).filter(b=>b.top>.04);
+const clinicBlocks=[...EAST_FACE,...approachSolids,
   ...[-9,4.8].map(z=>({x:0,z,w:17.32,d:.16,bottom:0,top:3.12})),
   {x:-8.6,z:-2.1,w:.16,d:13.8,bottom:0,top:3.12},
   {x:0,z:-2.1,w:17.62,d:14.13,bottom:3.12,top:3.36},
 ];
-const lidoBlocks=[...arcadeParts('pool'),...poolBarrierParts()].map(partBlock).filter(b=>b.top>.06);
-// distantLido uses meadow coordinates. Reuse its pavilion rather than
-// closing the open air around the basin with an invented perimeter wall.
-const poolPavilion=distantLido('city').map(partBlock).filter(b=>b.top>.06).map(b=>({...b,x:b.x-POOL_ORIGIN.x,z:b.z-POOL_ORIGIN.z}));
+const lidoBlocks=[...arcadeParts(),...poolBarrierParts(),...distantLido()].map(partBlock).filter(b=>b.top>.06);
 const arcadeBlocks=shell.map(b=>({x:b.x,z:b.z,w:b.w,d:b.d,bottom:b.y-b.h/2,top:b.y+b.h/2})).filter(b=>b.top>.04);
-export const localFacades={classroom:schoolBlocks,clinic:clinicBlocks,pool:[...lidoBlocks,...poolPavilion],arcadeHall:arcadeBlocks};
+export const localFacades={classroom:schoolBlocks,clinic:clinicBlocks,pool:lidoBlocks,arcadeHall:arcadeBlocks};
 function translate(blocks:readonly CityBlock[],origin:{x:number;z:number}){
   return blocks.map(b=>({...b,x:b.x+origin.x,z:b.z+origin.z}));
 }

@@ -14,13 +14,13 @@
 
 - 新版修复[极端质量尾链离开骨盆](./performance/xr-runtime-performance.md#开物理后尾根离开身体)，以及 WebGPU XR 收起操作页误收搭档。屏幕与模拟 XR 同一 PMX、开物理 6 秒后尾根均稳定，收起搭档面板后手动位置保持、已启动的自动往复继续。[双后端技术栈](./xr-rendering-stack.md)并排列出渲染、求值、布料与按需 GPU 分段计时；[海站双眼画面与开销](./performance/README.md#webgpu-单人播舞)只作桌面结论。
 
-- 17 个布景、13 件背包道具。WebGL 和 WebGPU 可在同一标签页续接 **3 名 PMX 演员＋3 件 GLB/glTF 物件**的布局，保留各自的动作、材质、摆位和舞段时刻。屏幕观看与默认 XR 入口仍用 WebGL。[物件导入](./gameplay/asset-workflow.md#放一件-glb-或-gltf) · [跨后端、换肤、接触和阴影的实绘对照](./webgpu-xr-status.md#混合布局材质与环境的画面对照)
+- 16 个布景、13 件背包道具。WebGL 和 WebGPU 可在同一标签页续接 **3 名 PMX 演员＋3 件 GLB/glTF 物件**的布局，保留各自的动作、材质、摆位和舞段时刻。屏幕观看与默认 XR 入口仍用 WebGL。[物件导入](./gameplay/asset-workflow.md#放一件-glb-或-gltf) · [跨后端、换肤、接触和阴影的实绘对照](./webgpu-xr-status.md#混合布局材质与环境的画面对照)
 - 海站连接日照喷泉公园、树荫和商店街。同页支持[外置可撕丝袜](./gameplay/actor-tools.md)，WebGPU XR 的演员画风可选原 MMD、仿终末地和[仿卡拉彼丘](./scenery/strinova-render-study.md#在舞台上切换)。
 - 现有 [16 种快速体位](./gameplay/pose-and-body-states.md#快速体位)。[半透明搭档](./gameplay/pelvic-attachment.md#选择支架或半透明搭档)可在原位编辑演员，一侧膝盖变化不挪动另一侧撑手。穿衣实模七姿模拟双眼复核，最终成品另经 screen/Bullet 检查；[WebGPU 布料](./performance/gpu-cloth-lab.md#实际解算的内容)减少了采样矩阵上传与 CPU 骨节点访问，未证实整帧或 Quest FPS 上升。[角色工具回归](./performance/actor-tools-regression.md) · [历史 Quest 记录](./performance/quest-floor-dance.md)
 
 ## 下次从哪里接
 
-**海站城市布景：**四馆门前共用室外布局，旧草坪保留兼容入口。第二轮补了回潮招领窗和 11 家店的行业陈列，修正诊所后墙、教室砖路和池岸接缝。成品复验八次跨馆恢复；五种街区图在同一 WebGL 路线上的纹理句柄 11→5。[路线与布局边界](./scenery/harbour-city.md)。
+**海站城市布景：**独立晴空草坪已移除，`?set=lawn` 按普通无效链接处理。纸鸢在海站街边长椅，四馆门前共用室外布局；馆内各存摆位，电玩厅二楼仍可步行到泳池计时台。[路线与布局边界](./scenery/harbour-city.md)。
 
 **复杂角色开物理播舞已完成第一轮。** 保留原求解器，减少手柄触觉重复扫描接触点。[同原件正反对照](./performance/bullet-step-profile.md#090-重角色与触觉查询)区分了纯求值、含触觉的 CPU 时间和双眼绘制间隔；`local-review/heavy-bullet/` 有具名样本。若继续追手柄查询，先量剩下那一次原生遍历中，接触流形查刚体编号的费用。Quest 持续帧率未测。
 

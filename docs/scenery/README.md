@@ -1,6 +1,6 @@
 # 建模与布景
 
-**十七个布景布局，主列表十个入口。** [海站城区与四馆](./harbour-city.md) · [屏幕直接进星环传送大厅](https://mmd-xr-stage.pages.dev/?set=astralCourt&view=screen) · [Quest 入口](https://mmd-xr-stage.pages.dev/?set=astralCourt) · [角色站位](../gameplay/vr-controls.md#在布景中给角色选位置) · [接入新区域](./adding-a-set.md)
+**十六个布景布局，主列表十个入口。** [海站城区与四馆](./harbour-city.md) · [屏幕直接进星环传送大厅](https://mmd-xr-stage.pages.dev/?set=astralCourt&view=screen) · [Quest 入口](https://mmd-xr-stage.pages.dev/?set=astralCourt) · [角色站位](../gameplay/vr-controls.md#在布景中给角色选位置) · [接入新区域](./adding-a-set.md)
 
 **[海边终点站与站前公园](https://mmd-xr-stage.pages.dev/?set=seasideTerminus&view=screen)**：背海走出候车棚，沿「公园出口」到潮音广场，看喷泉、榉树荫下的长椅和汐见小路的沿街店铺。屏幕端可直接从「导览」选公园入口、喷泉、长椅、商店街或回望车站。公园与海堤共用布局；把演员留在长椅旁，再走回站台，不用重新上场。水面、座椅和花池不能放置演员。
 
@@ -10,7 +10,7 @@
 
 海站的「候车棚 · 木长椅」可近看顺纹、切口、磨亮的座板与铸铁支座。旧椅和新椅在同一光照、同一机位比较；关实时阴影时，新增座椅／站具合并的一次不透明绘制和一次接地阴影。岩岬采用按岸线连续展开的摄影石纹与法线，船舷、护栏、索具和驾驶舱窗框合并绘制。WebGL/WebGPU 共用场景数据；在桌面 GPU 模拟双眼中，同朝向横移半米，天空取样区保持不动，水面产生视差，回到原位时两个取样区都恢复。未据此推算 Quest 帧率。对照保存在 `local-review/screenshots/sunny-harbour/`。
 
-- **海站城区**：从花店旁过街可走到[教室、诊所、泳池和电玩厅](./harbour-city.md)，[电玩厅上层](./arcade-hall.md)的坡道仍通泳池计时台。纸鸢长椅在街边绿地。旧草坪保留独立链接和布局；[旧校园路线](./campus-garden-routes.md)仅供历史对照。门诊内三间房共享一层，原有护士默认隐藏。[陈列与显隐](./clinic-teaching.md)
+- **海站城区**：从花店旁过街可走到[教室、诊所、泳池和电玩厅](./harbour-city.md)，[电玩厅上层](./arcade-hall.md)的坡道通泳池计时台。纸鸢长椅在街边绿地。门诊内三间房共享一层，原有护士默认隐藏。[陈列与显隐](./clinic-teaching.md)
 - **江南**：[双喜堂](./wedding-court.md)看喜幔、婚书与喜房；沿[枕河街](./jiangnan-river-street.md)可到[秦淮歌楼](./qinhuai.md)埠头、听曲廊和月蘅馆。跨景各存布局，楼内步行不卸载角色。
 - **天体**：母星北台的[六线航向盘](./opal-planet.md#从罗盘起飞六条往返风道)指向 01–06 号风环。想采色亮柱，走[白脊采谱路线](./opal-planet.md#母星沿白脊采谱)；想摆角色，除母星北台外，还可去 [06 伞灯星的菌圃台](./opal-planet.md#伞灯星和琥珀屿)。[苇湾星](./opal-planet.md#苇湾星与地表近景)可涉水；云母屿、硫珠屿从[玄釉星方向](./opal-planet.md#双星引力海峡)跨跳，琥珀屿从伞灯星跨跳。
 - [传送大厅实景：六扇拱门与中央通道](../screenshots/astral-portal-hall.webp)。门中的图像拍自六个空片场；只加载一张图集，不预加载六个房间或角色。
@@ -31,7 +31,7 @@
 
 ### 现在走哪条路，以及旧试点记录
 
-现在从教室后门沿砖径接草坪、从藤径进泳场东岸门楼、从门诊东侧进候诊厅。门线、返程视角和实际摆放看[三条校园路线](./campus-garden-routes.md)。下面两段和截图记录最初的试点，不再用作当前门线坐标或识路图。
+现在从海站街道进出四馆，路线、门前地标和实际摆放看[海站城区](./harbour-city.md)。下面两段和截图记录最初的[草坪试点](./campus-garden-routes.md)，不再用作当前门线坐标或识路图。
 
 教室后门接有顶步道。窗外花架与草坪教学楼外立面复用各区原有实例批次；既有教室和草坪仍分别作为布局、玩法与报告的身份。`CampusLayout.ts` 描述同一段走廊的两套坐标；在门牌处定向跨界，再平移 XR 原点，不主动旋转头显。两向门线相距 0.95 米，避免刚到就反向触发。复用正常切景生命周期，先保存再卸载角色和 Bullet 世界。教室的地板、黑板和木纹改为[离线烘焙](../../scripts/bake-classroom-prints.html)，近门才提示浏览器取草坪图片。截图：[窗边](../screenshots/campus-window.webp) · [连廊](../screenshots/campus-hall.webp) · [回望](../screenshots/campus-school.webp)。[性能与验收](../performance/campus-passage.md)
 
@@ -69,7 +69,7 @@
 
 - **先定尺度和机位。** 舞台以米为单位，角色脚底是 `y=0`。椅子、柱脚等从布局数据确定外形和占地。用眼睛实际能走到的位置决定要做哪些面。
 - **建会改变轮廓的部件。** Three.js 组装木条、支架、鼓圈和软箱格栅。大量同种部件放进 `SceneryBatch.tsx` 的实例批次里。花穗等非规则形状用少量带顶点颜色的三角形拼成。
-- **把表面细节提前画好。** [`paint-chapel.py`](../../scripts/paint-chapel.py) 用 Pillow 和 NumPy 生成玫瑰窗、百合侧窗、石墙和地砖。四个旧景用 [`paint-close-surfaces.py`](../../scripts/paint-close-surfaces.py) 生成池岸拼花、径上碎石、长椅木纹与铭牌、舞台木地板和摄影台刻度。草坪底图最初来自 [`bake-meadow.ts`](../../scripts/bake-meadow.ts)。成品 WebP 随布景按需加载；Python 只在制作时运行。
+- **把表面细节提前画好。** [`paint-chapel.py`](../../scripts/paint-chapel.py) 用 Pillow 和 NumPy 生成玫瑰窗、百合侧窗、石墙和地砖。[`paint-close-surfaces.py`](../../scripts/paint-close-surfaces.py) 生成池岸拼花、长椅木纹与铭牌、舞台木地板和摄影台刻度。成品 WebP 随布景按需加载；Python 只在制作时运行。
 - **看第一次进场的材质。** 如果标准材质先以 `map=null` 编译，贴图到达时要重建带 `USE_MAP` 的材质（或显式请求重编译）。网络请求成功、编译无报错都不能证明图案已经出现在表面。喜院用小色板保住首帧朱红和木色，分别放行建筑和陈设 WebP，再用同机位检查匾字、轿帘织锦和切景回访。
 - **把会随视点变化的效果留给实时渲染。** 泳池水面用着色器按每只眼睛的视线折射到池壁或池底，再叠加波纹、水下釉带与高光。地面上的接触阴影则可以提前画进贴图。
 
