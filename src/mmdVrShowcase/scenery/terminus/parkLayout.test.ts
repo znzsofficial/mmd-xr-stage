@@ -1,10 +1,10 @@
 import {describe,expect,it} from 'vitest';
-import {BoxGeometry,CylinderGeometry,Group,IcosahedronGeometry,InstancedMesh,Mesh,MeshBasicMaterial,Object3D,Raycaster,Vector3} from 'three';
+import {ArrayCamera,BoxGeometry,CylinderGeometry,Group,IcosahedronGeometry,InstancedMesh,Mesh,MeshBasicMaterial,Object3D,PerspectiveCamera,Raycaster,Scene,Vector3,type WebGLRenderer} from 'three';
 import {createGroundMotor,groundedBody,type ReadColumn} from '../../movement/groundMotor';
 import {roomGround} from '../../movement/roomGround';
 import {createSolidColumns} from '../../movement/solidColumns';
 import {resolvePlacementHeight,roomPickDecks,visiblePick} from '../placementAreas';
-import {parkArchitecture} from './parkArchitecture';
+import {installParkStreetRange,parkArchitecture} from './parkArchitecture';
 import {inlandEmbankment,parkPavement,parkPlanting,parkStreetFurniture,parkTreeGrates} from './parkGroundArt';
 import {fountainCourt,parkBeds,parkDeck,parkLights,parkSeats,parkShops,parkShots,parkTreeGrateRadius,parkTrees,windowDisplays} from './parkLayout';
 import {SHORE_SUN} from './shoreLayout';
@@ -16,6 +16,44 @@ import {barkGeometry} from './park/treeSurfaces';
 
 const room='seasideTerminus';
 describe('continuous station park',()=>{
+  it('trims both opaque batches to the binocular range and restores the geometry for collision and shadows',()=>{
+    const {solid,prints,solidRanges,printRanges}=parkArchitecture(),material=new MeshBasicMaterial();
+    const scene=new Scene(),group=new Group(),eye=(x:number,angle:number)=>{
+      const camera=new PerspectiveCamera(12,1,.05,120);
+      camera.position.set(x,1.57,32.6);camera.lookAt(x+Math.sin(angle),1.57,32.6+Math.cos(angle));camera.updateMatrixWorld();
+      return camera;
+    };
+    const left=eye(16.62,-1.33),right=eye(16.68,.48),rig=new ArrayCamera([left,right]);
+    const renderer={xr:{isPresenting:false,getCamera:()=>rig}} as unknown as WebGLRenderer;
+    for(const [geometry,ranges] of [[solid,solidRanges],[prints,printRanges]] as const){
+      const mesh=new Mesh(geometry,material),clear=installParkStreetRange(mesh,ranges);
+      scene.add(mesh);mesh.updateMatrixWorld();
+      const before=(camera:PerspectiveCamera)=>mesh.onBeforeRender(renderer,scene,camera,geometry,material,group);
+      const after=(camera:PerspectiveCamera)=>mesh.onAfterRender(renderer,scene,camera,geometry,material,group);
+      const draw=(camera:PerspectiveCamera)=>{before(camera);const range={...geometry.drawRange};after(camera);return range;};
+      try {
+        const l=draw(left),r=draw(right);
+        expect(l.count).toBeGreaterThan(0);expect(r.count).toBeGreaterThan(0);
+        expect(l).not.toEqual(r);
+        const start=Math.min(l.start,r.start),end=Math.max(l.start+l.count,r.start+r.count);
+        renderer.xr.isPresenting=true;
+        const union={start,count:end-start};
+        expect(draw(left)).toEqual(union);expect(draw(right)).toEqual(union);
+        expect(union.count).toBeLessThan(geometry.index!.count);
+        before(left);
+        scene.overrideMaterial=material;
+        before(right);expect(geometry.drawRange).toEqual({start:0,count:Infinity});
+        after(right);scene.overrideMaterial=null;
+        expect(geometry.drawRange).toEqual(union);
+        after(left);expect(geometry.drawRange).toEqual({start:0,count:Infinity});
+        // A triangle-order depth probe invalidates the static segment bounds.
+        geometry.index!.needsUpdate=true;
+        expect(draw(left)).toEqual({start:0,count:Infinity});
+      }finally{clear();scene.remove(mesh);geometry.dispose();renderer.xr.isPresenting=false;}
+    }
+    material.dispose();
+  });
+
   it('gives the greenhouse curb, corner plinth and paving crossings a single front surface',()=>{
     const {solid,prints}=parkArchitecture(),paving=parkPavement(),material=new MeshBasicMaterial();
     const buildings=new Mesh(solid,material),ground=new Mesh(paving,material);

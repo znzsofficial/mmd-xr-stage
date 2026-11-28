@@ -1,0 +1,14 @@
+{
+  "revision": "9cab06484fabd881258c34fcf321f7fbefaa78ac",
+  "dist": {
+    "files": 490,
+    "sha256": "d616841b14c8e8f75000fb21881c3aaacb0ed03c7cbd6ca22ce43fdc13af9928"
+  },
+  "assets": {
+    "assets/PlanetPhysics-oLPz64OP.js": "22d6e3d3eb8830b30f4a3c67441aee4ade5349e3bd68d6a6b297f1c180bd4353",
+    "assets/emulate-D6VJLYN2.js": "c47b0b074e1e0c99c59fb117cf3527b80ee8a6d34a288a9591ade63cf681bc57",
+    "assets/index-CXew5Yfp.js": "5f2eef374f3c1842f83c95470179373b137ee27a1b313212b1310cdcd95adaf4",
+    "assets/rapier-CvDRWPfo.js": "fdb75faecd7a95adcbc07c1f4e16ef7bf47e4175e9f96642c12556109cb48eca",
+    "assets/stage-host-gNEURXw-.js": "19822c34f2457a48226b0ab3c442774cc5583bf6defaca48c411ca11dc5da3c5"
+  }
+}

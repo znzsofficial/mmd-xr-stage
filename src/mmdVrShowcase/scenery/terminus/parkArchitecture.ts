@@ -1,17 +1,76 @@
-import {BoxGeometry,BufferGeometry,Color,CylinderGeometry,Float32BufferAttribute,Matrix4,Shape,ExtrudeGeometry} from 'three';
+import {Box3,BoxGeometry,BufferGeometry,Color,CylinderGeometry,Float32BufferAttribute,Frustum,Matrix4,Shape,ExtrudeGeometry,Vector3,type ArrayCamera,type Camera,type Mesh} from 'three';
 import {PaintedParts,ball,box,ring,rod,turn} from '../../play/modelParts';
 import {parkShops,windowDisplays} from './parkLayout';
 
 const zinc='#687875', plaster='#ede5d4', shadow='#545f5c', brass='#bd9363';
 type Shop=typeof parkShops[number];
+type StreetRange={start:number;end:number;bounds:Box3};
+
+function streetRanges(geometry:BufferGeometry,ends:number[]):StreetRange[]{
+  const point=new Vector3(),position=geometry.attributes.position,index=geometry.index!;
+  let start=0;
+  return ends.flatMap(end=>{
+    if(end===start)return [];
+    const bounds=new Box3();
+    for(let i=start;i<end;i++)bounds.expandByPoint(point.fromBufferAttribute(position,index.getX(i)));
+    // Allow for GPU projection rounding when an edge is on a frustum plane.
+    const range={start,end,bounds:bounds.expandByScalar(.02)};start=end;
+    return [range];
+  });
+}
+
+/** Keep one opaque draw in authored order. Trim only the ends of the index
+ * stream: a gap between visible buildings stays in the draw. Room collision
+ * reads the entire original buffer outside these paired render callbacks. */
+export function installParkStreetRange(mesh:Mesh,ranges:readonly StreetRange[]){
+  const geometry=mesh.geometry,index=geometry.index,version=index?.version;
+  const matrix=new Matrix4(),frustum=new Frustum();
+  const before=mesh.onBeforeRender,after=mesh.onAfterRender;
+  const saved:number[]=[];
+  mesh.onBeforeRender=function(renderer,scene,camera,g,material,group){
+    before.call(this,renderer,scene,camera,g,material,group);
+    const {start,count}=geometry.drawRange;
+    const nested=saved.length>0;
+    saved.push(start,count);
+    // WebGPU can open a shadow pass while preparing a receiving draw. Keep
+    // all the casters in that pass, including those outside the viewer's eyes.
+    if(nested||scene.overrideMaterial){geometry.setDrawRange(0,Infinity);return;}
+    if(start!==0||count!==Infinity||geometry.index!==index||index?.version!==version)return;
+    let first=ranges.length,last=-1;
+    function includeVisible(eye:Camera){
+      matrix.multiplyMatrices(eye.projectionMatrix,eye.matrixWorldInverse).multiply(mesh.matrixWorld);
+      frustum.setFromProjectionMatrix(matrix,eye.coordinateSystem,eye.reversedDepth);
+      for(let i=0;i<first;i++)if(frustum.intersectsBox(ranges[i].bounds)){first=i;break;}
+      for(let i=ranges.length-1;i>last&&i>=first;i--)if(frustum.intersectsBox(ranges[i].bounds)){last=i;break;}
+    }
+    const rig=renderer.xr?.isPresenting?renderer.xr.getCamera():null;
+    const eyes=rig&&(camera===rig||rig.cameras.some(eye=>eye===camera))?rig.cameras:(camera as ArrayCamera).cameras;
+    if(eyes?.length)for(const eye of eyes)includeVisible(eye);
+    else includeVisible(camera);
+    if(last<0)geometry.setDrawRange(0,0);
+    else geometry.setDrawRange(ranges[first].start,ranges[last].end-ranges[first].start);
+  };
+  mesh.onAfterRender=function(renderer,scene,camera,g,material,group){
+    const count=saved.pop()??Infinity,start=saved.pop()??0;
+    geometry.setDrawRange(start,count);
+    after.call(this,renderer,scene,camera,g,material,group);
+  };
+  return ()=>{mesh.onBeforeRender=before;mesh.onAfterRender=after;};
+}
 
 // Local +Z is the pavement. Keep a deep sill in front of the painted stock,
 // real projecting fascias, door jambs and inhabitable floor-to-floor heights.
 export function parkArchitecture(){
   const solids=new PaintedParts(), p:number[]=[],uv:number[]=[],rgb:number[]=[],index:number[]=[],ink=new Color();
+  const solidEnds:number[]=[],printEnds:number[]=[];
+  let solidCount=0;
+  function endStreetRange(){solidEnds.push(solidCount);printEnds.push(index.length);}
   const frame=new Matrix4();let origin={x:0,z:0,yaw:0};
   function local(x:number,z:number,yaw=0){origin={x,z,yaw};frame.makeRotationY(yaw).setPosition(x,0,z);}
-  const add=(g:BufferGeometry,tint:string)=>solids.add(g.applyMatrix4(frame),tint);
+  function add(g:BufferGeometry,tint:string){
+    solids.add(g.applyMatrix4(frame),tint);
+    solidCount+=g.index!.count;
+  }
   const wall=(x:number,y:number,z:number,w:number,h:number,d:number,tint:string)=>add(box(x,y,z,w,h,d),tint);
   function pitched(x:number,y:number,z:number,w:number,h:number,d:number,tint:string,rx:number,rz=0){
     add(new BoxGeometry(w,h,d).rotateX(rx).rotateZ(rz).translate(x,y,z),tint);
@@ -228,9 +287,10 @@ export function parkArchitecture(){
     // Downpipe and gooseneck under the projecting shop fascia.
     const drain=w/2-.18;
     add(rod([drain,.10,.125],[drain,h-.08,.125],.036),'#8c9181');
+    endStreetRange();
     sidewalkDisplay(s);
+    endStreetRange();
   }
-  parkShops.forEach(shop);
 
   // Neighbouring blocks climb behind both streets in three depths. Model the
   // set-backs, stair cores, wraparound balconies and roof plant in silhouette.
@@ -238,7 +298,7 @@ export function parkArchitecture(){
   // Set the next row beyond the playable district; keep the depot on the corner.
   const skyline=[[-38,105.5,8.5,9,13],[-12,106.6,9,9,17],[12,105.8,8.6,7,12],[36,107.4,9,8,19],
     [57.6,42,9,8,12],[37.3,20.8,9,8,16],[39,7.5,8,9,10],[50,29,7,11,18]];
-  skyline.forEach(([x,z,w,d,h],i)=>{
+  function distantBlock([x,z,w,d,h]:number[],i:number){
     local(x,z,i>3?-.99:Math.PI);const tones=['#c5c8bc','#c4b9a1','#c1c9c4','#bdad9c'];
     const levels=Math.floor(h/2.85),floor=h/levels;
     wall(0,h/2,-d/2,w,h,d,tones[i%4]);wall(-w*.33,h+.65,-d*.64,w*.27,1.3,d*.38,tones[(i+1)%4]);
@@ -252,42 +312,46 @@ export function parkArchitecture(){
     }
     wall(0,h+.1,-d/2,w+.25,.2,d+.24,plaster);
     if(i%3===0){add(new CylinderGeometry(.81,.81,1.6,20).translate(w*.18,h+.82,-d*.57),'#9fa9a2');wall(w*.18,h+1.63,-d*.57,1.59,.10,1.59,zinc);}
-  });
+    endStreetRange();
+  }
   // A small sheet-metal parcel depot at the bend. Its loading doors look
   // diagonally between the coffee house and florist, under their real eaves.
-  local(28.6,46.0,-2.80);
-  wall(0,1.70,-2.16,9.4,3.40,4.32,'#a89e8b');picture(0,1.69,.004,9.38,3.36,9,'pane',0,'#cdc1a9');
-  wall(0,.26,.05,9.4,.52,.35,'#8d9890');wall(0,3.45,-2.18,9.7,.20,4.78,'#738883');
-  for(const x of [-2.10,1.58]){
-    wall(x,1.43,.070,2.78,2.49,.19,'#626c68');
-    wall(x,1.77,.185,2.57,1.87,.07,'#9aa59b');
-    for(let j=0;j<10;j++)wall(x,.89+j*.18,.232,2.55,.021,.022,'#849189');
-    wall(x,2.76,.28,3.10,.085,.76,'#708078');wall(x,2.681,.11,2.97,.079,.24,'#66746d');
-    for(let k=0;k<3;k++)wall(x-.76+k*.68,.48,.29,.55,.54-k%2*.10,.58,k%2?'#ba9d70':'#a68b68');
-  }
-  wall(0,3.91,-2.75,5.82,.79,1.72,'#bad0c6');
-  pitched(0,4.37,-2.76,6.13,.121,2.03,'#6e827f',-.16);
-  for(let i=0;i<6;i++)wall(-2.53+i*1.02,3.94,-1.853,.059,.68,.055,'#6c7c74');
-  // Turn the glimpse into a street in depth: catch-basin, loading stripe,
-  // culvert curb and a pair of short timber utility poles down the side lane.
-  local(0,0);
-  for(const [x,z] of [[20.25,43.1],[30.1,37.85]]){
-    wall(x,.013,z,.58,.025,.24,'#727c77');for(let k=0;k<6;k++)wall(x-.22+k*.088,.029,z,.031,.01,.19,'#525f5b');
-  }
-  const pole=(x:number,z:number)=>{
-    add(rod([x,0,z],[x+.038,5.77,z],.081,.057,10),'#827a6a');wall(x,5.49,z,1.20,.084,.094,'#596762');
-    for(const dx of [-.49,.49])add(rod([x+dx,5.52,z],[x+dx,5.69,z],.039,.042,8),'#abb6ae');
-  };
-  pole(20.13,44.48);pole(30.65,42.30);
-  for(const dx of [-.49,.49]){
-    add(rod([20.13+dx,5.69,44.48],[25.38+dx,5.37,43.39],.012,.012,5),'#707b75');
-    add(rod([25.38+dx,5.37,43.39],[30.65+dx,5.69,42.30],.012,.012,5),'#707b75');
+  function depot(){
+    local(28.6,46.0,-2.80);
+    wall(0,1.70,-2.16,9.4,3.40,4.32,'#a89e8b');picture(0,1.69,.004,9.38,3.36,9,'pane',0,'#cdc1a9');
+    wall(0,.26,.05,9.4,.52,.35,'#8d9890');wall(0,3.45,-2.18,9.7,.20,4.78,'#738883');
+    for(const x of [-2.10,1.58]){
+      wall(x,1.43,.070,2.78,2.49,.19,'#626c68');
+      wall(x,1.77,.185,2.57,1.87,.07,'#9aa59b');
+      for(let j=0;j<10;j++)wall(x,.89+j*.18,.232,2.55,.021,.022,'#849189');
+      wall(x,2.76,.28,3.10,.085,.76,'#708078');wall(x,2.681,.11,2.97,.079,.24,'#66746d');
+      for(let k=0;k<3;k++)wall(x-.76+k*.68,.48,.29,.55,.54-k%2*.10,.58,k%2?'#ba9d70':'#a68b68');
+    }
+    wall(0,3.91,-2.75,5.82,.79,1.72,'#bad0c6');
+    pitched(0,4.37,-2.76,6.13,.121,2.03,'#6e827f',-.16);
+    for(let i=0;i<6;i++)wall(-2.53+i*1.02,3.94,-1.853,.059,.68,.055,'#6c7c74');
+    // Turn the glimpse into a street in depth: catch-basin, loading stripe,
+    // culvert curb and a pair of short timber utility poles down the side lane.
+    local(0,0);
+    for(const [x,z] of [[20.25,43.1],[30.1,37.85]]){
+      wall(x,.013,z,.58,.025,.24,'#727c77');for(let k=0;k<6;k++)wall(x-.22+k*.088,.029,z,.031,.01,.19,'#525f5b');
+    }
+    const pole=(x:number,z:number)=>{
+      add(rod([x,0,z],[x+.038,5.77,z],.081,.057,10),'#827a6a');wall(x,5.49,z,1.20,.084,.094,'#596762');
+      for(const dx of [-.49,.49])add(rod([x+dx,5.52,z],[x+dx,5.69,z],.039,.042,8),'#abb6ae');
+    };
+    pole(20.13,44.48);pole(30.65,42.30);
+    for(const dx of [-.49,.49]){
+      add(rod([20.13+dx,5.69,44.48],[25.38+dx,5.37,43.39],.012,.012,5),'#707b75');
+      add(rod([25.38+dx,5.37,43.39],[30.65+dx,5.69,42.30],.012,.012,5),'#707b75');
+    }
+    endStreetRange();
   }
 
   // Across the rail cutting, the street rises to a concrete abutment and
   // a pair of low houses facing the water. Keep their roofs below the sky
   // from the station, and clear the seaward view from the park benches.
-  for(const [house,x,z,w,d,grade] of [[0,-11.8,37.4,5.3,4.7,.86],[1,-13.1,30.6,4.15,4.0,.62]]){
+  function quayHouse(house:number,x:number,z:number,w:number,d:number,grade:number){
     local(x,z,1.38);const tint=house?'#b7c2b6':'#ccba9e',h=house?2.98:4.42;
     wall(0,grade+h/2,-d/2,w,h,d,tint);picture(0,grade+h/2,.004,w,h,9,'pane',0,tint);
     wall(0,grade-.21,-d/2,w+.07,.43,d+.08,'#98a098');
@@ -298,8 +362,22 @@ export function parkArchitecture(){
       wall(w*.30,grade+2.90,.11,.92,.53,.28,'#a7aa97');for(let j=0;j<5;j++)wall(w*.30,grade+2.72+j*.065,.265,.75,.019,.018,'#85948a');
     }
     pitched(0,grade+h+.22,-d/2,w+.45,.16,d+.70,house?'#70857f':'#907e69',-.13);
+    endStreetRange();
   }
-  local(0,0);
+  // Follow the street from the rail cutting to the inland bend, then down
+  // the east leg. Keep distant blocks beside the frontage they sit behind.
+  quayHouse(1,-13.1,30.6,4.15,4,.62);
+  quayHouse(0,-11.8,37.4,5.3,4.7,.86);
+  for(let i=0;i<4;i++)distantBlock(skyline[i],i);
+  for(let i=0;i<3;i++)shop(parkShops[i],i);
+  depot();
+  distantBlock(skyline[4],4);distantBlock(skyline[7],7);
+  shop(parkShops[3],3);
+  distantBlock(skyline[5],5);
+  shop(parkShops[4],4);
+  distantBlock(skyline[6],6);
+  shop(parkShops[5],5);
   const prints=new BufferGeometry();prints.setAttribute('position',new Float32BufferAttribute(p,3));prints.setAttribute('uv',new Float32BufferAttribute(uv,2));prints.setAttribute('color',new Float32BufferAttribute(rgb,3));prints.setIndex(index);prints.computeVertexNormals();prints.computeBoundingSphere();
-  return {solid:solids.finish(),prints};
+  const solid=solids.finish();
+  return {solid,prints,solidRanges:streetRanges(solid,solidEnds),printRanges:streetRanges(prints,printEnds)};
 }

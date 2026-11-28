@@ -1,5 +1,6 @@
 import {Euler, Vector3} from 'three';
 import {GRIP_RADIUS,trackedGrip} from './handMotion.js';
+import {fitCoatBodies} from './coatFit.js';
 const skirt=/skirt|裙|スカート/i;
 const xyz=()=>new Vector3();
 // The loader passes these 16-bit inclusion masks straight to Bullet. An invalid
@@ -7,16 +8,19 @@ const xyz=()=>new Vector3();
 const contactPair=(a,b)=>a.group>=0&&a.group<16&&b.group>=0&&b.group<16&&
   (a.mask&(1<<b.group))!==0&&(b.mask&(1<<a.group))!==0;
 
-// One node per authored dynamic skirt bone. Edges follow the actual PMX joints,
-// never infer neighbours from material names, triangle order or UV seams.
+// One node per authored dynamic garment bone. Edges follow the actual PMX
+// joints and skeleton, never infer neighbours from material names or UV seams.
 export function fitRig(mesh){
   const {bones,boneInverses}=mesh.skeleton,{rigidBodies:bodies,joints}=mesh.userData.mmdPhysics??{};
   const fromBind=mesh.bindMatrix.clone().invert();
   if(!bodies?.length||!joints?.length)throw Error('这个模型没有可对照的刚体和关节');
-  const scale=.1, nodes=[],byBone=new Map(),byBody=new Map(),matches=(b)=>b.mode.startsWith('dynamic')&&bones[b.boneIndex]&&skirt.test([b.name,b.englishName,bones[b.boneIndex].name].join(' '));
-  bodies.forEach((b,i)=>{if(!matches(b))return;if(byBone.has(b.boneIndex))throw Error('暂不支持同一裙骨绑定多个动态体');
+  const bindPosition=i=>xyz().setFromMatrixPosition(boneInverses[i].clone().invert()).applyMatrix4(fromBind);
+  const scale=.1, nodes=[],byBone=new Map(),byBody=new Map();
+  const namedSkirts=bodies.map(b=>b.mode.startsWith('dynamic')&&bones[b.boneIndex]&&skirt.test([b.name,b.englishName,bones[b.boneIndex].name].join(' ')));
+  const coats=namedSkirts.some(Boolean) ? undefined : fitCoatBodies(mesh,bodies,joints,bindPosition);
+  bodies.forEach((b,i)=>{if(!namedSkirts[i]&&!coats?.has(i))return;if(byBone.has(b.boneIndex))throw Error('暂不支持同一裙骨绑定多个动态体');
     const index=nodes.length;byBone.set(b.boneIndex,index);byBody.set(i,index);
-    nodes.push({bone:b.boneIndex,group:b.group,mask:b.mask,rest:xyz().setFromMatrixPosition(boneInverses[b.boneIndex].clone().invert()).applyMatrix4(fromBind).multiplyScalar(scale),pin:false,adj:new Map()});});
+    nodes.push({bone:b.boneIndex,group:b.group,mask:b.mask,rest:bindPosition(b.boneIndex).multiplyScalar(scale),pin:false,adj:new Map()});});
   if(nodes.length<4||nodes.length>4096)throw Error('需要 4–4096 个可识别的动态裙骨');
   // A differently named dynamic body driving a fitted bone cannot remain in
   // Bullet alongside GPU displacement. Reject this rig instead of cutting it.
