@@ -24,6 +24,8 @@
 
 **Quest / Adreno 候选：**在实际 72 Hz、相同角色与舞段先单独比较固定注视点渲染，再看眼图像素数、透明层重画与双眼转色带宽。[头显旧记录的帧预算和验证标准](./performance/quest-floor-dance.md#quest-3s-的帧预算与-adreno-优化)。本轮未连 Quest、未改画质默认值。
 
+**不降画质的优化设计（未实施）：**优先验证 WebGPU 形态权重不变时复用上一帧的顶点结果；普通 XR 的触觉查询、星球道具碰撞重建与放置等待另列。[依据、反例和收工条件](./performance/avoidable-work.md)。
+
 **记录开关：建议暂缓。** 普通记录能留下偶发卡顿，详细 GPU 计时已默认关闭；若需要在 Quest 做“完全不记录”的对照，再评估一个独立于 FPS 显示的采样选项。[开销与重议条件](./performance/viewing-and-diagnostics.md#要不要加记录开关)
 
 WebGPU 大骨架容量是另一个兼容性问题，见上述里程碑的后备项。玩法候选仍是[按住吐舌、松开恢复](./gameplay/next-actor-tools.md#候选主动表情)或长椅落座；均未开工。旧片场封存等玩家点名。
